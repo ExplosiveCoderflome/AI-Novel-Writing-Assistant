@@ -94,7 +94,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">AI 修正导演面板</div>
+            <div className="text-sm font-medium text-foreground">AI 修改与续写</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
           再生成
         </Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying || selectedDiffCount === 0 || !hasSelectedChanges}>
-          {isApplying ? "应用中..." : selectedDiffCount === diffChanges.length ? "接受全部" : "接受已选"}
+          {isApplying ? "保存中..." : session.mode === "continuation" ? (selectedDiffCount === diffChanges.length ? "插入正文" : "插入已选") : selectedDiffCount === diffChanges.length ? "接受全部" : "接受已选"}
         </Button>
       </div>
     </div>

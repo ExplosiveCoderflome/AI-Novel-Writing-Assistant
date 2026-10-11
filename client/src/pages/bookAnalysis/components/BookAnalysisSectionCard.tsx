@@ -23,6 +23,7 @@ interface BookAnalysisSectionCardProps {
   isRegenerating: boolean;
   isOptimizing: boolean;
   isSaving: boolean;
+  hasResultAnomaly: boolean;
   evidenceItems: SectionEvidenceItem[];
   selectedEvidenceKey: string;
   selectedEvidence: SectionEvidenceItem | null;
@@ -57,6 +58,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
     isRegenerating,
     isOptimizing,
     isSaving,
+    hasResultAnomaly,
     evidenceItems,
     selectedEvidenceKey,
     selectedEvidence,
@@ -99,7 +101,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
             <CardTitle>{section.title}</CardTitle>
             <Badge variant="secondary" className="border-0 bg-muted/65 font-normal">
               <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${section.status === "succeeded" ? "bg-success" : "bg-muted-foreground/50"}`} />
-              {unselectedSection ? "本次未选择" : formatStatus(section.status)}
+              {unselectedSection ? "本次未选择" : hasResultAnomaly ? "结果异常" : formatStatus(section.status)}
             </Badge>
             {draft.frozen && !unselectedSection ? <Badge variant="secondary" className="border-0 font-normal">已冻结</Badge> : null}
           </div>

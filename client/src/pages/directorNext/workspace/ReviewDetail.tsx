@@ -2,6 +2,7 @@ import {parseChapterScenePlan} from "@ai-novel/shared/types/chapterLengthControl
 import type {SavedReview} from "./review";
 import type {WorkspaceBook} from "./model";
 import {ReadingDisplaySettings, readingTextStyle, type ReadingDisplayPreferences} from "./reading";
+import {Button} from "@/components/ui/button";
 
 function Field({label,value}:{label:string;value?:string|number|null}) {
   return value ? <section className="py-3"><h3 className="mb-2 text-sm font-medium text-muted-foreground">{label}</h3><p className="whitespace-pre-wrap leading-8">{value}</p></section> : null;
@@ -16,7 +17,7 @@ function Scenes({value,targetWordCount}:{value?:string|null;targetWordCount?:num
   </section>)}</section>;
 }
 
-export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange}:{book:WorkspaceBook;review:SavedReview;readingDisplay:ReadingDisplayPreferences;onReadingDisplayChange:(next:ReadingDisplayPreferences)=>void}) {
+export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,onEditChapter}:{book:WorkspaceBook;review:SavedReview;readingDisplay:ReadingDisplayPreferences;onReadingDisplayChange:(next:ReadingDisplayPreferences)=>void;onEditChapter?:(chapterId:string)=>void}) {
   const chapter=review.plan ?? review.execution;
   return <article className="mx-auto max-w-[42rem] px-2 pb-8 sm:px-6" aria-label="本阶段创作结果">
     <p className="mb-3 text-xs text-muted-foreground">查看本阶段结果</p>
@@ -34,7 +35,7 @@ export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange}
         <Field label="读者收获的推进" value={book.planning?.strategyPlan?.readerRewardLadder}/><Field label="冲突推进" value={book.planning?.strategyPlan?.escalationLadder}/><Field label="中段变化" value={book.planning?.strategyPlan?.midpointShift}/><Field label="规划说明" value={book.planning?.strategyPlan?.notes}/>
         {book.planning?.volumes.map(volume=><section key={volume.id} className="border-t border-border/40 py-4"><h3 className="text-lg font-medium">{volume.title}</h3><Field label="本卷故事" value={volume.summary}/><Field label="开篇抓手" value={volume.openingHook}/><Field label="读者期待" value={volume.mainPromise}/><Field label="主要压力" value={volume.primaryPressureSource}/><Field label="本卷看点" value={volume.coreSellingPoint}/><Field label="推进方式" value={volume.escalationMode}/><Field label="主角变化" value={volume.protagonistChange}/><Field label="中段风险" value={volume.midVolumeRisk}/><Field label="本卷高潮" value={volume.climax}/><Field label="本卷兑现" value={volume.payoffType}/><Field label="下卷引线" value={volume.nextVolumeHook}/><Field label="重新出发" value={volume.resetPoint}/><Field label="待兑现内容" value={volume.openPayoffs?.join("\n")}/></section>)}
       </> : null}
-      {review.chapters?.map(row=><section key={row.id} className="border-t border-border/40 py-5"><h3 className="mb-4 text-lg font-medium">第 {row.order} 章 · {row.title}</h3><p className="whitespace-pre-wrap break-words leading-[2.15] tracking-wide text-foreground/90" style={readingTextStyle(readingDisplay)}>{row.content}</p></section>)}
+      {review.chapters?.map(row=><section key={row.id} className="border-t border-border/40 py-5"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-medium">第 {row.order} 章 · {row.title}</h3>{onEditChapter ? <Button size="sm" variant="outline" onClick={()=>onEditChapter(row.id)}>编辑正文</Button> : null}</div><p className="whitespace-pre-wrap break-words leading-[2.15] tracking-wide text-foreground/90" style={readingTextStyle(readingDisplay)}>{row.content}</p></section>)}
     </>}
   </article>;
 }

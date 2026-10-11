@@ -3,6 +3,14 @@ import type {PipelineDirectorSnapshot} from "../directorBridge";
 /** Per-chapter safety ceiling, independent of the retired director control loop. */
 export const DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
 
+/**
+ * Leave room for the next prompt and its structured side effects before an
+ * internal chapter step starts. The job counter is observed after an LLM call
+ * finishes, so a preflight margin prevents one large call from jumping far
+ * past the chapter ceiling.
+ */
+export const DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS = 16_000;
+
 function validCount(total: number) {
   if(!Number.isSafeInteger(total) || total < 0) throw new Error("章节用量计数无效，不能继续生成。");
 }

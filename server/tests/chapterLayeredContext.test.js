@@ -13,6 +13,25 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test("writer, acceptance and repair inherit book perspective without modifying the reference asset", () => {
+  const pkg = createContextPackage();
+  pkg.styleContext = createStyleContext();
+  pkg.bookContract.narrativePov = "third_person";
+  const contract = pkg.styleContext.compiledBlocks.contract;
+  contract.narrative.text = "全程采用第一人称限知视角。";
+  const original = JSON.stringify(contract);
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const review = buildChapterReviewContext(write, pkg);
+  const repair = buildChapterRepairContext({ writeContext: write, contextPackage: pkg, issues: [] });
+  for (const blocks of [buildChapterWriterContextBlocks(write), buildChapterReviewContextBlocks(review), buildChapterRepairContextBlocks(repair)]) {
+    const style = blocks.find(block => block.group === "style_contract");
+    assert.match(style.content, /叙事视角采用第三人称/);
+    assert.match(style.content, /本书设置.*优先于参考写法/);
+    assert.match(style.content, /第三人称限知不能称为第一人称/);
+  }
+  assert.equal(JSON.stringify(contract), original);
+});
+
 test("acceptance keeps the complete effective style contract when required facts exhaust the budget", () => {
   const pkg = createContextPackage();
   pkg.styleContext = createStyleContext();

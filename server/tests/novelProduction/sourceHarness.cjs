@@ -26,6 +26,7 @@ function createPipelineHarness({
   scores = [90],
   repairError,
   repairContent = "repair candidate",
+  repairMetadata = {},
   acceptanceMeta = {},
   acceptanceAssessment,
   recheckAssessment,
@@ -39,6 +40,7 @@ function createPipelineHarness({
   const committedContents = [];
   const syncedContents = [];
   const reviewBaselines = [];
+  const styleBaselines = [];
   let persisted = content;
   let reviewIndex = 0;
   let budget = 0;
@@ -54,7 +56,7 @@ function createPipelineHarness({
       runChapterRepairText: async () => {
         events.push("repair");
         if (repairError) throw repairError;
-        return { content: repairContent };
+        return { content: repairContent, ...repairMetadata };
       },
     },
     "../chapterPatchRepairService": { ChapterPatchRepairFailedError: class extends Error {} },
@@ -83,8 +85,9 @@ function createPipelineHarness({
       events.push("save");
       if (stopAt === "after_save") throw new Error("after_save");
     },
-    finalizeChapterContent: async ({ content: value, repairReviewBaseline }) => {
+    finalizeChapterContent: async ({ content: value, repairReviewBaseline, styleRewriteBaseline }) => {
       reviewBaselines.push(repairReviewBaseline);
+      styleBaselines.push(styleRewriteBaseline);
       events.push("acceptance");
       if (stopAt === "recheck" && reviewIndex > 0) throw new Error("recheck");
       const score = scores[Math.min(reviewIndex++, scores.length - 1)];
@@ -94,6 +97,7 @@ function createPipelineHarness({
           novelId: "n", chapterId: "c",
           audit: { score: { coherence: score, repetition: score, engagement: score, overall: score }, openIssues: [], reports: [], hasBlockingIssues: auditHasBlockingIssues },
           context: {}, meta: { acceptanceStatus: score >= 80 ? "accepted" : "repairable", ...acceptanceMeta },
+          styleReview: { report: null, autoRewritten: false, originalContent: null },
           ...(timelineStatus ? { timelineCheck: { status: timelineStatus } } : {}),
         },
         needsRepair: score < 80,
@@ -127,6 +131,7 @@ function createPipelineHarness({
   return {
     events,
     reviewBaselines,
+    styleBaselines,
     get content() { return persisted; },
     get budget() { return budget; },
     get approved() { return approved; },

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   DirectorIdeaConstellationOption,
   DirectorIdeaConstellationSelection,
@@ -18,6 +18,7 @@ import StoryConstellationDialog from "./ideaConstellation/StoryConstellationDial
 import type { FoundationConstellationOption } from "./ideaConstellation/ideaConstellationState";
 
 interface StageIdeaProps {
+  referenceContext?: ReactNode;
   idea: string;
   onIdeaChange: (value: string) => void;
   ideaInspirations: DirectorIdeaInspiration[];
@@ -79,6 +80,7 @@ function buildFoundationCloudOptions(
 }
 
 export default function StageIdea({
+  referenceContext,
   idea,
   onIdeaChange,
   ideaInspirations,
@@ -217,6 +219,8 @@ export default function StageIdea({
           next="AI 生成两套差异明确的整书方向。"
         />
       </div>
+
+      {referenceContext ? <div className="mt-6 w-full text-left">{referenceContext}</div> : null}
 
       <motion.div
         initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}

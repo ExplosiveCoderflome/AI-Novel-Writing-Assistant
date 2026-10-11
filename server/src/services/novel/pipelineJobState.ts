@@ -1,4 +1,5 @@
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
+import { styleSignalPolicySchema } from "@ai-novel/shared/types/styleEngine";
 import type {
   PipelineBackgroundSyncActivity,
   PipelineBackgroundSyncKind,
@@ -253,6 +254,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
       controlPolicy: normalizeControlPolicy(parsed.controlPolicy),
       issueGovernanceVersion: parsed.issueGovernanceVersion === 1 ? 1 : undefined,
       issuePolicySnapshot: normalizeIssuePolicy(parsed.issuePolicySnapshot),
+      styleSignalPolicy: styleSignalPolicySchema.safeParse(parsed.styleSignalPolicy).data,
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
       replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
       recoverableRepairDetails: normalizeStringList(parsed.recoverableRepairDetails),
@@ -271,6 +273,7 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
   const backgroundSync = normalizePipelineBackgroundSync(input.backgroundSync);
   return JSON.stringify({
     ...(input.directorNext ? {directorNext: parsePipelineDirectorSnapshot(input.directorNext)} : {}),
+    ...(input.styleSignalPolicy ? { styleSignalPolicy: styleSignalPolicySchema.parse(input.styleSignalPolicy) } : {}),
     provider: input.provider ?? "deepseek",
     model: input.model ?? "",
     temperature: input.temperature ?? 0.8,

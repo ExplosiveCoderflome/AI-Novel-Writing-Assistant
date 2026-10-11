@@ -101,7 +101,8 @@ function shouldSyncSlimVolumeResponseToChapterExecution(body: unknown): boolean 
     return false;
   }
   const scope = (body as { scope?: unknown }).scope;
-  return scope === "chapter_detail";
+  // 客户端随后会重读工作区；先同步执行章节，避免读取时由旧章节标题覆盖生成结果。
+  return scope === "chapter_detail" || scope === "chapter_list" || scope === "volume";
 }
 
 export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput): void {

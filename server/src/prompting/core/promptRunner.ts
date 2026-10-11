@@ -139,6 +139,10 @@ function resolveStructuredFallbackRepairAttempts(asset: PromptAsset<unknown, unk
   return Math.max(0, asset.fallbackRepairPolicy?.maxAttempts ?? resolveStructuredRepairAttempts(asset));
 }
 
+function resolveStructuredRepairGuidance(asset: PromptAsset<unknown, unknown, unknown>): string | undefined {
+  return asset.repairPolicy?.guidance?.trim() || undefined;
+}
+
 function resolveStructuredSemanticRetryAttempts(asset: PromptAsset<unknown, unknown, unknown>): number {
   return Math.max(0, asset.semanticRetryPolicy?.maxAttempts ?? 0);
 }
@@ -676,6 +680,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         schema: input.outputSchema,
         maxRepairAttempts: resolveStructuredRepairAttempts(asset),
         fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(asset),
+        repairGuidance: resolveStructuredRepairGuidance(asset),
         promptMeta: buildPromptInvocationMeta(
           asset,
           input.context,
@@ -776,6 +781,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       schema: outputSchema,
       maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
       fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+      repairGuidance: resolveStructuredRepairGuidance(input.asset as PromptAsset<unknown, unknown, unknown>),
       promptMeta: prepared.invocation,
     });
     logMemoryUsage({
@@ -1187,6 +1193,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           taskType: input.asset.taskType,
           label: `${input.asset.id}@${input.asset.version}`,
           maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+          repairGuidance: resolveStructuredRepairGuidance(input.asset as PromptAsset<unknown, unknown, unknown>),
           promptMeta: prepared.invocation,
           onRepairOutputDelta: (content) => {
             if (!repairStarted) {
@@ -1211,6 +1218,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           schema: outputSchema,
           structuredStrategy: "prompt_json",
           maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
+          repairGuidance: resolveStructuredRepairGuidance(input.asset as PromptAsset<unknown, unknown, unknown>),
           fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
           promptMeta: prepared.invocation,
         });

@@ -545,6 +545,11 @@ export interface CompiledStylePromptBlocks {
   appliedRuleIds: string[];
 }
 
+export { styleRiskLayerSchema, styleRewriteGuardSchema, isStyleIssueRewritable } from "./styleEngine/diagnostics.js";
+export type { StyleRiskLayer, StyleRewriteGuard, StyleRewriteBaseline } from "./styleEngine/diagnostics.js";
+export { styleSignalPolicySchema, styleSignalScanSchema, createStyleSignalPolicy } from "./styleEngine/signals.js";
+export type { StyleSignalPolicy, StyleSignalFinding, StyleSignalScan } from "./styleEngine/signals.js";
+
 export interface StyleDetectionViolation {
   ruleId: string;
   ruleName: string;
@@ -552,6 +557,9 @@ export interface StyleDetectionViolation {
   severity: AntiAiSeverity;
   source: StyleContractViolationSource;
   issueCategory: StyleContractIssueCategory;
+  /** Historical reports may omit these fields; omission grants no rewrite permission. */
+  layer?: import("./styleEngine/diagnostics").StyleRiskLayer;
+  issueCode?: string;
   excerpt: string;
   reason: string;
   suggestion: string;
@@ -564,6 +572,7 @@ export interface StyleDetectionReport {
   violations: StyleDetectionViolation[];
   canAutoRewrite: boolean;
   appliedRuleIds: string[];
+  signalScan?: import("./styleEngine/signals.js").StyleSignalScan;
 }
 
 export interface StyleGenerationLlmConfig {

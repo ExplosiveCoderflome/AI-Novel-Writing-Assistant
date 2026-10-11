@@ -1,5 +1,6 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { AppError } from "../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   bookAnalysisOptimizedDraftPrompt,
@@ -10,7 +11,6 @@ import { SECTION_PROMPTS } from "../shared/bookAnalysis.constants";
 import type { BookAnalysisOverviewContext, SectionGenerationResult, SourceNote } from "../shared/bookAnalysis.types";
 import {
   getSectionTitle,
-  normalizeBookAnalysisStructuredData,
   normalizeBookAnalysisEvidence,
   normalizeBookAnalysisStructuredDataWithWarnings,
   normalizeMaxTokens,
@@ -40,56 +40,45 @@ export class BookAnalysisSectionWriter {
     const overviewContextText = sectionKey === "overview" || !options.overviewContext
       ? ""
       : renderOverviewContextForPrompt(options.overviewContext);
-    try {
-      const result = await runStructuredPrompt({
-        asset: bookAnalysisSectionPrompt,
-        promptInput: {
-          sectionKey,
-          sectionTitle: getSectionTitle(sectionKey),
-          promptFocus: prompt,
-          overviewContextText,
-          userFocusInstructionText: normalizeInstructionForPrompt(options.userFocusInstruction),
-          sectionFocusInstructionText: normalizeInstructionForPrompt(options.sectionFocusInstruction),
-          notesText,
-        },
-        options: {
-          provider,
-          model,
-          temperature: normalizeTemperature(temperature),
-          maxTokens: normalizeMaxTokens(maxTokens),
-        },
-      });
-      const parsed = result.output;
-
-      const markdown =
-        typeof (parsed as any).markdown === "string" && (parsed as any).markdown.trim()
-          ? (parsed as any).markdown.trim()
-          : JSON.stringify(parsed);
-      const normalizedStructuredData =
-        (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
-          ? normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
-          : normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, null);
-      const evidence = normalizeBookAnalysisEvidence(
+    const result = await runStructuredPrompt({
+      asset: bookAnalysisSectionPrompt,
+      promptInput: {
         sectionKey,
-        (parsed as any).evidence,
-        normalizedStructuredData.structuredData,
-      );
-      return {
-        markdown,
-        structuredData: normalizedStructuredData.structuredData,
-        normalizationWarnings: normalizedStructuredData.normalizationWarnings,
-        evidence,
-        tokenUsage: buildSectionTokenUsage(result.meta.tokenUsage, result.context.estimatedInputTokens, markdown),
-      };
-    } catch {
-      return {
-        markdown: "",
-        structuredData: normalizeBookAnalysisStructuredData(sectionKey, null),
-        normalizationWarnings: [],
-        evidence: [],
-        tokenUsage: null,
-      };
+        sectionTitle: getSectionTitle(sectionKey),
+        promptFocus: prompt,
+        overviewContextText,
+        userFocusInstructionText: normalizeInstructionForPrompt(options.userFocusInstruction),
+        sectionFocusInstructionText: normalizeInstructionForPrompt(options.sectionFocusInstruction),
+        notesText,
+      },
+      options: {
+        provider,
+        model,
+        temperature: normalizeTemperature(temperature),
+        maxTokens: normalizeMaxTokens(maxTokens),
+      },
+    });
+    const parsed = result.output;
+    const markdown = typeof (parsed as any).markdown === "string" ? (parsed as any).markdown.trim() : "";
+    if (!markdown) {
+      throw new AppError("AI 未返回可展示的拆书正文，请检查模型配置后重试。", 502);
     }
+    const normalizedStructuredData =
+      (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
+        ? normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
+        : normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, null);
+    const evidence = normalizeBookAnalysisEvidence(
+      sectionKey,
+      (parsed as any).evidence,
+      normalizedStructuredData.structuredData,
+    );
+    return {
+      markdown,
+      structuredData: normalizedStructuredData.structuredData,
+      normalizationWarnings: normalizedStructuredData.normalizationWarnings,
+      evidence,
+      tokenUsage: buildSectionTokenUsage(result.meta.tokenUsage, result.context.estimatedInputTokens, markdown),
+    };
   }
 
   async generateOptimizedDraft(input: {
@@ -106,33 +95,30 @@ export class BookAnalysisSectionWriter {
       selectNotesForBookAnalysisSection(input.sectionKey, input.notes),
       input.sectionKey,
     );
-    try {
-      const result = await runStructuredPrompt({
-        asset: bookAnalysisOptimizedDraftPrompt,
-        promptInput: {
-          sectionKey: input.sectionKey,
-          sectionTitle: getSectionTitle(input.sectionKey),
-          instruction: input.instruction,
-          currentDraft: input.currentDraft,
-          notesText,
-        },
-        options: {
-          provider: input.provider,
-          model: input.model,
-          temperature: normalizeTemperature(input.temperature),
-          maxTokens: normalizeMaxTokens(input.maxTokens),
-        },
-      });
-      const parsed = result.output;
-
-      if (typeof (parsed as any).optimizedDraft === "string" && (parsed as any).optimizedDraft.trim()) {
-        return (parsed as any).optimizedDraft.trim();
-      }
-
-      return JSON.stringify(parsed);
-    } catch {
-      return "";
+    const result = await runStructuredPrompt({
+      asset: bookAnalysisOptimizedDraftPrompt,
+      promptInput: {
+        sectionKey: input.sectionKey,
+        sectionTitle: getSectionTitle(input.sectionKey),
+        instruction: input.instruction,
+        currentDraft: input.currentDraft,
+        notesText,
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature: normalizeTemperature(input.temperature),
+        maxTokens: normalizeMaxTokens(input.maxTokens),
+      },
+    });
+    const parsed = result.output;
+    const optimizedDraft = typeof (parsed as any).optimizedDraft === "string"
+      ? (parsed as any).optimizedDraft.trim()
+      : "";
+    if (!optimizedDraft) {
+      throw new AppError("AI 未返回可用的优化草稿，请检查模型配置后重试。", 502);
     }
+    return optimizedDraft;
   }
 }
 

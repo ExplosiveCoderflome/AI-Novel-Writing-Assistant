@@ -191,6 +191,7 @@ export interface TitleGenerateOptions extends LLMGenerateOptions {
 }
 
 export interface PipelineRunOptions extends LLMGenerateOptions {
+  styleSignalPolicy?: import("@ai-novel/shared/types/styleEngine").StyleSignalPolicy;
   directorNext?: PipelineDirectorSnapshot;
   startOrder: number;
   endOrder: number;
@@ -229,6 +230,7 @@ export interface PipelineBackgroundSyncState {
 }
 
 export interface PipelinePayload extends LLMGenerateOptions {
+  styleSignalPolicy?: import("@ai-novel/shared/types/styleEngine").StyleSignalPolicy;
   directorNext?: PipelineDirectorSnapshot;
   controlPolicy?: NovelControlPolicy;
   issueGovernanceVersion?: 1;

@@ -165,6 +165,8 @@ export interface PromptStreamRunResult<T> {
 
 export interface PromptRepairPolicy {
   maxAttempts: number;
+  /** Asset-owned instructions supplied only to the structural JSON repair pass. */
+  guidance?: string;
 }
 
 export interface PromptSemanticRetryBuildInput<I, R> {

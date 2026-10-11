@@ -40,7 +40,9 @@ export default function CursorAIFloatingToolbar(props: CursorAIFloatingToolbarPr
     <div
       className="absolute z-20 w-[360px] rounded-2xl border border-border/70 bg-background/95 p-2 shadow-xl backdrop-blur"
       style={{ top: position.top, left: position.left }}
-      onMouseDown={(event) => event.preventDefault()}
+      onMouseDown={(event) => {
+        if ((event.target as HTMLElement).closest("button")) event.preventDefault();
+      }}
     >
       <div className="mb-1 text-xs text-muted-foreground">在光标处让 AI 接着写</div>
       <div className="flex flex-wrap gap-2">

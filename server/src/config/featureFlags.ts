@@ -9,6 +9,4 @@ function isEnabled(rawValue: string | undefined, defaultValue: boolean): boolean
 export const featureFlags = {
   worldWizardEnabled: isEnabled(process.env.WORLD_WIZARD_ENABLED, true),
   worldVisEnabled: isEnabled(process.env.WORLD_VIS_ENABLED, true),
-  worldGraphEnabled: isEnabled(process.env.WORLD_GRAPH_ENABLED, false),
 };
-

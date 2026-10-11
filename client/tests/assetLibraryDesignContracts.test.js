@@ -202,7 +202,7 @@ test("story mode library reuses the tree navigator and keeps mode contracts in t
 
 test("writing formula keeps a compact asset list and reveals the selected profile in place", () => {
   assert.match(writingFormulaLanding, /先选一套写法，再决定要编辑、应用还是去 AI 味/);
-  assert.match(writingFormulaLanding, /isSelected \? \(/);
+  assert.match(writingFormulaLanding, /showDetails \? \(/);
   assert.match(writingFormulaLanding, /读感与定位/);
   assert.match(writingFormulaLanding, /规则摘要/);
   assert.match(writingFormulaLanding, /资产概览/);

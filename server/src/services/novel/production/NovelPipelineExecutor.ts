@@ -26,7 +26,13 @@ import { recoverSavedChapterQuality, SavedChapterQualityRecoveryError } from "./
 import {assertDirectorPipelineOwner} from "../../../modules/novel/director-routing";
 import { ChapterAutomaticAttemptService } from "./attempts";
 import { isCurrentChapterProductionCompleted, isCurrentV2ChapterProductionCompleted } from "./completion";
-import { beginChapterUsage, observeChapterUsage, finalizeChapterUsage } from "./usage";
+import {
+  beginChapterUsage,
+  DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS,
+  DIRECTOR_CHAPTER_TOKEN_LIMIT,
+  observeChapterUsage,
+  finalizeChapterUsage,
+} from "./usage";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -252,6 +258,8 @@ export class NovelPipelineExecutor {
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
       directorNext: persistedPayload.directorNext ?? options.directorNext,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
+      // Missing historical snapshots stay missing; never read new defaults on resume.
+      styleSignalPolicy: persistedPayload.styleSignalPolicy,
       maxRetries: clampPipelineMaxRetries(persistedPayload.maxRetries ?? options.maxRetries),
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
       autoReview: persistedPayload.autoReview ?? options.autoReview ?? true,
@@ -522,7 +530,7 @@ export class NovelPipelineExecutor {
             }
           }
 
-          const checkChapterBudget = async (closed = false) => {
+          const checkChapterBudget = async (closed = false, reserveTokens = 0) => {
             if (!runtimePayload.directorNext) return;
             const usage = await prisma.generationJob.findUniqueOrThrow({
               where: { id: jobId }, select: { totalTokens: true },
@@ -551,8 +559,14 @@ export class NovelPipelineExecutor {
                   "runtime.persistence_failed", "chapter_usage", chapter.id, chapter.order);
               }
             }
-            if (observed.exceeded) {
-              throw new PipelineIssueFailure(`第${chapter.order}章累计 AI 用量达到 ${observed.totalTokens} Tokens，${closed ? "正文已保存，" : ""}请检查后再继续。`,
+            const normalizedReserve = Math.max(0, Math.floor(reserveTokens));
+            const preflightExceeded = normalizedReserve > 0
+              && observed.totalTokens + normalizedReserve >= DIRECTOR_CHAPTER_TOKEN_LIMIT;
+            if (observed.exceeded || preflightExceeded) {
+              const message = observed.exceeded
+                ? `第${chapter.order}章累计 AI 用量达到 ${observed.totalTokens} Tokens，${closed ? "正文已保存，" : ""}请检查后再继续。`
+                : `第${chapter.order}章当前已用 ${observed.totalTokens} Tokens，下一步预留 ${normalizedReserve} Tokens 后将接近本章上限，${closed ? "正文已保存，" : ""}请检查后再继续。`;
+              throw new PipelineIssueFailure(message,
                 "runtime.token_budget_exceeded", "chapter_usage", chapter.id, chapter.order);
             }
           };
@@ -634,6 +648,7 @@ export class NovelPipelineExecutor {
                     temperature: runtimePayload.temperature,
                     workflowTaskId: runtimePayload.workflowTaskId,
                     taskStyleProfileId: runtimePayload.taskStyleProfileId,
+                    styleSignalPolicy: runtimePayload.styleSignalPolicy,
                     controlPolicy: runtimePayload.controlPolicy,
                     maxRetries: Math.max(0, chapterRetryBudget - chapterRetryCountUsed),
                     autoReview: runtimePayload.autoReview,
@@ -645,6 +660,7 @@ export class NovelPipelineExecutor {
                   },
                   {
                   onCheckCancelled: checkCancelled,
+                  onCheckBudget: (reserveTokens = DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS) => checkChapterBudget(false, reserveTokens),
                   onStageChange: async (stage) => {
                     await applyChapterStage(stage);
                   },

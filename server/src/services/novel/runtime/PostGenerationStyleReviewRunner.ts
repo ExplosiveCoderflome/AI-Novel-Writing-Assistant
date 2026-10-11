@@ -8,6 +8,7 @@ import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { PostGenerationStyleReviewPolicyResolver } from "./PostGenerationStyleReviewPolicyResolver";
 
 export interface StyleReviewResult {
+  signalScan?: import("@ai-novel/shared/types/styleEngine").StyleSignalScan;
   report: RuntimeStyleDetectionReport | null;
   autoRewritten: boolean;
   originalContent: string | null;

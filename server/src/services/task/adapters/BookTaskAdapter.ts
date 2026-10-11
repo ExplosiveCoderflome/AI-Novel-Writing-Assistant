@@ -6,7 +6,11 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { bookAnalysisService } from "../../bookAnalysis/BookAnalysisService";
-import { resolveLiveBookAnalysisStatus } from "../../bookAnalysis/shared/bookAnalysis.status";
+import {
+  EMPTY_BOOK_ANALYSIS_RESULT_ERROR,
+  reconcileBookAnalysisResultStatus,
+  resolveLiveBookAnalysisStatus,
+} from "../../bookAnalysis/shared/bookAnalysis.status";
 import {
   buildTaskRecoveryHint,
   isArchivableTaskStatus,
@@ -35,87 +39,119 @@ export class BookTaskAdapter {
       return [];
     }
     const status = toLegacyTaskStatus(input.status);
+    const persistedStatusFilter = status === "failed"
+      ? { in: ["failed" as const, "succeeded" as const] }
+      : status;
     const archivedIds = await getArchivedTaskIds("book_analysis");
-    const rows = await prisma.bookAnalysis.findMany({
-      where: {
-        status: status ? status : { in: ["queued", "running", "succeeded", "failed", "cancelled"] },
-        ...(archivedIds.length
-          ? {
-            id: {
-              notIn: archivedIds,
+    const summaries: UnifiedTaskSummary[] = [];
+    const batchSize = Math.max(1, input.take);
+    let cursorId: string | undefined;
+
+    while (summaries.length < input.take) {
+      const rows = await prisma.bookAnalysis.findMany({
+        where: {
+          status: persistedStatusFilter || { in: ["queued", "running", "succeeded", "failed", "cancelled"] },
+          ...(archivedIds.length
+            ? {
+              id: {
+                notIn: archivedIds,
+              },
+            }
+            : {}),
+          ...(input.keyword
+            ? {
+              OR: [
+                { title: { contains: input.keyword } },
+                { document: { title: { contains: input.keyword } } },
+              ],
+            }
+            : {}),
+        },
+        include: {
+          document: {
+            select: {
+              id: true,
+              title: true,
             },
-          }
-          : {}),
-        ...(input.keyword
-          ? {
-            OR: [
-              { title: { contains: input.keyword } },
-              { document: { title: { contains: input.keyword } } },
-            ],
-          }
-          : {}),
-      },
-      include: {
-        document: {
-          select: {
-            id: true,
-            title: true,
+          },
+          sections: {
+            select: {
+              status: true,
+              frozen: true,
+              aiContent: true,
+              editedContent: true,
+              structuredDataJson: true,
+            },
           },
         },
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: input.take,
-    });
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: batchSize,
+        ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+      });
 
-    const summaries: UnifiedTaskSummary[] = [];
-    for (const row of rows) {
-      const normalizedStatus = resolveLiveBookAnalysisStatus({
-        status: row.status,
-        currentStage: row.currentStage,
-        heartbeatAt: row.heartbeatAt,
-      });
-      const mappedStatus = mapBookStatusToTaskStatus(normalizedStatus);
-      if (!mappedStatus) {
-        continue;
-      }
-      const structuredFailure = resolveStructuredFailureSummary(row.lastError);
-      summaries.push({
-        id: row.id,
-        kind: "book_analysis",
-        title: row.title,
-        status: mappedStatus,
-        progress: row.progress,
-        currentStage: row.currentStage,
-        currentItemLabel: row.currentItemLabel,
-        attemptCount: row.attemptCount,
-        maxAttempts: row.maxAttempts,
-        lastError: row.lastError,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-        heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-        ownerId: row.documentId,
-        ownerLabel: row.document.title,
-        sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
-        failureCode: normalizedStatus === "failed"
-          ? (structuredFailure.failureCode ?? "BOOK_ANALYSIS_FAILED")
-          : null,
-        failureSummary: normalizedStatus === "failed"
-          ? (structuredFailure.failureSummary ?? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。"))
-          : row.lastError,
-        recoveryHint: buildTaskRecoveryHint("book_analysis", mappedStatus),
-        sourceResource: {
-          type: "knowledge_document",
-          id: row.documentId,
-          label: row.document.title,
-          route: `/knowledge?id=${row.documentId}`,
-        },
-        targetResources: [{
-          type: "book_analysis",
+      for (const row of rows) {
+        const liveStatus = resolveLiveBookAnalysisStatus({
+          status: row.status,
+          currentStage: row.currentStage,
+          heartbeatAt: row.heartbeatAt,
+        });
+        const normalizedStatus = reconcileBookAnalysisResultStatus(liveStatus, row.sections);
+        const mappedStatus = mapBookStatusToTaskStatus(normalizedStatus);
+        if (!mappedStatus || (input.status && mappedStatus !== input.status)) {
+          continue;
+        }
+        const lastError = row.lastError
+          ?? (normalizedStatus !== liveStatus ? EMPTY_BOOK_ANALYSIS_RESULT_ERROR : null);
+        const structuredFailure = resolveStructuredFailureSummary(lastError);
+        summaries.push({
           id: row.id,
-          label: row.title,
-          route: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
-        }],
-      });
+          kind: "book_analysis",
+          title: row.title,
+          status: mappedStatus,
+          progress: row.progress,
+          currentStage: row.currentStage,
+          currentItemLabel: row.currentItemLabel,
+          attemptCount: row.attemptCount,
+          maxAttempts: row.maxAttempts,
+          lastError,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
+          ownerId: row.documentId,
+          ownerLabel: row.document.title,
+          sourceRoute: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+          failureCode: normalizedStatus === "failed"
+            ? (structuredFailure.failureCode ?? "BOOK_ANALYSIS_FAILED")
+            : null,
+          failureSummary: normalizedStatus === "failed"
+            ? (structuredFailure.failureSummary ?? normalizeFailureSummary(lastError, "拆书任务失败，但没有记录明确错误。"))
+            : lastError,
+          recoveryHint: buildTaskRecoveryHint("book_analysis", mappedStatus),
+          sourceResource: {
+            type: "knowledge_document",
+            id: row.documentId,
+            label: row.document.title,
+            route: `/knowledge?id=${row.documentId}`,
+          },
+          targetResources: [{
+            type: "book_analysis",
+            id: row.id,
+            label: row.title,
+            route: `/book-analysis?analysisId=${row.id}&documentId=${row.documentId}`,
+          }],
+        });
+        if (summaries.length >= input.take) {
+          break;
+        }
+      }
+
+      if (rows.length < batchSize || !input.status) {
+        break;
+      }
+      cursorId = rows[rows.length - 1]?.id;
+      if (!cursorId) {
+        break;
+      }
     }
     return summaries;
   }
@@ -134,21 +170,33 @@ export class BookTaskAdapter {
             title: true,
           },
         },
+        sections: {
+          select: {
+            status: true,
+            frozen: true,
+            aiContent: true,
+            editedContent: true,
+            structuredDataJson: true,
+          },
+        },
       },
     });
     if (!row) {
       return null;
     }
-    const normalizedStatus = resolveLiveBookAnalysisStatus({
+    const liveStatus = resolveLiveBookAnalysisStatus({
       status: row.status,
       currentStage: row.currentStage,
       heartbeatAt: row.heartbeatAt,
     });
+    const normalizedStatus = reconcileBookAnalysisResultStatus(liveStatus, row.sections);
     const status = mapBookStatusToTaskStatus(normalizedStatus);
     if (!status) {
       return null;
     }
-    const structuredFailure = resolveStructuredFailureSummary(row.lastError);
+    const lastError = row.lastError
+      ?? (normalizedStatus !== liveStatus ? EMPTY_BOOK_ANALYSIS_RESULT_ERROR : null);
+    const structuredFailure = resolveStructuredFailureSummary(lastError);
     const summary: UnifiedTaskSummary = {
       id: row.id,
       kind: "book_analysis",
@@ -159,7 +207,7 @@ export class BookTaskAdapter {
       currentItemLabel: row.currentItemLabel,
       attemptCount: row.attemptCount,
       maxAttempts: row.maxAttempts,
-      lastError: row.lastError,
+      lastError,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
@@ -170,8 +218,8 @@ export class BookTaskAdapter {
         ? (structuredFailure.failureCode ?? "BOOK_ANALYSIS_FAILED")
         : null,
       failureSummary: normalizedStatus === "failed"
-        ? (structuredFailure.failureSummary ?? normalizeFailureSummary(row.lastError, "拆书任务失败，但没有记录明确错误。"))
-        : row.lastError,
+        ? (structuredFailure.failureSummary ?? normalizeFailureSummary(lastError, "拆书任务失败，但没有记录明确错误。"))
+        : lastError,
       recoveryHint: buildTaskRecoveryHint("book_analysis", status),
       sourceResource: {
         type: "knowledge_document",
@@ -205,7 +253,7 @@ export class BookTaskAdapter {
         summary.createdAt,
         summary.updatedAt,
       ),
-      failureDetails: row.lastError,
+      failureDetails: lastError,
     };
   }
 

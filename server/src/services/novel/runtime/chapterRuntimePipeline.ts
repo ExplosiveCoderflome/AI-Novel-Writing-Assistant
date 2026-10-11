@@ -2,6 +2,7 @@ import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/
 import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { StyleRewriteBaseline, StyleRewriteGuard } from "@ai-novel/shared/types/styleEngine";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { ChapterAcceptanceAssessmentResult } from "./ChapterAcceptanceAssessmentService";
 import {
@@ -23,10 +24,16 @@ import {
   type ChapterRepairSelectionRecord,
 } from "./selection/ChapterRepairCandidateSelection";
 
+// Keep a small headroom before each internal AI call so the outer usage counter
+// can stop the pipeline before a large next response crosses the chapter limit.
+const DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS = 16_000;
+
 export type { ChapterRepairSelectionRecord } from "./selection/ChapterRepairCandidateSelection";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
+  /** Check the chapter budget before an internal AI step starts. */
+  onCheckBudget?: (reserveTokens?: number) => Promise<void>;
   onStageChange?: (stage: "generating_chapters" | "reviewing" | "repairing") => Promise<void>;
   onEmptyContent?: (event: PipelineEmptyContentEvent) => Promise<void>;
   onRetryConsumed?: (kind: "quality_repair") => Promise<void | boolean>;
@@ -156,6 +163,7 @@ interface RunPipelineChapterDeps {
     content: string;
     repairReviewBaseline?: Pick<ChapterAcceptanceAssessmentResult["assessment"],
       "blockingIssues" | "missingObligations" | "repairDirectives">;
+    styleRewriteBaseline?: StyleRewriteBaseline;
     lengthControl?: ChapterRuntimePackage["lengthControl"];
     runId: string | null;
     startMs: number | null;
@@ -225,6 +233,8 @@ export async function runPipelineChapterWithRuntime(
   let pass = false;
   let latestLengthControl: ChapterRuntimePackage["lengthControl"] | undefined;
   let recoverableRepairFailure: PipelineRecoverableRepairFailure | null = null;
+  let styleRewriteBaseline: StyleRewriteBaseline | undefined;
+  let rewriteGuard: StyleRewriteGuard | undefined;
   let originalEvaluation: {
     content: string;
     result: FinalizedRuntimeResult;
@@ -285,6 +295,7 @@ export async function runPipelineChapterWithRuntime(
     }
 
     await hooks.onStageChange?.("reviewing");
+    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
     const priorAssessment = attempt > 0 ? originalEvaluation?.result.acceptanceResult?.assessment : undefined;
     latestResult = await deps.finalizeChapterContent({
       novelId,
@@ -297,6 +308,7 @@ export async function runPipelineChapterWithRuntime(
         missingObligations: priorAssessment.missingObligations,
         repairDirectives: priorAssessment.repairDirectives,
       } : undefined,
+      styleRewriteBaseline,
       lengthControl: latestLengthControl,
       runId: null,
       startMs: null,
@@ -304,6 +316,15 @@ export async function runPipelineChapterWithRuntime(
     });
     await hooks.onCheckCancelled?.();
     content = latestResult.finalContent;
+    if (rewriteGuard && attempt > 0) {
+      const facts = latestResult.acceptanceResult?.assessment.repairVerification?.factPreservation;
+      const valid = facts?.sourceContentHash === rewriteGuard.sourceContentHash
+        && (facts.status === "preserved" || facts.status === "authorized_correction")
+        && !latestResult.acceptanceResult?.assessment.riskTags.includes("acceptance_gate_unavailable");
+      rewriteGuard = { ...rewriteGuard, checks: rewriteGuard.checks.map(check => check.code === "semantic_facts"
+        ? { ...check, status: valid ? "passed" : "blocked", reason: valid ? facts!.reason : "候选未通过事实复验，保留原稿。" } : check) };
+      latestResult.runtimePackage.styleReview = { ...latestResult.runtimePackage.styleReview!, rewriteGuard };
+    }
     const styleLeakageIssues = detectStyleReferenceLeakageIssues(content, latestResult.runtimePackage);
     latestIssues = [
       ...toReviewIssues(latestResult.runtimePackage),
@@ -346,9 +367,14 @@ export async function runPipelineChapterWithRuntime(
           runtimePackage: latestResult.runtimePackage,
           issues: latestIssues,
           assessmentVerified: !latestResult.acceptanceResult?.assessment.riskTags?.includes("acceptance_gate_unavailable"),
+          rewriteGuard,
         },
       });
       if (repairSelection.selected === "candidate") {
+        if (rewriteGuard && latestResult.runtimePackage.styleReview) {
+          latestResult.runtimePackage.styleReview.autoRewritten = true;
+          latestResult.runtimePackage.styleReview.originalContent = originalEvaluation.content;
+        }
         await hooks.onCheckCancelled?.();
         await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
           scheduleBackgroundSync: false,
@@ -360,6 +386,7 @@ export async function runPipelineChapterWithRuntime(
         latestResult = originalEvaluation.result;
         latestIssues = originalEvaluation.issues;
         pass = originalEvaluation.pass;
+        if (rewriteGuard && latestResult.runtimePackage.styleReview) latestResult.runtimePackage.styleReview.rewriteGuard = rewriteGuard;
       }
       break;
     }
@@ -398,6 +425,7 @@ export async function runPipelineChapterWithRuntime(
 
     await hooks.onStageChange?.("repairing");
     await hooks.onCheckCancelled?.();
+    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
     if (await hooks.onRetryConsumed?.("quality_repair") === false) break;
     retryCountUsed += 1;
     await hooks.onCheckCancelled?.();
@@ -414,7 +442,10 @@ export async function runPipelineChapterWithRuntime(
         repairMode,
       },
     });
+    rewriteGuard = repairResult.rewriteGuard;
+    styleRewriteBaseline = repairResult.styleRewriteBaseline;
     if (repairResult.recoverableFailure) {
+      if (rewriteGuard && latestResult.runtimePackage.styleReview) latestResult.runtimePackage.styleReview.rewriteGuard = rewriteGuard;
       recoverableRepairFailure = repairResult.recoverableFailure;
       await deps.markChapterNeedsRepair(chapterId);
       break;
@@ -488,6 +519,7 @@ export async function resumeFinalizedPipelineChapter(
   hooks: PipelineRuntimeHooks,
 ): Promise<PipelineRuntimeResult> {
   await hooks.onCheckCancelled?.();
+  await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
   const artifactSyncResult = await syncFinalRetainedChapterArtifacts(
     deps, novelId, chapterId, saved.content, options.artifactSyncMode ?? "adaptive",
     saved.result.pass ? "confirmed" : "debt", options.artifactSyncPolicy,
@@ -514,6 +546,7 @@ async function generateNonEmptyDraftFromWriter(input: {
   while (true) {
     await input.hooks.onCheckCancelled?.();
     await input.hooks.onStageChange?.("generating_chapters");
+    await input.hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
     try {
       const generatedDraft = await input.deps.generateDraftFromWriter({
         novelId: input.novelId,
@@ -660,6 +693,8 @@ async function repairDraftContent(input: {
 }): Promise<{
   content: string;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
+  rewriteGuard?: StyleRewriteGuard;
+  styleRewriteBaseline?: StyleRewriteBaseline;
 }> {
   let repaired: Awaited<ReturnType<typeof runChapterRepairText>>;
   try {
@@ -684,6 +719,7 @@ async function repairDraftContent(input: {
     }
     return {
       content: input.content,
+      rewriteGuard: error.rewriteGuard,
       recoverableFailure: {
         chapterId: input.runtimePackage.chapterId,
         message: error.message,
@@ -695,8 +731,10 @@ async function repairDraftContent(input: {
     };
   }
   return {
-    content: repaired.content.trim() || input.content,
+    content: repaired.content.trim() ? repaired.content : input.content,
     recoverableFailure: null,
+    rewriteGuard: repaired.rewriteGuard,
+    styleRewriteBaseline: repaired.styleRewriteBaseline,
   };
 }
 

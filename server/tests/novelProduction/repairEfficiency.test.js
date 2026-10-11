@@ -1,6 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPipelineHarness } = require('./sourceHarness.cjs');
+const { createHash } = require('node:crypto');
+const hash = value => createHash('sha256').update(value).digest('hex');
 
 test('AI continue-with-risk retains saved prose and quality debt without spending a patch attempt', async () => {
   const h = createPipelineHarness({ scores: [78], acceptanceMeta: { acceptanceStatus: 'continue_with_risk', continuePolicy: 'continue' } });
@@ -101,4 +103,43 @@ test('explicit AI manual pause does not become an automatic repair or a passing 
   assert.equal(result.runtimePackage.meta.continuePolicy, 'pause');
   assert.equal(result.pass, false);
   assert.deepEqual(h.committedContents, ['original draft']);
+});
+
+test('fact-protected style candidate cannot win on score alone and retains original assets and report', async () => {
+  for (const status of ['changed', 'uncertain', undefined]) {
+    const baseline = { sourceContentHash: hash('original draft'), changes: [{ original: 'original draft', replacement: 'repair candidate' }],
+      allowedCorrectionIssueIds: [] };
+    const rewriteGuard = { sourceContentHash: hash('original draft'), candidateContentHash: hash('repair candidate'),
+      policyRevision: 'test', touchedRatio: 0.1, addedCharacters: 0, lengthChangeRatio: 0,
+      checks: ['patch_scope', 'edit_budget', 'protected_terms', 'semantic_facts'].map(code => ({ code,
+        status: code === 'semantic_facts' ? 'not_checked' : 'passed', reason: 'test' })) };
+    const h = createPipelineHarness({ scores: [78, 92], repairMetadata: { rewriteGuard, styleRewriteBaseline: baseline },
+      acceptanceAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [] },
+      recheckAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [],
+        repairVerification: { factPreservation: { sourceContentHash: baseline.sourceContentHash, status, reason: '主体翻转' } } } });
+    const result = await h.run({ autoRepair: true, maxRetries: 1 });
+    assert.deepEqual(h.styleBaselines, [undefined, baseline]);
+    assert.deepEqual(h.committedContents, ['original draft']);
+    assert.deepEqual(h.syncedContents, ['original draft']);
+    assert.equal(h.budget, 1);
+    assert.equal(result.runtimePackage.styleReview.rewriteGuard.checks.at(-1).status, 'blocked');
+  }
+});
+
+test('fact-preserved style candidate keeps source identity and syncs only the retained revision', async () => {
+  const sourceContentHash = hash('original draft');
+  const rewriteGuard = { sourceContentHash, candidateContentHash: hash('repair candidate'), policyRevision: 'test',
+    touchedRatio: 0.1, addedCharacters: 0, lengthChangeRatio: 0,
+    checks: ['patch_scope', 'edit_budget', 'protected_terms', 'semantic_facts'].map(code => ({ code,
+      status: code === 'semantic_facts' ? 'not_checked' : 'passed', reason: 'test' })) };
+  const h = createPipelineHarness({ scores: [78, 92], repairMetadata: { rewriteGuard,
+    styleRewriteBaseline: { sourceContentHash, changes: [], allowedCorrectionIssueIds: [] } },
+    acceptanceAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [] },
+    recheckAssessment: { blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [],
+      repairVerification: { factPreservation: { sourceContentHash, status: 'preserved', reason: '动作和结果保持' } } } });
+  const result = await h.run({ autoRepair: true, maxRetries: 1 });
+  assert.deepEqual(h.syncedContents, ['repair candidate']);
+  assert.equal(result.runtimePackage.styleReview.autoRewritten, true);
+  assert.equal(result.runtimePackage.styleReview.originalContent, 'original draft');
+  assert.equal(result.runtimePackage.styleReview.rewriteGuard.checks.at(-1).status, 'passed');
 });

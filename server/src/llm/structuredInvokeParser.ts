@@ -43,6 +43,7 @@ export interface StructuredInvokeRawParseInput<T> {
   requestProtocol?: ModelRouteRequestProtocol;
   label: string;
   maxRepairAttempts?: number;
+  repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   onRepairOutputDelta?: (content: string) => void;
   strategy: StructuredOutputStrategy;

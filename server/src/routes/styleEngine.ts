@@ -155,7 +155,7 @@ const testWriteSchema = z.object({
 });
 
 const detectionSchema = z.object({
-  content: z.string().trim().min(1),
+  content: z.string().min(1).refine(value => Boolean(value.trim()), "正文不能为空。"),
   styleProfileId: z.string().trim().optional(),
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
@@ -167,7 +167,7 @@ const detectionSchema = z.object({
 });
 
 const rewriteSchema = z.object({
-  content: z.string().trim().min(1),
+  content: z.string().min(1).refine(value => Boolean(value.trim()), "正文不能为空。"),
   styleProfileId: z.string().trim().optional(),
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
@@ -177,7 +177,7 @@ const rewriteSchema = z.object({
     ruleName: z.string().trim().min(1),
     excerpt: z.string().trim().min(1),
     suggestion: z.string().trim().min(1),
-  })).min(1),
+  })).max(8).default([]),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -499,7 +499,7 @@ router.post("/style-detection/rewrite", validate({ body: rewriteSchema }), async
     res.status(200).json({
       success: true,
       data,
-      message: "写法修正完成。",
+      message: data.content === req.body.content ? "保留原稿，可查看写法建议。" : "局部修订预览已生成。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

@@ -21,6 +21,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - 高优先级硬约束：控制入口可以不同，但正文生成与正文修复的业务执行链必须唯一；批量执行、自动导演、手动单章生成、手动单章修复不得各自维护独立实现。
 - 任何新增的“会改正文”的入口，必须汇入 `novelProductionOrchestrator + stage runner + ChapterRuntimeCoordinator`。允许保留不同 transport、route、job 或前端流式形态，但不允许绕开统一 runtime 直接拥有 writer、patch repair、heavy repair、正文保存、资产同步或复审状态推进逻辑。
 - `route`、`director`、`creative hub`、旧 `NovelCoreReviewService` 或其他 legacy service 都不能直接持有正文生成/修复实现；它们只能作为控制入口或薄门面，把执行委托给统一章节主链。
+- 世界草稿生成只通过 Prompt Registry 中的 `world.draft.generate` 资产执行；世界 service 负责持久化、快照和 RAG 回写，不得保留平行的裸 LLM 或实验图式生成链路。
 - 任何会改变章节正文的入口都必须触发最终 timeline finalization。模块边界顺序固定为：正文执行 runtime 产出最终正文，`ChapterTimelineFinalizationService` 基于最终正文写入 timeline checkpoint，随后才允许进入下一章、后台批次或自动导演继续步骤。
 - `ChapterTimelineFinalizationService` 是 timeline 提交的应用服务边界。`routes`、`director`、`creative hub`、旧 review service、repair helper 和前端投影都不得直接拼接 `ChapterTimeAnchor`、`StoryTimelineEvent`、`TimelineHook` 或 `ChapterArtifactSyncCheckpoint` 写入规则。
 - timeline 模块拥有事件、hook、时间锚点、约束、检测和提交 repository；章节 runtime 只通过 timeline 模块 facade 与 finalization service 协作。writer prompt 可以消费时间线上下文，但不能自己关闭 hook 或写 timeline 表。

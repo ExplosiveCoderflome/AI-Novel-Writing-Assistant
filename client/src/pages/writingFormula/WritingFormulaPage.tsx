@@ -440,20 +440,24 @@ export default function WritingFormulaPage() {
     onSuccess: (response) => setTestWriteOutput(response.data?.output ?? ""),
   });
 
+  const reviewScope = JSON.stringify([selectedProfileId, profilesQuery.dataUpdatedAt, antiAiRulesQuery.dataUpdatedAt]);
   const detectionMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!selectedProfileId) {
         throw new Error("请先选择写法资产。");
       }
 
-      return detectStyleIssues({
-        content: detectInput,
+      const sourceContent = detectInput;
+      const response = await detectStyleIssues({
+        content: sourceContent,
         styleProfileId: selectedProfileId,
         provider: llm.provider,
         model: llm.model,
         temperature: 0.2,
       });
+      return { ...response, sourceContent, sourceScope: reviewScope };
     },
+    onSuccess: () => { setRewritePreview(""); rewriteMutation.reset(); },
   });
 
   const rewriteMutation = useMutation({
@@ -462,34 +466,19 @@ export default function WritingFormulaPage() {
         throw new Error("请先选择写法资产。");
       }
 
-      const report = detectionMutation.data?.data ?? (await detectStyleIssues({
-        content: detectInput,
+      const sourceContent = detectInput;
+      const response = await rewriteStyleIssues({
+        content: sourceContent,
         styleProfileId: selectedProfileId,
-        provider: llm.provider,
-        model: llm.model,
-        temperature: 0.2,
-      })).data;
-
-      if (!report || report.violations.length === 0) {
-        return { data: { content: detectInput } };
-      }
-
-      return rewriteStyleIssues({
-        content: detectInput,
-        styleProfileId: selectedProfileId,
-        issues: report.violations.map((item) => ({
-          ruleName: item.ruleName,
-          excerpt: item.excerpt,
-          suggestion: item.suggestion,
-        })),
         provider: llm.provider,
         model: llm.model,
         temperature: 0.5,
       });
+      return { ...response, sourceContent, sourceScope: reviewScope };
     },
     onSuccess: (response) => {
       setRewritePreview(response.data?.content ?? "");
-      setMessage("修订稿已经生成，可以继续在去 AI 味里检查和调整。");
+      setMessage(response.data?.content === response.sourceContent ? "保留原稿，可查看写法建议。" : "比较修订预览，确认需要的修改。");
     },
   });
 
@@ -499,17 +488,22 @@ export default function WritingFormulaPage() {
     rewriteMutation.reset();
   }, [selectedProfileId]);
 
+  const currentDetection = detectionMutation.data?.sourceContent === detectInput
+    && detectionMutation.data.sourceScope === reviewScope ? detectionMutation.data.data : undefined;
+  const currentRewrite = rewriteMutation.data?.sourceContent === detectInput
+    && rewriteMutation.data.sourceScope === reviewScope ? rewriteMutation.data.data : undefined;
+
   return (
     <div className="writing-formula-theme flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <div className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">Style Engine V2</div>
-          <div className="text-2xl font-semibold tracking-tight text-foreground">写法引擎</div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">写法引擎</h1>
+          <p className="text-sm leading-6 text-muted-foreground">保存喜欢的叙事风格，让后续正文保持一致的语言、节奏与人物表达。</p>
         </div>
-        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="把这套写法带去创作中枢" />
+        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="带去创作中枢" variant="ghost" />
       </div>
 
-      {message ? <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-sm">{message}</div> : null}
+      {message ? <div role="status" className="rounded-lg bg-muted/30 px-4 py-3 text-sm">{message}</div> : null}
 
       {activeMode === "book-style" ? (
         <WritingFormulaBookStyleFlow
@@ -539,6 +533,9 @@ export default function WritingFormulaPage() {
         deletePending={deleteProfileMutation.isPending}
         profileItems={landingProfileItems}
         selectedProfileId={selectedProfileId}
+        loading={profilesQuery.isLoading}
+        error={profilesQuery.isError ? "写法资产加载失败，请重新加载。" : undefined}
+        onRetry={() => { void profilesQuery.refetch(); }}
       />
 
       <WritingFormulaCreateDialog
@@ -580,7 +577,7 @@ export default function WritingFormulaPage() {
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>编辑当前写法</DialogTitle>
             <DialogDescription>
-              这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。
+              调整写法说明、规则与反 AI 约束，保存后用于后续生成和检查。
             </DialogDescription>
           </DialogHeader>
 
@@ -629,7 +626,7 @@ export default function WritingFormulaPage() {
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>当前写法的应用与测试</DialogTitle>
             <DialogDescription>
-              这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。
+              将这套写法绑定到作品或章节，先试写一段正文，比较效果。
             </DialogDescription>
           </DialogHeader>
 
@@ -662,7 +659,7 @@ export default function WritingFormulaPage() {
           <DialogHeader className="border-b px-6 py-5 pr-14">
             <DialogTitle>去 AI 味</DialogTitle>
             <DialogDescription>
-              这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。
+              粘贴正文，查看表达问题并比较局部修订预览；采用前请核对人物口吻与设定。
             </DialogDescription>
           </DialogHeader>
 
@@ -670,10 +667,11 @@ export default function WritingFormulaPage() {
             <WritingFormulaCleanPanel
               selectedProfile={selectedProfile}
               detectInput={detectInput}
-              detectionReport={detectionMutation.data?.data ?? null}
+              detectionReport={currentRewrite?.report ?? currentDetection ?? null}
               detectionPending={detectionMutation.isPending}
               rewritePending={rewriteMutation.isPending}
-              rewritePreview={rewritePreview}
+              rewritePreview={currentRewrite ? rewritePreview : ""}
+              rewriteGuard={currentRewrite?.rewriteGuard}
               onDetectInputChange={setDetectInput}
               onDetect={() => detectionMutation.mutate()}
               onRewrite={() => rewriteMutation.mutate()}

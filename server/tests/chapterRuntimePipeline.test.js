@@ -222,6 +222,49 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   });
 });
 
+test("runPipelineChapterWithRuntime checks the chapter budget before each AI stage", async () => {
+  const reserves = [];
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: { id: "chapter-1", title: "第一章", order: 1, content: null, expectation: null },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        return { content: "生成后的正文" };
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
+        return completedArtifactSync(content);
+      },
+      async finalizeChapterContent({ content }) {
+        return { finalContent: content, runtimePackage: createRuntimePackage(90) };
+      },
+      async commitFinalizedChapterContent() {},
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    { autoReview: true, autoRepair: false },
+    {
+      async onCheckBudget(reserveTokens) {
+        reserves.push(reserveTokens);
+      },
+    },
+  );
+
+  assert.equal(result.pass, true);
+  assert.deepEqual(reserves, [16000, 16000, 16000]);
+});
+
 test("runPipelineChapterWithRuntime does not approve when timeline check fails", async () => {
   const generationStates = [];
   const finalizedContent = [];

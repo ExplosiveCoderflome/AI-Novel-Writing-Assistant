@@ -84,3 +84,7 @@ export function buildPayload(form: RuleFormState) {
 export function buildEffectiveParamsKey(styleProfileId: string) {
   return new URLSearchParams(styleProfileId ? { styleProfileId } : {}).toString() || "global";
 }
+
+export function countTestRules(effectiveRuleIds: string[], previewRuleIds: string[]): number {
+  return new Set([...effectiveRuleIds, ...previewRuleIds]).size;
+}

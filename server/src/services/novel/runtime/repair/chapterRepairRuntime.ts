@@ -1,6 +1,7 @@
 import type { ChapterRepairContext, ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { StyleRewriteGuard, StyleRewriteBaseline } from "@ai-novel/shared/types/styleEngine";
 import { runTextPrompt } from "../../../../prompting/core/promptRunner";
 import { buildChapterRepairContextBlocks } from "../../../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterRepairPrompt } from "../../../../prompting/prompts/novel/review.prompts";
@@ -59,6 +60,8 @@ export type PreparedChapterRepairExecution =
       issues: ReviewIssue[];
       finalRepairMode: PatchRepairMode;
       modeHint: string;
+      rewriteGuard?: StyleRewriteGuard;
+      styleRewriteBaseline?: StyleRewriteBaseline;
     }
   | {
       kind: "heavy_repair";
@@ -71,6 +74,8 @@ export type PreparedChapterRepairExecution =
 export interface ExecutedChapterRepair {
   content: string;
   finalRepairMode: PatchRepairMode;
+  rewriteGuard?: StyleRewriteGuard;
+  styleRewriteBaseline?: StyleRewriteBaseline;
 }
 
 function normalizeRepairIssues(issues: ReviewIssue[]): ReviewIssue[] {
@@ -192,7 +197,10 @@ export async function prepareChapterRepairExecution(
 ): Promise<PreparedChapterRepairExecution> {
   const issues = normalizeRepairIssues(input.issues);
   const issueCodes = resolveIssueCodes(input.runtimePackage);
-  const activeRepairMode = input.options.repairMode ?? "light_repair";
+  // Expression cleanup never grants a full-chapter rewrite permission.
+  const hasStyleIssues = Boolean(input.runtimePackage?.styleReview?.report?.violations.length);
+  const activeRepairMode = hasStyleIssues && input.options.repairMode === "heavy_repair"
+    ? "light_repair" : input.options.repairMode ?? "light_repair";
   const modeHint = getRepairModeHint(activeRepairMode, issueCodes);
 
   if (activeRepairMode !== "heavy_repair") {
@@ -219,6 +227,8 @@ export async function prepareChapterRepairExecution(
       issues,
       finalRepairMode: activeRepairMode,
       modeHint,
+      rewriteGuard: patched.rewriteGuard,
+      styleRewriteBaseline: patched.styleRewriteBaseline,
     };
   }
 
@@ -278,6 +288,8 @@ export async function runChapterRepairText(
     return {
       content: prepared.content,
       finalRepairMode: prepared.finalRepairMode,
+      rewriteGuard: prepared.rewriteGuard,
+      styleRewriteBaseline: prepared.styleRewriteBaseline,
     };
   }
 

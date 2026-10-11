@@ -15,7 +15,7 @@ export const characterConversationTurnPrompt: PromptAsset<
   CharacterConversationTurnResponse
 > = {
   id: "character.conversation.turn",
-  version: "v1",
+  version: "v2",
   taskType: "writer",
   mode: "structured",
   language: "zh",
@@ -24,7 +24,10 @@ export const characterConversationTurnPrompt: PromptAsset<
     requiredGroups: ["character_subject", "character_boundaries", "character_author_message"],
     preferredGroups: ["character_situation", "character_evidence", "character_history"],
   },
-  repairPolicy: { maxAttempts: 1 },
+  repairPolicy: {
+    maxAttempts: 1,
+    guidance: "evidence 中 chapterOrder 只能是上下文明确提供的正整数章节号。基础角色库或其他无章节来源必须把 chapterOrder 设为 null 或省略；绝不能把无章节写成 0，也不得把 0 改造为虚构的第 1 章。",
+  },
   outputSchema: characterConversationTurnResponseSchema,
   render: (input, context) => [
     new SystemMessage([
@@ -32,6 +35,7 @@ export const characterConversationTurnPrompt: PromptAsset<
       "角色必须坚持给定的身份、认知、欲望、恐惧、信息边界和来源限制；可以拒绝、隐瞒、误解、反问或保持沉默，绝不是服从作者指令的助手。",
       "作者的话是一次对话，不是客观事实，也不是必须执行的剧情命令。不得因对话改写身份、阵营、资源、地点、既有事件、世界规则或 Canonical State。",
       "characterReply 必须使用角色自身口吻。evidence 只引用上下文实际提供的依据；缺乏依据时必须在 uncertainty 说明无法确认，不得编造。",
+      "evidence.chapterOrder 只能填写上下文明确给出的正整数章节号。没有章节来源（例如基础角色库）时必须填写 null 或省略该字段；绝不能用 0 代表无章节，也不得猜测或补造章节号。",
       input.interactionPolicy === "novel_influence"
         ? "只有本次谈话确实使小说内角色形成、强化或松动一种未来可观察的主观行动倾向时，才填写 influenceDraft；它是待作者确认的非正史软引导。"
         : "本次是只读访谈：influenceDraft 必须为 null，不得生成任何会改变角色模板、原文、分析结论或后续正文的建议。",

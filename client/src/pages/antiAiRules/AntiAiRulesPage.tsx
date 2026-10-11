@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
-import { Plus, ShieldCheck } from "lucide-react";
+import { FlaskConical, Plus, ShieldCheck } from "lucide-react";
 import {
   createAntiAiRule,
   detectStyleIssues,
@@ -14,7 +14,6 @@ import {
 } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import {
@@ -22,6 +21,7 @@ import {
   RuleFormState,
   buildEffectiveParamsKey,
   buildPayload,
+  countTestRules,
   emptyForm,
   parsePatternText,
   ruleToForm,
@@ -169,47 +169,39 @@ export default function AntiAiRulesPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "AI 生成草稿失败。"),
   });
 
+  const reviewScope = JSON.stringify([previewStyleProfileId, testPreviewRuleIds,
+    profilesQuery.dataUpdatedAt, rulesQuery.dataUpdatedAt, effectiveQuery.dataUpdatedAt]);
   const detectionMutation = useMutation({
-    mutationFn: () => detectStyleIssues({
-      content: testInput,
-      styleProfileId: previewStyleProfileId || undefined,
-      previewAntiAiRuleIds: testPreviewRuleIds,
-      provider: llm.provider,
-      model: llm.model,
-      temperature: 0.2,
-    }),
-    onSuccess: () => setRewritePreview(""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "检测失败。"),
-  });
-
-  const rewriteMutation = useMutation({
     mutationFn: async () => {
-      const report = detectionMutation.data?.data ?? (await detectStyleIssues({
-        content: testInput,
+      const sourceContent = testInput;
+      const sourceScope = reviewScope;
+      const response = await detectStyleIssues({
+        content: sourceContent,
         styleProfileId: previewStyleProfileId || undefined,
         previewAntiAiRuleIds: testPreviewRuleIds,
         provider: llm.provider,
         model: llm.model,
         temperature: 0.2,
-      })).data;
+      });
+      return { ...response, sourceContent, sourceScope };
+    },
+    onSuccess: () => { setRewritePreview(""); rewriteMutation.reset(); },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "检测失败。"),
+  });
 
-      if (!report || report.violations.length === 0) {
-        return { data: { content: testInput } };
-      }
-
-      return rewriteStyleIssues({
-        content: testInput,
+  const rewriteMutation = useMutation({
+    mutationFn: async () => {
+      const sourceContent = testInput;
+      const sourceScope = reviewScope;
+      const response = await rewriteStyleIssues({
+        content: sourceContent,
         styleProfileId: previewStyleProfileId || undefined,
         previewAntiAiRuleIds: testPreviewRuleIds,
-        issues: report.violations.map((item) => ({
-          ruleName: item.ruleName,
-          excerpt: item.excerpt,
-          suggestion: item.suggestion,
-        })),
         provider: llm.provider,
         model: llm.model,
         temperature: 0.5,
       });
+      return { ...response, sourceContent, sourceScope };
     },
     onSuccess: (response) => setRewritePreview(response.data?.content ?? ""),
     onError: (error) => toast.error(error instanceof Error ? error.message : "修正失败。"),
@@ -220,6 +212,11 @@ export default function AntiAiRulesPage() {
     rewriteMutation.reset();
     setRewritePreview("");
   }, [previewStyleProfileId, testPreviewRuleIds.join("|")]);
+
+  const currentDetection = detectionMutation.data?.sourceContent === testInput
+    && detectionMutation.data.sourceScope === reviewScope ? detectionMutation.data.data : undefined;
+  const currentRewrite = rewriteMutation.data?.sourceContent === testInput
+    && rewriteMutation.data.sourceScope === reviewScope ? rewriteMutation.data.data : undefined;
 
   const openCreateDialog = () => {
     setEditingRule(null);
@@ -260,34 +257,39 @@ export default function AntiAiRulesPage() {
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const testScopeReady = Boolean(effective) && !effectiveQuery.isFetching && !effectiveQuery.isError
+    && !rulesQuery.isFetching && !rulesQuery.isError && !isSaving;
+  const testRuleCount = countTestRules(
+    effective?.effectiveRules.map((item) => item.rule.id) ?? [],
+    testingRules.map((rule) => rule.id),
+  );
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              反 AI 规则
-            </CardTitle>
-            <CardDescription>
-              管理正文生成会参考的反 AI 规则，控制哪些规则进入全局默认，哪些只留给写法资产绑定使用。
-            </CardDescription>
+    <div className="space-y-6">
+      <header className="space-y-5 px-1">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+              <ShieldCheck aria-hidden="true" className="h-6 w-6 text-primary" />反 AI 规则
+            </h1>
+            <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+              减少模板感，保留人物口吻。选择生成规则，再用一段正文试试效果。
+            </p>
           </div>
-          <Button type="button" onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            新建规则
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <AntiAiRuleStats {...stats} />
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost"><a href="#anti-ai-test-panel"><FlaskConical aria-hidden="true" className="h-4 w-4" />效果测试</a></Button>
+            <Button type="button" onClick={openCreateDialog}><Plus aria-hidden="true" className="h-4 w-4" />新建规则</Button>
+          </div>
+        </div>
+        {rulesQuery.isPending ? <p role="status" className="text-sm text-muted-foreground">正在读取规则…</p> : !rulesQuery.isError ? <AntiAiRuleStats {...stats} /> : null}
+      </header>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <AntiAiRuleList
           rules={filteredRules}
           loading={rulesQuery.isLoading}
+          error={rulesQuery.isError ? "规则加载失败，请重新加载。" : undefined}
+          onRetry={() => { void rulesQuery.refetch(); }}
           filter={filter}
           isSaving={isSaving}
           testingRuleIds={testingRuleIds}
@@ -297,21 +299,25 @@ export default function AntiAiRulesPage() {
           onToggleTestingRule={toggleTestingRule}
         />
 
-        <div className="space-y-4">
+        <aside id="anti-ai-test-panel" aria-label="规则生效范围与效果测试" className="min-w-0 scroll-mt-6 divide-y divide-border/60 rounded-xl bg-card text-card-foreground">
           <AntiAiEffectivePreviewCard
             profiles={profiles}
             styleProfileId={previewStyleProfileId}
             effective={effective}
-            loading={effectiveQuery.isLoading}
+            loading={effectiveQuery.isFetching}
+            error={effectiveQuery.isError ? "生效规则加载失败，请重新加载后测试。" : undefined}
+            onRetry={() => { void effectiveQuery.refetch(); }}
             onStyleProfileChange={setPreviewStyleProfileId}
           />
           <AntiAiRuleEffectTestCard
             content={testInput}
-            report={detectionMutation.data?.data ?? null}
-            rewritePreview={rewritePreview}
+            report={currentRewrite?.report ?? currentDetection ?? null}
+            rewritePreview={currentRewrite ? rewritePreview : ""}
+            rewriteGuard={currentRewrite?.rewriteGuard}
             detectionPending={detectionMutation.isPending}
             rewritePending={rewriteMutation.isPending}
-            effectiveRuleCount={effective?.effectiveRules.length ?? 0}
+            testRuleCount={testRuleCount}
+            scopeReady={testScopeReady}
             previewRules={testingRules}
             onContentChange={setTestInput}
             onDetect={() => detectionMutation.mutate()}
@@ -319,7 +325,7 @@ export default function AntiAiRulesPage() {
             onRemovePreviewRule={(ruleId) => setTestingRuleIds((prev) => prev.filter((item) => item !== ruleId))}
             onClearPreviewRules={() => setTestingRuleIds([])}
           />
-        </div>
+        </aside>
       </div>
 
       <AntiAiRuleDialog

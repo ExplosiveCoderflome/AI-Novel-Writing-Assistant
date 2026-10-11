@@ -11,6 +11,7 @@ interface ChapterEditorSidebarProps {
   isSaving: boolean;
   selectedDiagnosticId: string | null;
   onBack?: () => void;
+  backLabel?: string;
   onOpenChapterVersions?: () => void;
   onOpenVersionHistory?: () => void;
   onRefreshWorkspace?: () => void;
@@ -71,7 +72,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
             {onBack ? (
               <div>
                 <Button size="sm" variant="outline" onClick={onBack}>
-                  返回章节执行页
+                  {props.backLabel ?? "返回章节执行页"}
                 </Button>
               </div>
             ) : null}

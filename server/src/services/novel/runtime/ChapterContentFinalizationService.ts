@@ -42,6 +42,7 @@ export interface FinalizeChapterContentInput {
   contextPackage: GenerationContextPackage;
   content: string;
   repairReviewBaseline?: Parameters<ChapterQualityGateService["runAcceptanceGate"]>[0]["repairReviewBaseline"];
+  styleRewriteBaseline?: Parameters<ChapterQualityGateService["runAcceptanceGate"]>[0]["styleRewriteBaseline"];
   lengthControl?: ChapterRuntimePackage["lengthControl"];
   runId: string | null;
   startMs: number | null;
@@ -103,6 +104,7 @@ export class ChapterContentFinalizationService {
       request: input.request,
       persistAssessment: !input.deferTerminalCommit,
       repairReviewBaseline: input.repairReviewBaseline,
+      styleRewriteBaseline: input.styleRewriteBaseline,
     });
     await input.assertExecutionOwnership?.();
     const proseQualityReport = detectProseQuality(finalContent);
@@ -123,6 +125,7 @@ export class ChapterContentFinalizationService {
     };
     const styleReview: StyleReviewResult = {
       report: acceptance.styleReviewReport ?? null,
+      signalScan: acceptance.styleSignalScan,
       autoRewritten: false,
       originalContent: null,
       finalContent,

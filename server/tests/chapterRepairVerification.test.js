@@ -11,6 +11,7 @@ const baseline = {
 const input = { novelTitle: '本书', chapterOrder: 18, chapterTitle: '义庄扣人', content, repairReviewBaseline: baseline };
 function output() {
   return { status: 'accepted', score: { coherence: 82, pacing: 82, repetition: 82, engagement: 82, voice: 82, overall: 82 },
+    styleReview: null,
     summary: '候选已修复', blockingIssues: [], missingObligations: [], repairDirectives: [], riskTags: [], repairability: 'none', continuePolicy: 'continue',
     assetSyncRecommendation: { priority: 'normal', reason: '同步', requiresFullPayoffReconcile: false },
     repairVerification: { contentHash: createHash('sha256').update(content).digest('hex'), checks: [
@@ -63,6 +64,34 @@ test('historical evidence is not rendered into the recheck baseline', () => {
 test('first assessment does not require repair verification', () => {
   const result = output(); delete result.repairVerification;
   assert.equal(validate(result, { ...input, repairReviewBaseline: undefined }).status, 'accepted');
+});
+
+test('style fact comparison rejects changed, uncertain, absent, or mismatched source verification', () => {
+  const request = { ...input, styleRewriteBaseline: { sourceContentHash: 'source',
+    changes: [{ original: '沈夜举起刀。', replacement: '沈夜握不住刀，刀纹丝不动。' }], allowedCorrectionIssueIds: [] } };
+  for (const status of ['changed', 'uncertain', undefined]) {
+    const result = output();
+    if (status) result.repairVerification.factPreservation = { sourceContentHash: 'source', status,
+      correctionIssueIds: [], currentEvidence: '沈夜握不住刀，刀纹丝不动。', reason: '人物行动发生变化' };
+    assert.throws(() => validate(result, request), /事实保护/);
+  }
+  const valid = output(); valid.repairVerification.factPreservation = { sourceContentHash: 'source', status: 'preserved',
+    correctionIssueIds: [], currentEvidence: '沈夜握不住刀，刀纹丝不动。', reason: '只修改句读，未改变行动' };
+  assert.equal(validate(valid, request).status, 'accepted');
+  valid.repairVerification.factPreservation.sourceContentHash = 'old';
+  assert.throws(() => validate(valid, request), /事实保护/);
+});
+
+test('factual correction must reference an actually authorized issue and current candidate evidence', () => {
+  const request = { ...input, styleRewriteBaseline: { sourceContentHash: 'source', changes: [], allowedCorrectionIssueIds: ['weapon_state'] } };
+  const result = output(); result.repairVerification.factPreservation = { sourceContentHash: 'source', status: 'authorized_correction',
+    correctionIssueIds: ['weapon_state'], currentEvidence: '沈夜握不住刀，刀纹丝不动。', reason: '修复武器状态问题，符合硬事实' };
+  assert.equal(validate(result, request).status, 'accepted');
+  result.repairVerification.factPreservation.correctionIssueIds = ['invented'];
+  assert.throws(() => validate(result, request), /事实保护/);
+  result.repairVerification.factPreservation.correctionIssueIds = ['weapon_state'];
+  result.repairVerification.factPreservation.currentEvidence = '沈夜举起刀。';
+  assert.throws(() => validate(result, request), /复验/);
 });
 
 test('verification failure degrades to an uncached warning without further model calls', async () => {

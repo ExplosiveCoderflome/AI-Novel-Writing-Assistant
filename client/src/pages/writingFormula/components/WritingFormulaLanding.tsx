@@ -1,7 +1,8 @@
-import type { KeyboardEvent, ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { ChevronDown, Edit3, FlaskConical, Plus, Search, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { LandingProfileItem } from "../writingFormulaLandingItems";
 
 interface WritingFormulaLandingProps {
@@ -12,389 +13,245 @@ interface WritingFormulaLandingProps {
   onUseProfileForClean: (profileId: string) => void;
   onDeleteProfile: (profileId: string) => void;
   onOpenPromptLab: () => void;
+  onRetry: () => void;
+  loading: boolean;
+  error?: string;
   deletePending: boolean;
   profileItems: LandingProfileItem[];
   selectedProfileId: string;
 }
 
-function truncateText(value: string | null | undefined, maxLength: number): string {
-  const text = value?.trim() ?? "";
-  if (!text) {
-    return "";
-  }
-  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
-}
-
-function handleSelectableKeyDown(event: KeyboardEvent<HTMLDivElement>, onSelect: () => void): void {
-  if (event.key !== "Enter" && event.key !== " ") {
-    return;
-  }
-  event.preventDefault();
-  onSelect();
-}
-
-function DetailPanel(props: { title: string; description?: string; children: ReactNode }) {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-card/80 p-4 shadow-sm">
-      <div className="space-y-1">
-        <div className="text-xs font-semibold tracking-[0.12em] text-muted-foreground">{props.title}</div>
-        {props.description ? (
-          <div className="text-xs leading-6 text-muted-foreground">{props.description}</div>
-        ) : null}
-      </div>
-      {props.children}
-    </div>
-  );
-}
-
 function DetailStatRow(props: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 text-sm leading-6">
-      <div className="text-muted-foreground">{props.label}</div>
-      <div className="text-right text-foreground">{props.value}</div>
+    <div className="flex items-start justify-between gap-4 text-sm leading-6">
+      <dt className="shrink-0 text-muted-foreground">{props.label}</dt>
+      <dd className="min-w-0 break-words text-right">{props.value}</dd>
     </div>
   );
 }
 
-function SummaryCard(props: { title: string; summary: string }) {
+function RuleDisclosure(props: { title: string; summary: string }) {
   return (
-    <div className="rounded-2xl border bg-muted/25 p-3.5">
-      <div className="text-sm font-medium text-foreground">{props.title}</div>
-      <div className="mt-2 text-sm leading-6 text-muted-foreground">{props.summary}</div>
-    </div>
+    <details className="group py-3">
+      <summary className="cursor-pointer list-none rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+        <span className="flex items-center justify-between gap-3 text-sm font-medium">
+          {props.title}
+          <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+        </span>
+        <span className="mt-1.5 line-clamp-2 text-sm leading-6 text-muted-foreground group-open:hidden">{props.summary}</span>
+      </summary>
+      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">{props.summary}</p>
+    </details>
   );
 }
 
 export default function WritingFormulaLanding(props: WritingFormulaLandingProps) {
-  const {
-    onOpenCreate,
-    onSelectProfile,
-    onEditProfile,
-    onOpenWorkbench,
-    onUseProfileForClean,
-    onDeleteProfile,
-    onOpenPromptLab,
-    deletePending,
-    profileItems,
-    selectedProfileId,
-  } = props;
-
-  const customProfiles = profileItems.filter((item) => !item.isStarter);
-  const starterProfiles = profileItems.filter((item) => item.isStarter);
+  const [search, setSearch] = useState("");
+  const [collapsedProfileId, setCollapsedProfileId] = useState<string | null>(null);
+  const query = search.trim().toLocaleLowerCase();
+  const visibleProfiles = props.profileItems.filter((profile) => (
+    [profile.name, profile.description, profile.category, ...profile.tags].join(" ").toLocaleLowerCase().includes(query)
+  ));
+  const customProfiles = visibleProfiles.filter((item) => !item.isStarter);
+  const starterProfiles = visibleProfiles.filter((item) => item.isStarter);
 
   const renderProfileCard = (profile: LandingProfileItem) => {
-    const isSelected = profile.id === selectedProfileId;
-    const selectedStyle = "border-primary/60 bg-primary/[0.045] shadow-sm";
-    const idleStyle = "border-border bg-card hover:border-primary/35 hover:bg-muted/25";
-    const badgeClassName = profile.isStarter
-      ? "h-6 border-sky-200 bg-white text-sky-700"
-      : "h-6";
+    const isSelected = profile.id === props.selectedProfileId;
+    const showDetails = isSelected && collapsedProfileId !== profile.id;
+    const detailsId = "writing-profile-details-" + profile.id;
 
     return (
-      <div
-        key={profile.id}
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelectProfile(profile.id)}
-        onKeyDown={(event) => handleSelectableKeyDown(event, () => onSelectProfile(profile.id))}
-        className={`rounded-3xl border px-5 py-4 text-left transition duration-200 ${isSelected ? selectedStyle : idleStyle}`}
-      >
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-base font-semibold text-foreground">{profile.name}</div>
-              <Badge variant={profile.isStarter ? "outline" : (isSelected ? "default" : "secondary")} className={badgeClassName}>
-                {profile.originLabel}
-              </Badge>
-              {profile.category ? (
-                <Badge variant="outline" className="h-6">
-                  {profile.category}
-                </Badge>
-              ) : null}
-              <Badge variant="outline" className="h-6">
-                {profile.sourceTypeLabel}
-              </Badge>
-            </div>
-            <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
-              {truncateText(profile.summaryLine, 120) || "暂无写法摘要。"}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {profile.tags.slice(0, 4).map((tag) => (
-                <Badge key={`${profile.id}-${tag}`} variant="outline" className="h-6">
-                  {tag}
-                </Badge>
-              ))}
-              {profile.recentNovelTitle ? (
-              <Badge variant="secondary" className="h-6">
-                  最近绑定：{profile.recentNovelTitle}
-                </Badge>
-              ) : null}
-            </div>
-          </div>
+      <article key={profile.id} className={cn(
+        "border-l-2 px-4 py-5 transition-colors sm:px-6",
+        isSelected ? "border-l-primary bg-primary/[0.04]" : "border-l-transparent hover:bg-muted/20",
+      )}>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <button type="button" aria-expanded={showDetails} aria-controls={showDetails ? detailsId : undefined}
+            aria-label={(showDetails ? "收起写法详情：" : "查看写法详情：") + profile.name}
+            className="min-w-0 flex-1 basis-80 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => {
+              // Folding a preview must not change the active profile or clear its test draft.
+              if (isSelected) {
+                setCollapsedProfileId(showDetails ? profile.id : null);
+              } else {
+                setCollapsedProfileId(null);
+                props.onSelectProfile(profile.id);
+              }
+            }}>
+            <span className="flex items-start justify-between gap-3">
+              <span className="min-w-0 break-words text-base font-semibold leading-6">{profile.name}</span>
+              <ChevronDown aria-hidden="true" className={cn(
+                "mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+                showDetails && "rotate-180",
+              )} />
+            </span>
+            <span className="mt-1.5 block text-xs text-muted-foreground">
+              {profile.originLabel}{profile.category ? " · " + profile.category : ""}
+            </span>
+            {!showDetails ? <span className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{profile.summaryLine}</span> : null}
+          </button>
 
-          <div className="flex flex-wrap gap-2 xl:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEditProfile(profile.id);
-              }}
-            >
-              编辑设定
+          <div className="flex flex-wrap items-center gap-1" role="group" aria-label={profile.name + "的操作"}>
+            <Button type="button" size="sm" variant="ghost" className="h-8 px-2 text-xs"
+              title="编辑写法说明、规则和反 AI 约束" onClick={() => props.onEditProfile(profile.id)}>
+              <Edit3 aria-hidden="true" className="h-3.5 w-3.5" />编辑设定
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenWorkbench(profile.id);
-              }}
-            >
-              应用与测试
+            <Button type="button" size="sm" variant={isSelected ? "default" : "secondary"} className="h-8 px-2.5 text-xs"
+              title="绑定目标或用这套写法试写" onClick={() => props.onOpenWorkbench(profile.id)}>
+              <FlaskConical aria-hidden="true" className="h-3.5 w-3.5" />应用与测试
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={(event) => {
-                event.stopPropagation();
-                onUseProfileForClean(profile.id);
-              }}
-            >
-              去 AI 味
+            <Button type="button" size="sm" variant="ghost" className="h-8 px-2 text-xs"
+              title="检查正文并预览局部修订" onClick={() => props.onUseProfileForClean(profile.id)}>
+              <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />去 AI 味
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              disabled={deletePending}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDeleteProfile(profile.id);
-              }}
-            >
-              {deletePending ? "删除中..." : "删除"}
+            <Button type="button" size="sm" variant="ghost" disabled={props.deletePending}
+              className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label={"删除写法：" + profile.name} onClick={() => props.onDeleteProfile(profile.id)}>
+              <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />{props.deletePending ? "删除中…" : "删除"}
             </Button>
           </div>
         </div>
 
-        {isSelected ? (
-          <div className="mt-5 space-y-4 rounded-2xl border bg-muted/25 p-4 md:p-5">
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
-              <DetailPanel
-                title="读感与定位"
-                description="这一列帮助你快速判断这套写法想写成什么感觉，适合先拿来做哪类项目。"
-              >
-                <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 text-sm leading-7 text-slate-700">
-                  {profile.description}
-                </div>
-                {profile.detailLines.length > 0 ? (
-                  <div className="grid gap-2">
-                    {profile.detailLines.map((line) => (
-                      <div key={`${profile.id}-${line}`} className="rounded-xl border border-slate-200/80 bg-white/75 px-3 py-3 text-sm leading-6 text-slate-700">
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {profile.sourceContentPreview ? (
-                  <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(255,255,255,0.98))] px-4 py-4 text-sm leading-7 text-slate-700">
-                    <div className="mb-2 text-xs font-semibold tracking-[0.12em] text-slate-500">原文样本片段</div>
-                    <div>{profile.sourceContentPreview}</div>
-                  </div>
-                ) : null}
-              </DetailPanel>
-
-              <div className="space-y-4">
-                <DetailPanel
-                  title="规则摘要"
-                  description="这里把这套写法真正控制读感的四层规则读出来，方便你在列表里先看懂。"
-                >
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <SummaryCard title="剧情推进" summary={profile.narrativeSummary} />
-                    <SummaryCard title="人物表达" summary={profile.characterSummary} />
-                    <SummaryCard title="语言质感" summary={profile.languageSummary} />
-                    <SummaryCard title="节奏控制" summary={profile.rhythmSummary} />
-                  </div>
-                </DetailPanel>
-
-                <DetailPanel
-                  title="反 AI 约束"
-                  description="这部分决定系统在检测和修正文稿时会优先盯住哪些风险。"
-                >
-                  {profile.antiAiFocus.length > 0 || profile.antiAiRuleNames.length > 0 || profile.extractionAntiAiRecommendationCount > 0 ? (
-                    <div className="space-y-3">
-                      {profile.antiAiFocus.length > 0 ? (
-                        <div className="grid gap-2">
-                          {profile.antiAiFocus.map((line) => (
-                            <div key={`${profile.id}-${line}`} className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-3 text-sm leading-6 text-amber-900">
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {profile.antiAiRuleNames.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {profile.antiAiRuleNames.map((ruleName) => (
-                            <Badge key={`${profile.id}-${ruleName}`} variant="secondary" className="bg-slate-100 text-slate-700">
-                              {ruleName}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
-                      {profile.extractionAntiAiRecommendationCount > 0 ? (
-                        <div className="rounded-xl border bg-slate-50/80 px-3 py-3 text-sm leading-6 text-slate-600">
-                          这套写法在提取阶段额外建议了 {profile.extractionAntiAiRecommendationCount} 条反 AI 规则，适合后续继续精配。
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                      这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。
-                    </div>
-                  )}
-                </DetailPanel>
-              </div>
-
-              <div className="space-y-4">
-                <DetailPanel
-                  title="资产概览"
-                  description="这一列主要帮你判断这套写法现在成熟到什么程度。"
-                >
-                  <div className="space-y-2">
-                    <DetailStatRow label="来源" value={profile.sourceTypeLabel} />
-                    <DetailStatRow label="最近更新" value={profile.updatedAtLabel} />
-                    <DetailStatRow label="启用特征" value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label="高风险指纹" value={`${profile.highRiskFeatureCount} 项`} />
-                    <DetailStatRow
-                      label="当前预设"
-                      value={profile.selectedPresetLabel || "未锁定"}
-                    />
-                    <DetailStatRow
-                      label="可选预设"
-                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
-                    />
-                    <DetailStatRow label="已绑定目标" value={`${profile.bindingCount} 个`} />
-                    <DetailStatRow
-                      label="最近小说"
-                      value={profile.recentNovelTitle || "还没有绑定到小说"}
-                    />
-                    <DetailStatRow
-                      label="适用题材"
-                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : "未填写"}
-                    />
-                  </div>
-                </DetailPanel>
-
-                <DetailPanel
-                  title="下一步"
-                  description="三个按钮现在各自只负责一件事，不会再跳到同一块内容里。"
-                >
-                  <div className="space-y-2 text-sm leading-6 text-slate-700">
-                    <div>编辑设定：维护这套写法本身的说明、规则和反 AI 约束。</div>
-                    <div>应用与测试：绑定到小说或章节，并做试写验证。</div>
-                    <div>去 AI 味：只处理正文检测和修正，不改写法字段。</div>
-                  </div>
-                </DetailPanel>
-              </div>
-            </div>
+        {profile.tags.length > 0 || (!showDetails && profile.recentNovelTitle) ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {profile.tags.slice(0, 4).map((tag) => (
+              <span key={tag} className="rounded bg-muted/60 px-2 py-1 text-xs text-muted-foreground">{tag}</span>
+            ))}
+            {!showDetails && profile.recentNovelTitle ? (
+              <span className="text-xs text-muted-foreground">最近绑定：{profile.recentNovelTitle}</span>
+            ) : null}
           </div>
         ) : null}
-      </div>
+
+        {showDetails ? (
+          <div id={detailsId} className="mt-5 grid gap-6 border-t border-border/60 pt-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="min-w-0 space-y-5">
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">读感与定位</h3>
+                <p className="whitespace-pre-wrap break-words text-sm leading-7">{profile.description}</p>
+              </section>
+              <section>
+                <h3 className="mb-1 text-sm font-semibold">规则摘要</h3>
+                <div className="divide-y divide-border/60">
+                  <RuleDisclosure title="剧情推进" summary={profile.narrativeSummary} />
+                  <RuleDisclosure title="人物表达" summary={profile.characterSummary} />
+                  <RuleDisclosure title="语言质感" summary={profile.languageSummary} />
+                  <RuleDisclosure title="节奏控制" summary={profile.rhythmSummary} />
+                </div>
+              </section>
+              {profile.sourceContentPreview ? (
+                <details className="group border-t border-border/60 pt-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    原文样本片段<ChevronDown aria-hidden="true" className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+                  </summary>
+                  <blockquote className="mt-3 whitespace-pre-wrap break-words rounded-lg bg-muted/30 p-4 text-sm leading-7 text-muted-foreground">{profile.sourceContentPreview}</blockquote>
+                </details>
+              ) : null}
+            </div>
+
+            <aside aria-label={profile.name + "的资产信息"} className="min-w-0 space-y-5 xl:border-l xl:border-border/60 xl:pl-6">
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">资产概览</h3>
+                <dl className="space-y-2">
+                  <DetailStatRow label="最近更新" value={profile.updatedAtLabel} />
+                  <DetailStatRow label="已绑定目标" value={profile.bindingCount + " 个"} />
+                  <DetailStatRow label="最近小说" value={profile.recentNovelTitle || "尚未绑定小说"} />
+                  <DetailStatRow label="适用题材" value={profile.applicableGenres.join(" / ") || "未填写"} />
+                </dl>
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded py-1 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    来源与提取信息<ChevronDown aria-hidden="true" className="h-3.5 w-3.5 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
+                  </summary>
+                  <dl className="mt-2 space-y-2">
+                    <DetailStatRow label="来源" value={profile.sourceTypeLabel} />
+                    <DetailStatRow label="启用特征" value={profile.extractedFeatureCount + " 项"} />
+                    <DetailStatRow label="需留意的原文特征" value={profile.highRiskFeatureCount + " 项"} />
+                    <DetailStatRow label="选用预设" value={profile.selectedPresetLabel || "未选择"} />
+                    <DetailStatRow label="可选预设" value={profile.presetLabels.join(" / ") || "暂无"} />
+                  </dl>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">提取信息用于核对可复用的写法特征，数量不代表写法质量。</p>
+                </details>
+              </section>
+              <section className="space-y-3 border-t border-border/60 pt-4">
+                <h3 className="text-sm font-semibold">反 AI 约束</h3>
+                {profile.antiAiFocus.length > 0 ? (
+                  <ul className="space-y-2 text-sm leading-6 text-muted-foreground">
+                    {profile.antiAiFocus.map((line) => <li key={line} className="break-words">{line}</li>)}
+                  </ul>
+                ) : null}
+                {profile.antiAiRuleNames.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.antiAiRuleNames.map((ruleName) => <span key={ruleName} className="rounded bg-muted/60 px-2 py-1 text-xs text-muted-foreground">{ruleName}</span>)}
+                  </div>
+                ) : null}
+                {profile.extractionAntiAiRecommendationCount > 0 ? (
+                  <p className="text-xs leading-5 text-muted-foreground">提取结果建议了 {profile.extractionAntiAiRecommendationCount} 条补充规则，可在编辑设定中核对。</p>
+                ) : null}
+                {!profile.antiAiFocus.length && !profile.antiAiRuleNames.length && !profile.extractionAntiAiRecommendationCount ? (
+                  <p className="text-sm leading-6 text-muted-foreground">尚未配置反 AI 约束，可在编辑设定中选择适合这套写法的规则。</p>
+                ) : null}
+              </section>
+              <p className="border-t border-border/60 pt-4 text-xs leading-6 text-muted-foreground">建议先用“应用与测试”试写一小段，再决定是否绑定到作品。</p>
+            </aside>
+          </div>
+        ) : null}
+      </article>
     );
   };
 
+  const renderProfileSection = (title: string, profiles: LandingProfileItem[]) => (
+    <section className="overflow-hidden rounded-xl bg-card text-card-foreground">
+      <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-6">
+        <h2 className="text-base font-semibold">{title}</h2>
+        <span className="text-xs tabular-nums text-muted-foreground">{profiles.length} 套</span>
+      </div>
+      <div className="divide-y divide-border/60">{profiles.map(renderProfileCard)}</div>
+    </section>
+  );
+
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden border-primary/10 bg-card shadow-sm">
-        <CardContent className="space-y-6 p-5 md:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2">
-              <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
-                我的写法资产
-              </Badge>
-              <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                  先选一套写法，再决定要编辑、应用还是去 AI 味。
-                </h1>
-                <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
-                  首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={onOpenPromptLab}>
-                正文效果实验室
-              </Button>
-              <Button type="button" onClick={onOpenCreate}>
-                新建一套写法
-              </Button>
-            </div>
+    <div className="space-y-5">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-semibold">写法资产</h2>
+            <p className="text-sm leading-6 text-muted-foreground">先选一套写法，再决定要编辑、应用还是去 AI 味。</p>
           </div>
-
-          <div className="rounded-2xl border border-primary/15 bg-primary/[0.045] px-4 py-3 text-sm leading-7 text-muted-foreground">
-            书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="ghost" onClick={props.onOpenPromptLab}>正文效果实验室</Button>
+            <Button type="button" onClick={props.onOpenCreate}><Plus aria-hidden="true" className="h-4 w-4" />新建一套写法</Button>
           </div>
+        </div>
+        <div className="relative max-w-xl">
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)}
+            aria-label="搜索写法名称、说明或标签" placeholder="搜索写法名称、说明或标签" className="bg-background pl-9" />
+        </div>
+        <p className="border-b border-border/60 pb-4 text-xs leading-6 text-muted-foreground">从小说基础信息设置书级默认写法；在“应用与测试”中绑定目标或试写。</p>
+      </div>
 
-          {profileItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed bg-muted/20 p-6">
-              <div className="text-lg font-semibold text-foreground">当前还没有写法资产</div>
-              <div className="mt-2 text-sm leading-7 text-muted-foreground">
-                先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button type="button" onClick={onOpenCreate}>
-                  去创建第一套写法
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {customProfiles.length > 0 ? (
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-950">你自己创建的写法</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些是你沉淀下来的可复用资产，应该优先在这里挑。
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                      {customProfiles.length} 套
-                    </Badge>
-                  </div>
-                  <div className="grid gap-3">
-                    {customProfiles.map(renderProfileCard)}
-                  </div>
-                </section>
-              ) : null}
-
-              {starterProfiles.length > 0 ? (
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-950">可直接改的起步写法</div>
-                      <div className="text-xs leading-6 text-slate-500">
-                        这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                      {starterProfiles.length} 套
-                    </Badge>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {starterProfiles.map(renderProfileCard)}
-                  </div>
-                </section>
-              ) : null}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {props.loading ? <p role="status" className="py-8 text-sm text-muted-foreground">正在加载写法资产…</p> : null}
+      {props.error ? (
+        <div role="alert" className="rounded-lg bg-destructive/10 p-4 text-sm">
+          <p>{props.error}</p>
+          <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={props.onRetry}>重新加载</Button>
+        </div>
+      ) : null}
+      {!props.loading && !props.error && props.profileItems.length === 0 ? (
+        <div className="rounded-xl bg-card px-6 py-10">
+          <h3 className="text-base font-semibold">创建第一套写法</h3>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">描述你喜欢的读感，或从模板和样本文本开始，AI 会帮你整理成可编辑的规则。</p>
+          <Button type="button" className="mt-4" onClick={props.onOpenCreate}>开始创建</Button>
+        </div>
+      ) : null}
+      {!props.loading && !props.error && props.profileItems.length > 0 && visibleProfiles.length === 0 ? (
+        <div className="py-10 text-center text-sm text-muted-foreground">
+          <p>没有找到匹配的写法，试试其他名称或标签。</p>
+          <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => setSearch("")}>清空搜索</Button>
+        </div>
+      ) : null}
+      {customProfiles.length > 0 ? renderProfileSection("我的写法", customProfiles) : null}
+      {starterProfiles.length > 0 ? renderProfileSection("起步写法 · 可直接使用或修改", starterProfiles) : null}
     </div>
   );
 }

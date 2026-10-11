@@ -529,6 +529,7 @@ export class GenerationContextAssembler {
       continuation: runtimeContinuation,
       styleContext,
       postGenerationStyleReviewEnabled: novel.postGenerationStyleReviewEnabled ?? true,
+      styleSignalPolicy: request.styleSignalPolicy,
       bookContract,
       macroConstraints,
       volumeWindow,

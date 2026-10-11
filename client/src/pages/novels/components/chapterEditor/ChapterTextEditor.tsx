@@ -304,7 +304,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
         ? "当前正在显示段落 patch 对比，原文和改写会在正文原位置并排落成红绿块。"
         : readOnly
           ? "当前有待确认候选，正文暂时锁定，可在右侧切换候选或接受、拒绝。"
-      : "可直接编辑正文，选中内容后可发起 AI 改写。";
+      : "点击正文放置光标，可选续写、过渡、对话或心理描写；选中片段可用 AI 改写。候选确认后写入正文。";
 
   useEffect(() => {
     const surface = surfaceRef.current;

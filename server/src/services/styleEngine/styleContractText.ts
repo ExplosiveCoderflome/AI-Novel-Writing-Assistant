@@ -101,11 +101,21 @@ export function buildStyleContractMetaText(contract: StyleContract | null | unde
   ].join("\n");
 }
 
-export function buildWriterStyleContractText(contract: StyleContract | null | undefined): string {
+/** Book settings are authoritative; AI adapts reference techniques without editing the asset. */
+export function buildWriterStyleContractText(contract: StyleContract | null | undefined, narrativePov?: string | null): string {
   if (!contract) {
     return "";
   }
-  return buildFullStyleContractText(contract);
+  const pov = narrativePov === "first_person" ? "第一人称"
+    : narrativePov === "third_person" ? "第三人称"
+      : narrativePov === "mixed" ? "混合视角，切换须有清晰依据" : null;
+  return [
+    ...(pov ? [
+      `【本书执行优先级】叙事视角采用${pov}（${narrativePov}）。本书设置、章节义务、事实与保密边界优先于参考写法。`,
+      "下列写法是参考技法；其中的人称、题材或节奏要求与本书合同冲突时，由你转化为适合本书的表达，不照搬参考书设定，不改变本书视角。限知范围和叙述人称分别核对，第三人称限知不能称为第一人称。",
+    ] : []),
+    buildFullStyleContractText(contract),
+  ].join("\n\n");
 }
 
 export function inferStyleViolationSource(

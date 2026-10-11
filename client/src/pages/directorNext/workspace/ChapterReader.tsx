@@ -4,11 +4,12 @@ import type { WorkspaceBook, WorkspaceChapter } from "./model";
 import type { DirectorGenerationSnapshot } from "@ai-novel/shared/types/director/generation";
 import {ReadingDisplaySettings, readingTextStyle, type ReadingDisplayPreferences} from "./reading";
 
-export function ChapterReader({ chapter, characters, onCharacter, onChapter, chapters, generation = null, followGeneration = false, readingDisplay, onReadingDisplayChange }: {
+export function ChapterReader({ chapter, characters, onCharacter, onChapter, chapters, generation = null, followGeneration = false, readingDisplay, onReadingDisplayChange, onEdit }: {
   chapter: WorkspaceChapter; characters: WorkspaceBook["materials"]["characters"];
   onCharacter: (id: string) => void; onChapter: (id: string) => void; chapters: WorkspaceChapter[];
   generation?: DirectorGenerationSnapshot | null; followGeneration?: boolean;
   readingDisplay: ReadingDisplayPreferences; onReadingDisplayChange: (next: ReadingDisplayPreferences) => void;
+  onEdit?: (chapterId: string) => void;
 }) {
   // Keep the opened edition while polling. Updating prose is an explicit reader action.
   const [edition, setEdition] = useState(chapter);
@@ -30,7 +31,10 @@ export function ChapterReader({ chapter, characters, onCharacter, onChapter, cha
       <p className="text-xs tracking-widest text-muted-foreground">第 {edition.order} 章 · {(live ? live.content.replace(/\s/g, "").length : edition.wordCount).toLocaleString()} 字</p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="min-w-0 text-2xl font-semibold tracking-wide">{edition.title}</h2>
-        <ReadingDisplaySettings preferences={readingDisplay} onChange={onReadingDisplayChange} previewText={content}/>
+        <div className="flex items-center gap-2">
+          {onEdit ? <Button size="sm" variant="outline" onClick={() => onEdit(chapter.id)}>编辑正文</Button> : null}
+          <ReadingDisplaySettings preferences={readingDisplay} onChange={onReadingDisplayChange} previewText={content}/>
+        </div>
       </div>
       {live ? <p role="status" className="text-xs text-muted-foreground">{live.state === "writing" ? "正在生成正文 · 实时预览" : live.state === "checking" ? "正文生成完成，正在检查与保存" : live.state === "saved" ? "正文已保存" : "生成已中断，请查看导演台的处理提示。正文以保存版为准。"}</p> : null}
       {changed ? <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" role="status">本章有新保存的内容<Button size="sm" variant="outline" onClick={() => setEdition(chapter)}>查看新内容</Button></div> : null}

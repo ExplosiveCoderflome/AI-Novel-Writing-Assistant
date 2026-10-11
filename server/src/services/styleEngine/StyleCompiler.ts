@@ -289,7 +289,8 @@ export class StyleCompiler {
       lines: [
         "- Check whether the draft explains psychology instead of showing it through action or tone.",
         "- Check whether paragraph endings summarize, elevate, or moralize.",
-        "- Check whether sentence rhythm becomes too even or template-like.",
+        "- Check whether repeated sentence openings, metaphors, or bodily reactions add new information instead of repeating the same emotion.",
+        "- Remove static action loops that change neither choices nor information; do not fill the length target by repeating a scene.",
         "- If AI flavor remains, revise before returning the final draft.",
       ],
     });

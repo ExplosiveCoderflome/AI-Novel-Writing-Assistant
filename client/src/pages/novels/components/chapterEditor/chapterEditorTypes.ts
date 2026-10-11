@@ -48,6 +48,9 @@ export interface ChapterEditorShellProps {
   workspace: ChapterEditorWorkspaceResponse | null;
   workspaceStatus: "loading" | "ready" | "error";
   onBack?: () => void;
+  backLabel?: string;
+  onChapterSaved?: () => Promise<void>;
+  onEditingStateChange?: (state: { isDirty: boolean; isBusy: boolean; hasCandidate: boolean }) => void;
   onOpenVersionHistory?: () => void;
   onRefreshWorkspace?: () => void;
   isRefreshingWorkspace?: boolean;

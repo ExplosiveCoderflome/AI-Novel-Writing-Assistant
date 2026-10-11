@@ -7,7 +7,7 @@ import { chapterAcceptanceAssessmentPrompt } from "../../../../prompting/prompts
 import { promptSlotOverrideService } from "../../../../prompting/slots/PromptSlotOverrideService";
 import { resolveAdvancedPromptMessages } from "../../../../prompting/templates/templateRuntime";
 import type { ChapterAcceptanceAssessmentInput } from "../ChapterAcceptanceAssessmentService";
-import { applyAcceptanceStyleContext, isAcceptanceStyleReviewEnabled, getAcceptanceStyleRuleIds } from "./styleReview";
+import { applyAcceptanceStyleContext, isAcceptanceStyleReviewEnabled, getAcceptanceStyleRuleIds, buildAcceptanceStyleSignals, getAcceptanceNarrativePov } from "./styleReview";
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -37,8 +37,11 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
     novelTitle: input.novelTitle, chapterTitle: input.chapterTitle, chapterOrder: input.chapterOrder,
     targetWordCount: input.targetWordCount ?? null, content: input.content,
     repairReviewBaseline: input.repairReviewBaseline,
+    styleRewriteBaseline: input.styleRewriteBaseline,
     styleReviewEnabled: isAcceptanceStyleReviewEnabled(input.contextPackage),
     styleRuleIds: getAcceptanceStyleRuleIds(input.contextPackage),
+    expectedNarrativePov: getAcceptanceNarrativePov(input.contextPackage),
+    styleSignals: buildAcceptanceStyleSignals(input.contextPackage, input.content),
   };
   const prepared = preparePromptExecution({
     asset, promptInput, contextBlocks: [...applyAcceptanceStyleContext(input.contextPackage, context.blocks), ...(overlays?.appendBlocks ?? [])],
@@ -53,6 +56,7 @@ export async function buildAcceptanceCacheIdentity(input: ChapterAcceptanceAsses
   });
   const identity = {
     version: 2, promptId: asset.id, promptVersion: asset.version,
+    styleSignalPolicy: input.contextPackage.styleSignalPolicy,
     messages: messages.map((message) => ({ role: message.getType(), content: message.content })),
     model: {
       provider: resolved.provider, model: resolved.model, baseURL: resolved.baseURL,

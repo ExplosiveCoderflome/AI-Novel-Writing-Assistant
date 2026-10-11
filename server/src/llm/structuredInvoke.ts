@@ -64,6 +64,7 @@ export interface StructuredInvokeInput<T> {
   label: string;
   maxRepairAttempts?: number;
   fallbackMaxRepairAttempts?: number;
+  repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   disableFallbackModel?: boolean;
 }
@@ -323,6 +324,7 @@ async function invokeStructuredAttempt<T>(input: {
       requestProtocol: resolved.requestProtocol,
       label: input.baseInput.label,
       maxRepairAttempts: input.baseInput.maxRepairAttempts,
+      repairGuidance: input.baseInput.repairGuidance,
       promptMeta: input.baseInput.promptMeta,
       onRepairOutputDelta: (content) => {
         if (!repairStarted) {

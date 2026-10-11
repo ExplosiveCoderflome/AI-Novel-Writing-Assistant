@@ -6,6 +6,7 @@ import type {
   AntiAiRuleAiDraftResult,
   StyleBinding,
   StyleDetectionReport,
+  StyleRewriteGuard,
   StyleExtractionDraft,
   StyleExtractionSourceProcessingMode,
   StyleFeatureDecision,
@@ -313,7 +314,7 @@ export async function rewriteStyleIssues(payload: {
   chapterId?: string;
   taskStyleProfileId?: string;
   previewAntiAiRuleIds?: string[];
-  issues: Array<{
+  issues?: Array<{
     ruleName: string;
     excerpt: string;
     suggestion: string;
@@ -322,6 +323,6 @@ export async function rewriteStyleIssues(payload: {
   model?: string;
   temperature?: number;
 }) {
-  const { data } = await apiClient.post<ApiResponse<{ content: string }>>("/style-detection/rewrite", payload);
+  const { data } = await apiClient.post<ApiResponse<{ content: string; report?: StyleDetectionReport; rewriteGuard?: StyleRewriteGuard }>>("/style-detection/rewrite", payload);
   return data;
 }

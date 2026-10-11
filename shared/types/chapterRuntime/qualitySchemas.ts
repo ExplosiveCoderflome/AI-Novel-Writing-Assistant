@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { styleRiskLayerSchema, styleRewriteGuardSchema, styleSignalScanSchema } from "../styleEngine.js";
 
 const auditTypeSchema = z.enum(["continuity", "character", "plot", "mode_fit"]);
 export const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
@@ -70,6 +71,8 @@ export const styleDetectionViolationSchema = z.object({
   severity: antiAiSeveritySchema,
   source: styleContractViolationSourceSchema,
   issueCategory: styleContractIssueCategorySchema,
+  layer: styleRiskLayerSchema.optional(),
+  issueCode: z.string().optional(),
   excerpt: z.string(),
   reason: z.string(),
   suggestion: z.string(),
@@ -82,12 +85,21 @@ export const styleDetectionReportSchema = z.object({
   violations: z.array(styleDetectionViolationSchema),
   canAutoRewrite: z.boolean(),
   appliedRuleIds: z.array(z.string()),
+  signalScan: styleSignalScanSchema.optional(),
+  // Older reports have no perspective check; missing data never proves compliance.
+  perspectiveCheck: z.object({
+    expected: z.enum(["first_person", "third_person", "mixed"]).nullable(),
+    observed: z.enum(["first_person", "third_person", "mixed", "uncertain"]),
+    evidence: z.string(),
+  }).optional(),
 });
 
 export const runtimeStyleReviewSchema = z.object({
   report: styleDetectionReportSchema.nullable(),
   autoRewritten: z.boolean(),
   originalContent: z.string().nullable().optional(),
+  rewriteGuard: styleRewriteGuardSchema.optional(),
+  signalScan: styleSignalScanSchema.optional(),
 });
 
 export const runtimeSceneGenerationResultSchema = z.object({

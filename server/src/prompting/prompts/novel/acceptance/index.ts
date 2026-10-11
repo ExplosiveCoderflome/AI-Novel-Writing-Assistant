@@ -1,2 +1,2 @@
 export { repairVerificationSchema, buildRepairReviewChecklist, validateRepairReview, ChapterRepairVerificationError } from "./repairVerification";
-export { acceptanceStyleReviewSchema, validateAcceptanceStyleReview } from "./styleReview";
+export { acceptanceStyleReviewSchema, acceptanceStyleReviewModelSchema, validateAcceptanceStyleReview, ChapterStyleReviewValidationError } from "./styleReview";

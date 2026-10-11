@@ -10,6 +10,7 @@ import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { getSharedNovelServices } from "../novel/application/sharedNovelServices";
+import { hasEmptySucceededBookAnalysisSection } from "../bookAnalysis/shared/bookAnalysis.status";
 import { AgentRunTaskAdapter } from "./adapters/AgentRunTaskAdapter";
 import { BookTaskAdapter } from "./adapters/BookTaskAdapter";
 import { KnowledgeTaskAdapter } from "./adapters/KnowledgeTaskAdapter";
@@ -74,6 +75,7 @@ export class TaskCenterService {
       agentRows,
       workflowRows,
       styleExtractionRows,
+      emptySucceededBookRows,
       bookRecoveryCount,
       pipelineRecoveryCount,
       imageRecoveryCount,
@@ -132,6 +134,41 @@ export class TaskCenterService {
         },
         _count: { _all: true },
       }),
+      prisma.bookAnalysis.findMany({
+        where: {
+          status: "succeeded",
+          ...(archivedBookIds.length ? { id: { notIn: archivedBookIds } } : {}),
+          sections: {
+            some: {
+              status: "succeeded",
+              frozen: false,
+              AND: [
+                { OR: [{ editedContent: null }, { editedContent: "" }] },
+                { OR: [{ aiContent: null }, { aiContent: "" }] },
+              ],
+            },
+          },
+        },
+        select: {
+          sections: {
+            where: {
+              status: "succeeded",
+              frozen: false,
+              AND: [
+                { OR: [{ editedContent: null }, { editedContent: "" }] },
+                { OR: [{ aiContent: null }, { aiContent: "" }] },
+              ],
+            },
+            select: {
+              status: true,
+              frozen: true,
+              aiContent: true,
+              editedContent: true,
+              structuredDataJson: true,
+            },
+          },
+        },
+      }),
       prisma.bookAnalysis.count({
         where: {
           status: { in: ["queued", "running"] },
@@ -178,6 +215,9 @@ export class TaskCenterService {
       waitingApprovalCount: 0,
       recoveryCandidateCount: bookRecoveryCount + pipelineRecoveryCount + imageRecoveryCount + workflowRecoveryCount + styleExtractionRecoveryCount,
     };
+    overview.failedCount += emptySucceededBookRows.filter((row) => (
+      hasEmptySucceededBookAnalysisSection(row.sections)
+    )).length;
 
     for (const rows of [bookRows, pipelineRows, knowledgeRows, imageRows, agentRows, workflowRows, styleExtractionRows]) {
       for (const row of rows) {

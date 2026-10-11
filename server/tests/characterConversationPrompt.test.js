@@ -36,6 +36,26 @@ test("read-only character conversation rejects influence drafts", () => {
   const systemText = String(render("read_only")[0].content);
   assert.match(systemText, /只读访谈/);
   assert.match(systemText, /influenceDraft 必须为 null/);
+  assert.match(systemText, /绝不能用 0 代表无章节/);
+  assert.match(characterConversationTurnPrompt.repairPolicy.guidance, /chapterOrder/);
+  assert.match(characterConversationTurnPrompt.repairPolicy.guidance, /第 1 章/);
+});
+
+test("base character evidence uses null instead of a fabricated chapter number", () => {
+  const parsed = characterConversationTurnResponseSchema.parse({
+    characterReply: "我不愿提那些旧事。",
+    evidence: [{
+      label: "角色弱点",
+      detail: "被质疑忠诚时容易情绪波动。",
+      sourceType: "base_character",
+      sourceRef: "base-character-ninghui",
+      chapterOrder: null,
+    }],
+    uncertainty: "角色库没有章节情节，无法确认具体经历。",
+    influenceDraft: null,
+  });
+  assert.equal(parsed.evidence[0].chapterOrder, null);
+  assert.match(characterConversationTurnPrompt.repairPolicy.guidance, /设为 null 或省略/);
 });
 
 test("evidence interview prompt prohibits post-anchor knowledge", () => {

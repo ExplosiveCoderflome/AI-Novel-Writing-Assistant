@@ -40,7 +40,8 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     chapters[0].artifactSyncCheckpoints = missingBoundary ? [] : [{ contentHash: buildChapterArtifactContentHash(chapters[0].content), metadataJson: JSON.stringify({ outcome: 'completed' }) }];
   }
   const calls = [];
-  let usageReads = 0, classifications = 0;
+  let usageReads = 0, classifications = 0, planningTokens = 0;
+  replace(prisma.llmInvocationUsageRecord, 'aggregate', async () => ({ _sum: { totalTokens: planningTokens } }));
   replace(prisma.generationJob, 'findUnique', async () => job);
   replace(prisma.generationJob, 'findUniqueOrThrow', async input => { if (input.select?.totalTokens) usageReads++; return job; });
   replace(prisma.generationJob, 'update', async ({ data }) => {
@@ -71,10 +72,12 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
   const { plannerService } = require('../../../dist/services/planner/PlannerService');
   replace(plannerService, 'replan', async () => {
     job.totalTokens += futurePlanningTokens;
+    planningTokens += futurePlanningTokens;
     return { affectedChapterOrders: [2], action: 'local_replan' };
   });
   replace(novelEventBus, 'emit', async () => {});
-  const runtime = { runPipelineChapter: async (_novelId, id) => {
+  const runtime = { runPipelineChapter: async (_novelId, id, _options, hooks) => {
+    if (director && !legacySaved) await hooks.onCheckBudget?.(16000);
     calls.push(id);
     if (director) assert.equal(JSON.parse(job.payload).directorNext.chapterUsage.find(row => row.chapterId === id).startJobTokens, job.totalTokens);
     job.totalTokens += chapterTokens;
@@ -186,6 +189,18 @@ test('a truly exhausted chapter stops before spending more tokens on future plan
   assert.equal(result.job.totalTokens, 100000);
   assert.equal(result.job.completedCount, 1);
   assert.equal(result.job.pendingManualRecovery, true);
+});
+
+test('chapter preflight reserves room before starting another AI stage', async () => {
+  const result = await exercise({
+    initialTokens: 90000,
+    checkpoints: [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 0, totalTokens: 90000 }],
+    chapterTokens: 100,
+  });
+  assert.deepEqual(result.calls, []);
+  assert.equal(result.job.pendingManualRecovery, true);
+  assert.match(result.job.error, /预留 16000 Tokens/);
+  assert.equal(result.chapters[0].content, '');
 });
 
 test('recovery keeps the original chapter baseline and refuses another generation after exhaustion', async () => {

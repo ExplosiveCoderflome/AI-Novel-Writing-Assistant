@@ -44,7 +44,12 @@ test("rejected request clears in-flight slot and can be retried", async () => {
 
 test("unavailable result clears slot without writing a successful cache", async () => {
   const h = fixture(); const gate = h.create(); h.state.unavailable = true;
-  await gate.runAcceptanceGate(h.input);
+  const traces = [], originalInfo = console.info;
+  try {
+    console.info = (_label, value) => traces.push(value);
+    await gate.runAcceptanceGate(h.input);
+  } finally { console.info = originalInfo; }
+  assert.equal(traces.find(trace => trace.stage === 'acceptance').status, 'degraded');
   assert.equal(h.rows.size, 0);
   h.state.unavailable = false;
   await gate.runAcceptanceGate(h.input);
@@ -120,9 +125,24 @@ test("cache identity renders effective context, overrides and model without vola
     antiAiRules: [{ id: 'r', name: '规则', type: 'forbidden', enabled: true, severity: 'high', autoRewrite: false, promptInstruction: '禁止总结' }] });
   const enabledContext = { styleContext: { compiledBlocks }, postGenerationStyleReviewEnabled: true };
   const enabledIdentity = await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext });
+  const bookContext = { ...enabledContext, bookContract: { narrativePov: 'third_person' } };
+  const thirdPersonIdentity = await buildAcceptanceCacheIdentity({ ...input, contextPackage: bookContext });
+  assert.notEqual(thirdPersonIdentity, enabledIdentity);
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: {
+    ...bookContext, bookContract: { narrativePov: 'first_person' },
+  } }), thirdPersonIdentity, 'book perspective is part of both the rendered context and cache identity');
   assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: { ...enabledContext, postGenerationStyleReviewEnabled: false } }), enabledIdentity);
   compiledBlocks.contract.meta.antiAiRulePolicies = [{ id: 'r', name: '规则', type: 'forbidden', severity: 'high', autoRewrite: true }];
   assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext }), enabledIdentity);
+  enabledContext.styleSignalPolicy = require('../../../shared/dist/types/styleEngine.js').createStyleSignalPolicy();
+  const scanIdentity = await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext });
+  assert.notEqual(scanIdentity, enabledIdentity);
+  enabledContext.styleSignalPolicy.longSentenceCharacters = 90;
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext }), scanIdentity);
+  const thresholdIdentity = await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext });
+  enabledContext.styleSignalPolicy.transitionTerms.push('因此可以认为');
+  assert.notEqual(await buildAcceptanceCacheIdentity({ ...input, contextPackage: enabledContext }), thresholdIdentity,
+    'zero findings cannot hide policy changes from cache identity');
 });
 
 test('acceptance receives the mission length when chapter metadata has no target', async () => {

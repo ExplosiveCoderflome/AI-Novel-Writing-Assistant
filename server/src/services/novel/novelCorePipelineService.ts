@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { createStyleSignalPolicy } from "@ai-novel/shared/types/styleEngine";
 import {assertDirectorPipelineOwner, canRecoverLegacyPipelineJob, sameDirectorPipelineOwner, type DirectorPipelineOwner} from "../../modules/novel/director-routing";
 import {AppError} from "../../middleware/errorHandler";
 import { DIRECTOR_ISSUE_GOVERNANCE_VERSION, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
@@ -333,11 +334,13 @@ export class NovelCorePipelineService {
     return this.withStartLock(rangeKey, async () => {
       const maxRetries = clampPipelineMaxRetries(options.maxRetries);
       const issuePolicySnapshot = await this.resolveIssuePolicySnapshot(novelId, options);
+      const styleSignalPolicy = options.styleSignalPolicy ?? createStyleSignalPolicy();
       const runtimeOptions: PipelineRunOptions = {
         ...options,
         maxRetries,
         issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
         issuePolicySnapshot,
+        styleSignalPolicy,
       };
       await ensureNovelCharacters(novelId, "启动批量章节流水");
 
@@ -444,6 +447,7 @@ export class NovelCorePipelineService {
             controlPolicy: options.controlPolicy,
             issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
             issuePolicySnapshot,
+            styleSignalPolicy,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
             directorNext: options.directorNext,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,

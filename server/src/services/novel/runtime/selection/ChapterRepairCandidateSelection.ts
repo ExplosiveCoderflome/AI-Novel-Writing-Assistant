@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { StyleRewriteGuard } from "@ai-novel/shared/types/styleEngine";
 
 export interface ChapterRepairCandidateEvaluation {
   content: string;
@@ -8,6 +9,7 @@ export interface ChapterRepairCandidateEvaluation {
   runtimePackage: ChapterRuntimePackage;
   issues?: ReviewIssue[];
   assessmentVerified?: boolean;
+  rewriteGuard?: StyleRewriteGuard;
 }
 
 export interface ChapterRepairSelectionRecord {
@@ -46,7 +48,12 @@ export function selectChapterRepairCandidate(input: {
     candidateScore: input.candidate.runtimePackage.audit.score.overall,
   };
 
-  if (input.candidate.assessmentVerified === false) {
+  const guard = input.candidate.rewriteGuard;
+  if (input.candidate.assessmentVerified === false || (guard && (
+    guard.sourceContentHash !== base.originalContentHash || guard.candidateContentHash !== base.candidateContentHash
+    || guard.checks.some(check => check.status !== "passed")
+    || ["patch_scope", "edit_budget", "protected_terms", "semantic_facts"].some(code => !guard.checks.some(check => check.code === code))
+  ))) {
     return {
       ...base, selected: "original", reasonCode: "original_retained_unverified_review",
       reason: "候选正文的复验未完成有效核对，保留原稿及其检查结果。",

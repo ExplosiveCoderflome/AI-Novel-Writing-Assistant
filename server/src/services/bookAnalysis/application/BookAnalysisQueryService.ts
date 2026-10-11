@@ -11,6 +11,30 @@ import { KnowledgePublishService } from "../../knowledge/KnowledgePublishService
 import { buildAnalysisExportContent } from "../publish/bookAnalysis.export";
 import { publishAnalysisToNovel } from "../publish/bookAnalysis.publish";
 import { serializeAnalysisRow, serializeSectionRow } from "../infrastructure/bookAnalysis.serialization";
+import {
+  EMPTY_BOOK_ANALYSIS_RESULT_ERROR,
+  reconcileBookAnalysisResultStatus,
+} from "../shared/bookAnalysis.status";
+
+function serializeAnalysisWithResultStatus<TRow extends Parameters<typeof serializeAnalysisRow>[0] & {
+  sections: Array<{
+    status: string;
+    frozen: boolean;
+    aiContent: string | null;
+    editedContent: string | null;
+    structuredDataJson: string | null;
+  }>;
+}>(row: TRow): BookAnalysis {
+  const serialized = serializeAnalysisRow(row);
+  const status = reconcileBookAnalysisResultStatus(serialized.status, row.sections);
+  return status === serialized.status
+    ? serialized
+    : {
+        ...serialized,
+        status,
+        lastError: serialized.lastError ?? EMPTY_BOOK_ANALYSIS_RESULT_ERROR,
+      };
+}
 
 export class BookAnalysisQueryService {
   private readonly knowledgePublishService = new KnowledgePublishService();
@@ -21,9 +45,12 @@ export class BookAnalysisQueryService {
     documentId?: string;
   } = {}): Promise<BookAnalysis[]> {
     const keyword = filters.keyword?.trim();
+    const persistedStatusFilter = filters.status === "failed"
+      ? { in: ["failed" as const, "succeeded" as const] }
+      : filters.status;
     const rows = await prisma.bookAnalysis.findMany({
       where: {
-        ...(filters.status ? { status: filters.status } : { status: { not: "archived" } }),
+        ...(persistedStatusFilter ? { status: persistedStatusFilter } : { status: { not: "archived" } }),
         ...(filters.documentId ? { documentId: filters.documentId } : {}),
         ...(keyword
           ? {
@@ -51,10 +78,22 @@ export class BookAnalysisQueryService {
             versionNumber: true,
           },
         },
+        sections: {
+          select: {
+            status: true,
+            frozen: true,
+            aiContent: true,
+            editedContent: true,
+            structuredDataJson: true,
+          },
+        },
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     });
-    return rows.map((row) => serializeAnalysisRow(row));
+    const analyses = rows.map((row) => serializeAnalysisWithResultStatus(row));
+    return filters.status
+      ? analyses.filter((analysis) => analysis.status === filters.status)
+      : analyses;
   }
 
   async getAnalysisById(analysisId: string): Promise<BookAnalysisDetail | null> {
@@ -86,7 +125,7 @@ export class BookAnalysisQueryService {
       return null;
     }
     return {
-      ...serializeAnalysisRow(row),
+      ...serializeAnalysisWithResultStatus(row),
       sections: row.sections.map((section) => serializeSectionRow(section)),
     };
   }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { styleRiskLayerSchema } from "@ai-novel/shared/types/styleEngine";
 
 export const styleDetectionRuleTypeSchema = z.enum([
   "style",
@@ -9,12 +10,13 @@ export const styleDetectionRuleTypeSchema = z.enum([
 ]);
 
 export const styleDetectionViolationSchema = z.object({
-  ruleId: z.string().trim().optional(),
+  layer: styleRiskLayerSchema,
+  ruleId: z.string().trim().min(1).nullish().describe("反 AI 规则目录中方括号内的原始 ID；普通写法合同问题为 null，禁止使用统计 signalCode 或自造编号。"),
   ruleName: z.string().trim().min(1),
   ruleType: styleDetectionRuleTypeSchema,
   severity: z.enum(["low", "medium", "high"]),
   issueCategory: z.enum(["style_expression", "story_structure"]).optional(),
-  excerpt: z.string().trim().min(1),
+  excerpt: z.string().trim().min(1).describe("当前正文中的一段连续原句，逐字复制；不得拼接或添加省略号缩写。"),
   reason: z.string().trim().min(1),
   suggestion: z.string().trim().min(1),
   canAutoRewrite: z.boolean(),
@@ -23,7 +25,7 @@ export const styleDetectionViolationSchema = z.object({
 export const styleDetectionPayloadSchema = z.object({
   riskScore: z.coerce.number().min(0).max(100).optional(),
   summary: z.string().trim().optional(),
-  violations: z.array(styleDetectionViolationSchema).optional().default([]),
+  violations: z.array(styleDetectionViolationSchema).max(8).optional().default([]),
   canAutoRewrite: z.boolean().optional().default(false),
 });
 

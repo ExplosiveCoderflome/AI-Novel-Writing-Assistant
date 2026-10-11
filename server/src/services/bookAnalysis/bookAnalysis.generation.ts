@@ -16,6 +16,7 @@ import {
 } from "../knowledge/DocumentChapterService";
 import type {
   BookAnalysisOverviewContext,
+  SectionGenerationResult,
   SourceNote,
 } from "./shared/bookAnalysis.types";
 import {
@@ -56,6 +57,12 @@ function getRemainingSectionProgress(completed: number, total: number, startProg
     return startProgress;
   }
   return Number((startProgress + (1 - startProgress) * (completed / total)).toFixed(4));
+}
+
+function assertReadableSectionResult(result: SectionGenerationResult): void {
+  if (!result.markdown.trim()) {
+    throw new Error("AI 未返回可展示的拆书正文，请检查模型配置后重试。");
+  }
 }
 
 
@@ -176,6 +183,7 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: overviewSection.focusInstruction,
               },
             );
+            assertReadableSectionResult(generated);
             const evidence = bindEvidenceToDocumentChapters(
               generated.evidence,
               documentChapters,
@@ -271,6 +279,7 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: section.focusInstruction,
               },
             );
+            assertReadableSectionResult(generated);
             const evidence = bindEvidenceToDocumentChapters(
               generated.evidence,
               documentChapters,
@@ -445,6 +454,7 @@ export class BookAnalysisGenerationService {
             sectionFocusInstruction: section.focusInstruction,
           },
         );
+        assertReadableSectionResult(generated);
         const evidence = bindEvidenceToDocumentChapters(
           generated.evidence,
           documentChapters,

@@ -75,7 +75,8 @@ export function getPromptCatalogShortDescription(promptId: string, taskType?: st
   }
 }
 
-export function formatPromptLiveLabel(input: { promptId: string; promptVersion?: string | null; taskType?: string }): string {
+export function formatPromptLiveLabel(input: { promptId: string; promptVersion?: string | null; taskType?: string; semanticRetryAttempts?: number }): string {
   const version = input.promptVersion ? `@${input.promptVersion}` : "";
-  return `${getPromptCatalogShortDescription(input.promptId, input.taskType)} · ${input.promptId}${version}`;
+  const retry = input.semanticRetryAttempts ? ` · 校验重试 ${input.semanticRetryAttempts}` : "";
+  return `${getPromptCatalogShortDescription(input.promptId, input.taskType)} · ${input.promptId}${version}${retry}`;
 }

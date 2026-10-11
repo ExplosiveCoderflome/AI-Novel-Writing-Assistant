@@ -517,7 +517,7 @@ export function buildChapterWriterContextBlocks(
         priority: 74,
         required: true,
         allowSummary: false,
-        content: buildWriterStyleContractText(writeContext.styleContract),
+        content: buildWriterStyleContractText(writeContext.styleContract, writeContext.bookContract?.narrativePov),
       })
       : null,
     includeContinuationConstraints

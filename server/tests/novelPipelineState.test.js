@@ -109,6 +109,10 @@ test("startPipelineJob persists maxRetries as a single repair pass", async () =>
     assert.equal(createdInput.data.maxRetries, 1);
     assert.equal(JSON.parse(createdInput.data.payload).maxRetries, 1);
     assert.equal(scheduledOptions.maxRetries, 1);
+    const savedStylePolicy = JSON.parse(createdInput.data.payload).styleSignalPolicy;
+    assert.equal(savedStylePolicy.revision, "style-signals-v1");
+    assert.deepEqual(savedStylePolicy, scheduledOptions.styleSignalPolicy);
+    assert.equal(savedStylePolicy.longSentenceCharacters, 80);
     assert.equal(capturedChapterQuery.select.artifactSyncCheckpoints.where.artifactType, "artifact_sync_boundary:v1");
     assert.equal(capturedChapterQuery.select.artifactSyncCheckpoints.where.status, "succeeded");
   } finally {

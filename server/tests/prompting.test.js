@@ -45,6 +45,7 @@ const {
 const {
   styleDetectionPrompt,
   styleRewritePrompt,
+  styleGenerationPrompt,
   styleProfileExtractionPrompt,
   styleProfileFromBookAnalysisPrompt,
 } = require("../dist/prompting/prompts/style/style.prompts.js");
@@ -1398,7 +1399,7 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
   const originalContextPolicy = { ...genreTreePrompt.contextPolicy };
   let captured = null;
 
-  genreTreePrompt.repairPolicy = { maxAttempts: 3 };
+  genreTreePrompt.repairPolicy = { maxAttempts: 3, guidance: "保留原始分类层级，不要编造节点。" };
   genreTreePrompt.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
@@ -1447,6 +1448,7 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
     });
 
     assert.equal(captured.maxRepairAttempts, 3);
+    assert.equal(captured.repairGuidance, "保留原始分类层级，不要编造节点。");
     assert.equal(captured.promptMeta.repairAttempts, 0);
     assert.equal(captured.promptMeta.semanticRetryAttempts, 0);
     assert.deepEqual(captured.promptMeta.droppedContextBlockIds, ["overflow-1"]);
@@ -1560,11 +1562,14 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
   }
 });
 
+// Runner transport tests use a registered text asset, independent of structured rewriting.
+const textRunnerFixture = { ...styleGenerationPrompt };
+
 test("streamTextPrompt buffers streamed output and resolves completion metadata", async () => {
   resetPromptQualityTelemetryForTests();
-  const originalContextPolicy = { ...styleRewritePrompt.contextPolicy };
+  const originalContextPolicy = { ...textRunnerFixture.contextPolicy };
   let capturedOptions = null;
-  styleRewritePrompt.contextPolicy = {
+  textRunnerFixture.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
     dropOrder: ["overflow"],
@@ -1584,12 +1589,14 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
 
   try {
     const handle = await streamTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
       contextBlocks: [
@@ -1632,7 +1639,7 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.equal(telemetry.emptyOutputCount, 0);
     assert.equal(telemetry.totalOutputChars, 2);
   } finally {
-    styleRewritePrompt.contextPolicy = originalContextPolicy;
+    textRunnerFixture.contextPolicy = originalContextPolicy;
     setPromptRunnerLLMFactoryForTests();
   }
 });
@@ -1656,12 +1663,14 @@ test("runTextPrompt records empty outputs without changing return behavior", asy
 
   try {
     const result = await runTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
     });
@@ -1693,12 +1702,14 @@ test("prompt runner records failed executions without swallowing the original er
   try {
     await assert.rejects(
       () => runTextPrompt({
-        asset: styleRewritePrompt,
+        asset: textRunnerFixture,
         promptInput: {
           styleBlock: "叙事紧凑",
           characterBlock: "动作表达情绪",
           antiAiBlock: "禁止解释性心理描写",
           content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
           issuesBlock: "问题",
         },
       }),
@@ -1818,12 +1829,14 @@ test("prompt runner skips custom slot overlays for prompts without editable slot
 
   try {
     const handle = await streamTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
       contextBlocks: [],

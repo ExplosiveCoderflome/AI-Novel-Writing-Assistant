@@ -21,6 +21,13 @@ export const repairVerificationSchema = z.object({
     currentEvidence: z.string().trim().min(1).max(350),
     reason: z.string().trim().min(1),
   })).max(20),
+  factPreservation: z.object({
+    sourceContentHash: z.string().trim().min(1),
+    status: z.enum(["preserved", "authorized_correction", "changed", "uncertain"]),
+    correctionIssueIds: z.array(z.string()).max(8),
+    currentEvidence: z.string().trim().min(1).max(350),
+    reason: z.string().trim().min(1),
+  }).optional(),
 });
 
 export function candidateContentHash(content: string): string {
@@ -41,6 +48,7 @@ export function buildRepairReviewChecklist(input: ChapterAcceptancePromptInput) 
       kind: "obligation" as const, key: `${item.kind}:${item.summary}`, requirement: item.summary,
     }])).values()],
     repairDirectives: baseline.repairDirectives,
+    ...(input.styleRewriteBaseline ? { styleProtection: input.styleRewriteBaseline } : {}),
   };
 }
 
@@ -86,5 +94,17 @@ export function validateRepairReview(
   if (seen.size !== expected.size) throw new ChapterRepairVerificationError("修文复验遗漏首次问题或义务核对项。");
   for (const issue of output.blockingIssues) verifyQuote(issue.currentEvidence);
   for (const item of output.missingObligations) verifyQuote(item.currentEvidence);
+  if (input.styleRewriteBaseline) {
+    const facts = verification.factPreservation;
+    const authorized = input.styleRewriteBaseline.allowedCorrectionIssueIds;
+    if (!facts || facts.sourceContentHash !== input.styleRewriteBaseline.sourceContentHash
+      || facts.status === "changed" || facts.status === "uncertain"
+      || facts.correctionIssueIds.some(id => !authorized.includes(id))
+      || (facts.status === "authorized_correction" && facts.correctionIssueIds.length === 0)
+      || (facts.status === "preserved" && facts.correctionIssueIds.length > 0)) {
+      throw new ChapterRepairVerificationError("表达修文未完成可信的事实保护核对，保留原稿。");
+    }
+    verifyQuote(facts.currentEvidence);
+  }
   return output;
 }

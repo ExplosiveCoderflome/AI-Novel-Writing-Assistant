@@ -12,7 +12,6 @@ import { buildChapterReviewContextBlocks } from "../../../prompting/prompts/nove
 import { resolveTargetWordRange } from "../../../prompting/prompts/novel/chapterLayeredContextShared";
 import {
   chapterAcceptanceAssessmentPrompt,
-  ChapterRepairVerificationError,
   type ChapterAcceptanceAssessmentOutput,
   type ChapterAcceptancePromptInput,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
@@ -20,7 +19,7 @@ import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore, ruleScore } from "../novelP0Utils";
 import { detectProseQuality } from "./proseQuality/ProseQualityDetector";
 import { buildAcceptanceCacheIdentity, isAcceptanceStyleReviewEnabled, applyAcceptanceStyleContext, buildAcceptanceStyleReport,
-  getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy } from "./acceptance";
+  getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy, buildAcceptanceStyleSignals, getAcceptanceNarrativePov, describeAcceptanceFailure } from "./acceptance";
 
 export interface ChapterAcceptanceAssessmentInput {
   novelId: string;
@@ -30,6 +29,7 @@ export interface ChapterAcceptanceAssessmentInput {
   chapterOrder: number;
   targetWordCount?: number | null;
   repairReviewBaseline?: ChapterAcceptancePromptInput["repairReviewBaseline"];
+  styleRewriteBaseline?: ChapterAcceptancePromptInput["styleRewriteBaseline"];
   content: string;
   contextPackage: GenerationContextPackage;
   provider?: LLMProvider;
@@ -45,6 +45,7 @@ export interface ChapterAcceptanceAssessmentResult {
   issues: ReviewIssue[];
   auditReports: AuditReport[];
   styleReviewReport?: RuntimeStyleDetectionReport | null;
+  styleSignalScan?: import("@ai-novel/shared/types/styleEngine").StyleSignalScan;
 }
 
 type AcceptanceIssue = ChapterAcceptanceAssessmentOutput["blockingIssues"][number];
@@ -219,24 +220,24 @@ export function normalizeAssessment(
   };
 }
 
-function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOutput {
+function buildFallbackAssessment(content: string, failure: ReturnType<typeof describeAcceptanceFailure>): ChapterAcceptanceAssessmentOutput {
   const score = ruleScore(content);
   return {
     status: "continue_with_risk",
     score,
-    summary: "正文已生成，接收闸门未完成结构化判断，系统将保留正文并标记后续复查风险。",
+    summary: `${failure.message}保留正文并标记后续复查风险。`,
     blockingIssues: [{
       severity: "medium",
       category: "mode_fit",
       code: "acceptance_gate_unavailable",
-      evidence: "章节接收闸门未返回可用结构化结果。",
+      evidence: failure.message,
       fixSuggestion: "保留正文，后续可重新执行章节审校或局部修文。",
     }],
     repairDirectives: [],
     missingObligations: [],
     repairability: "none",
-    decisionReason: "接收闸门不可用，系统保留正文并继续推进后续复查。",
-    riskTags: ["acceptance_gate_unavailable"],
+    decisionReason: `${failure.message}本章留作复查风险。`,
+    riskTags: ["acceptance_gate_unavailable", failure.code],
     assetSyncRecommendation: {
       priority: "normal",
       reason: "正文已保存，但建议后续补跑章节审校或资产同步。",
@@ -253,12 +254,13 @@ export class ChapterAcceptanceAssessmentService {
 
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
     const assessment = await this.invokeAssessment(input).catch((error: unknown) => {
-      const fallback = buildFallbackAssessment(input.content);
-      if (error instanceof ChapterRepairVerificationError) {
-        fallback.riskTags.push("repair_review_evidence_invalid");
-        console.warn("[chapter-runtime] repair verification rejected", { chapterId: input.chapterId, reason: error.message });
-      }
-      return fallback;
+      const failure = describeAcceptanceFailure(error);
+      console.warn("[chapter-runtime] acceptance unavailable", {
+        novelId: input.novelId, chapterId: input.chapterId,
+        promptId: chapterAcceptanceAssessmentPrompt.id, promptVersion: chapterAcceptanceAssessmentPrompt.version,
+        code: failure.code, reason: failure.message,
+      });
+      return buildFallbackAssessment(input.content, failure);
     });
     const styleReviewReport = buildAcceptanceStyleReport(input.contextPackage, assessment);
     const controlledAssessment = applyAcceptanceStyleRepairPolicy(input.contextPackage, assessment);
@@ -300,6 +302,7 @@ export class ChapterAcceptanceAssessmentService {
       issues,
       auditReports,
       styleReviewReport,
+      styleSignalScan: buildAcceptanceStyleSignals(input.contextPackage, input.content),
     };
   }
 
@@ -344,7 +347,10 @@ export class ChapterAcceptanceAssessmentService {
         content: input.content,
         styleReviewEnabled: isAcceptanceStyleReviewEnabled(input.contextPackage),
         styleRuleIds: getAcceptanceStyleRuleIds(input.contextPackage),
+        expectedNarrativePov: getAcceptanceNarrativePov(input.contextPackage),
         repairReviewBaseline: input.repairReviewBaseline,
+        styleRewriteBaseline: input.styleRewriteBaseline,
+        styleSignals: buildAcceptanceStyleSignals(input.contextPackage, input.content),
       },
       contextBlocks: applyAcceptanceStyleContext(input.contextPackage, resolvedContext.blocks),
       options: {

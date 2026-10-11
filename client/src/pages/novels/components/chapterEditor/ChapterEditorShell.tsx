@@ -198,7 +198,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const leaveEditor = (action?: () => void) => {
-    if (isDirty && !window.confirm("本章还有未保存的修改，离开后仍可从草稿恢复。要离开正文编辑吗？")) {
+    if (isBusy) {
+      toast.error("请等待当前操作完成后再离开正文编辑。");
+      return;
+    }
+    if ((isDirty || session.status === "ready") && !window.confirm("未保存的修改可从草稿恢复，未采纳的 AI 候选将被关闭。要离开正文编辑吗？")) {
       return;
     }
     action?.();
@@ -225,6 +229,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setLoadedSnapshotId(null);
       setSaveStatus("saved");
       await invalidateChapterQueries();
+      await props.onChapterSaved?.();
       toast.success("章节正文已保存。");
     },
     onError: (error) => {
@@ -419,9 +424,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
       await invalidateChapterQueries();
+      await props.onChapterSaved?.();
       setLoadedSnapshotId(null);
     },
   });
+
+  const isBusy = saveMutation.isPending || previewMutation.isPending || continuationMutation.isPending
+    || acceptMutation.isPending || reviewMutation.isPending || resolveDiagnosticMutation.isPending;
+  useEffect(() => {
+    props.onEditingStateChange?.({ isDirty, isBusy, hasCandidate: session.status === "ready" });
+  }, [props.onEditingStateChange, isDirty, isBusy, session.status]);
 
   const previewPayload = session.status === "loading" && session.targetRange
     ? {
@@ -644,7 +656,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           {hasExternalChange ? <Button size="sm" variant="outline" onClick={draft.loadSavedVersion}>加载新保存版本</Button> : null}
         </div>
       ) : null}
-      <div className={`grid min-h-0 flex-1 gap-4 overflow-hidden ${gridClassName}`}>
+      <div className={`grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden ${gridClassName}`}>
         <ChapterEditorSidebar
           chapter={chapter}
           workspace={workspace}
@@ -655,6 +667,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           isSaving={saveMutation.isPending}
           selectedDiagnosticId={selectedDiagnosticId}
           onBack={onBack ? () => leaveEditor(onBack) : undefined}
+          backLabel={props.backLabel}
           onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
           onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
           onRefreshWorkspace={onRefreshWorkspace}
@@ -734,7 +747,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             revisionInstruction={revisionInstruction}
             canRunSelectionRevision={canRunSelectionRevision}
             currentTargetDescription={currentTargetDescription}
-            isGenerating={previewMutation.isPending}
+            isGenerating={previewMutation.isPending || continuationMutation.isPending}
             isApplying={acceptMutation.isPending}
             onInstructionChange={setRevisionInstruction}
             onScopeChange={setRevisionScope}

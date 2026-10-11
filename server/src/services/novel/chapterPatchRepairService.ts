@@ -9,6 +9,8 @@ import {
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { buildChapterPatchRepairContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterPatchRepairPrompt } from "../../prompting/prompts/novel/chapterPatchRepair.prompts";
+import { isStyleIssueRewritable, type StyleRewriteGuard, type StyleRewriteBaseline } from "@ai-novel/shared/types/styleEngine";
+import { guardStylePatches, isStyleRewriteBlocked } from "../styleEngine/rewrite";
 
 export type PatchRepairMode =
   | "detect_only"
@@ -39,6 +41,8 @@ export interface ChapterPatchRepairResult {
   content: string;
   plan: ChapterPatchRepairPlan;
   appliedPatchIds: string[];
+  rewriteGuard?: StyleRewriteGuard;
+  styleRewriteBaseline?: StyleRewriteBaseline;
 }
 
 export class ChapterPatchRepairFailedError extends Error {
@@ -46,6 +50,7 @@ export class ChapterPatchRepairFailedError extends Error {
     message: string,
     readonly plan?: ChapterPatchRepairPlan,
     readonly applyResult?: ChapterPatchApplyResult,
+    readonly rewriteGuard?: StyleRewriteGuard,
   ) {
     super(message);
     this.name = "ChapterPatchRepairFailedError";
@@ -66,6 +71,17 @@ export class ChapterPatchRepairService {
 
     const repairContext = input.repairContext ?? input.runtimePackage?.context.chapterRepairContext;
     const issuesJson = input.issuesJson ?? JSON.stringify(input.issues);
+    const styleIssues = input.runtimePackage?.styleReview?.report?.violations ?? [];
+    const styleIds = new Set(styleIssues.map(issue => issue.issueCode).filter((id): id is string => Boolean(id)));
+    const allowedStyleIds = styleIssues.filter(issue => isStyleIssueRewritable(issue))
+      .map(issue => issue.issueCode).filter((id): id is string => Boolean(id));
+    const nonStyleIds = (input.runtimePackage?.audit.openIssues ?? [])
+      .filter(issue => !styleIds.has(issue.code ?? ""))
+      .flatMap(issue => [issue.id, issue.code].filter((id): id is string => Boolean(id)));
+    const obligationIds = (input.runtimePackage?.obligationCoverage?.missing ?? [])
+      .map(item => `${item.kind}:${item.summary}`);
+    const allowedIssueIds = [...new Set([...allowedStyleIds, ...nonStyleIds, ...obligationIds])];
+    const protectedTerms = repairContext?.writeContext.characterHardFacts?.map(item => item.name) ?? [];
     const contextBlocks = repairContext
       ? buildChapterPatchRepairContextBlocks(repairContext, issuesJson)
       : undefined;
@@ -79,6 +95,9 @@ export class ChapterPatchRepairService {
           chapterContent: input.content,
           issuesJson,
           modeHint: input.modeHint,
+          styleProtection: styleIssues.length ? JSON.stringify({ allowedIssueIds, styleIssueIds: allowedStyleIds,
+            reportOnly: styleIssues.filter(issue => !isStyleIssueRewritable(issue)), protectedTerms,
+            wholeChapterTouchedRatioMax: 0.3, wholeChapterAddedRatioMax: 0.05 }) : undefined,
         },
         contextBlocks,
         options: {
@@ -116,10 +135,21 @@ export class ChapterPatchRepairService {
       throw new ChapterPatchRepairFailedError(reason, generated.output, applied);
     }
 
+    // A shared repair can carry both factual and expression fixes. Once style
+    // issues are present, bind every patch to the server's actual issue set.
+    const protection = styleIssues.length ? guardStylePatches({ original: input.content,
+      plan: generated.output, allowedIssueIds, styleIssueIds: allowedStyleIds, protectedTerms }) : undefined;
+    if (protection && isStyleRewriteBlocked(protection.guard)) {
+      throw new ChapterPatchRepairFailedError("表达修文超出许可或保护范围，保留原稿。",
+        generated.output, applied, protection.guard);
+    }
+
     return {
       content: applied.content,
       plan: generated.output,
       appliedPatchIds: applied.appliedPatchIds,
+      rewriteGuard: protection?.guard,
+      styleRewriteBaseline: protection?.baseline,
     };
   }
 }
