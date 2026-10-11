@@ -579,3 +579,46 @@ test("chapter artifact delta schema normalizes enum drift from artifact extracti
   assert.equal(parsed.payoffDeltas[0].scopeType, "book");
   assert.equal(parsed.syncPlan.characterDynamics, "write");
 });
+
+test("#176 artifact delta 容忍 foreshadow 缺失 title 与 characterMind 字符串 confidence", () => {
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "本章立住反向收税的钩子。",
+    stateDeltas: {
+      foreshadowStates: [
+        { summary: "罗兰在地窖发现税单，暗示后续反向收税", status: "setup" },
+      ],
+    },
+    characterMindDeltas: [
+      {
+        characterName: "罗兰",
+        currentInterpretation: "认为税官可以利用",
+        evidence: ["正文提到税单"],
+        confidence: "0.8",
+      },
+    ],
+    syncPlan: {},
+    confidence: 0.9,
+  });
+
+  assert.equal(parsed.stateDeltas.foreshadowStates[0].title, "罗兰在地窖发现税单，暗示后续反向收税");
+  assert.equal(parsed.characterMindDeltas[0].confidence, 0.8);
+});
+
+test("#176 artifact delta 对无法解析的 confidence 回退到 0.5", () => {
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "本章立住反向收税的钩子。",
+    stateDeltas: { foreshadowStates: [] },
+    characterMindDeltas: [
+      {
+        characterName: "罗兰",
+        currentInterpretation: "认为税官可以利用",
+        evidence: ["正文提到税单"],
+        confidence: "很高",
+      },
+    ],
+    syncPlan: {},
+    confidence: 0.9,
+  });
+
+  assert.equal(parsed.characterMindDeltas[0].confidence, 0.5);
+});
