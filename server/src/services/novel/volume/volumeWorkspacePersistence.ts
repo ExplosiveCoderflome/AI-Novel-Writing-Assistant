@@ -369,6 +369,77 @@ function requiresOrderParking(existingVolumes: ExistingVolumeWorkspaceRow[], doc
   return false;
 }
 
+// ---- #166: 写入前序号冲突预检 ----
+// VolumeChapterPlan 有 @@unique([volumeId, chapterOrder])，VolumePlan 有
+// @@unique([novelId, sortOrder])。若 incoming 文档自身就带重复序号，
+// requiresOrderParking 不会触发，随后的逐行 create/update 会直接撞唯一约束
+// （Prisma P2002），还可能把工作区写成一半。写入前先拦下来，抛明确错误，
+// 而不是让 Prisma 的原始错误透到用户面前。
+export interface DuplicateOrderDetail {
+  scope: "volume" | "chapter";
+  volumeId: string;
+  volumeTitle: string;
+  order: number;
+  ids: string[];
+}
+
+export function findDuplicateOrders(document: VolumePlanDocument): DuplicateOrderDetail[] {
+  const duplicates: DuplicateOrderDetail[] = [];
+
+  const volumeIdsBySortOrder = new Map<number, string[]>();
+  for (const volume of document.volumes) {
+    const ids = volumeIdsBySortOrder.get(volume.sortOrder) ?? [];
+    ids.push(volume.id);
+    volumeIdsBySortOrder.set(volume.sortOrder, ids);
+  }
+  for (const [order, ids] of volumeIdsBySortOrder) {
+    if (ids.length > 1) {
+      duplicates.push({ scope: "volume", volumeId: "", volumeTitle: "", order, ids });
+    }
+  }
+
+  const chapterEntryByVolumeAndOrder = new Map<string, DuplicateOrderDetail>();
+  for (const volume of document.volumes) {
+    for (const chapter of volume.chapters) {
+      const key = `${volume.id}:${chapter.chapterOrder}`;
+      let entry = chapterEntryByVolumeAndOrder.get(key);
+      if (!entry) {
+        entry = {
+          scope: "chapter",
+          volumeId: volume.id,
+          volumeTitle: volume.title,
+          order: chapter.chapterOrder,
+          ids: [],
+        };
+        chapterEntryByVolumeAndOrder.set(key, entry);
+      }
+      entry.ids.push(chapter.id);
+    }
+  }
+  for (const entry of chapterEntryByVolumeAndOrder.values()) {
+    if (entry.ids.length > 1) {
+      duplicates.push(entry);
+    }
+  }
+
+  return duplicates;
+}
+
+function assertNoDuplicateOrders(document: VolumePlanDocument): void {
+  const duplicates = findDuplicateOrders(document);
+  if (duplicates.length === 0) {
+    return;
+  }
+  const detail = duplicates
+    .map((duplicate) =>
+      duplicate.scope === "volume"
+        ? `卷序号 ${duplicate.order} 被 ${duplicate.ids.length} 个卷占用`
+        : `《${duplicate.volumeTitle}》章节序号 ${duplicate.order} 被 ${duplicate.ids.length} 个章节占用`,
+    )
+    .join("；");
+  throw new Error(`卷工作区文档存在重复序号，已拒绝保存以避免数据损坏：${detail}。请检查卷/章节规划后重试。`);
+}
+
 async function parkExistingVolumeWorkspaceRows(
   tx: Prisma.TransactionClient,
   existingVolumes: ExistingVolumeWorkspaceRow[],
@@ -400,6 +471,9 @@ export async function persistActiveVolumeWorkspace(
   document: VolumePlanDocument,
   sourceVersionId: string | null,
 ): Promise<void> {
+  // #166: incoming 文档自身若带重复序号，parking 不会触发、逐行写入会撞唯一约束；
+  // 先拦下来，避免把工作区写成一半。
+  assertNoDuplicateOrders(document);
   const existingVolumes = await tx.volumePlan.findMany({
     where: { novelId },
     select: {
