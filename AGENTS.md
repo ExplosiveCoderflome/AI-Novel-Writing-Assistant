@@ -247,6 +247,8 @@ These areas have the highest priority for wiki accumulation:
 - When packaging is requested and there is no explicit, current, repo-specific knowledge that local packaging is required, prefer triggering the GitHub-side packaging workflow rather than inventing local packaging steps.
 - Do not run local desktop packaging just to guess the release process. Local packaging is appropriate only when the user explicitly asks for local artifacts, the task is packaging verification, or the relevant docs/scripts clearly require local staging.
 - GitHub-side packaging still must obey the version/tag rules above. If the correct workflow, tag, branch, or version is unclear, stop and verify the release identifier before triggering packaging.
+- After pushing and triggering GitHub packaging, hand off with the pushed ref and workflow link. Do not keep waiting, repeatedly fetch packaging status or logs, or create a packaging monitor by default.
+- Wait for packaging or check its result only when the user explicitly asks to wait, monitor, or inspect the result. A successful push or trigger is evidence that packaging was triggered; claim successful publication only when completed-release evidence is already available.
 
 ## Prompt Governance
 
