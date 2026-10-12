@@ -1,7 +1,10 @@
 import type { LLMProvider } from "./llm";
+import type { BookAnalysisSectionKey } from "./bookAnalysis";
 
 export const BOOK_FRAMING_MAX_COMMERCIAL_TAGS = 6;
 export const BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH = 20;
+
+export type BookFramingReferenceIntent = "continuation" | "adaptation";
 
 export interface BookFramingSuggestion {
   targetAudience: string;
@@ -16,10 +19,15 @@ export interface BookFramingSuggestionInput {
   description?: string;
   genreLabel?: string;
   styleTone?: string;
+  /** When set, framing suggestion must ground itself in this completed book analysis. */
+  bookAnalysisId?: string;
+  referenceIntent?: BookFramingReferenceIntent;
+  bookAnalysisSections?: BookAnalysisSectionKey[];
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
 }
+
 
 function normalizeSingleCommercialTag(value: string): string {
   return value.replace(/\s+/g, " ").trim().slice(0, BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH);

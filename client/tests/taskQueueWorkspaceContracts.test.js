@@ -35,7 +35,7 @@ test("shared workspace and task queue components stay token based", () => {
   assert.doesNotMatch(sources, /bg-gradient/);
 });
 
-test("task and follow-up pages expose recovery states and keep director identity explicit", () => {
+test("task and follow-up pages expose recovery states and resolve book entry by novel identity", () => {
   const taskPage = read("src/pages/tasks/TaskCenterPage.tsx");
   const taskFilters = read("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
   const followUpPage = read("src/pages/autoDirectorFollowUps/AutoDirectorFollowUpCenterPage.tsx");
@@ -49,7 +49,8 @@ test("task and follow-up pages expose recovery states and keep director identity
   assert.match(taskPage, /listRecoveryCandidates/);
   assert.match(followUpPage, /WorkspaceHeader/);
   assert.match(followUpPage, /WorkspaceNextAction/);
-  assert.match(followUpPage, /searchParams\.get\("directorTaskId"\)/);
+  assert.match(followUpPage, /getCurrentDirectorTask\(selectedNovelId\)/);
+  assert.match(followUpPage, /stripLegacyTaskUrlParams\(searchParams\)/);
   assert.doesNotMatch(followUpPage, /workspaceTaskId/);
   assert.match(taskFilters, /aria-label="按任务类型筛选"/);
   assert.match(followUpList, /aria-label="按跟进原因筛选"/);
@@ -74,4 +75,14 @@ test("task center reads as an inbox before exposing runtime diagnostics", () => 
   assert.match(detail, /<details className="group border-t/);
   assert.match(detail, /运行信息/);
   assert.match(detailPanel, /执行步骤/);
+});
+
+test("task center stays read only and sends workflow actions back to the source page", () => {
+  const taskPage = read("src/pages/tasks/TaskCenterPage.tsx");
+  const detailPanel = read("src/pages/tasks/components/TaskCenterDetailPanel.tsx");
+
+  assert.doesNotMatch(taskPage, /useMutation|retryTask|continueNovelWorkflow|cancelTask|archiveTask/);
+  assert.doesNotMatch(detailPanel, /可执行动作|noticeAction|failureAction|TaskCenterActionSpec/);
+  assert.match(detailPanel, /打开来源页面/);
+  assert.match(detailPanel, /继续、恢复或重试请在来源页面完成/);
 });

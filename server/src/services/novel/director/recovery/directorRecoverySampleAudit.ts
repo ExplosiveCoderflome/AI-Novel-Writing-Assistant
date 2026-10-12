@@ -1,5 +1,7 @@
 ﻿import { createHash } from "node:crypto";
 
+import type { DirectorTaskState } from "../state";
+
 type Nullable<T> = T | null | undefined;
 
 export interface DirectorRecoverySampleTaskRow {
@@ -11,8 +13,7 @@ export interface DirectorRecoverySampleTaskRow {
   currentStage?: string | null;
   currentItemKey?: string | null;
   currentItemLabel?: string | null;
-  resumeTargetJson?: string | null;
-  seedPayloadJson?: string | null;
+  directorTaskState: DirectorTaskState;
   lastError?: string | null;
   updatedAt?: Date | string | null;
 }
@@ -242,12 +243,12 @@ function stableContentHash(value: Nullable<string>): string | null {
 }
 
 function compactTask(task: DirectorRecoverySampleTaskRow): DirectorRecoverySampleTask {
-  const seed = parseJson(task.seedPayloadJson);
-  const resume = parseJson(task.resumeTargetJson);
-  const directorInput = readObject(seed.directorInput);
-  const directorSession = readObject(seed.directorSession);
-  const autoExecution = readObject(seed.autoExecution);
-  const seedResumeTarget = readObject(seed.resumeTarget);
+  const launch = task.directorTaskState.launch as unknown as Record<string, unknown>;
+  const run = task.directorTaskState.run as Record<string, unknown>;
+  const directorInput = readObject(launch.directorInput);
+  const directorSession = readObject(run.directorSession);
+  const autoExecution = readObject(run.autoExecution);
+  const resumeTarget = readObject(run.resumeTarget);
   return {
     id: task.id,
     novelId: task.novelId ?? null,
@@ -257,11 +258,11 @@ function compactTask(task: DirectorRecoverySampleTaskRow): DirectorRecoverySampl
     currentStage: task.currentStage ?? null,
     currentItemKey: task.currentItemKey ?? null,
     currentItemLabel: task.currentItemLabel ?? null,
-    runMode: readString(directorInput.runMode) ?? readString(seed.runMode) ?? readString(directorSession.runMode),
+    runMode: readString(directorInput.runMode) ?? readString(launch.runMode) ?? readString(directorSession.runMode),
     directorPhase: readString(directorSession.phase),
     autoExecutionMode: readString(autoExecution.mode),
     autoExecutionNext: readNumber(autoExecution.nextChapterOrder),
-    resumeStage: readString(resume.stage) ?? readString(seedResumeTarget.stage),
+    resumeStage: readString(resumeTarget.stage),
     lastError: task.lastError ? task.lastError.slice(0, 160) : null,
     updatedAt: iso(task.updatedAt),
   };
@@ -497,7 +498,7 @@ export function buildDirectorRecoverySampleAudit(
   const contextlessTakeoverTaskIds = new Set(
     input.tasks
       .filter((task) => takeoverRequestTaskIds.has(task.id))
-      .filter((task) => !hasObjectValue(parseJson(task.seedPayloadJson).directorInput))
+      .filter((task) => !hasObjectValue(task.directorTaskState.launch.directorInput))
       .map((task) => task.id),
   );
   const contextlessTakeoverRecoveryTasks = tasks.filter((task) => contextlessTakeoverTaskIds.has(task.id));

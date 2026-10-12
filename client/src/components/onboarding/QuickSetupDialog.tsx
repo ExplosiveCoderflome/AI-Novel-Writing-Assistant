@@ -28,7 +28,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
-import { shouldShowFirstNovelHandoff } from "./creationSetupState";
+import {
+  shouldInitializeProviderSelection,
+  shouldShowFirstNovelHandoff,
+} from "./creationSetupState";
 
 interface QuickSetupDialogProps {
   open: boolean;
@@ -59,7 +62,7 @@ const EMPTY_FORM: SetupForm = {
 };
 
 function providerDescription(provider: QuickSetupProviderOption): string {
-  if (provider.id === "deepseek") return "中文长篇规划与写作的低门槛选择";
+  if (provider.id === "deepseek") return "推荐 DeepSeek Flash，兼顾中文长篇质量与响应速度";
   if (provider.id === "ollama") return "使用本机模型，不要求 API Key";
   if (provider.id === "openai") return "适合通用规划、正文与结构化任务";
   return provider.configured ? "已有配置，可以直接检测并设为全局默认" : "配置后可用于整条小说生产链";
@@ -72,6 +75,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
   const [form, setForm] = useState<SetupForm>(EMPTY_FORM);
   const [customModels, setCustomModels] = useState<string[]>([]);
   const [customModelsMessage, setCustomModelsMessage] = useState("");
+  const [showAllProviderChoices, setShowAllProviderChoices] = useState(false);
 
   useEffect(() => {
     if (props.open && props.forceConfiguration) {
@@ -83,14 +87,31 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     () => props.status?.providers.find((provider) => provider.id === form.provider) ?? null,
     [form.provider, props.status?.providers],
   );
+  const recommendedProvider = useMemo(
+    () => props.status?.providers.find((provider) => provider.id === props.status?.selectedProvider)
+      ?? props.status?.providers.find((provider) => provider.id === "deepseek")
+      ?? props.status?.providers[0]
+      ?? null,
+    [props.status?.providers, props.status?.selectedProvider],
+  );
+  const preferredProvider = selectedProvider ?? recommendedProvider;
+  const providerChoices: QuickSetupProviderOption[] = showAllProviderChoices
+    ? props.status?.providers ?? []
+    : preferredProvider ? [preferredProvider] : [];
   const modelOptions = form.providerKind === "custom"
     ? customModels
     : selectedProvider?.models ?? [];
 
   useEffect(() => {
-    if (!props.open || form.provider || !props.status) {
+    if (!shouldInitializeProviderSelection({
+      open: props.open,
+      statusAvailable: Boolean(props.status),
+      providerKind: form.providerKind,
+      provider: form.provider,
+    })) {
       return;
     }
+    if (!props.status) return;
     const preferred = props.status.providers.find(
       (provider) => provider.id === props.status?.selectedProvider,
     ) ?? props.status.providers.find((provider) => provider.id === "deepseek")
@@ -104,7 +125,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
       baseURL: preferred.currentBaseURL || preferred.defaultBaseURL,
       model: preferred.currentModel || preferred.defaultModel,
     });
-  }, [form.provider, props.open, props.status]);
+  }, [form.provider, form.providerKind, props.open, props.status]);
 
   const completeMutation = useMutation({
     mutationFn: (payload: CompleteQuickSetupRequest) => completeQuickSetup(payload),
@@ -156,7 +177,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     setCustomModelsMessage("");
   };
 
-  const chooseCustom = () => {
+  const chooseCustom = (continueToConnection = false) => {
     setForm({
       providerKind: "custom",
       provider: "",
@@ -167,6 +188,10 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     });
     setCustomModels([]);
     setCustomModelsMessage("");
+    setShowAllProviderChoices(false);
+    if (continueToConnection) {
+      setStep(2);
+    }
   };
 
   const canContinueProvider = form.providerKind === "custom" || Boolean(form.provider);
@@ -288,11 +313,15 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
         ) : step === 1 ? (
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold">选择你已有账号或接口的厂商</h3>
-              <p className="mt-1 text-sm text-muted-foreground">第一次只选一个即可，之后仍能在系统设置中增加更多厂商。</p>
+              <h3 className="font-semibold">{showAllProviderChoices ? "选择一个内置模型厂商" : "从推荐方案开始"}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {showAllProviderChoices
+                  ? "选择一个厂商后，再填写连接信息。"
+                  : "先配置一个文本模型即可开始创作；需要时再选择其他厂商。"}
+              </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              {props.status?.providers.map((provider) => (
+              {providerChoices.map((provider) => (
                 <button
                   key={provider.id}
                   type="button"
@@ -307,29 +336,49 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
                       <div className="font-semibold">{provider.name}</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">{providerDescription(provider)}</div>
                     </div>
-                    {provider.configured ? <Badge variant="outline">已有配置</Badge> : null}
+                    {form.provider === provider.id
+                      ? <Badge>已选择</Badge>
+                      : provider.configured ? <Badge variant="outline">已有配置</Badge> : null}
                   </div>
-                  <div className="mt-3 text-xs text-muted-foreground">推荐模型：{provider.currentModel || provider.defaultModel}</div>
-                </button>
+                <div className="mt-3 text-xs text-muted-foreground">推荐模型：{provider.currentModel || provider.defaultModel}</div>
+              </button>
               ))}
+              {!showAllProviderChoices ? (
+                <button
+                  type="button"
+                  className="rounded-xl border border-dashed p-4 text-left transition hover:border-primary/50 hover:bg-primary/5"
+                  onClick={() => setShowAllProviderChoices(true)}
+                >
+                  <div className="flex items-center gap-2 font-semibold"><PlugZap className="h-4 w-4" /> 查看全部内置厂商</div>
+                  <div className="mt-2 text-xs leading-5 text-muted-foreground">选择你已有账号的厂商，再继续填写连接信息。</div>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className={cn(
                   "rounded-xl border border-dashed p-4 text-left transition hover:border-primary/50 hover:bg-primary/5",
                   form.providerKind === "custom" && !form.provider && "border-primary bg-primary/5 ring-1 ring-primary/20",
                 )}
-                onClick={chooseCustom}
+                onClick={() => chooseCustom(true)}
               >
-                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 自定义兼容接口</div>
-                <div className="mt-2 text-xs leading-5 text-muted-foreground">适合中转服务、本地网关或其他 OpenAI 兼容地址。</div>
+                <div className="flex items-center gap-2 font-semibold"><ServerCog className="h-4 w-4" /> 添加第三方厂商 <ArrowRight className="h-4 w-4" /></div>
+                <div className="mt-2 text-xs leading-5 text-muted-foreground">新增一份独立的厂商配置，适合中转服务、本地网关或 OpenAI 兼容接口。</div>
               </button>
             </div>
+            {showAllProviderChoices ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setShowAllProviderChoices(false)}>
+                <ArrowLeft className="h-4 w-4" /> 返回推荐方案
+              </Button>
+            ) : null}
           </div>
         ) : step === 2 ? (
           <div className="space-y-5">
             <div>
-              <h3 className="font-semibold">连接 {form.providerKind === "custom" ? form.customProviderName || "自定义厂商" : selectedProvider?.name}</h3>
+              <h3 className="font-semibold">{form.providerKind === "custom" ? "添加第三方厂商" : `连接 ${selectedProvider?.name ?? "模型厂商"}`}</h3>
               <p className="mt-1 text-sm text-muted-foreground">API Key 只会保存到本机或服务端密钥存储，不会显示在完成结果中。</p>
+              {form.providerKind === "custom" ? (
+                <p className="mt-1 text-xs text-muted-foreground">厂商名称、API 地址和模型将保存为独立配置，不会覆盖已有内置厂商。</p>
+              ) : null}
             </div>
             {form.providerKind === "custom" ? (
               <label className="block space-y-1.5">

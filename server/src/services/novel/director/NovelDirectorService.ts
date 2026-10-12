@@ -1,3 +1,4 @@
+import { DirectorTaskStateWriter } from "./state";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { AppError } from "../../../middleware/errorHandler";
 import {
@@ -52,6 +53,7 @@ import {
   isTakeoverStructuredOutlineReadyForValidation,
 } from "./runtime/novelDirectorTakeover";
 import { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
+import { directorResourceConfirmationService } from "./automation/resources";
 import {
   loadDirectorTakeoverState,
 } from "./runtime/novelDirectorTakeoverRuntime";
@@ -92,7 +94,7 @@ import { prisma } from "../../../db/prisma";
 import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
 import { qualityDebtSettingsService } from "../../settings/QualityDebtSettingsService";
 import { pendingReviewAutoPromotionService } from "../state/PendingReviewAutoPromotionService";
-import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
+import { DirectorStateReader, toDirectorTaskDataView } from "./state/DirectorStateReader";
 import { getDirectorInputFromSeedPayload } from "./runtime/novelDirectorHelpers";
 import {
   directorWorkflowStepModuleRegistry,
@@ -102,6 +104,8 @@ import {
   isExecutableWorkflowStepModule,
 } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorWorkflowSeedPayload } from "./runtime/novelDirectorHelpers";
+import { DIRECTOR_ISSUE_GOVERNANCE_VERSION } from "@ai-novel/shared/types/directorIssue";
+import { directorIssuePolicyService } from "./issues";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -152,6 +156,7 @@ export class NovelDirectorService {
     replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     resolveStateProposals: (input) => directorStateProposalResolutionService.resolvePendingProposals(input),
     autoConfirmPendingCandidates: (novelId) => this.characterDynamicsService.autoConfirmPendingCandidates(novelId),
+    confirmChapterResources: (input) => directorResourceConfirmationService.confirmCompletedChapterResources(input),
     isPendingReviewAutoPromotionEnabled: () => qualityDebtSettingsService.isAutoPromotionEnabled(),
     autoPromotePendingReviewProposals: (input) => this.autoPromotePendingReviewProposals(input),
   });
@@ -196,7 +201,6 @@ export class NovelDirectorService {
     workflowService: this.workflowService,
     volumeService: this.volumeService,
     buildDirectorSeedPayload: (directorInput, novelId, extra) => buildDirectorWorkflowSeedPayload(directorInput, novelId, extra),
-    assertHighMemoryStartAllowed: (payload) => this.assertHighMemoryDirectorStartAllowed(payload),
     scheduleBackgroundRun: (taskId, runner) => this.scheduleBackgroundRun(taskId, runner),
   });
   private readonly continueRuntime = new NovelDirectorContinueRuntime({
@@ -209,6 +213,7 @@ export class NovelDirectorService {
     candidateRuntime: this.candidateRuntime,
     autoExecutionRuntime: this.autoExecutionRuntime,
     pipelineRuntime: this.directorPipelineRuntime,
+    replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     continueCandidateStageTask: (taskId, payload) => this.continueCandidateStageTask(taskId, payload),
     resolveAssetFirstRecovery: (payload) => this.resolveAssetFirstRecovery(payload),
     runDirectorPipeline: (payload) => this.runDirectorPipeline(payload),
@@ -265,7 +270,7 @@ export class NovelDirectorService {
         return;
       }
       const message = error instanceof Error ? error.message : "自动导演后台任务执行失败。";
-      await this.workflowService.markTaskFailed(taskId, message);
+      await new DirectorTaskStateWriter(this.workflowService).markFailed(taskId, message);
       console.error(`[director.background] task failed taskId=${taskId}`, error);
     } finally {
       await releaseHighMemoryDirectorReservations(taskId);
@@ -460,8 +465,8 @@ export class NovelDirectorService {
       getStoryMacroPlan: (targetNovelId) => this.storyMacroService.getPlan(targetNovelId),
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
-      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director"),
-      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director"),
+      findActiveAutoDirectorTask: (targetNovelId) => this.workflowService.findActiveDirectorTask(targetNovelId),
+      findLatestAutoDirectorTask: (targetNovelId) => this.workflowService.resolveCurrentDirectorTask(targetNovelId),
     });
     return buildDirectorTakeoverReadiness({
       novel: takeoverState.novel,
@@ -525,15 +530,13 @@ export class NovelDirectorService {
       };
     }
 
-    const seedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
-    const directorInput = getDirectorInputFromSeedPayload(seedPayload);
+    const storedState = await new DirectorStateReader().readTaskStateById(task.id);
+    const directorTaskData = (storedState ? toDirectorTaskDataView(storedState) : {}) as DirectorWorkflowSeedPayload;
+    const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
     if (!directorInput) {
       throw new AppError("当前导演任务缺少可复用的生成输入，请从项目接管入口继续。", 409);
     }
     const instruction = input.instruction?.trim() || null;
-    const calibratedDirectorInput = instruction
-      ? { ...directorInput, stepCalibrationInstruction: instruction }
-      : directorInput;
     if (input.action === "regenerate") {
       await this.novelService.createNovelSnapshot(
         task.novelId,
@@ -541,18 +544,13 @@ export class NovelDirectorService {
         `before-step-calibration-${module.id}-${Date.now()}`,
       );
     }
-    await this.workflowService.bootstrapTask({
-      workflowTaskId: taskId,
-      novelId: task.novelId,
-      lane: "auto_director",
-      seedPayload: {
-        directorInput: calibratedDirectorInput,
-        stepCalibration: {
-          action: input.action,
-          stepId: module.id,
-          instruction,
-          updatedAt: new Date().toISOString(),
-        },
+    const stateWriter = new DirectorTaskStateWriter(this.workflowService);
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepCalibration: {
+        action: input.action,
+        stepId: module.id,
+        instruction,
+        updatedAt: new Date().toISOString(),
       },
     });
     await this.directorRuntimeOrchestrator.runStepModule({
@@ -564,22 +562,22 @@ export class NovelDirectorService {
       approveAutoExecutionScope: false,
       reuseCompletedStep: false,
     });
-    await this.workflowService.markTaskWaitingApproval(taskId, {
+    await stateWriter.updateDirectorRunState(taskId, {
+      stepReview: {
+        stepId: module.id,
+        nodeKey: module.nodeKey,
+        label: module.label,
+        targetType: module.targetType,
+        targetId: input.targetId?.trim() || task.novelId,
+        completedAt: new Date().toISOString(),
+      },
+    });
+    await stateWriter.markWaitingCheckpoint(taskId, {
       stage: "auto_director",
       itemKey: module.id,
       itemLabel: `${module.label}已校准，请检查后继续`,
       checkpointType: "step_review_required",
       checkpointSummary: `${module.label}已完成${input.action === "improve" ? "完善" : "重新生成"}。请确认当前内容后再继续导演。`,
-      seedPayload: buildDirectorWorkflowSeedPayload(calibratedDirectorInput, task.novelId, {
-        stepReview: {
-          stepId: module.id,
-          nodeKey: module.nodeKey,
-          label: module.label,
-          targetType: module.targetType,
-          targetId: input.targetId?.trim() || task.novelId,
-          completedAt: new Date().toISOString(),
-        },
-      }),
     });
     return {
       action: input.action,
@@ -630,18 +628,14 @@ export class NovelDirectorService {
       getDirectorAssetSnapshot: (targetNovelId) => this.getDirectorAssetSnapshot(targetNovelId),
       getVolumeWorkspace: (targetNovelId) => this.volumeService.getVolumes(targetNovelId),
       findActiveAutoDirectorTask: async (targetNovelId) => {
-        if (!commandTaskId) {
-          return this.workflowService.findActiveTaskByNovelAndLane(targetNovelId, "auto_director");
-        }
-        const rows = await this.workflowService.listVisibleTasksByNovelAndLane(targetNovelId, "auto_director");
-        return rows.find((row) => row.id !== commandTaskId && ["queued", "running", "waiting_approval"].includes(row.status)) ?? null;
+        const currentTask = await this.workflowService.findActiveDirectorTask(targetNovelId);
+        return currentTask?.id !== commandTaskId ? currentTask : null;
       },
       findLatestAutoDirectorTask: async (targetNovelId) => {
-        if (!commandTaskId) {
-          return this.workflowService.findLatestVisibleTaskByNovelId(targetNovelId, "auto_director");
-        }
-        const rows = await this.workflowService.listVisibleTasksByNovelAndLane(targetNovelId, "auto_director");
-        return rows.find((row) => row.id !== commandTaskId) ?? null;
+        const latestTask = commandTaskId
+          ? await this.workflowService.resolvePreviousDirectorTask(targetNovelId, commandTaskId)
+          : await this.workflowService.resolveCurrentDirectorTask(targetNovelId);
+        return latestTask?.id !== commandTaskId ? latestTask : null;
       },
     });
     const takeoverStrategy = input.strategy ?? (input.startPhase ? "restart_current_step" : "continue_existing");
@@ -675,6 +669,7 @@ export class NovelDirectorService {
       bookContract: takeoverState.bookContract,
       runMode: input.runMode,
     });
+    const { effectivePolicy: issuePolicy, source: issuePolicySource } = await directorIssuePolicyService.getNovelPolicy(input.novelId);
     const directorInput = applyDirectorRunModeContract(await this.enrichDirectorStyleContext({
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
@@ -684,6 +679,9 @@ export class NovelDirectorService {
       provider: input.provider ?? takeoverDirectorInput.provider,
       model: input.model?.trim() || takeoverDirectorInput.model,
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
+      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+      issuePolicy,
+      issuePolicySource,
     }));
     const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
     if (typeof input.postGenerationStyleReviewEnabled === "boolean") {
@@ -821,7 +819,13 @@ export class NovelDirectorService {
   }
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
-    return this.confirmRuntime.confirmCandidate(input);
+    const issuePolicy = await directorIssuePolicyService.getGlobalPolicy();
+    return this.confirmRuntime.confirmCandidate({
+      ...input,
+      issueGovernanceVersion: DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+      issuePolicy,
+      issuePolicySource: "global",
+    });
   }
 
 }

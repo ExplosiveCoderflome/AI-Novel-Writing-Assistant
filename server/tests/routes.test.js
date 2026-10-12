@@ -7,6 +7,7 @@ const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGra
 const { creativeHubInterruptLangGraph } = require("../dist/creativeHub/CreativeHubInterruptLangGraph.js");
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
+const { setProviderSecretCache } = require("../dist/llm/factory.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
 const {
   DefaultNovelApplicationServices,
@@ -144,10 +145,12 @@ test("PUT /api/settings/rag saves extended settings and auto-enqueues reindex", 
         embeddingTimeoutMs: current.embeddingTimeoutMs,
         embeddingMaxRetries: current.embeddingMaxRetries,
         embeddingRetryBaseMs: current.embeddingRetryBaseMs,
+        embeddingConcurrency: current.embeddingConcurrency,
         enabled: current.enabled,
         qdrantUrl: current.qdrantUrl,
         qdrantTimeoutMs: current.qdrantTimeoutMs,
         qdrantUpsertMaxBytes: current.qdrantUpsertMaxBytes,
+        qdrantUpsertConcurrency: current.qdrantUpsertConcurrency,
         chunkSize: current.chunkSize,
         chunkOverlap: current.chunkOverlap,
         vectorCandidates: current.vectorCandidates,
@@ -182,10 +185,12 @@ test("PUT /api/settings/rag saves extended settings and auto-enqueues reindex", 
         embeddingTimeoutMs: current.embeddingTimeoutMs,
         embeddingMaxRetries: current.embeddingMaxRetries,
         embeddingRetryBaseMs: current.embeddingRetryBaseMs,
+        embeddingConcurrency: current.embeddingConcurrency,
         enabled: current.enabled,
         qdrantUrl: current.qdrantUrl,
         qdrantTimeoutMs: current.qdrantTimeoutMs,
         qdrantUpsertMaxBytes: current.qdrantUpsertMaxBytes,
+        qdrantUpsertConcurrency: current.qdrantUpsertConcurrency,
         chunkSize: current.chunkSize,
         chunkOverlap: current.chunkOverlap,
         vectorCandidates: current.vectorCandidates,
@@ -392,6 +397,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
     model: "deepseek-chat",
     temperature: 0.2,
     maxTokens: null,
+    retryCount: 1,
   });
   structuredFallbackSettings.saveStructuredFallbackSettings = async (input) => {
     savedPayload = input;
@@ -401,6 +407,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
       model: "gpt-4o-mini",
       temperature: 0.15,
       maxTokens: 2048,
+      retryCount: 2,
     };
   };
 
@@ -426,6 +433,7 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
         model: "gpt-4o-mini",
         temperature: 0.15,
         maxTokens: 2048,
+        retryCount: 2,
       }),
     });
     assert.equal(putResponse.status, 200);
@@ -437,10 +445,12 @@ test("GET and PUT /api/llm/structured-fallback expose the global fallback config
       model: "gpt-4o-mini",
       temperature: 0.15,
       maxTokens: 2048,
+      retryCount: 2,
     });
     assert.equal(putPayload.data.enabled, true);
     assert.equal(putPayload.data.provider, "openai");
     assert.equal(putPayload.data.maxTokens, 2048);
+    assert.equal(putPayload.data.retryCount, 2);
   } finally {
     structuredFallbackSettings.getStructuredFallbackSettings = originalGetStructuredFallbackSettings;
     structuredFallbackSettings.saveStructuredFallbackSettings = originalSaveStructuredFallbackSettings;
@@ -578,9 +588,9 @@ test("GET /api/settings/api-keys uses lightweight local model metadata", async (
     assert.equal(payload.success, true);
     const deepseek = payload.data.find((item) => item.provider === "deepseek");
     assert.ok(deepseek);
-    assert.equal(deepseek.currentModel, "deepseek-chat");
+    assert.equal(deepseek.currentModel, "deepseek-flash");
     assert.equal(deepseek.isConfigured, true);
-    assert.ok(deepseek.models.includes("deepseek-chat"));
+    assert.ok(deepseek.models.includes("deepseek-flash"));
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     global.fetch = originalFetch;
@@ -665,6 +675,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
       baseURL: "https://gateway.example.com/v1",
       isActive: true,
       reasoningEnabled: true,
+      availableModels: JSON.stringify(["story-model", "story-model-pro"]),
       concurrencyLimit: 3,
       requestIntervalMs: 5000,
       createdAt: new Date(),
@@ -687,6 +698,7 @@ test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", as
     assert.equal(custom.displayName, "StoryHub Gateway");
     assert.equal(custom.currentModel, "story-model");
     assert.equal(custom.currentBaseURL, "https://gateway.example.com/v1");
+    assert.deepEqual(custom.models, ["story-model", "story-model-pro"]);
     assert.equal(custom.requiresApiKey, false);
     assert.equal(custom.isConfigured, true);
     assert.equal(custom.reasoningEnabled, true);
@@ -824,23 +836,102 @@ test("PUT /api/settings/api-keys/minimax updates reasoning toggle", async () => 
   }
 });
 
+test("PUT /api/settings/api-keys/deepseek persists model controls and validates unsafe values", async () => {
+  const originalFindUnique = prisma.aPIKey.findUnique;
+  const originalUpsert = prisma.aPIKey.upsert;
+  const originalFetch = global.fetch;
+  const httpFetch = originalFetch.bind(global);
+  let stored = {
+    id: "api-key-deepseek-controls",
+    provider: "deepseek",
+    displayName: null,
+    key: "test-deepseek-key",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    isActive: true,
+    reasoningEnabled: true,
+    reasoningEffort: null,
+    hiddenModels: "[]",
+    concurrencyLimit: 0,
+    requestIntervalMs: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+  prisma.aPIKey.findUnique = async () => stored;
+  prisma.aPIKey.upsert = async ({ update }) => {
+    stored = { ...stored, ...update };
+    return stored;
+  };
+  global.fetch = async () => new Response(JSON.stringify({
+    data: [
+      { id: "deepseek-v4-flash" },
+      { id: "legacy-model" },
+      { id: "deepseek-v4-pro" },
+    ],
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reasoningEffort: "max",
+        hiddenModels: [" legacy-model ", "legacy-model"],
+      }),
+    });
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.data.reasoningEffort, "max");
+    assert.deepEqual(payload.data.hiddenModels, ["legacy-model"]);
+    assert.equal(payload.data.models.includes("legacy-model"), false);
+    assert.equal(stored.hiddenModels, '["legacy-model"]');
+
+    const invalidEffort = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasoningEffort: "ultra" }),
+    });
+    assert.equal(invalidEffort.status, 400);
+
+    const hideCurrent = await httpFetch(`http://127.0.0.1:${port}/api/settings/api-keys/deepseek`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hiddenModels: ["deepseek-v4-flash"] }),
+    });
+    assert.equal(hideCurrent.status, 400);
+  } finally {
+    setProviderSecretCache("deepseek", null);
+    prisma.aPIKey.findUnique = originalFindUnique;
+    prisma.aPIKey.upsert = originalUpsert;
+    global.fetch = originalFetch;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("POST /api/settings/custom-providers creates a custom provider entry", async () => {
   const originalFindUnique = prisma.aPIKey.findUnique;
   const originalCreate = prisma.aPIKey.create;
   const originalFetch = global.fetch;
   const httpFetch = originalFetch.bind(global);
+  let createdData;
   prisma.aPIKey.findUnique = async () => null;
-  prisma.aPIKey.create = async ({ data }) => ({
-    id: "api-key-custom-created",
-    provider: data.provider,
-    displayName: data.displayName,
-    key: data.key,
-    model: data.model,
-    baseURL: data.baseURL,
-    isActive: data.isActive,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  prisma.aPIKey.create = async ({ data }) => {
+    createdData = data;
+    return {
+      id: "api-key-custom-created",
+      provider: data.provider,
+      displayName: data.displayName,
+      key: data.key,
+      model: data.model,
+      baseURL: data.baseURL,
+      isActive: data.isActive,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  };
   global.fetch = async () => new Response(JSON.stringify({
     data: [{ id: "story-model" }, { id: "story-model-pro" }],
   }), {
@@ -872,6 +963,7 @@ test("POST /api/settings/custom-providers creates a custom provider entry", asyn
     assert.equal(payload.data.baseURL, "https://gateway.example.com/v1");
     assert.ok(payload.data.provider.startsWith("custom_storyhub_gateway"));
     assert.ok(payload.data.models.includes("story-model"));
+    assert.deepEqual(JSON.parse(createdData.availableModels), ["story-model", "story-model-pro"]);
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.create = originalCreate;
@@ -1126,7 +1218,28 @@ test("creative hub thread create and state routes return success payloads", asyn
   }
 });
 
-test("novel routes preserve book framing fields through create-get-update cycle", async () => {
+test("novel routes preserve book framing fields through create-get-update cycle", async (t) => {
+  const { ensureSystemResourceStarterData } = require("../dist/services/bootstrap/SystemResourceBootstrapService.js");
+  await ensureSystemResourceStarterData();
+  const genre = await prisma.novelGenre.findFirst();
+  const modes = await prisma.novelStoryMode.findMany({ take: 2 });
+  assert.ok(genre);
+  assert.equal(modes.length, 2);
+  const { NovelCreateResourceRecommendationService } = require("../dist/services/novel/NovelCreateResourceRecommendationService.js");
+  const originalRecommend = NovelCreateResourceRecommendationService.prototype.recommendFromOptions;
+  t.after(() => { NovelCreateResourceRecommendationService.prototype.recommendFromOptions = originalRecommend; });
+  NovelCreateResourceRecommendationService.prototype.recommendFromOptions = async (input, options) => {
+    assert.equal(input.genreId, genre.id);
+    const selected = (choices, id) => ({ ...choices.find(item => item.id === id), reason: "测试模型的结构化推荐" });
+    return {
+      summary: "沿用测试所选创作基础",
+      genre: selected(options.genres, genre.id),
+      primaryStoryMode: selected(options.storyModes, modes[0].id),
+      secondaryStoryMode: selected(options.storyModes, modes[1].id),
+      powerSystem: { mode: "none", reason: "现实题材", source: "ai_recommended" },
+      caution: null, recommendedAt: new Date().toISOString(),
+    };
+  };
   const app = createApp();
   const server = http.createServer(app);
   const port = await listen(server);
@@ -1140,6 +1253,9 @@ test("novel routes preserve book framing fields through create-get-update cycle"
       },
       body: JSON.stringify({
         title: `book-framing-route-${Date.now()}`,
+        genreId: genre.id,
+        primaryStoryModeId: modes[0].id,
+        secondaryStoryModeId: modes[1].id,
         description: "测试书级 framing roundtrip。",
         targetAudience: "爱看都市高压逆袭的读者",
         bookSellingPoint: "每次现实困局都会撬动更大的利益链。",

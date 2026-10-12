@@ -7,6 +7,7 @@ const { auditService } = require("../dist/services/audit/AuditService.js");
 const { plannerService } = require("../dist/services/planner/PlannerService.js");
 const { GenerationContextAssembler } = require("../dist/services/novel/runtime/GenerationContextAssembler.js");
 const { NovelCoreReviewService } = require("../dist/services/novel/novelCoreReviewService.js");
+const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
 const novelCoreShared = require("../dist/services/novel/novelCoreShared.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 
@@ -233,12 +234,14 @@ test("manual review and manual audit pass assembled chapter review context into 
   const originalChapterFindFirst = prisma.chapter.findFirst;
   const originalChapterUpdate = prisma.chapter.update;
   const originalQualityReportCreate = prisma.qualityReport.create;
-  const originalShouldTriggerReplanFromAudit = plannerService.shouldTriggerReplanFromAudit;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalReplan = plannerService.replan;
   const originalAuditChapter = auditService.auditChapter;
   const originalAssemble = GenerationContextAssembler.prototype.assemble;
 
   const auditCalls = [];
   const chapterUpdateCalls = [];
+  let replanCallCount = 0;
   prisma.chapter.findFirst = async () => ({
     id: "chapter-1",
     title: "第1章",
@@ -250,7 +253,17 @@ test("manual review and manual audit pass assembled chapter review context into 
     return null;
   };
   prisma.qualityReport.create = async () => null;
-  plannerService.shouldTriggerReplanFromAudit = () => false;
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    action: "stop_for_replan",
+    scope: "global_book",
+    reason: "需要重新安排后续章节窗口。",
+    blockingIssueIds: ["issue-review-replan"],
+  });
+  plannerService.replan = async () => {
+    replanCallCount += 1;
+    return null;
+  };
   GenerationContextAssembler.prototype.assemble = async () => ({
     novel: { id: "novel-1", title: "测试小说" },
     chapter: { id: "chapter-1", title: "第1章", order: 1, content: "章节正文", expectation: "推进冲突" },
@@ -274,26 +287,131 @@ test("manual review and manual audit pass assembled chapter review context into 
 
   try {
     const service = new NovelCoreReviewService();
-    await service.reviewChapter("novel-1", "chapter-1", {});
+    const reviewResult = await service.reviewChapter("novel-1", "chapter-1", {});
     await service.auditChapter("novel-1", "chapter-1", "plot", {});
     assert.deepEqual(auditCalls, [
       ["full", "shared-review-context"],
       ["plot", "shared-review-context"],
     ]);
-    assert.deepEqual(chapterUpdateCalls[0], {
-      where: { id: "chapter-1" },
-      data: {
-        generationState: "reviewed",
-        chapterStatus: "completed",
-      },
-    });
+    assert.equal(chapterUpdateCalls.length, 1);
+    assert.equal(chapterUpdateCalls[0].where.id, "chapter-1");
+    assert.equal(chapterUpdateCalls[0].data.generationState, "reviewed");
+    assert.equal(chapterUpdateCalls[0].data.chapterStatus, "needs_repair");
+    assert.equal(JSON.parse(chapterUpdateCalls[0].data.riskFlags).qualityLoop.recommendedAction, "replan");
+    assert.equal(reviewResult.replanRecommendation.action, "stop_for_replan");
+    assert.equal(reviewResult.qualityAssessment.recommendedAction, "replan");
+    assert.equal(replanCallCount, 0);
   } finally {
     prisma.chapter.findFirst = originalChapterFindFirst;
     prisma.chapter.update = originalChapterUpdate;
     prisma.qualityReport.create = originalQualityReportCreate;
-    plannerService.shouldTriggerReplanFromAudit = originalShouldTriggerReplanFromAudit;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    plannerService.replan = originalReplan;
     auditService.auditChapter = originalAuditChapter;
     GenerationContextAssembler.prototype.assemble = originalAssemble;
+  }
+});
+
+test("manual recheck keeps local quality findings as continuable debt", async () => {
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalQualityReportCreate = prisma.qualityReport.create;
+  const originalBuildReplanRecommendation = plannerService.buildReplanRecommendation;
+  const originalAuditChapter = auditService.auditChapter;
+  const originalAssemble = GenerationContextAssembler.prototype.assemble;
+  const originalRecordQualityLoopAssessment = directorAutomationLedgerEventService.recordQualityLoopAssessment;
+
+  const chapterUpdateCalls = [];
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    order: 1,
+    title: "第1章",
+    content: "已保存正文",
+    riskFlags: null,
+    repairHistory: null,
+    chapterStatus: "completed",
+    generationState: "approved",
+    novel: { title: "测试小说" },
+  });
+  prisma.chapter.update = async (payload) => {
+    chapterUpdateCalls.push(payload);
+    return null;
+  };
+  prisma.qualityReport.create = async () => null;
+  plannerService.buildReplanRecommendation = () => ({
+    recommended: true,
+    action: "local_patch_plan",
+    scope: "local_window",
+    reason: "只需修复本章推进。",
+    blockingIssueIds: ["issue-local"],
+  });
+  GenerationContextAssembler.prototype.assemble = async () => ({
+    novel: { id: "novel-1", title: "测试小说" },
+    chapter: { id: "chapter-1", title: "第1章", order: 1, content: "已保存正文", expectation: "推进冲突" },
+    contextPackage: createAssembledContextPackage(),
+  });
+  auditService.auditChapter = async () => ({
+    score: {
+      coherence: 72,
+      repetition: 82,
+      pacing: 66,
+      voice: 80,
+      engagement: 68,
+      overall: 69,
+    },
+    issues: [{
+      severity: "high",
+      category: "pacing",
+      evidence: "本章结尾没有形成有效推进。",
+      fixSuggestion: "补足本章结果。",
+    }],
+    auditReports: [],
+  });
+  directorAutomationLedgerEventService.recordQualityLoopAssessment = async () => null;
+
+  try {
+    const service = new NovelCoreReviewService();
+    const result = await service.reviewChapter("novel-1", "chapter-1", { content: "修改后的正文" });
+
+    assert.equal(result.qualityAssessment.recommendedAction, "patch_repair");
+    assert.equal(chapterUpdateCalls.length, 1);
+    const qualityLoop = JSON.parse(chapterUpdateCalls[0].data.riskFlags).qualityLoop;
+    assert.equal(qualityLoop.source, "repair_recheck");
+    assert.equal(qualityLoop.terminalAction, "defer_and_continue");
+    assert.equal(chapterUpdateCalls[0].data.chapterStatus, "completed");
+    assert.equal(chapterUpdateCalls[0].data.generationState, "approved");
+
+    plannerService.buildReplanRecommendation = () => ({
+      recommended: false,
+      action: "continue_with_warning",
+      scope: "local_window",
+      reason: "可以继续。",
+      blockingIssueIds: [],
+    });
+    auditService.auditChapter = async () => ({
+      score: {
+        coherence: 90,
+        repetition: 90,
+        pacing: 88,
+        voice: 88,
+        engagement: 90,
+        overall: 90,
+      },
+      issues: [],
+      auditReports: [],
+    });
+    const passed = await service.reviewChapter("novel-1", "chapter-1", { content: "通过复审的正文" });
+    assert.equal(passed.qualityAssessment.recommendedAction, "continue");
+    const clearedLoop = JSON.parse(chapterUpdateCalls[1].data.riskFlags).qualityLoop;
+    assert.equal(Object.hasOwn(clearedLoop, "terminalAction"), false);
+  } finally {
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.chapter.update = originalChapterUpdate;
+    prisma.qualityReport.create = originalQualityReportCreate;
+    plannerService.buildReplanRecommendation = originalBuildReplanRecommendation;
+    auditService.auditChapter = originalAuditChapter;
+    GenerationContextAssembler.prototype.assemble = originalAssemble;
+    directorAutomationLedgerEventService.recordQualityLoopAssessment = originalRecordQualityLoopAssessment;
   }
 });
 

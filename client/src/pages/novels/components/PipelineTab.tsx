@@ -12,6 +12,7 @@ import WorldInjectionHint from "./WorldInjectionHint";
 import { getLowScoreChapterRange, getPipelineStageState, PIPELINE_STAGE_ITEMS } from "./pipelineTab.utils";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import SelectControl from "@/components/common/SelectControl";
+import NovelDirectorIssuePolicyCard from "./NovelDirectorIssuePolicyCard";
 
 interface PipelineTabProps {
   novelId: string;
@@ -101,6 +102,7 @@ function stageStatusLabel(state: "pending" | "active" | "completed" | "failed"):
 
 export default function PipelineTab(props: PipelineTabProps) {
   const {
+    novelId,
     worldInjectionSummary,
     hasCharacters,
     onGoToCharacterTab,
@@ -266,6 +268,7 @@ export default function PipelineTab(props: PipelineTabProps) {
         </summary>
 
         <div className="mt-4 space-y-4">
+          <NovelDirectorIssuePolicyCard novelId={novelId} />
           <Card>
             <CardHeader>
               <CardTitle>模型与配置</CardTitle>

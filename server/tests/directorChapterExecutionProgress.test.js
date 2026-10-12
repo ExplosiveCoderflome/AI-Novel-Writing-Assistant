@@ -1,10 +1,18 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 
 const { prisma } = require("../dist/db/prisma.js");
 const {
   ChapterExecutionProgressInspector,
 } = require("../dist/services/novel/director/runtime/ChapterExecutionProgressInspector.js");
+
+function contentHash(content) {
+  return createHash("sha256")
+    .update(String(content).replace(/\s+/g, " ").trim())
+    .digest("hex")
+    .slice(0, 24);
+}
 
 test("chapter execution progress treats needs_repair as a local recoverable state", async (t) => {
   const originalFindMany = prisma.chapter.findMany;
@@ -107,6 +115,12 @@ test("chapter execution progress treats terminal deferred quality issues as cont
       ],
       storyStateSnapshots: [],
       canonicalStateVersions: [],
+      artifactSyncCheckpoints: [
+        {
+          contentHash: contentHash("Draft body"),
+          metadataJson: JSON.stringify({ outcome: "degraded" }),
+        },
+      ],
     },
   ];
   t.after(() => {
@@ -238,4 +252,74 @@ test("chapter execution progress does not treat generating status without draft 
   assert.equal(chapter11.nextAction, "write_draft");
   assert.ok(chapter11.completedStages.includes("draft_started"));
   assert.ok(chapter11.missingStages.includes("draft_saved"));
+});
+
+test("chapter execution progress requires a matching continuity boundary before trusting approval", () => {
+  const inspector = new ChapterExecutionProgressInspector();
+  const chapter = {
+    id: "chapter-12",
+    order: 12,
+    content: "稳定正文",
+    riskFlags: null,
+    conflictLevel: 50,
+    revealLevel: 30,
+    targetWordCount: 2000,
+    mustAvoid: "无",
+    taskSheet: "任务单",
+    sceneCards: "[]",
+    expectation: "目标",
+    generationState: "approved",
+    chapterStatus: "completed",
+    repairHistory: null,
+    qualityReports: [{ id: "quality-1" }],
+    auditReports: [{ issues: [] }],
+    storyStateSnapshots: [],
+    canonicalStateVersions: [],
+    artifactSyncCheckpoints: [{
+      contentHash: contentHash("旧正文"),
+      metadataJson: JSON.stringify({ outcome: "completed" }),
+    }],
+  };
+
+  const progress = inspector.inspectChapterRow(chapter);
+
+  assert.equal(progress.status, "reviewable");
+  assert.equal(progress.evidence.hasApprovedState, true);
+  assert.equal(progress.evidence.hasArtifactSyncBoundary, false);
+  assert.equal(progress.nextAction, "commit_state");
+  assert.ok(progress.missingStages.includes("chapter_artifacts_synced"));
+});
+
+test("chapter execution progress accepts only the current version continuity boundary", () => {
+  const inspector = new ChapterExecutionProgressInspector();
+  const content = "稳定正文";
+  const progress = inspector.inspectChapterRow({
+    id: "chapter-13",
+    order: 13,
+    content,
+    riskFlags: null,
+    conflictLevel: 50,
+    revealLevel: 30,
+    targetWordCount: 2000,
+    mustAvoid: "无",
+    taskSheet: "任务单",
+    sceneCards: "[]",
+    expectation: "目标",
+    generationState: "approved",
+    chapterStatus: "completed",
+    repairHistory: null,
+    qualityReports: [{ id: "quality-1" }],
+    auditReports: [{ issues: [] }],
+    storyStateSnapshots: [],
+    canonicalStateVersions: [],
+    artifactSyncCheckpoints: [{
+      contentHash: contentHash(content),
+      metadataJson: JSON.stringify({ outcome: "completed" }),
+    }],
+  });
+
+  assert.equal(progress.status, "approved");
+  assert.equal(progress.evidence.hasArtifactSyncBoundary, true);
+  assert.equal(progress.evidence.artifactSyncOutcome, "completed");
+  assert.ok(progress.completedStages.includes("chapter_artifacts_synced"));
 });

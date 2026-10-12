@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import {
@@ -35,6 +35,7 @@ import {
 } from "./structuredInvokeParser";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { ReasoningStreamCollector } from "./reasoning";
 
 export {
   parseStructuredLlmRawContentDetailed,
@@ -52,6 +53,7 @@ export interface StructuredInvokeInput<T> {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
@@ -61,6 +63,8 @@ export interface StructuredInvokeInput<T> {
   structuredStrategy?: StructuredOutputStrategy;
   label: string;
   maxRepairAttempts?: number;
+  fallbackMaxRepairAttempts?: number;
+  repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   disableFallbackModel?: boolean;
 }
@@ -70,11 +74,41 @@ interface StructuredAttemptTarget {
   model: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature: number;
   maxTokens?: number;
   profile: StructuredOutputProfile;
   requestProtocol: ResolvedLLMClientOptions["requestProtocol"];
   preferredStrategy: StructuredOutputStrategy | null;
+}
+
+const DEFAULT_TRANSPORT_RETRY_COUNT = 1;
+const MAX_TRANSPORT_RETRY_COUNT = 3;
+
+function normalizeTransportRetryCount(value: number | undefined): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_TRANSPORT_RETRY_COUNT;
+  }
+  return Math.min(MAX_TRANSPORT_RETRY_COUNT, Math.max(0, Math.floor(value!)));
+}
+
+function waitForTransportRetry(signal: AbortSignal | undefined, retryAttempt: number): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(signal.reason ?? new Error("请求已取消。"));
+  }
+  const delayMs = Math.min(2_000, 500 * 2 ** (retryAttempt - 1));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(signal?.reason ?? new Error("请求已取消。"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
@@ -85,6 +119,16 @@ function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] 
     return [new SystemMessage(input.systemPrompt), new HumanMessage(input.userPrompt)];
   }
   throw new Error(`[${input.label}] missing prompt messages.`);
+}
+
+export function formatLivePrompt(messages: BaseMessage[]): string {
+  return messages.map((message, index) => {
+    const role = message._getType?.() ?? `message_${index + 1}`;
+    const content = typeof message.content === "string"
+      ? message.content
+      : JSON.stringify(message.content);
+    return `[${role}]\n${content}`;
+  }).join("\n\n");
 }
 
 function buildStrategySequence<T>(
@@ -114,6 +158,7 @@ async function resolveAttemptTarget(input: {
   model?: string;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
   taskType?: TaskType;
@@ -131,6 +176,7 @@ async function resolveAttemptTarget(input: {
     fallbackProvider: "deepseek",
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     model: input.model,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
@@ -149,6 +195,7 @@ async function resolveAttemptTarget(input: {
     model: resolved.model,
     apiKey: input.apiKey,
     baseURL: resolved.baseURL,
+    authMode: resolved.authMode,
     temperature: resolved.temperature,
     maxTokens: resolved.maxTokens,
     requestProtocol: resolved.requestProtocol,
@@ -176,6 +223,7 @@ async function invokeStructuredAttempt<T>(input: {
     fallbackProvider: "deepseek",
     apiKey: input.target.apiKey,
     baseURL: input.target.baseURL,
+    authMode: input.target.authMode,
     model: input.target.model,
     temperature: attemptTemperature,
     maxTokens: input.target.maxTokens,
@@ -218,6 +266,7 @@ async function invokeStructuredAttempt<T>(input: {
     promptMeta: input.baseInput.promptMeta,
     provider: resolved.provider,
     model: resolved.model,
+    promptText: formatLivePrompt(messages),
   });
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");
@@ -232,12 +281,15 @@ async function invokeStructuredAttempt<T>(input: {
         );
         let rawContent = "";
         let tokenUsage = null;
+        const reasoningCollector = new ReasoningStreamCollector();
         for await (const chunk of stream) {
           const content = toText(chunk.content);
+          liveSession.reasoning(reasoningCollector.push(chunk, content));
           rawContent += content;
           liveSession.delta(content);
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
+        liveSession.reasoning(reasoningCollector.flush());
         return { rawContent, tokenUsage };
       },
     });
@@ -256,7 +308,7 @@ async function invokeStructuredAttempt<T>(input: {
     });
     liveSession.phase("validating", "正在检查生成结果");
     let repairStarted = false;
-    const parsed = await parseStructuredLlmRawContentDetailed({
+    const parsed = await liveSession.observe(() => parseStructuredLlmRawContentDetailed({
       rawContent,
       schema: input.baseInput.schema,
       tokenUsage: collected.tokenUsage,
@@ -272,6 +324,7 @@ async function invokeStructuredAttempt<T>(input: {
       requestProtocol: resolved.requestProtocol,
       label: input.baseInput.label,
       maxRepairAttempts: input.baseInput.maxRepairAttempts,
+      repairGuidance: input.baseInput.repairGuidance,
       promptMeta: input.baseInput.promptMeta,
       onRepairOutputDelta: (content) => {
         if (!repairStarted) {
@@ -285,7 +338,11 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
-    });
+    }));
+    liveSession.usage(parsed.tokenUsage ? {
+      ...parsed.tokenUsage,
+      reasoningTokens: parsed.tokenUsage.reasoningTokens ?? null,
+    } : null);
     liveSession.complete();
     return parsed;
   } catch (error) {
@@ -351,7 +408,7 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
-      if (lastError.category === "transport_error") {
+      if (lastError.category === "transport_error" && !lastError.retryWithNextStrategy) {
         break;
       }
       if (lastError.category === "schema_mismatch" && strategy === "prompt_json") {
@@ -369,12 +426,53 @@ async function tryStructuredStrategies<T>(input: {
   });
 }
 
+async function tryStructuredStrategiesWithTransportRetries<T>(input: {
+  baseInput: StructuredInvokeInput<T>;
+  target: StructuredAttemptTarget;
+  fallbackAvailable: boolean;
+  fallbackUsed: boolean;
+  retryCount: number;
+}): Promise<StructuredInvokeResult<T>> {
+  let retryAttempt = 0;
+  while (true) {
+    try {
+      return await tryStructuredStrategies({
+        baseInput: input.baseInput,
+        target: input.target,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+      });
+    } catch (error) {
+      const structuredError = error instanceof StructuredOutputError ? error : null;
+      if (
+        structuredError?.category !== "transport_error"
+        || retryAttempt >= input.retryCount
+        || input.baseInput.signal?.aborted
+      ) {
+        throw error;
+      }
+      retryAttempt += 1;
+      logStructuredInvokeEvent({
+        event: "transport_retry",
+        label: input.baseInput.label,
+        provider: input.target.provider,
+        model: input.target.model,
+        taskType: input.baseInput.taskType,
+        errorCategory: structuredError.category,
+        fallbackUsed: input.fallbackUsed,
+      });
+      await waitForTransportRetry(input.baseInput.signal, retryAttempt);
+    }
+  }
+}
+
 export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
   const primaryTarget = await resolveAttemptTarget({
     provider: input.provider,
     model: input.model,
     apiKey: input.apiKey,
     baseURL: input.baseURL,
+    authMode: input.authMode,
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
     taskType: input.taskType ?? "planner",
@@ -382,6 +480,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     structuredStrategy: input.structuredStrategy,
   });
   const fallbackSettings = input.disableFallbackModel ? null : await getStructuredFallbackSettings();
+  const transportRetryCount = normalizeTransportRetryCount(fallbackSettings?.retryCount);
   const fallbackEnabled = Boolean(
     fallbackSettings?.enabled
     && fallbackSettings.model.trim().length > 0
@@ -392,11 +491,12 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
   );
 
   try {
-    return await tryStructuredStrategies({
+    return await tryStructuredStrategiesWithTransportRetries({
       baseInput: input,
       target: primaryTarget,
       fallbackAvailable: fallbackEnabled,
       fallbackUsed: false,
+      retryCount: transportRetryCount,
     });
   } catch (primaryError) {
     if (!fallbackEnabled || !fallbackSettings) {
@@ -411,18 +511,20 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
       taskType: input.taskType ?? "planner",
     });
     try {
-      return await tryStructuredStrategies({
+      return await tryStructuredStrategiesWithTransportRetries({
         baseInput: {
           ...input,
           provider: fallbackTarget.provider,
           model: fallbackTarget.model,
           temperature: fallbackTarget.temperature,
           maxTokens: fallbackTarget.maxTokens,
+          maxRepairAttempts: input.fallbackMaxRepairAttempts ?? input.maxRepairAttempts,
           disableFallbackModel: true,
         },
         target: fallbackTarget,
         fallbackAvailable: true,
         fallbackUsed: true,
+        retryCount: transportRetryCount,
       });
     } catch (fallbackError) {
       throw fallbackError instanceof StructuredOutputError

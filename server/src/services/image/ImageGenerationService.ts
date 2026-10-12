@@ -1,6 +1,7 @@
 import {
   DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT,
   DEFAULT_NOVEL_COVER_STYLE_PRESET,
+  buildNovelCoverTitleInstruction,
 } from "@ai-novel/shared/imagePrompt";
 import {
   DEFAULT_NOVEL_COVER_IMAGE_COUNT,
@@ -259,7 +260,7 @@ export class ImageGenerationService {
     const novel = await loadNovelCoverNovel(input.novelId);
     const model = await resolveImageModel(provider, input.model);
     const prompt = input.promptMode === "direct"
-      ? input.prompt.trim()
+      ? `${input.prompt.trim()}\n${buildNovelCoverTitleInstruction(novel.title)}`
       : await buildNovelCoverTaskPrompt({
         novelId: novel.id,
         sourcePrompt: input.prompt,

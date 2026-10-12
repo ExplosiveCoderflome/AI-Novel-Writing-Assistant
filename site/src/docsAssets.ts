@@ -3,6 +3,11 @@ const diagramAssetModules = import.meta.glob(
   { eager: true, import: "default", query: "?url" },
 );
 
+const architectureAssetModules = import.meta.glob(
+  "../../docs/architecture/*.{svg,png,jpg,jpeg,webp}",
+  { eager: true, import: "default", query: "?url" },
+);
+
 const screenshotAssetModules = import.meta.glob(
   "../../docs/public/flow/screenshots/*.{svg,png,jpg,jpeg,webp}",
   { eager: true, import: "default", query: "?url" },
@@ -10,6 +15,16 @@ const screenshotAssetModules = import.meta.glob(
 
 const projectModuleImageModules = import.meta.glob(
   "../../images/*.{png,jpg,jpeg,webp,svg,gif}",
+  { eager: true, import: "default", query: "?url" },
+);
+
+const projectV2ImageModules = import.meta.glob(
+  "../../images/v2/*.{png,jpg,jpeg,webp,svg,gif}",
+  { eager: true, import: "default", query: "?url" },
+);
+
+const projectWritingImageModules = import.meta.glob(
+  "../../images/write/*.{png,jpg,jpeg,webp,svg,gif}",
   { eager: true, import: "default", query: "?url" },
 );
 
@@ -58,8 +73,11 @@ function buildAssetMaps(...modulesList: Record<string, string>[]): AssetMaps {
 
 const { byPath, byBasename } = buildAssetMaps(
   diagramAssetModules as Record<string, string>,
+  architectureAssetModules as Record<string, string>,
   screenshotAssetModules as Record<string, string>,
   projectModuleImageModules as Record<string, string>,
+  projectV2ImageModules as Record<string, string>,
+  projectWritingImageModules as Record<string, string>,
 );
 
 function safeDecode(value: string): string {

@@ -1,5 +1,4 @@
 import os from "node:os";
-import { prisma } from "../db/prisma";
 import { DirectorCommandService } from "../services/novel/director/commands/DirectorCommandService";
 import { resourceClassForCommand } from "../services/novel/director/commands/DirectorCommandServiceHelpers";
 import { taskDispatcher } from "./TaskDispatcher";
@@ -59,7 +58,7 @@ export interface DirectorTaskQueueOptions {
 }
 
 export interface LeasedTask {
-  command: NonNullable<Awaited<ReturnType<typeof prisma.directorRunCommand.findUnique>>>;
+  command: NonNullable<Awaited<ReturnType<DirectorCommandService["leaseNextCommand"]>>>;
 }
 
 export class DirectorTaskQueue {
@@ -89,36 +88,10 @@ export class DirectorTaskQueue {
 
   async leaseNext(slotId: string): Promise<LeasedTask | null> {
     await this.maybeScanStale();
-    const now = new Date();
     const leaseOwner = `${this.workerId}:${slotId}`;
-    const leaseExpiresAt = new Date(now.getTime() + this.leaseMs);
-    const candidate = await prisma.directorRunCommand.findFirst({
-      where: {
-        status: "queued",
-        runAfter: { lte: now },
-      },
-      orderBy: [{ runAfter: "asc" }, { createdAt: "asc" }, { id: "asc" }],
-    });
-    if (!candidate) {
-      return null;
-    }
-    const claimed = await prisma.directorRunCommand.updateMany({
-      where: {
-        id: candidate.id,
-        status: "queued",
-      },
-      data: {
-        status: "leased",
-        leaseOwner,
-        leaseExpiresAt,
-        attempt: { increment: 1 },
-      },
-    });
-    if (claimed.count !== 1) {
-      return null;
-    }
-    const command = await prisma.directorRunCommand.findUnique({
-      where: { id: candidate.id },
+    const command = await this.commandService.leaseNextCommand({
+      workerId: leaseOwner,
+      leaseMs: this.leaseMs,
     });
     return command ? { command } : null;
   }

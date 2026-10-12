@@ -86,23 +86,20 @@ export function workflowStatusToBookStatus(status: string | null | undefined): D
   return "idle";
 }
 
-export function extractRunMode(seedPayloadJson: string | null | undefined): string | null {
-  const seedPayload = parseJsonOrNull<Record<string, unknown>>(seedPayloadJson);
-  if (!seedPayload) {
-    return null;
-  }
-  const direct = seedPayload.runMode;
+export function extractRunMode(directorTaskData: Record<string, unknown> | null | undefined): string | null {
+  if (!directorTaskData) return null;
+  const direct = directorTaskData.runMode;
   if (typeof direct === "string") {
     return direct;
   }
-  const directorInput = seedPayload.directorInput;
+  const directorInput = directorTaskData.directorInput;
   if (directorInput && typeof directorInput === "object") {
     const value = (directorInput as { runMode?: unknown }).runMode;
     if (typeof value === "string") {
       return value;
     }
   }
-  const directorSession = seedPayload.directorSession;
+  const directorSession = directorTaskData.directorSession;
   if (directorSession && typeof directorSession === "object") {
     const value = (directorSession as { runMode?: unknown }).runMode;
     if (typeof value === "string") {
@@ -113,10 +110,9 @@ export function extractRunMode(seedPayloadJson: string | null | undefined): stri
 }
 
 export function extractCircuitBreaker(
-  seedPayloadJson: string | null | undefined,
+  directorTaskData: Record<string, unknown> | null | undefined,
 ): DirectorBookAutomationProjection["circuitBreaker"] {
-  const seedPayload = parseJsonOrNull<Record<string, unknown>>(seedPayloadJson);
-  const autoExecution = seedPayload?.autoExecution;
+  const autoExecution = directorTaskData?.autoExecution;
   if (!autoExecution || typeof autoExecution !== "object") {
     return null;
   }
@@ -269,16 +265,12 @@ function buildNovelHref(
   novelId: string,
   options?: {
     tab?: DirectorBookAutomationAction["target"]["tab"];
-    taskId?: string | null;
     taskPanel?: boolean;
   },
 ): string {
   const params = new URLSearchParams();
   if (options?.tab) {
     params.set("stage", options.tab);
-  }
-  if (options?.taskId) {
-    params.set("directorTaskId", options.taskId);
   }
   if (options?.taskPanel) {
     params.set("taskPanel", "1");
@@ -430,6 +422,24 @@ export function buildPrimaryAction(input: {
     });
   }
 
+  if (
+    input.task?.checkpointType === "replan_required"
+    && ["waiting_approval", "waiting_recovery", "failed", "blocked", "cancelled"].includes(input.status)
+  ) {
+    return action({
+      type: "auto_execute_range",
+      label: "重规划后继续",
+      target: {
+        novelId: input.novelId,
+        taskId,
+        tab: "pipeline",
+        href: buildNovelHref(input.novelId, { tab: "pipeline" }),
+      },
+      commandPayload: { taskId, continuationMode: "auto_execute_range" },
+      emphasis: "primary",
+    });
+  }
+
   if (input.status === "waiting_approval") {
     if (input.task?.checkpointType === "candidate_selection_required") {
       return action({
@@ -446,7 +456,7 @@ export function buildPrimaryAction(input: {
         target: {
           novelId: input.novelId,
           taskId,
-          href: buildNovelHref(input.novelId, { taskId }),
+          href: buildNovelHref(input.novelId),
         },
         emphasis: "primary",
       });
@@ -459,29 +469,16 @@ export function buildPrimaryAction(input: {
           novelId: input.novelId,
           taskId,
           tab: "chapter",
-          href: buildNovelHref(input.novelId, { tab: "chapter", taskId }),
+          href: buildNovelHref(input.novelId, { tab: "chapter" }),
         },
         commandPayload: { taskId, continuationMode: "auto_execute_range" },
-        emphasis: "primary",
-      });
-    }
-    if (input.task?.checkpointType === "replan_required") {
-      return action({
-        type: "open_quality_repair",
-        label: "打开质量修复",
-        target: {
-          novelId: input.novelId,
-          taskId,
-          tab: "pipeline",
-          href: buildNovelHref(input.novelId, { tab: "pipeline", taskId }),
-        },
         emphasis: "primary",
       });
     }
     return action({
       type: "continue",
       label: "确认并继续",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       commandPayload: { taskId, continuationMode: "resume" },
       emphasis: "primary",
     });
@@ -491,7 +488,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "continue",
       label: "从进度点继续",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       commandPayload: { taskId, continuationMode: "resume" },
       emphasis: "primary",
     });
@@ -501,7 +498,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "open_details",
       label: input.status === "failed" ? "查看失败原因" : "查看暂停原因",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId, taskPanel: true }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskPanel: true }) },
       emphasis: "primary",
     });
   }
@@ -510,7 +507,7 @@ export function buildPrimaryAction(input: {
     return action({
       type: "open_novel",
       label: "查看推进状态",
-      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+      target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
       emphasis: "primary",
     });
   }
@@ -523,7 +520,7 @@ export function buildPrimaryAction(input: {
         novelId: input.novelId,
         taskId,
         tab: "chapter",
-        href: buildNovelHref(input.novelId, { tab: "chapter", taskId }),
+        href: buildNovelHref(input.novelId, { tab: "chapter" }),
       },
       emphasis: "primary",
     });
@@ -532,7 +529,7 @@ export function buildPrimaryAction(input: {
   return action({
     type: "open_novel",
     label: "打开小说",
-    target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId, { taskId }) },
+    target: { novelId: input.novelId, taskId, href: buildNovelHref(input.novelId) },
     emphasis: "primary",
   });
 }
@@ -552,7 +549,7 @@ export function buildSecondaryActions(input: {
       target: {
         novelId: input.novelId,
         taskId: input.taskId,
-        href: buildNovelHref(input.novelId, { taskId: input.taskId, taskPanel: true }),
+        href: buildNovelHref(input.novelId, { taskPanel: true }),
       },
       emphasis: "secondary",
     }),

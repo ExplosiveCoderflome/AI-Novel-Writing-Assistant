@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  ChapterScenePlanNormalizationError,
   normalizeChapterScenePlan,
   parseChapterScenePlan,
   resolveLengthBudgetContract,
@@ -65,6 +66,29 @@ test("chapter length control parser rejects legacy free-text scene cards", () =>
     targetWordCount: 3000,
   });
   assert.equal(parsed, null);
+});
+
+test("chapter length control reports retryable Chinese validation details", () => {
+  assert.throws(
+    () => normalizeChapterScenePlan({ scenes: [] }, 2400),
+    (error) => error instanceof ChapterScenePlanNormalizationError
+      && error.code === "scene_count_below_minimum"
+      && error.message === "章节场景拆解至少需要 3 个有效场景。",
+  );
+});
+
+test("chapter length control can recover the target budget from the generated plan", () => {
+  const plan = normalizeChapterScenePlan({
+    targetWordCount: 2400,
+    scenes: [
+      { title: "一", purpose: "推进一", entryState: "A", exitState: "B", targetWordCount: 800 },
+      { title: "二", purpose: "推进二", entryState: "B", exitState: "C", targetWordCount: 800 },
+      { title: "三", purpose: "推进三", entryState: "C", exitState: "D", targetWordCount: 800 },
+    ],
+  }, null);
+
+  assert.equal(plan.targetWordCount, 2400);
+  assert.equal(plan.scenes.length, 3);
 });
 
 test("chapter length control serializer preserves canonical scene plan shape", () => {

@@ -13,6 +13,10 @@ import {
   normalizeBookAnalysisBudgetTokens,
 } from "../caching/bookAnalysis.budget";
 import { getBookAnalysisDefaultBudgetTokens, getBookAnalysisMaxConcurrentTasks } from "../shared/bookAnalysis.config";
+import {
+  isEmptySucceededBookAnalysisSection,
+  reconcileBookAnalysisResultStatus,
+} from "../shared/bookAnalysis.status";
 import { BookAnalysisGenerationService } from "../bookAnalysis.generation";
 import { BookAnalysisTaskQueue } from "../infrastructure/bookAnalysis.queue";
 import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperature } from "../shared/bookAnalysis.utils";
@@ -321,6 +325,9 @@ export class BookAnalysisCommandService {
     if (analysis.status === "archived") {
       throw new AppError("Archived book analysis cannot be rebuilt.", 400);
     }
+    const emptySucceededSectionIds = analysis.sections
+      .filter(isEmptySucceededBookAnalysisSection)
+      .map((section) => section.id);
     await prisma.$transaction(async (tx) => {
       await tx.bookAnalysis.update({
         where: { id: analysisId },
@@ -343,7 +350,10 @@ export class BookAnalysisCommandService {
         where: {
           analysisId,
           frozen: false,
-          status: { not: "succeeded" },
+          OR: [
+            { status: { not: "succeeded" } },
+            { id: { in: emptySucceededSectionIds } },
+          ],
         },
         data: {
           status: "idle",
@@ -413,12 +423,24 @@ export class BookAnalysisCommandService {
   async retryAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
-      select: { status: true },
+      select: {
+        status: true,
+        sections: {
+          select: {
+            status: true,
+            frozen: true,
+            aiContent: true,
+            editedContent: true,
+            structuredDataJson: true,
+          },
+        },
+      },
     });
     if (!analysis) {
       throw new AppError("Book analysis not found.", 404);
     }
-    if (analysis.status !== "failed" && analysis.status !== "cancelled") {
+    const effectiveStatus = reconcileBookAnalysisResultStatus(analysis.status, analysis.sections);
+    if (effectiveStatus !== "failed" && effectiveStatus !== "cancelled") {
       throw new AppError("Only failed or cancelled analyses can be retried.", 400);
     }
     return this.rebuildAnalysis(analysisId);

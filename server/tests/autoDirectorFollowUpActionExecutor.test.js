@@ -6,6 +6,22 @@ const { AutoDirectorFollowUpActionExecutor } = require("../dist/services/task/au
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 const { prisma } = require("../dist/db/prisma.js");
 
+const ownershipReads = {
+  task: prisma.novelWorkflowTask.findUnique,
+  novel: prisma.novel.findUnique,
+  run: prisma.directorNextRun.findFirst,
+};
+test.beforeEach(() => {
+  prisma.novelWorkflowTask.findUnique = async ({where}) => buildWorkflowRow({id: where.id, directorVersion: "v1", directorEpoch: 0});
+  prisma.novel.findUnique = async ({where}) => ({id: where.id, title: "雾港巡夜人", narrativeForm: "long_novel", directorVersion: "v1", directorEpoch: 0});
+  prisma.directorNextRun.findFirst = async () => null;
+});
+test.afterEach(() => {
+  prisma.novelWorkflowTask.findUnique = ownershipReads.task;
+  prisma.novel.findUnique = ownershipReads.novel;
+  prisma.directorNextRun.findFirst = ownershipReads.run;
+});
+
 function buildWorkflowRow(overrides = {}) {
   return {
     id: "task_default",
@@ -94,6 +110,20 @@ function buildTaskDetail(taskId, overrides = {}) {
     ...overrides,
   };
 }
+
+test("follow-up actions reject a V2 novel before logging, healing or continuing a V1 task", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  prisma.novel.findUnique = async () => ({directorVersion: "v2", directorEpoch: 0, narrativeForm: "long_novel"});
+  const originalLog = prisma.autoDirectorFollowUpActionLog.findUnique;
+  let mutations = 0;
+  prisma.autoDirectorFollowUpActionLog.findUnique = async () => {mutations++; throw new Error("must reject before reading action logs");};
+  executor.workflowService.healAutoDirectorTaskState = async () => {mutations++;};
+  executor.novelDirectorService.continueTask = async () => {mutations++;};
+  try {
+    await assert.rejects(executor.execute({taskId: "foreign-v1-task", actionCode: "continue_auto_execution", source: "web", idempotencyKey: "reject-foreign-owner"}), error => error.statusCode === 409);
+    assert.equal(mutations, 0);
+  } finally {prisma.autoDirectorFollowUpActionLog.findUnique = originalLog;}
+});
 
 test("auto director follow-up action executor continues auto execution and deduplicates repeated idempotency keys", async () => {
   const executor = new AutoDirectorFollowUpActionExecutor();
@@ -945,7 +975,7 @@ test("auto director follow-up safe fix repairs only validator-marked safe action
 
   assert.equal(result.code, "executed");
   assert.match(result.message, /安全修复/);
-  assert.deepEqual(calls, [["heal", "task_validation_fix"]]);
+  assert.deepEqual(calls, [], "user safe-fix action must not run aggregate healing first");
   assert.equal(workflowUpdates.length, 1);
   assert.equal(JSON.parse(workflowUpdates[0].data.seedPayloadJson).autoDirectorValidationResult, undefined);
   assert.equal(actionLogs.get("safe-fix-k1").resultCode, "executed");

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   ThinkTagStreamFilter,
+  ReasoningStreamCollector,
   diffAccumulatedText,
   extractMiniMaxRawStreamData,
   extractReasoningTextFromChunk,
@@ -19,6 +20,7 @@ test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
   });
 
   assert.equal(disabled.reasoningEnabled, false);
+  assert.equal(disabled.reasoningEffort, null);
   assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
 
   const enabled = resolveProviderReasoningBehavior({
@@ -26,30 +28,65 @@ test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
     baseURL: "https://api.deepseek.com/v1",
     model: "deepseek-reasoner",
     reasoningEnabled: true,
+    reasoningEffort: "max",
   });
 
   assert.equal(enabled.reasoningEnabled, true);
-  assert.deepEqual(enabled.modelKwargs, { thinking: { type: "enabled" } });
+  assert.equal(enabled.reasoningEffort, "max");
+  assert.deepEqual(enabled.modelKwargs, {
+    thinking: { type: "enabled" },
+    reasoning_effort: "max",
+  });
 });
 
 test("deepseek thinking mode detection is limited to toggle-capable models", () => {
+  assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-flash"), true);
+  assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-pro"), true);
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-v4-pro"), true);
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-v4-flash"), true);
   assert.equal(isDeepSeekThinkingModeProvider("custom_gateway", "https://api.deepseek.com/v1", "deepseek-reasoner"), true);
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-chat"), false);
   assert.equal(isDeepSeekThinkingModeProvider("openai", "https://api.openai.com/v1", "deepseek-v4-pro"), false);
+  assert.equal(
+    isDeepSeekThinkingModeProvider(
+      "custom_ooioo",
+      "https://ooioo.work/v1",
+      "deepseek-v4-flash-0731-fast",
+    ),
+    true,
+  );
 });
 
 test("deepseek v4 flash can disable thinking for structured generation", () => {
   const disabled = resolveProviderReasoningBehavior({
     provider: "deepseek",
     baseURL: "https://api.deepseek.com/v1",
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     reasoningEnabled: false,
   });
 
   assert.equal(disabled.reasoningEnabled, false);
+  assert.equal(disabled.reasoningEffort, null);
   assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
+});
+
+test("deepseek reasoning effort defaults to high and preserves explicit low", () => {
+  const defaultBehavior = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-pro",
+    reasoningEnabled: true,
+  });
+  const lowBehavior = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-flash",
+    reasoningEnabled: true,
+    reasoningEffort: "low",
+  });
+
+  assert.equal(defaultBehavior.modelKwargs.reasoning_effort, "high");
+  assert.equal(lowBehavior.modelKwargs.reasoning_effort, "low");
 });
 
 test("minimax provider behavior enables reasoning_split and raw response parsing", () => {
@@ -136,4 +173,20 @@ test("extractReasoningTextFromChunk supports generic reasoning payloads", () => 
   });
 
   assert.equal(text, "附加字段思考总结思考内容里的思考");
+});
+
+test("ReasoningStreamCollector keeps provider reasoning even when it arrives outside content", () => {
+  const collector = new ReasoningStreamCollector();
+  const first = collector.push({
+    content: "",
+    additional_kwargs: { reasoning_content: "先分析" },
+  }, "");
+  const second = collector.push({
+    content: "<think>再确认</think>答案",
+    additional_kwargs: {},
+  }, "<think>再确认</think>答案");
+
+  assert.equal(first, "先分析");
+  assert.equal(second, "再确认");
+  assert.equal(collector.flush(), "");
 });

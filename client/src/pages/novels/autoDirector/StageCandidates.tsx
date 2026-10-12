@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import type { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
 import NovelProductionExperienceHandoff from "../components/NovelProductionExperienceHandoff";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
+import { isProductionExperienceChoicePending } from "@/lib/novelRoutes";
 
 type AutoDirectorCreateController = ReturnType<typeof useAutoDirectorCreateController>;
 
@@ -16,15 +17,17 @@ export default function StageCandidates({
   controller,
   onRegenerateSettings,
 }: StageCandidatesProps) {
+  const directorTask = controller.directorTask;
   if (
-    controller.directorTask?.checkpointType === "production_experience_required"
-    && controller.directorTask.resumeTarget?.novelId
+    directorTask
+    && isProductionExperienceChoicePending(directorTask)
+    && directorTask.resumeTarget?.novelId
   ) {
     return (
       <NovelProductionExperienceHandoff
-        taskId={controller.directorTask.id}
-        novelId={controller.directorTask.resumeTarget.novelId}
-        novelTitle={controller.directorTask.title}
+        taskId={directorTask.id}
+        novelId={directorTask.resumeTarget.novelId}
+        novelTitle={directorTask.title}
       />
     );
   }
@@ -38,10 +41,9 @@ export default function StageCandidates({
           taskId={controller.workflowTaskId}
           titleHint={controller.pendingTitleHint}
           fallbackError={controller.executionError}
-          onBackgroundContinue={controller.handleBackgroundContinue}
           onConfirmAndContinue={() => controller.continueMutation.mutate()}
           isConfirmingAndContinuing={controller.continueMutation.isPending}
-          onOpenTaskCenter={controller.handleOpenTaskCenter}
+          quickRetryLabel="快速重试"
         />
       </section>
     );

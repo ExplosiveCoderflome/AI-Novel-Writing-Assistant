@@ -17,6 +17,7 @@ import {
 import {
   allocateChapterBudgets,
   deriveChapterBudget,
+  resolveEvenShareChapterBudget,
   GeneratedVolumeChapterBlock,
   getBeatExpectedChapterCount,
   getBeatSheet,
@@ -26,6 +27,7 @@ import {
   resolveVolumeChapterBeatKey,
   setVolumeChapterListPartialStatus,
 } from "./volumeGenerationHelpers";
+import { assertChapterTitleDiversity } from "./chapterTitleDiversity";
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
@@ -47,6 +49,22 @@ interface FullVolumeResumeState {
   resumeBeatKey: string | null;
   preservedBeatBlocks: GeneratedVolumeChapterBlock[];
   isAlreadyComplete: boolean;
+}
+
+export function isCompactBookFinaleBeat(params: {
+  completionProfile: VolumeGenerationNovel["completionProfile"];
+  targetVolumeIndex: number;
+  chapterBudgets: number[];
+  beatChapterEndOrder: number;
+}): boolean {
+  if (params.completionProfile?.mode !== "compact_book" || params.targetVolumeIndex < 0) {
+    return false;
+  }
+  const chaptersBeforeCurrentVolume = params.chapterBudgets
+    .slice(0, params.targetVolumeIndex)
+    .reduce((total, chapterCount) => total + chapterCount, 0);
+  return chaptersBeforeCurrentVolume + params.beatChapterEndOrder
+    >= params.completionProfile.endingRequiredBy;
 }
 
 function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
@@ -125,6 +143,7 @@ function buildExistingBeatBlocks(params: {
         beatKey: beat.key,
         title: chapter.title,
         summary: chapter.summary,
+        ...(chapter.plannedCharacterIds !== undefined ? {plannedCharacterIds: chapter.plannedCharacterIds} : {}),
       }));
 
     return {
@@ -151,11 +170,11 @@ function buildPreviousBeatSummary(params: {
 
 function buildPreservedBeatSummary(params: {
   existingBeatBlocks: GeneratedVolumeChapterBlock[];
-  targetBeatKey: string;
+  targetBeatIndex: number;
 }): string {
-  return summarizeBeatBlocks(
-    params.existingBeatBlocks.filter((block) => block.beatKey !== params.targetBeatKey && block.chapters.length > 0),
-  );
+  return summarizeBeatBlocks(params.existingBeatBlocks
+    .slice(params.targetBeatIndex + 1)
+    .filter((block) => block.chapters.length > 0));
 }
 
 function assertMergedVolumeChapterList(params: {
@@ -216,6 +235,7 @@ async function generateBeatChapterBlock(params: {
   nextBeat?: VolumeBeat | null;
   previousBeatChapterSummary?: string | null;
   preservedBeatChapterSummary?: string | null;
+  chapterBudgets: number[];
 }): Promise<GeneratedVolumeChapterBlock> {
   const targetIndex = params.document.volumes.findIndex((volume) => volume.id === params.targetVolume.id);
   const promptInput = {
@@ -246,6 +266,19 @@ async function generateBeatChapterBlock(params: {
       targetChapterCount: params.beatPlan.chapterCount,
       targetBeatKey: params.beatPlan.beat.key,
       targetBeatLabel: params.beatPlan.beat.label,
+      isBookFinale: isCompactBookFinaleBeat({
+        completionProfile: params.novel.completionProfile,
+        targetVolumeIndex: targetIndex,
+        chapterBudgets: params.chapterBudgets,
+        beatChapterEndOrder: params.beatPlan.chapterEndOrder,
+      }),
+      reservedChapterTitles: params.targetVolume.chapters
+        .filter((chapter) => chapter.beatKey !== params.beatPlan.beat.key)
+        .map((chapter) => chapter.title),
+      characterIds: params.options.entrypoint === "director_next" ? params.novel.characters.map(character => {
+        if (!character.id) throw new Error("角色出场初排缺少角色 ID。");
+        return character.id;
+      }) : undefined,
     }),
     promptInput,
     contextBlocks: buildVolumeChapterListContextBlocks(promptInput),
@@ -253,7 +286,8 @@ async function generateBeatChapterBlock(params: {
       provider: params.options.provider,
       model: params.options.model,
       temperature: params.options.temperature ?? 0.35,
-      maxTokens: Math.min(4_800, 900 + params.beatPlan.chapterCount * 260),
+      maxTokens: Math.min(params.options.entrypoint === "director_next" ? 6_400 : 4_800,
+        900 + params.beatPlan.chapterCount * (params.options.entrypoint === "director_next" ? 380 : 260)),
       novelId: params.document.novelId,
       volumeId: params.targetVolume.id,
       taskId: params.options.taskId,
@@ -309,8 +343,11 @@ export async function generateBeatChunkedChapterList(params: {
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
   const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
-  const fallbackTargetChapterCount = chapterBudgets[targetIndex]
-    ?? Math.max(3, Math.round(chapterBudget / Math.max(document.volumes.length, 1)));
+  // 正在生成的卷当前章数是进度而非计划规模，其预算不得低于均分份额（issue #173）。
+  const fallbackTargetChapterCount = Math.max(
+    chapterBudgets[targetIndex] ?? 0,
+    resolveEvenShareChapterBudget(chapterBudget, document.volumes.length),
+  );
   // Legacy or partially generated workspaces may only carry a few seed chapters for the opening beat.
   // Those placeholders should not shrink the trusted chapter budget below the planned volume size.
   const budgetedTargetChapterCount = Math.max(targetVolume.chapters.length, fallbackTargetChapterCount);
@@ -398,9 +435,10 @@ export async function generateBeatChunkedChapterList(params: {
       preservedBeatChapterSummary: generationMode === "single_beat"
         ? buildPreservedBeatSummary({
           existingBeatBlocks,
-          targetBeatKey: beatPlan.beat.key,
+          targetBeatIndex: currentBeatIndex,
         })
         : null,
+      chapterBudgets,
     });
     generatedBlocks.push(generatedBlock);
 
@@ -416,6 +454,11 @@ export async function generateBeatChunkedChapterList(params: {
         markAsPartial: true,
       },
     );
+    const intermediateVolume = intermediateDocument.volumes.find((volume) => volume.id === targetVolume.id);
+    if (!intermediateVolume) {
+      throw new Error("当前卷章节列表已生成，但中间合并结果丢失了目标卷。");
+    }
+    assertChapterTitleDiversity(intermediateVolume.chapters.map((chapter) => chapter.title));
     await params.notifyIntermediateDocument?.({
       scope: "chapter_list",
       document: intermediateDocument,
@@ -456,6 +499,7 @@ export async function generateBeatChunkedChapterList(params: {
   if (!rawMergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");
   }
+  assertChapterTitleDiversity(rawMergedVolume.chapters.map((chapter) => chapter.title));
   assertMergedVolumeChapterList({
     volume: rawMergedVolume,
     beatSheet: targetBeatSheet,

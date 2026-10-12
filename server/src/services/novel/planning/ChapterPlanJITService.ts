@@ -1,5 +1,5 @@
-import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { novelFactService } from "../fact/NovelFactService";
 import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "./ChapterRouteWindowService";
@@ -8,22 +8,24 @@ import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "./Chap
  * 章节规划即时生成服务（Just-In-Time）
  *
  * 在执行第 N 章之前被调用，确保 task sheet 已就绪。
- * 若章节尚无 task sheet，或 factLedger 有新数据（前文已写），
- * 则调用 volumeService 即时生成，将已发生事实注入到生成上下文中。
+ * 若章节尚无 task sheet，则调用 volumeService 即时生成，并将已发生事实
+ * 注入到生成上下文中。已有完整执行合同必须直接复用；事实变化由正文运行时
+ * 上下文承接，不能把每次执行都变成合同重建。
  *
  * 兼容性：
- * - 旧小说若 factLedger 为空（前文未写），回退到现有 taskSheet。
- * - 旧小说若 taskSheet 已存在且 factLedger 为空，直接跳过不重新生成。
+ * - 旧小说已有完整 taskSheet 时直接复用，不因事实数量重复生成。
  * - 只在 autopilot 流水线路径调用（manual 单章模式继续用 ChapterExecutionContractService）。
  */
-
-const JIT_MIN_FACTS_FOR_REFRESH = 3;
 
 export interface ChapterPlanJITDeps {
   ensureChapterExecutionContract: (
     novelId: string,
     chapterId: string,
     options: {
+      provider?: LLMProvider;
+      model?: string;
+      temperature?: number;
+      taskId?: string;
       guidance?: string;
       entrypoint?: string;
       chapterTaskSheetQualityMode?: ChapterTaskSheetQualityMode;
@@ -34,6 +36,11 @@ export interface ChapterPlanJITDeps {
     fromChapterOrder: number,
     options?: ChapterRouteWindowOptions,
   ) => Promise<ChapterRouteWindowResult>;
+  loadChapter?: (novelId: string, chapterId: string) => Promise<{
+    id: string;
+    order: number;
+  } | null>;
+  listFacts?: typeof novelFactService.listForChapter;
 }
 
 export class ChapterPlanJITService {
@@ -42,7 +49,7 @@ export class ChapterPlanJITService {
   /**
    * 确保第 N 章的执行合同（task sheet / sceneCards / targetWordCount / mustAvoid）就绪。
    *
-   * 调用时机：GenerationContextAssembler.assemble 中，plannerService.ensureChapterPlan 之前。
+   * 调用时机：ChapterExecutionPreparationService 中，plannerService.ensureChapterPlan 之前。
    * 仅在 advanceMode === "full_book_autopilot" 时调用。
    */
   async ensureExecutionReady(
@@ -50,57 +57,33 @@ export class ChapterPlanJITService {
     chapterId: string,
     routeOptions: ChapterRouteWindowOptions = {},
   ): Promise<void> {
-    const chapter = await prisma.chapter.findFirst({
-      where: { id: chapterId, novelId },
+    const loadChapter = this.deps.loadChapter ?? ((targetNovelId: string, targetChapterId: string) => prisma.chapter.findFirst({
+      where: { id: targetChapterId, novelId: targetNovelId },
       select: {
         id: true,
         order: true,
-        taskSheet: true,
-        sceneCards: true,
-        targetWordCount: true,
-        mustAvoid: true,
-        conflictLevel: true,
-        revealLevel: true,
       },
-    });
+    }));
+    let chapter = await loadChapter(novelId, chapterId);
     if (!chapter) {
       return;
     }
 
     await this.deps.ensureRouteWindow?.(novelId, chapter.order, routeOptions);
 
-    const hasCompleteTaskSheet = Boolean(chapter.taskSheet?.trim())
-      && Boolean(chapter.sceneCards?.trim())
-      && typeof chapter.targetWordCount === "number"
-      && Boolean(parseChapterScenePlan(chapter.sceneCards, {
-        targetWordCount: chapter.targetWordCount ?? undefined,
-      }));
-
-    // 拉取前文事实账本
-    const facts = await novelFactService.listForChapter({
+    // 合同是否可复用由唯一的准备度策略判断；JIT 不再维护第二套字段规则。
+    const facts = await (this.deps.listFacts ?? novelFactService.listForChapter)({
       novelId,
       beforeChapterOrder: chapter.order,
     });
 
-    if (hasCompleteTaskSheet && facts.length < JIT_MIN_FACTS_FOR_REFRESH) {
-      // task sheet 已存在，且前文事实不足（旧小说 / 首章），跳过
-      return;
-    }
-
-    if (hasCompleteTaskSheet && facts.length >= JIT_MIN_FACTS_FOR_REFRESH) {
-      // task sheet 已存在但前文有足够事实 —— 重新生成以纳入实际进度
-      const factGuidance = buildFactLedgerGuidance(facts);
-      await this.deps.ensureChapterExecutionContract(novelId, chapterId, {
-        guidance: factGuidance,
-        entrypoint: "jit_planner",
-        chapterTaskSheetQualityMode: "full_book_autopilot",
-      });
-      return;
-    }
-
-    // task sheet 缺失 —— 生成（含 factLedger 上下文）
+    // 中央准备服务会自行判断复用或刷新；事实账本仅作为确需刷新时的生成上下文。
     const factGuidance = facts.length > 0 ? buildFactLedgerGuidance(facts) : undefined;
     await this.deps.ensureChapterExecutionContract(novelId, chapterId, {
+      provider: routeOptions.provider,
+      model: routeOptions.model,
+      temperature: routeOptions.temperature,
+      taskId: routeOptions.taskId,
       guidance: factGuidance,
       entrypoint: "jit_planner",
       chapterTaskSheetQualityMode: "full_book_autopilot",

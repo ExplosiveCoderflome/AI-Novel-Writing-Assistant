@@ -141,3 +141,19 @@ test("Creative Hub module documents its product and dependency boundary", () => 
   assert.match(source, /不得增加关键词、正则或自由文本分流/);
   assert.match(source, /client\/src\/components\/workspace\//);
 });
+
+test("Creative Hub stays diagnostic and points full Agent work to the independent repository", () => {
+  const page = read("CreativeHubPage.tsx");
+  const sidebar = read("components/CreativeHubSidebar.tsx");
+
+  assert.match(page, /https:\/\/github\.com\/ExplosiveCoderflome\/ani-book-agent/);
+  assert.match(page, /后续可能不会继续深入开发/);
+  assert.doesNotMatch(page, /D:\\code\\ai/);
+  assert.match(page, /专门的 Agent 应用中继续推进/);
+  assert.doesNotMatch(page, /git clone|pnpm install|pnpm dev/);
+  assert.match(page, /查询创作状态、诊断阻塞/);
+  assert.doesNotMatch(sidebar, /创建并接入/);
+  assert.doesNotMatch(sidebar, /NovelProductionStarterCard/);
+  assert.doesNotMatch(sidebar, /CreativeHubNovelSetupCard/);
+  assert.match(sidebar, /\/novels\/auto-director/);
+});

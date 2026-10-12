@@ -58,6 +58,7 @@ function buildMarkdownCallbackLink(input: {
 function buildMarkdownContent(input: {
   event: AutoDirectorEvent;
   taskId: string;
+  novelId?: string | null;
   novelTitle: string;
   reasonLabel: string | null;
   checkpointSummary: string | null;
@@ -68,7 +69,12 @@ function buildMarkdownContent(input: {
   cardTitle?: string;
 }): string {
   const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
-  const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?directorTaskId=${input.taskId}`;
+  const followUpParams = new URLSearchParams();
+  if (input.novelId?.trim()) {
+    followUpParams.set("novelId", input.novelId.trim());
+  }
+  const followUpCenterQuery = followUpParams.toString();
+  const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups${followUpCenterQuery ? `?${followUpCenterQuery}` : ""}`;
   const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
   const lines = [
     `# ${input.cardTitle?.trim() || "自动导演跟进提醒"}`,

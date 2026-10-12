@@ -1,27 +1,50 @@
 import { BookOpen, GitBranch, Settings2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import { findDirectorIssuePolicyPreset, type DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
+import { AutoDirectorIssuePolicyCard } from "@/pages/settings/AutoDirectorIssuePolicyCard";
 
 interface StageModelRunProps {
+  directorVersion: "v1" | "v2";
+  availableDirectorVersions: ("v1" | "v2")[];
+  onDirectorVersionChange: (version: "v1" | "v2") => void;
+  versionLocked?: boolean;
   basicForm: NovelBasicFormState;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
   canGenerate: boolean;
   isGenerating: boolean;
   onBack: () => void;
   onGenerate: () => void;
+  issuePolicy?: DirectorIssuePolicy | null;
+  issuePolicyLoading: boolean;
+  onIssuePolicyChange: (policy: DirectorIssuePolicy) => void;
 }
 
 export default function StageModelRun({
+  directorVersion,
+  availableDirectorVersions,
+  onDirectorVersionChange,
+  versionLocked,
   basicForm,
   onBasicFormChange,
   canGenerate,
   isGenerating,
   onBack,
   onGenerate,
+  issuePolicy,
+  issuePolicyLoading,
+  onIssuePolicyChange,
 }: StageModelRunProps) {
+  const [issuePolicyDialogOpen, setIssuePolicyDialogOpen] = useState(false);
+  const issuePolicySummary = issuePolicy
+    ? findDirectorIssuePolicyPreset(issuePolicy)?.name ?? "已调整本次开书规则"
+    : "使用默认规则";
+
   return (
     <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -37,6 +60,17 @@ export default function StageModelRun({
       </div>
 
       <div className="space-y-6">
+        <section className="space-y-2">
+          <label htmlFor="opening-director-version" className="block text-sm font-medium">导演版本</label>
+          <select id="opening-director-version" value={directorVersion} disabled={versionLocked || isGenerating}
+            onChange={event => onDirectorVersionChange(event.target.value as "v1" | "v2")}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:max-w-sm">
+            {availableDirectorVersions.map(version => <option key={version} value={version}>{version === "v2" ? "导演 V2 · 新导演" : "导演 V1 · 原导演"}</option>)}
+            {!availableDirectorVersions.includes(directorVersion) ? <option value={directorVersion}>{availableDirectorVersions.length ? `导演 ${directorVersion.toUpperCase()} · 未启用` : "正在读取导演版本…"}</option> : null}
+          </select>
+          <p className="text-xs leading-5 text-muted-foreground">选择本书使用的创作流程。全自动或按阶段确认可在对应导演台设置。</p>
+          {versionLocked ? <p className="text-xs text-muted-foreground">结束当前开书任务后可选择其他版本。</p> : null}
+        </section>
         <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_20px_55px_-45px_hsl(var(--foreground)/0.5)]">
           <div className="border-b border-border/60 bg-muted/15 px-5 py-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -71,7 +105,7 @@ export default function StageModelRun({
           <div className="space-y-1">
             <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
             <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+              开启后，章节检查会核对写法与 AI 味风险；需要修正的问题按本次创作策略局部修文，普通建议保留为质量提醒。
             </div>
           </div>
           <Switch
@@ -92,6 +126,38 @@ export default function StageModelRun({
             <LLMSelector showParameters />
           </div>
         </details>
+
+        <section className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-sm font-medium text-foreground">本书问题管理</div>
+            <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              {issuePolicyLoading ? "正在读取默认规则。" : `${issuePolicySummary}；不调整也可以直接开书。`}
+            </div>
+          </div>
+          <Button type="button" variant="outline" className="shrink-0" onClick={() => setIssuePolicyDialogOpen(true)}>
+            <Settings2 className="mr-2 h-4 w-4" />
+            本书问题管理
+          </Button>
+        </section>
+
+        <Dialog open={issuePolicyDialogOpen} onOpenChange={setIssuePolicyDialogOpen}>
+          <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>本书问题管理</DialogTitle>
+              <DialogDescription>开书前确认这本书遇到问题时的处理方式；不调整即可沿用默认规则。</DialogDescription>
+            </DialogHeader>
+            <AutoDirectorIssuePolicyCard
+              policy={issuePolicy}
+              isLoading={issuePolicyLoading}
+              isSaving={false}
+              onSave={(policy) => {
+                onIssuePolicyChange(policy);
+                setIssuePolicyDialogOpen(false);
+              }}
+              saveButtonLabel="应用到本书开书任务"
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">

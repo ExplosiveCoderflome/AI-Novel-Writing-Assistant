@@ -40,6 +40,26 @@ function buildWorkspaceState(
   };
 }
 
+/**
+ * 过滤掉 undefined 的 patch 字段。
+ *
+ * 对象展开会复制 undefined 值（`{...{a: 1}, ...{a: undefined}}` 得到 `{a: undefined}`），
+ * 曾导致调用方无意传入 `selectedVolumeId: undefined` 时清空用户已选的卷 / 章，
+ * 工作区回退到第 1 卷第 1 章（issue #172）。undefined 一律视为“不修改”。
+ */
+function omitUndefinedPatch(
+  patch: StructuredOutlineWorkspacePatch,
+): StructuredOutlineWorkspacePatch {
+  const cleaned: StructuredOutlineWorkspacePatch = {};
+  (Object.keys(patch) as (keyof StructuredOutlineWorkspacePatch)[]).forEach((key) => {
+    const value = patch[key];
+    if (value !== undefined) {
+      cleaned[key] = value as never;
+    }
+  });
+  return cleaned;
+}
+
 export function getStructuredOutlineWorkspaceDefaults(
   selectedVolumeId = "",
   selectedChapterId = "",
@@ -69,7 +89,7 @@ export const useStructuredOutlineWorkspaceStore =
           [workspaceId]: {
             ...buildWorkspaceState(),
             ...state.workspaces[workspaceId],
-            ...patch,
+            ...omitUndefinedPatch(patch),
           },
         },
       })),

@@ -34,6 +34,10 @@ export const runtimeStyleContractSchema = z.object({
     usesGlobalAntiAiBaseline: z.boolean(),
     globalAntiAiRuleIds: z.array(z.string()).default([]),
     styleAntiAiRuleIds: z.array(z.string()).default([]),
+    antiAiRulePolicies: z.array(z.object({
+      id: z.string(), name: z.string(), type: z.enum(["forbidden", "risk", "encourage"]),
+      severity: z.enum(["low", "medium", "high"]), autoRewrite: z.boolean(),
+    })).optional(),
   }),
 });
 

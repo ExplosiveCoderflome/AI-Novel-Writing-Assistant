@@ -1,0 +1,189 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "自动导演：从想法到完整小说",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "direction",
+        "label": "从想法到方向",
+        "focus": ["idea_input", "candidate_batch", "direction_confirm", "book_planning"],
+        "note": "查看 AI 如何把模糊灵感转为用户可确认的创作方向。"
+      },
+      {
+        "id": "planning",
+        "label": "全书规划",
+        "focus": ["book_planning", "production_plan", "chapter_draft"],
+        "note": "查看书级约束如何逐步拆成可以直接执行的章节任务。"
+      },
+      {
+        "id": "chapter-loop",
+        "label": "逐章生产闭环",
+        "focus": ["chapter_draft", "chapter_acceptance", "chapter_repair", "chapter_commit"],
+        "note": "查看每章如何生成、验收、修复、保存并推进到下一章。"
+      },
+      {
+        "id": "pause-and-resume",
+        "label": "暂停与恢复",
+        "focus": ["chapter_acceptance", "manual_pause", "production_plan"],
+        "note": "查看只有哪些全局问题会暂停，以及用户恢复后的返回位置。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "creator", "label": "创作者" },
+    { "id": "director", "label": "自动导演" },
+    { "id": "recovery", "label": "质量分流与恢复", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "idea", "label": "想法理解", "fromCol": 0, "toCol": 0 },
+    { "id": "direction", "label": "方向确认", "fromCol": 1, "toCol": 1 },
+    { "id": "book", "label": "全书骨架", "fromCol": 2, "toCol": 2 },
+    { "id": "outline", "label": "章节蓝图", "fromCol": 3, "toCol": 3 },
+    { "id": "write", "label": "逐章创作", "fromCol": 4, "toCol": 4 },
+    { "id": "finish", "label": "闭环与完成", "fromCol": 5, "toCol": 5 }
+  ],
+  "nodes": [
+    {
+      "id": "idea_input",
+      "lane": "creator",
+      "col": 0,
+      "width": 104,
+      "type": "frontend",
+      "label": "输入故事想法",
+      "sublabel": "题材、主角或冲突"
+    },
+    {
+      "id": "candidate_batch",
+      "lane": "director",
+      "col": 0,
+      "width": 108,
+      "type": "backend",
+      "label": "生成候选方向",
+      "sublabel": "AI 理解创作意图"
+    },
+    {
+      "id": "direction_confirm",
+      "lane": "creator",
+      "col": 1,
+      "width": 112,
+      "type": "security",
+      "label": "确认创作方向",
+      "sublabel": "选择、细化或自动推荐"
+    },
+    {
+      "id": "book_planning",
+      "lane": "director",
+      "col": 2,
+      "width": 112,
+      "type": "backend",
+      "label": "建立全书契约",
+      "sublabel": "宏观、契约与世界观"
+    },
+    {
+      "id": "production_plan",
+      "lane": "director",
+      "col": 3,
+      "width": 124,
+      "type": "backend",
+      "label": "拆解章节蓝图",
+      "sublabel": "角色、卷纲、节奏与任务单"
+    },
+    {
+      "id": "chapter_draft",
+      "lane": "director",
+      "col": 4,
+      "width": 112,
+      "type": "backend",
+      "label": "生成本章",
+      "sublabel": "装配上下文并保存草稿"
+    },
+    {
+      "id": "chapter_acceptance",
+      "lane": "recovery",
+      "col": 4,
+      "width": 112,
+      "type": "security",
+      "label": "AI 验收本章",
+      "sublabel": "履约、连续性与可读性"
+    },
+    {
+      "id": "chapter_repair",
+      "lane": "recovery",
+      "col": 5,
+      "width": 104,
+      "type": "backend",
+      "label": "定向修复",
+      "sublabel": "处理结构化局部问题"
+    },
+    {
+      "id": "chapter_commit",
+      "lane": "director",
+      "col": 5,
+      "width": 112,
+      "type": "database",
+      "label": "保存并推进",
+      "sublabel": "同步产物、状态与检查点"
+    },
+    {
+      "id": "novel_complete",
+      "lane": "creator",
+      "col": 5,
+      "width": 108,
+      "type": "external",
+      "label": "获得完整小说",
+      "sublabel": "继续精修、编辑或导出"
+    },
+    {
+      "id": "manual_pause",
+      "lane": "recovery",
+      "col": 3,
+      "width": 128,
+      "type": "security",
+      "label": "章节边界暂停",
+      "sublabel": "重规划、人工决策或安全故障"
+    }
+  ],
+  "edges": [
+    { "from": "idea_input", "to": "candidate_batch", "label": "提交灵感" },
+    { "from": "candidate_batch", "to": "direction_confirm", "label": "候选方案" },
+    { "from": "direction_confirm", "to": "book_planning", "label": "创建小说并启动导演任务" },
+    { "from": "book_planning", "to": "production_plan", "label": "书级约束与世界基础" },
+    { "from": "production_plan", "to": "chapter_draft", "label": "当前章节任务单" },
+    { "from": "chapter_draft", "to": "chapter_acceptance", "label": "可用正文" },
+    { "from": "chapter_acceptance", "to": "chapter_commit", "label": "通过 / 可继续" },
+    { "from": "chapter_acceptance", "to": "chapter_repair", "label": "局部问题可修复" },
+    { "from": "chapter_repair", "to": "chapter_commit", "label": "通过或记录质量债务" },
+    { "from": "chapter_commit", "to": "chapter_draft", "label": "还有计划章节" },
+    { "from": "chapter_commit", "to": "novel_complete", "label": "全书范围完成" },
+    { "from": "chapter_acceptance", "to": "manual_pause", "label": "全局重规划 / 明确人工暂停" },
+    { "from": "manual_pause", "to": "production_plan", "label": "用户恢复后重新规划" }
+  ],
+  "mainPath": [
+    "idea_input",
+    "candidate_batch",
+    "direction_confirm",
+    "book_planning",
+    "production_plan",
+    "chapter_draft",
+    "chapter_acceptance",
+    "chapter_commit",
+    "novel_complete"
+  ],
+  "semanticChecks": {
+    "allowedRoots": ["idea_input"],
+    "allowedTerminals": ["novel_complete"],
+    "requiredEdges": [
+      { "from": "idea_input", "to": "candidate_batch" },
+      { "from": "chapter_acceptance", "to": "chapter_commit" },
+      { "from": "chapter_commit", "to": "chapter_draft" },
+      { "from": "chapter_commit", "to": "novel_complete" }
+    ],
+    "requiredPaths": [
+      { "from": "idea_input", "to": "novel_complete" },
+      { "from": "manual_pause", "to": "chapter_draft" }
+    ]
+  }
+}

@@ -41,12 +41,45 @@ export function findCreationFoundationNode<Node extends CreationFoundationTreeNo
 }
 
 export function hasCreationFoundationChanged(
-  current: { genreId: string; primaryStoryModeId: string },
-  next: Partial<{ genreId: string; primaryStoryModeId: string }>,
+  current: { genreId: string; primaryStoryModeId: string; powerSystemPreference?: string },
+  next: Partial<{ genreId: string; primaryStoryModeId: string; powerSystemPreference: string }>,
 ): boolean {
   return (next.genreId !== undefined && next.genreId !== current.genreId)
     || (
       next.primaryStoryModeId !== undefined
       && next.primaryStoryModeId !== current.primaryStoryModeId
+    )
+    || (
+      next.powerSystemPreference !== undefined
+      && next.powerSystemPreference !== current.powerSystemPreference
     );
 }
+
+export function fillMissingCreationFoundation(
+  current: { genreId: string; primaryStoryModeId: string; secondaryStoryModeId: string },
+  recommended: { genreId: string; primaryStoryModeId: string; secondaryStoryModeId?: string | null },
+) {
+  return {
+    genreId: current.genreId || recommended.genreId,
+    primaryStoryModeId: current.primaryStoryModeId || recommended.primaryStoryModeId,
+    secondaryStoryModeId: current.secondaryStoryModeId || recommended.secondaryStoryModeId || "",
+  };
+}
+
+export function fillMissingMarketCreativeFraming(
+  current: { bookSellingPoint: string; first30ChapterPromise: string },
+  seed: MarketCreativeSeed | null | undefined,
+) {
+  return {
+    bookSellingPoint: current.bookSellingPoint || seed?.bookSellingPoint || "",
+    first30ChapterPromise: current.first30ChapterPromise || seed?.first30ChapterPromise || "",
+  };
+}
+
+export function resolveMarketOpeningIdea(
+  currentIdea: string,
+  seed: MarketCreativeSeed | null | undefined,
+): string {
+  return currentIdea.trim() || seed?.openingIdea.trim() || "";
+}
+import type { MarketCreativeSeed } from "@ai-novel/shared/types/marketRadar";

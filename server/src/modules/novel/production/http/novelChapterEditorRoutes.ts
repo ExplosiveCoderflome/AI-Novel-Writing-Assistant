@@ -10,11 +10,13 @@ interface RegisterNovelChapterEditorRoutesInput {
   novelService: Pick<NovelApplicationServices,
     | "getChapterEditorWorkspace"
     | "previewChapterAiRevision"
+    | "previewChapterCursorContinuation"
     | "previewChapterRewrite"
   >;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   rewritePreviewSchema: z.ZodTypeAny;
   aiRevisionPreviewSchema: z.ZodTypeAny;
+  cursorContinuationPreviewSchema: z.ZodTypeAny;
   forwardBusinessError: (error: unknown, next: (err?: unknown) => void) => boolean;
 }
 
@@ -25,6 +27,7 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
+    cursorContinuationPreviewSchema,
     forwardBusinessError,
   } = input;
 
@@ -45,6 +48,40 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
           return;
         }
         if (error instanceof Error && ["小说不存在。", "章节不存在。"].includes(error.message)) {
+          next(new AppError(error.message, 400));
+          return;
+        }
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/editor/continue-preview",
+    validate({ params: chapterParamsSchema, body: cursorContinuationPreviewSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.previewChapterCursorContinuation(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter editor cursor continuation preview generated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        if (forwardBusinessError(error, next)) {
+          return;
+        }
+        if (
+          error instanceof Error
+          && [
+            "小说不存在。",
+            "章节不存在。",
+            "当前章节正文为空，无法发起 AI 续写。请先写下至少一段正文。",
+            "正文光标位置已变化，请重新定位光标后再试。",
+            "AI 未返回足够的续写候选版本，请重试。",
+          ].includes(error.message)
+        ) {
           next(new AppError(error.message, 400));
           return;
         }

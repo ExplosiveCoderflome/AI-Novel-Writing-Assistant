@@ -112,7 +112,7 @@ export function buildTakeoverDescription(input: {
       return `自动导演已经完成${input.scopeLabel}的章节执行、审核与修复。你可以直接进入章节执行继续写作，也可以完成并退出导演模式。`;
     }
     if (input.checkpointType === "replan_required") {
-      return "AI 在已选章节批次执行后判断后续章节需要重规划。你可以先进入质量修复区处理建议，也可以把本次问题留到后续质量回收，先继续自动执行后面的章节。";
+      return "AI 判断当前章节与相邻章节的安排需要调整。继续后会保留已有正文，先重规划附近章节，再从未生成的章节接着创作。";
     }
     if (input.reviewScope) {
       return "自动导演已到达审核点。请先检查当前阶段产物，再决定是否继续推进。";
@@ -134,8 +134,8 @@ export function buildContinueAutoExecutionActionLabel(scopeLabel: string, isPend
   return isPending ? "继续执行中..." : `继续自动执行${scopeLabel}`;
 }
 
-export function buildSkipQualityRepairActionLabel(scopeLabel: string, isPending: boolean): string {
-  return isPending ? "继续执行中..." : `跳过本次建议，继续${scopeLabel}`;
+export function buildReplanAndContinueActionLabel(isPending: boolean): string {
+  return isPending ? "正在重规划..." : "重规划后继续";
 }
 
 export function buildContinueAutoExecutionToast(scopeLabel: string): string {

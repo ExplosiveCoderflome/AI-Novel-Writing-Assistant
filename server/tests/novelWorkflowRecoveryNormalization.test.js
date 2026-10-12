@@ -1,8 +1,20 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod, stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
+const { NovelWorkflowHealingService } = require("../dist/services/novel/workflow/NovelWorkflowHealingService.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+test.beforeEach((t) => {
+  stubLegacyNovelIdentity(t, prisma, ["novel_demo"]);
+  // These fixtures are visible workflow records; archive lookup is a separate port.
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async ({ where }) => {
+    assert.equal(where.taskKind_taskId.taskKind, "novel_workflow");
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.appSetting, "findMany", async () => []);
+});
 
 test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures back to checkpoint state", async () => {
   const originals = {
@@ -62,7 +74,11 @@ test("healHistoricalAutoDirectorRecoveryFailure restores legacy restart failures
   }
 });
 
-test("healAutoDirectorTaskState completes chapter batch checkpoints when every chapter is already processed", async () => {
+test("healAutoDirectorTaskState completes chapter batch checkpoints when every chapter is already processed", async (t) => {
+  stubDatabaseMethod(t, prisma.generationJob, "findUnique", async ({ where }) => {
+    assert.equal(where.id, "job-3");
+    return { id: "job-3", status: "failed" };
+  });
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     chapterFindMany: prisma.chapter.findMany,
@@ -131,7 +147,8 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_batch_ready");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_batch_ready");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "succeeded");
@@ -144,12 +161,15 @@ test("healAutoDirectorTaskState completes chapter batch checkpoints when every c
   }
 });
 
-test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting approval task state", async () => {
+test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting approval task state", async (t) => {
   const originals = {
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
     update: prisma.novelWorkflowTask.update,
+    info: console.info,
   };
+  const repairLogs = [];
+  console.info = (...args) => repairLogs.push(args);
 
   let currentRow = {
     id: "task_runtime_gate",
@@ -197,24 +217,30 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
 
   try {
     const service = new NovelWorkflowService();
+    stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async () => currentRow);
     const healed = await service.healRuntimeGateApprovalState("task_runtime_gate", currentRow);
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");
     assert.equal(currentRow.currentItemLabel, "等待确认章节执行");
     assert.equal(currentRow.checkpointSummary, "该动作可能覆盖用户手写内容，需要确认后继续。");
+    assert.deepEqual(repairLogs, [["[director.fact-repair]", { taskId: "task_runtime_gate", category: "runtime_gate_approval" }]]);
   } finally {
     prisma.directorRunCommand.findFirst = originals.commandFindFirst;
     prisma.directorStepRun.findFirst = originals.stepFindFirst;
     prisma.novelWorkflowTask.update = originals.update;
+    console.info = originals.info;
   }
 });
 
-test("healRuntimeFailedState mirrors failed runtime steps out of false running task state", async () => {
+test("healRuntimeFailedState mirrors failed runtime steps out of false running task state", async (t) => {
   const originals = {
     commandFindFirst: prisma.directorRunCommand.findFirst,
     stepFindFirst: prisma.directorStepRun.findFirst,
     update: prisma.novelWorkflowTask.update,
+    info: console.info,
   };
+  const repairLogs = [];
+  console.info = (...args) => repairLogs.push(args);
 
   let currentRow = {
     id: "task_runtime_failed",
@@ -259,16 +285,19 @@ test("healRuntimeFailedState mirrors failed runtime steps out of false running t
 
   try {
     const service = new NovelWorkflowService();
+    stubDatabaseMethod(t, prisma.novelWorkflowTask, "findUnique", async () => currentRow);
     const healed = await service.healRuntimeFailedState("task_runtime_failed", currentRow);
     assert.equal(healed, true);
     assert.equal(currentRow.status, "failed");
     assert.equal(currentRow.currentItemLabel, "正在生成第 1 卷节奏段：开卷抓手");
     assert.equal(currentRow.lastError, "[STRUCTURED_OUTPUT:transport_error] Connection error.");
     assert.equal(currentRow.checkpointSummary, "[STRUCTURED_OUTPUT:transport_error] Connection error.");
+    assert.deepEqual(repairLogs, [["[director.fact-repair]", { taskId: "task_runtime_failed", category: "runtime_step_failed" }]]);
   } finally {
     prisma.directorRunCommand.findFirst = originals.commandFindFirst;
     prisma.directorStepRun.findFirst = originals.stepFindFirst;
     prisma.novelWorkflowTask.update = originals.update;
+    console.info = originals.info;
   }
 });
 
@@ -359,7 +388,8 @@ test("healAutoDirectorTaskState revives chapter_range auto execution tasks that 
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_chapter_range_restart");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_chapter_range_restart");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "running");
@@ -524,7 +554,8 @@ test("healAutoDirectorTaskState promotes advanced queued auto director tasks bac
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_stale_queued");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_stale_queued");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "running");
@@ -651,7 +682,8 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_candidate_seed_repair");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_candidate_seed_repair");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");
@@ -748,7 +780,8 @@ test.skip("healAutoDirectorTaskState degrades chapter title diversity failures i
 
   try {
     const service = new NovelWorkflowService();
-    const healed = await service.healAutoDirectorTaskState("task_title_diversity");
+    const healer = new NovelWorkflowHealingService(service);
+    const healed = await healer.healAutoDirectorTaskState("task_title_diversity");
 
     assert.equal(healed, true);
     assert.equal(currentRow.status, "waiting_approval");

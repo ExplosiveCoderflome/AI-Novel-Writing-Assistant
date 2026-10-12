@@ -1,15 +1,13 @@
 interface StatTileProps {
   label: string;
   value: number;
-  hint: string;
 }
 
 function StatTile(props: StatTileProps) {
   return (
-    <div className="rounded-lg border bg-muted/20 p-4">
-      <div className="text-xs font-medium text-muted-foreground">{props.label}</div>
-      <div className="mt-2 text-2xl font-semibold text-foreground">{props.value}</div>
-      <div className="mt-1 text-xs leading-5 text-muted-foreground">{props.hint}</div>
+    <div className="flex items-baseline gap-3">
+      <dt className="text-sm text-muted-foreground">{props.label}</dt>
+      <dd className="text-xl font-semibold tabular-nums text-foreground">{props.value}</dd>
     </div>
   );
 }
@@ -23,11 +21,11 @@ interface AntiAiRuleStatsProps {
 
 export default function AntiAiRuleStats(props: AntiAiRuleStatsProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-4">
-      <StatTile label="规则总数" value={props.total} hint="规则库中可查看和编辑的全部规则。" />
-      <StatTile label="启用规则" value={props.enabled} hint="会参与全局或写法绑定解析的规则。" />
-      <StatTile label="全局默认" value={props.global} hint="不绑定写法时也会进入正文生成。" />
-      <StatTile label="自动改写" value={props.autoRewrite} hint="检测命中后可进入改写建议链路。" />
-    </div>
+    <dl className="flex flex-wrap gap-x-8 gap-y-3 border-b border-border/60 pb-5 sm:gap-x-12">
+      <StatTile label="全部规则" value={props.total} />
+      <StatTile label="已启用" value={props.enabled} />
+      <StatTile label="全局默认" value={props.global} />
+      <StatTile label="可自动改写" value={props.autoRewrite} />
+    </dl>
   );
 }

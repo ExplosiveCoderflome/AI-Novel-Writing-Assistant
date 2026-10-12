@@ -2,7 +2,8 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
   ModelRouteRequestProtocol,
@@ -21,6 +22,7 @@ export interface APIKeyStatus {
   currentModel: string;
   currentImageModel: string | null;
   currentBaseURL: string;
+  currentAuthMode: ProviderAuthMode;
   models: string[];
   imageModels: string[];
   defaultModel: string;
@@ -30,6 +32,9 @@ export interface APIKeyStatus {
   isConfigured: boolean;
   isActive: boolean;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
+  supportsReasoningEffort: boolean;
+  hiddenModels: string[];
   concurrencyLimit: number;
   requestIntervalMs: number;
   supportsImageGeneration: boolean;
@@ -174,6 +179,7 @@ export interface StructuredFallbackSettings {
   model: string;
   temperature: number;
   maxTokens: number | null;
+  retryCount: number;
 }
 
 export interface AutoDirectorChannelConfig {
@@ -218,6 +224,9 @@ export async function getRagSettings() {
 export async function saveRagSettings(payload: {
   embeddingProvider: EmbeddingProvider;
   embeddingModel: string;
+  /** Credentials here configure only the selected embedding connection. */
+  embeddingApiKey?: string;
+  embeddingBaseURL?: string;
   collectionMode: "auto" | "manual";
   collectionName: string;
   collectionTag: string;
@@ -323,8 +332,11 @@ export async function saveAPIKeySetting(
     model?: string;
     imageModel?: string;
     baseURL?: string;
+    authMode?: ProviderAuthMode;
     isActive?: boolean;
     reasoningEnabled?: boolean;
+    reasoningEffort?: ReasoningEffort;
+    hiddenModels?: string[];
     concurrencyLimit?: number;
     requestIntervalMs?: number;
   },
@@ -338,6 +350,9 @@ export async function saveAPIKeySetting(
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
@@ -354,8 +369,10 @@ export async function createCustomProvider(payload: {
   model?: string;
   imageModel?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
   isActive?: boolean;
   reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   concurrencyLimit?: number;
   requestIntervalMs?: number;
 }) {
@@ -368,6 +385,9 @@ export async function createCustomProvider(payload: {
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
+      reasoningEffort: ReasoningEffort | null;
+      supportsReasoningEffort: boolean;
+      hiddenModels: string[];
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
@@ -381,6 +401,7 @@ export async function createCustomProvider(payload: {
 export async function previewCustomProviderModels(payload: {
   key?: string;
   baseURL: string;
+  authMode?: ProviderAuthMode;
 }) {
   const { data } = await apiClient.post<
     ApiResponse<{
@@ -447,6 +468,21 @@ export async function saveAutoDirectorChannelSettings(payload: Partial<AutoDirec
   return data;
 }
 
+export async function getAutoDirectorIssuePolicy() {
+  const { data } = await apiClient.get<ApiResponse<DirectorIssuePolicy>>(
+    "/settings/auto-director/issue-policy",
+  );
+  return data;
+}
+
+export async function saveAutoDirectorIssuePolicy(payload: DirectorIssuePolicy) {
+  const { data } = await apiClient.put<ApiResponse<DirectorIssuePolicy>>(
+    "/settings/auto-director/issue-policy",
+    payload,
+  );
+  return data;
+}
+
 export async function getAutoDirectorApprovalPreferenceSettings() {
   const { data } = await apiClient.get<ApiResponse<DirectorAutoApprovalPreferenceSettings>>(
     "/settings/auto-director/approval-preferences",
@@ -488,6 +524,7 @@ export async function testLLMConnection(payload: {
   apiKey?: string;
   model?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   probeMode?: "plain" | "structured" | "both";
 }) {
   const { data } = await apiClient.post<

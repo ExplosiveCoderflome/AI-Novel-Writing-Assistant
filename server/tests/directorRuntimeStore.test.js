@@ -15,7 +15,6 @@ function buildSnapshot() {
     policy: {
       mode: "run_until_gate",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-04-28T00:00:00.000Z",

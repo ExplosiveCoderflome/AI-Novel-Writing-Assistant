@@ -404,6 +404,7 @@ p {
 }
 
 .flow-image {
+  align-self: center;
   background: #e5eeeb;
   border: 1px solid var(--line);
   margin: 0;
@@ -411,9 +412,8 @@ p {
 }
 
 .flow-image img {
-  aspect-ratio: 16 / 9;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   object-position: top left;
   width: 100%;
 }
@@ -455,20 +455,19 @@ p {
 }
 
 .console-wall img {
+  background: #f8faf9;
   border: 1px solid rgb(255 255 255 / 0.16);
   box-shadow: 0 26px 80px rgb(0 0 0 / 0.38);
-  object-fit: cover;
+  object-fit: contain;
   object-position: top left;
 }
 
 .console-main {
-  aspect-ratio: 16 / 10;
   height: auto;
   width: 100%;
 }
 
 .console-float {
-  aspect-ratio: 16 / 10;
   height: auto;
   width: 100%;
 }
@@ -1309,10 +1308,6 @@ p {
   .flow-row {
     gap: 22px;
     padding: 26px 0;
-  }
-
-  .flow-image img {
-    aspect-ratio: 4 / 3;
   }
 
   .console-wall {

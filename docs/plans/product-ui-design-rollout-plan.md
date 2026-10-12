@@ -12,7 +12,7 @@
 
 - 让新手在每个核心页面首屏都能看见当前对象、当前阶段、主任务、推荐动作和关键状态。
 - 把页面从“功能和表单集合”收敛为 Dashboard、Workspace、Editor、Asset Library、Task Queue 或 Settings 中的一种主要类型。
-- 统一使用 shadcn/CSS 语义 token，减少硬编码颜色、装饰渐变、过度阴影和卡片套卡片。
+- 统一使用项目自有组件和 CSS 语义 token，减少硬编码颜色、可见边框、装饰渐变、过度阴影和卡片套卡片。
 - 让 Loading、Empty、Error、Disabled、Success 都说明影响和下一步，而不是只展示状态名。
 - 保持现有功能、数据和路由兼容；任何视觉改造不得覆盖正文、资产或任务状态。
 

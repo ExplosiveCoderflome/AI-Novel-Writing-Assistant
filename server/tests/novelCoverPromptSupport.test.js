@@ -185,11 +185,13 @@ test("createNovelCoverTask applies novel-cover defaults without coupling to nove
     assert.equal(task.baseCharacterId, null);
     assert.equal(task.size, DEFAULT_NOVEL_COVER_IMAGE_SIZE);
     assert.equal(task.imageCount, DEFAULT_NOVEL_COVER_IMAGE_COUNT);
-    assert.ok(task.prompt.includes("no title text"));
+    assert.ok(task.prompt.includes("Required title text: 雾港审判局"));
+    assert.ok(task.prompt.includes("禁止改字、漏字、增字或乱码"));
     assert.ok(task.prompt.includes("Project title: 雾港审判局"));
     assert.ok(task.prompt.includes("本书世界雾港"));
     assert.ok(task.negativePrompt.includes("过度拥挤"));
     assert.ok(task.negativePrompt.includes(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT));
+    assert.ok(!task.negativePrompt.includes("文字，书名，字幕"));
     assert.equal(createdTaskData.baseCharacterId, null);
     assert.equal(createdTaskData.novelId, "novel-cover-1");
     assert.equal(createdTaskData.size, DEFAULT_NOVEL_COVER_IMAGE_SIZE);

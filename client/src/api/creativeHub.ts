@@ -7,7 +7,7 @@ import type {
   CreativeHubThreadState,
 } from "@ai-novel/shared/types/creativeHub";
 import { API_BASE_URL } from "@/lib/constants";
-import { apiClient } from "./client";
+import { apiClient, type ApiHttpError } from "./client";
 
 function ensureThreadId(threadId: string): string {
   const normalized = threadId.trim();
@@ -95,8 +95,8 @@ export async function* streamCreativeHubRun(
     messages: payload.messages,
     ...(payload.checkpointId ? { checkpointId: payload.checkpointId } : {}),
     ...(payload.resourceBindings ? { resourceBindings: payload.resourceBindings } : {}),
-    ...(payload.provider ? { provider: payload.provider } : {}),
-    ...(payload.model ? { model: payload.model } : {}),
+    ...(payload.provider?.trim() ? { provider: payload.provider.trim() } : {}),
+    ...(payload.model?.trim() ? { model: payload.model.trim() } : {}),
     ...(payload.temperature !== undefined ? { temperature: payload.temperature } : {}),
     ...(payload.maxTokens !== undefined ? { maxTokens: payload.maxTokens } : {}),
   };
@@ -110,7 +110,15 @@ export async function* streamCreativeHubRun(
   });
 
   if (!response.ok || !response.body) {
-    throw new Error(`创作中枢请求失败，状态码 ${response.status}`);
+    const details = await response.json().catch(() => undefined) as ApiResponse<unknown> | undefined;
+    const title = details?.error || `创作中枢请求失败，状态码 ${response.status}`;
+    const message = details?.message && details.message !== title
+      ? `${title} ${details.message}`
+      : title;
+    const error = new Error(message) as ApiHttpError;
+    error.status = response.status;
+    error.details = details;
+    throw error;
   }
 
   const reader = response.body.getReader();

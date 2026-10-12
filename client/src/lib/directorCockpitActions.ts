@@ -1,7 +1,4 @@
-import type {
-  DirectorBookAutomationAction,
-  DirectorBookAutomationProjection,
-} from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorBookAutomationAction } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 
 export function isDirectorCockpitContinuationAction(action: DirectorBookAutomationAction): boolean {
@@ -18,31 +15,4 @@ export function getDirectorCockpitContinuationMode(
     return action.commandPayload?.continuationMode ?? "resume";
   }
   return undefined;
-}
-
-export function getDirectorCockpitActionHref(
-  projection: DirectorBookAutomationProjection,
-  action: DirectorBookAutomationAction,
-): string {
-  if (action.target.href?.trim()) {
-    return action.target.href;
-  }
-  if (action.target.tab) {
-    const params = new URLSearchParams();
-    params.set("stage", action.target.tab);
-    if (action.target.taskId) {
-      params.set("directorTaskId", action.target.taskId);
-    }
-    if (action.type === "open_details") {
-      params.set("taskPanel", "1");
-    }
-    return `/novels/${projection.novelId}/edit?${params.toString()}`;
-  }
-  if (action.type === "open_details" && action.target.taskId) {
-    const params = new URLSearchParams();
-    params.set("directorTaskId", action.target.taskId);
-    params.set("taskPanel", "1");
-    return `/novels/${projection.novelId}/edit?${params.toString()}`;
-  }
-  return projection.focusNovel.href;
 }

@@ -1,4 +1,5 @@
 import { prisma } from "../../../db/prisma";
+import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
 
 export type NovelFactCategory = "completed" | "revealed" | "state_changed";
 export type NovelFactSource = "auto" | "manual";
@@ -36,28 +37,64 @@ export class NovelFactService {
     novelId: string,
     chapterOrder: number,
     items: NovelFactWriteItem[],
+    integrity?: { chapterId: string; expectedChapterContent: string },
   ): Promise<void> {
     if (items.length === 0) {
       return;
     }
-    // 查出已存在的 text，避免重复
-    const existing = await prisma.novelFactEntry.findMany({
-      where: { novelId, chapterOrder },
-      select: { text: true },
-    });
-    const existingTexts = new Set(existing.map((row) => row.text.trim()));
-    const toCreate = items.filter((item) => !existingTexts.has(item.text.trim()));
-    if (toCreate.length === 0) {
+    if (!integrity) {
+      // Keep the legacy, broadly-used writer path unchanged. The extra transaction
+      // is only required when a chapter artifact write carries a content version.
+      const existing = await prisma.novelFactEntry.findMany({
+        where: { novelId, chapterOrder },
+        select: { text: true },
+      });
+      const existingTexts = new Set(existing.map((row) => row.text.trim()));
+      const toCreate = items.filter((item) => !existingTexts.has(item.text.trim()));
+      if (toCreate.length === 0) {
+        return;
+      }
+      await prisma.novelFactEntry.createMany({
+        data: toCreate.map((item) => ({
+          novelId,
+          chapterOrder,
+          text: item.text.trim(),
+          category: item.category,
+          source: item.source ?? "auto",
+        })),
+      });
       return;
     }
-    await prisma.novelFactEntry.createMany({
-      data: toCreate.map((item) => ({
-        novelId,
-        chapterOrder,
-        text: item.text.trim(),
-        category: item.category,
-        source: item.source ?? "auto",
-      })),
+    await prisma.$transaction(async (tx) => {
+      const chapter = await tx.chapter.findFirst({
+        where: {
+          id: integrity.chapterId,
+          novelId,
+          content: integrity.expectedChapterContent,
+        },
+        select: { id: true },
+      });
+      if (!chapter) {
+        throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期事实账本。");
+      }
+      const existing = await tx.novelFactEntry.findMany({
+        where: { novelId, chapterOrder },
+        select: { text: true },
+      });
+      const existingTexts = new Set(existing.map((row) => row.text.trim()));
+      const toCreate = items.filter((item) => !existingTexts.has(item.text.trim()));
+      if (toCreate.length === 0) {
+        return;
+      }
+      await tx.novelFactEntry.createMany({
+        data: toCreate.map((item) => ({
+          novelId,
+          chapterOrder,
+          text: item.text.trim(),
+          category: item.category,
+          source: item.source ?? "auto",
+        })),
+      });
     });
   }
 

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { prisma } = require("../dist/db/prisma.js");
+const { DirectorCommandLeaseService } = require("../dist/services/novel/director/commands/leases/DirectorCommandLeaseService.js");
 const { DirectorWorker } = require("../dist/workers/directorWorker.js");
 const { DirectorTaskQueue } = require("../dist/workers/DirectorTaskQueue.js");
 const { taskDispatcher } = require("../dist/workers/TaskDispatcher.js");
@@ -103,12 +104,78 @@ test("director worker renews a leased command while waiting for resource budget"
   );
 });
 
-test("director task queue leases directly from director run commands", async (t) => {
-  const originals = {
-    findFirst: prisma.directorRunCommand.findFirst,
-    updateMany: prisma.directorRunCommand.updateMany,
-    findUnique: prisma.directorRunCommand.findUnique,
+test("director worker completes initial healing before leasing and schedules later sweeps every 60 seconds", async () => {
+  const events = [];
+  let releaseHealing;
+  const healingGate = new Promise((resolve) => { releaseHealing = resolve; });
+  const sweep = { run: async () => { events.push("heal"); await healingGate; } };
+  const queue = {
+    workerId: "healing-test",
+    executionSlots: 1,
+    pollMs: 1,
+    leaseMs: 1000,
+    leaseNext: async () => { events.push("lease"); return null; },
+    waitForWork: async () => { await delay(1); },
   };
+  const originalSetInterval = global.setInterval;
+  let intervalMs = null;
+  let intervalCallback;
+  let worker;
+  let running;
+  global.setInterval = (callback, ms) => { intervalCallback = callback; intervalMs = ms; return { unref() {} }; };
+  try {
+    worker = new DirectorWorker({ queue, commandExecutor: { execute: async () => "completed" }, healingSweep: sweep });
+    running = worker.start();
+    await delay(5);
+    assert.deepEqual(events, ["heal"]);
+    releaseHealing();
+    await delay(5);
+    assert.equal(events[1], "lease");
+    assert.equal(intervalMs, 60_000);
+    intervalCallback();
+    await delay(5);
+    assert.equal(events.filter((event) => event === "heal").length, 2);
+    worker.stop();
+    await running;
+  } finally {
+    global.setInterval = originalSetInterval;
+    worker?.stop();
+    releaseHealing();
+    await running;
+  }
+});
+
+test("healing sweep isolates task failures and coalesces overlapping runs", async () => {
+  const { DirectorTaskHealingSweep } = require("../dist/workers/directorTaskHealingSweep.js");
+  const events = [];
+  let releaseFirst;
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  const sweep = new DirectorTaskHealingSweep({
+    taskStore: { findMany: async () => [{ id: "one" }, { id: "two" }] },
+    healTask: async (id) => {
+      events.push(id);
+      if (id === "one") { await firstGate; throw new Error("bad task"); }
+    },
+  });
+  const originalError = console.error;
+  const logged = [];
+  console.error = (...args) => logged.push(args);
+  try {
+    const first = sweep.run();
+    const second = sweep.run();
+    await delay(5);
+    assert.deepEqual(events, ["one"]);
+    releaseFirst();
+    await Promise.all([first, second]);
+    assert.deepEqual(events, ["one", "two"]);
+    assert.ok(logged.some((args) => args.some((part) => String(part).includes("one"))));
+  } finally {
+    console.error = originalError;
+    releaseFirst();
+  }
+});
+
+test("director task queue delegates leasing to the command service", async () => {
   const calls = [];
   const leasedCommand = {
     id: "command-queued-1",
@@ -118,33 +185,6 @@ test("director task queue leases directly from director run commands", async (t)
     status: "leased",
   };
 
-  prisma.directorRunCommand.findFirst = async (args) => {
-    calls.push(["findFirst", args]);
-    return {
-      id: "command-queued-1",
-      taskId: "task-1",
-      novelId: "novel-1",
-      commandType: "continue",
-      status: "queued",
-      runAfter: new Date("2026-05-06T00:00:00.000Z"),
-      createdAt: new Date("2026-05-06T00:00:00.000Z"),
-    };
-  };
-  prisma.directorRunCommand.updateMany = async (args) => {
-    calls.push(["updateMany", args]);
-    return { count: 1 };
-  };
-  prisma.directorRunCommand.findUnique = async (args) => {
-    calls.push(["findUnique", args]);
-    assert.equal(args.where.id, "command-queued-1");
-    return leasedCommand;
-  };
-  t.after(() => {
-    prisma.directorRunCommand.findFirst = originals.findFirst;
-    prisma.directorRunCommand.updateMany = originals.updateMany;
-    prisma.directorRunCommand.findUnique = originals.findUnique;
-  });
-
   const queue = new DirectorTaskQueue(
     {
       workerId: "worker-a",
@@ -152,6 +192,10 @@ test("director task queue leases directly from director run commands", async (t)
       staleScanMs: Number.MAX_SAFE_INTEGER,
     },
     {
+      leaseNextCommand: async (input) => {
+        calls.push(input);
+        return leasedCommand;
+      },
       renewLease: async () => true,
       markCommandRunning: async () => {},
       markCommandSucceeded: async () => {},
@@ -166,12 +210,47 @@ test("director task queue leases directly from director run commands", async (t)
 
   assert.ok(leased, "should return a leased command");
   assert.equal(leased.command, leasedCommand);
-  assert.equal(calls[0][0], "findFirst");
-  assert.equal(calls[1][0], "updateMany");
-  assert.equal(calls[2][0], "findUnique");
-  assert.equal(calls[1][1].data.status, "leased");
-  assert.equal(calls[1][1].data.leaseOwner, "worker-a:slot-1");
-  assert.equal(calls[1][1].where.id, "command-queued-1");
+  assert.deepEqual(calls, [{ workerId: "worker-a:slot-1", leaseMs: 1234 }]);
+});
+
+test("director command leasing excludes tasks waiting for manual recovery", async (t) => {
+  const originals = {
+    findMany: prisma.directorRunCommand.findMany,
+    taskFindUnique: prisma.novelWorkflowTask.findUnique,
+    novelFindUnique: prisma.novel.findUnique,
+    updateMany: prisma.directorRunCommand.updateMany,
+    findUnique: prisma.directorRunCommand.findUnique,
+  };
+  const candidate = {
+    id: "command-safe-1",
+    taskId: "task-1",
+    novelId: "novel-1",
+    commandType: "continue",
+    status: "queued",
+  };
+  prisma.directorRunCommand.findMany = async (args) => {
+    assert.equal(args.where.task.pendingManualRecovery, false);
+    return [candidate];
+  };
+  prisma.novelWorkflowTask.findUnique=async()=>({novelId:'novel-1',directorVersion:'v1',directorEpoch:0});
+  prisma.novel.findUnique=async()=>({directorVersion:'v1',directorEpoch:0,narrativeForm:'long_novel'});
+  prisma.directorRunCommand.updateMany = async (args) => {
+    assert.equal(args.where.task.pendingManualRecovery, false);
+    return { count: 1 };
+  };
+  prisma.directorRunCommand.findUnique = async () => ({ ...candidate, status: "leased" });
+  t.after(() => {
+    prisma.directorRunCommand.findMany = originals.findMany;
+    prisma.novelWorkflowTask.findUnique=originals.taskFindUnique;
+    prisma.novel.findUnique=originals.novelFindUnique;
+    prisma.directorRunCommand.updateMany = originals.updateMany;
+    prisma.directorRunCommand.findUnique = originals.findUnique;
+  });
+
+  const service = new DirectorCommandLeaseService({});
+  const leased = await service.leaseNextCommand({ workerId: "worker-a", leaseMs: 1234 });
+
+  assert.equal(leased.status, "leased");
 });
 
 test("task dispatcher notifies waiting slots immediately", async () => {

@@ -32,7 +32,7 @@ export function getCharacterGenderLabel(gender?: CharacterGender | null): string
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
 
-export function isProtagonistCharacter(character?: Character | null): boolean {
+export function isProtagonistCharacter(character?: Pick<Character, "role" | "castRole"> | null): boolean {
   if (!character) {
     return false;
   }

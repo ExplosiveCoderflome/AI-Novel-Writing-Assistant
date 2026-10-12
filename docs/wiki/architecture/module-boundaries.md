@@ -16,11 +16,12 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 
 - 根目录只保留入口说明、协作规则、路线图和工具链配置；长期知识进入 `docs/wiki/`。
 - `docs/plans/` 保留执行方案，`docs/checkpoints/` 保留阶段记录，`docs/design/` 保留模块设计，`docs/releases/` 保留用户可见变化。
-- 单个源码文件接近 600 行时应评估职责；超过 700 行后继续扩展前必须拆分。
+- 单个源码文件接近 1200 行时应评估职责；1000 到 1300 行之间可在职责仍清晰时保持内聚，超过 1300 行后继续扩展前必须拆分。
 - 高密度目录新增能力前应先判断是否需要下级责任目录。
 - 高优先级硬约束：控制入口可以不同，但正文生成与正文修复的业务执行链必须唯一；批量执行、自动导演、手动单章生成、手动单章修复不得各自维护独立实现。
 - 任何新增的“会改正文”的入口，必须汇入 `novelProductionOrchestrator + stage runner + ChapterRuntimeCoordinator`。允许保留不同 transport、route、job 或前端流式形态，但不允许绕开统一 runtime 直接拥有 writer、patch repair、heavy repair、正文保存、资产同步或复审状态推进逻辑。
 - `route`、`director`、`creative hub`、旧 `NovelCoreReviewService` 或其他 legacy service 都不能直接持有正文生成/修复实现；它们只能作为控制入口或薄门面，把执行委托给统一章节主链。
+- 世界草稿生成只通过 Prompt Registry 中的 `world.draft.generate` 资产执行；世界 service 负责持久化、快照和 RAG 回写，不得保留平行的裸 LLM 或实验图式生成链路。
 - 任何会改变章节正文的入口都必须触发最终 timeline finalization。模块边界顺序固定为：正文执行 runtime 产出最终正文，`ChapterTimelineFinalizationService` 基于最终正文写入 timeline checkpoint，随后才允许进入下一章、后台批次或自动导演继续步骤。
 - `ChapterTimelineFinalizationService` 是 timeline 提交的应用服务边界。`routes`、`director`、`creative hub`、旧 review service、repair helper 和前端投影都不得直接拼接 `ChapterTimeAnchor`、`StoryTimelineEvent`、`TimelineHook` 或 `ChapterArtifactSyncCheckpoint` 写入规则。
 - timeline 模块拥有事件、hook、时间锚点、约束、检测和提交 repository；章节 runtime 只通过 timeline 模块 facade 与 finalization service 协作。writer prompt 可以消费时间线上下文，但不能自己关闭 hook 或写 timeline 表。
@@ -34,6 +35,8 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - `ChapterRuntimeCoordinator` 是章节 runtime 的外部稳定门面；流编排、质量门禁、终稿定稿、pipeline 适配和 runtime package 构建只能在 `server/src/services/novel/runtime/` 内部模块中协作，外部不得深链到这些内部服务。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
 - 涉及自动导演、章节执行、Prompt、RAG、任务状态或前端投影的边界变化，应同步更新 Wiki 或模块 README。
+- 创作中枢是查询、诊断、执行记录和导航边界，不是小说生产器：服务端使用显式只读工具 allowlist，并按整个 action 拦截越界调用；`preview_pipeline_run`、`diff_chapter_patch` 等可能产生执行前置副作用的工具也不得放行。诊断分析使用空 `workflowTaskId`，不把查询写入导演任务分析记录。小说创建、资产生成、正文写入、补丁、整本流水线、恢复、重试、取消和自动导演命令必须从正式工作流进入。
+- 完整 Agent 驱动小说应用保留在独立仓库 `https://github.com/ExplosiveCoderflome/ani-book-agent`。它拥有自己的 Agent Runtime、Markdown/YAML 创作工件和运行记录，不与主项目共享运行权威；创作中枢页面只提供跨设备可用的克隆与启动提示，不展示开发者机器路径。
 - 任何数据回填、同步、抽取或索引刷新，必须只消费章节的稳定快照；在章节仍可能继续修复、重写或回退时，不允许把这类动作挂在热路径里。
 - 任务快照、事实检查和恢复建议生成必须保持只读；`recover` 可以返回可恢复位置，但不能在轮询、预览或投影读取时写入 `run_resumed`、恢复提示或其他状态事件。需要记录恢复动作时，必须由显式执行/恢复流程来写入，而不是由读路径顺手写入。
 - `novelEventBus` 只允许承载轻量领域通知。角色动力学同步、流水线快照、RAG 重索引、状态重算等重副作用必须进入持久队列或已有专用队列；事件 handler 不得直接执行这些服务。

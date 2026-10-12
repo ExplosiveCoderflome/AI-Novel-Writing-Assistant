@@ -565,6 +565,7 @@ export function PromptBodyEditor(props: {
   testRun?: PromptTestRunResult | null;
   testRunPending?: boolean;
   testRunError?: string | null;
+  testRunStreamOutput?: string;
   sections: PromptEditorSection[];
   reconcile: PromptSlotReconcileResult | null;
   reconcileMap: Record<string, PromptSlotReconcileItem>;
@@ -597,6 +598,7 @@ export function PromptBodyEditor(props: {
     testRun,
     testRunError,
     testRunPending,
+    testRunStreamOutput,
   } = props;
   const controlSections = sections.filter((section) => section.placement === "control");
   const bodySections = sections.filter((section) => section.placement === "body");
@@ -700,6 +702,7 @@ export function PromptBodyEditor(props: {
           testRun={testRun}
           testRunPending={testRunPending}
           testRunError={testRunError}
+          testRunStreamOutput={testRunStreamOutput}
         />
       </section>
     </div>

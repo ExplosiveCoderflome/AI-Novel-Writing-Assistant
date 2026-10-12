@@ -20,6 +20,7 @@ type ReplanSignal =
 
 type WindowMode = "forward" | "surrounding";
 type ReplanAction = "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
+type ReplanScope = "local_window" | "global_book";
 
 export interface ReplanDecisionInput {
   requestedWindowSize?: number | null;
@@ -37,6 +38,7 @@ export interface ReplanDecisionInput {
   chapterStateGoal?: ChapterStateGoal | null;
   protectedSecrets?: string[] | null;
   forceRecommended?: boolean;
+  scope?: ReplanScope;
 }
 
 export interface ReplanDecision extends ReplanRecommendation {
@@ -51,6 +53,7 @@ export interface ReplanDecision extends ReplanRecommendation {
   windowReason: string;
   whyTheseChapters: string;
   action: ReplanAction;
+  scope: ReplanScope;
 }
 
 function uniqueStrings(items: Array<string | null | undefined>): string[] {
@@ -147,9 +150,12 @@ function pickSignal(input: ReplanDecisionInput, blockingIssues: AuditIssue[], bl
   return "stable";
 }
 
-function resolveReplanAction(signal: ReplanSignal, input: ReplanDecisionInput): ReplanAction {
-  if (input.forceRecommended || signal === "manual_request" || signal === "next_action_replan") {
+function resolveReplanAction(signal: ReplanSignal, input: ReplanDecisionInput, scope: ReplanScope): ReplanAction {
+  if (scope === "global_book") {
     return "stop_for_replan";
+  }
+  if (input.forceRecommended || signal === "manual_request" || signal === "next_action_replan") {
+    return "local_patch_plan";
   }
   if (signal === "blocking_audit") {
     return "local_patch_plan";
@@ -331,7 +337,8 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
   ]);
   const blockingLedgerKeys = collectBlockingLedgerKeys(input.blockingLedgerKeys, input.snapshot);
   const signal = pickSignal(input, blockingIssues, blockingLedgerKeys);
-  const action = resolveReplanAction(signal, input);
+  const scope = input.scope === "global_book" ? "global_book" : "local_window";
+  const action = resolveReplanAction(signal, input, scope);
   const recommended = action !== "continue_with_warning"
     && (
       input.forceRecommended
@@ -371,6 +378,7 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
     windowReason,
     whyTheseChapters: buildWhyTheseChapters(signal, affectedChapterOrders, input.chapterStateGoal),
     action,
+    scope,
     signal,
     triggerType: input.triggerType?.trim() || "state_driven",
     sourceIssueIds: uniqueStrings(input.sourceIssueIds ?? []),

@@ -6,7 +6,8 @@ import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/nove
 import { buildFullDirectorAutoApprovalConfig } from "@ai-novel/shared/types/autoDirectorApproval";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
-import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
+import { DirectorTaskStateWriter } from "../state";
+import { DirectorStateReader, toDirectorTaskDataView } from "../state/DirectorStateReader";
 import {
   applyDirectorRunModeContract,
   type DirectorWorkflowSeedPayload,
@@ -27,18 +28,12 @@ export function buildProductionExperienceSeed(
   if (!directorInput) {
     throw new AppError("自动导演任务缺少继续生产所需的上下文。", 409);
   }
-  const nextInput = experience === "simple"
-    ? applyDirectorRunModeContract({
-      ...directorInput,
-      runMode: "full_book_autopilot" as const,
-      autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
-      autoApproval: buildFullDirectorAutoApprovalConfig(),
-    })
-    : applyDirectorRunModeContract({
-      ...directorInput,
-      runMode: "auto_to_ready" as const,
-      autoExecutionPlan: undefined,
-    });
+  const nextInput = applyDirectorRunModeContract({
+    ...directorInput,
+    runMode: "full_book_autopilot" as const,
+    autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
+    autoApproval: buildFullDirectorAutoApprovalConfig(),
+  });
   return {
     ...seed,
     productionExperience: experience,
@@ -50,109 +45,71 @@ export function buildProductionExperienceSeed(
 }
 
 export class DirectorProductionExperienceService {
-  constructor(private readonly commandService = new DirectorCommandService()) {}
+  constructor(
+    private readonly commandService = new DirectorCommandService(),
+    private readonly stateWriter = new DirectorTaskStateWriter(),
+  ) {}
 
   async select(
     taskId: string,
     experience: NovelProductionExperience,
   ): Promise<NovelProductionExperienceSelectionResponse> {
-    const task = await prisma.novelWorkflowTask.findUnique({ where: { id: taskId } });
+    const task = await prisma.novelWorkflowTask.findUnique({
+      where: { id: taskId },
+      select: { id: true, lane: true, novelId: true, status: true, checkpointType: true },
+    });
     if (!task || task.lane !== "auto_director") {
       throw new AppError("自动导演任务不存在。", 404);
     }
     if (!task.novelId) {
       throw new AppError("自动导演任务还没有绑定小说项目。", 409);
     }
+    const novelId = task.novelId;
 
-    const seed = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
+    const state = await new DirectorStateReader().readTaskStateById(task.id);
+    const seed = (state ? toDirectorTaskDataView(state) : {}) as DirectorWorkflowSeedPayload;
     const selected = parseSelectedExperience(seed);
-    if (selected === "simple" && experience === "professional") {
-      const activeJob = await prisma.generationJob.findFirst({
-        where: {
-          novelId: task.novelId,
-          status: { in: ["queued", "running"] },
-        },
-        select: { id: true },
+    if (selected && selected !== experience) {
+      buildProductionExperienceSeed(seed, experience);
+      await prisma.$transaction(async (tx) => {
+        await this.stateWriter.updateDirectorRunState(task.id, {
+          productionExperience: experience,
+        }, undefined, { transaction: tx });
+        await tx.novel.update({
+          where: { id: novelId },
+          data: { creationExperience: experience },
+        });
       });
-      const nextSeed: DirectorWorkflowSeedPayload = activeJob
-        ? { ...seed, pendingProductionExperience: "professional" }
-        : { ...buildProductionExperienceSeed(seed, "professional"), pendingProductionExperience: undefined };
-      await prisma.$transaction([
-        prisma.novelWorkflowTask.update({
-          where: { id: task.id },
-          data: activeJob
-            ? {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              currentItemLabel: "将在当前章节完成后交接到专业创作",
-            }
-            : {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "succeeded",
-              progress: 1,
-              currentStage: "chapter_execution",
-              currentItemKey: "professional_production_handoff",
-              currentItemLabel: "已交接到专业创作工作台",
-              checkpointType: "workflow_completed",
-              checkpointSummary: "自动创作已在安全章节边界停止，后续由专业工作台接管。",
-              pendingManualRecovery: false,
-              finishedAt: new Date(),
-            },
-        }),
-        ...(activeJob
-          ? []
-          : [prisma.novel.update({
-            where: { id: task.novelId },
-            data: { creationExperience: "professional" },
-          })]),
-      ]);
       return {
         experience,
         workflowTaskId: task.id,
         novelId: task.novelId,
-        targetRoute: `/novels/${task.novelId}/edit`,
-        backgroundStarted: Boolean(activeJob),
+        targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
+        backgroundStarted: task.status === "queued" || task.status === "running",
       };
-    }
-    if (selected && selected !== experience) {
-      throw new AppError("这次生产方式已确认，不能重复改选。", 409);
     }
 
     if (!selected) {
       if (task.checkpointType !== "production_experience_required") {
         throw new AppError("自动导演还没有完成正文生产前的准备。", 409);
       }
-      const nextSeed = buildProductionExperienceSeed(seed, experience);
+      buildProductionExperienceSeed(seed, experience);
 
       const claimed = await prisma.$transaction(async (tx) => {
-        const updated = await tx.novelWorkflowTask.updateMany({
+        const updated = await this.stateWriter.updateDirectorRunStateMany({
           where: {
             id: task.id,
             checkpointType: "production_experience_required",
           },
-          data: experience === "simple"
-            ? {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "waiting_approval",
-              currentStage: "chapter_execution",
-              currentItemKey: "chapter_batch_ready",
-              currentItemLabel: "已选择简易创作，准备开始全书生产",
-              checkpointType: "chapter_batch_ready",
-              checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
-              pendingManualRecovery: false,
-            }
-            : {
-              seedPayloadJson: JSON.stringify(nextSeed),
-              status: "succeeded",
-              progress: 1,
-              currentStage: "chapter_execution",
-              currentItemKey: "professional_production_handoff",
-              currentItemLabel: "已交接到专业创作工作台",
-              checkpointType: "workflow_completed",
-              checkpointSummary: "自动导演已完成前期准备，后续章节生产由专业工作台接管。",
-              pendingManualRecovery: false,
-              finishedAt: new Date(),
-            },
-        });
+          data: {
+            status: "waiting_approval",
+            currentStage: "chapter_execution",
+            currentItemKey: "chapter_batch_ready",
+            currentItemLabel: "已选择创作界面，准备开始全书生产",
+            checkpointType: "chapter_batch_ready",
+            checkpointSummary: "章节执行资源已准备完成，AI 将开始全书生产。",
+          },
+        }, { productionExperience: experience }, { transaction: tx });
         if (updated.count === 0) {
           return false;
         }
@@ -166,16 +123,6 @@ export class DirectorProductionExperienceService {
       if (!claimed) {
         return this.select(taskId, experience);
       }
-    }
-
-    if (experience === "professional") {
-      return {
-        experience,
-        workflowTaskId: task.id,
-        novelId: task.novelId,
-        targetRoute: `/novels/${task.novelId}/edit`,
-        backgroundStarted: false,
-      };
     }
 
     const shouldEnqueue = !selected || (
@@ -192,7 +139,7 @@ export class DirectorProductionExperienceService {
       experience,
       workflowTaskId: task.id,
       novelId: task.novelId,
-      targetRoute: `/novels/${task.novelId}/simple`,
+      targetRoute: experience === "simple" ? `/novels/${task.novelId}/simple` : `/novels/${task.novelId}/edit`,
       backgroundStarted: true,
       commandId: command?.commandId,
     };

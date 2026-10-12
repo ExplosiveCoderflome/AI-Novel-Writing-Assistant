@@ -25,6 +25,7 @@ export interface TitleGenerationLLMOptions {
 
 export interface GenerateTitleIdeasInput extends TitleGenerationLLMOptions {
   mode: "brief" | "adapt";
+  selectionMode?: "pool" | "primary";
   brief?: string;
   referenceTitle?: string;
   genreId?: string | null;
@@ -135,6 +136,7 @@ export class TitleGenerationService {
 
     return this.runGeneration({
       mode,
+      selectionMode: input.selectionMode ?? "pool",
       count,
       brief: brief || `请围绕参考标题《${referenceTitle}》做结构学习式改写，产出原创标题。`,
       referenceTitle,
@@ -178,6 +180,7 @@ export class TitleGenerationService {
 
     return this.runGeneration({
       mode: "novel",
+      selectionMode: "pool",
       count: normalizeRequestedCount(input.count, DEFAULT_TITLE_COUNT),
       brief,
       referenceTitle: "",
@@ -196,6 +199,7 @@ export class TitleGenerationService {
     const provider = llmOptions.provider ?? "deepseek";
     const forceJson = await shouldForceTitleJsonOutput(llmOptions);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
+    const primarySelection = promptContext.selectionMode === "primary";
 
     let lastError: unknown;
     let bestEffortTitles: TitleFactorySuggestion[] = [];
@@ -222,13 +226,22 @@ export class TitleGenerationService {
         });
 
         const rawTitles = extractRawTitlesFromPayload(payload.output);
-        const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles);
+        const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles, {
+          preserveOrder: primarySelection,
+          enforceFrameDiversity: !primarySelection,
+        });
 
         if (isBetterBatch(bestEffortTitles, titles)) {
           bestEffortTitles = titles;
         }
 
-        ensureGenerationQuality(titles, count);
+        if (primarySelection) {
+          if (titles.length < count) {
+            throw new Error(`标题数量不足，目标 ${count} 个，实际仅有 ${titles.length} 个可用标题。`);
+          }
+        } else {
+          ensureGenerationQuality(titles, count);
+        }
         return { titles };
       } catch (error) {
         lastError = error;

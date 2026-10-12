@@ -268,7 +268,8 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
     assert.equal(slimChapterListPayload.data.critiqueReport, null);
     assert.deepEqual(slimChapterListPayload.data.volumes, []);
     assert.deepEqual(slimChapterListPayload.data.beatSheets, []);
-    assert.equal(updateCalls.length, 0);
+    assert.equal(updateCalls.length, 1);
+    assert.equal(updateCalls.at(-1).syncToChapterExecution, true);
 
     const slimBeatSheetResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
       method: "POST",
@@ -286,7 +287,7 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
     assert.equal(slimBeatSheetPayload.data.slimmed, true);
     assert.equal(slimBeatSheetPayload.data.derivedStructuredOutline, "");
     assert.deepEqual(slimBeatSheetPayload.data.rebalanceDecisions, []);
-    assert.equal(updateCalls.length, 1);
+    assert.equal(updateCalls.length, 2);
     assert.equal(updateCalls.at(-1).syncToChapterExecution, false);
 
     const draftResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/versions/draft`, {
@@ -387,6 +388,57 @@ test("volume routes cover workspace, versions, impact analysis, sync and legacy 
       body: JSON.stringify({ scope: "chapter_list" }),
     });
     assert.equal(missingTargetResponse.status, 400);
+  } finally {
+    Object.assign(DefaultNovelApplicationServices.prototype, originalMethods);
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("slim chapter generation syncs titles before the client reloads the workspace", async () => {
+  const originalMethods = {
+    getVolumes: DefaultNovelApplicationServices.prototype.getVolumes,
+    generateVolumes: DefaultNovelApplicationServices.prototype.generateVolumes,
+    updateVolumes: DefaultNovelApplicationServices.prototype.updateVolumes,
+  };
+  const novelId = "novel-slim-title-sync-test";
+  const generated = createWorkspace(novelId);
+  generated.volumes[0].chapters[0].title = "新生成的标题";
+  let canonicalTitle = "旧章节标题";
+  const updateCalls = [];
+
+  DefaultNovelApplicationServices.prototype.generateVolumes = async () => generated;
+  DefaultNovelApplicationServices.prototype.updateVolumes = async (_id, input) => {
+    updateCalls.push(input);
+    if (input.syncToChapterExecution) {
+      canonicalTitle = input.volumes[0].chapters[0].title;
+    }
+    return generated;
+  };
+  DefaultNovelApplicationServices.prototype.getVolumes = async () => ({
+    ...generated,
+    volumes: generated.volumes.map((volume) => ({
+      ...volume,
+      chapters: volume.chapters.map((chapter) => ({ ...chapter, title: canonicalTitle })),
+    })),
+  });
+
+  const server = http.createServer(createApp());
+  const port = await listen(server);
+  try {
+    for (const scope of ["chapter_list", "volume"]) {
+      canonicalTitle = "旧章节标题";
+      const response = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, targetVolumeId: "volume-1", slimResponse: true }),
+      });
+      assert.equal(response.status, 200);
+      const reloaded = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}/volumes`);
+      assert.equal(reloaded.status, 200);
+      assert.equal((await reloaded.json()).data.volumes[0].chapters[0].title, "新生成的标题");
+      assert.equal(updateCalls.at(-1).syncToChapterExecution, true);
+    }
+    assert.equal(updateCalls.length, 2);
   } finally {
     Object.assign(DefaultNovelApplicationServices.prototype, originalMethods);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

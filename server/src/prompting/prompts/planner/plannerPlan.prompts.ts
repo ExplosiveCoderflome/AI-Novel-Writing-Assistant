@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { StoryPlanLevel } from "@ai-novel/shared/types/novel";
 import type { PromptAsset } from "../../core/promptTypes";
+import { renderCacheContextSections } from "../../core/cache";
 import { normalizePlannerOutput, type PlannerOutput } from "../../../services/planner/plannerOutputNormalization";
 import { plannerOutputSchema } from "../../../services/planner/plannerSchemas";
 
@@ -21,6 +22,7 @@ function buildPlannerPlanAsset(input: {
     taskType: "planner",
     mode: "structured",
     language: "zh",
+    cacheBoundary: input.planLevel === "chapter" ? { messageIndex: 0, contentBlockIndex: 0 } : undefined,
     contextPolicy: {
       maxTokensBudget: input.maxTokensBudget,
       requiredGroups:
@@ -47,6 +49,8 @@ function buildPlannerPlanAsset(input: {
         : undefined,
     outputSchema: plannerOutputSchema,
     structuredOutputHint: {
+      compact: input.planLevel === "chapter",
+      placement: input.planLevel === "chapter" ? "stable_prefix" : undefined,
       example: {
         title: "示例标题",
         objective: "示例目标",
@@ -74,6 +78,7 @@ function buildPlannerPlanAsset(input: {
     },
     render: (promptInput, context) => {
       const contextText = context.blocks.map((block) => block.content).join("\n\n");
+      const sections = renderCacheContextSections(context);
 
       const systemPrompt = [
         "你是长篇小说规划助手，负责把当前层级的故事需求整理成可直接进入下一步写作或细化流程的结构化规划结果。",
@@ -123,10 +128,11 @@ function buildPlannerPlanAsset(input: {
       ].join("\n");
 
       const userPrompt = [
+        ...(input.planLevel === "chapter" ? [sections.stable, ""] : []),
         promptInput.scopeLabel,
         "",
         "上下文：",
-        contextText || "无",
+        (input.planLevel === "chapter" ? sections.dynamic : contextText) || "无",
         "",
         "输出要求：",
         "1. objective 必须明确回答“这一层现在到底要推进什么”。",
@@ -225,7 +231,7 @@ export const plannerArcPlanPrompt = buildPlannerPlanAsset({
 
 export const plannerChapterPlanPrompt = buildPlannerPlanAsset({
   id: "planner.chapter.plan",
-  version: "v1",
+  version: "v3",
   planLevel: "chapter",
   includeScenes: true,
   maxTokensBudget: 2400,

@@ -1,6 +1,6 @@
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
 import type { ReactNode } from "react";
-import { BookMarked, Boxes, Globe2, Sparkles, Users } from "lucide-react";
+import { BookMarked, Boxes, ChevronDown, Globe2, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface SimpleCreationMaterialsPanelProps {
@@ -41,7 +41,6 @@ export default function SimpleCreationMaterialsPanel({
 
   return (
     <details
-      open
       className="group overflow-hidden rounded-2xl border border-border bg-muted/[0.12]"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
@@ -56,9 +55,12 @@ export default function SimpleCreationMaterialsPanel({
             </div>
           </div>
         </div>
-        <div className="hidden shrink-0 flex-wrap gap-2 text-xs sm:flex">
-          <Badge variant="outline">{materials.characterCount} 位角色</Badge>
-          <Badge variant="outline">{materials.volumeCount} 卷规划</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden flex-wrap gap-2 text-xs sm:flex">
+            <Badge variant="outline">{materials.characterCount} 位角色</Badge>
+            <Badge variant="outline">{materials.volumeCount} 卷规划</Badge>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
         </div>
       </summary>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type {
   BookAnalysisDetail,
@@ -12,19 +12,69 @@ import {
 import type { SectionDraft } from "../../bookAnalysis.types";
 import { buildSectionDraft, syncDrafts } from "../../bookAnalysis.utils";
 
+function selectSyncedValue<T>(localValue: T, previousServerValue: T, nextServerValue: T): T {
+  return Object.is(localValue, previousServerValue) ? nextServerValue : localValue;
+}
+
+function reconcileSectionDrafts(
+  localDrafts: Record<string, SectionDraft>,
+  previousServerDrafts: Record<string, SectionDraft>,
+  nextServerDrafts: Record<string, SectionDraft>,
+): Record<string, SectionDraft> {
+  return Object.fromEntries(
+    Object.entries(nextServerDrafts).map(([sectionId, nextServerDraft]) => {
+      const localDraft = localDrafts[sectionId];
+      const previousServerDraft = previousServerDrafts[sectionId];
+      if (!localDraft || !previousServerDraft) {
+        return [sectionId, nextServerDraft];
+      }
+
+      return [
+        sectionId,
+        {
+          editedContent: selectSyncedValue(
+            localDraft.editedContent,
+            previousServerDraft.editedContent,
+            nextServerDraft.editedContent,
+          ),
+          notes: selectSyncedValue(localDraft.notes, previousServerDraft.notes, nextServerDraft.notes),
+          focusInstruction: selectSyncedValue(
+            localDraft.focusInstruction,
+            previousServerDraft.focusInstruction,
+            nextServerDraft.focusInstruction,
+          ),
+          frozen: selectSyncedValue(localDraft.frozen, previousServerDraft.frozen, nextServerDraft.frozen),
+          optimizeInstruction: localDraft.optimizeInstruction,
+          optimizePreview: localDraft.optimizePreview,
+        },
+      ];
+    }),
+  );
+}
+
 export function useSectionDrafts(input: {
   selectedAnalysis?: BookAnalysisDetail;
   refreshAnalysisData: (analysisId: string) => Promise<void>;
 }) {
   const { selectedAnalysis, refreshAnalysisData } = input;
   const [sectionDrafts, setSectionDrafts] = useState<Record<string, SectionDraft>>({});
-  const [draftAnalysisId, setDraftAnalysisId] = useState("");
+  const draftAnalysisIdRef = useRef("");
+  const serverDraftsRef = useRef<Record<string, SectionDraft>>({});
   const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
 
-  const setDraftsFromAnalysis = (analysis: BookAnalysisDetail) => {
-    setDraftAnalysisId(analysis.id);
-    setSectionDrafts(syncDrafts(analysis));
-  };
+  const setDraftsFromAnalysis = useCallback((analysis: BookAnalysisDetail) => {
+    const nextServerDrafts = syncDrafts(analysis);
+    const isSameAnalysis = draftAnalysisIdRef.current === analysis.id;
+    const previousServerDrafts = serverDraftsRef.current;
+
+    setSectionDrafts((localDrafts) => (
+      isSameAnalysis
+        ? reconcileSectionDrafts(localDrafts, previousServerDrafts, nextServerDrafts)
+        : nextServerDrafts
+    ));
+    draftAnalysisIdRef.current = analysis.id;
+    serverDraftsRef.current = nextServerDrafts;
+  }, []);
 
   const getSectionDraft = (section: BookAnalysisSection): SectionDraft => {
     return sectionDrafts[section.id] ?? buildSectionDraft(section);
@@ -88,11 +138,11 @@ export function useSectionDrafts(input: {
   });
 
   useEffect(() => {
-    if (!selectedAnalysis || draftAnalysisId === selectedAnalysis.id) {
+    if (!selectedAnalysis) {
       return;
     }
     setDraftsFromAnalysis(selectedAnalysis);
-  }, [selectedAnalysis, draftAnalysisId]);
+  }, [selectedAnalysis, setDraftsFromAnalysis]);
 
   const optimizeSectionPreview = async (section: BookAnalysisSection) => {
     if (!selectedAnalysis) {

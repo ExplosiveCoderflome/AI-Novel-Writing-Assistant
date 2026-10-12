@@ -8,6 +8,10 @@ const SYSTEM_AUDIT_MARKERS = [
   "mode_fit/acceptance_gate_unavailable",
 ];
 
+function isInternalPayoffMarker(value: string): boolean {
+  return /^payoff\/(?:payoff_missing_progress|payoff_overdue)$/u.test(value);
+}
+
 function normalizeContractMarker(value: string): string {
   return value
     .replace(/\s+/g, "")
@@ -24,7 +28,8 @@ export function isSystemAuditContractItem(value: unknown): boolean {
   if (!normalized) {
     return false;
   }
-  return SYSTEM_AUDIT_MARKERS.some((marker) => normalized.includes(marker));
+  return isInternalPayoffMarker(normalized)
+    || SYSTEM_AUDIT_MARKERS.some((marker) => normalized.includes(marker));
 }
 
 export function sanitizeCreativeMustAdvanceItems(items: string[]): string[] {

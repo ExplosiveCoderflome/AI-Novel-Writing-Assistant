@@ -162,3 +162,5 @@ export const analyzeQualityDebtAttributionOutputSchema = z.object({
   /** 决策建议 */
   recommendation: toolSummarySchema,
 });
+
+export type QualityDebtChapterAttribution = z.infer<typeof qualityDebtChapterAttributionSchema>;

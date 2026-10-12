@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { ragConfig } from "../../config/rag";
-import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import type { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { ragContextualChunkPrompt } from "../../prompting/prompts/rag/contextualChunk.prompts";
 import type { RagChunkCandidate, RagSourceDocument } from "./types";
 import { estimateTokenCount, normalizeRagText, runWithConcurrency } from "./utils";
@@ -69,7 +69,7 @@ export function buildSearchText(chunkText: string, contextPrefix?: string): stri
 }
 
 export class RagContextualChunkService {
-  constructor(private readonly promptRunner: ContextualPromptRunner = runStructuredPrompt) {}
+  constructor(private readonly promptRunner?: ContextualPromptRunner) {}
 
   async buildContextPrefix(input: RagContextualChunkInput): Promise<{
     contextPrefix?: string;
@@ -87,8 +87,30 @@ export class RagContextualChunkService {
       };
     }
 
+    // These chunks are the final artifact extraction itself, not unstructured source material.
+    // Their structured source labels are sufficient; enriching each fact would multiply AI calls.
+    const artifactKind = input.metadata?.artifactKind;
+    if (input.document.ownerType === "chapter_summary"
+      && input.document.metadata?.chapterArtifactVersion === 1
+      && (artifactKind === "summary" || artifactKind === "fact")) {
+      const chapterOrder = input.document.metadata.chapterOrder;
+      const chapterLabel = typeof chapterOrder === "number" ? `第${chapterOrder}章` : "章节";
+      const titleLabel = input.document.title ? `《${input.document.title}》` : "";
+      const contextPrefix = normalizeContextPrefix(
+        `${chapterLabel}${titleLabel}的${artifactKind === "summary" ? "已保存摘要" : "已保存事实"}`,
+      );
+      return {
+        contextPrefix,
+        contextVersion,
+        contextSourceHash,
+        searchText: buildSearchText(input.chunkText, contextPrefix),
+      };
+    }
+
     try {
-      const result = await this.promptRunner({
+      // The runner owns context providers that consume RAG. Load it only at invocation.
+      const runner = this.promptRunner ?? (await import("../../prompting/core/promptRunner")).runStructuredPrompt;
+      const result = await runner({
         asset: ragContextualChunkPrompt,
         promptInput: {
           ownerType: input.document.ownerType,

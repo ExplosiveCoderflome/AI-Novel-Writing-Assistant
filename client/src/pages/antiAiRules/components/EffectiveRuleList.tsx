@@ -1,6 +1,4 @@
 import type { AntiAiEffectiveRuleItem } from "@ai-novel/shared/types/styleEngine";
-import { Badge } from "@/components/ui/badge";
-import { severityLabels, typeLabels } from "../antiAiRulesPage.shared";
 
 interface EffectiveRuleListProps {
   title: string;
@@ -10,31 +8,20 @@ interface EffectiveRuleListProps {
 
 export default function EffectiveRuleList(props: EffectiveRuleListProps) {
   return (
-    <div className="space-y-2">
-      <div className="text-sm font-medium text-foreground">{props.title}</div>
+    <div>
+      <h3 className="mb-2 text-xs font-medium text-muted-foreground">{props.title} · {props.rules.length}</h3>
       {props.rules.length > 0 ? (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {props.rules.map((item) => (
-            <div key={`${item.source}-${item.rule.id}`} className="rounded-md border bg-background p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="font-medium text-foreground">{item.rule.name}</div>
-                <Badge variant={item.source === "global_baseline" ? "default" : "secondary"}>
-                  {item.source === "global_baseline" ? "全局默认" : "写法规则"}
-                </Badge>
-                <Badge variant="outline">{typeLabels[item.rule.type]} / {severityLabels[item.rule.severity]}</Badge>
-              </div>
-              <div className="mt-2 text-xs leading-5 text-muted-foreground">
-                {item.sourceLabel}{item.weight !== 1 ? `，强度 ${item.weight}` : ""}
-              </div>
-              {item.rule.promptInstruction ? (
-                <div className="mt-2 text-sm leading-6 text-muted-foreground">{item.rule.promptInstruction}</div>
+            <li key={item.source + "-" + item.rule.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+              <span className="min-w-0 break-words">{item.rule.name}</span>
+              {item.source !== "global_baseline" || item.weight !== 1 ? (
+                <span className="text-xs text-muted-foreground">{item.sourceLabel}{item.weight !== 1 ? " · 强度 " + item.weight : ""}</span>
               ) : null}
-            </div>
+            </li>
           ))}
-        </div>
-      ) : (
-        <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">{props.empty}</div>
-      )}
+        </ul>
+      ) : <p className="text-xs leading-5 text-muted-foreground">{props.empty}</p>}
     </div>
   );
 }

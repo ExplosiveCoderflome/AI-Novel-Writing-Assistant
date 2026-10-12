@@ -3,10 +3,7 @@ import {
   type StyleBinding,
   type StyleProfile,
 } from "@ai-novel/shared/types/styleEngine";
-import {
-  buildReadableRuleEntries,
-  buildReadableRuleSummary,
-} from "./writingFormulaRulePresentation";
+import { buildReadableRuleSummary } from "./writingFormulaRulePresentation";
 import { getStyleProfileOriginLabel, isStarterStyleProfile } from "./writingFormulaV2.shared";
 
 export interface LandingProfileItem {
@@ -14,7 +11,6 @@ export interface LandingProfileItem {
   name: string;
   originLabel: string;
   summaryLine: string;
-  detailLines: string[];
   description: string;
   recentNovelTitle?: string | null;
   category?: string | null;
@@ -150,20 +146,11 @@ export function buildLandingProfileItems(params: BuildLandingProfileItemsParams)
     })
     .map((profile) => {
       const profileSummary = buildStyleIntentSummary({ styleProfile: profile });
-      const characterEntries = buildReadableRuleEntries("characterRules", profile.characterRules);
-      const dialogueEntry = characterEntries.find((entry) => entry.key === "dialogueStyle");
-      const emotionEntry = characterEntries.find((entry) => entry.key === "emotionExpression");
-      const detailLines = [
-        firstNonEmptyText(profile.description, profileSummary?.readingFeel)
-          ? `读感承诺：${firstNonEmptyText(profile.description, profileSummary?.readingFeel)}`
-          : "",
-        `语言质感：${buildLanguageSummary(profile)}`,
-        dialogueEntry ? `对白风格：${dialogueEntry.value}` : "",
-        emotionEntry ? `情绪外显：${emotionEntry.value}` : "",
-        profileSummary?.antiAiFocus.length
-          ? `反 AI 约束：${profileSummary.antiAiFocus.join("；")}`
-          : "",
-      ].filter(Boolean);
+      const description = firstNonEmptyText(
+        profile.description,
+        profileSummary?.readingFeel,
+        "未填写读感定位，可在编辑设定中补充。",
+      );
       const recentNovelBinding = recentNovelBindingsByProfileId.get(profile.id);
       const selectedPresetLabel = profile.selectedExtractionPresetKey
         ? (
@@ -176,9 +163,8 @@ export function buildLandingProfileItems(params: BuildLandingProfileItemsParams)
         id: profile.id,
         name: profile.name,
         originLabel: getStyleProfileOriginLabel(profile),
-        summaryLine: detailLines[0] ?? profile.description ?? "暂无写法摘要。",
-        detailLines,
-        description: firstNonEmptyText(profile.description, profileSummary?.readingFeel, "这套写法还没有写清楚读感定位。"),
+        summaryLine: description,
+        description,
         recentNovelTitle: recentNovelBinding
           ? (novelTitleMap[recentNovelBinding.targetId] ?? recentNovelBinding.targetId)
           : null,

@@ -167,7 +167,9 @@ const volumeRebalanceDecisionSchema = z.object({
 });
 
 export const volumeDocumentSchema = z.object({
-  volumes: z.array(volumeSchema).default([]),
+  // Keep partial workspace updates partial: defaulting an omitted field to []
+  // turns a critique-only save into a destructive volume reset.
+  volumes: z.array(volumeSchema).optional(),
   strategyPlan: volumeStrategyPlanSchema.nullish(),
   critiqueReport: volumeCritiqueReportSchema.nullish(),
   beatSheets: z.array(volumeBeatSheetSchema).optional(),
@@ -217,6 +219,7 @@ export const chapterSchema = z.object({
 });
 
 export const updateChapterSchema = z.object({
+  expectedUpdatedAt: z.iso.datetime().optional(),
   title: z.string().trim().min(1).optional(),
   order: z.number().int().nonnegative().optional(),
   content: z.string().optional(),
@@ -545,6 +548,20 @@ export const aiRevisionPreviewSchema = z.object({
       message: "片段修正必须提供上下文窗口。",
     });
   }
+});
+
+export const cursorContinuationPreviewSchema = z.object({
+  operation: z.enum(["continue", "transition", "dialogue", "description", "inner_thought", "conflict"]),
+  contentSnapshot: z.string(),
+  cursorOffset: z.number().int().min(0),
+  context: z.object({
+    beforeParagraphs: z.array(z.string()).max(3),
+    afterParagraphs: z.array(z.string()).max(2),
+  }),
+  instruction: z.string().trim().max(800).optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().max(120).optional(),
+  temperature: z.number().min(0).max(2).optional(),
 });
 
 export const chapterExecutionContractSchema = chapterRuntimeRequestSchema;

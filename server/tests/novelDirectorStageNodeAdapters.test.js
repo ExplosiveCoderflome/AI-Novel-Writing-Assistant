@@ -13,6 +13,7 @@ test("director planning stages expose standard node adapter contracts", () => {
     "story_macro",
     "structured_outline",
     "volume_strategy",
+    "world_setup",
   ]);
 
   for (const [stage, adapter] of Object.entries(DIRECTOR_STAGE_NODE_ADAPTERS)) {

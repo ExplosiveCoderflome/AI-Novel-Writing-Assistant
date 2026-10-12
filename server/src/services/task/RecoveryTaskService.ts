@@ -23,18 +23,25 @@ interface RecoveryInitializationDeps {
 }
 
 interface AutoDirectorRecoveryCommandPort {
-  enqueueRecoveryCommand?: (taskId: string) => Promise<unknown>;
-  continueTask?: (taskId: string) => Promise<void>;
+  enqueueRecoveryCommand: (taskId: string) => Promise<unknown>;
 }
 
 function toRunningStatus(status: string): RecoverableTaskSummary["status"] {
   return status === "running" ? "running" : "queued";
 }
 
-function buildWorkflowSourceRoute(row: { id: string; novelId: string | null }): string {
-  return row.novelId
-    ? `/novels/${row.novelId}/edit?directorTaskId=${row.id}&taskPanel=1`
-    : `/tasks?kind=novel_workflow&id=${row.id}`;
+export function buildWorkflowSourceRoute(row: {
+  id: string;
+  novelId: string | null;
+  creationExperience?: "simple" | "professional" | null;
+}): string {
+  if (!row.novelId) {
+    return `/tasks?kind=novel_workflow&id=${row.id}`;
+  }
+  if (row.creationExperience === "simple") {
+    return `/novels/${row.novelId}/simple`;
+  }
+  return `/novels/${row.novelId}/edit?taskPanel=1`;
 }
 
 function buildImagePresentation(row: {
@@ -78,13 +85,12 @@ export class RecoveryTaskService {
     },
   ) {}
 
-  initializePendingRecoveries(): Promise<void> {
+  initializePendingRecoveries(options: {includeNovelProduction?: boolean} = {}): Promise<void> {
     if (!this.initializationPromise) {
       this.initializationPromise = Promise.all([
         this.initializationDeps.markPendingBookAnalysesForManualRecovery(),
         this.initializationDeps.markPendingImageTasksForManualRecovery(),
-        this.initializationDeps.markPendingAutoDirectorTasksForManualRecovery(),
-        this.initializationDeps.markPendingPipelineJobsForManualRecovery(),
+        ...(options.includeNovelProduction === false ? [] : [this.initializationDeps.markPendingAutoDirectorTasksForManualRecovery(), this.initializationDeps.markPendingPipelineJobsForManualRecovery()]),
         this.initializationDeps.markPendingStyleTasksForManualRecovery(),
       ]).then(() => undefined);
     }
@@ -121,7 +127,7 @@ export class RecoveryTaskService {
           checkpointSummary: true,
           lastError: true,
           updatedAt: true,
-          novel: { select: { title: true } },
+          novel: { select: { title: true, creationExperience: true } },
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       }),
@@ -210,7 +216,11 @@ export class RecoveryTaskService {
         currentStage: row.currentStage,
         currentItemLabel: row.currentItemLabel,
         resumeAction: "恢复自动导演",
-        sourceRoute: buildWorkflowSourceRoute(row),
+        sourceRoute: buildWorkflowSourceRoute({
+          id: row.id,
+          novelId: row.novelId,
+          creationExperience: row.novel?.creationExperience,
+        }),
         recoveryHint: row.lastError?.trim() || row.checkpointSummary?.trim() || "服务重启后任务已暂停，等待恢复。",
         updatedAt: row.updatedAt,
       })),
@@ -309,11 +319,7 @@ export class RecoveryTaskService {
   async startResumeRecoveryCandidate(kind: TaskKind, id: string): Promise<unknown> {
     await this.waitUntilReady();
     if (kind === "novel_workflow") {
-      if (this.directorCommandService.enqueueRecoveryCommand) {
-        return this.directorCommandService.enqueueRecoveryCommand(id);
-      }
-      this.scheduleAutoDirectorRecovery(id);
-      return null;
+      return this.resumeAutoDirectorWorkflow(id);
     }
     this.scheduleRecoveryResume(kind, id);
     return null;
@@ -370,23 +376,7 @@ export class RecoveryTaskService {
   }
 
   private resumeAutoDirectorWorkflow(id: string): Promise<unknown> {
-    if (this.directorCommandService.enqueueRecoveryCommand) {
-      return this.directorCommandService.enqueueRecoveryCommand(id);
-    }
-    if (this.directorCommandService.continueTask) {
-      return this.directorCommandService.continueTask(id);
-    }
-    throw new AppError("Auto director recovery command service is unavailable.", 500);
-  }
-
-  private scheduleAutoDirectorRecovery(id: string): void {
-    if (this.directorCommandService.enqueueRecoveryCommand) {
-      void this.directorCommandService.enqueueRecoveryCommand(id).catch((error) => {
-        console.error(`[recovery] auto director command enqueue failed: novel_workflow/${id}`, error);
-      });
-      return;
-    }
-    this.scheduleRecoveryResume("novel_workflow", id);
+    return this.directorCommandService.enqueueRecoveryCommand(id);
   }
 }
 

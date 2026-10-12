@@ -1,0 +1,2 @@
+ALTER TABLE "APIKey" ADD COLUMN "reasoningEffort" TEXT;
+ALTER TABLE "APIKey" ADD COLUMN "hiddenModels" TEXT NOT NULL DEFAULT '[]';

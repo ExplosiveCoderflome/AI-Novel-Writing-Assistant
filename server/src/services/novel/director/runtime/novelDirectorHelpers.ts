@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type {
   DirectorAutoExecutionPlan,
   DirectorAutoExecutionState,
@@ -16,6 +17,7 @@ import type {
   DirectorTaskNotice,
 } from "@ai-novel/shared/types/novelDirector";
 import type { DirectorRuntimeSnapshot } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   DIRECTOR_MAX_TARGET_CHAPTER_COUNT,
@@ -29,12 +31,13 @@ import {
   normalizeDirectorAutoApprovalConfig,
   type DirectorAutoApprovalConfig,
 } from "@ai-novel/shared/types/autoDirectorApproval";
-import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
+export { normalizeBookContract } from "../../bookContract";
+import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
@@ -54,13 +57,16 @@ export interface DirectorCandidateStageState {
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
-  pendingProductionExperience?: "professional";
   startupPreparation?: DirectorConfirmRequest["startupPreparation"];
+  completionProfile?: DirectorCompletionProfile;
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
   temperature?: number | null;
   runMode?: DirectorRunMode;
+  issueGovernanceVersion?: 1;
+  issuePolicy?: DirectorIssuePolicy;
+  issuePolicySource?: "global" | "novel";
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;
   batches?: DirectorCandidateBatch[];
@@ -84,6 +90,7 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
     targetId?: string | null;
     completedAt: string;
   } | null;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
 }
 
 export interface CandidateGenerationContext {
@@ -134,11 +141,12 @@ export function applyDirectorRunModeContract<T extends {
   return {
     ...input,
     runMode,
-    autoExecutionPlan: buildFullBookAutopilotExecutionPlan(),
+    autoExecutionPlan: input.autoExecutionPlan?.mode === "chapter_range"
+      ? input.autoExecutionPlan
+      : buildFullBookAutopilotExecutionPlan(),
     autoApproval: buildFullDirectorAutoApprovalConfig(),
   };
 }
-
 export function normalizeDirectorTargetChapterCount(value: number | null | undefined, fallback = 80): number {
   const numericValue = typeof value === "number" && Number.isFinite(value) ? value : fallback;
   return Math.max(
@@ -265,6 +273,7 @@ export async function enhanceCandidateTitles(
   try {
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
+      selectionMode: "primary",
       brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
       genreId: context.request.genreId ?? null,
       count: 4,
@@ -300,11 +309,23 @@ function buildCandidateTitleBrief(
     `开篇钩子：${candidate.hookStrategy}`,
     `推进循环：${candidate.progressionLoop}`,
     `结局方向：${candidate.endingDirection}`,
+    `推荐发布平台：${candidate.recommendedWritingPlatform === "qidian_male"
+      ? "起点男频"
+      : candidate.recommendedWritingPlatform === "jinjiang_female"
+        ? "晋江女频"
+        : "番茄免费网文"}`,
+    candidate.writingPlatformReason?.trim() ? `平台判断理由：${candidate.writingPlatformReason.trim()}` : "",
+    context.request.readerChannelPreference === "male_oriented" ? "读者频道：男频向" : "",
+    context.request.readerChannelPreference === "female_oriented" ? "读者频道：女频向" : "",
+    context.request.readerChannelPreference === "general" ? "读者频道：泛读者" : "",
+    context.request.targetAudience?.trim() ? `目标读者：${context.request.targetAudience.trim()}` : "",
+    context.request.marketBriefPrompt?.trim() ? `开书市场简报：\n${context.request.marketBriefPrompt.trim()}` : "",
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
     `当前方案原始命名：${candidate.workingTitle}`,
     excludedTitles.length > 0 ? `其他方案已占用书名：${excludedTitles.join("、")}` : "",
-    "请生成更适合中文网文封面展示和点击测试的书名，突出卖点、反差、异常规则、主角优势或追更钩子。",
+    "请先确定一个最适合当前平台、读者与故事方向的主书名，再给出三个不同角度的备选。",
+    "主书名必须保留这套故事独有的具体资产，不能只剩抽象情绪、泛化反差或一句悬念文案。",
     "不要写成策划案标题、世界观概念短语、流水线土味套壳名，也不要为了文艺感牺牲点击感。",
     excludedTitles.length > 0 ? "不得复用或近似改写其他方案已占用的书名。" : "",
   ].filter(Boolean);
@@ -398,8 +419,9 @@ export function toBookSpec(
     endingDirection: candidate.endingDirection.trim(),
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
-    targetChapterCount: normalizeDirectorTargetChapterCount(
-      overrideTargetChapterCount ?? candidate.targetChapterCount,
+    targetChapterCount: normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
+    completionProfile: buildDirectorCompletionProfile(
+      normalizeDirectorTargetChapterCount(overrideTargetChapterCount ?? candidate.targetChapterCount),
     ),
   };
 }
@@ -424,6 +446,11 @@ export function buildRefinementSummary(
 }
 
 export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpec): string {
+  const powerSystem = input.candidate.productionFoundation?.powerSystem;
+  const powerSystemMode = powerSystem?.mode
+    ?? (input.powerSystemPreference && input.powerSystemPreference !== "ai_recommend"
+      ? input.powerSystemPreference
+      : null);
   const lines = [
     input.idea.trim(),
     input.description?.trim() ? `补充概述：${input.description.trim()}` : "",
@@ -435,6 +462,8 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
     input.genreId?.trim() ? `题材基底：${input.genreId.trim()}` : "",
     input.primaryStoryModeId?.trim() ? `主推进模式：${input.primaryStoryModeId.trim()}` : "",
     input.secondaryStoryModeId?.trim() ? `副推进模式：${input.secondaryStoryModeId.trim()}` : "",
+    powerSystemMode ? `战力体系模式：${powerSystemMode}` : "",
+    powerSystem?.reason ? `战力体系说明：${powerSystem.reason}` : "",
     `确认方案：${input.candidate.workingTitle}`,
     `作品定位：${bookSpec.positioning}`,
     `核心卖点：${bookSpec.sellingPoint}`,
@@ -450,27 +479,12 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
   return lines.join("\n");
 }
 
-export function normalizeBookContract(parsed: DirectorBookContractParsed): BookContractDraft {
-  return {
-    readingPromise: parsed.readingPromise.trim(),
-    protagonistFantasy: parsed.protagonistFantasy.trim(),
-    coreSellingPoint: parsed.coreSellingPoint.trim(),
-    chapter3Payoff: parsed.chapter3Payoff.trim(),
-    chapter10Payoff: parsed.chapter10Payoff.trim(),
-    chapter30Payoff: parsed.chapter30Payoff.trim(),
-    escalationLadder: parsed.escalationLadder.trim(),
-    relationshipMainline: parsed.relationshipMainline.trim(),
-    absoluteRedLines: Array.from(
-      new Set(parsed.absoluteRedLines.map((item) => item.trim()).filter(Boolean)),
-    ).slice(0, 6),
-  };
-}
-
 export function buildWorkflowSeedPayload(
   input: DirectorProjectContextInput & Pick<DirectorLLMOptions, "provider" | "model" | "temperature" | "runMode"> & {
     idea: string;
     autoExecutionPlan?: DirectorAutoExecutionPlan;
     autoApproval?: DirectorAutoApprovalConfig;
+    completionProfile?: DirectorCompletionProfile;
   },
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -490,6 +504,7 @@ export function buildWorkflowSeedPayload(
     writingMode: input.writingMode ?? "original",
     projectMode: input.projectMode ?? "co_pilot",
     readerChannelPreference: input.readerChannelPreference ?? "ai_judge",
+    powerSystemPreference: input.powerSystemPreference ?? "ai_recommend",
     writingPlatformPreference: input.writingPlatformPreference ?? "ai_recommend",
     narrativePov: input.narrativePov ?? "third_person",
     pacePreference: input.pacePreference ?? "balanced",
@@ -507,10 +522,14 @@ export function buildWorkflowSeedPayload(
     sourceKnowledgeDocumentId: input.sourceKnowledgeDocumentId ?? "",
     continuationBookAnalysisId: input.continuationBookAnalysisId ?? "",
     continuationBookAnalysisSections: input.continuationBookAnalysisSections ?? [],
+    referenceBookAnalysisId: input.referenceBookAnalysisId ?? "",
+    referenceBookAnalysisSections: input.referenceBookAnalysisSections ?? [],
   };
   const autoApproval = Object.prototype.hasOwnProperty.call(input, "autoApproval")
     ? normalizeDirectorAutoApprovalConfig(input.autoApproval)
     : null;
+  const completionProfile = input.completionProfile
+    ?? buildDirectorCompletionProfile(basicForm.estimatedChapterCount ?? 80);
   return {
     title: basicForm.title || null,
     description: basicForm.description || null,
@@ -527,6 +546,7 @@ export function buildWorkflowSeedPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
+    powerSystemPreference: basicForm.powerSystemPreference,
     writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
@@ -540,9 +560,19 @@ export function buildWorkflowSeedPayload(
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,
     runMode: input.runMode ?? "auto_to_ready",
+    ...("issueGovernanceVersion" in input && input.issueGovernanceVersion === 1
+      ? { issueGovernanceVersion: input.issueGovernanceVersion }
+      : {}),
+    ...("issuePolicy" in input && input.issuePolicy
+      ? { issuePolicy: input.issuePolicy }
+      : {}),
+    ...("issuePolicySource" in input && (input.issuePolicySource === "global" || input.issuePolicySource === "novel")
+      ? { issuePolicySource: input.issuePolicySource }
+      : {}),
     ...(input.autoExecutionPlan ? { autoExecutionPlan: input.autoExecutionPlan } : {}),
     ...(autoApproval ? { autoApproval } : {}),
     estimatedChapterCount: basicForm.estimatedChapterCount,
+    completionProfile,
     idea: input.idea.trim(),
     basicForm,
     ...extra,
@@ -584,9 +614,9 @@ export function buildDirectorWorkflowSeedPayload(
 }
 
 export function getDirectorInputFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): DirectorConfirmRequest | null {
-  const directorInput = seedPayload?.directorInput;
+  const directorInput = directorTaskData?.directorInput;
   if (!directorInput || typeof directorInput !== "object") {
     return null;
   }
@@ -594,18 +624,18 @@ export function getDirectorInputFromSeedPayload(
 }
 
 export function getDirectorLlmOptionsFromSeedPayload(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
+  directorTaskData: DirectorWorkflowSeedPayload | null | undefined,
 ): Pick<DirectorLLMOptions, "provider" | "model" | "temperature"> | null {
-  if (!seedPayload) {
+  if (!directorTaskData) {
     return null;
   }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  const provider = seedPayload.provider ?? directorInput?.provider ?? undefined;
-  const model = typeof seedPayload.model === "string"
-    ? (seedPayload.model.trim() || undefined)
+  const directorInput = getDirectorInputFromSeedPayload(directorTaskData);
+  const provider = directorTaskData.provider ?? directorInput?.provider ?? undefined;
+  const model = typeof directorTaskData.model === "string"
+    ? (directorTaskData.model.trim() || undefined)
     : (directorInput?.model?.trim() || undefined);
-  const temperature = typeof seedPayload.temperature === "number"
-    ? seedPayload.temperature
+  const temperature = typeof directorTaskData.temperature === "number"
+    ? directorTaskData.temperature
     : directorInput?.temperature;
   if (!provider && !model && typeof temperature !== "number") {
     return null;
@@ -614,37 +644,5 @@ export function getDirectorLlmOptionsFromSeedPayload(
     provider,
     model,
     temperature,
-  };
-}
-
-export function applyDirectorLlmOverride(
-  seedPayload: DirectorWorkflowSeedPayload | null | undefined,
-  llmOverride: Pick<DirectorLLMOptions, "provider" | "model" | "temperature">,
-): DirectorWorkflowSeedPayload | null {
-  if (!seedPayload) {
-    return null;
-  }
-  const directorInput = getDirectorInputFromSeedPayload(seedPayload);
-  const nextModel = llmOverride.model?.trim()
-    || (typeof seedPayload.model === "string" ? seedPayload.model.trim() : directorInput?.model?.trim() || null);
-  const nextTemperature = typeof llmOverride.temperature === "number"
-    ? llmOverride.temperature
-    : (typeof seedPayload.temperature === "number" ? seedPayload.temperature : directorInput?.temperature ?? null);
-  const nextProvider = llmOverride.provider ?? seedPayload.provider ?? directorInput?.provider ?? null;
-  return {
-    ...seedPayload,
-    provider: nextProvider,
-    model: nextModel,
-    temperature: nextTemperature,
-    directorInput: directorInput
-      ? {
-        ...directorInput,
-        provider: nextProvider ?? directorInput.provider,
-        model: nextModel || directorInput.model,
-        temperature: typeof nextTemperature === "number"
-          ? nextTemperature
-          : directorInput.temperature,
-      }
-      : undefined,
   };
 }

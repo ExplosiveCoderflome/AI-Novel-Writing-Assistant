@@ -3,10 +3,12 @@ import { getSharedNovelServices } from "../../services/novel/application/sharedN
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import { payoffLedgerSyncService } from "../../services/payoff/PayoffLedgerSyncService";
 import { prisma } from "../../db/prisma";
+import {directorV2CharacterEnrichmentService} from "../../services/novel/characterPrep/deferred";
 import {
   type BookContractPayoffSyncPayload,
   NOVEL_SIDE_EFFECT_PAYLOAD_VERSION,
   type CharacterPostDraftEnrichmentPayload,
+  type DirectorV2CharacterEnrichmentPayload,
   type CharacterVolumeRebuildPayload,
   type PipelineSnapshotPayload,
 } from "./NovelSideEffectJobTypes";
@@ -38,7 +40,7 @@ export class NovelSideEffectJobHandlers {
     } = {},
   ) {}
 
-  async execute(job: NovelSideEffectJob): Promise<void> {
+  async execute(job: NovelSideEffectJob): Promise<void | {deferUntil: Date}> {
     switch (job.jobType) {
       case "character.volumeRebuild": {
         const payload = parsePayload<CharacterVolumeRebuildPayload>(job);
@@ -49,6 +51,11 @@ export class NovelSideEffectJobHandlers {
       }
       case "character.postDraftEnrichment": {
         const payload = parsePayload<CharacterPostDraftEnrichmentPayload>(job);
+        const novel = await prisma.novel.findUnique({where: {id: payload.novelId}, select: {directorVersion: true, directorEpoch: true}});
+        if (!novel || novel.directorVersion === "v2" || (payload.executionEpoch ?? 0) !== novel.directorEpoch
+          || (!novel.directorVersion && await prisma.directorNextRun.findFirst({
+          where: {novelId: payload.novelId}, select: {id: true},
+        }))) return;
         const activeProduction = await prisma.generationJob.findFirst({
           where: {
             novelId: payload.novelId,
@@ -61,6 +68,12 @@ export class NovelSideEffectJobHandlers {
         }
         await getSharedNovelServices().runDeferredCharacterEnhancements(payload.novelId);
         return;
+      }
+      case "character.v2DeferredEnrichment": {
+        const payload = parsePayload<DirectorV2CharacterEnrichmentPayload>(job);
+        if (payload.novelId !== job.novelId) throw new UnsupportedNovelSideEffectPayloadError("角色补全任务的小说归属不一致。");
+        const result = await directorV2CharacterEnrichmentService.execute(payload, {id: job.id, leaseOwner: job.leaseOwner});
+        return result === "deferred" ? {deferUntil: new Date(Date.now() + 60_000)} : undefined;
       }
       case "novel.pipelineSnapshot": {
         const payload = parsePayload<PipelineSnapshotPayload>(job);

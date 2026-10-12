@@ -6,6 +6,9 @@ const {
   resolveBeatSheetTargetChapterCount,
 } = require("../dist/services/novel/volume/volumeGenerationOrchestrator.js");
 const {
+  isCompactBookFinaleBeat,
+} = require("../dist/services/novel/volume/volumeChapterListGeneration.js");
+const {
   allocateChapterBudgets,
 } = require("../dist/services/novel/volume/volumeGenerationHelpers.js");
 
@@ -82,4 +85,31 @@ test("beat sheet target chapter count still preserves a larger existing volume",
   });
 
   assert.equal(targetChapterCount, 70);
+});
+
+test("compact-book finale detection uses the whole-book chapter order across volumes", () => {
+  const completionProfile = {
+    mode: "compact_book",
+    endingRequiredBy: 30,
+  };
+  const chapterBudgets = [10, 10, 10];
+
+  assert.equal(isCompactBookFinaleBeat({
+    completionProfile,
+    targetVolumeIndex: 0,
+    chapterBudgets,
+    beatChapterEndOrder: 10,
+  }), false);
+  assert.equal(isCompactBookFinaleBeat({
+    completionProfile,
+    targetVolumeIndex: 1,
+    chapterBudgets,
+    beatChapterEndOrder: 10,
+  }), false);
+  assert.equal(isCompactBookFinaleBeat({
+    completionProfile,
+    targetVolumeIndex: 2,
+    chapterBudgets,
+    beatChapterEndOrder: 10,
+  }), true);
 });

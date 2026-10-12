@@ -1,12 +1,25 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { buildWorkflowSeedPayload } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 const { directorCandidateResponseSchema } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 const {
+  DirectorProductionExperienceService,
   buildProductionExperienceSeed,
   parseSelectedExperience,
 } = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
-const { isSimpleCreationWriteAllowed } = require("../dist/modules/novel/http/simpleCreationWriteGuard.js");
+const { prisma } = require("../dist/db/prisma.js");
+const { readDirectorTaskState, toDirectorTaskDataView } = require("../dist/services/novel/director/state/DirectorStateReader.js");
+
+const confirmRuntimeSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/runtime/novelDirectorConfirmRuntime.ts"),
+  "utf8",
+);
+const outlinePhaseSource = fs.readFileSync(
+  path.resolve(__dirname, "../src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts"),
+  "utf8",
+);
 
 function candidate(title) {
   return {
@@ -49,26 +62,108 @@ test("legacy explicit auto_to_ready seed remains compatible", () => {
   assert.equal(seed.productionExperience, undefined);
 });
 
-test("production handoff converts the same seed to full-book simple creation", () => {
-  const seed = directorSeed();
-  const nextSeed = buildProductionExperienceSeed(seed, "simple");
-  assert.equal(parseSelectedExperience(nextSeed), "simple");
-  assert.equal(nextSeed.runMode, "full_book_autopilot");
-  assert.equal(nextSeed.directorInput.runMode, "full_book_autopilot");
-  assert.equal(nextSeed.autoExecutionPlan.mode, "book");
-  assert.equal(nextSeed.autoExecutionPlan.autoReview, true);
-  assert.equal(nextSeed.autoExecutionPlan.autoRepair, true);
-  assert.equal(nextSeed.autoApproval.enabled, true);
-  assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
-  assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("replan_continue"));
+test("fast-start director waits for the user to choose a production interface", () => {
+  assert.doesNotMatch(confirmRuntimeSource, /productionExperience:\s*"simple"/);
+  assert.doesNotMatch(confirmRuntimeSource, /creationExperience:\s*"simple"/);
+  assert.match(outlinePhaseSource, /checkpointType:\s*"production_experience_required"/);
+  assert.doesNotMatch(outlinePhaseSource, /continueSimpleProduction/);
 });
 
-test("professional handoff keeps preparation-only mode without auto execution", () => {
+test("production interface selection keeps the same full-book automation", () => {
   const seed = directorSeed();
-  const nextSeed = buildProductionExperienceSeed(seed, "professional");
-  assert.equal(parseSelectedExperience(nextSeed), "professional");
-  assert.equal(nextSeed.runMode, "auto_to_ready");
-  assert.equal(nextSeed.autoExecutionPlan, undefined);
+  for (const experience of ["simple", "professional"]) {
+    const nextSeed = buildProductionExperienceSeed(seed, experience);
+    assert.equal(parseSelectedExperience(nextSeed), experience);
+    assert.equal(nextSeed.runMode, "full_book_autopilot");
+    assert.equal(nextSeed.directorInput.runMode, "full_book_autopilot");
+    assert.equal(nextSeed.autoExecutionPlan.mode, "book");
+    assert.equal(nextSeed.autoExecutionPlan.autoReview, true);
+    assert.equal(nextSeed.autoExecutionPlan.autoRepair, true);
+    assert.equal(nextSeed.autoApproval.enabled, true);
+    assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
+    assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("replan_continue"));
+  }
+});
+
+test("complete-workspace selection starts the same chapter execution", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    transaction: prisma.$transaction,
+  };
+  let checkpointUpdate = null;
+  let commandInput = null;
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "director-task-1",
+    lane: "auto_director",
+    novelId: "novel-1",
+    status: "waiting_approval",
+    checkpointType: "production_experience_required",
+    seedPayloadJson: JSON.stringify(directorSeed()),
+  });
+  prisma.$transaction = async (operation) => operation({
+    novelWorkflowTask: {
+      updateMany: async (input) => {
+        checkpointUpdate = input;
+        return { count: 1 };
+      },
+    },
+    novel: { update: async () => ({}) },
+  });
+
+  try {
+    const service = new DirectorProductionExperienceService({
+      enqueueContinueCommand: async (_taskId, input) => {
+        commandInput = input;
+        return { commandId: "command-1" };
+      },
+    });
+    const result = await service.select("director-task-1", "professional");
+    assert.equal(result.targetRoute, "/novels/novel-1/edit");
+    assert.equal(result.backgroundStarted, true);
+    assert.equal(checkpointUpdate.data.checkpointType, "chapter_batch_ready");
+    const storedState = readDirectorTaskState({
+      seedPayloadJson: checkpointUpdate.data.seedPayloadJson,
+      resumeTargetJson: null,
+    });
+    const projectedTaskData = toDirectorTaskDataView(storedState);
+    assert.equal(storedState.launch.runMode, "auto_to_ready");
+    assert.equal(storedState.run.productionExperience, "professional");
+    assert.equal(projectedTaskData.runMode, "full_book_autopilot");
+    assert.equal(projectedTaskData.autoExecutionPlan.mode, "book");
+    assert.equal(projectedTaskData.autoApproval.enabled, true);
+    assert.deepEqual(commandInput, { continuationMode: "auto_execute_range", forceResume: true });
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.$transaction = originals.transaction;
+  }
+});
+
+test("production interface selection waits until preparation is complete", async () => {
+  const originals = {
+    findUnique: prisma.novelWorkflowTask.findUnique,
+    taskUpdate: prisma.novelWorkflowTask.update,
+    novelUpdate: prisma.novel.update,
+    transaction: prisma.$transaction,
+  };
+  prisma.novelWorkflowTask.findUnique = async () => ({
+    id: "director-task-1",
+    lane: "auto_director",
+    novelId: "novel-1",
+    status: "running",
+    checkpointType: null,
+    seedPayloadJson: JSON.stringify(directorSeed()),
+  });
+  try {
+    await assert.rejects(
+      new DirectorProductionExperienceService().select("director-task-1", "simple"),
+      /还没有完成正文生产前的准备/,
+    );
+  } finally {
+    prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.novelWorkflowTask.update = originals.taskUpdate;
+    prisma.novel.update = originals.novelUpdate;
+    prisma.$transaction = originals.transaction;
+  }
 });
 
 test("director candidate contract requires exactly two directions", () => {
@@ -78,14 +173,4 @@ test("director candidate contract requires exactly two directions", () => {
   assert.equal(directorCandidateResponseSchema.safeParse({
     candidates: [candidate("只有一个方向")],
   }).success, false);
-});
-
-test("simple creation write boundary allows reads, exports and irreversible conversion only", () => {
-  assert.equal(isSimpleCreationWriteAllowed("GET", "/book/simple-shelf"), true);
-  assert.equal(isSimpleCreationWriteAllowed("GET", "/book/export"), true);
-  assert.equal(isSimpleCreationWriteAllowed("POST", "/book/export-as-document"), true);
-  assert.equal(isSimpleCreationWriteAllowed("POST", "/book/creation-experience/professional"), true);
-  assert.equal(isSimpleCreationWriteAllowed("PUT", "/book"), false);
-  assert.equal(isSimpleCreationWriteAllowed("DELETE", "/book/chapters/chapter-1"), false);
-  assert.equal(isSimpleCreationWriteAllowed("POST", "/book/chapters/chapter-1/generate"), false);
 });

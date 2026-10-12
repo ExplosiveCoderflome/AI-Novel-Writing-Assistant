@@ -8,6 +8,7 @@ const { buildBookAnalysisRagPreChunks } = require("../dist/services/bookAnalysis
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/caching/bookAnalysis.cache.js");
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/application/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
+const { BookAnalysisSectionWriter } = require("../dist/services/bookAnalysis/writing/bookAnalysis.sectionWriter.js");
 const {
   BookAnalysisBudgetExceededError,
   BookAnalysisBudgetGuard,
@@ -29,10 +30,15 @@ const {
 } = require("../dist/services/knowledge/DocumentChapterService.js");
 const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
 const { HybridRetrievalService } = require("../dist/services/rag/HybridRetrievalService.js");
-const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/shared/bookAnalysis.status.js");
+const {
+  EMPTY_BOOK_ANALYSIS_RESULT_ERROR,
+  reconcileBookAnalysisResultStatus,
+  resolveLiveBookAnalysisStatus,
+} = require("../dist/services/bookAnalysis/shared/bookAnalysis.status.js");
 const { serializeSectionRow } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.serialization.js");
 const {
   buildSourceSegments,
+  compactExcerpt,
   normalizeBookAnalysisEvidence,
   normalizeBookAnalysisStructuredData,
   normalizeBookAnalysisStructuredDataWithWarnings,
@@ -66,8 +72,10 @@ test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded"
   const original = {
     findUnique: prisma.bookAnalysis.findUnique,
     update: prisma.bookAnalysis.update,
+    updateMany: prisma.bookAnalysis.updateMany,
   };
   let usedTokens = 900;
+  prisma.bookAnalysis.updateMany = async () => ({ count: 0 });
   prisma.bookAnalysis.update = async ({ data }) => {
     usedTokens = typeof data.usedTokens === "number" ? data.usedTokens : usedTokens + data.usedTokens.increment;
     return { budgetTokens: 1000, usedTokens };
@@ -92,6 +100,7 @@ test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded"
   } finally {
     prisma.bookAnalysis.findUnique = original.findUnique;
     prisma.bookAnalysis.update = original.update;
+    prisma.bookAnalysis.updateMany = original.updateMany;
   }
 });
 
@@ -104,6 +113,34 @@ function createNoopDocumentChapterService() {
     }),
   };
 }
+
+test("budget accounting initializes legacy NULL once and retains concurrent usage", async (t) => {
+  const originals = {
+    updateMany: prisma.bookAnalysis.updateMany,
+    update: prisma.bookAnalysis.update,
+    findUnique: prisma.bookAnalysis.findUnique,
+  };
+  t.after(() => Object.assign(prisma.bookAnalysis, originals));
+  let usedTokens = null;
+  const initializationCalls = [];
+  prisma.bookAnalysis.updateMany = async (args) => {
+    initializationCalls.push(args);
+    if (usedTokens === null) { usedTokens = args.data.usedTokens; return { count: 1 }; }
+    return { count: 0 };
+  };
+  prisma.bookAnalysis.update = async ({ data }) => {
+    assert.equal(typeof data.usedTokens.increment, "number");
+    usedTokens += data.usedTokens.increment;
+    return { budgetTokens: 1000, usedTokens };
+  };
+  prisma.bookAnalysis.findUnique = async () => { throw new Error("positive usage must not use read-modify-write"); };
+  const guard = new BookAnalysisBudgetGuard("analysis-null");
+  await Promise.all([7, 11].map(totalTokens => guard.onSectionFinished({ totalTokens })));
+  assert.equal(usedTokens, 18);
+  assert.deepEqual(initializationCalls, [7, 11].map(() => ({
+    where: { id: "analysis-null", usedTokens: null }, data: { usedTokens: 0 },
+  })));
+});
 
 function matchCacheIdentity(row, key) {
   if (!key) {
@@ -795,6 +832,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
   const original = {
     analysisFindUnique: prisma.bookAnalysis.findUnique,
     analysisUpdate: prisma.bookAnalysis.update,
+    analysisUpdateMany: prisma.bookAnalysis.updateMany,
     characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
     characterFindUnique: prisma.bookAnalysisCharacter.findUnique,
     characterCount: prisma.bookAnalysisCharacter.count,
@@ -802,6 +840,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
     appearanceUpdate: prisma.bookAnalysisCharacterAppearance.update,
     appearanceFindUnique: prisma.bookAnalysisCharacterAppearance.findUnique,
     snapshotFindMany: prisma.bookAnalysisCharacterAppearanceSnapshot.findMany,
+    snapshotCount: prisma.bookAnalysisCharacterAppearanceSnapshot.count,
     snapshotFindUnique: prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique,
     snapshotUpsert: prisma.bookAnalysisCharacterAppearanceSnapshot.upsert,
     termFindUnique: prisma.bookAnalysisCharacterAppearanceTerm.findUnique,
@@ -835,6 +874,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
     }
     return { status: "succeeded" };
   };
+  prisma.bookAnalysis.updateMany = async () => ({ count: 0 });
   prisma.bookAnalysis.update = async () => ({ budgetTokens: null, usedTokens: 32 });
   prisma.bookAnalysisCharacter.findFirst = async () => ({
     id: "bac-1",
@@ -875,6 +915,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
     createdAt: now,
     updatedAt: now,
   });
+  prisma.bookAnalysisCharacterAppearanceSnapshot.count = async () => snapshots.length;
   prisma.bookAnalysisCharacterAppearanceSnapshot.findMany = async () => snapshots;
   prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique = async () => null;
   prisma.bookAnalysisCharacterAppearanceSnapshot.upsert = async ({ create }) => {
@@ -940,6 +981,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
   } finally {
     prisma.bookAnalysis.findUnique = original.analysisFindUnique;
     prisma.bookAnalysis.update = original.analysisUpdate;
+    prisma.bookAnalysis.updateMany = original.analysisUpdateMany;
     prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
     prisma.bookAnalysisCharacter.findUnique = original.characterFindUnique;
     prisma.bookAnalysisCharacter.count = original.characterCount;
@@ -947,6 +989,7 @@ test("BookAnalysisCharacterAppearanceService persists pending candidate terms fr
     prisma.bookAnalysisCharacterAppearance.update = original.appearanceUpdate;
     prisma.bookAnalysisCharacterAppearance.findUnique = original.appearanceFindUnique;
     prisma.bookAnalysisCharacterAppearanceSnapshot.findMany = original.snapshotFindMany;
+    prisma.bookAnalysisCharacterAppearanceSnapshot.count = original.snapshotCount;
     prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique = original.snapshotFindUnique;
     prisma.bookAnalysisCharacterAppearanceSnapshot.upsert = original.snapshotUpsert;
     prisma.bookAnalysisCharacterAppearanceTerm.findUnique = original.termFindUnique;
@@ -974,6 +1017,7 @@ test("BookAnalysisCharacterAppearanceTermService merges selected terms into prof
   const original = {
     analysisFindUnique: prisma.bookAnalysis.findUnique,
     analysisUpdate: prisma.bookAnalysis.update,
+    analysisUpdateMany: prisma.bookAnalysis.updateMany,
     characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
     characterFindUnique: prisma.bookAnalysisCharacter.findUnique,
     characterCount: prisma.bookAnalysisCharacter.count,
@@ -1012,6 +1056,7 @@ test("BookAnalysisCharacterAppearanceTermService merges selected terms into prof
     }
     return { provider: "deepseek", model: null, temperature: 0.3, maxTokens: 2000 };
   };
+  prisma.bookAnalysis.updateMany = async () => ({ count: 0 });
   prisma.bookAnalysis.update = async () => ({ budgetTokens: null, usedTokens: 12 });
   prisma.bookAnalysisCharacter.count = async () => 1;
   prisma.bookAnalysisCharacter.findFirst = async () => ({
@@ -1115,6 +1160,7 @@ test("BookAnalysisCharacterAppearanceTermService merges selected terms into prof
   } finally {
     prisma.bookAnalysis.findUnique = original.analysisFindUnique;
     prisma.bookAnalysis.update = original.analysisUpdate;
+    prisma.bookAnalysis.updateMany = original.analysisUpdateMany;
     prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
     prisma.bookAnalysisCharacter.findUnique = original.characterFindUnique;
     prisma.bookAnalysisCharacter.count = original.characterCount;
@@ -1197,6 +1243,8 @@ test("NovelExportService exports generated chapters as a knowledge document for 
     return {
       title: "雪夜旧案",
       description: "刑侦悬疑",
+      narrativeForm: "long_novel",
+      shortStorySegments: [],
       chapters: [
         { order: 1, title: "雨夜来客", content: "主角在雨夜接到旧案线索。" },
         { order: 2, title: "反向试探", content: "同伴隐瞒关键证词，矛盾升级。" },
@@ -1560,6 +1608,30 @@ test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signa
   );
 });
 
+test("reconcileBookAnalysisResultStatus exposes historical empty successes as failed", () => {
+  const emptySection = {
+    status: "succeeded",
+    frozen: false,
+    aiContent: "",
+    editedContent: null,
+    structuredDataJson: JSON.stringify({ oneLinePositioning: "", genreTags: [] }),
+  };
+
+  assert.equal(reconcileBookAnalysisResultStatus("succeeded", [emptySection]), "failed");
+  assert.match(EMPTY_BOOK_ANALYSIS_RESULT_ERROR, /重新生成/);
+  assert.equal(
+    reconcileBookAnalysisResultStatus("succeeded", [{ ...emptySection, aiContent: "# 可阅读结果" }]),
+    "succeeded",
+  );
+  assert.equal(
+    reconcileBookAnalysisResultStatus("succeeded", [{
+      ...emptySection,
+      structuredDataJson: JSON.stringify({ oneLinePositioning: "有效定位" }),
+    }]),
+    "succeeded",
+  );
+});
+
 test("BookAnalysisQueryService listAnalyses filters by selected document", async () => {
   const originalFindMany = prisma.bookAnalysis.findMany;
   const capturedQueries = [];
@@ -1602,6 +1674,13 @@ test("BookAnalysisQueryService listAnalyses filters by selected document", async
         id: "version-1",
         versionNumber: 1,
       },
+      sections: [{
+        status: "succeeded",
+        frozen: false,
+        aiContent: "# 有效拆书结果",
+        editedContent: null,
+        structuredDataJson: null,
+      }],
     }];
   };
 
@@ -1720,6 +1799,163 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
   } finally {
     prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("BookAnalysisSourceCacheService propagates source-note prompt failures without caching fallback notes", async () => {
+  const original = {
+    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    upsert: prisma.bookAnalysisSourceCache.upsert,
+  };
+  const promptRunner = require("../dist/prompting/core/promptRunner.js");
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const promptError = new Error("source-note model unavailable");
+  let upsertCalls = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    throw promptError;
+  };
+  prisma.bookAnalysisSourceCache.findUnique = async () => null;
+  prisma.bookAnalysisSourceCache.upsert = async () => {
+    upsertCalls += 1;
+    throw new Error("source-note cache must not be written after prompt failure");
+  };
+
+  const service = new BookAnalysisSourceCacheService();
+
+  try {
+    await assert.rejects(
+      () => service.getOrBuildSourceNotes({
+        documentVersionId: "version-prompt-failure",
+        content: "正文".repeat(120),
+        provider: "deepseek",
+        model: "missing-model",
+        temperature: 0.3,
+        sectionMaxTokens: 4800,
+      }),
+      (error) => error === promptError,
+    );
+    assert.equal(upsertCalls, 0);
+  } finally {
+    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.upsert = original.upsert;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("BookAnalysisSourceCacheService rebuilds legacy fallback-only notes instead of reusing polluted cache", async () => {
+  const original = {
+    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    upsert: prisma.bookAnalysisSourceCache.upsert,
+  };
+  const promptRunner = require("../dist/prompting/core/promptRunner.js");
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const content = "这是一本需要重新分析的小说正文。".repeat(80);
+  const segments = buildSourceSegments(content);
+  let promptCalls = 0;
+  let upsertCalls = 0;
+
+  prisma.bookAnalysisSourceCache.findUnique = async () => ({
+    id: "legacy-fallback-cache",
+    segmentCount: segments.length,
+    notesJson: JSON.stringify(segments.map((segment) => ({
+      sourceLabel: segment.label,
+      summary: compactExcerpt(segment.content, 120),
+      plotPoints: [],
+      timelineEvents: [],
+      characters: [],
+      worldbuilding: [],
+      themes: [],
+      styleTechniques: [],
+      marketHighlights: [],
+      readerSignals: [],
+      weaknessSignals: [],
+      evidence: [],
+    }))),
+  });
+  prisma.bookAnalysisSourceCache.upsert = async (input) => {
+    upsertCalls += 1;
+    return input.update;
+  };
+  promptRunner.runStructuredPrompt = async () => {
+    promptCalls += 1;
+    return {
+      output: {
+        summary: "重新生成的有效笔记",
+        plotPoints: ["主线推进"],
+        timelineEvents: [],
+        characters: [],
+        worldbuilding: [],
+        themes: [],
+        styleTechniques: [],
+        marketHighlights: [],
+        readerSignals: [],
+        weaknessSignals: [],
+        evidence: [],
+      },
+      repairUsed: false,
+    };
+  };
+
+  try {
+    const result = await new BookAnalysisSourceCacheService().getOrBuildSourceNotes({
+      documentVersionId: "version-legacy-fallback",
+      content,
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.3,
+      sectionMaxTokens: 4800,
+    });
+
+    assert.equal(result.cacheHit, false);
+    assert.equal(promptCalls, segments.length);
+    assert.equal(upsertCalls, 1);
+    assert.equal(result.notes[0].summary, "重新生成的有效笔记");
+  } finally {
+    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.upsert = original.upsert;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test("BookAnalysisSectionWriter propagates section prompt failures instead of returning an empty success", async () => {
+  const promptRunner = require("../dist/prompting/core/promptRunner.js");
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const promptError = new Error("section model unavailable");
+
+  promptRunner.runStructuredPrompt = async () => {
+    throw promptError;
+  };
+
+  const service = new BookAnalysisSectionWriter();
+
+  try {
+    await assert.rejects(
+      () => service.generateSection(
+        "overview",
+        [{
+          sourceLabel: "片段 1",
+          summary: "片段摘要",
+          plotPoints: [],
+          timelineEvents: [],
+          characters: [],
+          worldbuilding: [],
+          themes: [],
+          styleTechniques: [],
+          marketHighlights: [],
+          readerSignals: [],
+          weaknessSignals: [],
+          evidence: [],
+        }],
+        "deepseek",
+        "missing-model",
+        0.3,
+        4800,
+      ),
+      (error) => error === promptError,
+    );
+  } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
@@ -1910,6 +2146,110 @@ test("BookAnalysisGenerationService runFullAnalysis generates overview before de
     prisma.bookAnalysis.update = original.bookAnalysisUpdate;
     prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
     prisma.bookAnalysisSection.update = original.sectionUpdate;
+  }
+});
+
+test("BookAnalysisGenerationService does not mark an empty section payload as succeeded", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+    sectionFindMany: prisma.bookAnalysisSection.findMany,
+  };
+  const analysisUpdates = [];
+  const sectionUpdates = [];
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-empty-payload",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: { content: "book-analysis source content ".repeat(80) },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        userFocusInstruction: null,
+        sections: [{
+          analysisId: "analysis-empty-payload",
+          sectionKey: "overview",
+          title: "拆书总览",
+          frozen: false,
+          focusInstruction: null,
+        }],
+      };
+    }
+    return { status: "running", cancelRequestedAt: null };
+  };
+  prisma.bookAnalysis.update = async (input) => {
+    analysisUpdates.push(input);
+    return input;
+  };
+  prisma.bookAnalysis.updateMany = async () => ({ count: 1 });
+  prisma.bookAnalysisSection.update = async (input) => {
+    sectionUpdates.push(input);
+    return input;
+  };
+  prisma.bookAnalysisSection.findMany = async () => ([{
+    sectionKey: "overview",
+    status: "running",
+    frozen: false,
+    editedContent: null,
+    aiContent: null,
+  }]);
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [{
+          sourceLabel: "片段 1",
+          summary: "缓存摘要",
+          plotPoints: [],
+          timelineEvents: [],
+          characters: [],
+          worldbuilding: [],
+          themes: [],
+          styleTechniques: [],
+          marketHighlights: [],
+          readerSignals: [],
+          weaknessSignals: [],
+          evidence: [],
+        }],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async () => ({
+        markdown: "",
+        structuredData: {},
+        normalizationWarnings: [],
+        evidence: [],
+        tokenUsage: null,
+      }),
+      generateOptimizedDraft: async () => "",
+    },
+    createNoopDocumentChapterService(),
+  );
+
+  try {
+    await service.runSingleSection("analysis-empty-payload", "overview");
+
+    assert.ok(sectionUpdates.some((item) => item.data.status === "failed"));
+    assert.equal(sectionUpdates.some((item) => item.data.status === "succeeded"), false);
+    assert.ok(analysisUpdates.some((item) => item.data.status === "failed" && item.data.lastError));
+    assert.equal(analysisUpdates.some((item) => item.data.status === "succeeded"), false);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+    prisma.bookAnalysisSection.findMany = original.sectionFindMany;
   }
 });
 
@@ -2807,7 +3147,7 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
 
   try {
     const service = new NovelReferenceService();
-    const reference = await service.buildReferenceForStage("novel-1", "chapter");
+    const reference = await service.buildReferenceForStage("novel-1", "structured_outline");
 
     assert.match(reference, /\[analysis\.reference\] 测试拆书/);
     assert.match(reference, /### 潜入/);

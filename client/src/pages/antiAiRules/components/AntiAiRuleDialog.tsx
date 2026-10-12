@@ -39,7 +39,7 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
         )}
       >
         <form id="anti-ai-rule-form" className="space-y-4" onSubmit={props.onSubmit}>
-          <div className="rounded-lg border bg-muted/20 p-4">
+          <div className="rounded-lg bg-muted/30 p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -65,6 +65,7 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
             <textarea
               className="mt-3 min-h-[84px] w-full rounded-md border bg-background p-3 text-sm"
               value={props.aiInstruction}
+              aria-label="描述规则需求"
               placeholder={props.editingRule
                 ? "例如：把这条规则改得更适合压制总结腔，但不要误伤正常心理描写。"
                 : "例如：减少正文里空泛总结、解释人物心理、像模型在复盘剧情的表达。"}
@@ -154,7 +155,7 @@ export default function AntiAiRuleDialog(props: AntiAiRuleDialogProps) {
             </label>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-x-6 gap-y-3 rounded-lg bg-muted/30 p-4 md:grid-cols-3">
             <AntiAiToggleLine
               label="启用规则"
               checked={props.form.enabled}

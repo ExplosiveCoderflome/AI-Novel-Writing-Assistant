@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { streamToSSE } from "../llm/streaming";
 import {
   promptWorkbenchService,
   type PromptCatalogFilter,
@@ -274,6 +275,15 @@ router.post("/test-run", validate({ body: promptTestRunBodySchema }), async (req
       data,
       message: "Prompt test run completed.",
     } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/test-run/stream", validate({ body: promptTestRunBodySchema }), async (req, res, next) => {
+  try {
+    const { stream } = await promptWorkbenchService.testRunTextStream(req.body as PromptTestRunInput);
+    await streamToSSE(res, stream);
   } catch (error) {
     next(error);
   }

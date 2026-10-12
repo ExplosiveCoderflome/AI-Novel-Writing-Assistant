@@ -1,32 +1,22 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import {
   type APIKeyStatus,
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
-  getModelRoutes,
   getProviderBalances,
-  getRagSettings,
-  getStyleEngineRuntimeSettings,
   previewCustomProviderModels,
   refreshProviderBalance,
   refreshProviderModelList,
   saveAPIKeySetting,
   testLLMConnection,
-  testModelRouteConnectivity,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
-import AutoDirectorSettingsSection from "./AutoDirectorSettingsSection";
 import ProviderConfigDialog, { type ProviderFormState } from "./components/ProviderConfigDialog";
 import ProviderSettingsSection from "./components/ProviderSettingsSection";
-import SettingsMaintenanceSection from "./components/SettingsMaintenanceSection";
-import SettingsNavigationCards from "./components/SettingsNavigationCards";
-import SettingsReadinessCard, { buildSettingsReadinessItems } from "./components/SettingsReadinessCard";
-import SettingsSectionGroup from "./components/SettingsSectionGroup";
-import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -47,7 +37,7 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
   return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
 }
 
-export default function SettingsPage() {
+export default function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const [editingProvider, setEditingProvider] = useState("");
   const [isCreatingCustomProvider, setIsCreatingCustomProvider] = useState(false);
@@ -57,6 +47,7 @@ export default function SettingsPage() {
     model: "",
     imageModel: "",
     baseURL: "",
+    authMode: "bearer",
     concurrencyLimit: "0",
     requestIntervalMs: "0",
   });
@@ -76,28 +67,6 @@ export default function SettingsPage() {
     queryFn: getProviderBalances,
   });
 
-  const ragSettingsQuery = useQuery({
-    queryKey: queryKeys.settings.rag,
-    queryFn: getRagSettings,
-  });
-
-  const styleEngineRuntimeQuery = useQuery({
-    queryKey: queryKeys.settings.styleEngineRuntime,
-    queryFn: getStyleEngineRuntimeSettings,
-  });
-
-  const modelRoutesQuery = useQuery({
-    queryKey: queryKeys.settings.modelRoutes,
-    queryFn: getModelRoutes,
-  });
-
-  const modelRouteConnectivityQuery = useQuery({
-    queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
-    enabled: modelRoutesQuery.isSuccess,
-    refetchOnWindowFocus: false,
-  });
-
   const providerConfigs = useMemo(() => apiKeySettingsQuery.data?.data ?? [], [apiKeySettingsQuery.data?.data]);
   const editingConfig = useMemo(
     () => providerConfigs.find((item) => item.provider === editingProvider),
@@ -107,28 +76,6 @@ export default function SettingsPage() {
   const isCustomDialog = isCreatingCustomProvider || editingConfig?.kind === "custom";
   const modelOptions = editingConfig?.models ?? [];
   const selectableModels = isCreatingCustomProvider ? previewModels : modelOptions;
-  const readinessItems = useMemo(
-    () => buildSettingsReadinessItems({
-      providers: providerConfigs,
-      ragSettings: ragSettingsQuery.data?.data,
-      styleSettings: styleEngineRuntimeQuery.data?.data,
-      modelRoutes: modelRoutesQuery.data?.data,
-      modelRouteConnectivity: modelRouteConnectivityQuery.data?.data,
-      isModelRoutesChecking: modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
-      isStyleSettingsLoaded: styleEngineRuntimeQuery.isSuccess,
-    }),
-    [
-      providerConfigs,
-      ragSettingsQuery.data?.data,
-      styleEngineRuntimeQuery.data?.data,
-      styleEngineRuntimeQuery.isSuccess,
-      modelRoutesQuery.data?.data,
-      modelRouteConnectivityQuery.data?.data,
-      modelRouteConnectivityQuery.isPending,
-      modelRouteConnectivityQuery.isFetching,
-    ],
-  );
-
   const resetDialogState = () => {
     setEditingProvider("");
     setIsCreatingCustomProvider(false);
@@ -138,6 +85,7 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      authMode: "bearer",
       concurrencyLimit: "0",
       requestIntervalMs: "0",
     });
@@ -150,10 +98,9 @@ export default function SettingsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.quickSetup }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.firstNovel }),
     ]);
   };
 
@@ -178,10 +125,7 @@ export default function SettingsPage() {
   const invalidateProviderAuxiliaryQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
     ]);
   };
 
@@ -193,6 +137,7 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL?: string;
+      authMode?: ProviderAuthMode;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
     }) =>
@@ -202,6 +147,7 @@ export default function SettingsPage() {
         model: payload.model,
         imageModel: payload.imageModel,
         baseURL: payload.baseURL,
+        authMode: payload.authMode,
         concurrencyLimit: payload.concurrencyLimit,
         requestIntervalMs: payload.requestIntervalMs,
       }),
@@ -222,6 +168,7 @@ export default function SettingsPage() {
       model?: string;
       imageModel?: string;
       baseURL: string;
+      authMode?: ProviderAuthMode;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
     }) => createCustomProvider(payload),
@@ -236,7 +183,7 @@ export default function SettingsPage() {
   });
 
   const previewCustomProviderModelsMutation = useMutation({
-    mutationFn: (payload: { key?: string; baseURL: string }) => previewCustomProviderModels(payload),
+    mutationFn: (payload: { key?: string; baseURL: string; authMode?: ProviderAuthMode }) => previewCustomProviderModels(payload),
     onSuccess: (response) => {
       const models = response.data?.models ?? [];
       setPreviewModels(models);
@@ -264,6 +211,22 @@ export default function SettingsPage() {
     },
   });
 
+  const removeProviderMutation = useMutation({
+    mutationFn: async (provider: APIKeyStatus) => {
+      if (provider.kind === "custom") {
+        return deleteCustomProvider(provider.provider);
+      }
+      return saveAPIKeySetting(provider.provider, { isActive: false });
+    },
+    onSuccess: async (response, provider) => {
+      setActionResult(response.message ?? (provider.kind === "builtin" ? "厂商已从列表移除。" : "自定义厂商已删除。"));
+      await invalidateProviderQueries();
+    },
+    onError: (error) => {
+      setActionResult(error instanceof Error ? error.message : "移除厂商失败。");
+    },
+  });
+
   const testMutation = useMutation({
     mutationFn: testLLMConnection,
   });
@@ -284,18 +247,25 @@ export default function SettingsPage() {
     },
   });
 
-  const toggleReasoningMutation = useMutation({
-    mutationFn: (payload: { provider: LLMProvider; reasoningEnabled: boolean }) =>
-      saveAPIKeySetting(payload.provider, {
-        reasoningEnabled: payload.reasoningEnabled,
-      }),
+  const modelControlsMutation = useMutation({
+    mutationFn: (payload: {
+      provider: LLMProvider;
+      reasoningEnabled?: boolean;
+      reasoningEffort?: ReasoningEffort;
+      hiddenModels?: string[];
+      message: string;
+    }) => saveAPIKeySetting(payload.provider, {
+      reasoningEnabled: payload.reasoningEnabled,
+      reasoningEffort: payload.reasoningEffort,
+      hiddenModels: payload.hiddenModels,
+    }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName}：${variables.message}`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : "更新模型设置失败。");
     },
   });
 
@@ -324,6 +294,7 @@ export default function SettingsPage() {
       model: config.currentModel,
       imageModel: config.currentImageModel ?? config.defaultImageModel ?? "",
       baseURL: config.currentBaseURL,
+      authMode: config.currentAuthMode,
       concurrencyLimit: String(config.concurrencyLimit ?? 0),
       requestIntervalMs: String(config.requestIntervalMs ?? 0),
     });
@@ -342,6 +313,7 @@ export default function SettingsPage() {
       model: "",
       imageModel: "",
       baseURL: "",
+      authMode: "bearer",
       concurrencyLimit: "0",
       requestIntervalMs: "0",
     });
@@ -361,6 +333,7 @@ export default function SettingsPage() {
     previewCustomProviderModelsMutation.mutate({
       key: form.key.trim() ? form.key : undefined,
       baseURL: form.baseURL.trim(),
+      authMode: form.authMode,
     });
   };
 
@@ -372,6 +345,7 @@ export default function SettingsPage() {
         model: form.model.trim() || undefined,
         imageModel: form.imageModel.trim(),
         baseURL: form.baseURL.trim(),
+        authMode: form.authMode,
         concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
         requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
       });
@@ -387,6 +361,7 @@ export default function SettingsPage() {
       model: form.model.trim() || undefined,
       imageModel: form.imageModel.trim(),
       baseURL: form.baseURL,
+      authMode: isCustomDialog ? form.authMode : undefined,
       concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
       requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
     });
@@ -427,6 +402,7 @@ export default function SettingsPage() {
         apiKey: form.key.trim() ? form.key : undefined,
         model: form.model.trim() || undefined,
         baseURL: form.baseURL.trim() ? form.baseURL : undefined,
+        authMode: isCustomDialog ? form.authMode : undefined,
         probeMode: "both",
       },
       {
@@ -450,6 +426,14 @@ export default function SettingsPage() {
     deleteCustomProviderMutation.mutate(editingProvider);
   };
 
+  const handleRemoveProvider = (provider: APIKeyStatus) => {
+    const label = provider.kind === "builtin" ? "从列表移除" : "删除";
+    if (!window.confirm(`确认${label} ${provider.name} 吗？`)) {
+      return;
+    }
+    removeProviderMutation.mutate(provider);
+  };
+
   const isSavingProvider = saveMutation.isPending || createCustomProviderMutation.isPending;
   const providerSubmitDisabled = isSavingProvider
     || previewCustomProviderModelsMutation.isPending
@@ -461,22 +445,19 @@ export default function SettingsPage() {
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
-      <SettingsSectionGroup
-        title="开始创作必需"
-        description="先让模型和任务路由可用，新手就能进入自动导演、开书和章节生产。"
-        status="required"
-      >
-        <SettingsReadinessCard items={readinessItems} />
+      <div className="space-y-4">
         <ProviderSettingsSection
+          embedded={embedded}
           providers={providerConfigs}
           balances={providerBalancesQuery.data?.data ?? []}
           isBalanceLoading={providerBalancesQuery.isLoading}
-          testingProvider={testMutation.variables?.provider}
+          testingProvider={testMutation.isPending ? testMutation.variables?.provider : undefined}
           providerTestResults={providerTestResults}
-          refreshingModelProvider={refreshModelsMutation.variables}
-          refreshingBalanceProvider={refreshBalanceMutation.variables}
-          reasoningProvider={toggleReasoningMutation.variables?.provider}
+          refreshingModelProvider={refreshModelsMutation.isPending ? refreshModelsMutation.variables : undefined}
+          refreshingBalanceProvider={refreshBalanceMutation.isPending ? refreshBalanceMutation.variables : undefined}
+          reasoningProvider={modelControlsMutation.isPending ? modelControlsMutation.variables?.provider : undefined}
           onCreateCustomProvider={openCreateCustomDialog}
+          onRemoveProvider={handleRemoveProvider}
           onOpenConfig={openBuiltInDialog}
           onTest={handleProviderCardTest}
           onRefreshModels={(provider) => {
@@ -487,41 +468,23 @@ export default function SettingsPage() {
             setActionResult("");
             refreshBalanceMutation.mutate(provider);
           }}
-          onToggleReasoning={(provider, reasoningEnabled) => {
+          onSetReasoning={(provider, reasoningEnabled, reasoningEffort) => {
             setActionResult("");
-            toggleReasoningMutation.mutate({
+            const effortLabel = reasoningEffort === "low" ? "低" : reasoningEffort === "max" ? "最大" : "高";
+            modelControlsMutation.mutate({
               provider,
               reasoningEnabled,
+              reasoningEffort,
+              message: reasoningEnabled ? `思考深度设为${effortLabel}。` : "思考功能已关闭。",
             });
           }}
+          onSetHiddenModels={(provider, hiddenModels, message) => {
+            setActionResult("");
+            modelControlsMutation.mutate({ provider, hiddenModels, message });
+          }}
+          removingProvider={removeProviderMutation.isPending ? removeProviderMutation.variables?.provider : undefined}
         />
-        <SettingsNavigationCards mode="routes" />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="写作质量增强"
-        description="这些设置会提高长篇连续性、资料召回和写法学习效果；不影响你先开始创作。"
-        status="enhancement"
-      >
-        <SettingsNavigationCards mode="knowledge" />
-        <StyleEngineRuntimeSettingsCard />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="自动导演高级"
-        description="需要自动确认审批点或接入钉钉、企业微信跟进时，再展开这里配置。"
-        status="advanced"
-      >
-        <AutoDirectorSettingsSection onActionResult={setActionResult} />
-      </SettingsSectionGroup>
-
-      <SettingsSectionGroup
-        title="系统维护"
-        description="桌面更新和旧数据导入放在这里，避免打断日常创作配置。"
-        status="maintenance"
-      >
-        <SettingsMaintenanceSection />
-      </SettingsSectionGroup>
+      </div>
 
       <SettingsActionResult message={actionResult} />
 

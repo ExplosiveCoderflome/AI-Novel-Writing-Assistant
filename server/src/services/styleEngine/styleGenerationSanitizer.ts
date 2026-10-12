@@ -3,7 +3,7 @@ import type {
   StyleProfile,
   StyleSanitizedGenerationProfile,
 } from "@ai-novel/shared/types/styleEngine";
-import { buildWriterStyleContractText } from "./styleContractText";
+import { buildWriterStyleContractText, WRITER_STYLE_CONTRACT_SECTIONS } from "./styleContractText";
 
 type StyleProfileLike = Partial<StyleProfile> & {
   name?: string | null;
@@ -197,6 +197,24 @@ export function sanitizeStyleContextForGeneration(
   ].filter(Boolean).join("\n");
   const forbiddenEntities = extractEntityCandidates(sourceText);
   const sanitizedContractText = redactForbiddenEntities(contractText, forbiddenEntities);
+  const compiledBlocks = context.compiledBlocks ? {
+    ...context.compiledBlocks,
+    contract: { ...context.compiledBlocks.contract },
+  } : null;
+  if (compiledBlocks) {
+    for (const key of WRITER_STYLE_CONTRACT_SECTIONS) {
+      const section = compiledBlocks.contract[key];
+      compiledBlocks.contract[key] = {
+        ...section,
+        summary: section.summary == null ? section.summary : redactForbiddenEntities(section.summary, forbiddenEntities),
+        lines: section.lines.map(line => redactForbiddenEntities(line, forbiddenEntities)),
+        text: redactForbiddenEntities(section.text, forbiddenEntities),
+      };
+    }
+    for (const key of ["context", "style", "character", "antiAi", "output", "selfCheck"] as const) {
+      compiledBlocks[key] = redactForbiddenEntities(compiledBlocks[key], forbiddenEntities);
+    }
+  }
   const writingGuidance = splitGuidanceLines(sanitizedContractText);
   const sanitizedGenerationProfile: StyleSanitizedGenerationProfile = {
     writingGuidance,
@@ -207,6 +225,7 @@ export function sanitizeStyleContextForGeneration(
   };
   return {
     ...context,
+    compiledBlocks,
     sanitizedGenerationProfile,
   };
 }

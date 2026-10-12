@@ -1,8 +1,11 @@
-import { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo } from "react";
+import { FlaskConical } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getChapterEditorWorkspace, getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
+import { Button } from "@/components/ui/button";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import ChapterEditorShell from "./components/chapterEditor/ChapterEditorShell";
 
 function PageStateCard(props: { message: string }) {
@@ -16,6 +19,19 @@ function PageStateCard(props: { message: string }) {
 export default function NovelChapterEdit() {
   const { id = "", chapterId = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const cleaned = stripLegacyTaskUrlParams(searchParams);
+    if (cleaned.toString() !== searchParams.toString()) {
+      navigate({
+        pathname: location.pathname,
+        search: `?${cleaned.toString()}`,
+        hash: location.hash,
+      }, { replace: true, state: location.state });
+    }
+  }, [location.hash, location.pathname, location.search, location.state, navigate]);
 
   const novelDetailQuery = useQuery({
     queryKey: queryKeys.novels.detail(id),
@@ -26,6 +42,9 @@ export default function NovelChapterEdit() {
     queryKey: queryKeys.novels.chapterEditorWorkspace(id, chapterId || "none"),
     queryFn: () => getChapterEditorWorkspace(id, chapterId),
     enabled: Boolean(id && chapterId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   const detail = novelDetailQuery.data?.data;
@@ -60,8 +79,16 @@ export default function NovelChapterEdit() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
+      <div className="flex shrink-0 justify-end">
+        <Button asChild variant="outline">
+          <Link to={`/prompt-workbench?experience=writing&novelId=${encodeURIComponent(id)}&chapterId=${encodeURIComponent(chapterId)}`}>
+            <FlaskConical className="mr-2 h-4 w-4" />
+            正文效果实验室
+          </Link>
+        </Button>
+      </div>
       <ChapterEditorShell
-        key={`${chapter.id}:${chapter.updatedAt}`}
+        key={chapter.id}
         novelId={id}
         chapter={chapter}
         workspace={chapterEditorWorkspaceQuery.data?.data ?? null}
@@ -72,6 +99,8 @@ export default function NovelChapterEdit() {
             : "ready"}
         onBack={() => navigate(`/novels/${id}/edit`)}
         onOpenVersionHistory={() => navigate(`/novels/${id}/edit`)}
+        onRefreshWorkspace={() => { void chapterEditorWorkspaceQuery.refetch(); }}
+        isRefreshingWorkspace={chapterEditorWorkspaceQuery.isFetching}
       />
     </div>
   );

@@ -11,7 +11,7 @@ export default function SettingsMaintenanceSection() {
         <CardHeader>
           <CardTitle>系统维护</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            当前环境没有需要处理的桌面维护事项。
+            当前使用网页端。桌面更新和本机旧数据导入仅在桌面版中提供。
           </CardDescription>
         </CardHeader>
       </Card>

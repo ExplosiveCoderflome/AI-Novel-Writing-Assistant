@@ -45,6 +45,7 @@ const {
 const {
   styleDetectionPrompt,
   styleRewritePrompt,
+  styleGenerationPrompt,
   styleProfileExtractionPrompt,
   styleProfileFromBookAnalysisPrompt,
 } = require("../dist/prompting/prompts/style/style.prompts.js");
@@ -85,6 +86,7 @@ const {
 const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
+  worldSkeletonGenerationPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
 const {
   createVolumeStrategyPrompt,
@@ -94,6 +96,7 @@ const {
 } = require("../dist/prompting/prompts/novel/volume/skeleton.prompts.js");
 const {
   storyModeChildPrompt,
+  storyModeExpansionPrompt,
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
 const {
@@ -149,14 +152,14 @@ test("prompt registry exposes versioned planning assets", () => {
     "agent.runtime.fallback_answer@v1",
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
-    "planner.chapter.plan@v1",
+    "planner.chapter.plan@v3",
     "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
-    "novel.character.castOptions@v2",
+    "novel.character.castOptions@v3",
     "novel.character.castOptions.repair@v1",
     "novel.character.castOptions.zhNormalize@v1",
-    "novel.character.supplemental@v1",
+    "novel.character.supplemental@v2",
     "novel.character.supplemental.zhNormalize@v1",
     "novel.character.mind.snapshot@v1",
     "novel.character.influence.options@v1",
@@ -165,7 +168,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
     "novel.volume.skeleton@v3",
-    "title.generation@v1",
+    "title.generation@v2",
     "audit.chapter.full@v2",
     "bookAnalysis.source.note@v1",
     "character.base.skeleton@v1",
@@ -175,10 +178,11 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.framing.suggest@v1",
     "novel.production.characters@v1",
     "state.snapshot.extract@v4",
-    "novel.payoff_ledger.sync@v6",
+    "novel.payoff_ledger.sync@v8",
     "novel.characterDynamics.volumeProjection@v3",
     "novel.character_resource.extract_updates@v1",
     "storyMode.child.generate@v1",
+    "storyMode.expansion.recommend@v1",
     "storyMode.tree.generate@v1",
     "storyWorldSlice.generate@v1",
     promptKey(styleDetectionPrompt),
@@ -210,7 +214,7 @@ test("prompt registry exposes versioned planning assets", () => {
     assert.ok(getRegisteredPromptAsset(id, version), `missing prompt asset ${key}`);
   }
 
-  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
+  const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v3");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
 });
@@ -414,7 +418,7 @@ test("prompt registry resolves style prompts by their declared asset versions", 
 });
 
 test("character cast prompt hardens real-name constraints and required gender output", () => {
-  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v2");
+  const asset = getRegisteredPromptAsset("novel.character.castOptions", "v3");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -515,7 +519,7 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.equal(messages.length, 2);
   assert.match(String(messages[0].content), /recommendedVolumeCount 必须严格等于 10/);
   assert.match(String(messages[0].content), /hardPlannedVolumeCount 必须落在 2-4 之间/);
-  assert.match(String(messages[0].content), /60 章以上默认至少保留三段结构/);
+  assert.match(String(messages[0].content), /开局、转向和终局必须各有独立空间/);
   assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
   assert.match(String(messages[1].content), /decision volume count range: 8-13/);
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
@@ -655,13 +659,17 @@ test("chapter writer prompt does not expose scene contract controls", () => {
 
   const systemContent = String(messages[0].content);
   const humanContent = String(messages[1].content);
-  assert.match(systemContent, /本章目标长度：约 3000 字/);
-  assert.match(systemContent, /不得明显超过上限/);
-  assert.doesNotMatch(systemContent, /当前场景合同/);
-  assert.doesNotMatch(systemContent, /场景标题/);
-  assert.doesNotMatch(systemContent, /控字数模式/);
-  assert.doesNotMatch(systemContent, /本轮硬上限/);
-  assert.doesNotMatch(humanContent, /只写当前场景/);
+  const taskSystemContent = String(messages[2].content);
+  assert.equal(messages[2]._getType(), "system");
+  assert.match(taskSystemContent, /本章目标长度：约 3000 字/);
+  assert.match(taskSystemContent, /不得明显超过上限/);
+  assert.doesNotMatch(systemContent, /本章目标长度/);
+  const allSystemContent = messages.filter(message => message._getType() === "system").map(message => String(message.content)).join("\n");
+  assert.doesNotMatch(allSystemContent, /当前场景合同/);
+  assert.doesNotMatch(allSystemContent, /场景标题/);
+  assert.doesNotMatch(allSystemContent, /控字数模式/);
+  assert.doesNotMatch(allSystemContent, /本轮硬上限/);
+  assert.doesNotMatch(humanContent + String(messages[3].content), /只写当前场景/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
@@ -675,14 +683,14 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v3", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
     ["novel.volume.beat_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v8", NOVEL_PROMPT_BUDGETS.volumeChapterList],
-    ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_list@v9", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.chapter_purpose@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
     ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v2", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.repair@v3", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
@@ -741,8 +749,9 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.match(String(draftMessages[0].content), /本章目标长度：约 3000 字/);
-  assert.match(String(draftMessages[0].content), /2550-3450/);
+  assert.equal(draftMessages[2]._getType(), "system");
+  assert.match(String(draftMessages[2].content), /本章目标长度：约 3000 字/);
+  assert.match(String(draftMessages[2].content), /2550-3450/);
 
   const continueMessages = asset.render({
     novelTitle: "霜轨档案",
@@ -760,9 +769,10 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.match(String(continueMessages[0].content), /不得重写章节开头/);
-  assert.match(String(continueMessages[0].content), /至少缺少约 900 字/);
-  assert.match(String(continueMessages[1].content), /任务模式：补写当前章节/);
+  assert.equal(continueMessages[2]._getType(), "system");
+  assert.match(String(continueMessages[2].content), /不得重写章节开头/);
+  assert.match(String(continueMessages[2].content), /本次追加目标约 900 字的有效正文，补足后自然收束/);
+  assert.match(String(continueMessages[3].content), /任务模式：补写当前章节/);
 });
 
 test("director blueprint schema accepts chapter shells without scenes", () => {
@@ -1074,6 +1084,7 @@ test("title prompt render includes retry reason for regeneration attempts", () =
   const messages = titleGenerationPrompt.render({
     context: {
       mode: "brief",
+      selectionMode: "pool",
       count: 8,
       brief: "赛博修仙，主角靠因果算法登仙",
       referenceTitle: "",
@@ -1176,6 +1187,57 @@ test("story mode child prompt post validator rejects duplicate sibling names and
       antiSignals: ["脱离经营主线"],
     },
     existingSiblingNames: ["基建种田流"],
+  }));
+});
+
+test("story mode expansion prompt uses the library summary to find distinct additions", () => {
+  const messages = storyModeExpansionPrompt.render({
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "以能力和地图拓展推动长期阅读。",
+    parentTemplate: "目标升级，探索新区域，兑现阶段能力。",
+    parentProfile: {
+      coreDrive: "升级与探索",
+      readerReward: "能力成长",
+      progressionUnits: ["挑战", "新区域"],
+      allowedConflictForms: ["资源争夺"],
+      forbiddenConflictForms: ["无代价碾压"],
+      conflictCeiling: "high",
+      resolutionStyle: "能力突破",
+      chapterUnit: "目标和挑战",
+      volumeReward: "新区域解锁",
+      mandatorySignals: ["成长反馈"],
+      antiSignals: ["重复副本"],
+    },
+    existingSiblingNames: ["升级成长"],
+    librarySummary: "根 成长冒险\n- 升级成长：挑战与突破",
+    prompt: "增加更强调探索回报的玩法。",
+  });
+  const rendered = messages.map((message) => String(message.content)).join("\n");
+  assert.match(rendered, /当前推进模式库摘要/);
+  assert.match(rendered, /增长|探索/);
+  assert.throws(() => storyModeExpansionPrompt.postValidate([{
+    name: "升级成长",
+    description: "重复",
+    template: "重复",
+    profile: {
+      coreDrive: "重复", readerReward: "重复", progressionUnits: ["重复"], allowedConflictForms: ["重复"], forbiddenConflictForms: ["重复"], conflictCeiling: "medium", resolutionStyle: "重复", chapterUnit: "重复", volumeReward: "重复", mandatorySignals: ["重复"], antiSignals: ["重复"],
+    },
+    children: [],
+  }, {
+    name: "探索远征",
+    description: "探索不同区域",
+    template: "探索并兑现地图资源",
+    profile: {
+      coreDrive: "探索", readerReward: "发现", progressionUnits: ["区域"], allowedConflictForms: ["未知威胁"], forbiddenConflictForms: ["无意义内耗"], conflictCeiling: "high", resolutionStyle: "发现与突破", chapterUnit: "新区域", volumeReward: "地图推进", mandatorySignals: ["新发现"], antiSignals: ["重复地图"],
+    },
+    children: [],
+  }], {
+    count: 2,
+    parentName: "成长冒险",
+    parentDescription: "", parentTemplate: "", parentProfile: {
+      coreDrive: "升级", readerReward: "成长", progressionUnits: ["挑战"], allowedConflictForms: ["挑战"], forbiddenConflictForms: ["无"], conflictCeiling: "high", resolutionStyle: "突破", chapterUnit: "挑战", volumeReward: "成长", mandatorySignals: ["成长"], antiSignals: ["重复"],
+    }, existingSiblingNames: ["升级成长"], librarySummary: "", prompt: "",
   }));
 });
 
@@ -1286,6 +1348,39 @@ test("world draft generation post validator requires requested dimension coverag
   }));
 });
 
+test("world skeleton prompt keeps large world output within a recoverable one-shot budget", () => {
+  const messages = worldSkeletonGenerationPrompt.render({
+    idea: "灵气复苏后的都市调查故事",
+    worldType: "都市异能",
+    template: "现代都市",
+    referenceContext: null,
+    blueprint: null,
+    options: {
+      preset: "epic",
+      counts: {
+        rules: 6,
+        factionGroups: 4,
+        forces: 7,
+        locations: 9,
+        conflicts: 6,
+        storyEntrySuggestions: 4,
+      },
+    },
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.equal(worldSkeletonGenerationPrompt.version, "v2");
+  assert.equal(worldSkeletonGenerationPrompt.repairPolicy.maxAttempts, 0);
+  assert.equal(worldSkeletonGenerationPrompt.semanticRetryPolicy.maxAttempts, 0);
+  assert.match(String(messages[0].content), /输出容量硬约束/);
+  assert.match(String(messages[0].content), /3,200 个汉字以内/);
+});
+
 test("world draft refine alternatives post validator enforces exact alternative count", () => {
   assert.throws(() => worldDraftRefineAlternativesPrompt.postValidate([
     { title: "方向 A", content: "内容 A" },
@@ -1304,7 +1399,7 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
   const originalContextPolicy = { ...genreTreePrompt.contextPolicy };
   let captured = null;
 
-  genreTreePrompt.repairPolicy = { maxAttempts: 3 };
+  genreTreePrompt.repairPolicy = { maxAttempts: 3, guidance: "保留原始分类层级，不要编造节点。" };
   genreTreePrompt.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
@@ -1353,6 +1448,7 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
     });
 
     assert.equal(captured.maxRepairAttempts, 3);
+    assert.equal(captured.repairGuidance, "保留原始分类层级，不要编造节点。");
     assert.equal(captured.promptMeta.repairAttempts, 0);
     assert.equal(captured.promptMeta.semanticRetryAttempts, 0);
     assert.deepEqual(captured.promptMeta.droppedContextBlockIds, ["overflow-1"]);
@@ -1466,32 +1562,41 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
   }
 });
 
+// Runner transport tests use a registered text asset, independent of structured rewriting.
+const textRunnerFixture = { ...styleGenerationPrompt };
+
 test("streamTextPrompt buffers streamed output and resolves completion metadata", async () => {
   resetPromptQualityTelemetryForTests();
-  const originalContextPolicy = { ...styleRewritePrompt.contextPolicy };
-  styleRewritePrompt.contextPolicy = {
+  const originalContextPolicy = { ...textRunnerFixture.contextPolicy };
+  let capturedOptions = null;
+  textRunnerFixture.contextPolicy = {
     maxTokensBudget: 8,
     requiredGroups: ["core"],
     dropOrder: ["overflow"],
   };
 
-  setPromptRunnerLLMFactoryForTests(async () => ({
-    stream: async () => ({
-      async *[Symbol.asyncIterator]() {
-        yield { content: "修" };
-        yield { content: "订" };
-      },
-    }),
-  }));
+  setPromptRunnerLLMFactoryForTests(async (_provider, options) => {
+    capturedOptions = options;
+    return {
+      stream: async () => ({
+        async *[Symbol.asyncIterator]() {
+          yield { content: "修" };
+          yield { content: "订" };
+        },
+      }),
+    };
+  });
 
   try {
     const handle = await streamTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
       contextBlocks: [
@@ -1513,6 +1618,7 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
           content: "额外补充：".concat("低优先级。".repeat(20)),
         }),
       ],
+      options: { reasoningEnabled: false, maxTokens: 6000 },
     });
 
     const streamedChunks = [];
@@ -1526,12 +1632,14 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.deepEqual(completed.meta.invocation.droppedContextBlockIds, ["overflow-1"]);
     assert.deepEqual(completed.meta.invocation.summarizedContextBlockIds, ["core-1"]);
     assert.equal(completed.meta.invocation.repairAttempts, 0);
+    assert.equal(capturedOptions.reasoningEnabled, false);
+    assert.equal(capturedOptions.maxTokens, 6000);
     const telemetry = getSinglePromptQualityEntry();
     assert.equal(telemetry.completedCount, 1);
     assert.equal(telemetry.emptyOutputCount, 0);
     assert.equal(telemetry.totalOutputChars, 2);
   } finally {
-    styleRewritePrompt.contextPolicy = originalContextPolicy;
+    textRunnerFixture.contextPolicy = originalContextPolicy;
     setPromptRunnerLLMFactoryForTests();
   }
 });
@@ -1555,12 +1663,14 @@ test("runTextPrompt records empty outputs without changing return behavior", asy
 
   try {
     const result = await runTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
     });
@@ -1592,12 +1702,14 @@ test("prompt runner records failed executions without swallowing the original er
   try {
     await assert.rejects(
       () => runTextPrompt({
-        asset: styleRewritePrompt,
+        asset: textRunnerFixture,
         promptInput: {
           styleBlock: "叙事紧凑",
           characterBlock: "动作表达情绪",
           antiAiBlock: "禁止解释性心理描写",
           content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
           issuesBlock: "问题",
         },
       }),
@@ -1717,12 +1829,14 @@ test("prompt runner skips custom slot overlays for prompts without editable slot
 
   try {
     const handle = await streamTextPrompt({
-      asset: styleRewritePrompt,
+      asset: textRunnerFixture,
       promptInput: {
         styleBlock: "叙事紧凑",
         characterBlock: "动作表达情绪",
         antiAiBlock: "禁止解释性心理描写",
         content: "原文",
+        prompt: "原文",
+        mode: "rewrite",
         issuesBlock: "问题",
       },
       contextBlocks: [],
@@ -2043,6 +2157,49 @@ test("streamStructuredPrompt parses streamed JSON and preserves telemetry", asyn
   } finally {
     genreTreePrompt.contextPolicy = originalContextPolicy;
     setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("streamStructuredPrompt falls back to prompt JSON when native structured streaming is empty", async () => {
+  let streamCall = null;
+  let fallbackCall = null;
+  setPromptRunnerLLMFactoryForTests(async (provider, options) => {
+    return {
+      stream: async (_messages, invokeOptions) => {
+        streamCall = { provider, responseFormat: invokeOptions.response_format?.type };
+        return {
+          async *[Symbol.asyncIterator]() {},
+        };
+      },
+    };
+  });
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    fallbackCall = input;
+    return {
+      data: { name: "都市", description: "异能成长", children: [] },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    const handle = await streamStructuredPrompt({
+      asset: genreTreePrompt,
+      promptInput: { prompt: "都市异能", retry: false, forceJson: true },
+      options: { provider: "deepseek", model: "deepseek-v4-flash" },
+    });
+
+    for await (const _chunk of handle.stream) {
+      // drain stream
+    }
+    const completed = await handle.complete;
+
+    assert.deepEqual(streamCall, { provider: "deepseek", responseFormat: "json_object" });
+    assert.equal(fallbackCall.structuredStrategy, "prompt_json");
+    assert.equal(completed.output.name, "都市");
+  } finally {
+    setPromptRunnerLLMFactoryForTests();
+    setPromptRunnerStructuredInvokerForTests();
   }
 });
 

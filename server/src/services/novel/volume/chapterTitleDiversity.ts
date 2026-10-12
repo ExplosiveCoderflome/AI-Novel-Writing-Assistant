@@ -22,6 +22,24 @@ function normalizeChapterTitle(title: string): string {
     .replace(/\?/g, "？");
 }
 
+export function getChapterTitleCollisionIssue(
+  reservedTitles: string[],
+  candidateTitles: string[],
+): string | null {
+  const reserved = new Set(reservedTitles.map(normalizeChapterTitle).filter(Boolean));
+  for (const title of candidateTitles) {
+    const normalized = normalizeChapterTitle(title);
+    if (normalized && reserved.has(normalized)) {
+      return `章节标题出现重复：${normalized}。请确保每章标题唯一。`;
+    }
+  }
+  return null;
+}
+
+export function isChapterTitleDuplicateIssue(message: string | null | undefined): boolean {
+  return message?.includes("章节标题出现重复") ?? false;
+}
+
 function countChapterTitleCoreChars(title: string): number {
   return Array.from(normalizeChapterTitle(title))
     .filter((char) => !/[，,：:？?！!、；;·\s"'“”‘’《》〈〉「」『』【】]/u.test(char))

@@ -323,6 +323,8 @@ enum CharacterGender {
 
 model Novel {
   id                String      @id @default(cuid())
+  directorVersion   String?
+  directorEpoch     Int         @default(0)
   title             String
   description       String?
   targetAudience    String?
@@ -340,6 +342,7 @@ model Novel {
   writingPlatform    String?
   writingPlatformProfileVersion Int?
   writingPlatformSnapshotJson String?
+  directorIssuePolicyOverridesJson String?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?
@@ -356,6 +359,10 @@ model Novel {
   sourceKnowledgeDocumentId String?
   continuationBookAnalysisId String?
   continuationBookAnalysisSections String?
+  referenceBookAnalysisId String?
+  referenceBookAnalysisSections String?
+  creativeCarryoverContractJson String?
+  creativeCarryoverContractSchemaVersion Int?
   outline           String?
   structuredOutline String?
   storyWorldSliceJson String?
@@ -375,6 +382,7 @@ model Novel {
   derivedNovels     Novel[]     @relation("NovelDerivation")
   sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
+  referenceBookAnalysis BookAnalysis? @relation("NovelReferenceBookAnalysis", fields: [referenceBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
   characters        Character[]
   characterLibraryLinks CharacterLibraryLink[]
@@ -448,6 +456,7 @@ model Novel {
   @@index([writingPlatform])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+  @@index([referenceBookAnalysisId])
 }
 
 model NovelIntentVersion {
@@ -1791,8 +1800,12 @@ model APIKey {
   key       String?
   model     String?
   baseURL   String?
+  authMode String @default("bearer")
   isActive  Boolean  @default(true)
   reasoningEnabled Boolean @default(true)
+  reasoningEffort String?
+  hiddenModels String @default("[]")
+  availableModels String @default("[]")
   concurrencyLimit Int @default(0)
   requestIntervalMs Int @default(0)
   createdAt DateTime @default(now())
@@ -1888,6 +1901,7 @@ model ConsistencyFact {
 }
 
 model GenerationJob {
+  automaticAttempts ChapterAutomaticAttempt[]
   id             String            @id @default(cuid())
   novelId        String
   startOrder     Int
@@ -1906,6 +1920,8 @@ model GenerationJob {
   maxRetries     Int               @default(2)
   pendingManualRecovery Boolean    @default(false)
   heartbeatAt    DateTime?
+  executionOwner String?
+  executionLeaseExpiresAt DateTime?
   currentStage   String?
   currentItemKey String?
   currentItemLabel String?
@@ -1926,6 +1942,18 @@ model GenerationJob {
 
   @@index([novelId])
   @@index([novelId, status])
+  @@index([status, executionLeaseExpiresAt])
+}
+
+model ChapterAutomaticAttempt {
+  id        String   @id @default(cuid())
+  jobId     String
+  chapterId String
+  kind      String
+  createdAt DateTime @default(now())
+  job       GenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, chapterId])
 }
 
 model AgentRun {
@@ -2182,6 +2210,8 @@ model BookContract {
 
 model NovelWorkflowTask {
   id                 String                  @id @default(cuid())
+  directorVersion    String?
+  directorEpoch      Int?
   novelId            String?
   lane               NovelWorkflowLane
   title              String
@@ -3119,6 +3149,7 @@ model BookAnalysis {
   documentVersion             KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: NoAction)
   publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
   continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
+  referenceNovels             Novel[]             @relation("NovelReferenceBookAnalysis")
   sections                    BookAnalysisSection[]
   characters                  BookAnalysisCharacter[]
   createdAt                   DateTime           @default(now())
@@ -4053,4 +4084,231 @@ model ComicBatchJob {
   @@index([projectId, createdAt])
   @@index([episodeId, status])
   @@index([type, status])
+}
+
+model MarketScanRun {
+  id                 String                  @id @default(cuid())
+  status             String                  @default("queued")
+  progress           Float                   @default(0)
+  requestedPlatformsJson String
+  provider           String?
+  model              String?
+  lastError          String?
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  snapshots          MarketRankingSnapshot[]
+  reports            MarketTrendReport[]
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model MarketRankingSnapshot {
+  id           String              @id @default(cuid())
+  runId        String
+  platform     String
+  listKey      String
+  listLabel    String
+  channel      String
+  sourceUrl    String
+  status       String              @default("succeeded")
+  error        String?
+  capturedAt   DateTime            @default(now())
+  run          MarketScanRun       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  items        MarketRankingItem[]
+
+  @@index([runId, platform])
+  @@index([platform, listKey, capturedAt])
+}
+
+model MarketRankingItem {
+  id           String                @id @default(cuid())
+  snapshotId   String
+  rank         Int
+  title        String
+  author       String?
+  category     String?
+  tagsJson     String?
+  synopsis     String?
+  heatLabel    String?
+  serialStatus String?
+  sourceUrl    String
+  snapshot     MarketRankingSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@index([snapshotId, rank])
+  @@index([title, author])
+}
+
+model MarketTrendReport {
+  id                 String                @id @default(cuid())
+  runId              String
+  summary            String
+  structuredDataJson String
+  createdAt          DateTime              @default(now())
+  run                MarketScanRun         @relation(fields: [runId], references: [id], onDelete: Cascade)
+  briefs             MarketCreativeBrief[]
+  savedTopics        MarketSavedTopic[]
+
+  @@index([runId, createdAt])
+  @@index([createdAt])
+}
+
+model MarketSavedTopic {
+  id         String            @id @default(cuid())
+  reportId   String
+  signalId   String            @default("")
+  kind       String            @default("genre")
+  label      String            @default("")
+  summary    String            @default("")
+  direction  String            @default("current")
+  heat       Int               @default(0)
+  crowding   Int               @default(0)
+  name       String?
+  reason     String?
+  existingId String?
+  createdAt  DateTime          @default(now())
+  report     MarketTrendReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, signalId])
+  @@index([createdAt])
+}
+
+model MarketCreativeBrief {
+  id                  String            @id @default(cuid())
+  reportId            String
+  influenceMode       String
+  selectedSignalsJson String
+  summary             String
+  promptBlock         String
+  createdAt           DateTime          @default(now())
+  report              MarketTrendReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, createdAt])
+}
+
+
+model DirectorNextRun {
+  id               String                     @id
+  novelId          String
+  driver           String
+  planVersion      String
+  contractJson     String
+  createdAt        DateTime                   @default(now())
+  control          DirectorNextRunControl?
+  artifacts        DirectorNextArtifact[]      @relation("DirectorNextRunProducedArtifacts")
+  qualityDebts     DirectorNextQualityDebt[]
+  events           DirectorNextEvent[]
+  commands         DirectorNextCommand[]
+
+  @@index([novelId, createdAt])
+}
+
+model DirectorNextRunControl {
+  runId          String         @id
+  novelId        String
+  version        Int            @default(0)
+  status         String
+  pauseJson      String?
+  gateJson       String?
+  cursorStepId   String?
+  failureReason  String?
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
+  heartbeatAt    DateTime?
+  updatedAt      DateTime       @updatedAt
+  run            DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, status])
+}
+
+model DirectorNextArtifact {
+  id                String          @id
+  novelId           String
+  type              String
+  scope             String
+  version           Int
+  status            String
+  protectedUserContent Boolean
+  contentRef        String
+  contentHash       String?
+  producedByRunId   String?
+  createdAt         DateTime        @default(now())
+  producedByRun     DirectorNextRun? @relation("DirectorNextRunProducedArtifacts", fields: [producedByRunId], references: [id], onDelete: SetNull)
+
+  @@unique([novelId, type, scope, version])
+  @@index([novelId, type, scope, status])
+}
+
+model DirectorNextQualityDebt {
+  id           String          @id
+  novelId      String
+  runId        String
+  chapterOrder Int
+  code         String
+  action       String
+  createdAt    DateTime        @default(now())
+  run          DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([novelId, chapterOrder, createdAt])
+  @@index([runId, createdAt])
+}
+
+model DirectorNextEvent {
+  id            String          @id
+  runId         String
+  seq           Int
+  type          String
+  payloadJson   String
+  promptVersion String?
+  model         String?
+  createdAt     DateTime        @default(now())
+  run           DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, seq])
+  @@index([runId, createdAt])
+}
+
+model DirectorNextCommand {
+  idempotencyKey String          @id
+  id             String          @unique
+  runId          String
+  type           String
+  payloadJson    String
+  resultJson     String?
+  createdAt      DateTime        @default(now())
+  run            DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}
+
+
+model LlmInvocationUsageRecord {
+  id String @id
+  runId String?
+  generationJobId String?
+  workflowTaskId String?
+  novelId String?
+  chapterId String?
+  stage String?
+  provider String?
+  model String?
+  requestProtocol String
+  promptId String?
+  promptVersion String?
+  status String
+  startedAt DateTime
+  finishedAt DateTime
+  promptTokens Int?
+  completionTokens Int?
+  totalTokens Int?
+  cacheHitTokens Int?
+  cacheMissTokens Int?
+  cacheWriteTokens Int?
+  cacheUsageStatus String
+  cacheDiagnostic String?
+  @@index([runId, startedAt, id])
+  @@index([generationJobId, startedAt, id])
+  @@index([novelId, chapterId, startedAt, id])
 }

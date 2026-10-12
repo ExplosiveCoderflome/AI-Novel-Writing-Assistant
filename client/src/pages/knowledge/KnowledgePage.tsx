@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
+import { toast } from "@/components/ui/toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/api/queryKeys";
 import {
@@ -54,6 +55,8 @@ export default function KnowledgePage() {
   const [ragForm, setRagForm] = useState<KnowledgeEmbeddingSettingsFormState>({
     embeddingProvider: "openai",
     embeddingModel: "text-embedding-3-small",
+    embeddingApiKey: "",
+    embeddingBaseURL: "",
     collectionVersion: 1,
     collectionMode: "auto",
     collectionName: "ai_novel_chunks_v1",
@@ -141,6 +144,8 @@ export default function KnowledgePage() {
     setRagForm({
       embeddingProvider: data.embeddingProvider,
       embeddingModel: data.embeddingModel,
+      embeddingApiKey: "",
+      embeddingBaseURL: "",
       collectionVersion: data.collectionVersion,
       collectionMode: data.collectionMode,
       collectionName: data.collectionName,
@@ -204,6 +209,8 @@ export default function KnowledgePage() {
           ...prev,
           embeddingProvider: data.embeddingProvider,
           embeddingModel: data.embeddingModel,
+          embeddingApiKey: "",
+          embeddingBaseURL: "",
           collectionVersion: data.collectionVersion,
           collectionMode: data.collectionMode,
           collectionName: data.collectionName,
@@ -241,13 +248,17 @@ export default function KnowledgePage() {
 
   const reindexMutation = useMutation({
     mutationFn: (id: string) => reindexKnowledgeDocument(id),
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       setRecallResult(null);
+      toast.success(response.message ?? "资料已加入切片与索引队列。");
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
       if (selectedDocumentId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "重建索引失败，请检查检索设置后重试。");
     },
   });
 
@@ -448,6 +459,8 @@ export default function KnowledgePage() {
     saveRagMutation.mutate({
       embeddingProvider: ragForm.embeddingProvider,
       embeddingModel: ragForm.embeddingModel.trim(),
+      embeddingApiKey: ragForm.embeddingApiKey.trim() || undefined,
+      embeddingBaseURL: ragForm.embeddingBaseURL.trim() || undefined,
       collectionMode: ragForm.collectionMode,
       collectionName: ragForm.collectionName.trim(),
       collectionTag: ragForm.collectionTag.trim(),
@@ -556,6 +569,7 @@ export default function KnowledgePage() {
               setStatus("");
             }}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
+            reindexingDocumentId={reindexMutation.isPending ? reindexMutation.variables : undefined}
             onSelectDocument={setSelectedDocumentId}
             onOpenRecallTest={(id) => {
               setRecallQuery("");

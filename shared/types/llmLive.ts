@@ -1,3 +1,4 @@
+import type { LlmInputCacheUsage } from "./llmUsage";
 export const LLM_LIVE_PHASES = [
   "requesting",
   "streaming",
@@ -27,6 +28,15 @@ export interface LlmLiveContext {
   itemKey?: string | null;
   provider?: string | null;
   model?: string | null;
+  promptText?: string | null;
+}
+
+export interface LlmLiveTokenUsage {
+  inputCache?: LlmInputCacheUsage | null;
+  promptTokens: number;
+  completionTokens: number;
+  reasoningTokens: number | null;
+  totalTokens: number;
 }
 
 export type LlmLiveEvent =
@@ -45,12 +55,27 @@ export type LlmLiveEvent =
     totalChars: number;
   }
   | {
+    type: "reasoning_delta";
+    seq: number;
+    at: string;
+    interactionId: string;
+    content: string;
+    totalReasoningChars: number;
+  }
+  | {
     type: "phase_changed";
     seq: number;
     at: string;
     interactionId: string;
     phase: LlmLivePhase;
     message: string;
+  }
+  | {
+    type: "usage_updated";
+    seq: number;
+    at: string;
+    interactionId: string;
+    tokenUsage: LlmLiveTokenUsage;
   }
   | {
     type: "session_completed";
@@ -75,6 +100,10 @@ export interface LlmLiveSessionSnapshot {
   phaseMessage: string;
   preview: string;
   totalChars: number;
+  reasoning: string;
+  totalReasoningChars: number;
+  firstResponseAt?: string | null;
+  tokenUsage?: LlmLiveTokenUsage | null;
   startedAt: string;
   updatedAt: string;
   completedAt?: string | null;

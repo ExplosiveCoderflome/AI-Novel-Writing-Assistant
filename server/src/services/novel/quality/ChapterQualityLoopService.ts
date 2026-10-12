@@ -1,13 +1,17 @@
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import type { ChapterStatus, Prisma } from "@prisma/client";
+import type { QualityScore, ReplanRecommendation, ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { Prisma } from "@prisma/client";
 import {
   buildChapterQualityLoopAssessment,
   type ChapterQualityLoopAssessment,
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { prisma } from "../../../db/prisma";
 import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
-import type { QualityDebtAttribution } from "../runtime/chapterRuntimePipeline";
+import type {
+  ChapterRepairSelectionRecord,
+  QualityDebtAttribution,
+} from "../runtime/chapterRuntimePipeline";
+import { chapterLifecycleService } from "../runtime/lifecycle/ChapterLifecycleService";
 
 interface RecordChapterQualityLoopInput {
   novelId: string;
@@ -16,15 +20,18 @@ interface RecordChapterQualityLoopInput {
   score: QualityScore;
   issues: ReviewIssue[];
   runtimePackage?: ChapterRuntimePackage | null;
+  replanRecommendation?: ReplanRecommendation | null;
   source: "manual_review" | "pipeline_review" | "repair_recheck";
   terminalAction?: "defer_and_continue" | null;
   taskId?: string | null;
   runId?: string | null;
   /** 阶段0 归因数据：仅在 terminalAction=defer_and_continue 时有意义 */
   qualityDebtAttribution?: QualityDebtAttribution | null;
+  repairSelection?: ChapterRepairSelectionRecord | null;
 }
 
 type ChapterQualityLoopChapter = {
+  content?: string | null;
   riskFlags: string | null;
   repairHistory: string | null;
   chapterStatus: string | null;
@@ -51,6 +58,7 @@ function serializeRiskFlags(
   source: RecordChapterQualityLoopInput["source"],
   terminalAction?: RecordChapterQualityLoopInput["terminalAction"],
   qualityDebtAttribution?: RecordChapterQualityLoopInput["qualityDebtAttribution"],
+  repairSelection?: RecordChapterQualityLoopInput["repairSelection"],
 ): string {
   const parsed = parseJsonObject(previous);
   return JSON.stringify({
@@ -60,6 +68,7 @@ function serializeRiskFlags(
       source,
       ...(terminalAction ? { terminalAction } : {}),
       ...(qualityDebtAttribution ? { qualityDebtAttribution } : {}),
+      ...(repairSelection ? { repairSelection } : {}),
     },
   });
 }
@@ -76,9 +85,6 @@ function appendRepairHistory(
     `[quality_loop ${assessment.evaluatedAt}]`,
     `status=${assessment.overallStatus}`,
     `action=${assessment.recommendedAction}`,
-    assessment.budget?.signature ? `signature=${assessment.budget.signature}` : "",
-    assessment.budget ? `attempt=${assessment.budget.attempt}/${assessment.budget.maxAttempts}` : "",
-    assessment.budget?.nextAction ? `budget=${assessment.budget.nextAction}` : "",
     terminalAction ? `terminal=${terminalAction}` : "",
     assessment.signals
       .filter((signal) => signal.status !== "valid")
@@ -92,14 +98,25 @@ function appendRepairHistory(
   return lines.join("\n");
 }
 
-function resolveContinuableChapterStatus(chapter: Pick<ChapterQualityLoopChapter, "chapterStatus" | "generationState">): ChapterStatus | undefined {
-  if (chapter.chapterStatus !== "needs_repair") {
-    return undefined;
+function resolveContinuableChapterState(
+  chapter: Pick<ChapterQualityLoopChapter, "content" | "chapterStatus" | "generationState">,
+): Pick<Prisma.ChapterUpdateInput, "chapterStatus" | "generationState"> {
+  if (!chapter.content?.trim()) {
+    return {};
   }
-  if (chapter.generationState === "approved" || chapter.generationState === "published") {
-    return "completed";
-  }
-  return "pending_review";
+  return {
+    chapterStatus: "completed",
+    generationState: "approved",
+  };
+}
+
+function resolveBlockedChapterState(
+  source: RecordChapterQualityLoopInput["source"],
+): Pick<Prisma.ChapterUpdateInput, "chapterStatus" | "generationState"> {
+  return {
+    chapterStatus: "needs_repair",
+    ...(source === "pipeline_review" ? {} : { generationState: "reviewed" }),
+  };
 }
 
 export function buildChapterQualityLoopChapterUpdate(
@@ -108,16 +125,24 @@ export function buildChapterQualityLoopChapterUpdate(
   source: RecordChapterQualityLoopInput["source"],
   terminalAction?: RecordChapterQualityLoopInput["terminalAction"],
   qualityDebtAttribution?: RecordChapterQualityLoopInput["qualityDebtAttribution"],
+  repairSelection?: RecordChapterQualityLoopInput["repairSelection"],
 ): Prisma.ChapterUpdateInput {
   const nextRepairHistory = appendRepairHistory(chapter.repairHistory, assessment, terminalAction);
   const shouldContinueChapter = assessment.recommendedAction === "continue" || terminalAction === "defer_and_continue";
-  const nextChapterStatus: ChapterStatus | undefined = shouldContinueChapter
-    ? resolveContinuableChapterStatus(chapter)
-    : "needs_repair";
+  const continuableChapterState = shouldContinueChapter
+    ? resolveContinuableChapterState(chapter)
+    : {};
   return {
-    riskFlags: serializeRiskFlags(chapter.riskFlags, assessment, source, terminalAction, qualityDebtAttribution),
+    riskFlags: serializeRiskFlags(
+      chapter.riskFlags,
+      assessment,
+      source,
+      terminalAction,
+      qualityDebtAttribution,
+      repairSelection,
+    ),
     ...(nextRepairHistory !== undefined ? { repairHistory: nextRepairHistory } : {}),
-    ...(nextChapterStatus ? { chapterStatus: nextChapterStatus } : {}),
+    ...(shouldContinueChapter ? continuableChapterState : resolveBlockedChapterState(source)),
   };
 }
 
@@ -128,6 +153,7 @@ export class ChapterQualityLoopService {
       select: {
         id: true,
         order: true,
+        content: true,
         riskFlags: true,
         repairHistory: true,
         chapterStatus: true,
@@ -144,11 +170,21 @@ export class ChapterQualityLoopService {
       score: input.score,
       issues: input.issues,
       runtimePackage: input.runtimePackage,
-      previousRepairHistory: chapter.repairHistory,
+      replanRecommendation: input.replanRecommendation,
     });
-    await prisma.chapter.update({
-      where: { id: input.chapterId },
-      data: buildChapterQualityLoopChapterUpdate(chapter, assessment, input.source, input.terminalAction ?? null, input.qualityDebtAttribution),
+    const terminalAction = assessment.recommendedAction === "continue"
+      ? null
+      : input.terminalAction ?? null;
+    await chapterLifecycleService.applyQualityAssessmentState({
+      chapterId: input.chapterId,
+      data: buildChapterQualityLoopChapterUpdate(
+        chapter,
+        assessment,
+        input.source,
+        terminalAction,
+        input.qualityDebtAttribution,
+        input.repairSelection,
+      ),
     });
     await directorAutomationLedgerEventService.recordQualityLoopAssessment({
       taskId: input.taskId,

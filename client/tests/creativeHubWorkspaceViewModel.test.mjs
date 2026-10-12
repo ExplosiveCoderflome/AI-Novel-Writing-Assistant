@@ -87,7 +87,7 @@ test("structured recovery, setup and next-suggestion states keep their priority"
     },
     latestTurnSummary: { nextSuggestion: "先写第一章" },
   });
-  assert.equal(recovery.recommendation.prompt, "从检查点恢复");
+  assert.equal(recovery.recommendation.prompt, "请解释失败原因、执行记录和正式处理入口：从检查点恢复");
   assert.equal(setup.recommendation.prompt, "继续补齐主角目标");
 });
 
@@ -104,7 +104,7 @@ test("structured thread and turn failures remain recovery actions", () => {
   });
   assert.equal(failedTurn.recommendation.tone, "danger");
   assert.equal(failedTurn.recommendation.action, "send_prompt");
-  assert.equal(failedTurn.recommendation.prompt, "检查模型配置后重试");
+  assert.equal(failedTurn.recommendation.prompt, "请解释失败原因、执行记录和正式处理入口：检查模型配置后重试");
   assert.match(failedTurn.recommendation.description, /模型连接已中断/);
 });
 

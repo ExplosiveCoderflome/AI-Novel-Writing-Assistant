@@ -4,6 +4,20 @@ import type { NovelWorkspaceFlowTab } from "@/pages/novels/novelWorkspaceNavigat
 
 export type NovelWorkspaceStepReadiness = Record<NovelWorkspaceFlowTab, boolean>;
 
+export function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
+  status: string | null | undefined;
+  latestTaskId?: string | null;
+}): boolean {
+  return Boolean(input.latestTaskId) && (
+    input.status === "queued"
+    || input.status === "running"
+    || input.status === "waiting_approval"
+    || input.status === "waiting_recovery"
+    || input.status === "blocked"
+    || input.status === "failed"
+  );
+}
+
 const WORKSPACE_FLOW_ORDER: NovelWorkspaceFlowTab[] = [
   "basic",
   "story_macro",

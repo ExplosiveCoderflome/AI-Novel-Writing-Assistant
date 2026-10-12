@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -9,6 +10,7 @@ const {
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { readDirectorTaskState } = require("../dist/services/novel/director/state/DirectorStateReader.js");
 const { DefaultNovelApplicationServices } = require("../dist/services/novel/application/NovelApplicationServices.js");
 const {
   stepModuleRunner,
@@ -230,6 +232,10 @@ function buildChapterProgressSummary(chapters) {
 }
 
 function buildDirectorStateHint(seedPayload, chapterProgress) {
+  const state = readDirectorTaskState({
+    seedPayloadJson: JSON.stringify(seedPayload),
+    resumeTargetJson: null,
+  });
   return {
     task: {
       id: "task-scoped-chapter-execution",
@@ -246,11 +252,10 @@ function buildDirectorStateHint(seedPayload, chapterProgress) {
       pendingManualRecovery: false,
       cancelRequestedAt: null,
     },
-    run: null,
+    ...state,
     runtime: null,
     latestCommand: null,
     activeStep: null,
-    seedPayload,
     chapterProgress,
   };
 }
@@ -259,6 +264,7 @@ function buildChapterRowFromProgressChapter(chapter) {
   const hasDraft = chapter.completedStages.includes("draft_saved");
   const hasAudit = chapter.completedStages.includes("audit_completed");
   const hasStateCommit = chapter.completedStages.includes("chapter_state_committed");
+  const hasArtifactBoundary = chapter.completedStages.includes("chapter_artifacts_synced");
   return {
     id: chapter.chapterId,
     order: chapter.chapterOrder,
@@ -281,6 +287,10 @@ function buildChapterRowFromProgressChapter(chapter) {
     auditReports: hasAudit ? [{ issues: chapter.auditIssues ?? [] }] : [],
     storyStateSnapshots: hasStateCommit ? [{ id: `state-${chapter.chapterOrder}` }] : [],
     canonicalStateVersions: [],
+    artifactSyncCheckpoints: hasArtifactBoundary ? [{
+      contentHash: createHash("sha256").update("Draft body").digest("hex").slice(0, 24),
+      metadataJson: JSON.stringify({ outcome: "completed" }),
+    }] : [],
   };
 }
 
@@ -347,6 +357,48 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(progress.evidence.draftedChapterCount, 3);
   assert.equal(progress.evidence.totalChapters, 3);
   assert.equal(completeCriteria, true);
+});
+
+test("chapter execution progress stays incomplete until every current-version boundary closes", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const chapter = buildProgressChapter(1, {
+    status: "reviewable",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_state_committed",
+      "reviewable_or_approved",
+    ],
+  });
+  prisma.chapter.findMany = async () => [buildChapterRowFromProgressChapter(chapter)];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-boundary-progress",
+    novelId: "novel-boundary-progress",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 1 },
+      }, buildChapterProgressSummary([chapter])),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const completeCriteria = await module.completeCriteria(undefined, context);
+
+  assert.equal(completion.completed, false);
+  assert.equal(progress.status, "partially_done");
+  assert.equal(progress.ratio, 0);
+  assert.equal(progress.evidence.closedChapterCount, 0);
+  assert.equal(completeCriteria, false);
 });
 
 test("chapter state commit completion ignores uncommitted chapters outside the active auto execution range", async (t) => {
@@ -492,6 +544,7 @@ test("director core step runtime uses explicit dependency assembly", () => {
   assert.equal(source.includes("require("), false);
   assert.match(source, /interface DirectorCoreStepModuleRuntimeDeps/);
   assert.match(source, /buildDefaultDirectorCoreStepModuleRuntimeDeps/);
+  assert.match(source, /allowIncompleteExecutionContracts:\s*true/);
 });
 
 test("chapter draft validation trusts fresh draft facts over stale failed task status", async (t) => {
@@ -543,6 +596,56 @@ test("chapter draft validation trusts fresh draft facts over stale failed task s
   assert.equal(validation.valid, true);
   assert.equal(validation.evidence.draftedChapterCount, 1);
   assert.equal(validation.evidence.totalChapters, 1);
+});
+
+test("chapter draft treats pending manual recovery as an acceptable pause", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const chapters = [
+    buildProgressChapter(1, { drafted: true }),
+    buildProgressChapter(2, { drafted: false }),
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const state = buildDirectorStateHint({
+    autoExecution: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      completedChapterCount: 1,
+      remainingChapterCount: 1,
+      autoReview: true,
+      autoRepair: true,
+    },
+  }, buildChapterProgressSummary(chapters));
+  state.task.status = "queued";
+  state.task.currentStage = "quality_repair";
+  state.task.currentItemKey = "quality_repair";
+  state.task.checkpointType = "chapter_batch_ready";
+  state.task.lastError = "402 Insufficient Balance";
+  state.task.pendingManualRecovery = true;
+  const context = {
+    taskId: state.task.id,
+    novelId: "novel-pending-manual-recovery",
+    projectionHints: {
+      directorCanonicalState: state,
+    },
+  };
+
+  const validation = await module.validateOutput(undefined, context);
+  const complete = await module.completeCriteria(undefined, context);
+  const acceptablePause = await module.acceptablePauseCriteria(undefined, context);
+
+  assert.equal(validation.valid, true);
+  assert.equal(validation.evidence.pendingManualRecovery, true);
+  assert.equal(validation.evidence.lastError, "402 Insufficient Balance");
+  assert.equal(complete, false);
+  assert.equal(acceptablePause, true);
 });
 
 test("chapter quality review closes when auto review is disabled by the execution plan", async (t) => {

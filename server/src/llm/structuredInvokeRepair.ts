@@ -22,6 +22,7 @@ export interface StructuredRepairInput<T> {
   requestProtocol?: ModelRouteRequestProtocol;
   label: string;
   schema: ZodType<T>;
+  repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   onRepairOutputDelta?: (content: string) => void;
 }
@@ -199,6 +200,7 @@ export async function repairWithLlm<T>(
     "目标 JSON Schema 是最终字段合同；即使原始输出已截断、退化或缺少大量字段，也必须依据 Schema 重建完整对象。",
     "遇到无意义复读、乱码、失控长文本时，丢弃异常段落并用最短的语义一致内容重建，禁止继续复述损坏内容。",
     "所有字符串保持简洁，只保留通过结构校验与恢复原意所需的信息。",
+    input.repairGuidance?.trim() ? `本次目标结构的额外修复规则：${input.repairGuidance.trim()}` : "",
   ].join("\n");
 
   const validationPaths = extractValidationPaths(validationError);

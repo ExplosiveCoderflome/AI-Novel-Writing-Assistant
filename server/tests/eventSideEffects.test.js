@@ -31,6 +31,7 @@ function createFakeJobDb() {
       if (condition.in && !condition.in.includes(value)) return false;
       if (condition.lte && !(value <= condition.lte)) return false;
       if (condition.lt && !(value < condition.lt)) return false;
+      if (condition.gt && !(value > condition.gt)) return false;
       return true;
     }
     return value === condition;
@@ -340,4 +341,34 @@ test("expired running jobs are recovered as retryable failures", async () => {
   assert.equal(count, 1);
   assert.equal(fake.jobs[0].status, "failed");
   assert.equal(fake.jobs[0].runAfter.toISOString(), "2026-05-26T00:00:02.000Z");
+});
+
+test("waiting for chapter production reschedules enrichment without spending retry attempts", async () => {
+  const fake = createFakeJobDb();
+  const service = createService(fake);
+  await service.enqueueJob({novelId: "novel-1", jobType: "character.v2DeferredEnrichment",
+    idempotencyKey: "v2-enrichment:cast", maxAttempts: 3,
+    payload: {novelId: "novel-1", runId: "run", executionEpoch: 1, optionId: "cast", characterIds: ["actor"]}});
+  const worker = new NovelSideEffectWorker(service, {execute: async () => ({deferUntil: new Date("2026-05-26T00:01:00.000Z")})},
+    {workerId: "worker-a", leaseMs: 1000});
+  await worker.tick();
+  assert.equal(fake.jobs[0].status, "pending");
+  assert.equal(fake.jobs[0].attempts, 0);
+  assert.equal(fake.jobs[0].runAfter.toISOString(), "2026-05-26T00:01:00.000Z");
+  assert.equal(fake.jobs[0].leaseOwner, null);
+});
+
+test("background lease renewal is conditional on the current worker and unexpired lease", async () => {
+  const fake = createFakeJobDb();
+  let now = new Date("2026-05-26T00:00:00.000Z");
+  const service = createService(fake, {now: () => now});
+  await service.enqueueJob({jobType: "novel.pipelineSnapshot", idempotencyKey: "lease-test",
+    payload: {novelId: "book", jobId: "pipeline", label: "snapshot"}});
+  const job = await service.leaseNext({workerId: "worker-a", leaseMs: 1000});
+  now = new Date("2026-05-26T00:00:00.500Z");
+  assert.equal(await service.renewLease(job, 2000), true);
+  assert.equal(fake.jobs[0].leaseExpiresAt.toISOString(), "2026-05-26T00:00:02.500Z");
+  assert.equal(await service.renewLease({...job, leaseOwner: "worker-b"}, 2000), false);
+  now = new Date("2026-05-26T00:00:03.000Z");
+  assert.equal(await service.renewLease(job, 2000), false);
 });

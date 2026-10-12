@@ -1,53 +1,76 @@
 import { NovelWorkflowStoreService } from "./NovelWorkflowStoreService";
+import {canExecuteLegacyTask} from "../../../modules/novel/director-routing";
 import { NovelWorkflowHealingService } from "./NovelWorkflowHealingService";
 import { NovelWorkflowApplicationService } from "./NovelWorkflowApplicationService";
+import {
+  findActiveDirectorTask,
+  resolveCurrentDirectorTask,
+  resolvePreviousDirectorTask,
+  startDirectorTaskForNovel,
+} from "../director/state/currentDirectorTask";
 
 export class NovelWorkflowService extends NovelWorkflowStoreService {
   private readonly healingService = new NovelWorkflowHealingService(this);
   private readonly applicationService = new NovelWorkflowApplicationService(this);
 
-  constructor() {
-    super();
-    this.setHealingPort(this.healingService);
+  findActiveDirectorTask(...args: Parameters<typeof findActiveDirectorTask>) {
+    return findActiveDirectorTask(...args);
   }
 
-  healBrokenAutoDirectorCandidateSeedPayload(...args: Parameters<NovelWorkflowHealingService["healBrokenAutoDirectorCandidateSeedPayload"]>) {
+  resolveCurrentDirectorTask(...args: Parameters<typeof resolveCurrentDirectorTask>) {
+    return resolveCurrentDirectorTask(...args);
+  }
+
+  resolvePreviousDirectorTask(...args: Parameters<typeof resolvePreviousDirectorTask>) {
+    return resolvePreviousDirectorTask(...args);
+  }
+
+  startDirectorTaskForNovel(...args: Parameters<typeof startDirectorTaskForNovel>) {
+    return startDirectorTaskForNovel(...args);
+  }
+
+  async healBrokenAutoDirectorCandidateSeedPayload(...args: Parameters<NovelWorkflowHealingService["healBrokenAutoDirectorCandidateSeedPayload"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healBrokenAutoDirectorCandidateSeedPayload(...args);
   }
 
-  healAutoDirectorTaskState(...args: Parameters<NovelWorkflowHealingService["healAutoDirectorTaskState"]>) {
-    return this.healingService.healAutoDirectorTaskState(...args);
-  }
-
-  healRuntimeGateApprovalState(...args: Parameters<NovelWorkflowHealingService["healRuntimeGateApprovalState"]>) {
+  async healRuntimeGateApprovalState(...args: Parameters<NovelWorkflowHealingService["healRuntimeGateApprovalState"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healRuntimeGateApprovalState(...args);
   }
 
-  healRuntimeFailedState(...args: Parameters<NovelWorkflowHealingService["healRuntimeFailedState"]>) {
+  async healRuntimeFailedState(...args: Parameters<NovelWorkflowHealingService["healRuntimeFailedState"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healRuntimeFailedState(...args);
   }
 
-  healStaleAutoDirectorRunningTask(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorRunningTask"]>) {
+  async healStaleAutoDirectorRunningTask(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorRunningTask"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healStaleAutoDirectorRunningTask(...args);
   }
 
-  healStaleAutoDirectorQueuedProgress(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorQueuedProgress"]>) {
+  async healStaleAutoDirectorQueuedProgress(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorQueuedProgress"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healStaleAutoDirectorQueuedProgress(...args);
   }
 
-  healHistoricalAutoDirectorRecoveryFailure(...args: Parameters<NovelWorkflowHealingService["healHistoricalAutoDirectorRecoveryFailure"]>) {
+  async healHistoricalAutoDirectorRecoveryFailure(...args: Parameters<NovelWorkflowHealingService["healHistoricalAutoDirectorRecoveryFailure"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healHistoricalAutoDirectorRecoveryFailure(...args);
   }
 
-  healHistoricalAutoDirectorFront10RecoveryFailure(...args: Parameters<NovelWorkflowHealingService["healHistoricalAutoDirectorFront10RecoveryFailure"]>) {
+  async healHistoricalAutoDirectorFront10RecoveryFailure(...args: Parameters<NovelWorkflowHealingService["healHistoricalAutoDirectorFront10RecoveryFailure"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healHistoricalAutoDirectorFront10RecoveryFailure(...args);
   }
 
-  healChapterTitleDiversitySoftFailure(...args: Parameters<NovelWorkflowHealingService["healChapterTitleDiversitySoftFailure"]>) {
+  async healChapterTitleDiversitySoftFailure(...args: Parameters<NovelWorkflowHealingService["healChapterTitleDiversitySoftFailure"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healChapterTitleDiversitySoftFailure(...args);
   }
 
-  healStaleAutoDirectorStructuredOutlineProgress(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorStructuredOutlineProgress"]>) {
+  async healStaleAutoDirectorStructuredOutlineProgress(...args: Parameters<NovelWorkflowHealingService["healStaleAutoDirectorStructuredOutlineProgress"]>) {
+    if (!await canExecuteLegacyTask(args[0])) return false;
     return this.healingService.healStaleAutoDirectorStructuredOutlineProgress(...args);
   }
 

@@ -1,8 +1,10 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
+import type { PipelineDirectorSnapshot } from "./production/directorBridge";
 
 export interface PaginationInput {
   page: number;
@@ -15,6 +17,9 @@ export interface PaginationInput {
 }
 
 export interface CreateNovelInput {
+  /** Internal stable creation identity; HTTP creation schemas do not accept this field. */
+  id?: string;
+  directorVersion?: "v1" | "v2";
   title: string;
   description?: string;
   targetAudience?: string;
@@ -48,6 +53,10 @@ export interface CreateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  creativeCarryoverContractJson?: string | null;
+  creativeCarryoverContractSchemaVersion?: number | null;
 }
 
 export interface UpdateNovelInput {
@@ -79,6 +88,8 @@ export interface UpdateNovelInput {
   sourceKnowledgeDocumentId?: string | null;
   continuationBookAnalysisId?: string | null;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisId?: string | null;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   genreId?: string | null;
   primaryStoryModeId?: string | null;
   secondaryStoryModeId?: string | null;
@@ -88,6 +99,8 @@ export interface UpdateNovelInput {
 }
 
 export interface ChapterInput {
+  /** Optional optimistic concurrency guard for editing a saved chapter. */
+  expectedUpdatedAt?: string;
   title: string;
   order: number;
   content?: string;
@@ -178,9 +191,13 @@ export interface TitleGenerateOptions extends LLMGenerateOptions {
 }
 
 export interface PipelineRunOptions extends LLMGenerateOptions {
+  styleSignalPolicy?: import("@ai-novel/shared/types/styleEngine").StyleSignalPolicy;
+  directorNext?: PipelineDirectorSnapshot;
   startOrder: number;
   endOrder: number;
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -213,7 +230,11 @@ export interface PipelineBackgroundSyncState {
 }
 
 export interface PipelinePayload extends LLMGenerateOptions {
+  styleSignalPolicy?: import("@ai-novel/shared/types/styleEngine").StyleSignalPolicy;
+  directorNext?: PipelineDirectorSnapshot;
   controlPolicy?: NovelControlPolicy;
+  issueGovernanceVersion?: 1;
+  issuePolicySnapshot?: DirectorIssuePolicy;
   workflowTaskId?: string;
   taskStyleProfileId?: string;
   maxRetries?: number;
@@ -279,6 +300,7 @@ export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
+  referenceBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
   bookContract?: {
     id: string;
@@ -317,18 +339,21 @@ export function normalizeNovelOutput<T extends {
   } | null;
 }>(
   novel: T,
-): Omit<T, "continuationBookAnalysisSections" | "commercialTagsJson"> & {
+): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson"> & {
   continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+  referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
   commercialTags: string[];
 } {
   const {
     continuationBookAnalysisSections,
+    referenceBookAnalysisSections,
     commercialTagsJson,
     ...rest
   } = novel;
   return {
     ...rest,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
+    referenceBookAnalysisSections: parseContinuationBookAnalysisSections(referenceBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),
     ...(rest.bookContract !== undefined
       ? {

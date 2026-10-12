@@ -11,6 +11,13 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { ImageAsset, ImageTaskStatus } from "@ai-novel/shared/types/image";
 
+export interface NovelWorkspaceEntry {
+  directorVersion?: "v1" | "v2";
+  directorEpoch?: number;
+  /** App-owned creation entry; it never grants generation or recovery authority. */
+  workspaceSourceRoute?: string | null;
+}
+
 export type NovelListItem = Pick<
   Novel,
   | "id"
@@ -24,6 +31,7 @@ export type NovelListItem = Pick<
   | "status"
   | "writingMode"
   | "projectMode"
+  | "creationExperience"
   | "narrativeForm"
   | "targetWordCount"
   | "derivedFromNovelId"
@@ -45,6 +53,8 @@ export type NovelListItem = Pick<
   | "sourceKnowledgeDocumentId"
   | "continuationBookAnalysisId"
   | "continuationBookAnalysisSections"
+  | "referenceBookAnalysisId"
+  | "referenceBookAnalysisSections"
   | "genreId"
   | "primaryStoryModeId"
   | "secondaryStoryModeId"
@@ -52,7 +62,7 @@ export type NovelListItem = Pick<
   | "tokenUsage"
   | "createdAt"
   | "updatedAt"
-> & {
+> & NovelWorkspaceEntry & {
   primaryCover?: ImageAsset | null;
   coverGeneration?: {
     taskId: string;
@@ -84,7 +94,7 @@ export interface NovelListResponse {
   totalPages: number;
 }
 
-export interface NovelDetailResponse extends Novel {
+export interface NovelDetailResponse extends Novel, NovelWorkspaceEntry {
   chapters: Chapter[];
   characters: Character[];
   bible?: NovelBible | null;

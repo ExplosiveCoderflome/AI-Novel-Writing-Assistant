@@ -25,6 +25,7 @@ import {
   extractFileName,
   type NovelDetailResponse,
   type NovelListResponse,
+  type NovelWorkspaceEntry,
   normalizeNovelListLimit,
 } from "./shared";
 
@@ -87,15 +88,19 @@ export async function createNovel(payload: {
   sourceKnowledgeDocumentId?: string;
   continuationBookAnalysisId?: string;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
+  referenceBookAnalysisId?: string;
+  referenceBookAnalysisSections?: BookAnalysisSectionKey[];
 }) {
-  const { data } = await apiClient.post<ApiResponse<Novel>>("/novels", payload);
+  const { data } = await apiClient.post<ApiResponse<Novel & NovelWorkspaceEntry>>("/novels", payload);
   return data;
 }
 
-export async function convertNovelToProfessional(id: string) {
-  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/professional`);
+export async function setNovelCreationExperience(id: string, experience: CreationExperience) {
+  const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/${experience}`);
   return data;
 }
+
+export const convertNovelToProfessional = (id: string) => setNovelCreationExperience(id, "professional");
 
 export async function getSimpleCreationShelf(id: string) {
   const { data } = await apiClient.get<ApiResponse<SimpleCreationShelfProjection>>(`/novels/${id}/simple-shelf`);
@@ -160,6 +165,8 @@ export async function updateNovel(
     sourceKnowledgeDocumentId: string | null;
     continuationBookAnalysisId: string | null;
     continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
+    referenceBookAnalysisId: string | null;
+    referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
     genreId: string | null;
     primaryStoryModeId: string | null;
     secondaryStoryModeId: string | null;

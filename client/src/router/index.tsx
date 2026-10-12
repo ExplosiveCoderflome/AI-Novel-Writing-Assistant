@@ -22,6 +22,7 @@ const ComicProjectPage = lazy(() => import("@/pages/comic/ComicProjectPage"));
 const CreativeHubPage = lazy(() => import("@/pages/creativeHub/CreativeHubPage"));
 const ChatPage = lazy(() => import("@/pages/chat/ChatPage"));
 const BookAnalysisPage = lazy(() => import("@/pages/bookAnalysis/BookAnalysisPage"));
+const MarketRadarPage = lazy(() => import("@/pages/marketRadar/MarketRadarPage"));
 const TaskCenterPage = lazy(() => import("@/pages/tasks/TaskCenterPage"));
 const AutoDirectorFollowUpCenterPage = lazy(() => import("@/pages/autoDirectorFollowUps/AutoDirectorFollowUpCenterPage"));
 const KnowledgePage = lazy(() => import("@/pages/knowledge/KnowledgePage"));
@@ -30,13 +31,21 @@ const StoryModeManagementPage = lazy(() => import("@/pages/storyModes/StoryModeM
 const TitleStudioPage = lazy(() => import("@/pages/titles/TitleStudioPage"));
 const PromptWorkbenchPage = lazy(() => import("@/pages/promptWorkbench/PromptWorkbenchPage"));
 const AntiAiRulesPage = lazy(() => import("@/pages/antiAiRules/AntiAiRulesPage"));
-const ModelRoutesPage = lazy(() => import("@/pages/settings/ModelRoutesPage"));
-const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
+const SettingsOverviewPage = lazy(() => import("@/pages/settings/views/SettingsOverviewPage"));
+const ModelsSettingsPage = lazy(() => import("@/pages/settings/views/ModelsSettingsPage"));
+const ModelRoutesSettingsPage = lazy(() => import("@/pages/settings/views/ModelRoutesSettingsPage"));
+const DirectorSettingsPage = lazy(() => import("@/pages/settings/views/DirectorSettingsPage"));
+const KnowledgeSettingsPage = lazy(() => import("@/pages/settings/views/KnowledgeSettingsPage"));
+const MaintenanceSettingsPage = lazy(() => import("@/pages/settings/views/MaintenanceSettingsPage"));
+const AppearanceSettingsPage = lazy(() => import("@/pages/settings/views/AppearanceSettingsPage"));
 const WorldList = lazy(() => import("@/pages/worlds/WorldList"));
 const WorldGenerator = lazy(() => import("@/pages/worlds/WorldGenerator"));
 const WorldWorkspace = lazy(() => import("@/pages/worlds/WorldWorkspace"));
 const WritingFormulaPage = lazy(() => import("@/pages/writingFormula/WritingFormulaPage"));
 const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"));
+const DirectorRunHistoryPage = lazy(() => import("@/pages/directorNext/DirectorRunHistoryPage"));
+const DirectorNovelPage = lazy(() => import("@/pages/directorNext/DirectorNovelPage"));
+const NovelUsagePage = lazy(() => import("@/pages/novelUsage/NovelUsagePage"));
 
 const routes: RouteObject[] = [
   {
@@ -45,6 +54,8 @@ const routes: RouteObject[] = [
     children: [
       { index: true, element: <Home /> },
       { path: "help", element: <HelpPage /> },
+      { path: "lab/director", element: <DirectorRunHistoryPage /> },
+      { path: "lab/director/:novelId", element: <DirectorNovelPage /> },
       { path: "novels", element: <NovelList /> },
       { path: "create", element: <CreationStudioPage /> },
       { path: "novels/create", element: <NovelCreate /> },
@@ -52,6 +63,7 @@ const routes: RouteObject[] = [
       { path: "novels/:id/simple", element: <SimpleNovelShelfPage /> },
       { path: "novels/:id/story", element: <ShortStoryStudioPage /> },
       { path: "novels/:id/preview", element: <NovelPreview /> },
+      { path: "novels/:id/ai-usage", element: <NovelUsagePage /> },
       { path: "novels/:id/edit", element: <NarrativeFormNovelEditRoute /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "drama", element: <DramaWorkspacePage /> },
@@ -62,6 +74,7 @@ const routes: RouteObject[] = [
       { path: "chat-legacy", element: <ChatPage /> },
       { path: "chat", element: <Navigate to="/creative-hub" replace /> },
       { path: "book-analysis", element: <BookAnalysisPage /> },
+      { path: "market-radar", element: <MarketRadarPage /> },
       { path: "tasks", element: <TaskCenterPage /> },
       { path: "auto-director/follow-ups", element: <AutoDirectorFollowUpCenterPage /> },
       { path: "auto-director/follow-up-center", element: <Navigate to="/auto-director/follow-ups" replace /> },
@@ -72,8 +85,13 @@ const routes: RouteObject[] = [
       { path: "titles", element: <TitleStudioPage /> },
       { path: "prompt-workbench", element: <PromptWorkbenchPage /> },
       { path: "anti-ai-rules", element: <AntiAiRulesPage /> },
-      { path: "settings/model-routes", element: <ModelRoutesPage /> },
-      { path: "settings", element: <SettingsPage /> },
+      { path: "settings/model-routes", element: <ModelRoutesSettingsPage /> },
+      { path: "settings/models", element: <ModelsSettingsPage /> },
+      { path: "settings/director", element: <DirectorSettingsPage /> },
+      { path: "settings/knowledge", element: <KnowledgeSettingsPage /> },
+      { path: "settings/maintenance", element: <MaintenanceSettingsPage /> },
+      { path: "settings/appearance", element: <AppearanceSettingsPage /> },
+      { path: "settings", element: <SettingsOverviewPage /> },
       { path: "worlds", element: <WorldList /> },
       {
         path: "worlds/generator",

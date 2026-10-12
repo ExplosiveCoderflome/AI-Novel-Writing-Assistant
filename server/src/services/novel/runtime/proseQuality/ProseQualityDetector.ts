@@ -98,6 +98,13 @@ export function detectProseQuality(content: string): ProseQualityReport {
   };
 }
 
+/** Only reject defects that the existing acceptance guard would newly classify as severe. */
+export function detectNewSevereProseFindings(original: string, candidate: string): ProseQualityFinding[] {
+  const isSevere = (finding: ProseQualityFinding) => finding.severity === "high" || finding.severity === "critical";
+  const originalCodes = new Set(detectProseQuality(original).findings.filter(isSevere).map(finding => finding.code));
+  return detectProseQuality(candidate).findings.filter(finding => isSevere(finding) && !originalCodes.has(finding.code));
+}
+
 export function buildProseQualityAuditReport(
   input: ProseQualityAuditReportInput,
 ): RuntimeAuditReport | null {

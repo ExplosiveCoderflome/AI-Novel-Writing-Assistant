@@ -82,6 +82,7 @@ function withPatchedPrisma(store, fn) {
   const original = {
     bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
     bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
     characterFindMany: prisma.bookAnalysisCharacter.findMany,
     characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
     characterCount: prisma.bookAnalysisCharacter.count,
@@ -159,11 +160,13 @@ function withPatchedPrisma(store, fn) {
 
   prisma.bookAnalysis.findUnique = async (args) => {
     if (args?.select?.status) return { status: "succeeded" };
+    if (args?.select?.usedTokens) return { budgetTokens: store.budgetTokens, usedTokens: store.usedTokens };
     return createAnalysis();
   };
+  prisma.bookAnalysis.updateMany = async () => ({ count: 0 });
   prisma.bookAnalysis.update = async ({ data }) => {
-    const increment = data?.usedTokens?.increment ?? 0;
-    store.usedTokens += increment;
+    if (typeof data?.usedTokens === "number") store.usedTokens = data.usedTokens;
+    else store.usedTokens += data?.usedTokens?.increment ?? 0;
     return { budgetTokens: store.budgetTokens, usedTokens: store.usedTokens };
   };
   prisma.bookAnalysisCharacter.findMany = async (args = {}) => {
@@ -194,6 +197,7 @@ function withPatchedPrisma(store, fn) {
     .finally(() => {
       prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
       prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
       prisma.bookAnalysisCharacter.findMany = original.characterFindMany;
       prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
       prisma.bookAnalysisCharacter.count = original.characterCount;

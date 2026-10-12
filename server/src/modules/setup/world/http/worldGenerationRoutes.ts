@@ -17,6 +17,8 @@ import {
   worldIdSchema,
   worldService,
 } from "./worldHttpContext";
+import { summarizeStructuredOutputFailure } from "../../../../llm/structuredInvoke";
+import { AppError } from "../../../../middleware/errorHandler";
 
 export function registerGenerationWorldRoutes(router: Router): void {
   router.get("/templates", requireWorldWizard, async (_req, res, next) => {
@@ -115,6 +117,24 @@ export function registerGenerationWorldRoutes(router: Router): void {
           message: "World skeleton generated.",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
+        const failure = summarizeStructuredOutputFailure({ error, fallbackAvailable: false });
+        if (["incomplete_json", "malformed_json", "schema_mismatch"].includes(failure.category)) {
+          next(new AppError(
+            "世界骨架未能完整生成，请降低世界规模后重试。",
+            422,
+            "本次没有保存不完整内容。可先选择较小规模；仍失败时请切换模型后重新生成。",
+          ));
+          return;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        if (/timed?\s*out|timeout|超时/i.test(message)) {
+          next(new AppError(
+            "世界骨架生成超时，请降低世界规模后重试。",
+            504,
+            "本次没有保存未完成内容；仍超时时请切换模型后重新生成。",
+          ));
+          return;
+        }
         next(error);
       }
     },

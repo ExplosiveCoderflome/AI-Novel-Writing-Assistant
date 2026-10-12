@@ -41,7 +41,7 @@ function createCandidateExecutableModule(
       inspectReadiness: async (context) => {
         const { state } = await loadDirectorModuleState(context, { requireNovel: false, requireRequest: false });
         const summary = await loadFactBaseSummary(context);
-        return summary.candidate.candidateCount > 0 || state.seedPayload.idea
+        return summary.candidate.candidateCount > 0 || state.launch.legacyContext.idea
           ? readyState({
             evidence: {
               batchCount: summary.candidate.batchCount,

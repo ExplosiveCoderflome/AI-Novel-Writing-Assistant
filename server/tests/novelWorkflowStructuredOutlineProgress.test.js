@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod, stubLegacyNovelIdentity } = require("./legacyDirector/databasePorts.js");
 
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const {
@@ -10,6 +11,8 @@ const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+test.beforeEach((t) => stubLegacyNovelIdentity(t, prisma, ["novel-demo"]));
 
 function createWorkspace({
   chapters = [],
@@ -364,7 +367,11 @@ test("chapter_range is resolved as chapter range 1-10 even when it spans volumes
   assert.deepEqual(cursor.selectedChapters.map((chapter) => chapter.chapterOrder), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 });
 
-test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list status to next incomplete chapter", async () => {
+test("healStaleAutoDirectorStructuredOutlineProgress advances stale chapter list status to next incomplete chapter", async (t) => {
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async ({ where }) => {
+    assert.equal(where.taskKind_taskId.taskId, "task-outline-stale");
+    return null;
+  });
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,

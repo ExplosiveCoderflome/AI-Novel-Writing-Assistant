@@ -15,6 +15,7 @@
 - 站点设计方向定义在 `site/DESIGN.md`，采用“文学编辑部 + AI 控制台”的表达：暖纸面承载创作叙事，暗色控制台承载产品可信度。
 - 文档展示采用白名单 manifest，公开入口只展示面向使用者和潜在用户的文档，不自动暴露整个 `docs/` 目录。
 - 文档内容由 `site/src/docsContent.ts` 使用 Vite glob 自动加载，公开范围仍由 `site/src/docsManifest.ts` 决定；新增公开文档必须登记到 manifest，并通过 `pnpm check:docs-manifest` 校验。
+- 自包含交互架构图继续以 `docs/architecture/` 为唯一源，站点启动或构建前同步到静态发布目录；公开文档只登记说明页，不复制维护另一份图表源数据。
 
 ## Current Rule
 
@@ -74,10 +75,13 @@
 - 上一篇 / 下一篇导航。
 - 长文档折叠式目录、表格样式和 tip / warn / checkpoint callout。
 - 面向自动导演阶段的 SVG/PNG 流程图。
+- 面向完整生产链的 Archify 交互架构图及其静态预览。
 
 这些能力的目的不是把公开站变成内部文档系统，而是降低新用户查找安装、开书、恢复、配置和模块用途的成本。公开站搜索只索引 manifest 登记的公开文档，不应索引内部 wiki、计划、检查点或归档资料。
 
 自动导演阶段文档的来源锚点是 `server/src/services/novel/director/projections/novelDirectorProgress.ts`。`docs/public/flow/auto-director-pipeline.md` 顶部的 `DIRECTOR_PROGRESS_ITEM_KEYS` 必须覆盖代码中的 `DirectorProgressItemKey`，`pnpm check:docs-manifest` 会检查这一点。新增阶段时，文档必须解释阶段含义、产物、checkpoint/auto-approval 行为和失败恢复策略。
+
+交互架构图使用 [Archify](https://github.com/tt-a1i/archify) 生成。规范源、交互 HTML 和唯一静态预览保存在 `docs/architecture/`；`site/scripts/sync-architecture-assets.cjs` 只在站点启动或构建前生成公开 HTML 副本，生成目录不得成为新的编辑源。
 
 ## Routing And Prerender Rule
 
@@ -100,6 +104,7 @@ GitHub Pages 仍是静态托管，因此必须同时保留两层能力：
 - `site/src/docsManifest.ts`：公开文档白名单。
 - `site/src/docsContent.ts`：公开文档内容加载。
 - `site/src/docsAssets.ts`：公开文档流程图资源加载。
+- `site/scripts/sync-architecture-assets.cjs`：交互架构图静态发布同步。
 - `site/src/DocsPage.tsx`：文档索引与 Markdown 阅读页。
 - `scripts/check-docs-manifest.cjs`：公开文档登记校验。
 - `docs/releases/release-notes.md`：用户可见发布记录。

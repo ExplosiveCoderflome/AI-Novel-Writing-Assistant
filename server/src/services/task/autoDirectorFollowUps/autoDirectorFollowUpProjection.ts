@@ -18,6 +18,7 @@ import {
 } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { readDirectorReplacementTaskId } from "../../novel/director/state/DirectorStateReader";
 import {
   getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
@@ -196,9 +197,7 @@ function getCurrentModel(seedPayloadJson: string | null | undefined): string | n
 }
 
 export function getReplacementTaskId(seedPayloadJson: string | null | undefined): string | null {
-  const seedPayload = parseWorkflowSeedPayload(seedPayloadJson);
-  const replacementTaskId = (seedPayload as { replacementTaskId?: unknown } | null)?.replacementTaskId;
-  return typeof replacementTaskId === "string" && replacementTaskId.trim() ? replacementTaskId.trim() : null;
+  return readDirectorReplacementTaskId(seedPayloadJson);
 }
 
 function getKnownReplacementTaskId(seedPayloadJson: string | null | undefined, knownTaskIds: ReadonlySet<string>): string | null {

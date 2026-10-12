@@ -68,6 +68,7 @@ function normalizeChapterInput(raw: unknown, fallbackOrder: number): Omit<Volume
     beatKey: normalizeText(record.beatKey),
     title: normalizeText(record.title) ?? `第${inputOrder}章`,
     summary: normalizeText(record.summary) ?? normalizeText(record.purpose) ?? "待生成章节摘要",
+    ...(Array.isArray(record.plannedCharacterIds) ? {plannedCharacterIds: [...new Set(normalizeStringArray(record.plannedCharacterIds))]} : {}),
     purpose: normalizeText(record.purpose),
     exclusiveEvent: normalizeText(record.exclusiveEvent),
     endingState: normalizeText(record.endingState),

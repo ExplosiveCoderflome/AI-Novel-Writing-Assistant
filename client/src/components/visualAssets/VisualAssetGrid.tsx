@@ -16,7 +16,7 @@ interface VisualAssetGridProps {
 
 export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, onOpenDetails }: VisualAssetGridProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+    <div className="columns-2 gap-3 sm:columns-3 xl:columns-4 2xl:columns-5" aria-label="视觉素材瀑布流">
       {items.map((asset) => {
         const isSelected = selectedIds.has(asset.assetId);
         const canSelect = selectionMode !== "browse" && Boolean(asset.url.trim());
@@ -26,7 +26,7 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
           <div
             key={asset.assetId}
             className={cn(
-              "group relative min-w-0 overflow-hidden rounded-md border bg-background transition-colors",
+              "group relative mb-3 min-w-0 break-inside-avoid overflow-hidden rounded-md border bg-background transition-colors",
               isSelected ? "border-primary ring-1 ring-primary/35" : "border-border/70 hover:border-foreground/35",
             )}
           >
@@ -37,16 +37,16 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
               className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               onClick={() => onSelect(asset)}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+              <div className="relative overflow-hidden bg-muted">
                 {asset.thumbnailUrl ? (
                   <img
                     src={resolveImageAssetUrl(asset.thumbnailUrl)}
                     alt={sourceLabel}
-                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    className="block h-auto w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <div className="flex min-h-28 items-center justify-center text-muted-foreground">
                     <ImageOff className="h-5 w-5" aria-hidden="true" />
                   </div>
                 )}

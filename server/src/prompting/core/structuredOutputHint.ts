@@ -1,3 +1,4 @@
+import {placeStructuredHint} from "./cache";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset, PromptRenderContext } from "./promptTypes";
@@ -315,9 +316,9 @@ function buildExampleFromSchema(
   }
 }
 
-function safeJsonStringify(value: unknown): string {
+function safeJsonStringify(value: unknown, compact = false): string {
   try {
-    return JSON.stringify(value, null, 2) ?? String(value);
+    return JSON.stringify(value, null, compact ? undefined : 2) ?? String(value);
   } catch {
     return String(value);
   }
@@ -381,7 +382,7 @@ function resolveStructuredOutputNote<I, O, R>(
   return customNote ?? "";
 }
 
-function buildStructuredOutputHintText(example: unknown, customNote: string): string {
+function buildStructuredOutputHintText(example: unknown, customNote: string, compact: boolean): string {
   const noteLine = customNote.trim()
     ? `- ${customNote.trim()}`
     : "";
@@ -393,7 +394,7 @@ function buildStructuredOutputHintText(example: unknown, customNote: string): st
     "- 如果任务正文里对数组数量、枚举取值、空数组、必填字段有更具体要求，以任务正文为准。",
     noteLine,
     "示例：",
-    safeJsonStringify(example),
+    safeJsonStringify(example, compact),
   ].filter(Boolean).join("\n");
 }
 
@@ -402,6 +403,7 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
   promptInput: I;
   context: PromptRenderContext;
   messages: BaseMessage[];
+  preserveMessageLayout?: boolean;
 }): BaseMessage[] {
   if (input.asset.mode !== "structured" || !input.asset.outputSchema) {
     return input.messages;
@@ -416,8 +418,8 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
   const example = resolveStructuredOutputExample(input.asset, input.promptInput, input.context);
   const note = resolveStructuredOutputNote(input.asset, input.promptInput, input.context);
 
-  return [
-    ...input.messages,
-    new HumanMessage(buildStructuredOutputHintText(example, note)),
-  ];
+  const hint=new HumanMessage(buildStructuredOutputHintText(example,note,input.asset.structuredOutputHint?.compact===true));
+  const declared=input.asset.structuredOutputHint;
+  return placeStructuredHint(input.messages,hint,!input.preserveMessageLayout && declared?.placement==="stable_prefix"
+    && typeof declared.example!=="function" && typeof declared.note!=="function");
 }

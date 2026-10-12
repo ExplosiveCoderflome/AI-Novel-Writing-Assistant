@@ -12,6 +12,9 @@
 
 ## 当前规则
 
+- `director.issue.assessment` 只负责把无法由确定性安全检查直接编码的问题结构化为稳定问题码、1～8 风险分、证据与建议动作。业务服务不得根据异常消息关键词或正则猜测问题类型；已知的空正文、明确重规划、保护内容和数据完整性信号可以直接提供稳定问题码，再由统一治理服务应用策略。
+- 风险评估失败不能生成虚构分类。确定性调用方提供的问题码仍然有效；只有 `runtime.unclassified` 允许 AI 改判为更具体的稳定问题码。安全锁定规则在结构化评估之后执行，AI 建议不能越过全书继续规则或数据安全底线。
+
 - 新增产品级 prompt 必须放在 `server/src/prompting/prompts/<family>/`。
 - 新增产品级 prompt 必须在 `server/src/prompting/registry.ts` 注册。
 - 新增产品级 prompt 还必须进入提示词管理目录，能够被检索、查看版本、预览实际上下文并执行受控测试；只完成 Registry 注册不等于完成提示词管理纳管。
@@ -21,6 +24,7 @@
 - 确定性代码只允许处理结构契约和安全边界，例如必填字段、枚举归一、ID 是否存在、数组长度、权限和数据保护。确定性质量闸门可以指出“缺少 protagonist / gender / 必填字段”这类结构问题，但不能判断“是否承接了某个题材身份”“名字是否像功能位”“语言是否像英文残留”等创作语义。
 - 结构化输出使用 `runStructuredPrompt`，纯文本使用 `runTextPrompt`，流式能力使用对应 stream runner。
 - JSON 解析、schema 校验失败由 repair policy 处理；JSON 合法但业务语义不合格由 semantic retry 处理。
+- 同一结构化结果中承担不同职责的字段必须在 `postValidate` 中保护其最小差异边界。比如章节目标在去除空白后与章节摘要或本次修正前的章节目标完全相同时，目标输出无效：应把失败原因交给 `semanticRetryPolicy` 重新生成；重试仍失败时中止本次写入并保留已保存内容，不能让一个字段静默覆盖成另一个字段或沿用无效草稿。
 - 自动导演关键路径优先使用职责单一的小型结构化合同。开篇世界切片、路线窗口和下一章执行合同应分别约束，不要为了减少代码步骤把整本世界、全角色、整卷章节和执行细节塞进一个巨型 JSON。拆分的目标是降低 repair 面积和首章前耗时，不是复制生产链。
 - 自定义高级模板或业务上下文只能影响提示词正文。运行时必须在模板编译后强制追加 JSON skeleton、完整 Schema 和 repair 合同，用户模板不能覆盖这些结构安全边界。
 - 所有通过 registry runner 执行的 PromptAsset 都必须产生 prompt quality telemetry，用于观察 repair 率、semantic retry 率、空输出率、上下文 token 预算、输出长度和耗时。业务服务不得绕过 runner 自行吞掉 postValidate 失败；语义失败应通过 `semanticRetryPolicy` 重试，或通过明确的 `postValidateFailureRecovery` 降级。
@@ -30,22 +34,28 @@
 - 抽取类 schema 如果用字符串承载“可读状态值”，必须在 PromptAsset 中明示数值也要按字符串输出，并在 schema 层对已经结构化的数值 / 布尔标量做确定性字符串化。典型场景是时间线 `stateChanges.before/after`：差评值、评分、倒计时等是剧情状态，不是计算字段，进入连续性账本时应保存为 `"19"`、`"5"` 这类可读文本，避免每次抽取都把合理数值输出推给 JSON repair。
 - 聚合型结构化 prompt 必须列出所有受限 enum 字段，不能只列最容易出错的字段。章节资产抽取这类一次性输出多个子账本的 prompt，应同时约束 `updateType`、`resourceType`、`narrativeFunction`、`scopeType`、`syncPlan` 等字段；否则模型会用语义合理但不被 schema 接受的自然分类词，导致后台任务被 Zod 校验失败卡住。
 - 结构化输出后的确定性归一只用于字段别名、枚举别名和兼容旧形状，例如把 `pacing` 映射为接收闸门的 `plot`、把 payoff `active` 映射为 `pending_payoff`、把字符串风险转成 `{ code, severity, summary }` 对象。不能用这种归一替代 AI 对剧情事实、风险等级或下一步动作的判断。
+- 当结构化 Prompt 要求 AI 从候选目录中选择稳定 ID 时，目录必须明确区分“候选序号”和“真实 ID”，并要求原样返回真实 ID。若模型仍把纯整数候选序号写入 ID 字段，schema 应先把 JSON 数字确定性转成字符串，`postValidate` 再按本次已传入的有序候选数组做确定性映射；精确 ID 必须优先，零、负数、非规范整数、越界序号和任意未知值必须继续拒绝并进入 semantic retry。该映射只修复已经结构化的目录引用，不能根据名称、关键词或描述猜测选择结果。
 - 章节接收闸门、时间线抽取和章节资产抽取都属于高频后台结构化 prompt，示例必须覆盖非空对象数组。`missingObligations`、`hooks/possibleHooks`、资源变化等字段不能只给空数组示例，否则模型在发现真实问题时容易自造字段或把对象压成字符串。
 - 事实抽取类 prompt 不继承创作温度。时间线、章节资产 delta、接收闸门等用于审校或账本写入的调用应在 service 层钳制低温，避免自动导演高创造温度放大 schema drift。
 - JSON repair 日志应保留 `promptId`、`schemaPaths`、`repairAttempt` 和 `validationError`。诊断 repair 率时先按 `promptId + schemaPath` 聚合，判断是 prompt 示例、枚举合同、上下文污染还是模型路由问题。
+- 原生 JSON 格式是接口能力，不是模型名称能力。只有官方直连接口（或未覆盖的官方默认接口）可以按内置 provider profile 启用 `json_schema` / `json_object`；任何自定义或聚合 OpenAI 兼容地址即使模型名带有 `deepseek`、`glm`、`kimi` 等前缀，也必须先使用 `prompt_json`。模型路由连通性检测会实际验证协议与结构化格式，并把验证成功的格式保存为该路由偏好；禁止仅因新增型号或名称别名而把自定义接口升级为原生格式。
 - JSON repair 必须接收目标 JSON Schema，不能只依赖原始校验错误推测字段结构。尤其在原始文本无法解析、`schemaPaths` 为空时，完整 schema 是修复模型恢复必填字段、嵌套对象和枚举合同的唯一可靠依据。
+- 需要备用模型的结构化 Prompt 可以单独声明 `fallbackRepairPolicy`。主模型允许的修复次数与备用模型不必相同：备用模型本身是降级路径，默认先完成一次结构化尝试，只有明确需要时才重复发送完整上下文，避免在章节预算边界上重复消耗。
 - repair 不应无限量回放损坏输出。遇到超长重复、乱码或退化内容时，应保留足够的前缀与尾部用于恢复语义，同时压缩中间异常内容，避免损坏文本继续污染修复上下文。
-- 开书灵感、短方向候选这类“小结构、强创作上下文”的任务，通用 JSON repair 可能只恢复字段结构，却丢失用户已选题材、推进方式和方向差异。此类 PromptAsset 应限制采样温度与输出预算、给出完整非空数组示例；原始输出退化或结构损坏时，优先携带原始业务上下文重新执行已注册 Prompt，而不是让无业务上下文的 repair 补造一组新内容。传输错误仍直接返回，不能用内容重试掩盖模型连接问题。
+- 开书灵感、短方向候选这类“小结构、强创作上下文”的任务，通用 JSON repair 可能只恢复字段结构，却丢失用户已选题材、推进方式和方向差异。此类 PromptAsset 应限制采样温度与输出预算、给出完整非空数组示例；原始输出退化或结构损坏时，优先携带原始业务上下文重新执行已注册 Prompt，而不是让无业务上下文的 repair 补造一组新内容。传输错误不能用内容重试掩盖模型连接问题；结构化调用只可按“模型路由管理”的全局重试次数，对尚未取得可信输出的服务端错误、超时或连接中断执行有限重试，默认 1 次、最多 3 次。达到次数后才可切换已启用的备用模型或返回来源页恢复；每次重试必须沿用同一 Prompt 与结构合同，并在 AI 实况中留下独立调用记录，不能伪造成功或把它当作 JSON repair。
 - 长列表与多层对象类 PromptAsset 必须同时控制字段长度、数组规模和调用级输出预算。仅声明“严格 JSON”不能防止模型把说明文字塞进字段或在闭合括号前持续生成；可以按卷、节拍或片段拆分的结果，应优先分段生成并持久化。
-- 空模型响应不属于 JSON 或 schema 修复问题。结构化运行时必须在进入 repair 前识别空响应，将其归为模型传输 / 输出失败，并优先交给模型路由、备用模型或当前生产项重试；repair 没有原始语义可保留，禁止用空对象补造必填业务内容。
-- 支持开关思考模式的模型执行结构化任务时，应由 provider capability profile 显式关闭思考模式，避免推理预算耗尽后没有最终 JSON。新模型别名接入时必须同步验证其思考开关、结构化 profile 和实际请求参数，不能只把模型名加入下拉列表。
+- 空模型响应不属于 JSON 或 schema 修复问题。普通和流式结构化入口在原生 JSON 模式返回空内容时，都应先用同一模型、同一 Prompt 和同一 Schema 降级到 `prompt_json`；降级后仍为空，才按模型传输 / 输出失败进入有限重试和备用模型。repair 没有原始语义可保留，禁止用空对象补造必填业务内容。
+- 支持开关思考模式的模型执行结构化任务时，应由 provider capability profile 显式关闭思考模式，避免推理预算耗尽后没有最终 JSON。新模型别名接入时必须同步验证其思考开关、结构化 profile 和实际请求参数，不能只把模型名加入下拉列表。DeepSeek 当前官方名 `deepseek-flash` / `deepseek-pro` 与旧名 `deepseek-v4-flash` / `deepseek-v4-pro` 必须按同一套思考开关处理。
+- GLM 4.5 及以上模型在官方兼容端点执行结构化任务时，必须通过 `thinking: { type: "disabled" }` 关闭思考。`enable_thinking: false` 是 Qwen 兼容参数，不能复用于 GLM；聚合或未知代理端点仍按自身已验证的能力处理。
 - Semantic retry 必须把原始业务失败原因传回重试 prompt，并指明需要整体重排还是局部修正。章节列表、卷级拆章这类结果如果因为标题同构、章节功能重复、摘要空泛或结尾牵引不足被拒绝，重试指令应要求重排整组标题骨架和章节功能分配，而不是只替换被点名的一章。
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
-- Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
+- Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。安全槽位模式不常驻展示该诊断面板，因为用户不能在该模式调整上下文；高级模板模式才显示上下文引用，用于插入稳定 token 和检查必需上下文。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
+- 正文效果实验室是 `novel.chapter.writer` 的作者入口，不维护独立 Prompt 或生成链。它必须复用 Prompt Workbench 的本书模板、真实章节上下文、预览编译和受控测试接口；从章节编辑器进入时自动带入小说与章节，试写结果不得保存为章节正文或推进自动导演。
 - Prompt Workbench 在“本书”范围下如果同时选择了小说和章节，预览必须优先使用该小说章节的只读上下文；只有没有真实章节或无法装配真实上下文时，才允许通过 `executionContext.metadata.extraContextBlocks` 提供示例资料块。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
 - `novel.chapter.writer` 的 Workbench 预览必须注入只读 `chapterWriteContext`，并通过默认 Context Broker 解析出 `book_contract`、`chapter_mission`、`timeline_context`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 和 `style_contract`。预览按钮不得调用会补写章节计划、推进自动导演或修改小说数据的生成装配器；如果只能使用降级上下文，诊断信息必须说明来源边界。
 - Prompt Workbench 的测试产出是预览之后的受控执行入口。它可以用当前未保存的 slot 草稿或高级模板草稿调用 LLM，并允许用户为这次测试选择 provider、model、temperature 和输出上限；但它仍必须先走注册 `PromptAsset`、Context Broker、slot/template 编译、结构化 schema 和 repair 策略。测试产出不得接受任意自由 system prompt，不得改写 `contextPolicy`、schema、postValidate、semantic retry 或 required context。
+- 文本类 Prompt 的测试产出应通过 SSE 将模型增量直接展示给用户，减少长正文试写的等待感；流式请求仍使用同一份已编译的 Prompt、上下文和模型路由，结束后不得写入章节正文或推进生产链。结构化 Prompt 必须等待 schema 校验、repair 和语义规则完成后再展示最终结果，不能把未校验的 JSON 片段当作可信测试结论。
 - `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
 - 正文写作高级模板是受控专家能力，允许正式正文生成 Prompt 在明确的作品范围覆盖 `system` / `human` 模板。它服务成熟用户对正文写作表达和上下文摆放的精细控制，不改变 `PromptAsset.id/version/taskType/mode`、schema、postValidate、contextPolicy 或正文输出形态。
@@ -56,10 +66,13 @@
 - `novel.chapter.writer` 最终发送给模型的上下文正文必须面向写作任务可读。`{{context.xxx}}` 和保底 required context 可以在模板、诊断和结构字段中保留原始 group key，但渲染到 human message 时，区块标题和主要字段应使用中文标签，例如 `timeline_context` 显示为 `时间线`、`Title` 显示为 `标题`、角色状态显示为 `目标 / 状态 / 情绪`。内部数据库 ID、风格规则 id 和 `effective_style_profile_id` 这类调试字段不得进入 writer-facing 正文上下文；如需排查，应保留在 diagnostics、日志或专用 meta 文本中。
 - 高级模板版本历史属于本书覆盖数据，不是官方版本库。每次保存创建不可变版本并设为 active；回滚只切换 activeVersionId；恢复官方模板只把 mode 切回 `official` 并保留历史版本，真实生成随即回到 `PromptAsset.render()`。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
+- Prompt slot 或高级模板新增持久化模型时，PostgreSQL 与 SQLite schema、迁移和桌面运行时迁移验证必须同步提交。只有 Prisma schema 而没有增量迁移，会让已安装桌面版启动正常但在首次保存时稳定报缺表错误。
 - `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
 - “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
 - “保留我的设置”只能更新当前槽位的 `baseHash/baseVersion`，用于确认用户接受自己的覆盖与当前官方版本的差异；不能顺手改写官方默认值、schema 或上下文策略。
 - 旧未纳管 prompt 路径被触碰时，默认先迁入 registry，再扩展能力。
+- 推进模式库的“扩展”属于正式产品 AI 能力：它必须由注册 PromptAsset 同时读取选定根模式、现有同级模式和整库摘要，再输出可直接落库的完整 profile 候选。不能在前端按名称相似度或固定类别补齐，更不能把“扩展”退化为只换名称的子类生成。候选保存仍必须通过既有两级树、重复名称与 profile 校验。
+- 小说封面 Prompt 的默认产品目标是“带准确书名的完整竖版封面”，不是无文字主画面。Prompt 必须同时提供唯一书名、简体中文准确渲染、清晰高对比度排版和禁止副标题/作者名/水印的约束；负面提示词只能拦截乱码、错误书名等文字质量问题，不能把“文字/书名”整体列为禁止项。
 
 批准例外：
 
@@ -97,7 +110,10 @@
 
 ## 失败模式
 
+- 章节资源抽取的条目数量约束必须同时落实在提示词、输出 schema 与归一化层。`characterResourceDeltas` 最多 8 条，超出时由结构校验拦截；不能只在文字中提醒模型、却让超量结果进入后续资源确认。
+
 - 模型返回 JSON 不稳定：先检查 schema、provider JSON 能力和 repair policy，不在业务 service 里补局部解析。
+- 服务端繁忙、超时或连接中断：先检查“模型路由管理”的服务端错误重试次数是否符合当前成本与可用性要求。默认会额外调用 1 次；达到次数后才检查备用模型和厂商状态。不要通过提高 JSON repair 或 semantic retry 次数处理这类错误。
 - 模型请求耗时较长但最终 `content` 为空：先看 LLM 会话日志中的响应长度、模型名和思考模式参数。若原始响应为空，不要根据后续 `{}` repair 错误误判为字段缺失；应检查该模型是否需要关闭思考模式，并确认空响应被归入模型调用失败而不是 JSON repair。
 - 同一 prompt 频繁进入 JSON repair：检查日志里的原始字段值是否来自上下文或示例中的非 schema 值。如果模型只是复用了 prompt 中出现的别名，应先修 prompt/schema 合同；如果输出语义完整但字段名是常见别名，应在 PromptAsset schema 层归一，而不是让后台任务无限重试。
 - 关键路径 repair 率升高时，还要检查合同是否同时承担了远期规划和当前执行。若大量失败集中在深层数组、跨卷章节或非开篇角色字段，应缩小当前 PromptAsset 的职责和输出窗口；不能靠增加 repair 次数掩盖过大的结构合同。
@@ -135,3 +151,43 @@
 - [Prompt Governance Audit 2026-05-08](../../checkpoints/prompt-governance-audit-2026-05-08.md)
 - [提示词工作台、上下文装配与统一步骤运行时方案](../../plans/prompt-workbench-context-and-step-runtime-plan.md)
 - [LLM Schema Refactor Checkpoint](../../checkpoints/llm-schema-refactor-checkpoint.md)
+
+## 紧凑篇幅与结局 Prompt
+
+`novel.compact_book.structure@v1` 负责三段式结构和结局合同，`novel.compact_book.ending_audit@v1` 负责判断结局合同是否完成。两者都必须注册在 Prompt Registry，并使用结构化 Schema；运行时只用数值章节预算做确定性边界，不用关键词推断结局。
+
+终章正文继续复用 `novel.chapter.writer`，由章节上下文携带终章合同；结构化章节列表在全书终章场景下禁止创建下一主线。结局审校把“可追加收尾”和“必须重规划”区分开，普通文风质量债不得升级成全局失败。
+
+## 漫画事实提取的登记边界
+
+`comic.factExtraction@v1` 由 comic Prompt 家族持有消息模板和结构化 Schema，服务层只传入输入与运行选项，并通过 Registry 的资产加载入口登记。不能为了“小型抽取”在业务服务里临时构造 PromptAsset；否则工作台、精确版本解析和治理检查会遗漏真实调用。迁移位置时保留事实数量、长度、预算及原有版本合同，避免把目录调整混入行为变更。
+
+## 自动导演问题评估 Prompt
+
+`director.issue.assessment@v1` 是自动导演未分类运行问题的结构化入口。它返回稳定问题码、1～8 风险分、证据和建议动作；已有稳定问题码的路径不得再调用 AI 改写分类。
+
+风险分只用于说明和排序，不拥有暂停权。继续、重试、暂停和结束由冻结的问题策略及安全规则决定。不要在服务层增加第二条风险评分 Prompt 或以分数驱动的控制流。
+
+## 正文生产上下文的去重与完整性
+
+模型上下文优化优先去掉重复内容和格式空白，不通过删除角色硬事实、义务、保密约束或问题证据降低消耗。自动导演的章节规划、验收、补丁、资产提取与窗口决策可设置 `structuredOutputHint.compact=true`：完整输出示例只移除缩进，字段、数组层级、示例和 Schema 不变；其他资产沿用默认格式。
+
+局部补丁的显式 issuesJson 是当前问题的主输入。仅当补充上下文的问题与已提供问题在 severity、category、evidence、fixSuggestion 四字段完全对应（忽略展示空白）时删除重复项。缺失问题、不同修法、不可解析的自定义载荷均保留补充上下文。missingObligations 和 blockingIssueCodes 不参与这种去重，必须保留。原文只提供一次，供全部补丁共同定位。
+
+重规划输入保留全部报告的身份、分数、摘要与问题。重复的完整评估合并到 assessments，再由 reports 的 assessmentIndex 引用；索引只是数据表示，不参与 AI 决策。历史评估不可解析时保留原文。创建/更新时间等记录元数据不属于选择规划窗口所需的输入。Canonical state 必须完整序列化，不能截取 JSON 前若干字符再追加省略号：尾部通常包含待兑现伏笔、角色知识或受保护秘密，截断会同时破坏语法和故事约束。
+
+验证先比较实际渲染的输入字符与重复次数，再用逐次真实 usage 验证成本。字符下降不能直接宣称等比例 Token 节省；为修复旧截断恢复完整事实的调用可能更长。测试应同时证明问题没有遗漏、修复边界仍在、格式示例仍可解析，以及超长状态末尾的信息仍在。
+
+## 写法诊断的证据与关联合同
+
+PromptAsset 可以通过 `repairPolicy.guidance` 声明结构修复的额外来源限制。普通结构化调用、语义重试、流式结果修复和空流备用调用都必须转交相同声明；它只能限制如何修复已给出的输出，不能让模型补造缺失的小说事实。角色对话没有可靠章节来源时保持 `chapterOrder=null`，不能把缺失或 0 改成猜测的章节号。
+
+统计候选与真实规则目录具有不同职责。扫描结果的内部 `ruleId` 仅用于统计归类，渲染给模型时改名为 `signalCode`，每类只提供一个示例；完整策略、坐标与全部候选留在执行快照和缓存身份中。模型必须引用真实目录 ID，普通写法合同问题使用 null。不能把统计命中解释为违规、分数或自动修文许可。
+
+检测与验收证据须来自当前正文的一段连续原句。多个同类问题可以合并说明，但证据只复制其中一处；不能拼接隔句、追加省略号或把概括伪装成原文。来源校验失败必须显式失败，不能删掉证据、放宽校验或填一个通过报告。`observations` 用于需关注的风险，不用于无问题的表扬。
+
+统一验收区分模型输出合同与运行时持久合同。AI 只生成一次 `blockingIssues` 的语义问题及 layer、实例许可和规则身份；程序从同次结构化 `voice` 项派生 `styleReview.issueCodes`。这是已有 AI 输出的确定性关联，不是新增规则判断。运行时合同保留 issueCodes，继续验证规则权限、原文、事实和缺失字段，叙事层仍只报告；不能通过派生关联补造层次或自动许可。
+
+模型合同的 styleReview 字段必填，关闭检测时为 null，开启时必须提供真实报告；即使状态为人工确认也不能遗漏。历史持久记录可兼容读取，但缺失新版字段不能授权修文。模型合同、渲染内容或输入裁剪变化须同步资产版本和精确加载登记，避免旧缓存或高级模板把旧合同带回生产链。
+
+真实 API 的输出合同回归与文字质量评测分开记录。保护校验拒绝事实候选说明候选没有进入自动选择，不证明模型正确理解了事实；缺少纠错授权的 `authorized_correction` 也必须拒绝。见 [写法风险评测脚本](../../../server/scripts/style-review/README.md)。

@@ -26,6 +26,16 @@ async function main() {
     "director",
     "directorRecoverySampleAudit.js",
   ));
+  const { readDirectorTaskState } = loadDistModule(path.join(
+    repoRoot,
+    "server",
+    "dist",
+    "services",
+    "novel",
+    "director",
+    "state",
+    "DirectorStateReader.js",
+  ));
 
   const take = Number.parseInt(process.env.DIRECTOR_SAMPLE_TAKE ?? "40", 10);
   const rowLimit = Number.isFinite(take) && take > 0 ? take : 40;
@@ -34,7 +44,7 @@ async function main() {
       where: { lane: "auto_director" },
       orderBy: [{ updatedAt: "desc" }],
       take: rowLimit,
-      select: {
+    select: {
         id: true,
         novelId: true,
         status: true,
@@ -164,7 +174,19 @@ async function main() {
     : [];
 
   const audit = buildDirectorRecoverySampleAudit({
-    tasks,
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      novelId: task.novelId,
+      status: task.status,
+      pendingManualRecovery: task.pendingManualRecovery,
+      checkpointType: task.checkpointType,
+      currentStage: task.currentStage,
+      currentItemKey: task.currentItemKey,
+      currentItemLabel: task.currentItemLabel,
+      lastError: task.lastError,
+      updatedAt: task.updatedAt,
+      directorTaskState: readDirectorTaskState(task),
+    })),
     commands,
     jobs,
     artifacts,

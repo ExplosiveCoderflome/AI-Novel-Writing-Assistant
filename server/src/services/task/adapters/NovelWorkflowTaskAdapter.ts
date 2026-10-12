@@ -11,6 +11,8 @@ import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-nove
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
+import { readDirectorTaskDetailProjection } from "../../novel/director/state/DirectorStateReader";
+import { DirectorTaskStateWriter } from "../../novel/director/state/DirectorTaskStateWriter";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
@@ -150,74 +152,6 @@ function parseAutoExecutionState(seedPayloadJson?: string | null): DirectorAutoE
   return seedPayload.autoExecution as DirectorAutoExecutionState;
 }
 
-function compactObject(input: Record<string, unknown>): Record<string, unknown> | null {
-  const entries = Object.entries(input).filter(([, value]) => value !== undefined);
-  return entries.length > 0 ? Object.fromEntries(entries) : null;
-}
-
-function compactDirectorSession(input: unknown): Record<string, unknown> | null {
-  if (!input || typeof input !== "object") {
-    return null;
-  }
-  const session = input as Record<string, unknown>;
-  return compactObject({
-    phase: session.phase,
-    runMode: session.runMode,
-    reviewScope: session.reviewScope,
-    activeStepKey: session.activeStepKey,
-    checkpointType: session.checkpointType,
-  });
-}
-
-function compactSeedPayload(input: Record<string, unknown> | null): Record<string, unknown> | null {
-  if (!input) {
-    return null;
-  }
-  const autoExecution = input.autoExecution && typeof input.autoExecution === "object"
-    ? input.autoExecution as Record<string, unknown>
-    : null;
-  const styleIntentSummary = input.styleIntentSummary && typeof input.styleIntentSummary === "object"
-    ? input.styleIntentSummary as Record<string, unknown>
-    : null;
-  const takeover = input.takeover && typeof input.takeover === "object"
-    ? input.takeover as Record<string, unknown>
-    : null;
-  const downstreamReset = takeover?.downstreamReset && typeof takeover.downstreamReset === "object"
-    ? takeover.downstreamReset as Record<string, unknown>
-    : null;
-
-  return compactObject({
-    resumeTarget: input.resumeTarget,
-    runMode: input.runMode,
-    styleProfileId: input.styleProfileId,
-    styleTone: input.styleTone,
-    autoExecution: autoExecution
-      ? compactObject({
-        scopeLabel: autoExecution.scopeLabel,
-        totalChapterCount: autoExecution.totalChapterCount,
-        completedChapterCount: autoExecution.completedChapterCount,
-        mode: autoExecution.mode,
-      })
-      : undefined,
-    styleIntentSummary: styleIntentSummary
-      ? compactObject({
-        headline: styleIntentSummary.headline,
-        styleProfileName: styleIntentSummary.styleProfileName,
-        stageSummaryLines: styleIntentSummary.stageSummaryLines,
-      })
-      : undefined,
-    takeover: downstreamReset
-      ? {
-        downstreamReset: compactObject({
-          preserveAssets: downstreamReset.preserveAssets,
-          resetStatus: downstreamReset.resetStatus,
-          resetSteps: downstreamReset.resetSteps,
-        }),
-      }
-      : undefined,
-  });
-}
-
 export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   id: string;
   checkpointType: string | null;
@@ -225,6 +159,11 @@ export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
   resumeTargetJson: string | null;
   seedPayloadJson?: string | null;
 }) {
+  // The saved handoff owns navigation; candidate history remains useful after confirmation.
+  const savedTarget = parseResumeTarget(input.resumeTargetJson);
+  if (savedTarget?.route === "/lab/director/:novelId" && savedTarget.novelId?.trim()) {
+    return savedTarget;
+  }
   const seedResumeTarget = parseSeedPayload<DirectorWorkflowSeedPayload>(input.seedPayloadJson)?.resumeTarget;
   const parsed = mergeResumeTargets(
     parseResumeTarget(input.resumeTargetJson),
@@ -242,6 +181,18 @@ export function normalizeWorkflowResumeTargetForCandidateSelection(input: {
     return parsed;
   }
   return buildNovelCreateResumeTarget(input.id, "director");
+}
+
+function isCompletedOpeningHandoff(row: {
+  lane: string;
+  status: string;
+  currentItemKey: string | null;
+  resumeTargetJson: string | null;
+}): boolean {
+  const target = parseResumeTarget(row.resumeTargetJson);
+  return row.lane === "auto_director" && row.status === "succeeded"
+    && row.currentItemKey === "opening_complete"
+    && target?.route === "/lab/director/:novelId" && Boolean(target.novelId?.trim());
 }
 
 function mapSummary(row: {
@@ -272,6 +223,7 @@ function mapSummary(row: {
   novel?: { title: string } | null;
   seedPayloadJson?: string | null;
 }): UnifiedTaskSummary {
+  const completedOpening = isCompletedOpeningHandoff(row);
   const pendingManualRecovery = Boolean(row.pendingManualRecovery);
   const status = (pendingManualRecovery && (row.status === "queued" || row.status === "running")
     ? "queued"
@@ -346,11 +298,11 @@ function mapSummary(row: {
     status,
     pendingManualRecovery,
     progress: row.progress,
-    currentStage: row.currentStage,
+    currentStage: completedOpening ? "开书准备" : row.currentStage,
     currentItemKey: row.currentItemKey,
     currentItemLabel: row.currentItemLabel,
-    executionScopeLabel: autoExecution?.scopeLabel?.trim() || null,
-    displayStatus: explainability.displayStatus,
+    executionScopeLabel: completedOpening ? "开书准备" : autoExecution?.scopeLabel?.trim() || null,
+    displayStatus: completedOpening ? "开书方向已确认" : explainability.displayStatus,
     blockingReason,
     resumeAction: explainability.resumeAction,
     lastHealthyStage: explainability.lastHealthyStage,
@@ -366,7 +318,7 @@ function mapSummary(row: {
     checkpointType,
     checkpointSummary,
     resumeTarget,
-    nextActionLabel: buildNovelWorkflowNextActionLabel(
+    nextActionLabel: completedOpening ? "打开小说导演台" : buildNovelWorkflowNextActionLabel(
       status,
       checkpointType,
       autoExecution?.scopeLabel ?? null,
@@ -446,48 +398,11 @@ export class NovelWorkflowTaskAdapter {
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.take,
     });
-    const healed = await Promise.all(
-      rows.map((row) => this.workflowService.healAutoDirectorTaskState(row.id, row)),
-    );
-    const normalizedRows = healed.some(Boolean)
-      ? await prisma.novelWorkflowTask.findMany({
-        where: {
-          ...(archivedIds.length
-            ? {
-              id: {
-                notIn: archivedIds,
-              },
-            }
-            : {}),
-          lane: "auto_director",
-          ...(input.status ? { status: input.status } : {}),
-          ...(input.keyword
-            ? {
-              OR: [
-                { title: { contains: input.keyword } },
-                { id: { contains: input.keyword } },
-                { novel: { title: { contains: input.keyword } } },
-              ],
-            }
-            : {}),
-        },
-        include: {
-          novel: {
-            select: {
-              title: true,
-            },
-          },
-        },
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: input.take,
-      })
-      : rows;
-
-    const visibleRows = normalizedRows.filter((row) => {
+    const visibleRows = rows.filter((row) => {
       if (row.lane !== "manual_create" || !row.novelId) {
         return true;
       }
-      return !normalizedRows.some((candidate) =>
+      return !rows.some((candidate) =>
         candidate.id !== row.id
         && candidate.novelId === row.novelId
         && candidate.lane === "auto_director"
@@ -498,21 +413,22 @@ export class NovelWorkflowTaskAdapter {
     return visibleRows.map((row) => mapSummary(row));
   }
 
-  async detail(
+  async detail(id: string, _options: { heal?: boolean } = {}): Promise<UnifiedTaskDetail | null> {
+    return this.readDetail(id, "full");
+  }
+
+  async detailCompact(id: string): Promise<UnifiedTaskDetail | null> {
+    return this.readDetail(id, "compact");
+  }
+
+  private async readDetail(
     id: string,
-    options: {
-      heal?: boolean;
-      seedPayloadMode?: "full" | "compact" | "none";
-    } = {},
+    projectionMode: "full" | "compact",
   ): Promise<UnifiedTaskDetail | null> {
     if (await isTaskArchived("novel_workflow", id)) {
       return null;
     }
-    if (options.heal !== false) {
-      await this.workflowService.healAutoDirectorTaskState(id);
-    }
-
-    const row = await prisma.novelWorkflowTask.findUnique({
+    let row = await prisma.novelWorkflowTask.findUnique({
       where: { id },
       include: {
         novel: {
@@ -526,6 +442,16 @@ export class NovelWorkflowTaskAdapter {
       return null;
     }
 
+    // Expose an explicit recovery action without mutating a stale opening during polling.
+    if (row.directorVersion === "v2" && row.lane === "auto_director" && !row.novelId
+      && ["queued","running"].includes(row.status)) {
+      const command = await prisma.directorRunCommand.findFirst({where:{taskId:id},orderBy:[{createdAt:"desc"},{id:"desc"}]});
+      if (command && ["generate_candidates","refine_candidates","patch_candidate","refine_titles","confirm_candidate"].includes(command.commandType)
+        && ["leased","running"].includes(command.status) && command.leaseExpiresAt && command.leaseExpiresAt <= new Date()) {
+        row = {...row,status:"failed",pendingManualRecovery:true,lastError:"开书操作中断，请重试。"};
+      }
+    }
+
     const summary = mapSummary(row);
     const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
       id: row.id,
@@ -535,30 +461,10 @@ export class NovelWorkflowTaskAdapter {
       seedPayloadJson: row.seedPayloadJson,
     });
     const milestones = parseMilestones(row.milestonesJson);
-    let seedPayload: Record<string, unknown> | null = null;
-    if (row.seedPayloadJson?.trim()) {
-      try {
-        seedPayload = JSON.parse(row.seedPayloadJson) as Record<string, unknown>;
-      } catch {
-        seedPayload = {
-          rawSeedPayload: row.seedPayloadJson,
-        };
-      }
-    }
-    const workflowSeedPayload = seedPayload as DirectorWorkflowSeedPayload | null;
-    const directorSession = workflowSeedPayload && typeof workflowSeedPayload.directorSession === "object"
-      ? workflowSeedPayload.directorSession
-      : null;
-    const seedPayloadMode = options.seedPayloadMode ?? "full";
-    const responseSeedPayload = seedPayloadMode === "full"
-      ? seedPayload
-      : seedPayloadMode === "compact"
-        ? compactSeedPayload(seedPayload)
-        : null;
-    const responseDirectorSession = seedPayloadMode === "full"
-      ? directorSession
-      : compactDirectorSession(directorSession);
-    const boundLlm = getDirectorLlmOptionsFromSeedPayload(workflowSeedPayload);
+    const directorProjection = readDirectorTaskDetailProjection(row, projectionMode);
+    const boundLlm = getDirectorLlmOptionsFromSeedPayload(
+      directorProjection.effectiveTaskData as DirectorWorkflowSeedPayload,
+    );
 
     return {
       ...summary,
@@ -568,11 +474,13 @@ export class NovelWorkflowTaskAdapter {
       finishedAt: row.finishedAt?.toISOString() ?? null,
       retryCountLabel: `${row.attemptCount}/${row.maxAttempts}`,
       meta: {
+        directorVersion: row.directorVersion ?? "v1",
+        directorEpoch: row.directorEpoch ?? 0,
         lane: row.lane,
         checkpointType: row.checkpointType,
         checkpointSummary: row.checkpointSummary,
         resumeTarget,
-        directorSession: responseDirectorSession,
+        directorSession: directorProjection.directorSession,
         llm: boundLlm
           ? {
             provider: boundLlm.provider ?? null,
@@ -581,19 +489,22 @@ export class NovelWorkflowTaskAdapter {
           }
           : null,
         taskNotice: parseTaskNotice(row.seedPayloadJson),
-        seedPayload: responseSeedPayload,
+        seedPayload: directorProjection.seedPayload,
         milestones,
         cancelRequestedAt: row.cancelRequestedAt?.toISOString() ?? null,
       },
-      steps: buildNovelWorkflowDetailSteps({
+      steps: isCompletedOpeningHandoff(row) ? [{
+        key: "opening_complete", label: "确认开书方向", status: "succeeded",
+        startedAt: row.startedAt?.toISOString() ?? null, updatedAt: summary.updatedAt,
+      }] : buildNovelWorkflowDetailSteps({
         lane: row.lane,
         novelId: row.novelId,
         status: summary.status,
         pendingManualRecovery: summary.pendingManualRecovery,
         currentItemKey: row.currentItemKey,
         checkpointType: row.checkpointType as NovelWorkflowCheckpoint | null,
-        directorSessionPhase: directorSession && typeof directorSession === "object"
-          ? (directorSession as { phase?: unknown }).phase
+        directorSessionPhase: directorProjection.directorSession && typeof directorProjection.directorSession === "object"
+          ? (directorProjection.directorSession as { phase?: unknown }).phase
           : null,
         createdAt: summary.createdAt,
         updatedAt: summary.updatedAt,
@@ -623,7 +534,11 @@ export class NovelWorkflowTaskAdapter {
     if (row.lane === "auto_director" && llmOverride) {
       await this.workflowService.applyAutoDirectorLlmOverride(id, llmOverride);
     }
-    await this.workflowService.retryTask(id);
+    if (row.lane === "auto_director") {
+      await new DirectorTaskStateWriter(this.workflowService).retryTask(id);
+    } else {
+      await this.workflowService.retryTask(id);
+    }
     if (shouldResumeAutoDirector) {
       await this.novelDirectorService.continueTask(id, {
         batchAlreadyStartedCount,

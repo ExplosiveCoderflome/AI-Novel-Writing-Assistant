@@ -8,6 +8,7 @@ import { RAG_OWNER_TYPES, type RagOwnerType, type RagSearchOptions, type Retriev
 import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFacets";
 import { RagRetrievalTracer } from "./RagRetrievalTracer";
 import { RagRerankerService, resolveRerankerCandidateLimit } from "./RagRerankerService";
+import { filterCurrentArtifactChunks } from "./facts";
 
 const RRF_K = 60;
 const NON_KNOWLEDGE_OWNER_TYPES = RAG_OWNER_TYPES.filter((item) => item !== "knowledge_document");
@@ -312,9 +313,11 @@ export class HybridRetrievalService {
         scopes.knowledgeScope ? traceSearch("keyword", () => this.keywordSearch(normalizedQuery, scopes.knowledgeScope!)) : Promise.resolve([] as RetrievedChunk[]),
       ]);
       const fusionStartedAt = Date.now();
+      const allRows = [...baseVectorRows, ...knowledgeVectorRows, ...baseKeywordRows, ...knowledgeKeywordRows];
+      const validRows = new Set(await filterCurrentArtifactChunks(allRows, options));
       const fusedRows = this.fuseRrf(
-        [...baseVectorRows, ...knowledgeVectorRows],
-        [...baseKeywordRows, ...knowledgeKeywordRows],
+        [...baseVectorRows, ...knowledgeVectorRows].filter(row => validRows.has(row)),
+        [...baseKeywordRows, ...knowledgeKeywordRows].filter(row => validRows.has(row)),
         fusionTopK,
       );
       tracer.record("fusion", {

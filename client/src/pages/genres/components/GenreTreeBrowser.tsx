@@ -11,6 +11,7 @@ interface GenreTreeBrowserProps {
   onEdit: (genreId: string) => void;
   onDelete: (genre: GenreTreeNode) => void;
   deletingId?: string;
+  initialSelectedId?: string;
 }
 
 function findGenrePath(nodes: GenreTreeNode[], targetId: string, parents: string[] = []): string[] {
@@ -29,14 +30,19 @@ export default function GenreTreeBrowser({
   onEdit,
   onDelete,
   deletingId,
+  initialSelectedId,
 }: GenreTreeBrowserProps) {
-  const [selectedId, setSelectedId] = useState(nodes[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(initialSelectedId || nodes[0]?.id || "");
   const selectedNode = useMemo(() => findGenreNode(nodes, selectedId), [nodes, selectedId]);
   const selectedPath = useMemo(() => findGenrePath(nodes, selectedId), [nodes, selectedId]);
 
   useEffect(() => {
+    if (initialSelectedId && findGenreNode(nodes, initialSelectedId)) {
+      setSelectedId(initialSelectedId);
+      return;
+    }
     if (!selectedNode && nodes[0]) setSelectedId(nodes[0].id);
-  }, [nodes, selectedNode]);
+  }, [initialSelectedId, nodes, selectedNode]);
 
   if (!selectedNode) return null;
 

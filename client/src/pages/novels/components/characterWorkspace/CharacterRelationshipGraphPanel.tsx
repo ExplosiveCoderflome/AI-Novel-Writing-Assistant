@@ -22,7 +22,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AlertTriangle, GitBranch, Network, RadioTower, Sparkles, UsersRound } from "lucide-react";
-import type { Character, CharacterRelation } from "@ai-novel/shared/types/novel";
+import type { CharacterRelation } from "@ai-novel/shared/types/novel";
 import type { CharacterRelationStage } from "@ai-novel/shared/types/characterDynamics";
 import FullscreenView from "@/components/common/FullscreenView";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { getCastRoleLabel, isProtagonistCharacter } from "../characterAssetWorkspace.helpers";
 import type {
   RelationshipGraphEdge,
+  RelationshipGraphCharacter,
   RelationshipGraphMode,
   RelationshipGraphModel,
   RelationshipGraphNode,
@@ -208,6 +209,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       })}
       toggleLabel="全屏查看"
       exitLabel="退出全屏"
+      className="border-0 shadow-none"
       bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
       fullscreenBodyClassName="h-full min-h-0 grid-cols-[minmax(0,1fr)_360px]"
     >
@@ -505,7 +507,7 @@ function EmptyGraphState() {
   );
 }
 
-function getNodeTone(character: Character) {
+function getNodeTone(character: RelationshipGraphCharacter) {
   if (isProtagonistCharacter(character)) {
     return {
       avatar: "border-emerald-200 bg-emerald-50 text-emerald-800",

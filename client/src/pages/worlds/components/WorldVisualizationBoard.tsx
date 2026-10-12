@@ -8,6 +8,7 @@ import WorldTimelinePanel from "./visualization/WorldTimelinePanel";
 
 interface WorldVisualizationBoardProps {
   payload?: WorldVisualizationPayload;
+  initialMode?: "faction" | "geography" | "power" | "timeline";
 }
 
 const FACTION_TYPE_LABELS: Record<string, string> = {
@@ -27,8 +28,8 @@ const FACTION_TYPE_COLORS: Record<string, string> = {
   other: "#64748b",
 };
 
-export default function WorldVisualizationBoard({ payload }: WorldVisualizationBoardProps) {
-  const [mode, setMode] = useState<"faction" | "geography" | "power" | "timeline">("faction");
+export default function WorldVisualizationBoard({ payload, initialMode = "faction" }: WorldVisualizationBoardProps) {
+  const [mode, setMode] = useState(initialMode);
   const [keyword, setKeyword] = useState("");
   const [factionType, setFactionType] = useState("all");
   const [timelineLimit, setTimelineLimit] = useState(8);
@@ -170,7 +171,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
       ) : null}
 
       {mode === "power" ? (
-        <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
+        <div className="rounded-3xl bg-muted/20 p-5">
           <div className="mb-3 font-medium">力量体系 · {filteredPower.length} 项</div>
           <div className="grid gap-3 md:grid-cols-2">
             {filteredPower.map((item) => (

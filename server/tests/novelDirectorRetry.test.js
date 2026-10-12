@@ -1,10 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
 require("../dist/app.js");
 const {
-  applyDirectorLlmOverride,
   getDirectorLlmOptionsFromSeedPayload,
 } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
+const {
+  readDirectorTaskState,
+  toDirectorTaskDataView,
+} = require("../dist/services/novel/director/state/DirectorStateReader.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const {
   runDirectorStructuredOutlinePhase,
@@ -16,6 +20,11 @@ const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 const { prisma } = require("../dist/db/prisma.js");
+
+const originalNovelWorkflowTaskFindUnique = prisma.novelWorkflowTask.findUnique;
+test.afterEach(() => {
+  prisma.novelWorkflowTask.findUnique = originalNovelWorkflowTaskFindUnique;
+});
 
 function buildDirectorInput(overrides = {}) {
   return {
@@ -68,6 +77,18 @@ function stubDirectorRuntimeNode(service, onRunNode) {
   return () => {
     service.directorRuntime.runNode = originalRunNode;
   };
+}
+
+function routeTaskReaderThroughWorkflowMock(service) {
+  prisma.novelWorkflowTask.findUnique = async ({ where }) => service.workflowService.getTaskById(where.id);
+  service.testTaskStateUpdates = [];
+  service.workflowService.updateTaskWithRetry = async (input) => {
+    service.testTaskStateUpdates.push(input);
+    return input;
+  };
+  service.directorRuntime.initializeRun = async () => null;
+  service.directorRuntime.recordRunResumed = async () => undefined;
+  service.directorRuntime.getSnapshot = async () => null;
 }
 
 function createVolumeChapter(input) {
@@ -249,25 +270,27 @@ function createStructuredOutlineWorkspace() {
   });
 }
 
-test("applyDirectorLlmOverride rewrites persisted auto director model selection", () => {
-  const nextSeedPayload = applyDirectorLlmOverride({
+test("retry model override changes effective selection without rewriting the launch input", () => {
+  const launch = {
     novelId: "novel_retry_demo",
     directorInput: buildDirectorInput(),
-  }, {
-    provider: "openai",
-    model: "gpt-5-mini",
-    temperature: 1,
+  };
+  const state = readDirectorTaskState({
+    seedPayloadJson: JSON.stringify({ ...launch, llmOverride: {
+      provider: "openai", model: "gpt-5-mini", temperature: 1,
+    } }),
   });
+  const effective = toDirectorTaskDataView(state);
 
-  assert.ok(nextSeedPayload);
-  assert.equal(nextSeedPayload.directorInput.provider, "openai");
-  assert.equal(nextSeedPayload.directorInput.model, "gpt-5-mini");
-  assert.equal(nextSeedPayload.directorInput.temperature, 1);
-  assert.equal(nextSeedPayload.directorInput.candidate.workingTitle, "Rulebound Courier");
+  assert.equal(state.launch.directorInput.model, launch.directorInput.model);
+  assert.equal(effective.directorInput.provider, "openai");
+  assert.equal(effective.directorInput.model, "gpt-5-mini");
+  assert.equal(effective.directorInput.temperature, 1);
+  assert.equal(effective.directorInput.candidate.workingTitle, "Rulebound Courier");
 });
 
-test("applyDirectorLlmOverride also rewrites candidate-stage seed payload before directorInput exists", () => {
-  const nextSeedPayload = applyDirectorLlmOverride({
+test("retry model override changes candidate-stage effective selection before director input exists", () => {
+  const state = readDirectorTaskState({ seedPayloadJson: JSON.stringify({
     idea: "A courier discovers a hidden rule-bound city underworld.",
     provider: "custom_coding_plan",
     model: "kimi-k2.5",
@@ -275,25 +298,30 @@ test("applyDirectorLlmOverride also rewrites candidate-stage seed payload before
     candidateStage: {
       mode: "generate",
     },
-  }, {
-    provider: "glm",
-    model: "glm-5",
-    temperature: 0.6,
-  });
+    llmOverride: {
+      provider: "glm",
+      model: "glm-5",
+      temperature: 0.6,
+    },
+  }) });
+  const effective = toDirectorTaskDataView(state);
 
-  assert.ok(nextSeedPayload);
-  assert.equal(nextSeedPayload.provider, "glm");
-  assert.equal(nextSeedPayload.model, "glm-5");
-  assert.equal(nextSeedPayload.temperature, 0.6);
-  assert.deepEqual(getDirectorLlmOptionsFromSeedPayload(nextSeedPayload), {
+  assert.equal(state.launch.model, "kimi-k2.5");
+  assert.equal(effective.provider, "glm");
+  assert.equal(effective.model, "glm-5");
+  assert.equal(effective.temperature, 0.6);
+  assert.deepEqual(getDirectorLlmOptionsFromSeedPayload(effective), {
     provider: "glm",
     model: "glm-5",
     temperature: 0.6,
   });
 });
 
-test("generateCandidates marks workflow task failed when candidate-stage generation throws", async () => {
+test("generateCandidates marks workflow task failed when candidate-stage generation throws", async (t) => {
   const service = new NovelDirectorService();
+  t.mock.method(service.directorRuntime, "initializeRun", async () => null);
+  t.mock.method(service.directorRuntimeOrchestrator, "runStepModule", async ({ runner }) => runner());
+  t.mock.method(service, "withWorkflowTaskUsage", async (_taskId, runner) => runner());
   const originalGenerate = service.candidateStageService.generateCandidates;
   const originalMarkTaskFailed = service.workflowService.markTaskFailed;
   const failures = [];
@@ -325,6 +353,7 @@ test("generateCandidates marks workflow task failed when candidate-stage generat
 
 test("continueTask resumes queued candidate-stage tasks before novel creation", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalGenerate = service.candidateStageService.generateCandidates;
@@ -373,15 +402,14 @@ test("continueTask resumes queued candidate-stage tasks before novel creation", 
 
 test("continueTask ignores stale candidate-stage state after the workflow has entered story macro", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
   const originalGetVolumes = service.volumeService.getVolumes;
-  const originalBootstrapTask = service.workflowService.bootstrapTask;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalGenerate = service.candidateStageService.generateCandidates;
   const originalRunDirectorPipeline = service.runDirectorPipeline;
-  const bootstrapCalls = [];
   const runningCalls = [];
   const scheduledRuns = [];
   const pipelineRuns = [];
@@ -417,12 +445,6 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
   });
   service.resolveAssetFirstRecovery = async () => null;
   service.volumeService.getVolumes = async () => null;
-  service.workflowService.bootstrapTask = async (input) => {
-    bootstrapCalls.push(input);
-    return {
-      id: "task_story_macro_resume",
-    };
-  };
   service.workflowService.markTaskRunning = async (taskId, input) => {
     runningCalls.push({ taskId, ...input });
     return null;
@@ -443,21 +465,22 @@ test("continueTask ignores stale candidate-stage state after the workflow has en
     await service.continueTask("task_story_macro_resume");
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(candidateResumeCount, 0);
-    assert.equal(bootstrapCalls.length, 1);
-    assert.equal(bootstrapCalls[0].novelId, "novel_story_macro_resume");
-    assert.equal(bootstrapCalls[0].seedPayload.candidateStage, null);
+    assert.equal(service.testTaskStateUpdates.length, 1);
+    assert.equal(service.testTaskStateUpdates[0].data.title, "Rulebound Courier");
+    const persistedRunState = JSON.parse(service.testTaskStateUpdates[0].data.seedPayloadJson);
+    assert.equal(persistedRunState.candidateStage, null);
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].stage, "story_macro");
     assert.equal(runningCalls[0].itemKey, "book_contract");
     assert.equal(scheduledRuns.length, 1);
     assert.equal(pipelineRuns.length, 1);
+    assert.equal(pipelineRuns[0].novelId, "novel_story_macro_resume");
     assert.equal(pipelineRuns[0].startPhase, "story_macro");
     assert.equal(pipelineRuns[0].scope, "book");
   } finally {
     service.workflowService.getTaskById = originalGetTaskById;
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
     service.volumeService.getVolumes = originalGetVolumes;
-    service.workflowService.bootstrapTask = originalBootstrapTask;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.candidateStageService.generateCandidates = originalGenerate;
@@ -493,16 +516,15 @@ test("resolveAssetFirstRecovery uses the runtime default resolver without recurs
 
 test("continueTask resumes auto-director tasks that are still marked running after manual-recovery pause", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
   const originalAssertHighMemoryDirectorStartAllowed = service.assertHighMemoryDirectorStartAllowed;
   const originalGetVolumes = service.volumeService.getVolumes;
-  const originalBootstrapTask = service.workflowService.bootstrapTask;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunDirectorPipeline = service.runDirectorPipeline;
-  const bootstrapCalls = [];
   const runningCalls = [];
   const scheduledRuns = [];
   const pipelineRuns = [];
@@ -536,10 +558,6 @@ test("continueTask resumes auto-director tasks that are still marked running aft
       },
     }),
   });
-  service.workflowService.bootstrapTask = async (input) => {
-    bootstrapCalls.push(input);
-    return { id: "task_recovery_resume" };
-  };
   service.workflowService.markTaskRunning = async (taskId, input) => {
     runningCalls.push({ taskId, ...input });
     return null;
@@ -555,8 +573,8 @@ test("continueTask resumes auto-director tasks that are still marked running aft
   try {
     await service.continueTask("task_recovery_resume");
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(bootstrapCalls.length, 1);
-    assert.equal(bootstrapCalls[0].seedPayload.resumeTarget.volumeId, "volume_1");
+    assert.equal(service.testTaskStateUpdates.length, 1);
+    assert.equal(JSON.parse(service.testTaskStateUpdates[0].data.resumeTargetJson).volumeId, "volume_1");
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].stage, "structured_outline");
     assert.equal(runningCalls[0].volumeId, "volume_1");
@@ -570,7 +588,6 @@ test("continueTask resumes auto-director tasks that are still marked running aft
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
     service.assertHighMemoryDirectorStartAllowed = originalAssertHighMemoryDirectorStartAllowed;
     service.volumeService.getVolumes = originalGetVolumes;
-    service.workflowService.bootstrapTask = originalBootstrapTask;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.runDirectorPipeline = originalRunDirectorPipeline;
@@ -579,6 +596,7 @@ test("continueTask resumes auto-director tasks that are still marked running aft
 
 test("continueTask resumes auto execution in the background instead of blocking the request", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
@@ -651,6 +669,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
   try {
     await service.continueTask("task_auto_execution_resume", {
       continuationMode: "auto_execute_range",
+      forceResume: true,
     });
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].taskId, "task_auto_execution_resume");
@@ -667,6 +686,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
     assert.equal(runtimeCalls[0].novelId, "novel_auto_execution_resume");
     assert.equal(runtimeCalls[0].resumeCheckpointType, "chapter_batch_ready");
     assert.equal(runtimeCalls[0].allowSkipReviewBlockedChapter, true);
+    assert.equal(runtimeCalls[0].resumePendingManualRecovery, true);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
@@ -680,6 +700,7 @@ test("continueTask resumes auto execution in the background instead of blocking 
 
 test("continueTask lets full_book_autopilot recover review-blocked chapter checkpoints", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
@@ -779,6 +800,7 @@ test("continueTask lets full_book_autopilot recover review-blocked chapter check
 
 test("continueTask upgrades an explicit auto-execution continuation to execution mode", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
@@ -877,7 +899,9 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
     assert.equal(recoveryInputs[0].directorInput.runMode, "auto_to_execution");
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].stage, "chapter_execution");
-    assert.equal(runningCalls[0].seedPayload.directorSession.runMode, "auto_to_execution");
+    const persistedRunState = JSON.parse(service.testTaskStateUpdates[0].data.seedPayloadJson);
+    assert.equal(persistedRunState.runMode, "auto_to_ready");
+    assert.equal(persistedRunState.directorSession.runMode, "auto_to_execution");
     assert.equal(scheduledRuns.length, 1);
 
     await scheduledRuns[0].runner();
@@ -902,6 +926,7 @@ test("continueTask upgrades an explicit auto-execution continuation to execution
 
 test("continueTask does not skip the current chapter when approving a waiting auto-execution checkpoint", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
@@ -997,17 +1022,27 @@ test("continueTask does not skip the current chapter when approving a waiting au
   }
 });
 
-test("continueTask normalizes auto_execute_range into skip_quality_repair at a quality-repair checkpoint", async () => {
+test("continueTask replans the affected window before continuing from a replan checkpoint", async (t) => {
+  stubDatabaseMethod(t, prisma.chapter, "findFirst", async ({ where, orderBy }) => {
+    assert.equal(where.novelId, "novel_quality_repair_skip_normalized");
+    assert.deepEqual(where.OR, [{ content: null }, { content: "" }]);
+    assert.deepEqual(orderBy, { order: "asc" });
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.replanRun, "findFirst", async () => null);
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const originalReplanNovel = service.novelService.replanNovel;
   const runningCalls = [];
   const scheduledRuns = [];
   const runtimeCalls = [];
+  const replanCalls = [];
   const restoreDirectorRunNode = stubDirectorRuntimeNode(service);
 
   service.continueCandidateStageTask = async () => false;
@@ -1068,6 +1103,10 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
   service.autoExecutionRuntime.runFromReady = async (input) => {
     runtimeCalls.push(input);
   };
+  service.novelService.replanNovel = async (novelId, input) => {
+    replanCalls.push({ novelId, ...input });
+    return { affectedChapterIds: ["chapter_5", "chapter_6", "chapter_7"] };
+  };
 
   try {
     await service.continueTask("task_quality_repair_skip_normalized", {
@@ -1079,10 +1118,16 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
 
     await scheduledRuns[0].runner();
 
+    assert.equal(replanCalls.length, 1);
+    assert.equal(replanCalls[0].novelId, "novel_quality_repair_skip_normalized");
+    assert.equal(replanCalls[0].chapterId, "chapter_6");
+    assert.equal(replanCalls[0].windowSize, 3);
+    assert.equal(replanCalls[0].triggerType, "director_replan_recovery");
     assert.equal(runtimeCalls.length, 1);
     assert.equal(runtimeCalls[0].resumeCheckpointType, "replan_required");
     assert.equal(runtimeCalls[0].skipCurrentQualityRepair, true);
     assert.equal(runtimeCalls[0].approveAutoExecutionScope, true);
+    assert.equal(runningCalls[0].clearCheckpoint, false);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;
     service.workflowService.getTaskById = originalGetTaskById;
@@ -1090,22 +1135,98 @@ test("continueTask normalizes auto_execute_range into skip_quality_repair at a q
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+    service.novelService.replanNovel = originalReplanNovel;
     restoreDirectorRunNode();
+  }
+});
+
+test("continueTask keeps the replan checkpoint when window replanning fails", async (t) => {
+  stubDatabaseMethod(t, prisma.chapter, "findFirst", async ({ where }) => {
+    assert.equal(where.novelId, "novel_replan_failure");
+    return null;
+  });
+  stubDatabaseMethod(t, prisma.replanRun, "findFirst", async () => null);
+  const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
+  const originalContinueCandidateStageTask = service.continueCandidateStageTask;
+  const originalGetTaskById = service.workflowService.getTaskById;
+  const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
+  const originalMarkTaskRunning = service.workflowService.markTaskRunning;
+  const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
+  const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
+  const originalReplanNovel = service.novelService.replanNovel;
+  const scheduledRuns = [];
+  const runtimeCalls = [];
+
+  service.continueCandidateStageTask = async () => false;
+  service.resolveAssetFirstRecovery = async () => ({
+    type: "auto_execution",
+    resumeCheckpointType: "replan_required",
+  });
+  service.workflowService.getTaskById = async () => ({
+    id: "task_replan_failure",
+    lane: "auto_director",
+    status: "failed",
+    pendingManualRecovery: false,
+    novelId: "novel_replan_failure",
+    checkpointType: "replan_required",
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    resumeTargetJson: JSON.stringify({ stage: "pipeline", chapterId: "chapter_14" }),
+    lastError: "相邻章节计划需要调整。",
+    seedPayloadJson: JSON.stringify({
+      directorInput: buildDirectorInput({ workflowTaskId: "task_replan_failure", runMode: "auto_to_execution" }),
+      autoExecution: {
+        enabled: true,
+        mode: "chapter_range",
+        startOrder: 14,
+        endOrder: 20,
+        nextChapterId: "chapter_14",
+        nextChapterOrder: 14,
+        remainingChapterIds: ["chapter_14"],
+        remainingChapterOrders: [14],
+        remainingChapterCount: 1,
+        pipelineJobId: "pipeline_failed",
+        pipelineStatus: "succeeded",
+      },
+    }),
+  });
+  service.workflowService.markTaskRunning = async (_taskId, input) => {
+    assert.equal(input.clearCheckpoint, false);
+    return null;
+  };
+  service.scheduleBackgroundRun = (_taskId, runner) => scheduledRuns.push(runner);
+  service.novelService.replanNovel = async () => {
+    throw new Error("重规划模型调用失败");
+  };
+  service.autoExecutionRuntime.runFromReady = async (input) => runtimeCalls.push(input);
+
+  try {
+    await service.continueTask("task_replan_failure", { continuationMode: "auto_execute_range" });
+    await assert.rejects(scheduledRuns[0](), /重规划模型调用失败/);
+    assert.equal(runtimeCalls.length, 0);
+  } finally {
+    service.continueCandidateStageTask = originalContinueCandidateStageTask;
+    service.workflowService.getTaskById = originalGetTaskById;
+    service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
+    service.workflowService.markTaskRunning = originalMarkTaskRunning;
+    service.scheduleBackgroundRun = originalScheduleBackgroundRun;
+    service.autoExecutionRuntime.runFromReady = originalRunFromReady;
+    service.novelService.replanNovel = originalReplanNovel;
   }
 });
 
 test("continueTask resumes structured outline when stale chapter_range checkpoint lacks a fully detailed range", async () => {
   const service = new NovelDirectorService();
+  routeTaskReaderThroughWorkflowMock(service);
   const originalContinueCandidateStageTask = service.continueCandidateStageTask;
   const originalGetTaskById = service.workflowService.getTaskById;
   const originalResolveAssetFirstRecovery = service.resolveAssetFirstRecovery;
   const originalAssertHighMemoryDirectorStartAllowed = service.assertHighMemoryDirectorStartAllowed;
-  const originalBootstrapTask = service.workflowService.bootstrapTask;
   const originalMarkTaskRunning = service.workflowService.markTaskRunning;
   const originalScheduleBackgroundRun = service.scheduleBackgroundRun;
   const originalRunDirectorPipeline = service.runDirectorPipeline;
   const originalRunFromReady = service.autoExecutionRuntime.runFromReady;
-  const bootstrapCalls = [];
   const runningCalls = [];
   const scheduledRuns = [];
   const pipelineRuns = [];
@@ -1153,10 +1274,6 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
       },
     }),
   });
-  service.workflowService.bootstrapTask = async (input) => {
-    bootstrapCalls.push(input);
-    return { id: "task_stale_chapter_range_resume" };
-  };
   service.workflowService.markTaskRunning = async (taskId, input) => {
     runningCalls.push({ taskId, ...input });
     return null;
@@ -1176,7 +1293,8 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
       continuationMode: "auto_execute_range",
     });
 
-    assert.equal(bootstrapCalls.length, 1);
+    assert.equal(service.testTaskStateUpdates.length, 1);
+    assert.equal(JSON.parse(service.testTaskStateUpdates[0].data.resumeTargetJson).volumeId, "volume_1");
     assert.equal(runningCalls.length, 1);
     assert.equal(runningCalls[0].stage, "structured_outline");
     assert.equal(scheduledRuns.length, 1);
@@ -1196,7 +1314,6 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
     service.workflowService.getTaskById = originalGetTaskById;
     service.resolveAssetFirstRecovery = originalResolveAssetFirstRecovery;
     service.assertHighMemoryDirectorStartAllowed = originalAssertHighMemoryDirectorStartAllowed;
-    service.workflowService.bootstrapTask = originalBootstrapTask;
     service.workflowService.markTaskRunning = originalMarkTaskRunning;
     service.scheduleBackgroundRun = originalScheduleBackgroundRun;
     service.runDirectorPipeline = originalRunDirectorPipeline;
@@ -1297,6 +1414,22 @@ test("runDirectorStructuredOutlinePhase resumes from the first incomplete beat a
       baseWorkspace,
       dependencies: {
         workflowService: {
+          getTaskById: async (taskId) => ({
+            id: taskId,
+            lane: "auto_director",
+            novelId: "novel_resume_outline",
+            seedPayloadJson: JSON.stringify({
+              directorInput: buildDirectorInput({
+                workflowTaskId: taskId,
+                runMode: "auto_to_execution",
+                autoExecutionPlan: { mode: "volume", volumeOrder: 2 },
+              }),
+              runMode: "auto_to_execution",
+              autoExecutionPlan: { mode: "volume", volumeOrder: 2 },
+            }),
+            resumeTargetJson: null,
+          }),
+          updateTaskWithRetry: async (input) => input,
           bootstrapTask: async () => ({ id: "task_structured_resume" }),
           markTaskRunning: async (taskId, input) => {
             workflowRunningCalls.push({ taskId, ...input });

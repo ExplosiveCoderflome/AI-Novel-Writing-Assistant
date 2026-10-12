@@ -2,6 +2,7 @@ import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {
   buildDirectorAutoExecutionScopeLabelFromState,
@@ -128,6 +129,9 @@ export function buildRequestedAutoExecutionState(input: {
   if (!input.existingState) {
     return {
       enabled: true,
+      completionProfile: input.request.completionProfile
+        ?? buildDirectorCompletionProfile(input.request.estimatedChapterCount ?? input.request.candidate.targetChapterCount),
+      closingExtensionCount: 0,
       mode: requestedPlan.mode,
       startOrder: requestedPlan.startOrder,
       endOrder: requestedPlan.endOrder,
@@ -307,7 +311,7 @@ export async function resolveAutoExecutionRangeAndState(input: {
     throw new Error("当前还没有可自动执行的章节，请先完成目标范围的拆章同步。");
   }
   const missingChapterOrders = findMissingChapterOrders(chapters, range);
-  if (missingChapterOrders.length > 0) {
+  if (missingChapterOrders.length > 0 && !input.allowLazyChapterPlanning) {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(
       `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
@@ -333,6 +337,8 @@ export async function resolveAutoExecutionRangeAndState(input: {
       preparedVolumeIds,
       beatChapterListReady,
       volumeChapterListComplete,
+      completionProfile: input.existingState?.completionProfile
+        ?? buildDirectorCompletionProfile(range.totalChapterCount),
       pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
       pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
     }),

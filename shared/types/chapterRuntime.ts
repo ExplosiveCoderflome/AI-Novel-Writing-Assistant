@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { styleSignalPolicySchema } from "./styleEngine.js";
+import { characterLocationStateSchema } from "./characterLocation";
 import {
   chapterScenePlanSchema,
   lengthBudgetContractSchema,
@@ -118,6 +120,7 @@ export const runtimeCharacterSchema = z.object({
   powerLevel: z.string().nullable().optional(),
   realm: z.string().nullable().optional(),
   currentLocation: z.string().nullable().optional(),
+  locationState: characterLocationStateSchema.optional(),
   availability: z.string().nullable().optional(),
   prohibitions: z.array(z.string()).default([]),
   currentState: z.string().nullable().optional(),
@@ -291,6 +294,10 @@ export const bookContractContextSchema = z.object({
   escalationLadder: z.string().default(""),
   relationshipMainline: z.string().default(""),
   activeMilestonePayoffs: z.array(z.string()).default([]),
+  completionMode: z.enum(["compact_book", "serial_book"]).default("serial_book"),
+  promiseScope: z.enum(["whole_book", "first_30_chapters"]).default("first_30_chapters"),
+  targetChapterCount: z.number().int().positive().nullable().default(null),
+  endingRequiredBy: z.number().int().positive().nullable().default(null),
 });
 
 export const macroConstraintContextSchema = z.object({
@@ -456,6 +463,7 @@ export const chapterCharacterHardFactSchema = z.object({
   powerLevel: z.string().nullable().optional(),
   realm: z.string().nullable().optional(),
   currentLocation: z.string().nullable().optional(),
+  locationState: characterLocationStateSchema.optional(),
   availability: z.string().nullable().optional(),
   currentState: z.string().nullable().optional(),
   currentGoal: z.string().nullable().optional(),
@@ -553,6 +561,9 @@ export const generationContextPackageSchema = z.object({
   openingHint: z.string(),
   continuation: runtimeContinuationSchema,
   styleContext: runtimeStyleContextSchema.nullable().optional(),
+  // Snapshot the book's review choice; older context producers retain the enabled default.
+  postGenerationStyleReviewEnabled: z.boolean().optional(),
+  styleSignalPolicy: styleSignalPolicySchema.optional(),
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
   characterMindStates: z.array(runtimeCharacterMindStateSchema).default([]),
   // Optional for older preview / recovery context producers; runtime consumers default to no guidance.
@@ -616,6 +627,7 @@ export const chapterRuntimePackageSchema = z.object({
   replanRecommendation: z.object({
     recommended: z.boolean(),
     action: z.enum(["continue_with_warning", "local_patch_plan", "stop_for_replan"]).optional(),
+    scope: z.enum(["local_window", "global_book"]).optional(),
     reason: z.string(),
     blockingIssueIds: z.array(z.string()),
     blockingLedgerKeys: z.array(z.string()).default([]),

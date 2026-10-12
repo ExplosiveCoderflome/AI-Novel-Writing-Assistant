@@ -125,9 +125,9 @@ export default function SettingsReadinessCard(props: {
   const blockingCount = items.filter((item) => item.key !== "rag" && item.state === "warning").length;
   const canStart = hasModel && hasHealthyRoutes && blockingCount === 0;
   const primaryAction = !hasModel
-    ? { label: "配置正文模型", to: "#settings-provider-section" }
+    ? { label: "配置正文模型", to: "/settings/models" }
     : !hasHealthyRoutes
-      ? { label: "检查模型路由", to: "/settings/model-routes" }
+      ? { label: "检查模型路由", to: "/settings/models" }
       : { label: "开始创建小说", to: "/novels/create" };
 
   return (

@@ -56,6 +56,25 @@ test("failed projections auto-focus the latest task because they need attention"
   );
 });
 
+test("blocked and recovery projections stay discoverable without a task id in the URL", () => {
+  for (const status of ["blocked", "waiting_recovery"]) {
+    const projection = {
+      latestTask: { id: `task-${status}`, status: "running" },
+      status,
+    };
+    assert.equal(shouldAutofocusProjectedDirectorTask(projection), true, status);
+    assert.equal(
+      resolveTakeoverDialogContextTaskId({
+        directorTaskId: "",
+        activeAutoDirectorTask: null,
+        projection,
+      }),
+      `task-${status}`,
+      status,
+    );
+  }
+});
+
 test("completed projections do not auto-focus old director tasks", () => {
   assert.equal(
     shouldAutofocusProjectedDirectorTask({

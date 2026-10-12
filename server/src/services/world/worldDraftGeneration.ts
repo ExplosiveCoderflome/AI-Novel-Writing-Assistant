@@ -1,9 +1,5 @@
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import { featureFlags } from "../../config/featureFlags";
 import { prisma } from "../../db/prisma";
-import { createWorldBuildingGraph } from "../../graphs/worldBuildingGraph";
-import { getLLM } from "../../llm/factory";
 import { streamStructuredPrompt, streamTextPrompt } from "../../prompting/core/promptRunner";
 import {
   worldDraftGenerationPrompt,
@@ -28,14 +24,6 @@ import type { RagOwnerType } from "../rag/types";
 interface WorldDraftCallbacks {
   createSnapshot: (worldId: string, label?: string) => Promise<unknown>;
   queueRagUpsert: (ownerType: RagOwnerType, ownerId: string) => void;
-}
-
-function createStaticChunkStream(content: string): AsyncIterable<BaseMessageChunk> {
-  return {
-    async *[Symbol.asyncIterator]() {
-      yield { content } as BaseMessageChunk;
-    },
-  };
 }
 
 async function persistGeneratedWorld(
@@ -106,7 +94,7 @@ async function persistGeneratedWorld(
       structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
     },
   });
-  await callbacks.createSnapshot(world.id, featureFlags.worldGraphEnabled ? "graph-generate" : "legacy-generate");
+  await callbacks.createSnapshot(world.id, "prompt-generate");
   callbacks.queueRagUpsert("world", world.id);
 }
 
@@ -114,48 +102,6 @@ export async function createWorldDraftGenerateStream(
   input: WorldGenerateInput,
   callbacks: WorldDraftCallbacks,
 ) {
-  if (featureFlags.worldGraphEnabled) {
-    const llm = await getLLM(input.provider ?? "deepseek", {
-      model: input.model,
-      temperature: 0.7,
-    });
-    const graph = createWorldBuildingGraph(llm as BaseChatModel);
-    const graphState = await graph.invoke({
-      seed: input.description,
-      name: input.name,
-      worldType: input.worldType,
-    });
-
-    if (graphState.error) {
-      throw new Error(`World graph generation failed: ${graphState.error}`);
-    }
-
-    const graphOutput = {
-      description: graphState.description ?? input.description,
-      background: graphState.background ?? "",
-      geography: graphState.geography ?? "",
-      cultures: graphState.cultures ?? "",
-      magicSystem: graphState.magicSystem ?? "",
-      politics: graphState.politics ?? "",
-      races: graphState.races ?? "",
-      religions: graphState.religions ?? "",
-      technology: graphState.technology ?? "",
-      history: graphState.history ?? "",
-      conflicts: graphState.conflicts ?? "",
-      economy: "",
-      factions: "",
-      overviewSummary: graphState.description ?? input.description,
-    };
-    const payloadText = JSON.stringify(graphOutput, null, 2);
-
-    return {
-      stream: createStaticChunkStream(payloadText),
-      onDone: async (_fullContent: string) => {
-        await persistGeneratedWorld(input, graphOutput, callbacks);
-      },
-    };
-  }
-
   const streamed = await streamStructuredPrompt({
     asset: worldDraftGenerationPrompt,
     promptInput: {

@@ -5,13 +5,13 @@ export function toneBorderClass(tone: HomeTone): string {
     return "border-destructive/35";
   }
   if (tone === "warning") {
-    return "border-amber-300/70";
+    return "border-warning/45";
   }
   if (tone === "success") {
-    return "border-emerald-300/70";
+    return "border-success/45";
   }
   if (tone === "info") {
-    return "border-sky-300/70";
+    return "border-info/45";
   }
   return "border-border";
 }
@@ -21,13 +21,13 @@ export function toneSurfaceClass(tone: HomeTone): string {
     return "bg-destructive/10";
   }
   if (tone === "warning") {
-    return "bg-amber-50";
+    return "bg-warning/10";
   }
   if (tone === "success") {
-    return "bg-emerald-50";
+    return "bg-success/10";
   }
   if (tone === "info") {
-    return "bg-sky-50";
+    return "bg-info/10";
   }
   return "bg-card";
 }
@@ -37,13 +37,13 @@ export function toneTextClass(tone: HomeTone): string {
     return "text-destructive";
   }
   if (tone === "warning") {
-    return "text-amber-700";
+    return "text-warning";
   }
   if (tone === "success") {
-    return "text-emerald-700";
+    return "text-success";
   }
   if (tone === "info") {
-    return "text-sky-700";
+    return "text-info";
   }
   return "text-muted-foreground";
 }

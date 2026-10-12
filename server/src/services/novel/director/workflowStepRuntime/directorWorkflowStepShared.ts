@@ -10,7 +10,7 @@ import {
   resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
 } from "../automation/novelDirectorAutoExecution";
-import { DirectorStateReader, type DirectorCanonicalState } from "../DirectorStateReader";
+import { DirectorStateReader, toDirectorTaskDataView, type DirectorCanonicalState } from "../DirectorStateReader";
 import { DirectorStateCommitter } from "../DirectorStateCommitter";
 import { DirectorFactSummaryService } from "../projections/DirectorFactSummaryService";
 import { CHAPTER_EXECUTION_PROGRESS_STAGES } from "../runtime/ChapterExecutionProgressInspector";
@@ -78,11 +78,12 @@ function buildMinimalStateForNovel(novelId: string | null): DirectorCanonicalSta
       pendingManualRecovery: false,
       cancelRequestedAt: null,
     },
-    run: null,
+    directorRun: null,
     runtime: null,
     latestCommand: null,
     activeStep: null,
-    seedPayload: {} as DirectorCanonicalState["seedPayload"],
+    launch: { legacyContext: {} },
+    run: {},
     chapterProgress: null,
   };
 }
@@ -104,7 +105,7 @@ export async function loadDirectorModuleState(
   if (options.requireNovel !== false && !novelId) {
     throw new Error("Step module requires novelId.");
   }
-  const request = getDirectorInputFromSeedPayload(state.seedPayload);
+  const request = (toDirectorTaskDataView(state).directorInput as DirectorConfirmRequest | undefined) ?? null;
   if ((options.requireRequest ?? false) && !request) {
     throw new Error("Director step module requires persisted director input.");
   }
@@ -150,7 +151,7 @@ export function resolveChapterExecutionProgressScope(input: {
   state: Awaited<ReturnType<DirectorFactSummaryService["getState"]>>;
   request?: DirectorConfirmRequest | null;
 }): { startOrder: number; endOrder: number } | null {
-  const stateRange = resolveDirectorAutoExecutionRangeFromState(input.state.seedPayload.autoExecution);
+  const stateRange = resolveDirectorAutoExecutionRangeFromState(input.state.run.autoExecution);
   if (stateRange) {
     return {
       startOrder: stateRange.startOrder,
@@ -158,7 +159,7 @@ export function resolveChapterExecutionProgressScope(input: {
     };
   }
   return resolveDirectorAutoExecutionPlanChapterRange(
-    input.request?.autoExecutionPlan ?? input.state.seedPayload.autoExecutionPlan ?? null,
+    input.request?.autoExecutionPlan ?? input.state.launch.autoExecutionPlan ?? null,
   );
 }
 

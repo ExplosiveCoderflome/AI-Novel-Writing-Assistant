@@ -5,7 +5,9 @@ import type {
   KnowledgeRecallTestResult,
 } from "@ai-novel/shared/types/knowledge";
 import { prisma } from "../../db/prisma";
+import { ragConfig } from "../../config/rag";
 import { ragServices } from "../rag";
+import { RAG_ENABLED_KEY } from "../settings/ragSettingKeys";
 import {
   buildKnowledgeContentHash,
   normalizeKnowledgeContent,
@@ -13,6 +15,23 @@ import {
 } from "./common";
 
 export class KnowledgeService {
+  private async enableRagForManualReindex(): Promise<void> {
+    if (ragConfig.enabled) {
+      return;
+    }
+    await prisma.appSetting.upsert({
+      where: { key: RAG_ENABLED_KEY },
+      update: { value: "true" },
+      create: { key: RAG_ENABLED_KEY, value: "true" },
+    });
+    ragConfig.enabled = true;
+    ragServices.ragWorker.start();
+  }
+
+  private getPendingIndexStatus(): "idle" | "queued" {
+    return ragConfig.enabled ? "queued" : "idle";
+  }
+
   private async loadLatestFailedIndexErrors(documentIds: string[]): Promise<Map<string, string | null>> {
     if (documentIds.length === 0) {
       return new Map();
@@ -41,12 +60,21 @@ export class KnowledgeService {
   }
 
   private queueKnowledgeRebuild(documentId: string, payload?: Record<string, unknown>): void {
-    void ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId, { payload }).catch(() => {
+    if (!ragConfig.enabled) {
+      return;
+    }
+    const enqueue = payload
+      ? ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId, { payload })
+      : ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId);
+    void enqueue.catch(() => {
       // Keep knowledge document CRUD resilient even if reindex queueing fails.
     });
   }
 
   private queueKnowledgeDelete(documentId: string): void {
+    if (!ragConfig.enabled) {
+      return;
+    }
     void ragServices.ragIndexService.enqueueOwnerJob("delete", "knowledge_document", documentId).catch(() => {
       // Keep knowledge document CRUD resilient even if delete queueing fails.
     });
@@ -233,7 +261,7 @@ export class KnowledgeService {
             sourceAnalysisId,
             activeVersionId: version.id,
             activeVersionNumber: nextVersionNumber,
-            latestIndexStatus: "queued",
+            latestIndexStatus: this.getPendingIndexStatus(),
           },
           include: {
             versions: {
@@ -250,7 +278,7 @@ export class KnowledgeService {
           kind,
           sourceAnalysisId,
           status: "enabled",
-          latestIndexStatus: "queued",
+          latestIndexStatus: this.getPendingIndexStatus(),
         },
       });
       const version = await tx.knowledgeDocumentVersion.create({
@@ -324,7 +352,7 @@ export class KnowledgeService {
           fileName,
           activeVersionId: version.id,
           activeVersionNumber: nextVersionNumber,
-          latestIndexStatus: "queued",
+          latestIndexStatus: this.getPendingIndexStatus(),
         },
         include: {
           versions: {
@@ -368,7 +396,7 @@ export class KnowledgeService {
         data: {
           activeVersionId: version.id,
           activeVersionNumber: version.versionNumber,
-          latestIndexStatus: "queued",
+          latestIndexStatus: this.getPendingIndexStatus(),
         },
         include: {
           versions: {
@@ -399,10 +427,11 @@ export class KnowledgeService {
     if (document.status === "archived") {
       throw new Error("Archived knowledge documents must be restored before reindexing.");
     }
+    await this.enableRagForManualReindex();
     const updated = await prisma.knowledgeDocument.update({
       where: { id: documentId },
       data: {
-        latestIndexStatus: "queued",
+        latestIndexStatus: this.getPendingIndexStatus(),
       },
     });
     this.queueKnowledgeRebuild(documentId);
@@ -423,7 +452,7 @@ export class KnowledgeService {
       data: {
         status,
         ...(status === "archived" ? { latestIndexStatus: "idle" } : {}),
-        ...(shouldRestoreArchivedDocument && document.activeVersionId ? { latestIndexStatus: "queued" } : {}),
+        ...(shouldRestoreArchivedDocument && document.activeVersionId ? { latestIndexStatus: this.getPendingIndexStatus() } : {}),
       },
     });
     if (shouldArchiveDocument) {

@@ -8,7 +8,14 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
+import {
+  readChapterQualityDebtDetails,
+  type ChapterQualityDebtDetails,
+  type ChapterQualityDebtSource,
+} from "@ai-novel/shared/types/chapterQualityLoop";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StreamOutput from "@/components/common/StreamOutput";
 import {
@@ -74,6 +81,30 @@ function ReferenceNotice(props: { title: string; description: string }) {
   );
 }
 
+const QUALITY_DEBT_SOURCE_LABELS: Record<ChapterQualityDebtSource, string> = {
+  manual_review: "手动审校",
+  pipeline_review: "AI 正文审校",
+  repair_recheck: "AI 修复后复查",
+};
+
+function formatQualityDebtAttempts(details: ChapterQualityDebtDetails): string {
+  if (details.repairAttemptsUsed === null) {
+    return `次数未记录 · 当前最多 ${details.repairAttemptsAllowed} 次`;
+  }
+  if (details.repairAttemptsAllowed === 0) {
+    return `${details.repairAttemptsUsed} 次 · 本次未启用自动修复`;
+  }
+  return `${details.repairAttemptsUsed}/${details.repairAttemptsAllowed} 次`;
+}
+
+function formatQualityDebtTime(value: string | null): string {
+  if (!value) return "时间未记录";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "时间未记录"
+    : date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
 export default function ChapterExecutionReferencePanel(props: ChapterExecutionReferencePanelProps) {
   const {
     selectedChapter,
@@ -115,6 +146,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
   const hasVisibleRepairOutput = hasText(visibleRepairStreamContent);
   const repairingOtherChapter = isRepairStreaming && repairStreamingChapterId && repairStreamingChapterId !== selectedChapter.id;
   const detailTab = assetTab === "content" ? "taskSheet" : assetTab;
+  const qualityDebt = readChapterQualityDebtDetails(selectedChapter.riskFlags);
 
   return (
     <div className="space-y-4">
@@ -129,6 +161,29 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
           <Badge variant="outline" className="shrink-0">第{selectedChapter.order}章</Badge>
         </div>
       </div>
+
+      {qualityDebt ? (
+        <div className="rounded-2xl bg-amber-50/80 p-4 text-sm text-amber-950">
+          <div className="font-semibold">本章有待回收的质量项</div>
+          <div className="mt-2 leading-6 text-amber-900/85">{qualityDebt.reason}</div>
+          <div className="mt-3 grid gap-2 text-xs text-amber-900/75 sm:grid-cols-2">
+            <span>来源：{qualityDebt.source ? QUALITY_DEBT_SOURCE_LABELS[qualityDebt.source] : "历史质量记录"}</span>
+            <span>自动修复：{formatQualityDebtAttempts(qualityDebt)}</span>
+            <span>记录时间：{formatQualityDebtTime(qualityDebt.evaluatedAt)}</span>
+          </div>
+          {qualityDebt.issueCodes.length > 0 ? (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs text-amber-900/70">问题标记</span>
+              {qualityDebt.issueCodes.map((code) => <Badge key={code} variant="secondary">{code}</Badge>)}
+            </div>
+          ) : null}
+          <Button asChild size="sm" variant="outline" className="mt-3 bg-background text-foreground">
+            <Link to={`/novels/${selectedChapter.novelId}/edit?stage=pipeline&chapterId=${encodeURIComponent(selectedChapter.id)}`}>
+              进入质量修复
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       <Tabs value={detailTab} onValueChange={(value) => onAssetTabChange(value as AssetTabKey)}>
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl bg-muted/50 p-1.5">

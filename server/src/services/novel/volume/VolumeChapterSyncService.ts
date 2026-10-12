@@ -72,7 +72,9 @@ export class VolumeChapterSyncService {
   ): Promise<VolumeSyncPreview> {
     const workspace = await this.deps.ensureVolumeWorkspace(novelId);
     const mergedDocument = mergeVolumeWorkspaceInput(novelId, workspace, { volumes: input.volumes });
-    this.assertSyncableChapterExecutionContracts(mergedDocument, input.executionContractChapterRange);
+    if (!input.allowIncompleteExecutionContracts) {
+      this.assertSyncableChapterExecutionContracts(mergedDocument, input.executionContractChapterRange);
+    }
     const shouldSyncPayoffLedger = hasPayoffLedgerRelevantPlanChanges(workspace.volumes, mergedDocument.volumes);
     const existingChapters = await prisma.chapter.findMany({
       where: { novelId },
@@ -112,7 +114,7 @@ export class VolumeChapterSyncService {
             title: item.chapter.title,
             order: item.chapter.chapterOrder,
             content: "",
-            expectation: item.chapter.purpose?.trim() || item.chapter.summary,
+            expectation: item.chapter.summary,
             targetWordCount: item.chapter.targetWordCount ?? null,
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
@@ -131,7 +133,7 @@ export class VolumeChapterSyncService {
           data: {
             title: item.chapter.title,
             order: item.chapter.chapterOrder,
-            expectation: item.chapter.purpose?.trim() || item.chapter.summary,
+            expectation: item.chapter.summary,
             targetWordCount: item.chapter.targetWordCount ?? null,
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,

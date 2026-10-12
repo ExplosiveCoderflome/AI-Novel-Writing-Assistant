@@ -11,7 +11,6 @@ import type {
   DirectorAutoExecutionState,
 } from "@ai-novel/shared/types/novelDirector";
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
-import { resolveDirectorQualityLoopBudgetNextAction } from "../runtime/DirectorQualityLoopBudgetLedgerService";
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
@@ -369,6 +368,7 @@ export function buildDirectorAutoExecutionState(input: {
   preparedVolumeIds?: string[];
   beatChapterListReady?: boolean;
   volumeChapterListComplete?: boolean;
+  completionProfile?: DirectorAutoExecutionState["completionProfile"];
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
 }): DirectorAutoExecutionState {
@@ -409,6 +409,10 @@ export function buildDirectorAutoExecutionState(input: {
     .slice(-40);
   return {
     enabled: true,
+    latestRiskAssessment: (input.plan as DirectorAutoExecutionState | null | undefined)?.latestRiskAssessment ?? null,
+    completionProfile: input.completionProfile
+      ?? (input.plan as DirectorAutoExecutionState | null | undefined)?.completionProfile,
+    closingExtensionCount: (input.plan as DirectorAutoExecutionState | null | undefined)?.closingExtensionCount ?? 0,
     mode: plan.mode,
     autoReview: plan.autoReview ?? true,
     autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
@@ -445,6 +449,17 @@ export function buildDirectorAutoExecutionState(input: {
 
 export function buildDirectorAutoExecutionPausedLabel(state: DirectorAutoExecutionState): string {
   return `${buildDirectorAutoExecutionScopeLabelFromState(state)}自动执行已暂停`;
+}
+
+export function buildDirectorAutoExecutionStageLabel(state: DirectorAutoExecutionState): string {
+  if (state.completionProfile?.mode !== "compact_book") {
+    return `正在自动执行${buildDirectorAutoExecutionScopeLabelFromState(state)}`;
+  }
+  const remaining = state.remainingChapterCount ?? 0;
+  if (remaining <= 3) return "正在补齐结局";
+  if (remaining <= 8) return "正在收束主线";
+  if ((state.completedChapterCount ?? 0) <= 3) return "正在完成开篇";
+  return "正在推进故事";
 }
 
 export function buildDirectorAutoExecutionPausedSummary(input: {
@@ -512,6 +527,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     startOrder: input.startOrder,
     endOrder: input.endOrder,
     controlPolicy: buildPipelineExecutionControlPolicy("director_start", input.controlAdvanceMode),
+    // Generation failures and quality repair share one automatic attempt.
     maxRetries: 1,
     runMode: input.runMode ?? "fast",
     autoReview,
@@ -526,53 +542,6 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     taskStyleProfileId: input.taskStyleProfileId,
     artifactSyncMode: input.artifactSyncMode ?? "adaptive",
   };
-}
-
-function qualityLoopEntryMatchesCurrentChapter(
-  entry: NonNullable<DirectorAutoExecutionState["qualityLoopLedger"]>["entries"][number],
-  state: DirectorAutoExecutionState,
-): boolean {
-  const chapterId = state.nextChapterId ?? null;
-  const chapterOrder = state.nextChapterOrder ?? null;
-  if (chapterId && entry.lastChapterId === chapterId) {
-    return true;
-  }
-  if (typeof chapterOrder === "number" && entry.lastChapterOrder === chapterOrder) {
-    return true;
-  }
-
-  const window = entry.affectedChapterWindow;
-  if (chapterId && window.chapterIds?.includes(chapterId)) {
-    return true;
-  }
-  if (typeof chapterOrder === "number") {
-    if (window.chapterOrders?.includes(chapterOrder)) {
-      return true;
-    }
-    if (
-      typeof window.startOrder === "number"
-      && typeof window.endOrder === "number"
-      && chapterOrder >= window.startOrder
-      && chapterOrder <= window.endOrder
-    ) {
-      return true;
-    }
-  }
-  return !chapterId && typeof chapterOrder !== "number";
-}
-
-export function resolveDirectorAutoExecutionRepairMode(
-  state: DirectorAutoExecutionState,
-): DirectorAutoExecutionRepairMode {
-  const entries = (state.qualityLoopLedger?.entries ?? [])
-    .filter((entry) => qualityLoopEntryMatchesCurrentChapter(entry, state))
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  const latestEntry = entries[0];
-  if ((latestEntry?.patchRepairCount ?? 0) > 0 || latestEntry?.lastAction === "patch_repair") {
-    return "heavy_repair";
-  }
-  const nextAction = resolveDirectorQualityLoopBudgetNextAction(latestEntry);
-  return nextAction === "auto_rewrite_chapter" ? "heavy_repair" : "light_repair";
 }
 
 export function resolveDirectorAutoExecutionWorkflowState(

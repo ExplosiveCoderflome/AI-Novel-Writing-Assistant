@@ -5,7 +5,7 @@ import {
   startHighMemoryReservationRenewal,
   type HighMemoryReservationHandle,
 } from "../../highMemoryReservation";
-import { parseResumeTarget } from "../../workflow/novelWorkflow.shared";
+import { readDirectorTaskState } from "../state";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 
 export const AUTO_DIRECTOR_HIGH_MEMORY_BATCH_LIMIT = 1;
@@ -42,7 +42,7 @@ export type HighMemoryDirectorStartInput = {
   batchAlreadyStartedCount?: number;
 };
 
-type WorkflowTaskRow = Awaited<ReturnType<NovelWorkflowService["listActiveTasksByNovelAndLane"]>>[number];
+type WorkflowTaskRow = NonNullable<Awaited<ReturnType<NovelWorkflowService["findActiveDirectorTask"]>>>;
 
 const backgroundStartedAtByTaskId = new Map<string, number>();
 const backgroundStartedByNovelScope = new Map<string, { taskId: string; startedAt: number }>();
@@ -76,7 +76,7 @@ function listActiveDirectorTaskSnapshots(rows: WorkflowTaskRow[]): ActiveDirecto
     status: row.status,
     currentStage: row.currentStage,
     currentItemKey: row.currentItemKey,
-    resumeTarget: parseResumeTarget(row.resumeTargetJson),
+    resumeTarget: readDirectorTaskState(row).run.resumeTarget ?? null,
   }));
 }
 
@@ -239,7 +239,7 @@ export function resolveHighMemoryDirectorStartDecision(input: {
 }
 
 export async function assertHighMemoryDirectorStartAllowed(
-  workflowService: Pick<NovelWorkflowService, "listActiveTasksByNovelAndLane">,
+  workflowService: Pick<NovelWorkflowService, "findActiveDirectorTask">,
   input: HighMemoryDirectorStartInput,
 ): Promise<void> {
   const scope = normalizeDirectorMemoryScope({
@@ -247,7 +247,8 @@ export async function assertHighMemoryDirectorStartAllowed(
     chapterId: input.chapterId,
     fallback: input.scope,
   });
-  const rows = await workflowService.listActiveTasksByNovelAndLane(input.novelId, "auto_director");
+  const activeTask = await workflowService.findActiveDirectorTask(input.novelId);
+  const rows = activeTask ? [activeTask] : [];
   const recentTaskId = resolveRecentlyStartedTaskId({
     novelId: input.novelId,
     scope,

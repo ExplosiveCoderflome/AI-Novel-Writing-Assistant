@@ -6,6 +6,7 @@ import {
   storyModeChildDraftListSchema,
   storyModeChildDraftNodeSchema,
   storyModeDraftNodeSchema,
+  storyModeExpansionDraftListSchema,
 } from "./storyMode.promptSchemas";
 
 export interface StoryModeTreePromptInput {
@@ -20,6 +21,12 @@ export interface StoryModeChildPromptInput {
   parentTemplate: string;
   parentProfile: StoryModeProfile;
   existingSiblingNames: string[];
+}
+
+export interface StoryModeExpansionPromptInput extends Omit<StoryModeChildPromptInput, "count" | "existingSiblingNames"> {
+  count: number;
+  existingSiblingNames: string[];
+  librarySummary: string;
 }
 
 function formatOptionalSection(label: string, value: string): string {
@@ -240,5 +247,71 @@ export const storyModeChildPrompt: PromptAsset<
       ...item,
       children: [],
     }));
+  },
+};
+
+export const storyModeExpansionPrompt: PromptAsset<
+  StoryModeExpansionPromptInput,
+  z.infer<typeof storyModeExpansionDraftListSchema>,
+  z.infer<typeof storyModeExpansionDraftListSchema>
+> = {
+  id: "storyMode.expansion.recommend",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: { maxTokensBudget: 0 },
+  semanticRetryPolicy: { maxAttempts: 1 },
+  outputSchema: storyModeExpansionDraftListSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是资深网络小说推进模式架构师。",
+      "你的任务是基于现有推进模式库，设计一组真正不同的新模式，帮助作者扩展玩法覆盖，而不是给已有模式换名称。",
+      input.parentName.trim()
+        ? "候选必须属于选定根模式的逻辑范围，并能直接用于长篇网文的规划、章节推进和回报设计。"
+        : "没有选定根模式时，候选必须是可以独立成立的全新根模式，并补足现有根模式没有覆盖的推进体验。",
+      "只返回合法 JSON 数组，不要输出 Markdown、解释、注释或代码块。",
+      `必须精确生成 ${input.count} 个候选，每项只允许 name、description、template、profile、children 这五个键，children 必须为 []。`,
+      "候选之间要在读者回报、推进单元、冲突组织、兑现方式或章节节奏上形成明确差异。",
+      "不能复述现有库中的模式，不能与现有同级节点重名，也不能脱离父类的核心驱动。",
+      "profile 必须完整填写 coreDrive、readerReward、progressionUnits、allowedConflictForms、forbiddenConflictForms、conflictCeiling、resolutionStyle、chapterUnit、volumeReward、mandatorySignals、antiSignals。",
+      "名称简洁稳定；描述和模板必须具体可执行；全部使用简体中文。",
+    ].join("\n")),
+    new HumanMessage([
+      input.parentName.trim()
+        ? `请为根模式“${input.parentName.trim()}”推荐 ${input.count} 个新的推进模式。`
+        : `请基于整个推进模式库推荐 ${input.count} 个全新的根推进模式。`,
+      formatOptionalSection("根模式说明", input.parentDescription),
+      formatOptionalSection("根模式模板", input.parentTemplate),
+      input.parentName.trim()
+        ? ["根模式 profile：", formatStoryModeProfile(input.parentProfile)].join("\n")
+        : "未指定根模式：请自行设计完整且可执行的根模式 profile。",
+      "",
+      `现有同级模式：${input.existingSiblingNames.length ? input.existingSiblingNames.join("、") : "无"}`,
+      "",
+      "当前推进模式库摘要（用于避开重复并寻找缺口）：",
+      input.librarySummary.trim() || "无",
+      "",
+      "作者希望扩展的方向：",
+      input.prompt?.trim() || "请优先补足现有库没有覆盖的读者回报和推进节奏。",
+    ].join("\n")),
+  ],
+  postValidate: (output, input) => {
+    if (output.length !== input.count) {
+      throw new Error(`推进模式扩展候选数量不正确，期望 ${input.count} 个，实际 ${output.length} 个。`);
+    }
+    const existing = new Set(input.existingSiblingNames.map(normalizeNameKey));
+    const names = new Set<string>();
+    for (const item of output) {
+      const key = normalizeNameKey(item.name);
+      if (existing.has(key) || names.has(key) || key === normalizeNameKey(input.parentName)) {
+        throw new Error("推进模式扩展候选与现有模式重复。");
+      }
+      if ((item.children ?? []).length > 0) {
+        throw new Error("推进模式扩展候选不能包含子节点。");
+      }
+      names.add(key);
+    }
+    return output.map((item) => ({ ...item, children: [] }));
   },
 };

@@ -226,7 +226,6 @@ function renderProductionStatusCard(output: Record<string, unknown>, onQuickActi
         </div>
       ) : null}
       {renderActionButtons([
-        { label: "继续整本生成", prompt: "继续生成当前小说" },
         { label: "查看整本进度", prompt: "整本生成到哪一步了" },
       ], onQuickAction)}
     </div>
@@ -361,7 +360,6 @@ export default function CreativeHubToolResultCard({
         "世界观已生成",
         `已生成世界观《${worldName}》。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
           { label: "查看生产进度", prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
@@ -373,7 +371,6 @@ export default function CreativeHubToolResultCard({
         "核心角色已生成",
         `已生成 ${characterCount} 个核心角色。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
           { label: "查看角色状态", prompt: "查看当前小说角色状态" },
         ],
         onQuickAction,
@@ -386,7 +383,6 @@ export default function CreativeHubToolResultCard({
           ? payload.mainPromise.trim()
           : "当前小说圣经已生成。",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
           { label: "查看整本进度", prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
@@ -399,7 +395,6 @@ export default function CreativeHubToolResultCard({
           ? payload.outline.trim()
           : "当前小说发展走向已生成。",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
           { label: "查看整本进度", prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
@@ -411,7 +406,6 @@ export default function CreativeHubToolResultCard({
         "结构化大纲已生成",
         targetChapterCount > 0 ? `已生成 ${targetChapterCount} 章结构化大纲。` : "当前小说结构化大纲已生成。",
         [
-          { label: "同步章节目录", prompt: "继续生成当前小说" },
           { label: "查看整本进度", prompt: "整本生成到哪一步了" },
         ],
         onQuickAction,
@@ -424,7 +418,7 @@ export default function CreativeHubToolResultCard({
         chapterCount > 0 ? `已同步 ${chapterCount} 个章节目录。` : "已同步章节目录。",
         [
           { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-          { label: "启动整本生成", prompt: "继续生成当前小说" },
+          { label: "查看任务状态", prompt: "列出当前系统任务状态" },
         ],
         onQuickAction,
       );

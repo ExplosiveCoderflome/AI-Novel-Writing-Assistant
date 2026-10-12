@@ -11,9 +11,13 @@ import { isProtagonistCharacter } from "../characterAssetWorkspace.helpers";
 
 export type RelationshipGraphMode = "all" | "current" | "tension" | "dynamic";
 
+// The visualization consumes a saved profile, without requiring persistence metadata.
+export type RelationshipGraphCharacter = Pick<Character,
+  "id" | "name" | "role" | "castRole" | "storyFunction" | "relationToProtagonist" | "currentState" | "currentGoal">;
+
 export interface RelationshipGraphNode {
   id: string;
-  character: Character;
+  character: RelationshipGraphCharacter;
   x: number;
   y: number;
   relationCount: number;
@@ -69,7 +73,7 @@ const CURRENT_BRANCH_Y_START = 140;
 const CURRENT_BRANCH_Y_GAP = 182;
 
 export function buildRelationshipGraphModel(input: {
-  characters: Character[];
+  characters: RelationshipGraphCharacter[];
   staticRelations: CharacterRelation[];
   dynamicRelations: CharacterRelationStage[];
   selectedCharacterId: string;
@@ -262,7 +266,7 @@ function computeRelationStats(edges: RelationshipGraphEdge[]) {
 }
 
 function computeCurrentCharacterTreeLayout(
-  characters: Character[],
+  characters: RelationshipGraphCharacter[],
   edges: RelationshipGraphEdge[],
   selectedCharacterId: string,
 ) {
@@ -314,7 +318,7 @@ function computeCurrentCharacterTreeLayout(
   return layout;
 }
 
-function getCurrentTreePriority(character: Character | undefined, edge: RelationshipGraphEdge | undefined): number {
+function getCurrentTreePriority(character: RelationshipGraphCharacter | undefined, edge: RelationshipGraphEdge | undefined): number {
   let priority = edge?.weight ?? 0;
   if (edge?.isHighTension) {
     priority += 5;
@@ -335,7 +339,7 @@ function getCurrentTreePriority(character: Character | undefined, edge: Relation
 }
 
 function computeGraphLayout(
-  characters: Character[],
+  characters: RelationshipGraphCharacter[],
   edges: RelationshipGraphEdge[],
   protagonistId: string,
 ) {

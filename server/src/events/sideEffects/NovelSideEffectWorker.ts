@@ -1,5 +1,5 @@
 import os from "node:os";
-import { NovelSideEffectJobService, novelSideEffectJobService } from "./NovelSideEffectJobService";
+import { NovelSideEffectJobService, novelSideEffectJobService, NovelSideEffectLeaseLostError } from "./NovelSideEffectJobService";
 import {
   NovelSideEffectJobHandlers,
   UnsupportedNovelSideEffectPayloadError,
@@ -70,12 +70,25 @@ export class NovelSideEffectWorker {
       if (!job) {
         return;
       }
+      let leaseLost = false;
+      // V2 enrichment can include several bounded calls; retain one owner for the whole job.
+      const heartbeat = job.jobType === "character.v2DeferredEnrichment" ? setInterval(() => {
+        void this.jobService.renewLease(job, this.leaseMs).then(owned => {
+          if (!owned) leaseLost = true;
+        }).catch(() => {leaseLost = true;});
+      }, Math.max(250, Math.floor(this.leaseMs / 3))) : undefined;
+      heartbeat?.unref();
       try {
-        await this.handlers.execute(job);
-        await this.jobService.markSucceeded(job);
+        const result = await this.handlers.execute(job);
+        if (leaseLost) return;
+        if (result?.deferUntil) await this.jobService.deferJob(job, result.deferUntil);
+        else await this.jobService.markSucceeded(job);
       } catch (error) {
+        if (leaseLost || error instanceof NovelSideEffectLeaseLostError) return;
         const forceDead = error instanceof UnsupportedNovelSideEffectPayloadError;
         await this.jobService.markFailedOrDead(job, error, { forceDead });
+      } finally {
+        if (heartbeat) clearInterval(heartbeat);
       }
     } finally {
       this.isTicking = false;

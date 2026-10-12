@@ -269,6 +269,8 @@ export class CharacterVisibleProfileService {
         model: options.model,
         temperature: options.temperature ?? 0.45,
         maxTokens: 1_400,
+        novelId,
+        stage: "character_visible_profile",
       },
     });
 

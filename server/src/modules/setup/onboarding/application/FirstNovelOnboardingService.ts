@@ -156,7 +156,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
       reason = "故事、角色和卷章资源都已准备好，正文尚未启动。";
       primaryAction = {
         label: "选择生产方式",
-        route: `/novels/${latestTask.novelId}/edit?directorTaskId=${latestTask.id}`,
+        route: `/novels/${latestTask.novelId}/edit`,
         kind: "navigate",
       };
     } else if (
@@ -177,7 +177,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
         label: isAttention ? "查看并恢复" : "查看章节书架",
         route: latestTask.novel?.creationExperience === "simple"
           ? `/novels/${latestTask.novelId}/simple`
-          : `/novels/${latestTask.novelId}/edit?directorTaskId=${latestTask.id}`,
+          : `/novels/${latestTask.novelId}/edit`,
         kind: isAttention ? "resume" : "navigate",
       };
     } else {
@@ -191,7 +191,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
         : "这些资源会直接驱动后续章节，不需要你逐项审核。";
       primaryAction = {
         label: isAttention ? "查看并恢复" : "查看准备进度",
-        route: `/novels/${latestTask.novelId}/edit?directorTaskId=${latestTask.id}`,
+        route: `/novels/${latestTask.novelId}/edit`,
         kind: isAttention ? "resume" : "navigate",
       };
     }

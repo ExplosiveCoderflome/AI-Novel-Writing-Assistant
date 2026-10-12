@@ -13,6 +13,7 @@ Phase 4 后，小说业务入口改为组合式 application capability。`NovelS
 - `routes/` 只能依赖当前 HTTP 映射需要的最小能力，不允许 import 或 new `NovelService`。
 - 后台任务、导出、Agent tools、自动导演和事件处理器也应依赖能力端口，不应持有完整 `NovelService`。
 - `NovelService`、`NovelPipelineService`、`NovelReviewService`、`NovelGenerationService`、`NovelArtifactService` 都是兼容层；可以为了旧测试或旧外部调用保留方法，但不能再互相继承形成能力链。
+- 兼容门面转发方法时必须保留 application services 实例作为接收者，例如 `method.apply(applicationServices, args)`。能力方法依赖实例上的卷服务和 Core；提取方法后直接调用会丢失 `this`，即使只使用闭包的模拟方法能通过，真实迁移和卷操作仍会失败。
 - 章节生成、章节修复、章节计划和重规划仍必须进入统一 production orchestrator / stage runner；能力层只负责组合和委托，不复制执行实现。
 - 章节正文写作只能通过 `NovelApplicationServices.createChapterStream()` 或 workflow step runner 进入 production orchestrator。`novelCoreGenerationService` 和 `NovelCoreService` 的旧章节生成入口只能作为兼容委托，不允许直接持有 `ChapterRuntimeCoordinator`。
 

@@ -1,4 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildCompressionLog } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
@@ -41,9 +42,6 @@ import {
   buildRuntimeCharacterHardFactsList,
   parseCharacterProhibitionsJson,
 } from "../characters/characterHardFacts";
-import { NovelVolumeService } from "../volume/NovelVolumeService";
-import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
-import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import {
   buildBlockingPendingReviewProposalWhere,
   loadPendingCharacterHardFactReviews,
@@ -59,6 +57,8 @@ import {
   runtimeChapterSelect,
 } from "./context/chapterSourceText";
 import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
+import { evaluateChapterContextProviderContracts } from "./context/chapterContextProviderContracts";
+import { characterLocationService } from "../characters/locations";
 
 export { buildBlockingPendingReviewProposalWhere } from "./context/pendingReviewContext";
 export { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
@@ -104,16 +104,6 @@ export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
-  private readonly volumeService = new NovelVolumeService();
-  private readonly chapterRouteWindowService = new ChapterRouteWindowService(this.volumeService);
-  private readonly chapterPlanJITService = new ChapterPlanJITService({
-    ensureChapterExecutionContract: (novelId, chapterId, options) => (
-      this.volumeService.ensureChapterExecutionContract(novelId, chapterId, options)
-    ),
-    ensureRouteWindow: (novelId, fromChapterOrder, options) => (
-      this.chapterRouteWindowService.ensureRouteWindow(novelId, fromChapterOrder, options)
-    ),
-  });
 
   async assemble(
     novelId: string,
@@ -138,7 +128,7 @@ export class GenerationContextAssembler {
     contextPackage: GenerationContextPackage;
   }> {
     // Phase 2：novel 稳定层从缓存获取，避免每章重复全量查询
-    let [novel, chapter] = await Promise.all([
+    const [novel, chapter] = await Promise.all([
       batchContextCache.getNovelRow(novelId),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
@@ -150,26 +140,9 @@ export class GenerationContextAssembler {
       throw new Error("Novel or chapter not found.");
     }
 
-    // 懒规划 JIT：全书 autopilot 路径在 ensureChapterPlan 之前确保 task sheet 就绪。
-    // JIT 生成时会注入已发生事实（factLedger），解决 task sheet 与实际前文脱节问题。
-    if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
-      await this.chapterPlanJITService.ensureExecutionReady(novelId, chapterId, {
-        min: 3,
-        target: 5,
-        provider: request.provider,
-        model: request.model,
-        temperature: request.temperature,
-      });
-    }
-    const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
-    const refreshedChapter = await prisma.chapter.findFirst({
-      where: { id: chapterId, novelId },
-      select: runtimeChapterSelect,
-    });
-    if (!refreshedChapter) {
-      throw new Error("Novel or chapter not found.");
-    }
-    chapter = refreshedChapter;
+    // Context assembly is a read boundary. Planning and contract writes must
+    // finish in ChapterExecutionPreparationService before this method runs.
+    const ensuredPlan = await plannerService.getChapterPlan(novelId, chapterId);
     const resourceCharacterIds = resolveChapterResourceCharacterIds({
       plan: ensuredPlan,
       characters: novel.characters,
@@ -282,8 +255,12 @@ export class GenerationContextAssembler {
       characterResourceLedgerService.buildContext(novelId, {
         chapterId,
         chapterOrder: chapter.order,
+        includePreviousPending: novel.directorVersion === "v2",
         ...(resourceCharacterIds.length > 0 ? { characterIds: resourceCharacterIds } : {}),
-      }).catch(() => null),
+      }).catch((error) => {
+        if (novel.directorVersion === "v2") throw error;
+        return null;
+      }),
     ]);
 
     const resolvedStateDrivenContext = await contextAssemblyService.build({
@@ -362,6 +339,15 @@ export class GenerationContextAssembler {
         chapter10Payoff: novel.bookContract?.chapter10Payoff,
         chapter30Payoff: novel.bookContract?.chapter30Payoff,
       }),
+      ...(() => {
+        const completion = buildDirectorCompletionProfile(novel.estimatedChapterCount ?? 80);
+        return {
+          completionMode: completion.mode,
+          promiseScope: completion.promiseScope,
+          targetChapterCount: completion.targetChapterCount,
+          endingRequiredBy: completion.endingRequiredBy,
+        };
+      })(),
     });
     const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
     const productionFoundationPrompt = [
@@ -378,6 +364,8 @@ export class GenerationContextAssembler {
     const canonicalCharacterMap = new Map(
       canonicalState.characters.map((item) => [item.characterId, item]),
     );
+    const characterLocations = novel.directorVersion === "v2"
+      ? await characterLocationService.readBeforeChapter({novelId, chapterOrder: chapter.order, characters: novel.characters}) : null;
     const mappedCharacterRoster = novel.characters.map((item) => {
       const canonicalCharacter = canonicalCharacterMap.get(item.id);
       return {
@@ -392,7 +380,8 @@ export class GenerationContextAssembler {
         stanceLabel: item.stanceLabel ?? null,
         powerLevel: item.powerLevel ?? null,
         realm: item.realm ?? null,
-        currentLocation: item.currentLocation ?? null,
+        currentLocation: characterLocations?.get(item.id)?.currentLocation ?? item.currentLocation ?? null,
+        ...(characterLocations?.has(item.id) ? {locationState: characterLocations.get(item.id)} : {}),
         availability: item.availability ?? null,
         prohibitions: parseCharacterProhibitionsJson(item.prohibitionsJson),
         currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
@@ -539,6 +528,8 @@ export class GenerationContextAssembler {
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
+      postGenerationStyleReviewEnabled: novel.postGenerationStyleReviewEnabled ?? true,
+      styleSignalPolicy: request.styleSignalPolicy,
       bookContract,
       macroConstraints,
       volumeWindow,
@@ -654,6 +645,11 @@ export class GenerationContextAssembler {
       chapterReviewContext,
       chapterRepairContext,
     };
+    contextPackage.contextGatingDecisions = evaluateChapterContextProviderContracts({
+      stage: "write",
+      chapterOrder: chapter.order,
+      contextPackage,
+    });
     const compressionLog = buildCompressionLog(
       contextPackage.chapterWriteContext ? getAllContextBlocks(contextPackage) : [],
       2600,

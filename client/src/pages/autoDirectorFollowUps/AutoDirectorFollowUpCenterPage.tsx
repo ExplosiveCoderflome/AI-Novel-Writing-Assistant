@@ -26,11 +26,14 @@ import {
   revalidateAutoDirectorFollowUpDetail,
 } from "@/api/autoDirectorFollowUps";
 import { queryKeys } from "@/api/queryKeys";
+import { getCurrentDirectorTask } from "@/api/novelDirector";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
+import { getTaskSourceHref } from "@/lib/novelRoutes";
 import { AutoDirectorFollowUpBatchBar } from "./components/AutoDirectorFollowUpBatchBar";
 import { AutoDirectorFollowUpDetailPanel } from "./components/AutoDirectorFollowUpDetail";
 import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUpList";
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
-import { reconcileSelectedTaskIds } from "./selectionState";
+import { reconcileSelectedTaskIds, resolveFollowUpSelectedTaskId, type FollowUpTaskOverride } from "./selectionState";
 import { resolveFollowUpOverviewPresentation } from "./followUpPresentation";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -121,7 +124,13 @@ export default function AutoDirectorFollowUpCenterPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedDirectorTaskIds, setSelectedDirectorTaskIds] = useState<string[]>([]);
 
-  const selectedDirectorTaskId = searchParams.get("directorTaskId")?.trim() || searchParams.get("taskId")?.trim() || "";
+  const selectedNovelId = searchParams.get("novelId")?.trim() || "";
+  const currentDirectorQuery = useQuery({
+    queryKey: ["novels", "director-current", selectedNovelId],
+    queryFn: () => getCurrentDirectorTask(selectedNovelId),
+    enabled: Boolean(selectedNovelId),
+    retry: false,
+  });
   const section = parseEnumParam(searchParams.get("section"), AUTO_DIRECTOR_FOLLOW_UP_SECTIONS);
   const reason = parseEnumParam(searchParams.get("reason"), AUTO_DIRECTOR_FOLLOW_UP_REASONS);
   const status = parseEnumParam(searchParams.get("status"), TASK_STATUSES);
@@ -138,6 +147,8 @@ export default function AutoDirectorFollowUpCenterPage() {
     page,
     pageSize,
   });
+  const selectionContextKey = JSON.stringify([selectedNovelId, paramsKey]);
+  const [selectedTaskOverride, setSelectedTaskOverride] = useState<FollowUpTaskOverride | null>(null);
 
   const overviewQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.overview,
@@ -166,6 +177,12 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   const items = listQuery.data?.data?.items ?? [];
+  const selectedDirectorTaskId = resolveFollowUpSelectedTaskId({
+    override: selectedTaskOverride,
+    contextKey: selectionContextKey,
+    items,
+    fallbackTaskId: selectedNovelId ? currentDirectorQuery.data?.data?.id ?? "" : items[0]?.directorTaskId ?? "",
+  });
 
   const detailQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.detail(selectedDirectorTaskId || "none"),
@@ -175,37 +192,28 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   useEffect(() => {
-    const legacyTaskId = searchParams.get("taskId")?.trim() || "";
-    if (legacyTaskId) {
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("directorTaskId", selectedDirectorTaskId || legacyTaskId);
-        next.delete("taskId");
-        return next;
-      }, { replace: true });
-      return;
+    const cleaned = stripLegacyTaskUrlParams(searchParams);
+    if (cleaned.toString() !== searchParams.toString()) {
+      setSearchParams(cleaned, { replace: true });
     }
-    if (selectedDirectorTaskId) {
-      const exists = items.some((item) => item.directorTaskId === selectedDirectorTaskId);
-      if (exists || items.length === 0) {
-        return;
-      }
-    }
-    if (items.length === 0) {
-      return;
-    }
-    const fallback = items[0];
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("directorTaskId", fallback.directorTaskId);
-      next.delete("taskId");
-      return next;
-    }, { replace: true });
-  }, [items, searchParams, selectedDirectorTaskId, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setSelectedDirectorTaskIds((current) => reconcileSelectedTaskIds(current, items));
   }, [items]);
+
+  useEffect(() => {
+    setSelectedTaskOverride((current) => current?.contextKey === selectionContextKey ? current : null);
+  }, [selectionContextKey]);
+
+  useEffect(() => {
+    if (!listQuery.isSuccess) {
+      return;
+    }
+    setSelectedTaskOverride((current) => current?.contextKey === selectionContextKey
+      && !items.some((item) => item.directorTaskId === current.taskId)
+      ? null : current);
+  }, [items, listQuery.isSuccess, selectionContextKey]);
 
   const selectedItems = useMemo(
     () => items.filter((item) => selectedDirectorTaskIds.includes(item.directorTaskId)),
@@ -236,6 +244,7 @@ export default function AutoDirectorFollowUpCenterPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.overview }),
       queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.list(paramsKey) }),
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.overview }),
+      queryClient.invalidateQueries({ queryKey: ["novels", "director-current", selectedNovelId] }),
       queryClient.invalidateQueries({ queryKey: ["auto-director-follow-ups"] }),
     ]);
     if (selectedDirectorTaskId) {
@@ -285,21 +294,16 @@ export default function AutoDirectorFollowUpCenterPage() {
   });
 
   const handleSelectTask = (directorTaskId: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("directorTaskId", directorTaskId);
-      next.delete("taskId");
-      return next;
-    });
+    setSelectedTaskOverride({ taskId: directorTaskId, contextKey: selectionContextKey });
   };
 
   const handleSectionChange = (nextSection: AutoDirectorFollowUpSection | "") => {
+    setSelectedTaskOverride(null);
     setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
+      const next = stripLegacyTaskUrlParams(prev);
       if (!nextSection) {
         next.delete("section");
-        next.delete("directorTaskId");
-        next.delete("taskId");
+        next.delete("novelId");
         next.delete("supportsBatch");
         next.set("page", "1");
         return next;
@@ -309,8 +313,7 @@ export default function AutoDirectorFollowUpCenterPage() {
       } else {
         next.set("section", nextSection);
       }
-      next.delete("directorTaskId");
-      next.delete("taskId");
+      next.delete("novelId");
       next.delete("supportsBatch");
       next.set("page", "1");
       return next;
@@ -344,7 +347,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     if (action.kind === "navigation") {
       const internalTarget = resolveInternalNavigationTarget(action.targetUrl);
       if (internalTarget) {
-        navigate(internalTarget);
+        navigate(getTaskSourceHref(internalTarget));
         return;
       }
       const externalTarget = action.targetUrl?.trim();

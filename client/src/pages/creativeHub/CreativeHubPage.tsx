@@ -4,7 +4,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { LangChainMessage } from "@assistant-ui/react-langgraph";
 import { useSearchParams } from "react-router-dom";
-import { MessagesSquare, RefreshCw } from "lucide-react";
+import { ExternalLink, MessagesSquare, RefreshCw } from "lucide-react";
 import {
   createCreativeHubThread,
   deleteCreativeHubThread,
@@ -57,6 +57,7 @@ export default function CreativeHubPage() {
   const createOriginLocationKeyRef = useRef(searchParams.toString());
   const activeInterruptIdRef = useRef<string | null>(null);
   const createThreadInFlightRef = useRef(false);
+  const skipAutoCreateKeyRef = useRef<string | null>(null);
   const threadActionInFlightRef = useRef(false);
   const bindingInFlightRef = useRef(false);
   const approvalInFlightRef = useRef(false);
@@ -161,6 +162,7 @@ export default function CreativeHubPage() {
       return;
     }
     createThreadInFlightRef.current = true;
+    skipAutoCreateKeyRef.current = null;
     createOriginThreadIdRef.current = activeThreadIdRef.current;
     createOriginSessionRef.current = activeThreadSessionRef.current;
     createOriginLocationKeyRef.current = currentLocationKeyRef.current;
@@ -215,8 +217,9 @@ export default function CreativeHubPage() {
     if (activeThreadId) return;
     if (!threadsQuery.isSuccess) return;
     if (initialThread) return;
+    if (skipAutoCreateKeyRef.current === autoCreateThreadKey) return;
     autoCreateThread();
-  }, [activeThreadId, autoCreateThread, initialThread, threadsQuery.isSuccess]);
+  }, [activeThreadId, autoCreateThread, autoCreateThreadKey, initialThread, threadsQuery.isSuccess]);
 
   const stateQuery = useQuery({
     queryKey: queryKeys.creativeHub.state(activeThreadId || "none"),
@@ -386,15 +389,26 @@ export default function CreativeHubPage() {
     setThreadActionPendingId(threadId);
     try {
       await deleteCreativeHubThread(threadId);
+      await queryClient.cancelQueries({ queryKey: queryKeys.creativeHub.threads });
+      const remainingThreads = (
+        queryClient.getQueryData<ApiResponse<CreativeHubThread[]>>(queryKeys.creativeHub.threads)?.data
+        ?? threads
+      ).filter((thread) => thread.id !== threadId && !thread.archived);
       queryClient.setQueryData<ApiResponse<CreativeHubThread[]>>(queryKeys.creativeHub.threads, (previous) => (
         previous?.data
           ? { ...previous, data: previous.data.filter((thread) => thread.id !== threadId) }
           : previous
       ));
       if (activeThreadIdRef.current === threadId) {
+        const nextThread = remainingThreads[0];
+        skipAutoCreateKeyRef.current = nextThread ? null : buildCreativeHubAutoCreateKey({}, false);
         setSearchParams((prev) => {
-          const next = applyCreativeHubBindingsToSearch(prev, {});
-          next.delete("threadId");
+          const next = applyCreativeHubBindingsToSearch(prev, nextThread?.resourceBindings ?? {});
+          if (nextThread) {
+            next.set("threadId", nextThread.id);
+          } else {
+            next.delete("threadId");
+          }
           return next;
         }, { replace: true });
       }
@@ -447,14 +461,6 @@ export default function CreativeHubPage() {
     }
     await runtimeState.sendPrompt(prompt);
   }, [activeThreadId, runtimeState]);
-
-  const handleCreateNovelQuickAction = useCallback(async (title: string) => {
-    const normalized = title.trim();
-    if (!normalized) {
-      return;
-    }
-    await handleQuickAction(`创建一本小说《${normalized}》。`);
-  }, [handleQuickAction]);
 
   const focusWorkspaceArea = (id: "creative-hub-activity" | "creative-hub-context") => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -552,7 +558,7 @@ export default function CreativeHubPage() {
         icon={MessagesSquare}
         context="当前小说与创作线程"
         title="创作中枢"
-        description="围绕当前小说整理创作目标、查看 AI 执行记录，并从真实任务状态继续推进整本作品。"
+        description="绑定一本小说后，可查询创作状态、诊断阻塞，并获得可操作的下一步建议。"
         meta={(
           <>
             <span>小说：{workspacePresentation.objectTitle}</span>
@@ -576,6 +582,24 @@ export default function CreativeHubPage() {
         )}
       />
 
+      <section className="rounded-lg bg-info/5 p-4" aria-label="创作中枢后续开发说明">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">关于创作中枢的后续开发</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              创作中枢用于查询小说状态、诊断问题和查看下一步建议，后续可能不会继续深入开发。更完整的 Agent 创作能力，会在专门的 Agent 应用中继续推进。
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">可以通过右侧入口了解独立应用；两个应用各自保存小说资料和运行记录。</p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0">
+            <a href="https://github.com/ExplosiveCoderflome/ani-book-agent" target="_blank" rel="noreferrer">
+              了解 Agent 应用
+              <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </Button>
+        </div>
+      </section>
+
       {threadsQuery.isLoading
         || createThreadMutation.isPending && !activeThreadId
         || Boolean(activeThreadId && (stateQuery.isLoading || runtimeState.isThreadLoading)) ? (
@@ -583,7 +607,7 @@ export default function CreativeHubPage() {
           loading
           tone="info"
           title="正在准备当前创作现场"
-          description="系统正在读取线程、小说绑定和最近执行记录，完成后会给出唯一推荐下一步。"
+          description="系统正在读取线程和小说状态，完成后会给出唯一推荐下一步。"
         />
       ) : (
         <WorkspaceNextAction
@@ -654,8 +678,6 @@ export default function CreativeHubPage() {
             onRetryNovels={() => void novelsQuery.refetch()}
             onNovelChange={(novelId) => handleBindingsChange({ novelId: novelId || null })}
             onQuickAction={(prompt) => void handleQuickAction(prompt)}
-            onCreateNovel={handleCreateNovelQuickAction}
-            onStartProduction={handleQuickAction}
           />
         </div>
 

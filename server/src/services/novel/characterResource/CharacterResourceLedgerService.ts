@@ -7,6 +7,7 @@ import type {
 } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import { buildChapterArtifactContentHash } from "../runtime/artifactSync";
 import {
   compactText,
   mapCharacterResourceRow,
@@ -179,7 +180,7 @@ export class CharacterResourceLedgerService {
 
   async buildContext(
     novelId: string,
-    options: { chapterId?: string; chapterOrder?: number; characterIds?: string[] } = {},
+    options: { chapterId?: string; chapterOrder?: number; characterIds?: string[]; includePreviousPending?: boolean } = {},
   ): Promise<CharacterResourceContext> {
     const [rows, pendingProposalRows] = await Promise.all([
       prisma.characterResourceLedgerItem.findMany({
@@ -187,7 +188,7 @@ export class CharacterResourceLedgerService {
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
         take: 80,
       }),
-      prisma.stateChangeProposal.findMany({
+      options.includePreviousPending ? this.loadPreviousPendingProposals(novelId, options) : prisma.stateChangeProposal.findMany({
         where: {
           novelId,
           proposalType: "character_resource_update",
@@ -236,6 +237,53 @@ export class CharacterResourceLedgerService {
       pendingProposalItems,
       riskSignals,
     };
+  }
+
+  private async loadPreviousPendingProposals(
+    novelId: string,
+    options: { chapterId?: string; chapterOrder?: number; characterIds?: string[] },
+  ) {
+    const characterIds = new Set(options.characterIds ?? []);
+    const selected = [];
+    let cursor: string | undefined;
+    // Apply the prompt budget after relevance/version checks, so unrelated newer
+    // proposals cannot crowd out an older unresolved constraint.
+    while (selected.length < 8) {
+      const rows = await prisma.stateChangeProposal.findMany({
+        where: {
+          novelId, proposalType: "character_resource_update", status: "pending_review",
+          OR: [
+            { chapterId: null },
+            ...(options.chapterOrder != null ? [{ chapter: { is: { novelId, order: { lte: options.chapterOrder } } } }]
+              : options.chapterId ? [{ chapterId: options.chapterId }] : []),
+          ],
+        },
+        include: { chapter: { select: { content: true, order: true } } },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }, { id: "asc" }],
+        take: 40,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      for (const row of rows) {
+        const payload = parseJsonRecord(row.payloadJson);
+        if (options.chapterOrder != null && typeof payload.chapterOrder === "number"
+          && payload.chapterOrder > options.chapterOrder) continue;
+        if (typeof payload.syncContentHash === "string" && (!row.chapter
+          || buildChapterArtifactContentHash(row.chapter.content ?? "") !== payload.syncContentHash)) continue;
+        const relatedCharacters = [payload.holderCharacterId, payload.previousHolderCharacterId,
+          payload.ownerType === "character" ? payload.ownerId : undefined];
+        const starts = payload.expectedUseStartChapterOrder;
+        const ends = payload.expectedUseEndChapterOrder;
+        const inWindow = options.chapterOrder != null && typeof starts === "number"
+          && starts <= options.chapterOrder + 1 && (typeof ends !== "number" || ends >= options.chapterOrder - 2);
+        if (characterIds.size > 0 && !inWindow
+          && !relatedCharacters.some(id => typeof id === "string" && characterIds.has(id))) continue;
+        selected.push(row);
+        if (selected.length === 8) break;
+      }
+      if (rows.length < 40) break;
+      cursor = rows[rows.length - 1].id;
+    }
+    return selected;
   }
 
   buildCharacterSummaries(items: CharacterResourceLedgerItem[]) {

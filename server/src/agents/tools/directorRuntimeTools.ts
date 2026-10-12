@@ -95,8 +95,8 @@ async function resolveDirectorRuntimeScope(
     throw new AgentToolError("INVALID_INPUT", "需要绑定小说或传入自动导演任务 ID。");
   }
 
-  const activeTask = await workflowService.findActiveTaskByNovelAndLane(novelId, "auto_director");
-  const task = activeTask ?? await workflowService.findLatestVisibleTaskByNovelId(novelId, "auto_director");
+  const activeTask = await workflowService.findActiveDirectorTask(novelId);
+  const task = activeTask ?? await workflowService.resolveCurrentDirectorTask(novelId);
   if (!task) {
     throw new AgentToolError("NOT_FOUND", "当前小说还没有可读取的自动导演任务。");
   }
@@ -222,7 +222,7 @@ async function analyzeWorkspaceForTool(
   const { novelDirectorService } = await getServices();
   const scope = await resolveDirectorRuntimeScope(context, input);
   const analysis = await novelDirectorService.analyzeRuntimeWorkspace(scope.novelId, {
-    workflowTaskId: scope.taskId,
+    workflowTaskId: context.plannerProfile === "creative_hub_readonly" ? null : scope.taskId,
     includeAiInterpretation: input.includeAiInterpretation === true,
     llm: getLlmOptions(context),
   });
@@ -522,7 +522,7 @@ export const directorRuntimeToolDefinitions: Partial<
       const scope = await resolveDirectorRuntimeScope(context, input);
       const { novelDirectorService } = await getServices();
       const impact = await novelDirectorService.evaluateManualEditImpact(scope.novelId, {
-        workflowTaskId: scope.taskId,
+        workflowTaskId: context.plannerProfile === "creative_hub_readonly" ? null : scope.taskId,
         chapterId: input.chapterId,
         includeAiInterpretation: input.includeAiInterpretation ?? true,
         llm: getLlmOptions(context),

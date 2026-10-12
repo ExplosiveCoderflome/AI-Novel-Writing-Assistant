@@ -1,0 +1,1 @@
+export {DirectorV2CharacterEnrichmentService, directorV2CharacterEnrichmentService} from "./DirectorV2CharacterEnrichmentService";

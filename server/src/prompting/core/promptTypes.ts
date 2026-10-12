@@ -9,6 +9,7 @@ export type PromptMode = "structured" | "text";
 export type PromptLanguage = "zh" | "en";
 
 export interface PromptContextBlock {
+  reuseScope?: "book" | "volume" | "request";
   id: string;
   group: string;
   priority: number;
@@ -124,6 +125,7 @@ export interface PromptExecutionOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  reasoningEnabled?: boolean;
   maxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -163,6 +165,8 @@ export interface PromptStreamRunResult<T> {
 
 export interface PromptRepairPolicy {
   maxAttempts: number;
+  /** Asset-owned instructions supplied only to the structural JSON repair pass. */
+  guidance?: string;
 }
 
 export interface PromptSemanticRetryBuildInput<I, R> {
@@ -192,7 +196,10 @@ export interface PromptPostValidateFailureRecoveryInput<I, R> {
 export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: PromptRenderContext) => unknown;
 
 export interface PromptStructuredOutputHint<I, R> {
+  placement?: "stable_prefix" | "tail";
   mode?: "auto" | "off";
+  /** Keep all example fields while omitting indentation in high-volume production calls. */
+  compact?: boolean;
   example?: unknown | PromptStructuredOutputExampleBuilder<I, R>;
   note?: string | ((input: I, context: PromptRenderContext) => string | undefined);
 }
@@ -217,9 +224,12 @@ export interface PromptAsset<I, O, R = O> {
   language: PromptLanguage;
   contextPolicy: ContextPolicy;
   repairPolicy?: PromptRepairPolicy;
+  /** Optional lower repair budget for the configured fallback model. */
+  fallbackRepairPolicy?: PromptRepairPolicy;
   semanticRetryPolicy?: PromptSemanticRetryPolicy<I, R>;
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
+  cacheBoundary?: {messageIndex:number;contentBlockIndex:number|null};
   editableSlots?: PromptEditableSlot[];
   slots?: PromptSlotDef[];
   contextRequirements?: PromptContextRequirement[];

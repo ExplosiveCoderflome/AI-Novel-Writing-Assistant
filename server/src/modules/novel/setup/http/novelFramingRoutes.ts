@@ -17,8 +17,24 @@ const framingSuggestSchema = llmGenerateSchema.extend({
   description: z.string().trim().max(2000).optional(),
   genreLabel: z.string().trim().max(120).optional(),
   styleTone: z.string().trim().max(120).optional(),
-}).refine((value) => Boolean(value.title?.trim() || value.description?.trim()), {
-  message: "请至少填写书名或一句话概述。",
+  bookAnalysisId: z.string().trim().min(1).optional(),
+  referenceIntent: z.enum(["continuation", "adaptation"]).optional(),
+  bookAnalysisSections: z.array(z.enum([
+    "overview",
+    "plot_structure",
+    "timeline",
+    "character_system",
+    "worldbuilding",
+    "themes",
+    "style_technique",
+    "market_highlights",
+  ])).min(1).max(8).optional(),
+}).refine((value) => Boolean(
+  value.title?.trim()
+  || value.description?.trim()
+  || value.bookAnalysisId?.trim()
+), {
+  message: "请至少填写书名、一句话概述，或绑定可用拆书。",
 });
 
 interface RegisterNovelFramingRoutesInput {

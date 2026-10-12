@@ -10,7 +10,6 @@ import type { WorkspaceTone } from "@/components/workspace";
 import type { TaskQueueSeverity } from "@/components/taskQueue";
 
 export const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
-export const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancelled"]);
 
 export type TaskSortMode = "default" | "updated_desc" | "updated_asc" | "heartbeat_desc" | "heartbeat_asc";
 

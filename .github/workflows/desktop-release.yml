@@ -57,6 +57,9 @@ jobs:
       - name: Build and stage desktop app
         run: pnpm stage:desktop
 
+      - name: Verify database migrations
+        run: pnpm --filter @ai-novel/server exec node --test tests/prismaMigrationCompleteness.test.js tests/runtimeMigrations.test.js
+
       - name: Verify packaged desktop layout
         run: pnpm verify:desktop-package:reuse-stage
 

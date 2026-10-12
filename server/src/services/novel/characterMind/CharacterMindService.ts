@@ -1,16 +1,20 @@
 import type { CharacterMindSnapshot, CharacterMindSnapshotSource } from "@ai-novel/shared/types/characterMind";
 import { prisma } from "../../../db/prisma";
+import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   buildCharacterMindContextBlocks,
   characterMindSnapshotPrompt,
 } from "../../../prompting/prompts/novel/characterMind.prompts";
 import type { CharacterMindDelta, CharacterMindSnapshotItem } from "../../../prompting/prompts/novel/characterMind.promptSchemas";
+import type {Prisma} from "@prisma/client";
 
 type MindGenerationOptions = {
   provider?: any;
   model?: string;
   temperature?: number;
+  onlyMissing?: boolean;
+  assertWriteOwnership?: (db: Prisma.TransactionClient) => Promise<void>;
 };
 
 type CharacterRow = {
@@ -134,6 +138,7 @@ export class CharacterMindService {
   async applyChapterMindDeltas(input: {
     novelId: string;
     chapterId: string;
+    expectedChapterContent?: string;
     deltas: CharacterMindDelta[];
   }): Promise<number> {
     if (input.deltas.length === 0) {
@@ -152,6 +157,7 @@ export class CharacterMindService {
       characterId: item.characterId,
       sourceChapterId: input.chapterId,
       sourceType: "artifact_delta" as const,
+      expectedChapterContent: input.expectedChapterContent,
       snapshot: item.snapshot,
     })));
     return normalized.length;
@@ -163,7 +169,15 @@ export class CharacterMindService {
     sourceType: "bootstrap" | "manual_refresh",
     options: MindGenerationOptions,
   ): Promise<CharacterMindSnapshot[]> {
-    const characterIds = Array.from(new Set(requestedCharacterIds.filter(Boolean))).slice(0, 6);
+    await options.assertWriteOwnership?.(prisma);
+    let characterIds = Array.from(new Set(requestedCharacterIds.filter(Boolean)));
+    if (options.onlyMissing) {
+      const existing = await prisma.characterMindSnapshot.findMany({where: {novelId,
+        characterId: {in: characterIds}, isCurrent: true}, select: {characterId: true}});
+      const present = new Set(existing.map(item => item.characterId));
+      characterIds = characterIds.filter(id => !present.has(id));
+    }
+    characterIds = characterIds.slice(0, 6);
     if (characterIds.length === 0) {
       return [];
     }
@@ -194,21 +208,58 @@ export class CharacterMindService {
       sourceChapterId: null,
       sourceType,
       snapshot: item.snapshot,
-    })));
+    })), options);
   }
 
   private async persistSnapshots(inputNovelId: string, items: Array<{
     characterId: string;
     sourceChapterId: string | null;
     sourceType: CharacterMindSnapshotSource;
+    expectedChapterContent?: string;
     snapshot: CharacterMindSnapshotItem | CharacterMindDelta;
-  }>): Promise<CharacterMindSnapshot[]> {
+  }>, options: Pick<MindGenerationOptions, "onlyMissing" | "assertWriteOwnership"> = {}): Promise<CharacterMindSnapshot[]> {
     if (items.length === 0) {
       return [];
     }
     const rows = await prisma.$transaction(async (tx) => {
+      await options.assertWriteOwnership?.(tx);
       const created = [];
+      const chapterArtifactIntegrity = items.find((item) => (
+        item.sourceType === "artifact_delta" && item.sourceChapterId && item.expectedChapterContent !== undefined
+      ));
+      if (chapterArtifactIntegrity?.sourceChapterId) {
+        const chapter = await tx.chapter.findFirst({
+          where: {
+            id: chapterArtifactIntegrity.sourceChapterId,
+            novelId: inputNovelId,
+            content: chapterArtifactIntegrity.expectedChapterContent,
+          },
+          select: { id: true },
+        });
+        if (!chapter) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色思维快照。");
+        }
+      }
+      const chapterArtifactCharacterIds = items
+        .filter((item) => item.sourceType === "artifact_delta" && item.sourceChapterId)
+        .map((item) => item.characterId);
+      const chapterArtifactSourceChapterId = items.find((item) => (
+        item.sourceType === "artifact_delta" && item.sourceChapterId
+      ))?.sourceChapterId;
+      if (chapterArtifactCharacterIds.length > 0 && chapterArtifactSourceChapterId) {
+        await tx.characterMindSnapshot.deleteMany({
+          where: {
+            novelId: inputNovelId,
+            sourceType: "artifact_delta",
+            sourceChapterId: chapterArtifactSourceChapterId,
+            characterId: { in: chapterArtifactCharacterIds },
+          },
+        });
+      }
       for (const item of items) {
+        if (options.onlyMissing && await tx.characterMindSnapshot.findFirst({where: {
+          novelId: inputNovelId, characterId: item.characterId, isCurrent: true,
+        }})) continue;
         await tx.characterMindSnapshot.updateMany({
           where: { novelId: inputNovelId, characterId: item.characterId, isCurrent: true },
           data: { isCurrent: false },

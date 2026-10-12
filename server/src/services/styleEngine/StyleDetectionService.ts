@@ -1,5 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { StyleDetectionReport } from "@ai-novel/shared/types/styleEngine";
+import { isStyleIssueRewritable, createStyleSignalPolicy } from "@ai-novel/shared/types/styleEngine";
+import { scanStyleSignals } from "./signals";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { styleDetectionPrompt } from "../../prompting/prompts/style/style.prompts";
 import {
@@ -61,24 +63,7 @@ export class StyleDetectionService {
       };
     }
 
-    const forbiddenRules = antiRules.filter((rule) => rule.type === "forbidden" && rule.enabled);
-    const literalPatterns = forbiddenRules.flatMap((rule) => (
-      rule.detectPatterns.filter((pattern) => !/[\\^$.*+?()[\]{}|]/.test(pattern))
-    ));
-    if (literalPatterns.length > 0) {
-      const hasHit = literalPatterns.some((pattern) => input.content.includes(pattern));
-      if (!hasHit) {
-        console.debug("[style-detect] fast-scan:skip-llm, no literal forbidden pattern matched");
-        return {
-          riskScore: 0,
-          summary: "快扫未检出字面量违禁词，跳过 LLM 深度检测。",
-          violations: [],
-          canAutoRewrite: false,
-          appliedRuleIds,
-        };
-      }
-    }
-
+    const signalScan = scanStyleSignals(input.content, createStyleSignalPolicy());
     const result = await runStructuredPrompt({
       asset: styleDetectionPrompt,
       promptInput: {
@@ -86,6 +71,8 @@ export class StyleDetectionService {
         styleContractMetaText: styleContractMetaText || "none",
         antiRuleCatalogText: antiRuleCatalogText || "none",
         content: input.content,
+        allowedRuleIds: appliedRuleIds,
+        styleSignals: signalScan,
       },
       options: {
         provider: input.provider,
@@ -94,33 +81,26 @@ export class StyleDetectionService {
       },
     });
     const parsed = result.output;
+    const violations = (parsed.violations ?? []).map((item) => {
+      const matchedRule = antiRules.find((rule) => rule.id === item.ruleId || rule.name === item.ruleName);
+      const ruleId = matchedRule?.id ?? item.ruleId ?? item.ruleName;
+      const ruleType = matchedRule?.type ?? item.ruleType;
+      const source = inferStyleViolationSource(ruleId, contract);
+      return {
+        ruleId, ruleName: matchedRule?.name ?? item.ruleName, ruleType,
+        severity: matchedRule?.severity ?? item.severity, source, layer: item.layer,
+        issueCategory: inferStyleIssueCategory({ issueCategory: item.issueCategory, source, ruleType }),
+        excerpt: item.excerpt, reason: item.reason, suggestion: item.suggestion,
+        canAutoRewrite: isStyleIssueRewritable(item, matchedRule?.autoRewrite ?? true),
+      };
+    });
     return {
       riskScore: Math.max(0, Math.min(100, Math.round(parsed.riskScore ?? 0))),
       summary: parsed.summary ?? "",
-      violations: (parsed.violations ?? []).map((item) => {
-        const matchedRule = antiRules.find((rule) => rule.id === item.ruleId || rule.name === item.ruleName);
-        const ruleId = matchedRule?.id ?? item.ruleId ?? item.ruleName;
-        const ruleType = matchedRule?.type ?? item.ruleType;
-        const source = inferStyleViolationSource(ruleId, contract);
-        return {
-          ruleId,
-          ruleName: matchedRule?.name ?? item.ruleName,
-          ruleType,
-          severity: matchedRule?.severity ?? item.severity,
-          source,
-          issueCategory: inferStyleIssueCategory({
-            issueCategory: item.issueCategory,
-            source,
-            ruleType,
-          }),
-          excerpt: item.excerpt,
-          reason: item.reason,
-          suggestion: item.suggestion,
-          canAutoRewrite: matchedRule?.autoRewrite ?? item.canAutoRewrite,
-        };
-      }),
-      canAutoRewrite: Boolean(parsed.canAutoRewrite ?? (parsed.violations ?? []).some((item) => item.canAutoRewrite)),
+      violations,
+      canAutoRewrite: violations.some(item => item.canAutoRewrite),
       appliedRuleIds,
+      signalScan,
     };
   }
 }

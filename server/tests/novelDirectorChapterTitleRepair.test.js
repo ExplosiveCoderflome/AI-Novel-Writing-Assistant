@@ -61,7 +61,18 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     readiness: {},
     strategyPlan: null,
     critiqueReport: null,
-    beatSheets: [],
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "open_hook",
+        label: "开卷抓手",
+        summary: "建立开篇危机。",
+        chapterSpanHint: "1-4章",
+        mustDeliver: ["开篇压力"],
+      }],
+    }],
     rebalanceDecisions: [],
     volumes: [
       createVolume("volume-1", 1, [
@@ -86,6 +97,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
 
   const markTaskRunningCalls = [];
   const markTaskWaitingApprovalCalls = [];
+  let persistedDirectorTaskData = null;
   const volumeService = {
     getVolumes: async () => baseWorkspace,
     generateVolumes: async (_novelId, options) => {
@@ -100,6 +112,16 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
   };
   const workflowService = {
     getTaskByIdWithoutHealing: async () => null,
+    getTaskById: async (taskId) => taskId === "task-1" ? ({
+      id: "task-1",
+      novelId: "novel_demo",
+      lane: "auto_director",
+      seedPayloadJson: JSON.stringify({ novelId: "novel_demo" }),
+    }) : null,
+    updateTaskWithRetry: async (args) => {
+      persistedDirectorTaskData = JSON.parse(args.data.seedPayloadJson);
+      return args;
+    },
     markTaskRunning: async (_taskId, payload) => {
       markTaskRunningCalls.push(payload);
     },
@@ -126,7 +148,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
   assert.equal(markTaskWaitingApprovalCalls.length, 1);
   assert.equal(markTaskWaitingApprovalCalls[0].volumeId, "volume-1");
   assert.equal(markTaskWaitingApprovalCalls[0].clearCheckpoint, true);
-  assert.equal(markTaskWaitingApprovalCalls[0].seedPayload.taskNotice, null);
+  assert.equal(persistedDirectorTaskData.taskNotice, null);
 });
 
 test.skip("repairDirectorChapterTitles keeps warning notice when repaired titles are still too concentrated", { skip: "Semantic title-diversity retry policy is pending a deterministic non-LLM fixture." }, async () => {

@@ -284,8 +284,12 @@ export function useCreativeHubRuntime({
           onCheckpointChange?.(nextCheckpointId);
         }
       },
-      onError: async () => {
-        setInterrupt((prev) => prev);
+      onError: async (error) => {
+        const message = error && typeof error === "object" && "message" in error
+          && typeof error.message === "string" && error.message.trim()
+          ? error.message.trim()
+          : "创作中枢运行失败，请检查模型连接后重试。";
+        toast.error(message);
       },
     },
   });

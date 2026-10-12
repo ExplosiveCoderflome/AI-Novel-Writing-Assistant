@@ -1,8 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type {
   TakeoverChapterTargetViewModel,
+  TakeoverContinuousTargetViewModel,
   TakeoverGuidanceViewModel,
   TakeoverProgressInspectionViewModel,
 } from "../novelExistingProjectTakeoverViewModel";
@@ -18,6 +20,7 @@ interface TakeoverDiagnosisPanelProps {
   hasTaskSnapshotError: boolean;
   hasCurrentTask: boolean;
   chapterTarget: TakeoverChapterTargetViewModel | null;
+  continuousTarget: TakeoverContinuousTargetViewModel | null;
   isAdvancedOpen: boolean;
   isStarting: boolean;
   startDisabled: boolean;
@@ -35,6 +38,7 @@ export default function TakeoverDiagnosisPanel({
   hasTaskSnapshotError,
   hasCurrentTask,
   chapterTarget,
+  continuousTarget,
   isAdvancedOpen,
   isStarting,
   startDisabled,
@@ -42,13 +46,22 @@ export default function TakeoverDiagnosisPanel({
   onChapterTargetChange,
   onStart,
 }: TakeoverDiagnosisPanelProps) {
-  const quickActionLabel = chapterTarget && !isAdvancedOpen ? chapterTarget.actionLabel : guidance.actionLabel;
+  const quickActionLabel = !isAdvancedOpen && continuousTarget
+    ? continuousTarget.actionLabel
+    : chapterTarget && !isAdvancedOpen
+      ? chapterTarget.actionLabel
+      : guidance.actionLabel;
   return (
-    <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="min-w-0 rounded-xl bg-muted/45 p-3 sm:p-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.42fr)] lg:items-start">
         <div className="min-w-0 space-y-2">
-          <div className="text-sm font-medium text-foreground">接续诊断</div>
-          {isLoadingReadiness ? <Badge variant="outline">读取项目进度</Badge> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <CircleCheck className="h-4 w-4 text-primary" />
+              建议的接续方式
+            </div>
+            {isLoadingReadiness ? <Badge variant="outline">正在读取进度</Badge> : null}
+          </div>
           {readinessErrorMessage ? (
             <div className={`rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               {readinessErrorMessage}
@@ -80,7 +93,7 @@ export default function TakeoverDiagnosisPanel({
             </>
           )}
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:min-w-48">
+        <div className="flex min-w-0 flex-col gap-3 rounded-lg bg-background/85 p-3">
           {hasCurrentTask ? (
             <Button
               type="button"
@@ -92,7 +105,20 @@ export default function TakeoverDiagnosisPanel({
             </Button>
           ) : (
             <>
-              {!isAdvancedOpen && chapterTarget ? (
+              {!isAdvancedOpen && continuousTarget ? (
+                <>
+                  <div className={`rounded-lg bg-background/70 p-3 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {continuousTarget.summary}
+                  </div>
+                  {chapterTarget ? (
+                    <TakeoverChapterTargetSelector
+                      target={chapterTarget}
+                      disabled={isStarting}
+                      onChange={onChapterTargetChange}
+                    />
+                  ) : null}
+                </>
+              ) : !isAdvancedOpen && chapterTarget ? (
                 <TakeoverChapterTargetSelector
                   target={chapterTarget}
                   disabled={isStarting}
@@ -105,15 +131,15 @@ export default function TakeoverDiagnosisPanel({
                 disabled={startDisabled}
                 onClick={onStart}
               >
-                {isStarting ? "启动中..." : quickActionLabel}
+                {isStarting ? "启动中..." : <><ArrowRight className="h-4 w-4" /> {quickActionLabel}</>}
               </Button>
             </>
           )}
-          <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+          <div className={`border-t border-border/70 pt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             默认保留已有资产，仅在高级设置选择重跑时才会重建对应步骤。
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

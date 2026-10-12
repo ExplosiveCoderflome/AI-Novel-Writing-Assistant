@@ -381,7 +381,7 @@ test("assertHighMemoryDirectorStartAllowed blocks a process-crossing duplicate s
     await assert.rejects(
       () => assertHighMemoryDirectorStartAllowed(
         {
-          listActiveTasksByNovelAndLane: async () => [],
+          findActiveDirectorTask: async () => null,
         },
         {
           taskId: "task-new",

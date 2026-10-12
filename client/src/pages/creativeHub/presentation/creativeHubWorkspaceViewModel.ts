@@ -174,7 +174,7 @@ export function resolveCreativeHubWorkspacePresentation(input: {
         tone: "warning",
         title: "查看待确认的创作操作",
         description: input.latestTurnSummary?.nextSuggestion?.trim()
-          || "当前线程仍在等待确认，请先查看执行记录中的待确认项。",
+          || "当前线程仍在等待确认，请先处理待确认项。",
         action: "view_activity",
         actionLabel: "查看待确认项",
       },
@@ -189,9 +189,9 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       recommendation: {
         tone: "info",
         title: "AI 正在推进当前创作目标",
-        description: `当前阶段：${stageLabel}。执行记录、工具结果和需要确认的事项会持续显示在主工作区。`,
+        description: `当前阶段：${stageLabel}。系统会持续更新状态，并在需要时提示你处理。`,
         action: "view_activity",
-        actionLabel: "查看执行记录",
+        actionLabel: "查看当前状态",
       },
     };
   }
@@ -215,11 +215,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "处理当前创作阻塞",
+        title: "查看当前状态异常",
         description: `${failureSummary} 恢复操作会继续使用现有小说资产和任务记录。`,
         action: "send_prompt",
-        actionLabel: "生成恢复方案",
-        prompt: recoveryHint,
+        actionLabel: "查看失败原因",
+        prompt: `请解释失败原因、执行记录和正式处理入口：${recoveryHint}`,
       },
     };
   }
@@ -251,11 +251,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "继续当前创作目标",
+        title: "查看当前诊断结果",
         description: nextSuggestion,
         action: "send_prompt",
-        actionLabel: "按建议继续",
-        prompt: nextSuggestion,
+        actionLabel: "查看建议",
+        prompt: `请解释当前状态、执行记录和建议入口：${nextSuggestion}`,
       },
     };
   }

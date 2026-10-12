@@ -202,7 +202,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[min(780px,92vh)] max-w-5xl flex-col overflow-hidden p-0">
+      <DialogContent className="writing-formula-theme flex h-[min(780px,92vh)] max-w-5xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(255,255,255,0.98))] px-6 py-5 pr-14">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white"><WandSparkles className="size-5" /></div>

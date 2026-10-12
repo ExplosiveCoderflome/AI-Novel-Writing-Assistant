@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
@@ -18,6 +18,11 @@ import {
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
   DIRECTOR_TAKEOVER_START_PHASES,
   DIRECTOR_TAKEOVER_STRATEGIES,
+  DIRECTOR_IDEA_CONSTELLATION_CATEGORIES,
+  type DirectorIdeaConstellationComposeRequest,
+  type DirectorIdeaConstellationComposeResponse,
+  type DirectorIdeaConstellationOptionsRequest,
+  type DirectorIdeaConstellationOptionsResponse,
   type DirectorIdeaInspirationRequest,
   type DirectorIdeaInspirationsResponse,
   type DirectorCandidatePatchRequest,
@@ -34,19 +39,23 @@ import {
 } from "@ai-novel/shared/types/novelFraming";
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
 import { validate } from "../../../../middleware/validate";
+import { AppError } from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { DirectorBookAutomationProjectionService } from "../projections/DirectorBookAutomationProjectionService";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
-import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
+import { novelDirectorIdeaInspirationService } from "../idea";
+import { novelDirectorIdeaConstellationService } from "../idea/NovelDirectorIdeaConstellationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
+import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 
 const router = Router();
 const commandService = new DirectorCommandService();
 const snapshotService = new DirectorTaskSnapshotService();
 const novelDirectorService = new NovelDirectorService();
 const projectionService = new DirectorBookAutomationProjectionService();
+const workflowService = new NovelWorkflowService();
 
 const correctionPresetValues = DIRECTOR_CORRECTION_PRESETS.map((item) => item.value) as [string, ...string[]];
 const takeoverStartPhaseValues = [...DIRECTOR_TAKEOVER_START_PHASES] as [string, ...string[]];
@@ -58,6 +67,7 @@ const runtimePolicyModeValues = [...DIRECTOR_POLICY_MODES] as [DirectorPolicyMod
 const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];
 
 const llmOptionsSchema = z.object({
+  directorVersion: z.enum(["v1", "v2"]).optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -80,6 +90,7 @@ const autoApprovalSchema = z.object({
 }).optional();
 
 const projectContextSchema = z.object({
+  marketBriefId: z.string().trim().optional(),
   title: z.string().trim().optional(),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),
@@ -97,6 +108,7 @@ const projectContextSchema = z.object({
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   readerChannelPreference: z.enum(["ai_judge", "male_oriented", "female_oriented", "general"]).optional(),
+  powerSystemPreference: z.enum(["ai_recommend", "none", "soft", "ranked"]).optional(),
   writingPlatformPreference: z.enum(["ai_recommend", "fanqie_free", "qidian_male", "jinjiang_female"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
@@ -124,6 +136,17 @@ const projectContextSchema = z.object({
     "style_technique",
     "market_highlights",
   ])).min(1).max(8).optional(),
+  referenceBookAnalysisId: z.string().trim().optional(),
+  referenceBookAnalysisSections: z.array(z.enum([
+    "overview",
+    "plot_structure",
+    "timeline",
+    "character_system",
+    "worldbuilding",
+    "themes",
+    "style_technique",
+    "market_highlights",
+  ])).min(1).max(8).optional(),
 });
 
 const candidatesSchema = projectContextSchema.extend({
@@ -131,7 +154,7 @@ const candidatesSchema = projectContextSchema.extend({
   workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 
-const ideaInspirationsSchema = projectContextSchema.extend({
+const ideaContextRequestSchema = projectContextSchema.extend({
   currentIdea: z.string().trim().max(1000).optional(),
   genreLabel: z.string().trim().max(120).optional(),
   genreDescription: z.string().trim().max(1000).optional(),
@@ -141,6 +164,26 @@ const ideaInspirationsSchema = projectContextSchema.extend({
   secondaryStoryModeDescription: z.string().trim().max(1000).optional(),
   worldName: z.string().trim().max(120).optional(),
 }).merge(llmOptionsSchema);
+
+const ideaConstellationSelectionSchema = z.object({
+  id: z.string().trim().min(1).max(48),
+  category: z.enum(DIRECTOR_IDEA_CONSTELLATION_CATEGORIES),
+  label: z.string().trim().min(2).max(48),
+  hint: z.string().trim().min(4).max(64),
+}).strict();
+
+const ideaConstellationComposeSchema = ideaContextRequestSchema.extend({
+  selectedOptions: z.array(ideaConstellationSelectionSchema).min(1).max(7),
+}).superRefine((input, context) => {
+  const categories = new Set(input.selectedOptions.map((option) => option.category));
+  if (categories.size !== input.selectedOptions.length) {
+    context.addIssue({
+      code: "custom",
+      path: ["selectedOptions"],
+      message: "每种故事星图维度最多选择一项。",
+    });
+  }
+});
 
 const candidateBatchSchema = z.object({
   id: z.string().trim().min(1),
@@ -315,7 +358,7 @@ router.post("/tasks", validate({ body: createTaskSchema }), async (req, res, nex
   }
 });
 
-router.post("/idea-inspirations", validate({ body: ideaInspirationsSchema }), async (req, res, next) => {
+router.post("/idea-inspirations", validate({ body: ideaContextRequestSchema }), async (req, res, next) => {
   try {
     const data = await novelDirectorIdeaInspirationService.generate(
       req.body as DirectorIdeaInspirationRequest,
@@ -326,9 +369,37 @@ router.post("/idea-inspirations", validate({ body: ideaInspirationsSchema }), as
   }
 });
 
-router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), async (req, res, next) => {
+router.post("/idea-constellation/options", validate({ body: ideaContextRequestSchema }), async (req, res, next) => {
   try {
-    const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
+    const data = await novelDirectorIdeaConstellationService.generateOptions(
+      req.body as DirectorIdeaConstellationOptionsRequest,
+    ) as DirectorIdeaConstellationOptionsResponse;
+    res.status(200).json(accepted(data, "Director idea constellation options generated."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/idea-constellation/compose", validate({ body: ideaConstellationComposeSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorIdeaConstellationService.compose(
+      req.body as DirectorIdeaConstellationComposeRequest,
+    ) as DirectorIdeaConstellationComposeResponse;
+    res.status(200).json(accepted(data, "Director idea constellation composed."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+async function appendDirectorCommand(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = req.params as z.infer<typeof taskParamsSchema> | z.infer<typeof takeoverParamsSchema>;
+    const taskId = "taskId" in params
+      ? params.taskId
+      : (await workflowService.resolveCurrentDirectorTask(params.novelId))?.id;
+    if (!taskId) {
+      throw new AppError("Auto director task not found.", 404);
+    }
     const body = req.body as z.infer<typeof appendCommandSchema>;
     let data: DirectorCommandAcceptedResponse;
     switch (body.commandType) {
@@ -397,6 +468,31 @@ router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body
         throw new Error("Unsupported director command type.");
     }
     res.status(202).json(accepted(data, "Director command accepted."));
+  } catch (error) {
+    next(error);
+  }
+}
+
+router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
+router.post("/novels/:novelId/commands", validate({ params: takeoverParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
+
+router.get("/novels/:novelId/current", validate({ params: takeoverParamsSchema }), async (req, res, next) => {
+  try {
+    const { novelId } = req.params as z.infer<typeof takeoverParamsSchema>;
+    const row = await workflowService.resolveCurrentDirectorTask(novelId);
+    const data = row ? {
+      id: row.id,
+      novelId: row.novelId,
+      status: row.status,
+      currentStage: row.currentStage,
+      currentItemKey: row.currentItemKey,
+      currentItemLabel: row.currentItemLabel,
+      progress: row.progress,
+      checkpointType: row.checkpointType,
+      checkpointSummary: row.checkpointSummary,
+      isActive: row.status === "queued" || row.status === "running" || row.status === "waiting_approval",
+    } : null;
+    res.status(200).json(accepted(data, "Director current task loaded."));
   } catch (error) {
     next(error);
   }

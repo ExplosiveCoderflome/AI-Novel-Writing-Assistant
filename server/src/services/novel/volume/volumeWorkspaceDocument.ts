@@ -334,8 +334,8 @@ function compareStrategyPlan(left: VolumeStrategyPlan | null, right: VolumeStrat
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function hasVolumeLevelStructureChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
-  if (currentVolumes.length !== nextVolumes.length) {
+function hasExistingVolumeLevelStructureChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
+  if (nextVolumes.length < currentVolumes.length) {
     return true;
   }
 
@@ -363,8 +363,8 @@ function hasVolumeLevelStructureChanged(currentVolumes: VolumePlan[], nextVolume
   });
 }
 
-function hasChapterListChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
-  if (currentVolumes.length !== nextVolumes.length) {
+function hasExistingChapterListChanged(currentVolumes: VolumePlan[], nextVolumes: VolumePlan[]): boolean {
+  if (nextVolumes.length < currentVolumes.length) {
     return true;
   }
 
@@ -519,9 +519,9 @@ export function mergeVolumeWorkspaceInput(
   const strategyChanged = record.strategyPlan !== undefined
     && !compareStrategyPlan(currentDocument.strategyPlan, nextStrategyPlan);
   const volumeLevelStructureChanged = Array.isArray(record.volumes)
-    && hasVolumeLevelStructureChanged(currentDocument.volumes, nextVolumes);
+    && hasExistingVolumeLevelStructureChanged(currentDocument.volumes, nextVolumes);
   const chapterListChanged = Array.isArray(record.volumes)
-    && hasChapterListChanged(currentDocument.volumes, nextVolumes);
+    && hasExistingChapterListChanged(currentDocument.volumes, nextVolumes);
   const beatSheets = strategyChanged || volumeLevelStructureChanged
     ? []
     : record.beatSheets !== undefined

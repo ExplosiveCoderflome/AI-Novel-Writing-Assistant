@@ -561,6 +561,7 @@ test("StyleDetectionService can test preview anti-ai rules without a style profi
           ruleType: "risk",
           severity: "medium",
           issueCategory: "style_expression",
+          layer: "surface",
           excerpt: "他突然明白了一切。",
           reason: "解释腔偏重。",
           suggestion: "改成动作和对白。",
@@ -599,19 +600,23 @@ test("StyleRewriteService includes preview anti-ai rules in the repair prompt", 
     promptInstruction: "Preview rewrite instruction.",
     rewriteSuggestion: "改成具体动作和对白。",
   })];
-  promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
-      capturedPrompt = messages.map((message) => String(message.content)).join("\n");
-      return { content: "他扶住桌沿，半晌才开口。" };
-    },
-  }));
+  promptRunner.setPromptRunnerStructuredInvokerForTests(async ({ messages }) => {
+    capturedPrompt = messages.map((message) => String(message.content)).join("\n");
+    return { data: capturedPrompt.includes("你是小说写法风险编辑") ? {
+      riskScore: 50, summary: "表达风险", violations: [{ ruleId: "preview-rewrite", ruleName: "解释腔",
+        ruleType: "forbidden", severity: "medium", layer: "surface", excerpt: "他突然明白了一切。",
+        reason: "直接总结", suggestion: "减少解释", canAutoRewrite: true }], canAutoRewrite: true,
+    } : { strategy: "patch_first", summary: "减少解释", requiresFullRewrite: false,
+      patches: [{ id: "p", targetExcerpt: "他突然明白了一切。", replacement: "他明白了。",
+        reason: "删冗余", issueIds: ["style:1"] }] }, repairUsed: false, repairAttempts: 0 };
+  });
 
   try {
     const result = await new StyleRewriteService().rewrite({
       content: "他突然明白了一切。",
       previewAntiAiRuleIds: ["preview-rewrite"],
       issues: [{
-        ruleName: "解释腔",
+        ruleName: "Rule preview-rewrite",
         excerpt: "他突然明白了一切。",
         suggestion: "改成具体动作和对白。",
       }],
@@ -619,10 +624,11 @@ test("StyleRewriteService includes preview anti-ai rules in the repair prompt", 
 
     assert.match(capturedPrompt, /Temporary anti-AI test rules/);
     assert.match(capturedPrompt, /Preview rewrite instruction/);
-    assert.equal(result.content, "他扶住桌沿，半晌才开口。");
+    assert.equal(result.content, "他突然明白了一切。", "over-compressed preview retains original");
+    assert.ok(result.rewriteGuard.checks.some(check => check.status === "blocked"));
   } finally {
     prisma.antiAiRule.findMany = originalFindMany;
-    promptRunner.setPromptRunnerLLMFactoryForTests();
+    promptRunner.setPromptRunnerStructuredInvokerForTests();
   }
 });
 
@@ -639,9 +645,10 @@ test("style detection prompt requires broad anti-ai recall and non-copyable sugg
   const promptText = rendered.messages.map((message) => String(message.content)).join("\n");
 
   assert.match(promptText, /必须通读全文做召回/);
-  assert.match(promptText, /高频模板表达/);
-  assert.match(promptText, /仿佛、似乎、极其、完美、深不见底/);
-  assert.match(promptText, /通常不应低于 60/);
+  assert.match(promptText, /不按词频机械加分/);
+  assert.match(promptText, /signalCode 仅为统计标签/);
+  assert.match(promptText, /narrative/);
+  assert.match(promptText, /discourse/);
   assert.match(promptText, /禁止输出完整可复制替换句/);
 });
 
@@ -658,10 +665,10 @@ test("style rewrite prompt avoids suggestion copying and factual hook injection"
 
   assert.match(promptText, /suggestion 只表示修改方向/);
   assert.match(promptText, /禁止直接照抄 suggestion/);
-  assert.match(promptText, /相邻段落存在同类明显 AI 痕迹/);
+  assert.match(promptText, /不得扩大范围/);
   assert.match(promptText, /自然化不是口语化/);
-  assert.match(promptText, /不得新增事实型设定/);
-  assert.match(promptText, /地图批注、密信、死人、刺客、失踪者/);
+  assert.match(promptText, /不得新增行动/);
+  assert.match(promptText, /还原后不更差则不改/);
 });
 
 test("knowledge document style extraction uses representative sample by default", () => {

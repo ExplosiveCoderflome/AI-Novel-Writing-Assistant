@@ -11,10 +11,16 @@ interface ChapterEditorSidebarProps {
   isSaving: boolean;
   selectedDiagnosticId: string | null;
   onBack?: () => void;
+  backLabel?: string;
+  onOpenChapterVersions?: () => void;
   onOpenVersionHistory?: () => void;
+  onRefreshWorkspace?: () => void;
+  isRefreshingWorkspace?: boolean;
   onSave: () => void;
   onFocusDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
   onRunDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
+  onResolveDiagnostic: (card: ChapterEditorDiagnosticCard) => void;
+  isResolvingDiagnostic?: boolean;
 }
 
 function MetaChip(props: { label: string }) {
@@ -42,10 +48,15 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
     isSaving,
     selectedDiagnosticId,
     onBack,
+    onOpenChapterVersions,
     onOpenVersionHistory,
+    onRefreshWorkspace,
+    isRefreshingWorkspace = false,
     onSave,
     onFocusDiagnostic,
     onRunDiagnostic,
+    onResolveDiagnostic,
+    isResolvingDiagnostic = false,
   } = props;
 
   const recommendedTask = workspace?.recommendedTask ?? null;
@@ -61,7 +72,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
             {onBack ? (
               <div>
                 <Button size="sm" variant="outline" onClick={onBack}>
-                  返回章节执行页
+                  {props.backLabel ?? "返回章节执行页"}
                 </Button>
               </div>
             ) : null}
@@ -74,7 +85,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
               <div className="flex flex-wrap gap-2">
                 <MetaChip label={`${wordCount} 字`} />
                 <MetaChip label={saveStatusLabel} />
-                <MetaChip label={isWorkspaceLoading ? "LLM 分析中" : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
+                <MetaChip label={isWorkspaceLoading ? "AI 分析中" : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
               </div>
 
               {isWorkspaceLoading ? (
@@ -95,12 +106,23 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                 onClick={onSave}
                 disabled={!isDirty || isSaving}
                 className="w-full"
+                title="保存正文（Ctrl/Cmd+S）"
+                aria-keyshortcuts="Control+S Meta+S"
               >
-                {isSaving ? "保存中..." : "保存"}
+                {isSaving ? "保存中..." : "保存 · Ctrl/Cmd+S"}
               </Button>
-              {onOpenVersionHistory ? (
+              {onOpenChapterVersions ? (
+                <Button size="sm" variant="outline" onClick={onOpenChapterVersions} className="w-full">
+                  查看本章版本
+                </Button>
+              ) : onOpenVersionHistory ? (
                 <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">
                   版本入口
+                </Button>
+              ) : null}
+              {onRefreshWorkspace ? (
+                <Button size="sm" variant="ghost" onClick={onRefreshWorkspace} disabled={isRefreshingWorkspace} className="w-full">
+                  {isRefreshingWorkspace ? "分析中..." : "重新分析本章"}
                 </Button>
               ) : null}
             </div>
@@ -235,6 +257,16 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                     <Button size="sm" onClick={() => onRunDiagnostic(card)}>
                       直接用 AI 处理
                     </Button>
+                    {card.sourceIssueId ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isDirty || isResolvingDiagnostic}
+                        onClick={() => onResolveDiagnostic(card)}
+                      >
+                        {isResolvingDiagnostic ? "确认中..." : isDirty ? "保存后确认已处理" : "确认问题已处理"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               );

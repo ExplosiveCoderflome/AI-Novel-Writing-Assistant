@@ -120,6 +120,7 @@ export class CharacterDynamicsMutationService {
     if (!candidate) {
       throw new Error("角色候选不存在。");
     }
+    if (candidate.status.startsWith("v2_")) throw Object.assign(new Error("请从本书导演 V2 工作台确认人物候选。"), {statusCode: 409});
 
     const createdCharacter = await this.novelContextServiceFactory().createCharacter(novelId, {
       name: candidate.proposedName,
@@ -186,6 +187,7 @@ export class CharacterDynamicsMutationService {
     if (!candidate) {
       throw new Error("角色候选不存在。");
     }
+    if (candidate.status.startsWith("v2_")) throw Object.assign(new Error("请从本书导演 V2 工作台确认人物候选。"), {statusCode: 409});
     if (!character) {
       throw new Error("要合并到的角色不存在。");
     }

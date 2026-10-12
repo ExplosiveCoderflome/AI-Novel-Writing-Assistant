@@ -66,8 +66,13 @@ export class BookAnalysisSourceCacheService {
       },
     });
 
+    const segments = buildSourceSegments(input.content);
+    if (segments.length === 0) {
+      throw new AppError("Knowledge document version content is empty.", 400);
+    }
+
     const cachedNotes = this.parseCachedNotes(cached?.notesJson ?? null);
-    if (cached && cachedNotes) {
+    if (cached && cachedNotes && !this.isLegacyFallbackCache(cachedNotes, segments)) {
       await input.onProgress?.({
         stage: "preparing_notes",
         progress: getCacheHitProgress(),
@@ -79,11 +84,6 @@ export class BookAnalysisSourceCacheService {
         segmentCount: cached.segmentCount,
         cacheHit: true,
       };
-    }
-
-    const segments = buildSourceSegments(input.content);
-    if (segments.length === 0) {
-      throw new AppError("Knowledge document version content is empty.", 400);
     }
 
     const notes = new Array<SourceNote>(segments.length);
@@ -185,6 +185,30 @@ export class BookAnalysisSourceCacheService {
     return parsed;
   }
 
+  private isLegacyFallbackCache(
+    notes: SourceNote[],
+    segments: Array<{ label: string; content: string }>,
+  ): boolean {
+    if (notes.length !== segments.length || notes.length === 0) {
+      return false;
+    }
+    return notes.every((note, index) => {
+      const segment = segments[index];
+      return note.sourceLabel === segment.label
+        && note.summary === compactExcerpt(segment.content, 120)
+        && note.plotPoints.length === 0
+        && note.timelineEvents.length === 0
+        && note.characters.length === 0
+        && note.worldbuilding.length === 0
+        && note.themes.length === 0
+        && note.styleTechniques.length === 0
+        && note.marketHighlights.length === 0
+        && note.readerSignals.length === 0
+        && note.weaknessSignals.length === 0
+        && note.evidence.length === 0;
+    });
+  }
+
   private async buildSingleSourceNote(input: {
     provider: LLMProvider;
     model?: string;
@@ -192,53 +216,37 @@ export class BookAnalysisSourceCacheService {
     maxTokens?: number;
     segment: { label: string; content: string };
   }): Promise<SourceNote> {
-    try {
-      const result = await runStructuredPrompt({
-        asset: bookAnalysisSourceNotePrompt,
-        promptInput: {
-          segmentLabel: input.segment.label,
-          segmentContent: input.segment.content,
-        },
-        options: {
-          provider: input.provider,
-          model: input.model,
-          temperature: input.temperature,
-          maxTokens: input.maxTokens,
-        },
-      });
-      const parsed = result.output;
-
-      const record = parsed as any as Record<string, unknown>;
-      return {
-        sourceLabel: input.segment.label,
-        summary:
-          (typeof record.summary === "string" && record.summary.trim()) || compactExcerpt(input.segment.content, 120),
-        plotPoints: toStringList(record.plotPoints),
-        timelineEvents: toStringList(record.timelineEvents),
-        characters: toStringList(record.characters),
-        worldbuilding: toStringList(record.worldbuilding),
-        themes: toStringList(record.themes),
-        styleTechniques: toStringList(record.styleTechniques),
-        marketHighlights: toStringList(record.marketHighlights),
-        readerSignals: toStringList(record.readerSignals),
-        weaknessSignals: toStringList(record.weaknessSignals),
-        evidence: toEvidenceList(record.evidence, input.segment.label),
-      };
-    } catch {
-      return {
-        sourceLabel: input.segment.label,
-        summary: compactExcerpt(input.segment.content, 120),
-        plotPoints: [],
-        timelineEvents: [],
-        characters: [],
-        worldbuilding: [],
-        themes: [],
-        styleTechniques: [],
-        marketHighlights: [],
-        readerSignals: [],
-        weaknessSignals: [],
-        evidence: [],
-      };
+    const result = await runStructuredPrompt({
+      asset: bookAnalysisSourceNotePrompt,
+      promptInput: {
+        segmentLabel: input.segment.label,
+        segmentContent: input.segment.content,
+      },
+      options: {
+        provider: input.provider,
+        model: input.model,
+        temperature: input.temperature,
+        maxTokens: input.maxTokens,
+      },
+    });
+    const record = result.output as Record<string, unknown>;
+    const summary = typeof record.summary === "string" ? record.summary.trim() : "";
+    if (!summary) {
+      throw new AppError("AI 未返回可用的原文分析笔记，请检查模型配置后重试。", 502);
     }
+    return {
+      sourceLabel: input.segment.label,
+      summary,
+      plotPoints: toStringList(record.plotPoints),
+      timelineEvents: toStringList(record.timelineEvents),
+      characters: toStringList(record.characters),
+      worldbuilding: toStringList(record.worldbuilding),
+      themes: toStringList(record.themes),
+      styleTechniques: toStringList(record.styleTechniques),
+      marketHighlights: toStringList(record.marketHighlights),
+      readerSignals: toStringList(record.readerSignals),
+      weaknessSignals: toStringList(record.weaknessSignals),
+      evidence: toEvidenceList(record.evidence, input.segment.label),
+    };
   }
 }

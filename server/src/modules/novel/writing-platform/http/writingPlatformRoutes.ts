@@ -5,6 +5,7 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { writingPlatformRecommendationPrompt } from "../../../../prompting/prompts/novel/writingPlatformRecommendation.prompts";
 import { supportsWritingPlatformForm, writingPlatformProfileService } from "..";
+import { novelEventBus } from "../../../../events";
 
 const paramsSchema = z.object({ id: z.string().trim().min(1) });
 const platformSchema = z.enum(["fanqie_free", "qidian_male", "jinjiang_female", "zhihu_story"]);
@@ -55,6 +56,10 @@ export function registerWritingPlatformRoutes(router: Router): void {
           writingPlatformSnapshotJson: JSON.stringify(snapshot),
         },
       });
+      void novelEventBus.emit({
+        type: "novel:updated",
+        payload: { novelId: id, fields: ["writingPlatform", "writingPlatformSnapshotJson"] },
+      }).catch(() => {});
       res.json({ success: true, data: updated });
     } catch (error) { next(error); }
   });

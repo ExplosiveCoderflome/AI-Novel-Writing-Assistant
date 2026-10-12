@@ -58,7 +58,6 @@ export class DefaultNovelApplicationServices {
   private readonly chapterEditorService = new NovelChapterEditorService();
   private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
   private readonly qualityRepairCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.core.reviewChapter(novelId, chapterId, options),
     resolveAuditIssues: (novelId, issueIds) => this.core.resolveAuditIssues(novelId, issueIds),
   });
 
@@ -191,6 +190,14 @@ export class DefaultNovelApplicationServices {
 
   listNovelSnapshots(...args: Parameters<NovelCoreService["listNovelSnapshots"]>) {
     return this.core.listNovelSnapshots(...args);
+  }
+
+  listChapterSnapshots(...args: Parameters<NovelCoreService["listChapterSnapshots"]>) {
+    return this.core.listChapterSnapshots(...args);
+  }
+
+  getChapterSnapshot(...args: Parameters<NovelCoreService["getChapterSnapshot"]>) {
+    return this.core.getChapterSnapshot(...args);
   }
 
   async restoreFromSnapshot(novelId: string, snapshotId: string) {
@@ -454,6 +461,10 @@ export class DefaultNovelApplicationServices {
 
   previewChapterAiRevision(...args: Parameters<NovelChapterEditorService["previewAiRevision"]>) {
     return this.chapterEditorService.previewAiRevision(...args);
+  }
+
+  previewChapterCursorContinuation(...args: Parameters<NovelChapterEditorService["previewCursorContinuation"]>) {
+    return this.chapterEditorService.previewCursorContinuation(...args);
   }
 
   getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {

@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { getQuickSetupStatus } from "@/api/onboarding";
 import { queryKeys } from "@/api/queryKeys";
+import { ModelSettingsDialog } from "@/pages/settings/models";
 import QuickSetupDialog from "./QuickSetupDialog";
 import {
   shouldOpenAutomaticSetupPrompt,
@@ -23,6 +24,7 @@ interface CreationSetupContextValue {
   readyForCreation: boolean;
   loading: boolean;
   statusError: boolean;
+  openModelSettings: () => void;
   openQuickSetup: () => void;
   requireCreationSetup: () => boolean;
 }
@@ -31,6 +33,7 @@ const CreationSetupContext = createContext<CreationSetupContextValue>({
   readyForCreation: true,
   loading: true,
   statusError: false,
+  openModelSettings: () => undefined,
   openQuickSetup: () => undefined,
   requireCreationSetup: () => true,
 });
@@ -42,6 +45,7 @@ export function useCreationSetup(): CreationSetupContextValue {
 export function CreationSetupProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [forceConfiguration, setForceConfiguration] = useState(false);
   const [automaticPromptChecked, setAutomaticPromptChecked] = useState(false);
   const statusQuery = useQuery({
@@ -52,7 +56,14 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
   });
   const readyForCreation = statusQuery.data?.data?.readyForCreation === true;
 
+  const openModelSettings = useCallback(() => {
+    setDialogOpen(false);
+    setForceConfiguration(false);
+    setModelSettingsOpen(true);
+  }, []);
+
   const openQuickSetup = useCallback(() => {
+    setModelSettingsOpen(false);
     setForceConfiguration(true);
     setDialogOpen(true);
   }, []);
@@ -61,13 +72,14 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
     if (readyForCreation) {
       return true;
     }
+    setModelSettingsOpen(false);
     setForceConfiguration(false);
     setDialogOpen(true);
     return false;
   }, [readyForCreation]);
 
   useEffect(() => {
-    if (automaticPromptChecked || !statusQuery.isSuccess) {
+    if (automaticPromptChecked || !statusQuery.isSuccess || modelSettingsOpen) {
       return;
     }
     setAutomaticPromptChecked(true);
@@ -79,22 +91,24 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
       statusResolved: statusQuery.isSuccess,
       readyForCreation,
       dismissed: window.localStorage.getItem(DISMISSED_STORAGE_KEY) === "true",
+      modelSettingsOpen,
     })) {
       setForceConfiguration(false);
       setDialogOpen(true);
     }
-  }, [automaticPromptChecked, readyForCreation, statusQuery.isSuccess]);
+  }, [automaticPromptChecked, modelSettingsOpen, readyForCreation, statusQuery.isSuccess]);
 
   useEffect(() => {
     if (shouldOpenSetupPromptForRoute({
       statusResolved: statusQuery.isSuccess,
       readyForCreation,
       pathname: location.pathname,
+      modelSettingsOpen,
     })) {
       setForceConfiguration(false);
       setDialogOpen(true);
     }
-  }, [location.pathname, readyForCreation, statusQuery.isSuccess]);
+  }, [location.pathname, modelSettingsOpen, readyForCreation, statusQuery.isSuccess]);
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open);
@@ -110,9 +124,11 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
     readyForCreation,
     loading: statusQuery.isPending,
     statusError: statusQuery.isError,
+    openModelSettings,
     openQuickSetup,
     requireCreationSetup,
   }), [
+    openModelSettings,
     openQuickSetup,
     readyForCreation,
     requireCreationSetup,
@@ -123,6 +139,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
   return (
     <CreationSetupContext.Provider value={value}>
       {children}
+      <ModelSettingsDialog open={modelSettingsOpen} onOpenChange={setModelSettingsOpen} />
       <QuickSetupDialog
         open={dialogOpen}
         onOpenChange={handleOpenChange}

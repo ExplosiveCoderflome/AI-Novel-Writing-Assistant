@@ -44,6 +44,25 @@ function formatTokenCount(value: number | null | undefined): string {
   return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value)));
 }
 
+function hasMeaningfulStructuredValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+  if (Array.isArray(value)) {
+    return value.some(hasMeaningfulStructuredValue);
+  }
+  if (value && typeof value === "object") {
+    return Object.values(value).some(hasMeaningfulStructuredValue);
+  }
+  return false;
+}
+
+function hasUsableSectionResult(section: BookAnalysisSection): boolean {
+  const effectiveContent = section.editedContent ?? section.aiContent ?? "";
+  const hasReadableContent = effectiveContent.trim().length > 0;
+  return hasReadableContent || hasMeaningfulStructuredValue(section.structuredData);
+}
+
 interface NovelOption {
   id: string;
   title: string;
@@ -193,6 +212,16 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     [selectedAnalysis],
   );
 
+  const invalidSucceededSections = useMemo(() => {
+    return selectedAnalysis.sections.filter(
+      (section) => !section.frozen && section.status === "succeeded" && !hasUsableSectionResult(section),
+    );
+  }, [selectedAnalysis]);
+  const invalidSucceededSectionIds = useMemo(
+    () => new Set(invalidSucceededSections.map((section) => section.id)),
+    [invalidSucceededSections],
+  );
+
   useEffect(() => {
     const analysisChanged = previousAnalysisIdRef.current !== selectedAnalysis.id;
     const previousStatus = previousAnalysisStatusRef.current;
@@ -261,6 +290,16 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
             重试原文加载
           </Button>
+        </div>
+      ) : null}
+
+      {invalidSucceededSections.length > 0 ? (
+        <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm text-warning" role="alert">
+          <div className="font-medium">结果生成异常</div>
+          <div className="mt-1">
+            {invalidSucceededSections.map((section) => section.title).join("、")}：没有生成可阅读的正文或结构化内容。
+            请在模型路由确认任务记录的模型可用后点击“重新生成”；如需更换模型，请新建拆书。
+          </div>
         </div>
       ) : null}
 
@@ -421,7 +460,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                       <span className="text-xs text-muted-foreground">
                         {section.frozen
                           ? isUnselectedBookAnalysisSection(section) ? "本次未选择" : "已冻结"
-                          : formatStatus(section.status)}
+                          : invalidSucceededSectionIds.has(section.id) ? "结果异常" : formatStatus(section.status)}
                       </span>
                     </TabsTrigger>
                   ))}
@@ -440,6 +479,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                         isRegenerating={pending.regenerate}
                         isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
                         isSaving={pending.saveSection}
+                        hasResultAnomaly={invalidSucceededSectionIds.has(section.id)}
                         evidenceItems={sectionEvidence}
                         selectedEvidenceKey={selectedEvidenceKey}
                         selectedEvidence={isSelectedEvidenceInSection ? selectedEvidence : null}

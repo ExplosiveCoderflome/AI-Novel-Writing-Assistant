@@ -1,4 +1,5 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
+import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { ChatOpenAI } from "@langchain/openai";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
@@ -31,9 +32,11 @@ interface LLMOptions {
   temperature?: number;
   apiKey?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   maxTokens?: number;
   timeoutMs?: number;
   reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   executionMode?: StructuredExecutionMode;
   structuredStrategy?: StructuredOutputStrategy;
   requestProtocol?: ModelRouteRequestProtocol;
@@ -49,8 +52,10 @@ export interface ProviderSecret {
   key?: string;
   model?: string;
   baseURL?: string;
+  authMode?: ProviderAuthMode;
   displayName?: string;
   reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 }
@@ -62,11 +67,13 @@ export interface ResolvedLLMClientOptions {
   temperature: number;
   apiKey?: string;
   baseURL: string;
+  authMode: ProviderAuthMode;
   maxTokens?: number;
   timeoutMs?: number;
   concurrencyLimit: number;
   requestIntervalMs: number;
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
   requestProtocol: ModelRouteRequestProtocol;
@@ -111,13 +118,19 @@ function normalizeOptionalTimeoutMs(value: number | undefined): number | undefin
   return Math.floor(value);
 }
 
+function normalizeProviderAuthMode(value: unknown): ProviderAuthMode {
+  return value === "x-api-key" || value === "none" ? value : "bearer";
+}
+
 function normalizeProviderSecret(secret: ProviderSecret): ProviderSecret {
   return {
     key: normalizeOptionalText(secret.key),
     model: normalizeOptionalText(secret.model),
     baseURL: normalizeOptionalText(secret.baseURL),
+    authMode: normalizeProviderAuthMode(secret.authMode),
     displayName: normalizeOptionalText(secret.displayName),
     reasoningEnabled: secret.reasoningEnabled ?? true,
+    reasoningEffort: secret.reasoningEffort,
     concurrencyLimit: normalizeLimitValue(secret.concurrencyLimit),
     requestIntervalMs: normalizeLimitValue(secret.requestIntervalMs),
   };
@@ -134,8 +147,10 @@ function toProviderSecret(item: {
   key?: string | null;
   model?: string | null;
   baseURL?: string | null;
+  authMode?: string | null;
   displayName?: string | null;
   reasoningEnabled?: boolean | null;
+  reasoningEffort?: string | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
 }): ProviderSecret {
@@ -143,8 +158,12 @@ function toProviderSecret(item: {
     key: item.key ?? undefined,
     model: item.model ?? undefined,
     baseURL: item.baseURL ?? undefined,
+    authMode: normalizeProviderAuthMode(item.authMode),
     displayName: item.displayName ?? undefined,
     reasoningEnabled: item.reasoningEnabled ?? undefined,
+    reasoningEffort: item.reasoningEffort === "low" || item.reasoningEffort === "high" || item.reasoningEffort === "max"
+      ? item.reasoningEffort
+      : undefined,
     concurrencyLimit: normalizeLimitValue(item.concurrencyLimit),
     requestIntervalMs: normalizeLimitValue(item.requestIntervalMs),
   });
@@ -269,6 +288,7 @@ export async function resolveLLMClientOptions(
   if (!baseURL) {
     throw new Error(`未配置 ${providerName} 的 API URL。`);
   }
+  const authMode = normalizeProviderAuthMode(options.authMode ?? dbSecret?.authMode);
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
@@ -288,6 +308,7 @@ export async function resolveLLMClientOptions(
     : null;
   const usesNativeStructured = structuredStrategy != null && structuredStrategy !== "prompt_json";
   const requestedReasoningEnabled = options.reasoningEnabled ?? dbSecret?.reasoningEnabled ?? true;
+  const requestedReasoningEffort = options.reasoningEffort ?? dbSecret?.reasoningEffort ?? "high";
   const shouldForceDisableReasoning = Boolean(
     structuredProfile
       && structuredProfile.requiresNonThinkingForStructured
@@ -317,6 +338,7 @@ export async function resolveLLMClientOptions(
     baseURL,
     model,
     reasoningEnabled,
+    reasoningEffort: requestedReasoningEffort,
   });
   const modelKwargs = {
     ...(reasoningBehavior.modelKwargs ?? {}),
@@ -330,11 +352,13 @@ export async function resolveLLMClientOptions(
     temperature,
     apiKey,
     baseURL,
+    authMode,
     maxTokens: effectiveMaxTokens,
     timeoutMs,
     concurrencyLimit,
     requestIntervalMs,
     reasoningEnabled: reasoningBehavior.reasoningEnabled,
+    reasoningEffort: reasoningBehavior.reasoningEffort,
     modelKwargs: Object.keys(modelKwargs).length > 0 ? modelKwargs : undefined,
     includeRawResponse: reasoningBehavior.includeRawResponse,
     requestProtocol,
@@ -346,6 +370,19 @@ export async function resolveLLMClientOptions(
     promptMeta: options.promptMeta,
     modelRoute: resolvedModelRoute,
     routeDegraded: resolvedRouteDegraded,
+  };
+}
+
+export function buildOpenAICompatibleDefaultHeaders(
+  authMode: ProviderAuthMode,
+  apiKey?: string,
+): Record<string, string | null> | undefined {
+  if (authMode === "bearer") {
+    return undefined;
+  }
+  return {
+    Authorization: null,
+    ...(authMode === "x-api-key" && apiKey ? { "x-api-key": apiKey } : {}),
   };
 }
 
@@ -366,10 +403,12 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
       timeout: resolved.timeoutMs,
+      maxRetries: 0,
       modelKwargs: resolved.modelKwargs,
       __includeRawResponse: resolved.includeRawResponse,
       configuration: {
         baseURL: resolved.baseURL,
+        defaultHeaders: buildOpenAICompatibleDefaultHeaders(resolved.authMode, resolved.apiKey),
       },
     });
   const meta = {
@@ -382,9 +421,11 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     modelRoute: resolved.modelRoute,
     routeDegraded: resolved.routeDegraded,
     baseURL: resolved.baseURL,
+    requestProtocol: resolved.requestProtocol,
     promptMeta: resolved.promptMeta,
   };
-  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(llm, meta), meta), meta);
+  const cacheAware=attachLLMCacheRequestPolicy(llm,resolveCacheCapability({model:resolved.model,baseURL:resolved.baseURL,protocol:resolved.requestProtocol==="anthropic"?"anthropic":"openai-compatible"}));
+  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(cacheAware, meta), meta), meta);
   const limited = attachLLMRequestLimiter(decorated, {
     provider: resolved.provider,
     model: resolved.model,

@@ -6,7 +6,9 @@ import { RunExecutionService } from "../agents/runtime/RunExecutionService";
 import type { AgentRuntimeCallbacks } from "../agents/types";
 import { novelProductionService } from "../services/novel/NovelProductionService";
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
+import { filterCreativeHubActions } from "./creativeHubToolPolicy";
 import { creativeHubService } from "./CreativeHubService";
+import { acquireCreativeHubThread } from "./creativeHubGraphHelpers";
 import {
   appendAssistantMessage,
   buildInterrupt,
@@ -131,6 +133,18 @@ export class CreativeHubInterruptLangGraph {
     const interrupts: CreativeHubInterrupt[] = [];
     let threadStatus: CreativeHubThread["status"] = "busy";
     let latestError: string | null = null;
+
+    if (state.action === "approve") {
+      const detail = await this.store.getRunDetail(state.runId);
+      const approval = detail?.approvals.find((item) => item.id === state.interruptId);
+      const payload = this.executor.parseApprovalPayload(approval?.payloadJson);
+      const blockedTools = payload ? filterCreativeHubActions(payload.plannedActions).blockedTools : [];
+      if (blockedTools.length > 0) {
+        throw new Error(
+          "创作中枢只提供查询、诊断和引导，这项旧的写入审批不能继续。请从正式小说工作台或自动导演入口重新发起。",
+        );
+      }
+    }
 
     const callbacks: AgentRuntimeCallbacks = {
       onReasoning: (content) => {
@@ -281,6 +295,7 @@ export class CreativeHubInterruptLangGraph {
     input: ResolveInterruptInput,
     emitFrame: (frame: CreativeHubStreamFrame) => void,
   ): Promise<CreativeHubGraphResult> {
+    const releaseThread = acquireCreativeHubThread(input.threadId);
     const invocationId = crypto.randomUUID();
     this.invocations.set(invocationId, { emitFrame });
     try {
@@ -318,6 +333,7 @@ export class CreativeHubInterruptLangGraph {
       };
     } finally {
       this.invocations.delete(invocationId);
+      releaseThread();
     }
   }
 }

@@ -25,9 +25,14 @@ test("character mind persistence archives the old current snapshot before creati
   const service = new CharacterMindService();
   const originalTransaction = prisma.$transaction;
   const archivalCalls = [];
+  const replacementDeletes = [];
   const createdRows = [];
   prisma.$transaction = async (callback) => callback({
     characterMindSnapshot: {
+      deleteMany: async (args) => {
+        replacementDeletes.push(args);
+        return { count: 0 };
+      },
       updateMany: async (args) => {
         archivalCalls.push(args);
         return { count: 1 };
@@ -57,6 +62,10 @@ test("character mind persistence archives the old current snapshot before creati
       where: { novelId: "novel-1", characterId: "character-1", isCurrent: true },
       data: { isCurrent: false },
     });
+    assert.deepEqual(replacementDeletes, [{ where: {
+      novelId: "novel-1", sourceType: "artifact_delta", sourceChapterId: "chapter-8",
+      characterId: { in: ["character-1"] },
+    } }]);
     assert.equal(createdRows[0].isCurrent, true);
     assert.equal(snapshots[0].sourceType, "artifact_delta");
     assert.deepEqual(snapshots[0].evidence, ["程秩把后门铜钥匙收进袖中。"]);

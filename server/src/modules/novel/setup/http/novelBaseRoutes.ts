@@ -1,14 +1,22 @@
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import {
+  hasChapterQualityLoopReplanRequiredRiskFlags,
+  readChapterQualityDebtDetails,
+} from "@ai-novel/shared/types/chapterQualityLoop";
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
+import { parsePersistedDirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
 import { prisma } from "../../../../db/prisma";
+import {directorV2Available, readNovelDirectorIdentity} from "../../director-routing";
+import {AppError} from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
+import { resolveCurrentDirectorTask } from "../../../../services/novel/director/state";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -34,8 +42,25 @@ const bookAnalysisSectionKeySchema = z.enum([
 const idParamsSchema = z.object({
   id: z.string().trim().min(1),
 });
+const creationExperienceParamsSchema = idParamsSchema.extend({
+  experience: z.enum(["simple", "professional"]),
+});
+
+function parseJsonRecord(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value?.trim()) return null;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 const createNovelSchema = z.object({
+  directorVersion: z.enum(["v1", "v2"]).optional(),
+  narrativeForm: z.enum(["long_novel", "short_story"]).optional(),
   title: z.string().trim().min(1, "标题不能为空。"),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),
@@ -52,6 +77,8 @@ const createNovelSchema = z.object({
   sourceKnowledgeDocumentId: z.string().trim().optional(),
   continuationBookAnalysisId: z.string().trim().optional(),
   continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).optional(),
+  referenceBookAnalysisId: z.string().trim().optional(),
+  referenceBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   creationExperience: z.enum(["simple", "professional"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
@@ -82,6 +109,8 @@ const updateNovelSchema = z.object({
   sourceKnowledgeDocumentId: z.string().trim().nullable().optional(),
   continuationBookAnalysisId: z.string().trim().nullable().optional(),
   continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).nullable().optional(),
+  referenceBookAnalysisId: z.string().trim().nullable().optional(),
+  referenceBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).nullable().optional(),
   genreId: z.string().trim().nullable().optional(),
   primaryStoryModeId: z.string().trim().nullable().optional(),
   secondaryStoryModeId: z.string().trim().nullable().optional(),
@@ -144,6 +173,7 @@ const createResourceRecommendationSchema = z.object({
 
 interface RegisterNovelBaseRoutesInput {
   router: Router;
+  readDirectorIdentity?: typeof readNovelDirectorIdentity;
   novelService: Pick<NovelApplicationServices,
     | "listNovels"
     | "createNovel"
@@ -153,14 +183,24 @@ interface RegisterNovelBaseRoutesInput {
   >;
 }
 
+async function withWorkspaceSource<T extends {id: string; narrativeForm?: string | null}>(book: T, readIdentity: typeof readNovelDirectorIdentity) {
+  if (book.narrativeForm === "short_story") return {...book, workspaceSourceRoute: null};
+  const identity = await readIdentity(book.id);
+  return {...book, directorVersion: identity.version, directorEpoch: identity.epoch,
+    workspaceSourceRoute: identity.version === "v2" ? identity.sourceRoute : null};
+}
+
 export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): void {
   const { router, novelService } = input;
+  const readIdentity = input.readDirectorIdentity ?? readNovelDirectorIdentity;
   const knowledgeService = new KnowledgeService();
 
   router.get("/", validate({ query: paginationSchema }), async (req, res, next) => {
     try {
       const query = paginationSchema.parse(req.query);
-      const data = await novelService.listNovels(query);
+      const listed = await novelService.listNovels(query);
+      const data = {...listed, items: await Promise.all(listed.items.map((book: {id: string; narrativeForm?: string | null} & Record<string, unknown>) =>
+        withWorkspaceSource(book, readIdentity)))};
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -175,13 +215,18 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.post("/", validate({ body: createNovelSchema }), async (req, res, next) => {
     try {
       const createInput = req.body as z.infer<typeof createNovelSchema>;
+      const directorVersion = createInput.narrativeForm === "short_story" ? undefined
+        : createInput.directorVersion ?? (directorV2Available() ? "v2" : "v1");
+      if (directorVersion === "v2" && !directorV2Available()) throw new AppError("导演 V2 未启用，请选择导演 V1。", 409);
       const foundation = await novelCreateResourceRecommendationService.resolveRequired(createInput);
-      const data = await novelService.createNovel({
+      const created = await novelService.createNovel({
         ...createInput,
+        directorVersion,
         genreId: foundation.genreId,
         primaryStoryModeId: foundation.primaryStoryModeId,
         secondaryStoryModeId: foundation.secondaryStoryModeId,
       });
+      const data = await withWorkspaceSource(created, readIdentity);
       const response: ApiResponse<typeof data> = {
         success: true,
         data,
@@ -211,14 +256,15 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   router.get("/:id", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof idParamsSchema>;
-      const data = await novelService.getNovelById(id);
-      if (!data) {
+      const book = await novelService.getNovelById(id);
+      if (!book) {
         res.status(404).json({
           success: false,
           error: "小说不存在。",
         } satisfies ApiResponse<null>);
         return;
       }
+      const data = await withWorkspaceSource(book, readIdentity);
       res.status(200).json({
         success: true,
         data,
@@ -292,6 +338,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
               content: true,
               chapterStatus: true,
               generationState: true,
+              riskFlags: true,
               updatedAt: true,
             },
           },
@@ -299,21 +346,6 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
             select: {
               characters: true,
               volumePlans: true,
-              auditReports: true,
-            },
-          },
-          workflowTasks: {
-            where: { lane: "auto_director" },
-            orderBy: { updatedAt: "desc" },
-            take: 1,
-            select: {
-              id: true,
-              status: true,
-              progress: true,
-              currentItemLabel: true,
-              pendingManualRecovery: true,
-              lastError: true,
-              checkpointType: true,
             },
           },
         },
@@ -322,7 +354,35 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         res.status(404).json({ success: false, error: "小说不存在。" } satisfies ApiResponse<null>);
         return;
       }
-      const task = novel.workflowTasks[0] ?? null;
+      const currentTask = await resolveCurrentDirectorTask(id);
+      const task = currentTask ? await prisma.novelWorkflowTask.findUnique({
+        where: { id: currentTask.id },
+        select: {
+          id: true,
+          status: true,
+          progress: true,
+          currentItemLabel: true,
+          pendingManualRecovery: true,
+          lastError: true,
+          checkpointType: true,
+          seedPayloadJson: true,
+          directorEvents: {
+            orderBy: { occurredAt: "desc" },
+            take: 80,
+            select: { id: true, metadataJson: true },
+          },
+        },
+      }) : null;
+      const seedPayload = parseJsonRecord(task?.seedPayloadJson);
+      const autoExecution = seedPayload?.autoExecution;
+      const autoExecutionRecord = autoExecution && typeof autoExecution === "object" && !Array.isArray(autoExecution)
+        ? autoExecution as Record<string, unknown>
+        : null;
+      const riskHistory = task?.directorEvents.flatMap((event) => {
+        const metadata = parseJsonRecord(event.metadataJson);
+        const assessment = parsePersistedDirectorRiskAssessment(metadata?.riskAssessment);
+        return assessment ? [{ ...assessment, eventId: event.id }] : [];
+      }) ?? [];
       const completedChapters = novel.chapters.filter((chapter) => (
         chapter.chapterStatus === "completed"
         || chapter.generationState === "approved"
@@ -340,6 +400,39 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
             : task?.pendingManualRecovery || taskStatus === "waiting_approval" ? "paused"
               : taskStatus === "running" ? "running"
                 : "queued";
+      const chapters: SimpleCreationShelfProjection["chapters"] = novel.chapters.map((chapter) => {
+        const isCompleted = chapter.chapterStatus === "completed"
+          || chapter.generationState === "approved"
+          || chapter.generationState === "published";
+        const content = chapter.content?.trim() || null;
+        const qualityDebt = content ? readChapterQualityDebtDetails(chapter.riskFlags) : null;
+        const requiresReplan = hasChapterQualityLoopReplanRequiredRiskFlags(chapter.riskFlags);
+        const status: SimpleCreationShelfProjection["chapters"][number]["status"] = requiresReplan
+          ? "replan_required"
+          : qualityDebt
+            ? "quality_debt"
+            : isCompleted
+              ? "completed"
+              : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review"
+                ? "reviewing"
+                : chapter.chapterStatus === "generating"
+                  ? "generating"
+                  : chapter.chapterStatus === "pending_generation"
+                    ? "waiting_writing"
+                    : progressStatus === "failed" && task?.checkpointType?.includes("chapter")
+                      ? "error"
+                      : "waiting_planning";
+        return {
+          id: chapter.id,
+          order: chapter.order,
+          title: chapter.title,
+          status,
+          wordCount: content ? Array.from(content).length : 0,
+          content,
+          updatedAt: chapter.updatedAt.toISOString(),
+          qualityDebt,
+        };
+      });
       const data: SimpleCreationShelfProjection = {
         novel: {
           id: novel.id,
@@ -355,39 +448,17 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "整本书已完成" : "等待 AI 开始处理"),
           status: progressStatus,
           canRetry: progressStatus === "failed" || progressStatus === "paused",
+          recoveryAction: task?.checkpointType === "replan_required" ? "replan_and_continue" : "continue",
           safetyMessage: task?.lastError ?? null,
+          latestRiskAssessment: riskHistory[0] ?? null,
+          riskHistory,
         },
-        chapters: novel.chapters.map((chapter) => {
-          const isCompleted = chapter.chapterStatus === "completed"
-            || chapter.generationState === "approved"
-            || chapter.generationState === "published";
-          const status: SimpleCreationShelfProjection["chapters"][number]["status"] = isCompleted
-            ? "completed"
-            : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review"
-              ? "reviewing"
-              : chapter.chapterStatus === "generating"
-                ? "generating"
-                : chapter.chapterStatus === "pending_generation"
-                  ? "waiting_writing"
-                  : progressStatus === "failed" && task?.checkpointType?.includes("chapter")
-                    ? "error"
-                    : "waiting_planning";
-          const content = isCompleted ? chapter.content?.trim() || null : null;
-          return {
-            id: chapter.id,
-            order: chapter.order,
-            title: chapter.title,
-            status,
-            wordCount: content ? Array.from(content).length : 0,
-            content,
-            updatedAt: chapter.updatedAt.toISOString(),
-          };
-        }),
+        chapters,
         materials: {
           description: novel.description,
           characterCount: novel._count.characters,
           volumeCount: novel._count.volumePlans,
-          openQualityDebtCount: novel._count.auditReports,
+          openQualityDebtCount: chapters.filter((chapter) => chapter.qualityDebt).length,
           story: {
             coreSellingPoint: novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,
             readingPromise: novel.bookContract?.readingPromise ?? novel.competingFeel,
@@ -469,11 +540,11 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
   );
 
   router.post(
-    "/:id/creation-experience/professional",
-    validate({ params: idParamsSchema }),
+    "/:id/creation-experience/:experience",
+    validate({ params: creationExperienceParamsSchema }),
     async (req, res, next) => {
       try {
-        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const { id, experience } = req.params as z.infer<typeof creationExperienceParamsSchema>;
         const current = await novelService.getNovelById(id);
         if (!current) {
           res.status(404).json({
@@ -482,13 +553,15 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           } satisfies ApiResponse<null>);
           return;
         }
-        const data = current.creationExperience === "professional"
+        const data = current.creationExperience === experience
           ? current
-          : await novelService.updateNovel(id, { creationExperience: "professional" });
+          : await novelService.updateNovel(id, { creationExperience: experience });
         res.status(200).json({
           success: true,
           data,
-          message: "已转为专业创作，可使用完整编辑工作台。",
+        message: experience === "simple"
+            ? "已切换到简易模式，将优先展示章节进度与成稿。"
+            : "已切换到专业模式，将展示完整创作工作台。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);

@@ -16,6 +16,20 @@ const {
   normalizeWorkflowResumeTargetForCandidateSelection,
 } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 
+test("confirmed openings preserve the new director route despite candidate history", () => {
+  for (const history of [{ candidateStage: { mode: "generate" } }, { directorSession: { phase: "candidate_selection" } }]) {
+    const target = { route: "/lab/director/:novelId", novelId: "confirmed-book" };
+    const actual = normalizeWorkflowResumeTargetForCandidateSelection({
+      id: "confirmed-opening", checkpointType: null, currentItemKey: "opening_complete",
+      resumeTargetJson: JSON.stringify(target),
+      seedPayloadJson: JSON.stringify({ ...history, resumeTarget: { route: "/novels/create", taskId: "confirmed-opening" } }),
+    });
+    assert.equal(actual.route, target.route);
+    assert.equal(actual.novelId, target.novelId);
+    assert.equal(resumeTargetToRoute(actual), "/lab/director/confirmed-book");
+  }
+});
+
 test("candidate-selection tasks always resolve back to the auto-director create page", () => {
   const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
     id: "task_candidate_selection",
@@ -70,7 +84,7 @@ test("structured auto-director tasks fall back to seed resume target when row re
   assert.equal(resumeTarget.volumeId, "volume-1");
 });
 
-test("edit resume routes keep manual workspace tasks separate from director task ids", () => {
+test("edit resume routes use the novel and stage for both workflow lanes", () => {
   assert.equal(
     resumeTargetToRoute({
       route: "/novels/:id/edit",
@@ -79,7 +93,7 @@ test("edit resume routes keep manual workspace tasks separate from director task
       lane: "manual_create",
       stage: "basic",
     }),
-    "/novels/novel-1/edit?stage=basic&workspaceTaskId=manual-task",
+    "/novels/novel-1/edit?stage=basic",
   );
 
   assert.equal(
@@ -90,7 +104,7 @@ test("edit resume routes keep manual workspace tasks separate from director task
       lane: "auto_director",
       stage: "structured",
     }),
-    "/novels/novel-1/edit?stage=structured&directorTaskId=director-task",
+    "/novels/novel-1/edit?stage=structured",
   );
 });
 

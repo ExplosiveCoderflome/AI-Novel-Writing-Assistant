@@ -7,7 +7,7 @@ import { parseRoute } from "./routing";
 
 const docsIndexMeta: PageMeta = {
   title: "项目文档",
-  description: "AI 小说创作工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。",
+  description: "AI 小说创作工作台（Biz Novel Studio）公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。",
   canonicalPath: "/docs",
 };
 

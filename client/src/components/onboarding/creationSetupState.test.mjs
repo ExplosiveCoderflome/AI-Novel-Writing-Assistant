@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   shouldOpenAutomaticSetupPrompt,
   shouldOpenSetupPromptForRoute,
+  shouldInitializeProviderSelection,
   shouldShowFirstNovelHandoff,
 } from "./creationSetupState.ts";
 
@@ -51,6 +52,30 @@ test("opens setup only when a resolved status says configuration is required", (
   }), true);
 });
 
+test("does not interrupt model settings with an automatic setup prompt", () => {
+  assert.equal(shouldOpenAutomaticSetupPrompt({
+    statusResolved: true,
+    readyForCreation: false,
+    dismissed: false,
+    modelSettingsOpen: true,
+  }), false);
+});
+
+test("waits until model settings closes before prompting on a gated route", () => {
+  assert.equal(shouldOpenSetupPromptForRoute({
+    statusResolved: true,
+    readyForCreation: false,
+    pathname: "/creative-hub",
+    modelSettingsOpen: true,
+  }), false);
+  assert.equal(shouldOpenSetupPromptForRoute({
+    statusResolved: true,
+    readyForCreation: false,
+    pathname: "/creative-hub",
+    modelSettingsOpen: false,
+  }), true);
+});
+
 test("shows the first novel handoff only after automatic configuration succeeds", () => {
   assert.equal(shouldShowFirstNovelHandoff({
     configurationSucceeded: true,
@@ -64,4 +89,19 @@ test("shows the first novel handoff only after automatic configuration succeeds"
     configurationSucceeded: false,
     forceConfiguration: false,
   }), false);
+});
+
+test("does not replace an explicit custom provider choice with the default provider", () => {
+  assert.equal(shouldInitializeProviderSelection({
+    open: true,
+    statusAvailable: true,
+    providerKind: "custom",
+    provider: "",
+  }), false);
+  assert.equal(shouldInitializeProviderSelection({
+    open: true,
+    statusAvailable: true,
+    providerKind: "builtin",
+    provider: "",
+  }), true);
 });

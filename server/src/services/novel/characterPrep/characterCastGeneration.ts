@@ -435,10 +435,20 @@ export async function persistCharacterCastOptionsDraft(
   storyInput: string,
   parsed: CharacterCastOptionResponseParsed,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    await tx.characterCastOption.deleteMany({ where: { novelId } });
+  await saveCharacterCastOptionsDraft(novelId, storyInput, parsed, true);
+}
+
+/** Append candidates without replacing any previous creative assets. */
+export function appendCharacterCastOptionsDraft(novelId: string, storyInput: string, parsed: CharacterCastOptionResponseParsed): Promise<string[]> {
+  return saveCharacterCastOptionsDraft(novelId, storyInput, parsed, false);
+}
+
+async function saveCharacterCastOptionsDraft(novelId: string, storyInput: string, parsed: CharacterCastOptionResponseParsed, replaceExisting: boolean): Promise<string[]> {
+  return prisma.$transaction(async (tx) => {
+    if (replaceExisting) await tx.characterCastOption.deleteMany({ where: { novelId } });
+    const ids: string[] = [];
     for (const option of parsed.options) {
-      await tx.characterCastOption.create({
+      const saved = await tx.characterCastOption.create({
         data: {
           novelId,
           title: option.title,
@@ -492,6 +502,8 @@ export async function persistCharacterCastOptionsDraft(
           },
         },
       });
+      ids.push(saved.id);
     }
+    return ids;
   });
 }

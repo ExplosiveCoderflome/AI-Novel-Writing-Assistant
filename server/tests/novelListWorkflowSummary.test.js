@@ -14,6 +14,7 @@ test("listNovels attaches latest visible auto director summary, skips archived t
     imageAssetFindMany: prisma.imageAsset.findMany,
     imageTaskFindMany: prisma.imageGenerationTask.findMany,
     archiveFindMany: prisma.taskCenterArchive.findMany,
+    directorStepFindMany: prisma.directorStepRun.findMany,
   };
 
   prisma.novel.findMany = async () => ([
@@ -204,6 +205,8 @@ test("listNovels attaches latest visible auto director summary, skips archived t
   ]);
 
   prisma.imageAsset.findMany = async () => [];
+  // This test owns an isolated list fixture; absent live steps must not query a developer database.
+  prisma.directorStepRun.findMany = async () => [];
   prisma.imageGenerationTask.findMany = async () => [];
 
   prisma.taskCenterArchive.findMany = async () => ([
@@ -240,5 +243,6 @@ test("listNovels attaches latest visible auto director summary, skips archived t
     prisma.imageAsset.findMany = originals.imageAssetFindMany;
     prisma.imageGenerationTask.findMany = originals.imageTaskFindMany;
     prisma.taskCenterArchive.findMany = originals.archiveFindMany;
+    prisma.directorStepRun.findMany = originals.directorStepFindMany;
   }
 });

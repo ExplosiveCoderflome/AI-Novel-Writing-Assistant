@@ -3,6 +3,7 @@ import { prisma } from "../../db/prisma";
 import { novelSideEffectJobService, type NovelSideEffectJobService } from "../sideEffects";
 import type { EventBus } from "../EventBus";
 import type { VolumeUpdateReason } from "../types";
+import {directorV2CharacterEnrichmentService} from "../../services/novel/characterPrep/deferred";
 
 type SideEffectEnqueuePort = Pick<NovelSideEffectJobService, "enqueueJob">;
 
@@ -131,10 +132,19 @@ export function registerNovelEventHandlers(
     });
   }, 100);
 
+  eventBus.on("pipeline:completed", async event => {
+    if (event.type !== "pipeline:completed" || event.payload.status !== "succeeded") return;
+    await directorV2CharacterEnrichmentService.scheduleAfterPipeline(event.payload.novelId, event.payload.jobId);
+  }, 105);
+
   eventBus.on("chapter:finalized", async (event) => {
     if (event.type !== "chapter:finalized" || event.payload.chapterOrder !== 1) {
       return;
     }
+    const novel = await prisma.novel.findUnique({where: {id: event.payload.novelId}, select: {directorVersion: true, directorEpoch: true}});
+    if (!novel || novel.directorVersion === "v2" || (!novel.directorVersion && await prisma.directorNextRun.findFirst({
+      where: {novelId: event.payload.novelId}, select: {id: true},
+    }))) return;
     const directorTask = await prisma.novelWorkflowTask.findFirst({
       where: {
         novelId: event.payload.novelId,
@@ -162,8 +172,8 @@ export function registerNovelEventHandlers(
     await sideEffectJobs.enqueueJob({
       novelId: event.payload.novelId,
       jobType: "character.postDraftEnrichment",
-      idempotencyKey: `character.postDraftEnrichment:${event.payload.novelId}:first-draft`,
-      payload: { novelId: event.payload.novelId },
+      idempotencyKey: `character.postDraftEnrichment:${event.payload.novelId}:first-draft${novel.directorEpoch ? `:epoch:${novel.directorEpoch}` : ""}`,
+      payload: { novelId: event.payload.novelId, executionEpoch: novel.directorEpoch },
       maxAttempts: 100,
     });
   }, 95);

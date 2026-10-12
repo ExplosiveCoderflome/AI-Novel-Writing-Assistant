@@ -1,4 +1,5 @@
 import type { NovelCorePipelineService } from "./novelCorePipelineService";
+import {canRecoverLegacyPipelineJob} from "../../modules/novel/director-routing";
 
 const SERVER_RESTART_RECOVERY_MESSAGE = "章节流水线任务因服务重启中断，正在尝试恢复。";
 const STALE_PIPELINE_RECOVERY_MESSAGE = "章节流水线任务心跳超时，正在尝试恢复。";
@@ -26,9 +27,12 @@ function createPipelineService(): PipelineRecoveryPort & PipelineResumePort {
 export class NovelPipelineRuntimeService {
   private watchdogTimer: NodeJS.Timeout | null = null;
 
-  constructor(
-    private readonly pipelineService: PipelineRecoveryPort & PipelineResumePort = createPipelineService(),
-  ) {}
+  private readonly pipelineService: PipelineRecoveryPort & PipelineResumePort;
+  private readonly canRecover: (id: string) => Promise<boolean>;
+  constructor(pipelineService?: PipelineRecoveryPort & PipelineResumePort) {
+    this.pipelineService = pipelineService ?? createPipelineService();
+    this.canRecover = pipelineService ? async () => true : canRecoverLegacyPipelineJob;
+  }
 
   async resumePendingPipelineJobs(): Promise<void> {
     const pendingCancellationRows = await this.pipelineService.listPendingCancellationPipelineJobs();
@@ -42,6 +46,7 @@ export class NovelPipelineRuntimeService {
     await this.finalizeCancelledJobs(pendingCancellationRows);
     const rows = await this.pipelineService.listRecoverablePipelineJobs();
     for (const row of rows) {
+      if (!await this.canRecover(row.id)) continue;
       await this.pipelineService.markPipelineJobPendingManualRecovery(row.id, "服务重启后任务已暂停，等待手动恢复。");
     }
   }
@@ -82,17 +87,22 @@ export class NovelPipelineRuntimeService {
     recoveryMessage: string,
   ): Promise<void> {
     for (const row of rows) {
+      if (!await this.canRecover(row.id)) continue;
       try {
         await this.pipelineService.resumePipelineJob(row.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "章节流水线任务恢复失败。";
-        await this.pipelineService.markPipelineJobFailed(row.id, `${recoveryMessage} 恢复失败：${message}`);
+        await this.pipelineService.markPipelineJobPendingManualRecovery(
+          row.id,
+          `${recoveryMessage} 恢复失败：${message}`,
+        );
       }
     }
   }
 
   private async finalizeCancelledJobs(rows: Array<{ id: string; status: string }>): Promise<void> {
     for (const row of rows) {
+      if (!await this.canRecover(row.id)) continue;
       try {
         await this.pipelineService.markPipelineJobCancelled(row.id);
       } catch (error) {

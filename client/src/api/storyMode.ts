@@ -96,6 +96,19 @@ export async function generateStoryModeChild(payload: {
   return data;
 }
 
+export async function generateStoryModeExpansion(payload: {
+  parentId?: string;
+  prompt?: string;
+  count?: number;
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<StoryModeTreeDraft[]>>("/story-modes/generate-expansion", payload);
+  return data;
+}
+
 export function flattenStoryModeTreeOptions(
   nodes: StoryModeTreeNode[],
   level = 0,

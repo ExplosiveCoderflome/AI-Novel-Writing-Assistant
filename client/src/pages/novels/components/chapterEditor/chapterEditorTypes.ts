@@ -4,6 +4,8 @@ import type {
   Chapter,
   ChapterEditorDiagnosticCard,
   ChapterEditorOperation,
+  ChapterEditorCursorContinuationRequest,
+  ChapterEditorCursorOperation,
   ChapterEditorRevisionScope,
   ChapterEditorWorkspaceResponse,
 } from "@ai-novel/shared/types/novel";
@@ -25,6 +27,19 @@ export interface ChapterEditorSessionState extends Partial<ChapterEditorAiRevisi
   customInstruction?: string;
   viewMode: "inline" | "block";
   errorMessage?: string;
+  mode: "revision" | "continuation";
+  continuationOperation?: ChapterEditorCursorOperation;
+}
+
+export interface ChapterEditorCursorRequestBuilderInput {
+  operation: ChapterEditorCursorOperation;
+  cursorOffset: number;
+  content: string;
+  context: ChapterEditorCursorContinuationRequest["context"];
+  instruction?: string;
+  provider?: import("@ai-novel/shared/types/llm").LLMProvider;
+  model?: string;
+  temperature?: number;
 }
 
 export interface ChapterEditorShellProps {
@@ -33,7 +48,12 @@ export interface ChapterEditorShellProps {
   workspace: ChapterEditorWorkspaceResponse | null;
   workspaceStatus: "loading" | "ready" | "error";
   onBack?: () => void;
+  backLabel?: string;
+  onChapterSaved?: () => Promise<void>;
+  onEditingStateChange?: (state: { isDirty: boolean; isBusy: boolean; hasCandidate: boolean }) => void;
   onOpenVersionHistory?: () => void;
+  onRefreshWorkspace?: () => void;
+  isRefreshingWorkspace?: boolean;
   onRunFullAudit?: () => void;
   onGenerateChapterPlan?: () => void;
   onReplanChapter?: () => void;

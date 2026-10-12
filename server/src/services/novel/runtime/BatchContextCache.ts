@@ -82,6 +82,13 @@ export const batchContextCache = new BatchContextCache();
 
 // character 变更 → 失效该小说稳定层
 novelEventBus.on(
+  "novel:updated",
+  (event: Extract<NovelEvent, { type: "novel:updated" }>) => {
+    batchContextCache.invalidate(event.payload.novelId);
+  },
+);
+
+novelEventBus.on(
   "character:changed",
   (event: Extract<NovelEvent, { type: "character:changed" }>) => {
     batchContextCache.invalidate(event.payload.novelId);

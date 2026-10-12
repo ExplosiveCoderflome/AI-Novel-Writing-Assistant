@@ -1,4 +1,5 @@
 import type { PromptInvocationMeta } from "../../../prompting/core/promptTypes";
+import { formatPromptLiveLabel } from "../../../prompting/promptCatalog";
 import { llmLiveBroker, type LlmLiveSession } from "./LlmLiveBroker";
 
 export function beginLlmLiveSession(input: {
@@ -7,10 +8,11 @@ export function beginLlmLiveSession(input: {
   promptMeta?: PromptInvocationMeta;
   provider?: string | null;
   model?: string | null;
+  promptText?: string | null;
 }): LlmLiveSession {
   const meta = input.promptMeta;
   return llmLiveBroker.begin({
-    label: input.label,
+    label: meta ? formatPromptLiveLabel(meta) : input.label,
     mode: input.mode,
     promptId: meta?.promptId ?? null,
     promptVersion: meta?.promptVersion ?? null,
@@ -22,5 +24,6 @@ export function beginLlmLiveSession(input: {
     itemKey: meta?.itemKey ?? null,
     provider: input.provider ?? null,
     model: input.model ?? null,
+    promptText: input.promptText ?? null,
   });
 }

@@ -4,6 +4,7 @@ import type {
   AutoDirectorValidationResult,
 } from "@ai-novel/shared/types/autoDirectorValidation";
 import { prisma } from "../../../db/prisma";
+import { DirectorTaskStateWriter } from "../../novel/director/state";
 
 const SAFE_FIX_ACTION_CODES = new Set<AutoDirectorValidationRequiredActionCode>([
   "clear_checkpoint",
@@ -93,11 +94,10 @@ export async function applyAutoDirectorSafeFix(input: {
     healed: input.healed,
   };
 
-  await prisma.novelWorkflowTask.update({
+  await new DirectorTaskStateWriter().updateRunState({
     where: { id: input.taskId },
     data: {
       seedPayloadJson: JSON.stringify(seedPayload),
-      pendingManualRecovery: false,
       heartbeatAt: new Date(),
       lastError: null,
     },

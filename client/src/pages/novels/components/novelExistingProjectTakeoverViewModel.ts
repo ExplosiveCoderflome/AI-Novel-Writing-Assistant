@@ -41,6 +41,15 @@ export interface TakeoverChapterTargetViewModel {
   summary: string;
 }
 
+export interface TakeoverContinuousTargetViewModel {
+  startOrder: number;
+  currentWindowEndOrder: number;
+  targetOrder: number;
+  selectedOrder: number;
+  actionLabel: string;
+  summary: string;
+}
+
 const ENTRY_STEP_USER_LABELS: Record<DirectorTakeoverEntryStep, string> = {
   basic: "项目设定",
   story_macro: "故事宏观规划",
@@ -232,6 +241,8 @@ export function buildTakeoverChapterTarget(
   const totalChapters = maxNormalizedOrder([
     progress?.totalChapters
       ?? null,
+    snapshot?.plannedChapterCount
+      ?? null,
     readiness?.executableRange?.endOrder
       ?? null,
     snapshot?.chapterCount
@@ -262,6 +273,37 @@ export function buildTakeoverChapterTarget(
     summary: selected === startOrder
       ? `从第 ${startOrder} 章继续推进。`
       : `从第 ${startOrder} 章开始，连续推进到第 ${selected} 章。`,
+  };
+}
+
+export function buildTakeoverContinuousTarget(
+  readiness: DirectorTakeoverReadinessResponse | null,
+  taskSnapshot?: DirectorTaskSnapshot | null,
+  selectedOrder?: number | null,
+): TakeoverContinuousTargetViewModel | null {
+  const currentWindow = readiness
+    ? buildTakeoverChapterTarget({
+      ...readiness,
+      snapshot: { ...readiness.snapshot, plannedChapterCount: null },
+    }, taskSnapshot)
+    : null;
+  const targetOrder = normalizePositiveOrder(readiness?.snapshot.plannedChapterCount ?? null);
+  if (!currentWindow || !targetOrder || targetOrder <= currentWindow.maxOrder) {
+    return null;
+  }
+  const normalizedSelected = normalizePositiveOrder(selectedOrder ?? null);
+  const resolvedSelected = normalizedSelected
+    ? Math.min(Math.max(normalizedSelected, currentWindow.startOrder), targetOrder)
+    : targetOrder;
+  return {
+    startOrder: currentWindow.startOrder,
+    currentWindowEndOrder: currentWindow.maxOrder,
+    targetOrder,
+    selectedOrder: resolvedSelected,
+    actionLabel: resolvedSelected === targetOrder ? `持续推进至第 ${targetOrder} 章` : `推进至第 ${resolvedSelected} 章`,
+    summary: resolvedSelected === targetOrder
+      ? `先推进第 ${currentWindow.startOrder}-${currentWindow.maxOrder} 章；接近范围末尾时，AI 会补后续卷骨架和近期拆章，不会预先生成远期章节任务。`
+      : `本次只推进第 ${currentWindow.startOrder}-${resolvedSelected} 章；之后仍可从当前进度继续，预计章节数为 ${targetOrder} 章。`,
   };
 }
 

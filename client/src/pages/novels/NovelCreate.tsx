@@ -5,10 +5,12 @@ import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { createNovel } from "@/api/novel";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
+import { buildCandidateTaskHref } from "@/lib/novelRoutes";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
@@ -83,11 +85,9 @@ export default function NovelCreate() {
     if (workflowMode !== "director") {
       return;
     }
-    const params = new URLSearchParams();
-    if (workflowTaskIdFromQuery) {
-      params.set("taskId", workflowTaskIdFromQuery);
-    }
-    navigate(`/novels/auto-director${params.toString() ? `?${params.toString()}` : ""}`, { replace: true });
+    navigate(workflowTaskIdFromQuery
+      ? buildCandidateTaskHref(workflowTaskIdFromQuery)
+      : "/novels/auto-director", { replace: true });
   }, [navigate, workflowMode, workflowTaskIdFromQuery]);
 
   const restoreWorkflowMutation = useMutation({
@@ -152,14 +152,13 @@ export default function NovelCreate() {
         workflowTaskId: attached.data?.id ?? task.data?.id ?? "",
       };
     },
-    onSuccess: async ({ response, workflowTaskId }) => {
+    onSuccess: async ({ response }) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
       if (response.data?.id) {
+        const directorHref = getDirectorWorkspaceHref(response.data);
+        if (directorHref) {navigate(directorHref);return;}
         const search = new URLSearchParams();
         search.set("stage", "basic");
-        if (workflowTaskId) {
-          search.set("workspaceTaskId", workflowTaskId);
-        }
         navigate(`/novels/${response.data.id}/edit?${search.toString()}`);
       }
     },

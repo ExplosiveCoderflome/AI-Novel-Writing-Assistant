@@ -9,7 +9,6 @@ import type {
 import type { TimelineCheckResult, TimelineContextForChapter, TimelineIssue } from "@ai-novel/shared/types/timeline";
 import type { ChapterAcceptanceAssessmentOutput } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
-import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
 import type { ChapterTimelineGateResult } from "./ChapterTimelineFinalizationService";
@@ -69,7 +68,7 @@ export interface BuildRuntimePackageInput {
   activeOpenConflicts: OpenConflictRuntimeRow[];
   styleReview: StyleReviewResult;
   acceptance: ChapterAcceptanceAssessmentOutput;
-  timelineCheck: TimelineCheckResult;
+  timelineCheck?: TimelineCheckResult;
   runId: string | null;
   plannerService: ChapterRuntimePlannerPort;
 }
@@ -321,15 +320,8 @@ export function mapOpenConflictForRuntime(
 }
 
 export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRuntimePackage {
-  const ledgerPendingItems = input.contextPackage.ledgerPendingItems ?? [];
-  const ledgerOverdueItems = input.contextPackage.ledgerOverdueItems ?? [];
-  const syntheticPayoffIssues = buildSyntheticPayoffIssues(
-    [
-      ...ledgerPendingItems,
-      ...ledgerOverdueItems.filter((item) => !ledgerPendingItems.some((pending) => pending.ledgerKey === item.ledgerKey)),
-    ],
-    input.contextPackage.chapter.order,
-  );
+  // Ledger windows are planning/acceptance context, not evidence of a defect in this draft.
+  // Only the chapter audit and deterministic integrity gates may add post-acceptance issues.
   const boundaryLeakageIssues = buildBoundaryLeakageIssues({
     novelId: input.novelId,
     chapterId: input.chapterId,
@@ -352,34 +344,20 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
       createdAt: issue.createdAt,
       updatedAt: issue.updatedAt,
     }))
-    .concat(syntheticPayoffIssues.map((issue) => ({
-      id: `payoff-ledger:${issue.ledgerKey}:${issue.code}`,
-      reportId: `payoff-ledger:${input.novelId}:${input.chapterId}`,
-      auditType: "plot" as const,
-      severity: issue.severity,
-      code: issue.code,
-      description: issue.description,
-      evidence: issue.evidence,
-      fixSuggestion: issue.fixSuggestion,
-      status: "open" as const,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })))
     .concat(boundaryLeakageIssues);
-  openIssues.push(...timelineIssuesToRuntimeIssues({
-    novelId: input.novelId,
-    chapterId: input.chapterId,
-    issues: input.timelineCheck.issues,
-  }));
+  if (input.timelineCheck) {
+    openIssues.push(...timelineIssuesToRuntimeIssues({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      issues: input.timelineCheck.issues,
+    }));
+  }
 
   const blockingIssueIds = openIssues
     .filter((issue) => issue.severity === "high" || issue.severity === "critical")
     .map((issue) => issue.id);
-  const blockingLedgerKeys = Array.from(new Set(
-    syntheticPayoffIssues
-      .filter((issue) => issue.severity === "high" || issue.severity === "critical")
-      .map((issue) => issue.ledgerKey),
-  ));
+  // No structured chapter-evidence-to-ledger-key contract exists here; do not infer keys from reminders.
+  const blockingLedgerKeys: string[] = [];
   const hasBlockingIssues = blockingIssueIds.length > 0 || input.acceptance.status === "needs_manual_review";
   const repairContextPackage = withChapterRepairContext(
     input.contextPackage,
@@ -493,10 +471,11 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
     lengthControl: input.lengthControl,
     styleReview: {
       report: input.styleReview.report,
+      signalScan: input.styleReview.signalScan,
       autoRewritten: input.styleReview.autoRewritten,
       originalContent: input.styleReview.originalContent,
     },
-    timelineCheck: input.timelineCheck,
+    ...(input.timelineCheck ? { timelineCheck: input.timelineCheck } : {}),
     meta: {
       provider: input.request.provider,
       model: input.request.model,

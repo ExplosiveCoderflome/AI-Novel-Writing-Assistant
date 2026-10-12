@@ -14,6 +14,7 @@ import {
   upsertModelRouteConfig,
 } from "../../../../llm/modelRouter";
 import { evictSharedLimiters } from "../../../../llm/requestLimiter";
+import { normalizeReasoningEffort } from "../../../../llm/reasoning";
 import {
   getProviderEnvApiKey,
   getProviderEnvBaseUrl,
@@ -243,6 +244,8 @@ export async function completeQuickSetup(
     baseURL,
     isActive: true,
     reasoningEnabled: true,
+    reasoningEffort: "high",
+    hiddenModels: "[]",
   });
   setProviderSecretCache(provider, {
     displayName: record.displayName ?? undefined,
@@ -250,6 +253,7 @@ export async function completeQuickSetup(
     model: record.model ?? undefined,
     baseURL: record.baseURL ?? undefined,
     reasoningEnabled: record.reasoningEnabled ?? true,
+    reasoningEffort: normalizeReasoningEffort(record.reasoningEffort),
     concurrencyLimit: record.concurrencyLimit ?? 0,
     requestIntervalMs: record.requestIntervalMs ?? 0,
   });

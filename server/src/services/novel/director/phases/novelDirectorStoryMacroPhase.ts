@@ -1,16 +1,10 @@
-import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
-import {
-  buildDirectorBookContractContextBlocks,
-  directorBookContractPrompt,
-} from "../../../../prompting/prompts/novel/directorPlanning.prompts";
+import { BookContractGenerationService } from "../../bookContract";
 import { BookContractService } from "../../BookContractService";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import {
   buildStoryInput,
-  normalizeBookContract,
   toBookSpec,
 } from "../runtime/novelDirectorHelpers";
 import { runDirectorTrackedStep } from "../projections/directorProgressTracker";
@@ -42,48 +36,6 @@ async function ensureDirectorConstraintEngine(
   } catch {
     return plan;
   }
-}
-
-async function generateDirectorBookContract(input: {
-  taskId: string;
-  request: DirectorConfirmRequest;
-  novelId: string;
-  storyMacroService: StoryMacroPlanService;
-  storyMacroPlan: StoryMacroPlan | null;
-}): Promise<BookContractDraft> {
-  const { request, storyMacroPlan } = input;
-  const bookSpec = toBookSpec(request.candidate, request.idea, request.estimatedChapterCount);
-  const storyInput = buildStoryInput(request, bookSpec);
-  const requestedTemperature = request.temperature ?? 0.4;
-  const temperature = Math.min(requestedTemperature, 0.4);
-  const parsed = await runStructuredPrompt({
-    asset: directorBookContractPrompt,
-    promptInput: {
-      idea: storyInput,
-      context: request,
-      candidate: request.candidate,
-      storyMacroPlan,
-      targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
-    },
-    contextBlocks: buildDirectorBookContractContextBlocks({
-      idea: storyInput,
-      context: request,
-      candidate: request.candidate,
-      storyMacroPlan,
-      targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
-    }),
-    options: {
-      provider: request.provider,
-      model: request.model,
-      temperature,
-      novelId: input.novelId,
-      taskId: input.taskId,
-      stage: "story_macro",
-      itemKey: "book_contract",
-      entrypoint: "auto_director",
-    },
-  });
-  return normalizeBookContract(parsed.output);
 }
 
 export async function runDirectorStoryMacroAssetPhase(input: {
@@ -139,13 +91,23 @@ export async function runDirectorBookContractPhase(input: {
     itemLabel: "正在生成 Book Contract",
     progress: DIRECTOR_PROGRESS.bookContract,
     callbacks,
-    run: async () => generateDirectorBookContract({
-      taskId,
-      request,
-      novelId,
-      storyMacroService: dependencies.storyMacroService,
-      storyMacroPlan: hydratedStoryMacroPlan,
-    }),
+    run: async () => {
+      const bookSpec = toBookSpec(request.candidate, request.idea, request.estimatedChapterCount);
+      return new BookContractGenerationService().generate({
+        taskId,
+        novelId,
+        provider: request.provider,
+        model: request.model,
+        temperature: request.temperature,
+        promptInput: {
+          idea: buildStoryInput(request, bookSpec),
+          context: request,
+          candidate: request.candidate,
+          storyMacroPlan: hydratedStoryMacroPlan,
+          targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
+        },
+      });
+    },
   });
   await dependencies.bookContractService.upsert(novelId, bookContractDraft);
 }

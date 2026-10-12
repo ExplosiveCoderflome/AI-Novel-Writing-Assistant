@@ -84,8 +84,10 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     isGeneratingChapterDetailBundle,
     generatingChapterDetailMode,
     generatingChapterDetailChapterId,
+    chapterDetailFailure,
     onGenerateChapterDetail,
     onGenerateChapterDetailBundle,
+    onRetryFailedChapterDetail,
     onGoToCharacterTab,
     volumes,
     chapters: executionChapters,
@@ -509,8 +511,10 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 isGeneratingChapterDetailBundle={isGeneratingChapterDetailBundle}
                 generatingChapterDetailMode={generatingChapterDetailMode}
                 generatingChapterDetailChapterId={generatingChapterDetailChapterId}
+                chapterDetailFailure={chapterDetailFailure}
                 onGenerateChapterDetail={onGenerateChapterDetail}
                 onGenerateChapterDetailBundle={onGenerateChapterDetailBundle}
+                onRetryFailedChapterDetail={onRetryFailedChapterDetail}
                 onChapterFieldChange={onChapterFieldChange}
                 onChapterNumberChange={onChapterNumberChange}
                 onChapterPayoffRefsChange={onChapterPayoffRefsChange}

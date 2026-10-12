@@ -220,17 +220,16 @@ export function useVolumeGenerationMutation({
       if (isSlimVolumeGenerationResponse(nextDocument)) {
         const latestWorkspaceResponse = await getNovelVolumeWorkspace(novelId);
         if (!latestWorkspaceResponse.data) {
-          throw new Error("AI 已完成生成，但需要重新读取卷工作区后才能保存，请刷新卷规划后继续。");
+          throw new Error("AI 已完成生成，但暂时无法读取最新卷工作区，请刷新卷规划后继续。");
         }
         nextDocument = latestWorkspaceResponse.data;
-        if (!autoSyncedToChapterExecution) {
-          return {
-            generatedResponse,
-            persistedResponse: latestWorkspaceResponse,
-            nextDocument,
-            autoSyncedToChapterExecution,
-          };
-        }
+        // 精简响应已由服务端保存，并在需要时连接章节执行；重读后不再二次保存。
+        return {
+          generatedResponse,
+          persistedResponse: latestWorkspaceResponse,
+          nextDocument,
+          autoSyncedToChapterExecution,
+        };
       }
 
       try {

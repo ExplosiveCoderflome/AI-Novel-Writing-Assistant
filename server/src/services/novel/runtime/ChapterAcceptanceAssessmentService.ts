@@ -2,6 +2,7 @@ import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-nove
 import type {
   ChapterExecutionMissingObligation,
   GenerationContextPackage,
+  RuntimeStyleDetectionReport,
 } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
@@ -12,9 +13,13 @@ import { resolveTargetWordRange } from "../../../prompting/prompts/novel/chapter
 import {
   chapterAcceptanceAssessmentPrompt,
   type ChapterAcceptanceAssessmentOutput,
+  type ChapterAcceptancePromptInput,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore, ruleScore } from "../novelP0Utils";
+import { detectProseQuality } from "./proseQuality/ProseQualityDetector";
+import { buildAcceptanceCacheIdentity, isAcceptanceStyleReviewEnabled, applyAcceptanceStyleContext, buildAcceptanceStyleReport,
+  getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy, buildAcceptanceStyleSignals, getAcceptanceNarrativePov, describeAcceptanceFailure } from "./acceptance";
 
 export interface ChapterAcceptanceAssessmentInput {
   novelId: string;
@@ -23,11 +28,15 @@ export interface ChapterAcceptanceAssessmentInput {
   chapterTitle: string;
   chapterOrder: number;
   targetWordCount?: number | null;
+  repairReviewBaseline?: ChapterAcceptancePromptInput["repairReviewBaseline"];
+  styleRewriteBaseline?: ChapterAcceptancePromptInput["styleRewriteBaseline"];
   content: string;
   contextPackage: GenerationContextPackage;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  /** Candidate evaluations must not overwrite the selected chapter's reports. */
+  persist?: boolean;
 }
 
 export interface ChapterAcceptanceAssessmentResult {
@@ -35,6 +44,8 @@ export interface ChapterAcceptanceAssessmentResult {
   score: QualityScore;
   issues: ReviewIssue[];
   auditReports: AuditReport[];
+  styleReviewReport?: RuntimeStyleDetectionReport | null;
+  styleSignalScan?: import("@ai-novel/shared/types/styleEngine").StyleSignalScan;
 }
 
 type AcceptanceIssue = ChapterAcceptanceAssessmentOutput["blockingIssues"][number];
@@ -121,10 +132,6 @@ function isLengthDirective(directive: AcceptanceRepairDirective): boolean {
   return includesAnyMarker(directive.instruction, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS]);
 }
 
-function isHardMissingObligation(obligation: ChapterExecutionMissingObligation): boolean {
-  return obligation.kind === "must_hit_now" || obligation.kind === "forbidden_crossing";
-}
-
 function shouldDropLengthIssue(input: {
   issue: AcceptanceIssue;
   actualWordCount: number;
@@ -176,27 +183,17 @@ export function normalizeAssessment(
   const score = normalizeScore(reconciled.score ?? ruleScore(content));
   const missingObligations = reconciled.missingObligations ?? [];
   const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
-  const hasHardMissingObligation = missingObligations.some(isHardMissingObligation);
-  const hasSoftOnlyMissingObligations = missingObligations.length > 0 && !hasHardMissingObligation;
   const hasRepairWork = reconciled.blockingIssues.length > 0
     || reconciled.repairDirectives.length > 0
-    || missingObligations.length > 0;
-  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status === "accepted" && hasHighRisk
-    ? "repairable"
-    : reconciled.status;
-  if (status === "accepted" && missingObligations.length > 0) {
-    status = hasHardMissingObligation ? "repairable" : "continue_with_risk";
+    || missingObligations.length > 0
+    || reconciled.repairability === "patchable_obligation_gap"
+    || reconciled.repairability === "rewrite_needed";
+  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status;
+  if (status === "accepted" && (hasHighRisk || hasRepairWork)) {
+    status = "repairable";
   }
-  if (status === "needs_manual_review" && !hasHighRisk) {
-    status = hasRepairWork ? "repairable" : "continue_with_risk";
-  }
-  if (
-    status === "repairable"
-    && hasSoftOnlyMissingObligations
-    && !hasHighRisk
-    && reconciled.repairability === "patchable_obligation_gap"
-  ) {
-    status = "continue_with_risk";
+  if (status === "needs_manual_review" && reconciled !== output && !hasHighRisk && hasRepairWork) {
+    status = "repairable";
   }
   if (status === "repairable" && !hasRepairWork) {
     status = "continue_with_risk";
@@ -223,24 +220,24 @@ export function normalizeAssessment(
   };
 }
 
-function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOutput {
+function buildFallbackAssessment(content: string, failure: ReturnType<typeof describeAcceptanceFailure>): ChapterAcceptanceAssessmentOutput {
   const score = ruleScore(content);
   return {
     status: "continue_with_risk",
     score,
-    summary: "正文已生成，接收闸门未完成结构化判断，系统将保留正文并标记后续复查风险。",
+    summary: `${failure.message}保留正文并标记后续复查风险。`,
     blockingIssues: [{
       severity: "medium",
       category: "mode_fit",
       code: "acceptance_gate_unavailable",
-      evidence: "章节接收闸门未返回可用结构化结果。",
+      evidence: failure.message,
       fixSuggestion: "保留正文，后续可重新执行章节审校或局部修文。",
     }],
     repairDirectives: [],
     missingObligations: [],
     repairability: "none",
-    decisionReason: "接收闸门不可用，系统保留正文并继续推进后续复查。",
-    riskTags: ["acceptance_gate_unavailable"],
+    decisionReason: `${failure.message}本章留作复查风险。`,
+    riskTags: ["acceptance_gate_unavailable", failure.code],
     assetSyncRecommendation: {
       priority: "normal",
       reason: "正文已保存，但建议后续补跑章节审校或资产同步。",
@@ -251,9 +248,35 @@ function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOu
 }
 
 export class ChapterAcceptanceAssessmentService {
+  async getCacheIdentity(input: ChapterAcceptanceAssessmentInput): Promise<string> {
+    return buildAcceptanceCacheIdentity(input);
+  }
+
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
-    const assessment = await this.invokeAssessment(input).catch(() => buildFallbackAssessment(input.content));
-    const normalized = normalizeAssessment(assessment, input.content, input.targetWordCount);
+    const assessment = await this.invokeAssessment(input).catch((error: unknown) => {
+      const failure = describeAcceptanceFailure(error);
+      console.warn("[chapter-runtime] acceptance unavailable", {
+        novelId: input.novelId, chapterId: input.chapterId,
+        promptId: chapterAcceptanceAssessmentPrompt.id, promptVersion: chapterAcceptanceAssessmentPrompt.version,
+        code: failure.code, reason: failure.message,
+      });
+      return buildFallbackAssessment(input.content, failure);
+    });
+    const styleReviewReport = buildAcceptanceStyleReport(input.contextPackage, assessment);
+    const controlledAssessment = applyAcceptanceStyleRepairPolicy(input.contextPackage, assessment);
+    const proseQuality = detectProseQuality(input.content);
+    const proseIssues = proseQuality.findings.slice(0, 5).map((finding) => ({
+      severity: finding.severity,
+      category: "voice" as const,
+      code: finding.code,
+      evidence: `第 ${finding.line} 行：${finding.excerpt}`,
+      fixSuggestion: finding.fixSuggestion,
+    }));
+    const normalized = normalizeAssessment({
+      ...controlledAssessment,
+      blockingIssues: [...controlledAssessment.blockingIssues, ...proseIssues],
+      riskTags: [...controlledAssessment.riskTags, ...proseQuality.findings.map((finding) => finding.code)],
+    }, input.content, input.targetWordCount);
     const score = normalizeScore(normalized.score);
     const issues = normalized.blockingIssues.map((issue) => ({
       severity: issue.severity,
@@ -261,7 +284,33 @@ export class ChapterAcceptanceAssessmentService {
       evidence: issue.evidence,
       fixSuggestion: issue.fixSuggestion,
     })).concat(normalized.missingObligations.map((obligation) => missingObligationToReviewIssue(obligation)));
-    const auditReports = await this.persistAcceptanceReports(input, normalized, score);
+    const auditReports = input.persist === false
+      ? this.buildAcceptanceReports(input, normalized, score)
+      : await this.persistAcceptanceReports(input, normalized, score);
+    if (input.persist !== false) {
+      await openConflictService.syncFromAuditReports({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+        sourceSnapshotId: null,
+        auditReports,
+      }).catch(() => null);
+    }
+    return {
+      assessment: normalized,
+      score,
+      issues,
+      auditReports,
+      styleReviewReport,
+      styleSignalScan: buildAcceptanceStyleSignals(input.contextPackage, input.content),
+    };
+  }
+
+  async persistAssessmentResult(
+    input: ChapterAcceptanceAssessmentInput,
+    result: ChapterAcceptanceAssessmentResult,
+  ): Promise<ChapterAcceptanceAssessmentResult> {
+    const auditReports = await this.persistAcceptanceReports(input, result.assessment, result.score);
     await openConflictService.syncFromAuditReports({
       novelId: input.novelId,
       chapterId: input.chapterId,
@@ -269,12 +318,7 @@ export class ChapterAcceptanceAssessmentService {
       sourceSnapshotId: null,
       auditReports,
     }).catch(() => null);
-    return {
-      assessment: normalized,
-      score,
-      issues,
-      auditReports,
-    };
+    return { ...result, auditReports };
   }
 
   private async invokeAssessment(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentOutput> {
@@ -291,7 +335,7 @@ export class ChapterAcceptanceAssessmentService {
           chapterReviewContext: input.contextPackage.chapterReviewContext,
         },
       },
-      fallbackBlocks,
+      fallbackBlocks: applyAcceptanceStyleContext(input.contextPackage, fallbackBlocks),
     });
     const result = await runStructuredPrompt({
       asset: chapterAcceptanceAssessmentPrompt,
@@ -301,12 +345,19 @@ export class ChapterAcceptanceAssessmentService {
         chapterTitle: input.chapterTitle,
         targetWordCount: input.targetWordCount ?? null,
         content: input.content,
+        styleReviewEnabled: isAcceptanceStyleReviewEnabled(input.contextPackage),
+        styleRuleIds: getAcceptanceStyleRuleIds(input.contextPackage),
+        expectedNarrativePov: getAcceptanceNarrativePov(input.contextPackage),
+        repairReviewBaseline: input.repairReviewBaseline,
+        styleRewriteBaseline: input.styleRewriteBaseline,
+        styleSignals: buildAcceptanceStyleSignals(input.contextPackage, input.content),
       },
-      contextBlocks: resolvedContext.blocks,
+      contextBlocks: applyAcceptanceStyleContext(input.contextPackage, resolvedContext.blocks),
       options: {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.35),
+        maxTokens: 3200,
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_acceptance",
@@ -382,5 +433,53 @@ export class ChapterAcceptanceAssessmentService {
       },
       orderBy: { createdAt: "desc" },
     }) as unknown as Promise<AuditReport[]>;
+  }
+
+  private buildAcceptanceReports(
+    input: ChapterAcceptanceAssessmentInput,
+    assessment: ChapterAcceptanceAssessmentOutput,
+    score: QualityScore,
+  ): AuditReport[] {
+    const grouped = new Map<AuditType, AcceptanceIssue[]>();
+    for (const issue of assessment.blockingIssues) {
+      const auditType = categoryToAuditType(issue.category);
+      grouped.set(auditType, [...(grouped.get(auditType) ?? []), issue]);
+    }
+    if (grouped.size === 0) grouped.set("mode_fit", []);
+    const now = new Date().toISOString();
+    return Array.from(grouped.entries()).map(([auditType, issues]) => {
+      const reportId = `acceptance:${input.chapterId}:${auditType}`;
+      return {
+        id: reportId,
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        auditType,
+        overallScore: score.overall,
+        summary: assessment.summary,
+        legacyScoreJson: JSON.stringify({
+          ...score,
+          acceptanceStatus: assessment.status,
+          continuePolicy: assessment.continuePolicy,
+          riskTags: assessment.riskTags,
+          assetSyncRecommendation: assessment.assetSyncRecommendation,
+          repairDirectives: assessment.repairDirectives,
+        }),
+        issues: issues.map((issue, index) => ({
+          id: `${reportId}:${issue.code || "issue"}:${index + 1}`,
+          reportId,
+          auditType,
+          severity: issue.severity,
+          code: issue.code || `acceptance_${index + 1}`,
+          description: issue.evidence,
+          evidence: issue.evidence,
+          fixSuggestion: issue.fixSuggestion,
+          status: "open" as const,
+          createdAt: now,
+          updatedAt: now,
+        })),
+        createdAt: now,
+        updatedAt: now,
+      };
+    });
   }
 }

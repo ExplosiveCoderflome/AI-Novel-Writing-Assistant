@@ -5,10 +5,28 @@ import { novelCreateResourceRecommendationSchema } from "./resourceRecommendatio
 
 export interface NovelCreateResourceRecommendationPromptInput {
   userIntentSummary: string;
+  powerSystemPreference: "ai_recommend" | "none" | "soft" | "ranked";
   genreCatalogText: string;
   storyModeCatalogText: string;
   allowedGenreIds: string[];
   allowedStoryModeIds: string[];
+}
+
+function resolveCatalogSelectionId(value: string, allowedIds: string[]): string | null {
+  const normalized = value.trim();
+  if (allowedIds.includes(normalized)) {
+    return normalized;
+  }
+
+  const ordinal = Number(normalized);
+  if (!Number.isSafeInteger(ordinal) || ordinal < 1 || String(ordinal) !== normalized) {
+    return null;
+  }
+  return allowedIds[ordinal - 1] ?? null;
+}
+
+function formatAllowedIds(ids: string[]): string {
+  return ids.join("、");
 }
 
 export const novelCreateResourceRecommendationPrompt: PromptAsset<
@@ -16,7 +34,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
   z.infer<typeof novelCreateResourceRecommendationSchema>
 > = {
   id: "novel.create.resource_recommendation",
-  version: "v1",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -33,6 +51,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       "你的任务是根据用户当前提供的开书信息，从给定的题材基底库和推进模式库中，推荐一套最适合作为默认起步底座的组合。",
       "",
       "只允许从给定列表中选择，不得杜撰新的题材 ID、推进模式 ID、名称或路径。",
+      "每个候选项同时提供候选序号和 ID。候选序号只用于定位；输出时必须复制“ID（选择后必须原样返回）”后面的完整字符串，绝对不能把 1、2、3 等候选序号写进任何 ID 字段。",
       "",
       "推荐时必须优先考虑：",
       "1. 是否能帮助新手低认知负担地开始第一本书",
@@ -47,10 +66,13 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       "4. 如果信息还比较少，优先选择更稳、更宽、更不容易写崩的组合，而不是看起来华丽但难以驾驭的细分组合。",
       "5. 如果用户当前已经手动选了某个方向，除非明显冲突，否则应尽量围绕它收敛，而不是强行推翻。",
       "6. 如果能够判断到具体子类，就优先推荐具体子类；如果信息不足，再退回更宽的父类。",
+      "7. 战力体系不是小说必需品。现实、悬疑、言情、日常等故事如果不依赖能力升级，应优先返回 none，不得为了显得完整而强加等级。",
+      "8. 战力体系模式：none=不设置境界、等级或升级线；soft=允许定性强弱、代价与克制但没有等级表；ranked=存在有序等级、边界与成长条件。",
+      "9. powerSystemPreference 不是 ai_recommend 时必须服从用户选择；为 ai_recommend 时根据冲突解决方式、人物成长和长期推进需要判断。",
       "",
       "输出必须是一个 JSON 对象，不要输出 Markdown、解释、注释或额外文本。",
       "固定格式为：",
-      "{\"summary\":\"...\",\"genreId\":\"...\",\"genreReason\":\"...\",\"primaryStoryModeId\":\"...\",\"primaryStoryModeReason\":\"...\",\"secondaryStoryModeId\":\"...\",\"secondaryStoryModeReason\":\"...\",\"caution\":\"...\"}",
+      "{\"summary\":\"...\",\"genreId\":\"...\",\"genreReason\":\"...\",\"primaryStoryModeId\":\"...\",\"primaryStoryModeReason\":\"...\",\"secondaryStoryModeId\":\"...\",\"secondaryStoryModeReason\":\"...\",\"powerSystemMode\":\"none|soft|ranked\",\"powerSystemReason\":\"...\",\"caution\":\"...\"}",
       "",
       "字段要求：",
       "1. summary：用简洁中文说明这套组合为什么适合作为当前开书默认底座。",
@@ -58,16 +80,18 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       "3. primaryStoryModeReason：说明为什么这个主推进模式能稳定兑现核心阅读期待。",
       "4. secondaryStoryModeId / secondaryStoryModeReason：只有在确实有必要时才填写；否则返回空字符串或 null。",
       "5. caution：提示这套组合最容易翻车的点；没有明显风险时可为空字符串。",
+      "6. powerSystemMode / powerSystemReason：给出是否需要战力体系及原因；none 是正常完整结果。",
       "",
       "硬性约束：",
-      "1. genreId 必须来自给定题材基底列表。",
-      "2. primaryStoryModeId 必须来自给定推进模式列表。",
-      "3. secondaryStoryModeId 如果有值，必须来自给定推进模式列表，且不能与 primaryStoryModeId 相同。",
+      "1. genreId 必须原样复制给定题材基底列表中的完整 ID，不能返回候选序号。",
+      "2. primaryStoryModeId 必须原样复制给定推进模式列表中的完整 ID，不能返回候选序号。",
+      "3. secondaryStoryModeId 如果有值，必须原样复制给定推进模式列表中的完整 ID，不能返回候选序号，且不能与 primaryStoryModeId 相同。",
       "4. 不得返回空 summary、空 genreReason 或空 primaryStoryModeReason。",
     ].join("\n")),
     new HumanMessage([
       "当前开书信息：",
       input.userIntentSummary,
+      `战力体系偏好：${input.powerSystemPreference}`,
       "",
       "可选题材基底列表：",
       input.genreCatalogText,
@@ -77,23 +101,41 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
     ].join("\n")),
   ],
   postValidate: (output, input) => {
-    const allowedGenreIds = new Set(input.allowedGenreIds);
-    const allowedStoryModeIds = new Set(input.allowedStoryModeIds);
+    const genreId = resolveCatalogSelectionId(output.genreId, input.allowedGenreIds);
+    const primaryStoryModeId = resolveCatalogSelectionId(
+      output.primaryStoryModeId,
+      input.allowedStoryModeIds,
+    );
 
-    if (!allowedGenreIds.has(output.genreId)) {
-      throw new Error(`题材推荐结果包含非法 ID：${output.genreId}`);
+    if (!genreId) {
+      throw new Error([
+        `题材推荐结果包含非法 ID：${output.genreId}。`,
+        "请复制候选项中的完整 ID，不要返回候选序号。",
+        `可选 ID：${formatAllowedIds(input.allowedGenreIds)}`,
+      ].join(" "));
     }
 
-    if (!allowedStoryModeIds.has(output.primaryStoryModeId)) {
-      throw new Error(`主推进模式推荐结果包含非法 ID：${output.primaryStoryModeId}`);
+    if (!primaryStoryModeId) {
+      throw new Error([
+        `主推进模式推荐结果包含非法 ID：${output.primaryStoryModeId}。`,
+        "请复制候选项中的完整 ID，不要返回候选序号。",
+        `可选 ID：${formatAllowedIds(input.allowedStoryModeIds)}`,
+      ].join(" "));
     }
 
-    const secondaryId = output.secondaryStoryModeId?.trim() ?? "";
-    if (secondaryId) {
-      if (!allowedStoryModeIds.has(secondaryId)) {
-        throw new Error(`副推进模式推荐结果包含非法 ID：${secondaryId}`);
+    const secondaryRawId = output.secondaryStoryModeId?.trim() ?? "";
+    const secondaryStoryModeId = secondaryRawId
+      ? resolveCatalogSelectionId(secondaryRawId, input.allowedStoryModeIds)
+      : null;
+    if (secondaryRawId) {
+      if (!secondaryStoryModeId) {
+        throw new Error([
+          `副推进模式推荐结果包含非法 ID：${secondaryRawId}。`,
+          "请复制候选项中的完整 ID，不要返回候选序号。",
+          `可选 ID：${formatAllowedIds(input.allowedStoryModeIds)}`,
+        ].join(" "));
       }
-      if (secondaryId === output.primaryStoryModeId) {
+      if (secondaryStoryModeId === primaryStoryModeId) {
         throw new Error("副推进模式不能与主推进模式相同。");
       }
       if (!(output.secondaryStoryModeReason?.trim())) {
@@ -101,6 +143,11 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
       }
     }
 
-    return output;
+    return {
+      ...output,
+      genreId,
+      primaryStoryModeId,
+      secondaryStoryModeId,
+    };
   },
 };

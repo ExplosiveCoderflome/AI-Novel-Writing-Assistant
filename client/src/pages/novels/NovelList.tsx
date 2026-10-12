@@ -18,8 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { getDirectorCockpitActionHref, getNovelWorkspaceHref } from "@/lib/novelRoutes";
 import {
-  getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
   isDirectorCockpitContinuationAction,
 } from "@/lib/directorCockpitActions";
@@ -210,9 +210,11 @@ export default function NovelList() {
 
   const openNovelEditor = (novelId: string) => {
     const novel = allNovels.find((item) => item.id === novelId);
-    navigate(novel?.narrativeForm === "short_story"
-      ? `/novels/${novelId}/story`
-      : `/novels/${novelId}/edit`);
+    if (!novel) {
+      navigate(`/novels/${novelId}/edit`);
+      return;
+    }
+    navigate(getNovelWorkspaceHref(novel));
   };
 
   const handleViewChange = (nextView: "shelf" | "workbench") => {
@@ -327,16 +329,16 @@ export default function NovelList() {
               {continueNovels.length > 0 ? (
                 <section className="space-y-3">
                   <h2 className="text-lg font-semibold">继续创作</h2>
-                  <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
+                  <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
                     {continueNovels.map((novel) => (
-                      <NovelContinueCard key={`continue-${novel.id}`} novel={novel} onManageCover={setCoverNovelId} />
+                      <NovelContinueCard key={`continue-${novel.id}`} novel={novel} onManageCover={setCoverNovelId} onDelete={handleDelete} />
                     ))}
                   </div>
                 </section>
               ) : null}
               <section className="space-y-3">
                 <h2 className="text-lg font-semibold">我的作品</h2>
-                <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
+                <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4">
                   {novels.filter((novel) => !continueNovels.some((item) => item.id === novel.id)).map((novel) => (
                     <NovelShelfCard key={novel.id} novel={novel} onManageCover={setCoverNovelId} onDownload={downloadNovelMutation.mutate} onDelete={handleDelete} />
                   ))}

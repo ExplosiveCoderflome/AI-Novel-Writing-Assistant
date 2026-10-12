@@ -28,13 +28,14 @@ import {
 } from "@/components/ui/dialog";
 import DirectorBookAutomationCard from "@/components/autoDirector/DirectorBookAutomationCard";
 import NovelAutoDirectorProgressPanel from "@/pages/novels/components/NovelAutoDirectorProgressPanel";
-import { shouldShowPinnedBookAutomationProjection } from "@/pages/novels/novelEditAutomationStatus";
+import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import { cn } from "@/lib/utils";
 import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   applyAutoDirectorResetStepReadiness,
   extractAutoDirectorResetStepsFromMeta,
   resolveAutoDirectorResetStepsForWorkflowProgress,
+  shouldShowBookAutomationProjectionWithoutActiveTask,
 } from "./novelWorkspaceRailState";
 import {
   getNovelWorkspaceTabLabel,
@@ -90,36 +91,6 @@ function formatTaskStatus(status: string | null | undefined): string {
   return "空闲";
 }
 
-function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
-  status: string | null | undefined;
-  latestTaskId?: string | null;
-  requestedDirectorTaskId?: string | null;
-}): boolean {
-  if (
-    input.status === "queued"
-    || input.status === "running"
-    || input.status === "waiting_approval"
-    || input.status === "waiting_recovery"
-    || input.status === "blocked"
-    || input.status === "failed"
-  ) {
-    return true;
-  }
-  return shouldShowPinnedBookAutomationProjection({
-    projection: input.latestTaskId
-      ? {
-        status: input.status === "completed"
-          || input.status === "cancelled"
-          || input.status === "failed"
-          ? input.status
-          : "failed",
-        latestTask: { id: input.latestTaskId },
-      }
-      : null,
-    directorTaskId: input.requestedDirectorTaskId,
-  });
-}
-
 export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const { novelId, chapterId = "", collapsed, onToggle, onSwitchToProjectNav } = props;
   const navigate = useNavigate();
@@ -127,7 +98,6 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
-  const requestedDirectorTaskId = searchParams.get("directorTaskId")?.trim() || "";
   const activeTab = useMemo<NovelWorkspaceTab>(() => {
     if (location.pathname.includes("/chapters/")) {
       return "chapter";
@@ -197,11 +167,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     return shouldShowBookAutomationProjectionWithoutActiveTask({
       status: bookAutomationProjection.status,
       latestTaskId: bookAutomationProjection.latestTask?.id ?? null,
-      requestedDirectorTaskId,
     })
       ? bookAutomationProjection
       : null;
-  }, [activeTask, bookAutomationProjection, requestedDirectorTaskId]);
+  }, [activeTask, bookAutomationProjection]);
   const runtimeProjectionQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "none"),
     queryFn: () => getDirectorRuntimeProjection(activeTask?.id as string),
@@ -360,7 +329,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   }, [runtimeSummary, visibleBookAutomationProjection]);
 
   const goToTab = (tab: NovelWorkspaceTab) => {
-    const next = new URLSearchParams(searchParams);
+    const next = stripLegacyTaskUrlParams(searchParams);
     next.set("stage", tab);
     if (tab === "chapter" && chapterId) {
       next.set("chapterId", chapterId);
@@ -372,16 +341,12 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const openTaskCenter = () => {
     setProgressDialogOpen(false);
-    const taskId = activeTask?.id ?? visibleBookAutomationProjection?.latestTask?.id;
-    if (taskId) {
-      const next = new URLSearchParams(searchParams);
-      next.set("directorTaskId", taskId);
-      next.delete("taskId");
+    const next = stripLegacyTaskUrlParams(searchParams);
+    if (activeTask?.id || visibleBookAutomationProjection?.latestTask?.id) {
       next.set("taskPanel", "1");
-      navigate(`/novels/${novelId}/edit?${next.toString()}`);
-      return;
     }
-    navigate(`/novels/${novelId}/edit`);
+    const query = next.toString();
+    navigate(`/novels/${novelId}/edit${query ? `?${query}` : ""}`);
   };
 
   const openProgressDialog = () => {
@@ -405,13 +370,6 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       });
     },
     onSuccess: async (response) => {
-      const persistedTaskId = response.data?.taskId ?? activeTask?.id ?? "";
-      if (persistedTaskId) {
-        const next = new URLSearchParams(searchParams);
-        next.set("directorTaskId", persistedTaskId);
-        next.delete("taskId");
-        navigate(`/novels/${novelId}/edit?${next.toString()}`, { replace: true });
-      }
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorBookAutomation(novelId) }),
@@ -514,13 +472,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 "relative flex w-full items-center rounded-xl text-left transition-colors",
                 collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3",
                 step.isWorkflowCurrent && step.isSelected
-                  ? "bg-sky-50 text-sky-950 shadow-sm ring-1 ring-sky-100"
+                  ? "bg-sky-500/15 text-foreground shadow-sm ring-1 ring-sky-500/25"
                   : step.isWorkflowCurrent
-                  ? "bg-sky-50 text-sky-900"
+                  ? "bg-sky-500/10 text-foreground"
                   : step.isSelected
                     ? "bg-slate-950 text-white shadow-sm"
                     : step.isDone
-                      ? "bg-emerald-50/35 text-foreground"
+                      ? "bg-emerald-500/10 text-foreground"
                       : "text-muted-foreground hover:bg-background/75 hover:text-foreground",
               )}
             >
@@ -535,7 +493,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     : step.isSelected
                     ? "bg-white/15 text-white"
                     : step.isDone
-                      ? "bg-emerald-500/15 text-emerald-700"
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : "bg-background text-muted-foreground",
                 )}
               >
@@ -548,11 +506,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     className={cn(
                       "shrink-0 text-[11px] font-medium",
                       step.isWorkflowCurrent
-                        ? "text-sky-700"
+                        ? "text-sky-700 dark:text-sky-300"
                         : step.isSelected
                         ? "text-white/80"
                         : step.isDone
-                          ? "text-emerald-700"
+                          ? "text-emerald-700 dark:text-emerald-300"
                           : "text-muted-foreground",
                     )}
                   >
@@ -636,10 +594,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               taskId={activeTask?.id ?? ""}
               titleHint={novelTitle}
               fallbackError={activeTask?.lastError ?? null}
-              onBackgroundContinue={() => setProgressDialogOpen(false)}
               onConfirmAndContinue={() => continueDirectorMutation.mutate()}
               isConfirmingAndContinuing={continueDirectorMutation.isPending}
-              onOpenTaskCenter={openTaskCenter}
             />
           </div>
         </DialogContent>

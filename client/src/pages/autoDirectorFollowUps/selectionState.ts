@@ -3,6 +3,27 @@ interface TaskIdLike {
   taskId: string;
 }
 
+export interface FollowUpTaskOverride {
+  taskId: string;
+  contextKey: string;
+}
+
+export function resolveFollowUpSelectedTaskId<T extends TaskIdLike>(input: {
+  override: FollowUpTaskOverride | null;
+  contextKey: string;
+  items: readonly T[];
+  fallbackTaskId: string;
+}): string {
+  const { override, contextKey, items, fallbackTaskId } = input;
+  if (!override || override.contextKey !== contextKey) {
+    return fallbackTaskId;
+  }
+  if (items.some((item) => (item.directorTaskId ?? item.taskId) === override.taskId)) {
+    return override.taskId;
+  }
+  return fallbackTaskId;
+}
+
 export function reconcileSelectedTaskIds<T extends TaskIdLike>(
   current: string[],
   items: readonly T[],

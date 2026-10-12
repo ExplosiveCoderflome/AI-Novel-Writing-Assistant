@@ -10,6 +10,21 @@ import {
 const SCENE_COUNT_MIN = 3;
 const SCENE_COUNT_MAX = 8;
 
+export type ChapterScenePlanNormalizationFailureCode =
+  | "target_word_count_missing"
+  | "scene_count_below_minimum"
+  | "scene_word_count_invalid";
+
+export class ChapterScenePlanNormalizationError extends Error {
+  readonly code: ChapterScenePlanNormalizationFailureCode;
+
+  constructor(code: ChapterScenePlanNormalizationFailureCode, message: string) {
+    super(message);
+    this.name = "ChapterScenePlanNormalizationError";
+    this.code = code;
+  }
+}
+
 export const lengthBudgetContractSchema = z.object({
   targetWordCount: z.number().int().positive(),
   softMinWordCount: z.number().int().positive(),
@@ -216,7 +231,10 @@ function normalizeSceneCardInput(raw: unknown, index: number): ChapterSceneCard 
 function rescaleSceneTargets(targetWordCount: number, scenes: ChapterSceneCard[]): ChapterSceneCard[] {
   const rawTotal = scenes.reduce((sum, scene) => sum + scene.targetWordCount, 0);
   if (rawTotal <= 0) {
-    throw new Error("Scene target word count total must be positive.");
+    throw new ChapterScenePlanNormalizationError(
+      "scene_word_count_invalid",
+      "章节场景拆解的场景字数总和必须大于 0。",
+    );
   }
 
   const scaled = scenes.map((scene) => ({
@@ -263,12 +281,18 @@ export function normalizeChapterScenePlan(
   raw: unknown,
   targetWordCount: number | null | undefined,
 ): ChapterScenePlan {
-  const budget = resolveLengthBudgetContract(targetWordCount);
+  const record = isRecord(raw) ? raw : null;
+  const rawLengthBudget = isRecord(record?.lengthBudget) ? record.lengthBudget : null;
+  const budget = resolveLengthBudgetContract(targetWordCount)
+    ?? resolveLengthBudgetContract(normalizeInteger(record?.targetWordCount))
+    ?? resolveLengthBudgetContract(normalizeInteger(rawLengthBudget?.targetWordCount));
   if (!budget) {
-    throw new Error("Target word count is required to normalize chapter scene plan.");
+    throw new ChapterScenePlanNormalizationError(
+      "target_word_count_missing",
+      "章节场景拆解缺少有效的目标字数。",
+    );
   }
 
-  const record = isRecord(raw) ? raw : null;
   const scenesRaw = Array.isArray(raw)
     ? raw
     : Array.isArray(record?.scenes)
@@ -283,7 +307,10 @@ export function normalizeChapterScenePlan(
     .filter((scene): scene is ChapterSceneCard => Boolean(scene));
 
   if (normalizedScenes.length < SCENE_COUNT_MIN) {
-    throw new Error("Scene count below minimum.");
+    throw new ChapterScenePlanNormalizationError(
+      "scene_count_below_minimum",
+      `章节场景拆解至少需要 ${SCENE_COUNT_MIN} 个有效场景。`,
+    );
   }
 
   const boundedScenes = normalizedScenes.slice(0, SCENE_COUNT_MAX);

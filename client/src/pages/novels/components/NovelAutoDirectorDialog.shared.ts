@@ -47,12 +47,14 @@ export function buildAutoDirectorRequestPayload(
   options?: {
     styleProfileId?: string;
     worldSetupMode?: DirectorWorldSetupMode;
+    marketBriefId?: string;
   },
 ) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     idea: idea.trim(),
     workflowTaskId: workflowTaskId || undefined,
+    marketBriefId: options?.marketBriefId?.trim() || undefined,
     title: basicForm.title.trim() || undefined,
     description: basicForm.description.trim() || undefined,
     targetAudience: basicForm.targetAudience.trim() || undefined,
@@ -68,6 +70,7 @@ export function buildAutoDirectorRequestPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
+    powerSystemPreference: basicForm.powerSystemPreference,
     writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
@@ -87,6 +90,10 @@ export function buildAutoDirectorRequestPayload(
     continuationBookAnalysisId: basicForm.continuationBookAnalysisId || undefined,
     continuationBookAnalysisSections: basicForm.continuationBookAnalysisSections.length > 0
       ? basicForm.continuationBookAnalysisSections
+      : undefined,
+    referenceBookAnalysisId: basicForm.referenceBookAnalysisId || undefined,
+    referenceBookAnalysisSections: basicForm.referenceBookAnalysisSections.length > 0
+      ? basicForm.referenceBookAnalysisSections
       : undefined,
     provider: llm.provider,
     model: llm.model,

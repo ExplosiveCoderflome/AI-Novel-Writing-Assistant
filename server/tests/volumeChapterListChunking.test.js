@@ -223,6 +223,108 @@ test("mergeChapterList full-volume resume preserves completed prefix beats", () 
   assert.equal(chapters[0].purpose, "保留旧 purpose 1");
 });
 
+test("single-beat generation does not repeat completed beat titles in locked context", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let receivedPromptInput = null;
+
+  promptRunner.runStructuredPrompt = async ({ promptInput }) => {
+    receivedPromptInput = promptInput;
+    return {
+      output: {
+        beatKey: "midpoint_turn",
+        beatLabel: "中段转向",
+        chapterCount: 2,
+        chapters: [
+          { beatKey: "midpoint_turn", title: "转折逼近", summary: "主角面对新局面，必须改变原有判断。" },
+          { beatKey: "midpoint_turn", title: "退路封死", summary: "新的压力落地，迫使主角进入下一阶段。" },
+        ],
+      },
+    };
+  };
+
+  try {
+    await generateBeatChunkedChapterList({
+      document,
+      novel: {
+        title: "测试小说", description: null, targetAudience: null, bookSellingPoint: null, competingFeel: null,
+        first30ChapterPromise: null, commercialTagsJson: null, estimatedChapterCount: 4, narrativePov: null,
+        pacePreference: null, emotionIntensity: null, storyModePromptBlock: null, genre: null, characters: [],
+      },
+      workspace: { ...document, workspaceVersion: "v2", readiness: {} },
+      storyMacroPlan: null,
+      options: { targetVolumeId: "volume-1", generationMode: "single_beat", targetBeatKey: "midpoint_turn" },
+      notifyPhase: async () => {},
+    });
+
+    assert.match(receivedPromptInput.previousBeatChapterSummary, /旧开卷一/);
+    assert.equal(receivedPromptInput.preservedBeatChapterSummary, "none");
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
+test('V2 saves initial cast schedules in the existing beat calls without a separate model step',async()=>{
+  const document=createDocument();
+  document.volumes[0].chapters=[];
+  const original=promptRunner.runStructuredPrompt;
+  let calls=0;
+  promptRunner.runStructuredPrompt=async({asset,promptInput})=>{
+    calls++;
+    assert.equal(asset.version,'v10');
+    return {output:asset.outputSchema.parse({beatKey:promptInput.targetBeat.key,beatLabel:promptInput.targetBeat.label,
+      chapterCount:promptInput.targetBeatChapterCount,chapters:Array.from({length:promptInput.targetBeatChapterCount},(_,i)=>({
+        title:(promptInput.targetBeat.key==='open_hook'?'药铺开门':'医馆封门')+i,summary:'青禾主动选择救治伤者，打破官差追捕的僵局并承担药方暴露的代价。',
+        beatKey:promptInput.targetBeat.key,plannedCharacterIds:i===0?['qing']:[],
+      }))})};
+  };
+  try{
+    const result=await generateBeatChunkedChapterList({document,
+      novel:{title:'测试',estimatedChapterCount:4,characters:[{id:'qing',name:'青禾',role:'主角'}]},
+      workspace:{...document,workspaceVersion:'v2',readiness:{}},storyMacroPlan:null,
+      options:{targetVolumeId:'volume-1',generationMode:'full_volume',entrypoint:'director_next'},notifyPhase:async()=>{}});
+    assert.equal(calls,2,'two beats use only the original two split requests');
+    assert.deepEqual(result.mergedDocument.volumes[0].chapters.map(c=>c.plannedCharacterIds),[['qing'],[],['qing'],[]]);
+  }finally{promptRunner.runStructuredPrompt=original;}
+});
+
+test("single-beat generation rejects a title copied from a completed beat before persistence", async () => {
+  const document = createDocument();
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  let intermediateDocumentCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      beatKey: "midpoint_turn",
+      beatLabel: "中段转向",
+      chapterCount: 2,
+      chapters: [
+        { beatKey: "midpoint_turn", title: "旧开卷一", summary: "错误地复述了已有章节标题。" },
+        { beatKey: "midpoint_turn", title: "退路封死", summary: "新的压力落地，迫使主角进入下一阶段。" },
+      ],
+    },
+  });
+
+  try {
+    await assert.rejects(() => generateBeatChunkedChapterList({
+      document,
+      novel: {
+        title: "测试小说", description: null, targetAudience: null, bookSellingPoint: null, competingFeel: null,
+        first30ChapterPromise: null, commercialTagsJson: null, estimatedChapterCount: 4, narrativePov: null,
+        pacePreference: null, emotionIntensity: null, storyModePromptBlock: null, genre: null, characters: [],
+      },
+      workspace: { ...document, workspaceVersion: "v2", readiness: {} },
+      storyMacroPlan: null,
+      options: { targetVolumeId: "volume-1", generationMode: "single_beat", targetBeatKey: "midpoint_turn" },
+      notifyPhase: async () => {},
+      notifyIntermediateDocument: async () => { intermediateDocumentCount += 1; },
+    }), /章节标题出现重复：旧开卷一/);
+    assert.equal(intermediateDocumentCount, 0);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});
+
 test("generateBeatChunkedChapterList skips full-volume regeneration when all beats are already complete", async () => {
   const document = createDocument();
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;

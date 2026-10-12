@@ -1,6 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+const { prisma } = require("../dist/db/prisma.js");
+const { stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
 
 const { createApp } = require("../dist/app.js");
 const { AutoDirectorFollowUpService } = require("../dist/services/task/autoDirectorFollowUps/AutoDirectorFollowUpService.js");
@@ -15,7 +17,8 @@ function listen(server) {
   });
 }
 
-test("auto director follow-up routes expose overview, list, detail, and action endpoints", async () => {
+test("auto director follow-up routes expose overview, list, detail, and action endpoints", async (t) => {
+  stubLegacyTaskOwnership(t, prisma, { task_1: "novel_1", task_2: "novel_2" });
   const originals = {
     getOverview: AutoDirectorFollowUpService.prototype.getOverview,
     list: AutoDirectorFollowUpService.prototype.list,

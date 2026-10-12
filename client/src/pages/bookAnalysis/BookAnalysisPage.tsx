@@ -6,6 +6,7 @@ import {
   WorkspaceStateNotice,
 } from "@/components/workspace";
 import { Button } from "@/components/ui/button";
+import ReferenceNovelStartDialog from "@/pages/novels/components/ReferenceNovelStartDialog";
 import BookAnalysisBudgetAdjustDialog from "./components/BookAnalysisBudgetAdjustDialog";
 import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
 import BookAnalysisCreateDialog from "./components/BookAnalysisCreateDialog";
@@ -27,6 +28,7 @@ export default function BookAnalysisPage() {
   const { activeView, setActiveView } = useBookAnalysisActiveView();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [budgetDialogMode, setBudgetDialogMode] = useState<"adjust" | "resume" | null>(null);
+  const [referenceCreateOpen, setReferenceCreateOpen] = useState(false);
   const pendingResultFocusIdRef = useRef("");
 
   const { generatedCharacterCount, candidateCharacterCount } = useMemo(() => {
@@ -162,14 +164,21 @@ export default function BookAnalysisPage() {
   return (
     <div className="space-y-6 pb-10">
       {workspace.selectedAnalysis ? (
-        <BookAnalysisBudgetAdjustDialog
-          open={budgetDialogMode !== null}
-          mode={budgetDialogMode ?? "adjust"}
-          analysis={workspace.selectedAnalysis}
-          pending={budgetDialogMode === "resume" ? workspace.pending.resumeWithBudget : workspace.pending.updateBudget}
-          onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
-          onSubmit={handleBudgetSubmit}
-        />
+        <>
+          <BookAnalysisBudgetAdjustDialog
+            open={budgetDialogMode !== null}
+            mode={budgetDialogMode ?? "adjust"}
+            analysis={workspace.selectedAnalysis}
+            pending={budgetDialogMode === "resume" ? workspace.pending.resumeWithBudget : workspace.pending.updateBudget}
+            onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
+            onSubmit={handleBudgetSubmit}
+          />
+          <ReferenceNovelStartDialog
+            open={referenceCreateOpen}
+            fixedAnalysis={workspace.selectedAnalysis}
+            onOpenChange={setReferenceCreateOpen}
+          />
+        </>
       ) : null}
       {!workspace.selectedAnalysisId ? (
         <WorkspaceHeader
@@ -288,6 +297,7 @@ export default function BookAnalysisPage() {
                 onArchive={workspace.archiveAnalysis}
                 onPublish={() => void workspace.publishSelectedAnalysis()}
                 onCreateStyleProfile={() => void workspace.createStyleProfileFromAnalysis()}
+                onCreateFromReference={() => setReferenceCreateOpen(true)}
                 onDownload={(format) => void workspace.downloadSelectedAnalysis(format)}
                 onDualPaneChange={dualPanePreference.setDualPaneEnabled}
                 onOpenBudgetAdjust={() => setBudgetDialogMode("adjust")}

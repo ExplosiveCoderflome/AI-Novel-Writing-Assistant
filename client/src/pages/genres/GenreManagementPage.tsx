@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   BookOpen,
   CircleAlert,
@@ -33,6 +34,7 @@ import {
 } from "./genreManagement.shared";
 
 export default function GenreManagementPage() {
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [defaultParentId, setDefaultParentId] = useState("");
@@ -284,6 +286,7 @@ export default function GenreManagementPage() {
         {!genreTreeQuery.isLoading && !genreTreeQuery.isError && genreTree.length > 0 ? (
           <GenreTreeBrowser
             nodes={genreTree}
+            initialSelectedId={searchParams.get("selectedId") ?? ""}
             onCreateChild={handleCreateChild}
             onEdit={setEditingGenreId}
             onDelete={handleDelete}

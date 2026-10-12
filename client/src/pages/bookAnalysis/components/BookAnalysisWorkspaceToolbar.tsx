@@ -1,5 +1,5 @@
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
-import { Columns2, Pencil } from "lucide-react";
+import { Columns2, Pencil, WandSparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +36,7 @@ interface BookAnalysisWorkspaceToolbarProps {
   onArchive: (analysisId: string) => void;
   onPublish: () => void;
   onCreateStyleProfile: () => void;
+  onCreateFromReference: () => void;
   onDownload: (format: ExportFormat) => void;
   onDualPaneChange: (enabled: boolean) => void;
   onOpenBudgetAdjust: () => void;
@@ -54,6 +55,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
     onArchive,
     onPublish,
     onCreateStyleProfile,
+    onCreateFromReference,
     onDownload,
     onDualPaneChange,
     onOpenBudgetAdjust,
@@ -89,6 +91,15 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           </p>
         </div>
         <div className="mobile-full-actions flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={onCreateFromReference}
+            disabled={selectedAnalysis.status !== "succeeded" || pending.createStyleProfile}
+          >
+            <WandSparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            照着这本书写
+          </Button>
           {budgetResumeAvailable ? (
             <Button
               size="sm"

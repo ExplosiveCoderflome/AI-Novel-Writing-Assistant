@@ -22,7 +22,7 @@ export function HomeRecentNovels(props: {
     <Card className="home-recent-novels border-0 bg-transparent shadow-none">
       <CardHeader className="px-0 pb-4 pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2 text-xl tracking-normal"><BookOpenText className="h-5 w-5 text-sky-700" aria-hidden="true" />我的小说</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xl tracking-normal"><BookOpenText className="h-5 w-5 text-info" aria-hidden="true" />我的小说</CardTitle>
           <Button asChild size="sm" variant="ghost"><Link to="/novels">查看全部 <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
         </div>
       </CardHeader>
@@ -48,7 +48,7 @@ function RecentNovelRow(props: { novel: HomeNovelItem; onOpenNovel: (novelId: st
     if (event.key === "Enter" || event.key === " ") { event.preventDefault(); props.onOpenNovel(props.novel.id); }
   };
   return (
-    <div role="link" tabIndex={0} className="group cursor-pointer rounded-lg border border-border/80 bg-card px-5 py-4 transition hover:border-sky-300 hover:shadow-[0_8px_24px_rgba(15,23,42,0.06)] focus:outline-none focus:ring-2 focus:ring-ring" onClick={() => props.onOpenNovel(props.novel.id)} onKeyDown={handleKeyDown}>
+    <div role="link" tabIndex={0} className="group cursor-pointer rounded-lg border border-border/80 bg-card px-5 py-4 transition hover:border-info/60 hover:shadow-[0_8px_24px_-12px_hsl(var(--foreground)/0.22)] focus:outline-none focus:ring-2 focus:ring-ring" onClick={() => props.onOpenNovel(props.novel.id)} onKeyDown={handleKeyDown}>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
@@ -58,7 +58,7 @@ function RecentNovelRow(props: { novel: HomeNovelItem; onOpenNovel: (novelId: st
               {workflowTask ? <Badge variant="outline">进度 {Math.round(workflowTask.progress * 100)}%</Badge> : null}
             </div>
           </div>
-          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-700" aria-hidden="true" />
+          <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-info" aria-hidden="true" />
         </div>
         <div className="grid grid-cols-2 gap-x-5 gap-y-2 border-l border-border pl-5 text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[29rem]">
           <Fact label={props.novel.narrativeForm === "short_story" ? "形式" : "章节"} value={props.novel.narrativeForm === "short_story" ? "短篇" : String(props.novel._count.chapters)} />
@@ -72,5 +72,5 @@ function RecentNovelRow(props: { novel: HomeNovelItem; onOpenNovel: (novelId: st
 }
 
 function Fact(props: { label: string; value: string }) {
-  return <div className="min-w-0"><div className="text-[11px]">{props.label}</div><div className={cn("mt-0.5 truncate text-sm font-medium text-foreground", props.value === "未绑定" ? "text-amber-700" : "")}>{props.value}</div></div>;
+  return <div className="min-w-0"><div className="text-[11px]">{props.label}</div><div className={cn("mt-0.5 truncate text-sm font-medium text-foreground", props.value === "未绑定" ? "text-warning" : "")}>{props.value}</div></div>;
 }

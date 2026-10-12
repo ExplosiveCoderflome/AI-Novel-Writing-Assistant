@@ -37,7 +37,7 @@ export const AUTO_DIRECTOR_MOBILE_CLASSES = {
   settingsEntryActionRow: "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
   settingsPageRoot: "w-full max-w-full overflow-x-hidden space-y-4",
   takeoverDialogContent:
-    "flex h-[min(90vh,860px)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 lg:max-w-5xl",
+    "flex h-[min(90vh,860px)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 lg:max-w-6xl",
   takeoverSubmitBar: "sticky bottom-0 -mx-4 mt-4 border-t bg-background/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6",
   wrapText: "break-words [overflow-wrap:anywhere]",
 } as const;

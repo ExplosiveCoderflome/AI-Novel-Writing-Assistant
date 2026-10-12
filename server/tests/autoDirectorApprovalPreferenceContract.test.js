@@ -14,6 +14,7 @@ const {
   isFullBookAutopilotRunMode,
 } = require("../../shared/dist/types/novelDirector.js");
 const {
+  applyDirectorRunModeContract,
   buildWorkflowSeedPayload,
 } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 
@@ -82,6 +83,24 @@ test("full-book autopilot shared contract is full book and full auto", () => {
     enabled: true,
     approvalPointCodes: ALL_DIRECTOR_AUTO_APPROVAL_POINT_CODES,
   });
+});
+
+test("full-book autopilot preserves an explicit rolling chapter target", () => {
+  const input = applyDirectorRunModeContract({
+    runMode: "full_book_autopilot",
+    autoExecutionPlan: {
+      mode: "chapter_range",
+      startOrder: 4,
+      endOrder: 8,
+    },
+  });
+
+  assert.deepEqual(input.autoExecutionPlan, {
+    mode: "chapter_range",
+    startOrder: 4,
+    endOrder: 8,
+  });
+  assert.equal(input.autoApproval.enabled, true);
 });
 
 test("director seed payload stores book-level auto approval selection", () => {

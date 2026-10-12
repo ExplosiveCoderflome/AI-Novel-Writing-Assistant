@@ -1,5 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
+import type { CanonicalStateSnapshot, StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
 import type {
   DirectorStateProposalResolution,
   DirectorStateProposalResolutionDecision,
@@ -9,7 +9,8 @@ import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { directorStateProposalResolutionPrompt } from "../../../../prompting/prompts/novel/directorStateProposalResolution.prompts";
 import { canonicalStateService } from "../../state/CanonicalStateService";
-import { stateCommitService } from "../../state/StateCommitService";
+import { stateCommitService, type AutomaticResourceReview } from "../../state/StateCommitService";
+import { buildChapterArtifactContentHash } from "../../runtime/artifactSync";
 import { directorAutomationLedgerEventService } from "./DirectorAutomationLedgerEventService";
 
 const AUTO_RESOLUTION_TYPES = [
@@ -43,6 +44,7 @@ export interface DirectorStateProposalResolutionRunInput {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  resourceReview?: AutomaticResourceReview;
 }
 
 export interface DirectorStateProposalResolutionRunResult {
@@ -52,6 +54,7 @@ export interface DirectorStateProposalResolutionRunResult {
   proposalIds: string[];
   affectedChapterWindow?: DirectorStateProposalResolution["affectedChapterWindow"] | null;
   blockingLedgerKeys: string[];
+  reviewFailed?: boolean;
 }
 
 type PromptRunner = typeof runStructuredPrompt;
@@ -63,7 +66,7 @@ export function normalizeDirectorStateProposalResolutionForSafety(
 ): DirectorStateProposalResolution {
   const knownIds = new Set(proposals.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)));
   const proposalIds = resolution.proposalIds.filter((id) => knownIds.has(id));
-  const decision = resolution.confidence < 0.65
+  const decision = proposalIds.length === 0 || resolution.confidence < 0.65
     ? "manual_required"
     : resolution.riskLevel === "high" && resolution.decision !== "auto_replan_window"
       ? "manual_required"
@@ -71,7 +74,7 @@ export function normalizeDirectorStateProposalResolutionForSafety(
   return {
     ...resolution,
     decision,
-    proposalIds: proposalIds.length > 0 ? proposalIds : Array.from(knownIds),
+    proposalIds,
     affectedChapterWindow: {
       startOrder: resolution.affectedChapterWindow.startOrder ?? input.chapterOrder ?? null,
       endOrder: resolution.affectedChapterWindow.endOrder ?? resolution.affectedChapterWindow.startOrder ?? input.chapterOrder ?? null,
@@ -100,12 +103,15 @@ export class DirectorStateProposalResolutionService {
         blockingLedgerKeys: [],
       };
     }
-    const proposals = rows.map((row) => this.toProposal(row));
+    const proposals = rows.map((row) => this.toProposal(row)).filter(proposal => !input.resourceReview
+      || proposal.payload.syncContentHash === buildChapterArtifactContentHash(input.resourceReview.expectedChapterContent));
+    if (!proposals.length) return { processed: false, decision: "none", proposalIds: [], blockingLedgerKeys: [] };
     const snapshot = await canonicalStateService.getSnapshot(input.novelId, {
       chapterId: input.chapterId ?? undefined,
       chapterOrder: input.chapterOrder ?? undefined,
       includeCurrentChapterState: true,
     });
+    const reviewContext = input.resourceReview ? await this.buildResourceReviewContext(snapshot, proposals) : snapshot;
     const aiResult = await this.promptRunner({
       asset: directorStateProposalResolutionPrompt,
       promptInput: {
@@ -114,11 +120,12 @@ export class DirectorStateProposalResolutionService {
         taskId: input.taskId ?? null,
         chapterId: input.chapterId ?? null,
         chapterOrder: input.chapterOrder ?? null,
-        proposalsJson: JSON.stringify(proposals, null, 2),
-        canonicalStateJson: JSON.stringify(snapshot, null, 2),
+        proposalsJson: JSON.stringify(proposals, null, input.resourceReview ? undefined : 2),
+        canonicalStateJson: JSON.stringify(reviewContext, null, input.resourceReview ? undefined : 2),
         protectedContentJson: JSON.stringify({
           rule: "不要自动覆盖用户明确手写或保护的正文；无法确认时进入人工恢复。",
         }),
+        savedChapterContent: input.resourceReview?.expectedChapterContent,
       },
       options: {
         provider: input.provider,
@@ -131,18 +138,29 @@ export class DirectorStateProposalResolutionService {
         itemKey: "state_proposal_resolution",
         triggerReason: "full_book_autopilot_pending_state_proposals",
       },
+    }).catch(error => {
+      if (!input.resourceReview) throw error;
+      console.warn("[auto-director] 资源变动 AI 核验失败，保留待核验记录", { novelId: input.novelId, chapterId: input.chapterId, error: error instanceof Error ? error.message : String(error) });
+      return null;
     });
+    if (!aiResult) return { processed: false, decision: "manual_required", reason: "资源变动未完成 AI 核验，可在本书工作台查看。", proposalIds: [], blockingLedgerKeys: [], reviewFailed: true };
+    await input.resourceReview?.assertExecutionOwnership();
     const resolution = this.normalizeResolution(aiResult.output, proposals, input);
     const targetIds = this.resolveTargetProposalIds(resolution, proposals);
     if (resolution.decision === "apply") {
-      await this.commitProposals({
+      const committed = await this.commitProposals({
         proposalIds: targetIds,
         novelId: input.novelId,
         chapterId: input.chapterId ?? null,
         chapterOrder: input.chapterOrder ?? null,
         reason: resolution.reason,
+        automaticResourceReview: input.resourceReview,
       });
-    } else if (resolution.decision === "defer" || resolution.decision === "auto_replan_window") {
+      if (input.resourceReview && !committed?.committed.length) {
+        resolution.decision = "manual_required";
+        resolution.reason = "资源变动未通过正文版本或当前资源状态核对，请在本书工作台查看。";
+      }
+    } else if (!input.resourceReview && (resolution.decision === "defer" || resolution.decision === "auto_replan_window")) {
       await this.archiveProposals({
         proposalIds: targetIds,
         reason: resolution.reason,
@@ -188,12 +206,36 @@ export class DirectorStateProposalResolutionService {
       where: {
         novelId: input.novelId,
         status: "pending_review",
-        proposalType: { in: AUTO_RESOLUTION_TYPES as unknown as string[] },
-        ...(input.chapterId ? { OR: [{ chapterId: input.chapterId }, { chapterId: null }] } : {}),
+        proposalType: { in: input.resourceReview ? ["character_resource_update"] : AUTO_RESOLUTION_TYPES as unknown as string[] },
+        ...(input.resourceReview ? { sourceType: "chapter_background_sync", chapterId: input.chapterId } :
+          input.chapterId ? { OR: [{ chapterId: input.chapterId }, { chapterId: null }] } : {}),
       },
       orderBy: { createdAt: "asc" },
-      take: 20,
+      ...(input.resourceReview ? {} : { take: 20 }),
     });
+  }
+
+  private async buildResourceReviewContext(snapshot: CanonicalStateSnapshot, proposals: StateChangeProposal[]) {
+    const resourceKeys = new Set(proposals.map(proposal => proposal.payload.resourceKey).filter((key): key is string => typeof key === "string"));
+    const characterIds = new Set(proposals.flatMap(proposal => [proposal.payload.ownerId, proposal.payload.holderCharacterId, proposal.payload.previousHolderCharacterId])
+      .filter((id): id is string => typeof id === "string"));
+    const resourceLedger = await prisma.characterResourceLedgerItem.findMany({ where: {
+      novelId: snapshot.novelId, resourceKey: { in: Array.from(resourceKeys) },
+    }, select: { resourceKey: true, name: true, summary: true, ownerType: true, ownerId: true,
+      ownerCharacterId: true, holderCharacterId: true, status: true, readerKnows: true, holderKnows: true,
+      knownByCharacterIdsJson: true, lastTouchedChapterOrder: true, constraintsJson: true } });
+    return {
+      novelId: snapshot.novelId,
+      bookContract: { hardConstraints: snapshot.bookContract.hardConstraints, toneGuardrails: snapshot.bookContract.toneGuardrails },
+      worldState: snapshot.worldState,
+      characters: snapshot.characters.filter(character => characterIds.has(character.characterId)).map(character => ({
+        characterId: character.characterId, name: character.name, role: character.role,
+        currentState: character.currentState, currentGoal: character.currentGoal, currentSecret: character.currentSecret,
+      })),
+      resourceLedger,
+      currentChapterOrder: snapshot.narrative.currentChapterOrder,
+      currentChapterGoal: snapshot.narrative.currentChapterGoal,
+    };
   }
 
   private normalizeResolution(
@@ -210,7 +252,7 @@ export class DirectorStateProposalResolutionService {
   ): string[] {
     const knownIds = new Set(proposals.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)));
     const selected = resolution.proposalIds.filter((id) => knownIds.has(id));
-    return selected.length > 0 ? selected : Array.from(knownIds);
+    return selected;
   }
 
   private async commitProposals(input: {
@@ -219,11 +261,12 @@ export class DirectorStateProposalResolutionService {
     chapterId?: string | null;
     chapterOrder?: number | null;
     reason: string;
-  }): Promise<void> {
+    automaticResourceReview?: AutomaticResourceReview;
+  }) {
     if (input.proposalIds.length === 0) {
       return;
     }
-    await stateCommitService.commitExistingProposals({
+    return stateCommitService.commitExistingProposals({
       novelId: input.novelId,
       chapterId: input.chapterId ?? null,
       chapterOrder: input.chapterOrder ?? null,
@@ -231,6 +274,7 @@ export class DirectorStateProposalResolutionService {
       sourceStage: "state_resolution",
       proposalIds: input.proposalIds,
       reason: `auto_director_state_resolution:${input.reason}`,
+      automaticResourceReview: input.automaticResourceReview,
     });
   }
 

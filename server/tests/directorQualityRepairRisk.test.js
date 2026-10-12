@@ -8,7 +8,6 @@ const {
 test("buildDirectorQualityRepairRisk treats deferred quality debt as continuable regardless of count", () => {
   const risk = buildDirectorQualityRepairRisk({
     noticeCode: "PIPELINE_QUALITY_REVIEW",
-    noticeSummary: "部分章节已记录质量债务",
     payload: JSON.stringify({
       repairMode: "heavy_repair",
       qualityAlertDetails: [
@@ -21,7 +20,6 @@ test("buildDirectorQualityRepairRisk treats deferred quality debt as continuable
       ],
     }),
     remainingChapterCount: 2,
-    totalChapterCount: 8,
   });
 
   assert.equal(risk.riskLevel, "low");
@@ -33,12 +31,10 @@ test("buildDirectorQualityRepairRisk treats deferred quality debt as continuable
 test("buildDirectorQualityRepairRisk keeps replan notices blocking", () => {
   const risk = buildDirectorQualityRepairRisk({
     noticeCode: "PIPELINE_REPLAN_REQUIRED",
-    noticeSummary: "第9章需要重规划",
     payload: JSON.stringify({
       replanAlertDetails: ["第9章需要重规划（原因=缺失比武环节）"],
     }),
     remainingChapterCount: 1,
-    totalChapterCount: 8,
   });
 
   assert.equal(risk.riskLevel, "replan");
@@ -46,14 +42,12 @@ test("buildDirectorQualityRepairRisk keeps replan notices blocking", () => {
   assert.equal(risk.affectedChapterCount, 1);
 });
 
-test("buildDirectorQualityRepairRisk keeps unclassified heavy repair notices manual", () => {
+test("buildDirectorQualityRepairRisk treats unclassified heavy repair notices as quality debt", () => {
   const risk = buildDirectorQualityRepairRisk({
-    noticeSummary: "大范围修复需要确认",
     payload: JSON.stringify({ repairMode: "heavy_repair" }),
     remainingChapterCount: 3,
-    totalChapterCount: 10,
   });
 
-  assert.equal(risk.riskLevel, "large_scope");
-  assert.equal(risk.autoContinuable, false);
+  assert.equal(risk.riskLevel, "low");
+  assert.equal(risk.autoContinuable, true);
 });

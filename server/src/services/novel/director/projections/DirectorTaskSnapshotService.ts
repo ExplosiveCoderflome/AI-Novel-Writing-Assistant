@@ -266,7 +266,7 @@ export class DirectorTaskSnapshotService {
         pendingManualRecovery: state.task.pendingManualRecovery ?? null,
         cancelRequestedAt: state.task.cancelRequestedAt?.toISOString() ?? null,
       },
-      run: state.run,
+      run: state.directorRun,
       activeStep: state.activeStep,
       latestCommand: state.latestCommand,
       runtime,

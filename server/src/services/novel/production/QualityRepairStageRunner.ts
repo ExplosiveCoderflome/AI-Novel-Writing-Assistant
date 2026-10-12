@@ -7,6 +7,7 @@ import {
   type RunNovelStageInput,
   type NovelStageRunResult,
 } from "./NovelProductionOrchestrator";
+import { createChapterStreamExecution } from "./stageExecution/ChapterProductionExecution";
 
 interface ReplanNovelInput extends LLMGenerateOptions {
   chapterId?: string;
@@ -79,9 +80,15 @@ export class QualityRepairStageRunner implements NovelProductionStageRunner {
       );
       return {
         stage: "quality_repair",
-        status: input.policy.advanceMode === "manual" ? "checkpoint" : "completed",
-        summary: `Chapter ${input.payload.chapterId} repair has been delegated to the unified production orchestrator.`,
+        status: "checkpoint",
+        summary: `Chapter ${input.payload.chapterId} repair is awaiting completion through the unified production runtime.`,
         payload: streamResult,
+        nextStage: null,
+        execution: createChapterStreamExecution({
+          stage: "quality_repair",
+          novelId: input.novelId,
+          chapterId: input.payload.chapterId,
+        }),
       };
     }
 

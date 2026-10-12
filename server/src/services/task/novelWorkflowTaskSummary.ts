@@ -63,6 +63,7 @@ export function mapNovelAutoDirectorTaskSummary(
   return {
     id: row.id,
     status,
+    productionExperience: seedPayload?.productionExperience ?? null,
     pendingManualRecovery,
     progress: row.progress,
     currentStage: row.currentStage,

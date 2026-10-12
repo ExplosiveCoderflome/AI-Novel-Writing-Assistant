@@ -14,7 +14,6 @@ function buildSnapshot(overrides = {}) {
     policy: {
       mode: "run_until_gate",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-04-28T00:00:00.000Z",
@@ -44,8 +43,6 @@ test("director event projection marks approval gates as user action", () => {
         reason: "当前策略需要确认后继续。",
         mayOverwriteUserContent: false,
         affectedArtifacts: [],
-        autoRetryBudget: 0,
-        onQualityFailure: "pause_for_manual",
       },
     }],
     events: [{
@@ -166,7 +163,6 @@ test("director event projection exposes deferred quality debt", () => {
     policy: {
       mode: "auto_safe_scope",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-04-28T00:00:00.000Z",
@@ -263,9 +259,9 @@ test("director event projection exposes quality budget summary", () => {
     chapterRewriteUsed: 1,
     windowReplanUsed: 0,
     deferredCount: 0,
-    nextAction: "auto_replan_window",
-    nextActionLabel: "重规划受影响章节",
-    explanation: "质量预算：局部修复 1/1，整章重写 1/1，窗口重规划 0/1；同类问题下一步会重规划受影响章节。",
+    nextAction: "defer_and_continue",
+    nextActionLabel: "登记为质量待回收并继续后续章节",
+    explanation: "自动处理：本章修复 1/1，窗口重规划 0/1；同类问题下一步会登记为质量待回收并继续后续章节。",
   });
 });
 
@@ -449,4 +445,48 @@ test("director event projection keeps heartbeat as latest running progress", () 
   assert.equal(projection.headline, "推进任务：正在生成卷战略（已等待 30s）");
   assert.equal(projection.detail, "最近进展：正在生成卷战略（已等待 30s）");
   assert.equal(projection.recentEvents[0].type, "node_heartbeat");
+});
+
+test("director event projection exposes governed issue records", () => {
+  const service = new DirectorEventProjectionService();
+  const occurrence = {
+    schemaVersion: 1,
+    issueCode: "quality.chapter_below_threshold",
+    stage: "chapter_review",
+    summary: "第 3 章质量分未达标。",
+    chapterId: "chapter-3",
+    chapterOrder: 3,
+    riskScore: 6,
+    attempt: 1,
+    maxAttempts: 1,
+    hasUsableOutput: true,
+    runMode: "full_book_autopilot",
+    fingerprint: "job-1:quality.chapter_below_threshold:chapter-3:1",
+    occurredAt: "2026-08-10T00:00:00.000Z",
+  };
+  const decision = {
+    issueCode: occurrence.issueCode,
+    action: "continue_with_warning",
+    reason: "保留正文并继续。",
+    locked: true,
+    policySource: "safety",
+    retryExhaustedAction: "continue_with_warning",
+  };
+  const projection = service.buildSnapshotProjection(buildSnapshot({
+    events: [{
+      eventId: "issue-action-1",
+      type: "issue_action_applied",
+      taskId: "task-1",
+      novelId: "novel-1",
+      nodeKey: "chapter_review",
+      summary: "章节质量分未达标已执行：continue_with_warning",
+      occurredAt: occurrence.occurredAt,
+      metadata: { schemaVersion: 1, occurrence, decision },
+    }],
+  }));
+
+  assert.equal(projection.recentIssues.length, 1);
+  assert.equal(projection.recentIssues[0].occurrence.chapterOrder, 3);
+  assert.equal(projection.recentIssues[0].decision.action, "continue_with_warning");
+  assert.equal(projection.recentEvents[0].issue.issueCode, occurrence.issueCode);
 });

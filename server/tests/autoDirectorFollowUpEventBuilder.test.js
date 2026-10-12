@@ -7,6 +7,26 @@ const {
   detectAutoDirectorEventType,
 } = require("../dist/services/task/autoDirectorFollowUps/autoDirectorFollowUpEventBuilder.js");
 
+test("follow-up event recognizes cancelled tasks replaced by takeover in both stored formats", () => {
+  for (const seedPayload of [
+    { replacementTaskId: "task_new" },
+    { takeover: { replacementTaskId: "task_new" } },
+  ]) {
+    const state = deriveAutoDirectorFollowUpState({
+      id: "task_old",
+      novelId: "novel_1",
+      status: "cancelled",
+      currentStage: "章节执行",
+      checkpointType: null,
+      pendingManualRecovery: false,
+      seedPayloadJson: JSON.stringify(seedPayload),
+      novel: { title: "测试书" },
+    });
+    assert.equal(state.reason, "runtime_replaced");
+    assert.deepEqual(state.availableMutationActions, []);
+  }
+});
+
 test("auto director event builder marks progress_changed when follow-up stage changes within the same reason", () => {
   const eventType = detectAutoDirectorEventType({
     before: {

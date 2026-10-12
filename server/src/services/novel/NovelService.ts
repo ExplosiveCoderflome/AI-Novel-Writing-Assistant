@@ -44,6 +44,6 @@ for (const methodName of novelApplicationServiceMethodNames) {
   ) {
     const { applicationServices } = this as unknown as { applicationServices: NovelApplicationServices };
     const method = applicationServices[methodName] as (...methodArgs: unknown[]) => unknown;
-    return method(...args);
+    return method.apply(applicationServices, args);
   };
 }

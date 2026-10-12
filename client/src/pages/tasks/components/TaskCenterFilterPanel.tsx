@@ -30,10 +30,10 @@ export default function TaskCenterFilterPanel({
 }: TaskCenterFilterPanelProps) {
   return (
     <section aria-label="筛选运行记录" className="task-filter-card rounded-2xl bg-muted/20 px-4 py-3">
-      <div className="task-filter-controls grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-[150px_150px_minmax(220px,1fr)_220px_auto] xl:items-center">
+      <div className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-[150px_150px_minmax(220px,1fr)_220px_auto] xl:items-center">
         <SelectControl
           aria-label="按任务类型筛选"
-          className="task-filter-kind h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          className="task-filter-kind col-start-1 row-start-1 xl:col-auto xl:row-auto h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
         >
@@ -48,7 +48,7 @@ export default function TaskCenterFilterPanel({
         </SelectControl>
         <SelectControl
           aria-label="按任务状态筛选"
-          className="task-filter-status h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          className="task-filter-status col-start-2 row-start-1 xl:col-auto xl:row-auto h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
         >
@@ -60,26 +60,7 @@ export default function TaskCenterFilterPanel({
           <option value="cancelled">已取消</option>
           <option value="succeeded">已完成</option>
         </SelectControl>
-        <Input
-          aria-label="按标题或关联对象搜索"
-          className="task-filter-keyword h-10 rounded-xl border-border/45 bg-background px-3"
-          value={keyword}
-          onChange={(event) => onKeywordChange(event.target.value)}
-          placeholder="标题或关联对象"
-        />
-        <SelectControl
-          aria-label="任务排序方式"
-          className="task-filter-sort h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
-          value={sortMode}
-          onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
-        >
-          <option value="updated_desc">按更新时间排序：最新优先</option>
-          <option value="updated_asc">按更新时间排序：最早优先</option>
-          <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
-          <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
-          <option value="default">默认排序：需处理优先</option>
-        </SelectControl>
-        <label className={`task-filter-pill flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors ${
+        <label className={`task-filter-pill col-start-3 row-start-1 xl:col-start-5 xl:row-start-1 flex h-10 cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm transition-colors ${
           onlyAnomaly ? "bg-destructive/10 text-destructive" : "bg-background text-muted-foreground hover:bg-muted"
         }`}>
           <input
@@ -90,6 +71,26 @@ export default function TaskCenterFilterPanel({
           />
           只看需处理
         </label>
+        <Input
+          aria-label="按标题或关联对象搜索"
+          className="task-filter-keyword col-span-2 col-start-1 row-start-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 h-10 rounded-xl border-border/45 bg-background px-3"
+          value={keyword}
+          onChange={(event) => onKeywordChange(event.target.value)}
+          placeholder="标题或关联对象"
+        />
+        <SelectControl
+          aria-label="任务排序方式"
+          className="task-filter-sort col-start-3 row-start-2 xl:col-start-4 xl:row-start-1 h-10 w-full rounded-xl border-border/45 bg-background px-3 text-sm"
+          value={sortMode}
+          onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
+        >
+          <option value="updated_desc">按更新时间排序：最新优先</option>
+          <option value="updated_asc">按更新时间排序：最早优先</option>
+          <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
+          <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
+          <option value="default">默认排序：需处理优先</option>
+        </SelectControl>
+
       </div>
     </section>
   );

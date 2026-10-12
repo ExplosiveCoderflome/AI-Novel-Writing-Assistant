@@ -237,6 +237,13 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
   const dependencies = {
     workflowService: {
       bootstrapTask: async () => undefined,
+      getTaskById: async (taskId) => ({
+        id: taskId,
+        novelId: "novel-demo",
+        lane: "auto_director",
+        seedPayloadJson: JSON.stringify({ novelId: "novel-demo", runMode: "auto_to_execution" }),
+      }),
+      updateTaskWithRetry: async (args) => args,
       markTaskRunning: async () => undefined,
       recordCheckpoint: async () => undefined,
     },
@@ -305,10 +312,9 @@ test("runDirectorStructuredOutlinePhase persists chapter detail after each compl
       endOrder: 2,
     },
   ]);
-  assert.deepEqual(rebuildCalls, [{
-    novelId: "novel-demo",
-    options: { sourceType: "rebuild_projection" },
-  }]);
+  // Reset only unwritten chapters; an unrelated whole-book projection rebuild
+  // must not run while persisting this selected planning range.
+  assert.deepEqual(rebuildCalls, []);
   assert.deepEqual(resetFindManyCalls[0].where.order, { gte: 1, lte: 2 });
   assert.ok(resetDeletions.some(([table]) => table === "stateChangeProposal"));
   assert.ok(resetDeletions.some(([table]) => table === "openConflict"));
@@ -446,6 +452,13 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
   const dependencies = {
     workflowService: {
       bootstrapTask: async () => undefined,
+      getTaskById: async (taskId) => ({
+        id: taskId,
+        novelId: "novel-demo",
+        lane: "auto_director",
+        seedPayloadJson: JSON.stringify({ novelId: "novel-demo", runMode: "auto_to_execution" }),
+      }),
+      updateTaskWithRetry: async (args) => args,
       markTaskRunning: async () => undefined,
       recordCheckpoint: async () => undefined,
     },
@@ -511,8 +524,5 @@ test("runDirectorStructuredOutlinePhase resumes from the next incomplete chapter
     },
   ]);
   assert.deepEqual(resetFindManyCalls[0].where.order, { gte: 1, lte: 2 });
-  assert.deepEqual(rebuildCalls, [{
-    novelId: "novel-demo",
-    options: { sourceType: "rebuild_projection" },
-  }]);
+  assert.deepEqual(rebuildCalls, []);
 });

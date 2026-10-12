@@ -1,5 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
+import { characterLocationDeltaSchema } from "@ai-novel/shared/types/characterLocation";
 import type { PromptAsset } from "../../core/promptTypes";
 import { characterMindDeltaSchema } from "./characterMind.promptSchemas";
 import { characterDialogueInfluenceResolutionSchema } from "@ai-novel/shared/types/characterDialogue";
@@ -7,6 +8,8 @@ import { chapterConcreteFactSchema } from "../../../services/novel/chapterSummar
 import { characterResourceExtractionUpdateSchema } from "./characterResource.promptSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { payoffLedgerSyncItemSchema } from "../payoff/payoffLedgerSync.promptSchemas";
+
+import {characterAppearanceSchema} from "@ai-novel/shared/types/director/characterAppearances";
 
 const nullableText = z.string().trim().optional().nullable();
 const confidenceSchema = z.number().min(0).max(1).optional().nullable();
@@ -23,6 +26,26 @@ function readString(record: Record<string, unknown>, keys: string[]): string | u
     }
   }
   return undefined;
+}
+
+function normalizeNumericConfidence(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : value;
+  } catch {
+    // Preserve ambiguous values so validation can request an AI repair.
+    return value;
+  }
+}
+
+function normalizeForeshadowState(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    // Keep the complete supplied clue; truncating it can merge distinct clues.
+    title: readString(value, ["title", "foreshadowTitle", "name", "label", "summary"]),
+  };
 }
 
 function normalizeCharacterResourceDelta(value: unknown): unknown {
@@ -77,9 +100,12 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const updateType = typeof value.updateType === "string"
     ? updateTypeAliases[value.updateType.trim().toLowerCase()] ?? value.updateType
     : value.updateType;
-  const resourceType = typeof value.resourceType === "string"
+  let resourceType = typeof value.resourceType === "string"
     ? resourceTypeAliases[value.resourceType.trim().toLowerCase()] ?? value.resourceType
     : value.resourceType;
+  if (typeof resourceType === "string" && !["physical_item", "clue", "credential", "ability_resource", "relationship_token", "consumable", "hidden_card", "world_resource"].includes(resourceType)) {
+    resourceType = "physical_item";
+  }
   const statusAfterAliases: Record<string, string> = {
     active: "available",
     owned: "available",
@@ -102,14 +128,22 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const statusAfter = typeof value.statusAfter === "string"
     ? statusAfterAliases[value.statusAfter.trim().toLowerCase()] ?? value.statusAfter
     : value.statusAfter;
-  const narrativeFunction = normalizeCharacterResourceNarrativeFunction({
+  let ownerType = value.ownerType;
+  if (typeof ownerType === "string" && !["character", "organization", "location", "world", "unknown"].includes(ownerType)) {
+    ownerType = "unknown";
+  }
+  let narrativeFunction = normalizeCharacterResourceNarrativeFunction({
     rawValue: value.narrativeFunction,
     normalizedResourceType: resourceType,
     statusAfter,
   });
+  if (typeof narrativeFunction === "string" && !["tool", "clue", "weapon", "proof", "key", "cost", "promise", "hidden_card", "constraint"].includes(narrativeFunction)) {
+    narrativeFunction = "tool";
+  }
   return {
     ...value,
     resourceType,
+    ownerType,
     updateType,
     statusAfter,
     narrativeFunction,
@@ -238,6 +272,19 @@ function normalizeSyncPlan(value: unknown): unknown {
   };
 }
 
+function normalizeArtifactDeltaOutput(value: unknown): unknown {
+  if (!isRecord(value)) return value;
+  return {
+    ...value,
+    syncPlan: isRecord(value.syncPlan)
+      ? value.syncPlan
+      : { stateSnapshot: "write", characterResources: "write", payoffLedger: "delta", characterDynamics: "write", reason: "根据章节正文完成默认同步。" },
+    confidence: typeof value.confidence === "number" && Number.isFinite(value.confidence)
+      ? Math.max(0, Math.min(1, value.confidence))
+      : 0.5,
+  };
+}
+
 function normalizeRelationDynamic(value: unknown): unknown {
   if (!isRecord(value)) {
     return value;
@@ -340,7 +387,7 @@ export const chapterArtifactDeltaStateSchema = z.object({
   characterStates: z.array(chapterArtifactStateCharacterSchema).default([]),
   relationStates: z.array(chapterArtifactRelationStateSchema).default([]),
   informationStates: z.array(chapterArtifactInformationStateSchema).default([]),
-  foreshadowStates: z.array(chapterArtifactForeshadowStateSchema).default([]),
+  foreshadowStates: z.array(z.preprocess(normalizeForeshadowState, chapterArtifactForeshadowStateSchema)).default([]),
 });
 
 const chapterArtifactRelationDynamicSchema = z.preprocess(normalizeRelationDynamic, z.object({
@@ -366,6 +413,9 @@ const chapterArtifactCharacterCandidateSchema = z.preprocess(normalizeCharacterC
   summary: nullableText,
   evidence: z.array(z.string().trim().min(1)).default([]),
   matchedCharacterName: nullableText,
+  identityDecision: z.enum(["create", "merge", "defer", "ignore"]).default("defer"),
+  matchedCharacterId: nullableText,
+  decisionReason: nullableText,
   confidence: confidenceSchema,
 }));
 
@@ -383,22 +433,32 @@ export const chapterArtifactDeltaSyncPlanSchema = z.preprocess(normalizeSyncPlan
   reason: z.string().trim().min(1),
 }));
 
-export const chapterArtifactDeltaOutputSchema = z.object({
+export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDeltaOutput, z.object({
   summary: z.string().trim().min(1),
-  concreteFacts: z.array(chapterConcreteFactSchema).max(12).default([]),
+  concreteFacts: z.array(chapterConcreteFactSchema).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).max(8).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema.extend({
+    reviewDecision: z.enum(["commit", "hold"]).optional(),
+  }))).max(8).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
+  characterLocationDeltas: z.array(characterLocationDeltaSchema.extend({
+    // Newly discovered identities receive the real ID only after candidate confirmation.
+    characterId: z.string().trim().nullish().transform(value => value ?? ""),
+  })).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
+  // Missing means historical extraction without appearance coverage; [] means reviewed and empty.
+  characterAppearances: z.array(characterAppearanceSchema).max(60).optional(),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
-  characterMindDeltas: z.array(characterMindDeltaSchema).max(4).default([]),
-  characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).max(4).default([]),
+  characterMindDeltas: z.array(characterMindDeltaSchema.extend({
+    confidence: z.preprocess(normalizeNumericConfidence, characterMindDeltaSchema.shape.confidence),
+  })).default([]),
+  characterDialogueInfluenceResolutions: z.array(characterDialogueInfluenceResolutionSchema).default([]),
   syncPlan: chapterArtifactDeltaSyncPlanSchema,
   confidence: z.number().min(0).max(1),
   requiresFullReconcile: z.boolean().default(false),
-});
+}));
 
 export type ChapterArtifactDeltaOutput = z.infer<typeof chapterArtifactDeltaOutputSchema>;
 
@@ -408,6 +468,12 @@ export interface ChapterArtifactDeltaPromptInput {
   chapterTitle: string;
   chapterGoal: string;
   characterRosterText: string;
+  characterStateText?: string;
+  locationTrackingEnabled?: boolean;
+  characterCandidateResolutionEnabled?: boolean;
+  characterLocationText?: string;
+  resourceCatalogText?: string;
+  payoffCatalogText?: string;
   previousStateText: string;
   existingResourceText: string;
   existingPayoffText: string;
@@ -415,8 +481,10 @@ export interface ChapterArtifactDeltaPromptInput {
   chapterContent: string;
 }
 
-const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
-  summary: "程秩在本章确认库房后门存在可利用的通行漏洞，并拿到能开启后门的铜钥匙。读者由此知道潜入库房成为下一步行动选择，但他仍不掌握库房内的守卫布置，相关线索被推进到待兑现状态。",
+// Keep the wire example sparse. The existing schema supplies defaults after parsing.
+const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
+  characterAppearances: [],
+  summary: "程秩在库房外拿到后门铜钥匙，确认潜入有了可行入口。他收起钥匙，决定先观察换岗再行动，尚不知道库房内的守卫布置。本章完成进入手段的准备，守卫情况与潜入结果仍待后续揭示。",
   concreteFacts: [
     {
       text: "程秩已拿到能打开库房后门的铜钥匙",
@@ -424,17 +492,13 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
     },
   ],
   stateDeltas: {
-    summary: "主角拿到后门铜钥匙，读者知道后门潜入成为下一步行动可能。",
+    summary: "钥匙到手，潜入可行，守卫布置未知。",
     characterStates: [
       {
         characterName: "程秩",
         currentGoal: "利用后门铜钥匙进入库房",
-        emotion: "紧张但更有把握",
-        stressLevel: 62,
-        secretExposure: "读者知道他拿到钥匙",
         knownFacts: ["后门铜钥匙可以打开库房后门"],
-        misbeliefs: [],
-        summary: "程秩掌握了新的潜入手段，但仍不知道库房内的守卫布置。",
+        summary: "钥匙到手，准备潜入，尚不知守卫布置。",
       },
     ],
     relationStates: [],
@@ -443,17 +507,9 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
         holderType: "reader",
         fact: "后门铜钥匙已经被程秩拿到。",
         status: "known",
-        summary: "读者知道关键资源已到位。",
       },
     ],
-    foreshadowStates: [
-      {
-        title: "库房后门",
-        summary: "后门铜钥匙提示后续会出现潜入或逃离场景。",
-        status: "hinted",
-        setupChapterId: "当前章",
-      },
-    ],
+    foreshadowStates: [{ title: "库房守卫布置", summary: "潜入前仍需查明守卫。", status: "hinted" }],
   },
   characterResourceDeltas: [
     {
@@ -468,33 +524,23 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
       holderKnows: true,
       knownByCharacterNames: ["程秩"],
       narrativeFunction: "key",
-      summary: "程秩拿到能打开库房后门的铜钥匙。",
-      narrativeImpact: "后续可以合理进入库房或从后门脱身。",
-      expectedFutureUse: "库房潜入。",
+      summary: "程秩持有后门钥匙。",
+      narrativeImpact: "可从后门潜入库房。",
       constraints: ["只能解释后门通行，不能替代正门权限。"],
       evidence: ["程秩把后门铜钥匙收进袖中。"],
-      confidence: 0.88,
-      riskLevel: "low",
-      riskReason: "",
+      reviewDecision: "commit",
     },
   ],
   payoffDeltas: [
     {
       ledgerKey: "ku_fang_hou_men",
       title: "库房后门",
-      summary: "铜钥匙为后续库房行动提供明确铺垫。",
+      summary: "钥匙提供潜入机会。",
       scopeType: "chapter",
       currentStatus: "hinted",
       targetStartChapterOrder: 4,
       targetEndChapterOrder: 6,
-      firstSeenChapterOrder: 3,
-      lastTouchedChapterOrder: 3,
-      setupChapterOrder: 3,
-      sourceRefs: [],
       evidence: [{ summary: "程秩拿到后门铜钥匙。", chapterOrder: 3 }],
-      riskSignals: [],
-      statusReason: "本章完成铺垫，后续需要兑现用途。",
-      confidence: 0.86,
     },
   ],
   relationDynamics: [],
@@ -510,14 +556,8 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
   characterMindDeltas: [
     {
       characterName: "程秩",
-      currentInterpretation: "他认为后门钥匙让潜入成为可行方案，但仍低估库房守卫的准备程度。",
-      privateIntent: "抢在赵管事察觉前独自验证后门。",
-      activePlan: "先摸清换岗时间，再利用钥匙进入库房。",
-      emotionalStance: "紧张中带着主动争取的笃定。",
-      actionTendency: "会先隐瞒线索、独自试探，再决定是否求助。",
-      decisionTrigger: "若守卫异常增多，会转而寻找同盟。",
-      beliefs: ["钥匙能提供一次隐蔽进入机会"],
-      misbeliefs: ["他以为赵管事尚未察觉钥匙失踪"],
+      currentInterpretation: "潜入可行，但需要先查守卫。",
+      activePlan: "观察换岗，再从后门潜入。",
       evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
       confidence: 0.78,
     },
@@ -528,7 +568,7 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
     characterResources: "write",
     payoffLedger: "delta",
     characterDynamics: "skip",
-    reason: "本章没有关系阶段变化，但有状态、资源和伏笔 delta。",
+    reason: "有状态、资源与伏笔变化，无关系阶段变化。",
   },
   confidence: 0.86,
   requiresFullReconcile: false,
@@ -539,7 +579,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v1",
+  version: "v10",
+  cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
   language: "zh",
@@ -549,12 +590,22 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   repairPolicy: {
     maxAttempts: 1,
   },
+  // The fallback model is a last-resort structured-output route. A second
+  // repair round repeats the whole chapter context without improving the
+  // saved artifact and can consume the remaining chapter budget.
+  fallbackRepairPolicy: {
+    maxAttempts: 0,
+  },
   structuredOutputHint: {
+    placement: "stable_prefix",
+    compact: true,
     example: CHAPTER_ARTIFACT_DELTA_EXAMPLE,
     note: [
       "一次性抽取章节摘要、硬事实、状态快照、角色资源、伏笔/payoff、关系动态、信息边界和同步计划。",
       "只记录正文中有明确证据或与任务目标强相关的变化。",
+      "示例是最小字段演示，可选字段仅在有实际信息时填写，不要照着示例扩写每个维度。",
       "syncPlan 与 requiresFullReconcile 由你基于剧情风险判断，代码只负责校验与落库。",
+      "伏笔状态必须填写具体且非空的 title；角色心理 confidence 必须是 0 到 1 的 JSON 数字，不是字符串、百分比或评价文字。",
     ].join(" "),
   },
   outputSchema: chapterArtifactDeltaOutputSchema,
@@ -573,6 +624,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "5. 默认输出 delta；只有账本明显冲突、已兑现但找不到前置铺垫、关键线索跨多章错位、或本章集中处理多个 payoff 时，才建议 full_reconcile。",
       "6. syncPlan 由你判断，不要依赖关键词；如果没有对应变化，明确 skip 并说明 reason。",
       "7. 所有角色名优先使用已知角色名单；无法确认的新人物放入 characterCandidates，不要强行归到已有角色。",
+      input.characterCandidateResolutionEnabled ? "7a. characterCandidates 同时完成身份判断，不另起角色扫描：identityDecision=create 表示正文证实有独立身份且后续需要追踪的新人物；merge 表示正文证实是已知人物的别名（matchedCharacterId 必须取名单真实 ID）；defer 表示身份不确定；ignore 表示无需建档的泛称或背景人群。每条填写 decisionReason 和逐字正文 evidence；不能仅凭名字相似合并，也不能为泛称编造姓名。新增人物只给必要身份和一句摘要，不生成全套人物档案。同步输出该候选的本章资源与位置时使用 proposedName；尚无真实 ID 的新人物位置 characterId 留空，待身份确认后绑定，禁止编造 ID。" : "",
       "8. summary 必须使用简体中文，控制在 80-180 字，覆盖关键事件、冲突推进、人物状态变化、本章结果或悬念方向。",
       "9. concreteFacts 只记录本章正文即兴产生且后续必须保持一致的硬事实，每条不超过 40 字；包括承诺、交易条款、事件性质、关键数字日期地点、身份与状态变化。",
       "10. concreteFacts.category 只能使用 completed、revealed、state_changed；无明确硬事实时输出 []，不得把抽象目标或氛围描述写入 concreteFacts。",
@@ -590,14 +642,40 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "20. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
       "21. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
       "22. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
+      "【紧凑输出与连续性保护】",
+      "23. 使用紧凑 JSON，不要缩进、排版换行或 Markdown。先保证对象完整闭合，再追求说明细节；输出上限不是必须写满的目标。",
+      "24. 不要重抄已有账本、全体人物档案或整章剧情。只输出与本章有关的有效状态、真正新增或改变的资产；无变化的数组返回 []。",
+      "25. summary 用于章节总览；各子项只写各自的变化。同一资源的 summary、narrativeImpact、expectedFutureUse 不要重复讲同一件事；可选字段没有新增信息时省略，不要填 null、空字符串或占位说明。",
+      "26. 每个子项的说明优先用一句短句；证据优先保留一条足以支持变化的正文短摘录，不抄整段。payoffDeltas.evidence 只输出一条；只有多个独立事实无法由一条证据覆盖时才增加其他维度的证据。",
+      "27. stateDeltas 保留本章相关角色的章末有效状态；信息归属、人物误判、伤势、资源归属、资源不可用条件与保护秘密不能为缩短输出而删除。readerKnows、holderKnows 等布尔字段必须反映真实信息边界，值为 false 时必须显式填写，不能省略后变为默认 true。",
+      "28. characterMindDeltas 描述人物主观理解和意图，不重复客观资源台账；relationStates 描述章末关系，relationDynamics 只描述有证据的关系阶段转变。必要的不同维度可以引用同一事件，但不得各自复述整段剧情。",
+      "29. 角色状态、关系状态和资源的 summary 会供后续章节读取，有有效变化时保留一句短摘要。资源风险等级、未来使用窗口等会改变后续行动边界的字段须按证据保留，不能将关键字段当作冗余省略。",
+      "30. 每条 characterResourceDeltas 给出 reviewDecision：commit 表示正文摘录清楚支持且与现有资源一致的变化；hold 表示归属、消耗、信息可见性或证据有疑问，需要暂缓核对。普通丢失、消耗或损坏不必仅因事件类型就 hold；不能凭推测批准，高风险或低置信度必须 hold。evidence 使用可在正文找到的原文短摘录。",
+      "31. 位置连续性回填开启时，characterLocationDeltas 只记录本章实际有空间行动或位置证据的角色，每角色最多一条章末记录；未出场角色不输出，继承最后确认位置。角色未移动或首次确认位置用 stay，实际移动用 move，不确定用 uncertain，转述用 reported。使用名单真实 characterId/characterName，locationName 写章末地点；fromLocation 按章前记录填写，不能将当前视角场景套给其他人。关闭时返回 []。",
+      "32. timeContext 必须区分 present、flashback、dream、plan、hearsay：present 指当前故事时间线，不能按句子过去时认作回忆；回忆、梦、准备去或他人口述不更新现实位置。结合前后时间、囚禁/伤势/行动限制和地点上下级判断 continuityStatus 为 consistent、unexplained 或 conflicting；有可信移动过程或合理时空衔接才能 consistent。未交代的瞬移、不可能的同场出现或时间倒置不批准，explanation 一句简述疑点，evidence 只用最终正文足以定位的一条短原句，不超过350字。不能通过抽取擅自补写移动经过或替正文修错。",
+      "33. 角色出场记录开启时，必须输出 characterAppearances 数组（无人时 []）：复用本次阅读，每个人每类最多一条 {characterId,characterName,kind,summary,evidence}；present 为本章当前故事时刻实际行动或对话，mention 为仅被提及、传闻或未来计划，flashback 为回忆，dream 为梦境。区分名字被提到与实际出场，同人可以同时有当前出场和回忆记录。只记录名单人物及 characterCandidates 中需处理的人物；已知人物使用名单真实 ID/名字，新增候选 ID 留空、名字用 proposedName。summary 一句不超过160字，evidence 为足够证明出场类型的最终正文短原句（不超过350字）；不得复述整章，不输出未涉及的人物。关闭时省略此字段。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
-      `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
-      `章节目标：${input.chapterGoal || "无明确目标"}`,
       "",
       "已知角色：",
       input.characterRosterText || "暂无角色名单",
+      "",
+      "资源目录（只用于识别同一资产，持有者和可用性以本章输入为准）：",
+      input.resourceCatalogText || "暂无资源目录",
+      "",
+      "伏笔目录（只用于识别同一线索，兑现状态以本章输入为准）：",
+      input.payoffCatalogText || "暂无伏笔目录",
+    ].join("\n")),
+    new HumanMessage([
+      `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
+      `章节目标：${input.chapterGoal || "无明确目标"}`,
+      "",
+      "角色当前目标与状态：",
+      input.characterStateText || "暂无角色状态补充",
+      `位置连续性回填：${input.locationTrackingEnabled ? "开启" : "关闭"}`,
+      `角色出场记录：${input.locationTrackingEnabled ? "开启" : "关闭"}`,
+      input.locationTrackingEnabled ? `章前角色位置（按来源核对，不是本章叙事场景）：\n${input.characterLocationText || "尚无已确认位置"}` : "",
       "",
       "上一状态摘要：",
       input.previousStateText || "暂无上一状态快照",

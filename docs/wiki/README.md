@@ -16,6 +16,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Architecture
 
 - [模块边界与文档治理](./architecture/module-boundaries.md)
+- [自动导演新内核事实层边界](./architecture/director-next-fact-layer.md)
 - [当前模型选择与厂商默认模型边界](./architecture/model-selection.md)
 - [配置项归属与可见性规范](./architecture/configuration-conventions.md)
 
@@ -24,9 +25,13 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [自动导演 Runtime 与恢复边界](./workflows/auto-director-runtime.md)
 - [简易创作模式](./product/simple-creation-mode.md)
 - [章节生产链路](./workflows/chapter-production-chain.md)
+- [小说 AI 用量与调用日志边界](./workflows/novel-ai-usage.md)
 - [读者体验合同](./workflows/reader-experience-contract.md)
 - [Payoff Ledger 来源与同步合同](./workflows/payoff-ledger-contract.md)
 - [角色资源账本工作流](./workflows/character-resource-ledger.md)
+- [导演 V2 角色延后补全](./workflows/director-v2-character-enrichment.md)
+- [导演 V2 正文人物候选与运行模式](./workflows/director-v2-character-candidates.md)
+- [导演 V2 角色计划出场与正文出场](./workflows/director-v2-character-appearances.md)
 - [通用角色主体与跨来源角色对话](./workflows/universal-character-conversation.md)
 - [拆书工作流](./workflows/book-analysis-workflow.md)
 - [图片生成确认与统一运行时](./workflows/image-generation-confirmation-runtime.md)
@@ -44,6 +49,8 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Debugging
 
 - [重复故障模式与排查路径](./debugging/recurring-failure-modes.md)
+- [数据库 Schema 与迁移漂移](./debugging/database-migration-drift.md)
+- [服务端测试的进程与数据库隔离](./debugging/server-test-isolation.md)
 
 ### Product
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { styleSignalPolicySchema } from "@ai-novel/shared/types/styleEngine";
 import { llmProviderSchema } from "../../../llm/providerSchema";
 
 const chapterRuntimeControlPolicySchema = z.object({
@@ -14,11 +15,13 @@ const chapterRuntimeControlPolicySchema = z.object({
 });
 
 export const chapterRuntimeRequestSchema = z.object({
+  workflowTaskId: z.string().trim().optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   previousChaptersSummary: z.array(z.string()).optional(),
   taskStyleProfileId: z.string().trim().optional(),
+  styleSignalPolicy: styleSignalPolicySchema.optional(),
   artifactSyncMode: z.enum(["adaptive", "deferred", "strict"]).optional(),
   controlPolicy: chapterRuntimeControlPolicySchema.optional(),
 });

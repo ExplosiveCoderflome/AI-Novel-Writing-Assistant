@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { BookOpenText, LayoutDashboard, Library, RotateCcw, Sparkles } from "lucide-react";
+import { BookCopy, BookOpenText, LayoutDashboard, Library, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DIRECTOR_CREATE_LINK,
   MANUAL_CREATE_LINK,
   PRIMARY_CREATE_LABEL,
+  REFERENCE_CREATE_LABEL,
+  REFERENCE_CREATE_LINK,
   SHORT_STORY_CREATE_LINK,
   type NovelListSummaryItem,
 } from "./novelListViewModel";
@@ -42,15 +44,21 @@ export function NovelListHeader(props: {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Button asChild>
             <Link to={DIRECTOR_CREATE_LINK}>
               <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
               {PRIMARY_CREATE_LABEL}
             </Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link to={REFERENCE_CREATE_LINK}>
+              <BookCopy className="mr-2 h-4 w-4" aria-hidden="true" />
+              {REFERENCE_CREATE_LABEL}
+            </Link>
+          </Button>
           {SHORT_STORY_CREATE_LINK ? (
-            <Button asChild variant="secondary">
+            <Button asChild variant="outline">
               <Link to={SHORT_STORY_CREATE_LINK}>
                 <BookOpenText className="mr-2 h-4 w-4" aria-hidden="true" />
                 创作短篇

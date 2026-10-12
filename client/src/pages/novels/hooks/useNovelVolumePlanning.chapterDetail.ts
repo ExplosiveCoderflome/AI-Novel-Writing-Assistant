@@ -7,10 +7,20 @@ import {
   type ChapterDetailMode,
 } from "../chapterDetailPlanning.shared";
 
-interface ChapterDetailTarget {
+export interface ChapterDetailTarget {
   chapterId: string;
   chapterOrder: number;
   title: string;
+}
+
+export interface ChapterDetailBatchFailure {
+  targetVolumeId: string;
+  targets: ChapterDetailTarget[];
+  chapterId: string;
+  chapterOrder: number;
+  chapterTitle: string;
+  mode: ChapterDetailMode;
+  message: string;
 }
 
 interface ResolvedChapterDetailBatch {
@@ -40,6 +50,7 @@ interface RunChapterDetailBatchGenerationArgs {
   setIsGenerating: (value: boolean) => void;
   setCurrentChapterId: (value: string) => void;
   setCurrentMode: (value: ChapterDetailMode | "") => void;
+  setFailure: (failure: ChapterDetailBatchFailure | null) => void;
   setStructuredMessage: (value: string) => void;
   generateChapterDetail: (
     payload: ChapterDetailMutationPayload,
@@ -132,18 +143,20 @@ export async function runChapterDetailBatchGeneration({
   setIsGenerating,
   setCurrentChapterId,
   setCurrentMode,
+  setFailure,
   setStructuredMessage,
   generateChapterDetail,
 }: RunChapterDetailBatchGenerationArgs): Promise<void> {
   let workingDraft = initialDraft;
   let processedModeCount = 0;
   setIsGenerating(true);
+  setFailure(null);
   setCurrentMode("");
   setCurrentChapterId(targets[0]?.chapterId ?? "");
   setStructuredMessage(`正在为${label}补齐缺失的章节目标、执行边界和任务单...`);
 
   try {
-    for (const target of targets) {
+    for (const [targetIndex, target] of targets.entries()) {
       const missingModes = resolveMissingChapterDetailModes(workingDraft, targetVolumeId, target.chapterId);
       if (missingModes.length === 0) {
         continue;
@@ -151,15 +164,30 @@ export async function runChapterDetailBatchGeneration({
       setCurrentChapterId(target.chapterId);
       for (const mode of missingModes) {
         setCurrentMode(mode);
-        const result = await generateChapterDetail({
-          targetVolumeId,
-          targetChapterId: target.chapterId,
-          detailMode: mode,
-          draftVolumesOverride: workingDraft,
-          suppressSuccessMessage: true,
-        });
-        workingDraft = result.nextDocument.volumes;
-        processedModeCount += 1;
+        try {
+          const result = await generateChapterDetail({
+            targetVolumeId,
+            targetChapterId: target.chapterId,
+            detailMode: mode,
+            draftVolumesOverride: workingDraft,
+            suppressSuccessMessage: true,
+          });
+          workingDraft = result.nextDocument.volumes;
+          processedModeCount += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "AI 暂时没有完成这一项细化。";
+          setFailure({
+            targetVolumeId,
+            targets: targets.slice(targetIndex),
+            chapterId: target.chapterId,
+            chapterOrder: target.chapterOrder,
+            chapterTitle: target.title,
+            mode,
+            message,
+          });
+          setStructuredMessage(`第${target.chapterOrder}章的${mode === "purpose" ? "章节目标" : mode === "boundary" ? "执行边界" : "任务单"}暂未完成，可从这里继续细化。`);
+          return;
+        }
       }
     }
     setStructuredMessage(
@@ -167,8 +195,6 @@ export async function runChapterDetailBatchGeneration({
         ? `${label}的章节目标、执行边界和任务单已补齐并自动保存。`
         : `${label}当前已经完整，无需重复生成章节细化。`,
     );
-  } catch {
-    // error message is handled by mutation onError
   } finally {
     setIsGenerating(false);
     setCurrentChapterId("");

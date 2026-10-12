@@ -1,11 +1,11 @@
 import type { ChapterRepairContext, ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
+import type { StyleRewriteGuard, StyleRewriteBaseline } from "@ai-novel/shared/types/styleEngine";
 import { runTextPrompt } from "../../../../prompting/core/promptRunner";
 import { buildChapterRepairContextBlocks } from "../../../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterRepairPrompt } from "../../../../prompting/prompts/novel/review.prompts";
 import {
-  ChapterPatchRepairFailedError,
   ChapterPatchRepairService,
   type PatchRepairMode,
 } from "../../chapterPatchRepairService";
@@ -27,7 +27,6 @@ export interface PrepareChapterRepairExecutionInput {
   runtimePackage?: ChapterRuntimePackage | null;
   repairContext?: ChapterRepairContext | null;
   bibleContent?: string | null;
-  forceFullRewrite?: boolean;
   options: ChapterRepairExecutionOptions;
 }
 
@@ -61,24 +60,22 @@ export type PreparedChapterRepairExecution =
       issues: ReviewIssue[];
       finalRepairMode: PatchRepairMode;
       modeHint: string;
-      escalatedFromPatch: false;
-      patchFailure: null;
+      rewriteGuard?: StyleRewriteGuard;
+      styleRewriteBaseline?: StyleRewriteBaseline;
     }
   | {
       kind: "heavy_repair";
       issues: ReviewIssue[];
       finalRepairMode: "heavy_repair";
       modeHint: string;
-      escalatedFromPatch: boolean;
-      patchFailure: ChapterPatchRepairFailedError | null;
       prompt: ChapterHeavyRepairPromptRequest;
     };
 
 export interface ExecutedChapterRepair {
   content: string;
   finalRepairMode: PatchRepairMode;
-  escalatedFromPatch: boolean;
-  patchFailure: ChapterPatchRepairFailedError | null;
+  rewriteGuard?: StyleRewriteGuard;
+  styleRewriteBaseline?: StyleRewriteBaseline;
 }
 
 function normalizeRepairIssues(issues: ReviewIssue[]): ReviewIssue[] {
@@ -113,9 +110,10 @@ function buildRepairIssuesPayload(
 ): string {
   const missingObligations = runtimePackage?.obligationCoverage?.missing ?? [];
   const blockingIssueCodes = resolveIssueCodes(runtimePackage);
+  const repairDirectives = runtimePackage?.meta?.repairDirectives ?? [];
 
-  if (missingObligations.length === 0 && blockingIssueCodes.length === 0) {
-    return JSON.stringify(issues, null, 2);
+  if (missingObligations.length === 0 && blockingIssueCodes.length === 0 && repairDirectives.length === 0) {
+    return JSON.stringify(issues);
   }
 
   return JSON.stringify(
@@ -127,9 +125,8 @@ function buildRepairIssuesPayload(
         ...(o.evidence ? { evidence: o.evidence } : {}),
       })),
       blockingIssueCodes,
+      repairDirectives,
     },
-    null,
-    2,
   );
 }
 
@@ -176,6 +173,9 @@ function buildRepairRagContext(input: {
           item.currentState ? `状态=${item.currentState}` : "",
           item.currentGoal ? `目标=${item.currentGoal}` : "",
           item.currentLocation ? `位置=${item.currentLocation}` : "",
+          item.locationState?.sourceChapterOrder !== null && item.locationState?.sourceChapterOrder !== undefined
+            ? `位置来源=第${item.locationState.sourceChapterOrder}章；证据=${item.locationState.evidence}` : "",
+          item.locationState?.concern ? `位置待核对=${item.locationState.concern}` : "",
           item.prohibitions?.length ? `禁止=${item.prohibitions.join(" / ")}` : "",
         ].filter(Boolean).join(" | ")).join("\n")}`
       : "",
@@ -197,120 +197,39 @@ export async function prepareChapterRepairExecution(
 ): Promise<PreparedChapterRepairExecution> {
   const issues = normalizeRepairIssues(input.issues);
   const issueCodes = resolveIssueCodes(input.runtimePackage);
-  let activeRepairMode = input.options.repairMode ?? "light_repair";
-  let modeHint = getRepairModeHint(activeRepairMode, issueCodes);
+  // Expression cleanup never grants a full-chapter rewrite permission.
+  const hasStyleIssues = Boolean(input.runtimePackage?.styleReview?.report?.violations.length);
+  const activeRepairMode = hasStyleIssues && input.options.repairMode === "heavy_repair"
+    ? "light_repair" : input.options.repairMode ?? "light_repair";
+  const modeHint = getRepairModeHint(activeRepairMode, issueCodes);
 
-  if (input.forceFullRewrite && activeRepairMode !== "heavy_repair") {
-    activeRepairMode = "heavy_repair";
-    modeHint = getRepairModeHint(activeRepairMode, issueCodes);
-  }
-
-  if (!input.forceFullRewrite && activeRepairMode !== "heavy_repair") {
+  if (activeRepairMode !== "heavy_repair") {
     const patchRepairService = new ChapterPatchRepairService();
-    try {
-      const patched = await patchRepairService.repair({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        novelTitle: input.novelTitle,
-        chapterTitle: input.chapterTitle,
-        content: input.content,
-        issues,
-        runtimePackage: input.runtimePackage,
-        repairContext: input.repairContext,
-        provider: input.options.provider,
-        model: input.options.model,
-        temperature: input.options.temperature,
-        repairMode: activeRepairMode,
-        modeHint,
-      });
-      return {
-        kind: "patched",
-        content: patched.content,
-        issues,
-        finalRepairMode: activeRepairMode,
-        modeHint,
-        escalatedFromPatch: false,
-        patchFailure: null,
-      };
-    } catch (error) {
-      if (!(error instanceof ChapterPatchRepairFailedError)) {
-        throw error;
-      }
-      if (activeRepairMode === "detect_only") {
-        throw error;
-      }
-
-      // Root B 宽松锚点重试：patch 锚点失配时，用 continuity_only 模式再试一次，
-      // 给 LLM 更宽泛的定位空间，避免直接升级 heavy_repair。
-      const looseAnchorMode: PatchRepairMode = "continuity_only";
-      const looseAnchorHint = "宽松锚点重试（anchor-loose retry）：不要求精确匹配原文，以段落语义为锚，优先修连续性问题。";
-      try {
-        const retried = await patchRepairService.repair({
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          novelTitle: input.novelTitle,
-          chapterTitle: input.chapterTitle,
-          content: input.content,
-          issues,
-          runtimePackage: input.runtimePackage,
-          repairContext: input.repairContext,
-          provider: input.options.provider,
-          model: input.options.model,
-          temperature: input.options.temperature,
-          repairMode: looseAnchorMode,
-          modeHint: looseAnchorHint,
-        });
-        return {
-          kind: "patched",
-          content: retried.content,
-          issues,
-          finalRepairMode: looseAnchorMode,
-          modeHint: looseAnchorHint,
-          escalatedFromPatch: false,
-          patchFailure: null,
-        };
-      } catch (retryError) {
-        if (!(retryError instanceof ChapterPatchRepairFailedError)) {
-          throw retryError;
-        }
-        // 宽松锚点重试仍失败 → 升级 heavy_repair
-      }
-
-      activeRepairMode = "heavy_repair";
-      modeHint = getRepairModeHint(activeRepairMode, issueCodes);
-      return {
-        kind: "heavy_repair",
-        issues,
-        finalRepairMode: activeRepairMode,
-        modeHint,
-        escalatedFromPatch: true,
-        patchFailure: error,
-        prompt: {
-          promptInput: {
-            novelTitle: input.novelTitle,
-            bibleContent: resolveBibleContent(input),
-            chapterTitle: input.chapterTitle,
-            chapterContent: input.content,
-            issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
-            ragContext: buildRepairRagContext(input),
-            modeHint,
-          },
-          contextBlocks: resolveRepairContext(input)
-            ? buildChapterRepairContextBlocks(resolveRepairContext(input) as ChapterRepairContext)
-            : undefined,
-          options: {
-            provider: input.options.provider,
-            model: input.options.model,
-            temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
-            novelId: input.novelId,
-            chapterId: input.chapterId,
-            stage: "chapter_repair",
-            triggerReason: activeRepairMode,
-          },
-          fallbackContent: input.content,
-        },
-      };
-    }
+    const patched = await patchRepairService.repair({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      novelTitle: input.novelTitle,
+      chapterTitle: input.chapterTitle,
+      content: input.content,
+      issues,
+      issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
+      runtimePackage: input.runtimePackage,
+      repairContext: input.repairContext,
+      provider: input.options.provider,
+      model: input.options.model,
+      temperature: input.options.temperature,
+      repairMode: activeRepairMode,
+      modeHint,
+    });
+    return {
+      kind: "patched",
+      content: patched.content,
+      issues,
+      finalRepairMode: activeRepairMode,
+      modeHint,
+      rewriteGuard: patched.rewriteGuard,
+      styleRewriteBaseline: patched.styleRewriteBaseline,
+    };
   }
 
   return {
@@ -318,8 +237,6 @@ export async function prepareChapterRepairExecution(
     issues,
     finalRepairMode: "heavy_repair",
     modeHint,
-    escalatedFromPatch: false,
-    patchFailure: null,
     prompt: {
       promptInput: {
         novelTitle: input.novelTitle,
@@ -371,8 +288,8 @@ export async function runChapterRepairText(
     return {
       content: prepared.content,
       finalRepairMode: prepared.finalRepairMode,
-      escalatedFromPatch: false,
-      patchFailure: null,
+      rewriteGuard: prepared.rewriteGuard,
+      styleRewriteBaseline: prepared.styleRewriteBaseline,
     };
   }
 
@@ -380,8 +297,6 @@ export async function runChapterRepairText(
   return {
     content: repaired.output.trim() || prepared.prompt.fallbackContent,
     finalRepairMode: prepared.finalRepairMode,
-    escalatedFromPatch: prepared.escalatedFromPatch,
-    patchFailure: prepared.patchFailure,
   };
 }
 

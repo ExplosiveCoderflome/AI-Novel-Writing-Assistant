@@ -2,6 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  ChapterScenePlanNormalizationError,
+} = require("../../shared/dist/types/chapterLengthControl.js");
+
+const {
   assessChapterExecutionContractShape,
   aiChapterTaskSheetQualityAssessmentSchema,
   formatChapterTaskSheetQualityFailure,
@@ -9,6 +13,17 @@ const {
 const {
   ChapterTaskSheetQualityGateService,
 } = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
+const {
+  canReuseChapterExecutionContract,
+  shouldRetryChapterExecutionContract,
+  generateChapterTaskSheetDetail,
+} = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractGeneration.js");
+const {
+  ChapterTaskSheetQualityGateError,
+} = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
+const {
+  inspectChapterExecutionContractReadiness,
+} = require("../dist/services/novel/volume/chapterDetail/chapterExecutionContractReadiness.js");
 const {
   chapterTaskSheetQualityPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
@@ -86,6 +101,164 @@ function buildCandidate(overrides = {}) {
   };
 }
 
+test('quality observer retains the structured AI assessment without changing the legacy gate result',async()=>{
+  const assessment={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'局部补充',issues:[],repairGuidance:['补足目标'],confidence:0.9};
+  const gate=new ChapterTaskSheetQualityGateService(async()=>assessment);
+  let observed;
+  const result=await gate.evaluate(buildCandidate(),{mode:'full_book_autopilot',onEvaluated:async event=>{observed=event;}});
+  assert.equal(result.canEnterExecution,true);
+  assert.deepEqual(observed,{result,assessment});
+  await assert.rejects(()=>gate.assertCanEnterExecution(buildCandidate(),{mode:'ai_copilot'}),ChapterTaskSheetQualityGateError);
+});
+
+test('task-sheet generation forwards the assessment once while preserving legacy return and rejection behavior',async()=>{
+  const runner=require('../dist/prompting/core/promptRunner.js');
+  const original=runner.runStructuredPrompt;
+  const candidate=buildCandidate();
+  const chapter={...candidate,id:candidate.chapterId,taskSheet:null,sceneCards:null};
+  const assessment={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'局部目标需完善',issues:[],repairGuidance:['补足目标'],confidence:0.9};
+  runner.runStructuredPrompt=async({asset})=>({output:asset.id===chapterTaskSheetQualityPrompt.id?assessment:{...candidate,sceneCards:JSON.parse(buildSceneCards()).scenes}});
+  try {
+    const events=[];
+    const params={promptInput:{novel:{id:'novel-1',title:'测试小说',characters:[]},workspace:{novelId:'novel-1',volumes:[]},storyMacroPlan:null,strategyPlan:null,targetVolume:{id:'volume-1',sortOrder:1,title:'第一卷',chapters:[chapter],openPayoffs:[]},targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet'},options:{chapterTaskSheetQualityMode:'full_book_autopilot',onChapterTaskSheetQuality:async event=>events.push(event)}};
+    const detail=await generateChapterTaskSheetDetail(params);
+    assert.equal(detail.taskSheet,candidate.taskSheet);assert.equal(events.length,1);
+    assert.equal(events[0].chapterId,chapter.id);assert.equal(events[0].chapterOrder,1);
+    assert.deepEqual(events[0].assessment,assessment);
+    await assert.rejects(()=>generateChapterTaskSheetDetail({...params,options:{chapterTaskSheetQualityMode:'ai_copilot'}}),ChapterTaskSheetQualityGateError);
+  } finally {runner.runStructuredPrompt=original;}
+});
+
+test('a saved JSON scene plan is reused without falsely reporting missing scenes', async () => {
+  const candidate=buildCandidate();
+  const chapter={...candidate,id:candidate.chapterId};
+  const detail=await generateChapterTaskSheetDetail({promptInput:{workspace:{novelId:candidate.novelId},targetVolume:{id:candidate.volumeId},targetChapter:chapter},options:{}});
+  assert.equal(detail.taskSheet,candidate.taskSheet);
+  assert.equal(JSON.parse(detail.sceneCards).scenes.length,3);
+});
+
+test('explicit regeneration bypasses a complete saved contract with or without guidance', async () => {
+  const runner=require('../dist/prompting/core/promptRunner.js'),original=runner.runStructuredPrompt;
+  const candidate=buildCandidate(),chapter={...candidate,id:candidate.chapterId};
+  const calls=[];
+  runner.runStructuredPrompt=async input=>{
+    calls.push(input);
+    return {output:input.asset.id===chapterTaskSheetQualityPrompt.id
+      ? {verdict:'safe',safeToSync:true,loadRisk:'normal',recommendedHandling:'sync',summary:'可用',issues:[],repairGuidance:[],confidence:0.9}
+      : {...candidate,taskSheet:'重写后的任务',sceneCards:JSON.parse(candidate.sceneCards).scenes}};
+  };
+  try {
+    for (const guidance of [undefined,'保留残符，让主角主动试探']) {
+      calls.length=0;
+      const detail=await generateChapterTaskSheetDetail({promptInput:{novel:{id:candidate.novelId,title:'测试',characters:[]},workspace:{novelId:candidate.novelId,volumes:[]},storyMacroPlan:null,strategyPlan:null,targetVolume:{id:candidate.volumeId,sortOrder:1,title:'一卷',chapters:[chapter],openPayoffs:[]},targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet',guidance},options:{forceRegenerate:true,chapterTaskSheetQualityMode:'full_book_autopilot'}});
+      assert.equal(detail.taskSheet,'重写后的任务');
+      assert.equal(calls.find(call=>call.asset.id!==chapterTaskSheetQualityPrompt.id)?.promptInput.guidance,guidance);
+    }
+  } finally {runner.runStructuredPrompt=original;}
+});
+
+test("incomplete persisted contracts are regenerated instead of reused", () => {
+  const complete = buildCandidate();
+  const chapter = {
+    ...complete,
+    id: complete.chapterId,
+  };
+
+  assert.equal(canReuseChapterExecutionContract({
+    novelId: complete.novelId,
+    volumeId: complete.volumeId,
+    chapter,
+  }), true);
+
+  assert.equal(canReuseChapterExecutionContract({
+    novelId: complete.novelId,
+    volumeId: complete.volumeId,
+    chapter: {
+      ...chapter,
+      purpose: null,
+      targetWordCount: null,
+    },
+  }), false);
+});
+
+test("contract readiness distinguishes structural completeness from current requirement compatibility", () => {
+  const requirement = {
+    ...buildCandidate(),
+    id: "volume-chapter-1",
+    chapterId: "chapter-1",
+    volumeId: "volume-1",
+    chapterOrder: 1,
+    payoffRefs: ["资源危机"],
+    createdAt: "2026-09-08T00:00:00.000Z",
+    updatedAt: "2026-09-08T00:00:00.000Z",
+  };
+  const persisted = {
+    targetWordCount: requirement.targetWordCount,
+    conflictLevel: requirement.conflictLevel,
+    revealLevel: requirement.revealLevel,
+    mustAvoid: requirement.mustAvoid,
+    taskSheet: requirement.taskSheet,
+    sceneCards: requirement.sceneCards,
+  };
+
+  const compatible = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement,
+    persisted,
+  });
+  assert.equal(compatible.structure.canEnterExecution, true);
+  assert.equal(compatible.compatibility, "compatible");
+  assert.equal(compatible.canReuse, true);
+
+  const stale = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement: {
+      ...requirement,
+      mustAvoid: "不要提前揭示幕后主使，也不要让主角离开当前地点。",
+    },
+    persisted,
+  });
+  assert.equal(stale.structure.canEnterExecution, true);
+  assert.equal(stale.compatibility, "incompatible");
+  assert.deepEqual(stale.mismatchedFields, ["mustAvoid"]);
+  assert.equal(stale.canReuse, false);
+
+  const incomplete = inspectChapterExecutionContractReadiness({
+    novelId: "novel-1",
+    volumeId: "volume-1",
+    requirement: { ...requirement, purpose: null },
+    persisted,
+  });
+  assert.equal(incomplete.structure.canEnterExecution, false);
+  assert.equal(incomplete.compatibility, "compatible");
+  assert.equal(incomplete.canReuse, false);
+});
+
+test("chapter execution contract does not retry a semantic quality warning", () => {
+  const qualityError = new ChapterTaskSheetQualityGateError({
+    status: "repairable",
+    canEnterExecution: false,
+    summary: "合同需要局部修正。",
+    issues: [],
+    repairGuidance: ["修正章节边界。"],
+    confidence: 0.8,
+  });
+  const postValidateError = Object.assign(new Error("章节边界不一致"), {
+    promptQualityFailureKind: "post_validate_failed",
+  });
+
+  assert.equal(shouldRetryChapterExecutionContract(qualityError, 0), false);
+  assert.equal(shouldRetryChapterExecutionContract(qualityError, 1), false);
+  assert.equal(shouldRetryChapterExecutionContract(postValidateError, 0), true);
+  assert.equal(shouldRetryChapterExecutionContract(
+    new ChapterScenePlanNormalizationError("scene_count_below_minimum", "章节场景拆解至少需要 3 个有效场景。"),
+    0,
+  ), true);
+  assert.equal(shouldRetryChapterExecutionContract(new Error("terminated"), 0), false);
+});
+
 test("chapter execution contract shape gate blocks invalid task sheet artifacts", () => {
   const result = assessChapterExecutionContractShape(buildCandidate({
     taskSheet: "",
@@ -99,7 +272,7 @@ test("chapter execution contract shape gate blocks invalid task sheet artifacts"
   assert.match(formatChapterTaskSheetQualityFailure(result), /章节执行合同/);
 });
 
-test("chapter task sheet quality service lets full book mode auto-repair semantic failures", async () => {
+test("chapter task sheet quality service lets full book mode continue with semantic warnings", async () => {
   const service = new ChapterTaskSheetQualityGateService(async () => ({
     verdict: "repairable",
     safeToSync: false,
@@ -121,7 +294,7 @@ test("chapter task sheet quality service lets full book mode auto-repair semanti
     mode: "full_book_autopilot",
   });
 
-  assert.equal(result.canEnterExecution, false);
+  assert.equal(result.canEnterExecution, true);
   assert.equal(result.status, "repairable");
   assert.equal(result.issues[0].id, "semantic_boundary_leak");
 });
@@ -181,7 +354,7 @@ test("chapter task sheet quality service marks overloaded contracts for window r
     mode: "full_book_autopilot",
   });
 
-  assert.equal(result.canEnterExecution, false);
+  assert.equal(result.canEnterExecution, true);
   assert.equal(result.status, "repairable");
   assert.ok(result.issues.some((issue) => issue.id === "contract_overloaded"));
 });

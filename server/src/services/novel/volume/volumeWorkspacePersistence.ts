@@ -369,6 +369,23 @@ function requiresOrderParking(existingVolumes: ExistingVolumeWorkspaceRow[], doc
   return false;
 }
 
+function assertUniqueWorkspaceOrders(document: VolumePlanDocument): void {
+  const volumeOrders = new Set<number>();
+  for (const volume of document.volumes) {
+    if (volumeOrders.has(volume.sortOrder)) {
+      throw new Error(`卷规划中存在重复的卷序号 ${volume.sortOrder}，请调整序号后重新保存。`);
+    }
+    volumeOrders.add(volume.sortOrder);
+    const chapterOrders = new Set<number>();
+    for (const chapter of volume.chapters) {
+      if (chapterOrders.has(chapter.chapterOrder)) {
+        throw new Error(`《${volume.title}》中存在重复的章节序号 ${chapter.chapterOrder}，请调整本卷章节序号后重新保存。`);
+      }
+      chapterOrders.add(chapter.chapterOrder);
+    }
+  }
+}
+
 async function parkExistingVolumeWorkspaceRows(
   tx: Prisma.TransactionClient,
   existingVolumes: ExistingVolumeWorkspaceRow[],
@@ -400,6 +417,7 @@ export async function persistActiveVolumeWorkspace(
   document: VolumePlanDocument,
   sourceVersionId: string | null,
 ): Promise<void> {
+  assertUniqueWorkspaceOrders(document);
   const existingVolumes = await tx.volumePlan.findMany({
     where: { novelId },
     select: {

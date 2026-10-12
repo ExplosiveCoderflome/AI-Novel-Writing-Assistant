@@ -88,6 +88,7 @@ export function buildRuntimeCharacterHardFacts(
     powerLevel: compactText(character.powerLevel),
     realm: compactText(character.realm),
     currentLocation: compactText(character.currentLocation),
+    ...(character.locationState ? {locationState: character.locationState} : {}),
     availability: compactText(character.availability),
     currentState: pendingFields.has("currentState")
       ? compactText(pendingReview?.currentState) ?? compactText(character.currentState)
@@ -116,6 +117,7 @@ export function buildRuntimeCharacterHardFactsList(
       || Boolean(item.powerLevel)
       || Boolean(item.realm)
       || Boolean(item.currentLocation)
+      || Boolean(item.locationState)
       || Boolean(item.availability)
       || Boolean(item.currentState)
       || Boolean(item.currentGoal)

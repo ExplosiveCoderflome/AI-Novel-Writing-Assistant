@@ -413,9 +413,9 @@ const generatedChapterBeatBlockItemSchema = z.preprocess((raw) => normalizeChapt
 const generatedVolumeStrategyVolumeSchema = z.object({
   sortOrder: z.number().int().min(1),
   planningMode: z.enum(["hard", "soft"]),
-  roleLabel: z.string().trim().min(1),
-  coreReward: z.string().trim().min(1),
-  escalationFocus: z.string().trim().min(1),
+  roleLabel: z.string().trim().min(1).max(32),
+  coreReward: z.string().trim().min(1).max(64),
+  escalationFocus: z.string().trim().min(1).max(64),
   uncertaintyLevel: z.enum(["low", "medium", "high"]),
 });
 
@@ -423,7 +423,7 @@ const generatedVolumeUncertaintySchema = z.object({
   targetType: z.enum(["book", "volume", "beat_sheet", "chapter_list"]),
   targetRef: z.string().trim().min(1),
   level: z.enum(["low", "medium", "high"]),
-  reason: z.string().trim().min(1),
+  reason: z.string().trim().min(1).max(64),
 });
 
 const volumeBeatSlotKeySchema = z.enum([
@@ -476,8 +476,19 @@ export function createVolumeChapterBeatBlockSchema(config: {
   exactChapterCount?: number;
   expectedBeatKey?: string;
   expectedBeatLabel?: string | null;
+  characterIds?: string[];
 } = {}) {
   const { exactChapterCount, expectedBeatKey, expectedBeatLabel } = config;
+  const itemSchema = config.characterIds === undefined ? generatedChapterBeatBlockItemSchema : z.preprocess(
+    (raw) => normalizeChapterListItemPayload(raw), z.object({
+      title: z.string().trim().min(1).max(32), summary: z.string().trim().min(1).max(240),
+      beatKey: z.string().trim().min(1).max(64),
+      plannedCharacterIds: z.array(z.string().trim().min(1)).max(config.characterIds.length).superRefine((ids, ctx) => {
+        if (new Set(ids).size !== ids.length || ids.some(id => !config.characterIds!.includes(id))) {
+          ctx.addIssue({code:z.ZodIssueCode.custom,message:"出场安排只能使用角色目录中的 ID，不能重复或使用其他书籍角色。"});
+        }
+      }),
+    }));
   return z.preprocess(
     (raw) => normalizeChapterBeatBlockPayload(raw, { expectedBeatKey, expectedBeatLabel }),
     z.object({
@@ -485,8 +496,8 @@ export function createVolumeChapterBeatBlockSchema(config: {
     beatLabel: z.string().trim().min(1),
     chapterCount: z.number().int().min(1),
     chapters: typeof exactChapterCount === "number"
-      ? z.array(generatedChapterBeatBlockItemSchema).length(exactChapterCount)
-      : z.array(generatedChapterBeatBlockItemSchema).min(1).max(24),
+      ? z.array(itemSchema).length(exactChapterCount)
+      : z.array(itemSchema).min(1).max(24),
   }).superRefine((value, ctx) => {
     if (value.chapterCount !== value.chapters.length) {
       ctx.addIssue({
@@ -550,10 +561,10 @@ export function createVolumeStrategySchema(config: {
   return z.object({
     recommendedVolumeCount: z.number().int().min(recommendedVolumeCountRange.min).max(recommendedVolumeCountRange.max),
     hardPlannedVolumeCount: z.number().int().min(hardPlannedVolumeRange.min).max(hardPlannedVolumeRange.max),
-    readerRewardLadder: z.string().trim().min(1),
-    escalationLadder: z.string().trim().min(1),
-    midpointShift: z.string().trim().min(1),
-    notes: z.string().trim().min(1),
+    readerRewardLadder: z.string().trim().min(1).max(160),
+    escalationLadder: z.string().trim().min(1).max(160),
+    midpointShift: z.string().trim().min(1).max(160),
+    notes: z.string().trim().min(1).max(160),
     volumes: z.array(generatedVolumeStrategyVolumeSchema).min(1).max(maxVolumeCount),
     uncertainties: z.array(generatedVolumeUncertaintySchema).max(maxVolumeCount).default([]),
   }).superRefine((value, ctx) => {

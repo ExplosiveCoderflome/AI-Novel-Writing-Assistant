@@ -129,6 +129,13 @@ test("director character phase pauses at review checkpoint when cast quality gat
     dependencies: {
       workflowService: {
         bootstrapTask: async (payload) => workflowCalls.push({ type: "bootstrap", payload }),
+        getTaskById: async (taskId) => taskId === "task_1" ? ({
+          id: "task_1",
+          novelId: "novel_1",
+          lane: "auto_director",
+          seedPayloadJson: JSON.stringify({ novelId: "novel_1" }),
+        }) : null,
+        updateTaskWithRetry: async (args) => args,
         recordCheckpoint: async (taskId, payload) => workflowCalls.push({ type: "checkpoint", taskId, payload }),
       },
       novelContextService: {},
@@ -291,6 +298,7 @@ test("director character phase applies an existing draft cast option without reg
   assert.equal(autoGenerateCalls, 0);
   assert.equal(applyCalls, 1);
   assert.deepEqual(applyArgs[0]?.[2], {
+    postApplyMode: "sync",
     visibleProfileGeneration: {
       provider: "deepseek",
       model: "deepseek-chat",

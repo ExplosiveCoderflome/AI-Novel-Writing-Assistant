@@ -2,16 +2,46 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { prisma } = require("../dist/db/prisma.js");
-const { ChapterArtifactDeltaService } = require("../dist/services/novel/runtime/ChapterArtifactDeltaService.js");
+const { ChapterArtifactDeltaService, buildContentHash } = require("../dist/services/novel/runtime/ChapterArtifactDeltaService.js");
+
+test("artifact summary passes the original chapter text to the content-version fence", async () => {
+  const service = new ChapterArtifactDeltaService();
+  const originalFindFirst = prisma.chapter.findFirst;
+  const content = "第一段正文。\n\n第二段正文。";
+  let receivedContent = null;
+  prisma.chapter.findFirst = async () => ({ id: "chapter-1", order: 1, title: "第一章", content });
+  service.persistChapterSummaryAndFacts = async (input) => {
+    receivedContent = input.content;
+    return 1;
+  };
+  try {
+    await service.applyChapterArtifactConsumer({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      chapterOrder: 1,
+      content,
+      contentHash: buildContentHash(content),
+      output: {},
+      consumer: "summary_facts",
+    });
+    assert.equal(receivedContent, content);
+  } finally {
+    prisma.chapter.findFirst = originalFindFirst;
+  }
+});
 
 test("artifact delta only applies active dialogue influences that are valid in this chapter", async () => {
   const service = new ChapterArtifactDeltaService();
   const originalUpdateMany = prisma.characterDialogueInfluence.updateMany;
+  const originalTransaction = prisma.$transaction;
   const updateCalls = [];
   prisma.characterDialogueInfluence.updateMany = async (args) => {
     updateCalls.push(args);
     return { count: 1 };
   };
+  prisma.$transaction = async (callback) => callback({
+    characterDialogueInfluence: { updateMany: prisma.characterDialogueInfluence.updateMany },
+  });
 
   try {
     const count = await service.applyCharacterDialogueInfluenceResolutions({
@@ -50,17 +80,22 @@ test("artifact delta only applies active dialogue influences that are valid in t
     assert.deepEqual(JSON.parse(updateCalls[0].data.resolutionEvidenceJson), ["程秩确认退路后才潜入。"]);
   } finally {
     prisma.characterDialogueInfluence.updateMany = originalUpdateMany;
+    prisma.$transaction = originalTransaction;
   }
 });
 
 test("artifact delta expires active dialogue influences once their window has passed", async () => {
   const service = new ChapterArtifactDeltaService();
   const originalUpdateMany = prisma.characterDialogueInfluence.updateMany;
+  const originalTransaction = prisma.$transaction;
   const updateCalls = [];
   prisma.characterDialogueInfluence.updateMany = async (args) => {
     updateCalls.push(args);
     return { count: 2 };
   };
+  prisma.$transaction = async (callback) => callback({
+    characterDialogueInfluence: { updateMany: prisma.characterDialogueInfluence.updateMany },
+  });
 
   try {
     const count = await service.expirePastCharacterDialogueInfluences({
@@ -79,5 +114,6 @@ test("artifact delta expires active dialogue influences once their window has pa
     });
   } finally {
     prisma.characterDialogueInfluence.updateMany = originalUpdateMany;
+    prisma.$transaction = originalTransaction;
   }
 });

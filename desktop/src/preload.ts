@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld("__AI_NOVEL_DESKTOP__", {
   quitAndInstall: () => ipcRenderer.invoke("desktop:quit-and-install"),
   openLogsDirectory: () => ipcRenderer.invoke("desktop:open-logs-directory"),
   copyLogPath: () => ipcRenderer.invoke("desktop:copy-log-path"),
+  bundleLogs: () => ipcRenderer.invoke("desktop:bundle-logs"),
   restartApp: () => ipcRenderer.invoke("desktop:restart-app"),
   importLegacyDatabase: (options?: { preferSuggested?: boolean }) =>
     ipcRenderer.invoke("desktop:import-legacy-database", options),

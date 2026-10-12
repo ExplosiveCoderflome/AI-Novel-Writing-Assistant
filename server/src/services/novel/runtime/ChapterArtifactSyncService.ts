@@ -4,11 +4,22 @@ import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { ragServices } from "../../rag";
 import { briefSummary, extractFacts } from "../novelP0Utils";
 import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
-import { assertChapterContentNotEmpty } from "./chapterEmptyContentError";
 import type { ArtifactSyncMode } from "../novelCoreShared";
+import { buildContentHash } from "./ChapterArtifactDeltaService";
+import {
+  ChapterArtifactContentVersionError,
+  mergeChapterArtifactSyncResults,
+  type ChapterArtifactSyncResult,
+} from "./artifactSync/ChapterArtifactSyncResult";
 import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
+import {
+  chapterLifecycleService,
+  type ChapterLifecycleService,
+} from "./lifecycle";
 
 export interface ChapterArtifactSyncOptions {
+  artifactSyncPolicy?: "director_v2";
+  directorRunId?: string;
   scheduleBackgroundSync?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
   syncArtifacts?: boolean;
@@ -21,6 +32,10 @@ export interface ChapterArtifactSyncOptions {
 }
 
 export class ChapterArtifactSyncService {
+  constructor(
+    private readonly lifecycleService: Pick<ChapterLifecycleService, "saveWorkingContent"> = chapterLifecycleService,
+  ) {}
+
   async saveDraftAndArtifacts(
     novelId: string,
     chapterId: string,
@@ -28,22 +43,12 @@ export class ChapterArtifactSyncService {
     generationState: "drafted" | "repaired",
     options: ChapterArtifactSyncOptions = {},
   ): Promise<void> {
-    const safeContent = assertChapterContentNotEmpty(content, {
+    const safeContent = await this.lifecycleService.saveWorkingContent({
       novelId,
       chapterId,
-      source: "chapter_artifact_save",
+      content,
+      generationState,
     });
-    await withSqliteRetry(
-      () => prisma.chapter.update({
-        where: { id: chapterId },
-        data: {
-          content: safeContent,
-          generationState,
-          chapterStatus: "generating",
-        },
-      }),
-      { label: "chapterArtifactSync.chapter.update" },
-    );
     if (options.syncArtifacts === false) {
       return;
     }
@@ -55,13 +60,22 @@ export class ChapterArtifactSyncService {
     chapterId: string,
     content: string,
     options: ChapterArtifactSyncOptions = {},
-  ): Promise<void> {
+  ): Promise<ChapterArtifactSyncResult> {
+    const contentHash = buildContentHash(content);
+    const completedArtifacts: string[] = [];
     if (!options.skipLegacySummaryAndFacts) {
       const facts = extractFacts(content);
       const summary = briefSummary(content, facts);
 
       await withSqliteRetry(
         () => prisma.$transaction(async (tx) => {
+          const current = await tx.chapter.findFirst({
+            where: { id: chapterId, novelId },
+            select: { content: true },
+          });
+          if (!current || buildContentHash(current.content ?? "") !== contentHash) {
+            throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期基础资产。");
+          }
           await tx.chapterSummary.upsert({
             where: { chapterId },
             update: {
@@ -93,14 +107,22 @@ export class ChapterArtifactSyncService {
         }),
         { label: "chapterArtifactSync.summaryAndFacts" },
       );
+      completedArtifacts.push("legacy_summary_and_facts");
     }
 
-    await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+    // V2 records structured appearances after candidate identity resolution in the recoverable consumers.
+    if (options.artifactSyncPolicy !== "director_v2") {
+      await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
+      completedArtifacts.push("character_timeline");
+    }
+    let deltaResult: ChapterArtifactSyncResult | null = null;
     if (options.scheduleBackgroundSync !== false) {
       const artifactSyncMode = options.artifactSyncMode ?? "adaptive";
       if (options.awaitArtifactDelta || artifactSyncMode === "strict") {
-        await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
+        deltaResult = await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
           artifactSyncMode,
+          artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
@@ -109,25 +131,39 @@ export class ChapterArtifactSyncService {
       } else {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
           artifactSyncMode,
+          artifactSyncPolicy: options.artifactSyncPolicy,
+          directorRunId: options.directorRunId,
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
           contentProvenance: options.contentProvenance,
         });
+        deltaResult = {
+          status: "pending",
+          contentHash,
+          completedArtifacts: [],
+          reason: "章节资产已进入后台同步队列。",
+        };
       }
     }
-    this.queueRagUpsert("chapter", chapterId);
-    this.queueRagUpsert("chapter_summary", chapterId);
-    this.queueRagUpsert("novel", novelId);
-
-    const factRows = await prisma.consistencyFact.findMany({
-      where: { novelId, chapterId },
-      select: { id: true },
-    });
-    for (const fact of factRows) {
-      this.queueRagUpsert("consistency_fact", fact.id);
+    if (options.artifactSyncPolicy !== "director_v2") {
+      this.queueRagUpsert("chapter", chapterId);
+      this.queueRagUpsert("chapter_summary", chapterId);
+      this.queueRagUpsert("novel", novelId);
+      const factRows = await prisma.consistencyFact.findMany({
+        where: { novelId, chapterId }, select: { id: true },
+      });
+      for (const fact of factRows) this.queueRagUpsert("consistency_fact", fact.id);
     }
 
+    const localResult: ChapterArtifactSyncResult = {
+      status: "completed",
+      contentHash,
+      completedArtifacts,
+    };
+    return deltaResult
+      ? mergeChapterArtifactSyncResults(contentHash, localResult, deltaResult)
+      : localResult;
   }
 
   private async syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string): Promise<void> {
@@ -177,6 +213,13 @@ export class ChapterArtifactSyncService {
 
     await withSqliteRetry(
       () => prisma.$transaction(async (tx) => {
+        const current = await tx.chapter.findFirst({
+          where: { id: chapterId, novelId },
+          select: { content: true },
+        });
+        if (!current || buildContentHash(current.content ?? "") !== buildContentHash(content)) {
+          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色时间线。");
+        }
         await tx.characterTimeline.deleteMany({
           where: {
             novelId,

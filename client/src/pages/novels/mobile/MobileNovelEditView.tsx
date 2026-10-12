@@ -1,4 +1,6 @@
 import { useState } from "react";
+import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
+import DirectorStepCalibrationDialog from "../components/DirectorStepCalibrationDialog";
 import { ArrowLeft, Loader2, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +53,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     characterTab,
     takeover,
     taskDrawer,
+    directorStepCalibration,
     activeStepTakeoverEntry,
   } = props;
   const [isToolsOpen, setIsToolsOpen] = useState(false);
@@ -136,6 +139,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
             </Button>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold text-foreground">{novelTitle}</h1>
+              <DirectorVersionControl novelId={id} version="v1" />
               <p className="mt-0.5 text-xs text-muted-foreground">{statusText}</p>
             </div>
           </div>
@@ -181,6 +185,10 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
                   </Button>
                 ) : null}
 
+                {directorStepCalibration ? (
+                  <DirectorStepCalibrationDialog {...directorStepCalibration} />
+                ) : null}
+
                 <div className="rounded-xl border border-border/70 p-3">
                   <div className="text-sm font-medium">导出当前步骤</div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
@@ -205,7 +213,14 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
 
                 <div className="rounded-xl border border-border/70 p-3">
                   <div className="text-sm font-medium">导出整本书</div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => exportControls.onExportFull("txt")}
+                      disabled={exportControls.isExportingFullTxt}
+                    >
+                      {exportControls.isExportingFullTxt ? "导出中..." : "TXT 正文"}
+                    </Button>
                     <Button
                       type="button"
                       variant="outline"

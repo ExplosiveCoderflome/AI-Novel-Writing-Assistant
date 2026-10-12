@@ -1,13 +1,13 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import { prisma } from "../../../db/prisma";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
 import { toText } from "../novelP0Utils";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import { ChapterRuntimeReadinessService } from "./ChapterRuntimeReadinessService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { AssembledRuntimeChapter } from "./chapterRuntimePipeline";
+import type { ChapterExecutionPreparationService } from "../production/preparation";
 import {
   assertChapterContentNotEmpty,
   isChapterEmptyContentError,
@@ -24,6 +24,7 @@ export interface ChapterStreamGenerationAgentRuntime {
 
 export interface ChapterStreamGenerationOrchestratorDeps {
   assembler: Pick<GenerationContextAssembler, "assemble">;
+  preparationService: Pick<ChapterExecutionPreparationService, "prepare">;
   chapterWritingGraph: Pick<ChapterWritingGraph, "createChapterStream">;
   readinessService: Pick<ChapterRuntimeReadinessService, "assertReady">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent" | "markChapterStatus">;
@@ -137,6 +138,7 @@ export class ChapterStreamGenerationOrchestrator {
   ): Promise<PreparedRuntimeChapter> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.deps.preparationService.prepare(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);
@@ -151,6 +153,7 @@ export class ChapterStreamGenerationOrchestrator {
     chapterId: string;
     request: ChapterRuntimeRequestInput;
     assembled: AssembledRuntimeChapter;
+    onDraftProgress?: (content: string, state: "writing" | "checking") => void;
   }): Promise<{
     content: string;
     lengthControl?: ChapterRuntimePackage["lengthControl"];
@@ -162,6 +165,7 @@ export class ChapterStreamGenerationOrchestrator {
       novelTitle: input.assembled.novel.title,
       chapter: input.assembled.chapter,
       contextPackage: input.assembled.contextPackage,
+      onDraftProgress: input.onDraftProgress,
       options: {
         ...input.request,
         deferArtifactBackgroundSync: true,
@@ -171,7 +175,9 @@ export class ChapterStreamGenerationOrchestrator {
     let fullContent = "";
     for await (const chunk of writerResult.stream) {
       fullContent += toText(chunk.content);
+      input.onDraftProgress?.(fullContent, "writing");
     }
+    input.onDraftProgress?.(fullContent, "checking");
     const normalized = await writerResult.onDone(fullContent);
     const content = assertChapterContentNotEmpty(normalized?.finalContent ?? fullContent, {
       novelId: input.novelId,
@@ -179,6 +185,7 @@ export class ChapterStreamGenerationOrchestrator {
       chapterOrder: input.assembled.chapter.order,
       source: "chapter_runtime_writer",
     });
+    input.onDraftProgress?.(content, "checking");
     return {
       content,
       lengthControl: normalized?.lengthControl,

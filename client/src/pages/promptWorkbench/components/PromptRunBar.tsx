@@ -30,6 +30,7 @@ interface PromptRunBarProps {
   onOpenOfficialVersion: () => void;
   onSave: () => void;
   onReset: () => void;
+  writingLab?: boolean;
 }
 
 export function PromptRunBar(props: PromptRunBarProps) {
@@ -57,6 +58,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
     testLlm,
     onTestLlmChange,
     testRunDisabled,
+    writingLab = false,
   } = props;
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
   const [testDialogOpen, setTestDialogOpen] = useState(false);
@@ -67,25 +69,25 @@ export function PromptRunBar(props: PromptRunBarProps) {
   }
 
   return (
-    <div className="shrink-0 border-t border-[#d8e2de] bg-[#fbfdfb]/95 px-5 py-3 backdrop-blur">
+    <div className="shrink-0 border-t border-border bg-card/95 px-5 py-3 backdrop-blur">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <div className="rounded-md bg-[#f2f8f6] px-3 py-2">
+          {!writingLab ? <div className="rounded-md bg-muted px-3 py-2">
             <span className="text-xs text-muted-foreground">上下文估算</span>
-            <div className="font-semibold text-[#25443f]">
+            <div className="font-semibold text-foreground">
               {estimatedTokens ?? "--"}
               {maxBudget ? <span className="ml-1 text-xs font-normal text-muted-foreground">/ {maxBudget}</span> : null}
             </div>
-          </div>
-          <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
+          </div> : null}
+          {!writingLab ? <div className="rounded-md bg-info/10 px-3 py-2">
             <span className="text-xs text-muted-foreground">测试模型</span>
-            <div className="font-semibold text-[#344d7a]">可选覆盖</div>
-          </div>
-          <div className="rounded-md bg-[#fff7e8] px-3 py-2">
+            <div className="font-semibold text-info">可选覆盖</div>
+          </div> : null}
+          <div className="rounded-md bg-warning/10 px-3 py-2">
             <span className="text-xs text-muted-foreground">保存状态</span>
             <div className={cn(
               "font-semibold",
-              saveError ? "text-destructive" : isSaveSuccess ? "text-[#0f766e]" : "text-[#7a5620]",
+              saveError ? "text-destructive" : isSaveSuccess ? "text-success" : "text-warning",
             )}>
               {saveError ? "保存失败" : isSaveSuccess ? "已保存" : dirtyCount > 0 ? `${dirtyCount} 个未保存` : "无未保存修改"}
             </div>
@@ -99,36 +101,36 @@ export function PromptRunBar(props: PromptRunBarProps) {
             variant="outline"
             onClick={onOpenOfficialVersion}
             disabled={officialVersionDisabled}
-            className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
+            className="border-primary/40 bg-card text-primary hover:bg-primary/10 hover:text-primary"
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
             {officialVersionLabel}
           </Button>
-          <Button
+          {!writingLab ? <Button
             type="button"
             variant="outline"
             onClick={onGeneratePreview}
             disabled={previewDisabled || isPreviewPending}
-            className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
+            className="border-primary/40 bg-card text-primary hover:bg-primary/10 hover:text-primary"
           >
             <Eye className="mr-2 h-4 w-4" />
             {isPreviewPending ? "预览中..." : "生成预览"}
-          </Button>
+          </Button> : null}
           <Button
             type="button"
             variant="outline"
             onClick={() => setTestDialogOpen(true)}
             disabled={testRunDisabled || isTestRunPending}
-            className="border-[#c9b46a] bg-white text-[#7a5620] hover:bg-[#fff7e8] hover:text-[#7a5620]"
+            className="border-warning/50 bg-card text-warning hover:bg-warning/10 hover:text-warning"
           >
             <FlaskConical className="mr-2 h-4 w-4" />
-            {isTestRunPending ? "测试中..." : "测试产出"}
+            {isTestRunPending ? "试写中..." : writingLab ? "试写效果" : "测试产出"}
           </Button>
           <Button
             type="button"
             onClick={onSave}
             disabled={saveDisabled || isSavePending}
-            className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Save className="mr-2 h-4 w-4" />
             {isSavePending ? savePendingLabel : saveLabel}
@@ -138,7 +140,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             variant="ghost"
             onClick={onReset}
             disabled={resetDisabled}
-            className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
+            className="text-muted-foreground hover:bg-info/10 hover:text-info"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             重置修改
@@ -147,10 +149,12 @@ export function PromptRunBar(props: PromptRunBarProps) {
       </div>
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
         <AppDialogContent
-          title="测试产出"
-          description="选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"
-          className="max-w-2xl"
-          bodyClassName="bg-[#fbfdfb]"
+          title={writingLab ? "试写效果" : "测试产出"}
+          description={writingLab
+            ? "使用当前小说、章节和未保存模板试写一次，不会改动章节正文。"
+            : "选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"}
+          className="prompt-workbench-theme max-w-2xl"
+          bodyClassName="bg-card"
           footer={(
             <>
               <Button type="button" variant="ghost" onClick={() => setTestDialogOpen(false)}>
@@ -160,16 +164,16 @@ export function PromptRunBar(props: PromptRunBarProps) {
                 type="button"
                 onClick={handleStartTestRun}
                 disabled={testRunDisabled || isTestRunPending}
-                className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <FlaskConical className="mr-2 h-4 w-4" />
-                {isTestRunPending ? "测试中..." : "开始测试"}
+                {isTestRunPending ? "试写中..." : writingLab ? "开始试写" : "开始测试"}
               </Button>
             </>
           )}
         >
           <div className="space-y-4">
-            <div className="rounded-md border border-[#d8e2de] bg-white p-4">
+            <div className="rounded-md border border-border bg-card p-4">
               <LLMSelector
                 value={testLlm}
                 onChange={onTestLlmChange}
@@ -177,8 +181,10 @@ export function PromptRunBar(props: PromptRunBarProps) {
                 showParameters
               />
             </div>
-            <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">
-              测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。
+            <div className="rounded-md bg-warning/10 px-3 py-2 text-xs leading-relaxed text-warning">
+              {writingLab
+                ? "试写会调用真实模型并消耗额度，结果仅用于比较模板效果，不会保存为章节正文。"
+                : "测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。"}
             </div>
           </div>
         </AppDialogContent>

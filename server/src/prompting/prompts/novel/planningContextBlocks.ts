@@ -6,6 +6,7 @@ import type {
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { createContextBlock } from "../../core/contextBudget";
 import type { PromptContextBlock } from "../../core/promptTypes";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 function compactText(value: string | null | undefined, fallback = "none"): string {
   return value?.replace(/\s+/g, " ").trim() || fallback;
@@ -46,13 +47,18 @@ function readerChannelPreferenceLabel(value: DirectorProjectContextInput["reader
 export function formatProjectContext(input: DirectorProjectContextInput): string {
   const styleSummaryLines = input.styleIntentSummary?.stageSummaryLines ?? [];
   const readerChannel = readerChannelPreferenceLabel(input.readerChannelPreference);
+  const completionProfile = typeof input.estimatedChapterCount === "number"
+    ? buildDirectorCompletionProfile(input.estimatedChapterCount)
+    : null;
   const lines = [
     input.title?.trim() ? `current title: ${input.title.trim()}` : "",
     input.description?.trim() ? `current description: ${input.description.trim()}` : "",
     input.targetAudience?.trim() ? `target audience: ${input.targetAudience.trim()}` : "",
     input.bookSellingPoint?.trim() ? `book selling point: ${input.bookSellingPoint.trim()}` : "",
     input.competingFeel?.trim() ? `competing feel: ${input.competingFeel.trim()}` : "",
-    input.first30ChapterPromise?.trim() ? `first 30 chapter promise: ${input.first30ChapterPromise.trim()}` : "",
+    input.first30ChapterPromise?.trim()
+      ? `${completionProfile?.promiseScope === "whole_book" ? "whole-book core promise" : "first 30 chapter promise"}: ${input.first30ChapterPromise.trim()}`
+      : "",
     input.commercialTags && input.commercialTags.length > 0
       ? `commercial tags: ${input.commercialTags.join(", ")}`
       : "",
@@ -62,10 +68,12 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.productionFoundationPrompt?.trim()
       ? `production foundation contract:\n${input.productionFoundationPrompt.trim()}`
       : "",
+    input.marketBriefPrompt?.trim() ? `market creative brief:\n${input.marketBriefPrompt.trim()}` : "",
     input.worldId?.trim() ? `world id: ${input.worldId.trim()}` : "",
     input.writingMode ? `writing mode: ${input.writingMode}` : "",
     input.projectMode ? `project mode: ${input.projectMode}` : "",
     readerChannel ? `reader channel tendency: ${readerChannel}` : "",
+    input.powerSystemPreference ? `power system preference: ${input.powerSystemPreference}` : "",
     input.narrativePov ? `narrative pov: ${input.narrativePov}` : "",
     input.pacePreference ? `pace: ${input.pacePreference}` : "",
     input.styleTone?.trim() && !input.styleProfileId?.trim() ? `style tone: ${input.styleTone.trim()}` : "",
@@ -76,6 +84,9 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.aiFreedom ? `ai freedom: ${input.aiFreedom}` : "",
     typeof input.defaultChapterLength === "number" ? `default chapter length: ${input.defaultChapterLength}` : "",
     typeof input.estimatedChapterCount === "number" ? `estimated chapters: ${input.estimatedChapterCount}` : "",
+    completionProfile?.mode === "compact_book"
+      ? `compact book: three-act structure, ending required by chapter ${completionProfile.endingRequiredBy}, close-only extension up to ${completionProfile.maxChapterCount}`
+      : "",
   ].filter(Boolean);
   return lines.join("\n");
 }

@@ -248,8 +248,15 @@ export function classifyPayoffLedgerItems(
   overdueItems: PayoffLedgerItem[];
   paidOffItems: PayoffLedgerItem[];
 } {
-  const overdueItems = items.filter((item) => item.currentStatus === "overdue");
-  const pendingItems = items.filter((item) => isPendingLike(item.currentStatus));
+  // An overdue flag is only actionable after the current chapter has passed
+  // the explicit end of its payoff window. During the window, keep the item
+  // in the pending set so it can guide the current chapter without forcing a
+  // replan before the promised chapter has actually completed.
+  const overdueItems = items.filter((item) => isPayoffOverdueAtChapter(item, chapterOrder));
+  const pendingItems = items.filter((item) => (
+    isPendingLike(item.currentStatus)
+    || (item.currentStatus === "overdue" && !isPayoffOverdueAtChapter(item, chapterOrder))
+  ));
   const urgentItems = pendingItems.filter((item) => isUrgent(item, chapterOrder));
   const paidOffItems = items.filter((item) => item.currentStatus === "paid_off");
   return {
@@ -258,6 +265,18 @@ export function classifyPayoffLedgerItems(
     overdueItems,
     paidOffItems,
   };
+}
+
+export function isPayoffOverdueAtChapter(
+  item: Pick<PayoffLedgerItem, "currentStatus" | "targetEndChapterOrder">,
+  chapterOrder?: number | null,
+): boolean {
+  return item.currentStatus === "overdue"
+    && (
+      chapterOrder == null
+      || item.targetEndChapterOrder == null
+      || item.targetEndChapterOrder < chapterOrder
+    );
 }
 
 export function buildPayoffLedgerSummary(

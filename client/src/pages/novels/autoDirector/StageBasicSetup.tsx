@@ -1,13 +1,15 @@
+import { useState } from "react";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
   BASIC_INFO_FIELD_HINTS,
-  DEFAULT_ESTIMATED_CHAPTER_COUNT,
   EMOTION_OPTIONS,
   PACE_OPTIONS,
+  POWER_SYSTEM_OPTIONS,
   POV_OPTIONS,
   READER_CHANNEL_OPTIONS,
   WRITING_PLATFORM_OPTIONS,
 } from "../novelBasicInfo.shared";
+import { parseEstimatedChapterCountInput } from "./estimatedChapterCountInput";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -35,6 +37,7 @@ export default function StageBasicSetup({
   onBack,
   onConfirm,
 }: StageBasicSetupProps) {
+  const [estimatedChapterCountDraft, setEstimatedChapterCountDraft] = useState<string | null>(null);
   const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
   const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
@@ -154,6 +157,25 @@ export default function StageBasicSetup({
         </div>
 
         <div className="space-y-2">
+          <FieldLabel htmlFor="director-basic-power-system" hint={BASIC_INFO_FIELD_HINTS.powerSystemPreference}>战力体系</FieldLabel>
+          <SelectControl
+            id="director-basic-power-system"
+            className={controlClassName}
+            value={basicForm.powerSystemPreference}
+            onChange={(event) => onBasicFormChange({
+              powerSystemPreference: event.target.value as NovelBasicFormState["powerSystemPreference"],
+            })}
+          >
+            {POWER_SYSTEM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </SelectControl>
+          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            {findOptionSummary(POWER_SYSTEM_OPTIONS, basicForm.powerSystemPreference)}
+          </div>
+        </div>
+
+        <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-estimated" hint={BASIC_INFO_FIELD_HINTS.estimatedChapterCount}>预计章节数</FieldLabel>
           <Input
             id="director-basic-estimated"
@@ -161,17 +183,25 @@ export default function StageBasicSetup({
             min={1}
             max={2000}
             className={controlClassName}
-            value={basicForm.estimatedChapterCount}
-            onChange={(event) => onBasicFormChange({
-              estimatedChapterCount: Math.max(
-                1,
-                Math.min(2000, Number(event.target.value || 0) || DEFAULT_ESTIMATED_CHAPTER_COUNT),
-              ),
-            })}
+            value={estimatedChapterCountDraft ?? String(basicForm.estimatedChapterCount)}
+            onChange={(event) => {
+              const draft = event.target.value;
+              setEstimatedChapterCountDraft(draft);
+              const estimatedChapterCount = parseEstimatedChapterCountInput(draft);
+              if (estimatedChapterCount !== null) {
+                onBasicFormChange({ estimatedChapterCount });
+              }
+            }}
+            onBlur={() => setEstimatedChapterCountDraft(null)}
           />
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
           </div>
+          {basicForm.estimatedChapterCount <= 60 ? (
+            <div className={`rounded-lg bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              紧凑全书模式：AI 会在有限篇幅内完成完整结局，必要时最多追加 5 章收尾。
+            </div>
+          ) : null}
           {hasLargeChapterPlan ? (
             <div className={`rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。

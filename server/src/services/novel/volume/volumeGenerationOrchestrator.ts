@@ -22,6 +22,7 @@ import {
   createVolumeStrategyPrompt,
   volumeStrategyCritiquePrompt,
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
+import { resolveVolumeStrategyOutputTokenBudget } from "../../../prompting/prompts/novel/promptBudgetProfiles";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
@@ -61,6 +62,7 @@ import {
   MAX_VOLUME_COUNT,
   buildVolumeCountGuidance,
 } from "@ai-novel/shared/types/volumePlanning";
+import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
 
@@ -143,8 +145,10 @@ async function loadGenerationContext(params: {
         characters: {
           orderBy: { createdAt: "asc" },
           select: {
+            id: true,
             name: true,
             role: true,
+            castRole: true,
             currentGoal: true,
             currentState: true,
           },
@@ -160,6 +164,7 @@ async function loadGenerationContext(params: {
 
   const novel: VolumeGenerationNovel = {
     ...rawNovel,
+    completionProfile: buildDirectorCompletionProfile(rawNovel.estimatedChapterCount ?? 80),
     storyModePromptBlock: buildStoryModePromptBlock({
       primary: rawNovel.primaryStoryMode ? normalizeStoryModeOutput(rawNovel.primaryStoryMode) : null,
       secondary: rawNovel.secondaryStoryMode ? normalizeStoryModeOutput(rawNovel.secondaryStoryMode) : null,
@@ -189,6 +194,8 @@ async function generateStrategy(params: {
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
   const fixedRecommendedVolumeCount = resolveFixedRecommendedVolumeCount(volumeCountGuidance);
+  const expectedVolumeCount = fixedRecommendedVolumeCount
+    ?? volumeCountGuidance.decisionVolumeCountRange.max;
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "strategy",
@@ -222,7 +229,7 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: 1_800,
+      maxTokens: resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount),
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",
@@ -307,7 +314,9 @@ async function generateSkeleton(params: {
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
-  const targetVolumeCount = document.strategyPlan.recommendedVolumeCount;
+  const targetVolumeCount = Math.max(1, Math.round(
+    options.skeletonVolumeCount ?? document.strategyPlan.recommendedVolumeCount,
+  ));
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "skeleton",

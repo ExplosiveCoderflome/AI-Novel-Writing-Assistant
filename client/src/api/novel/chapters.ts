@@ -6,6 +6,8 @@ import type {
 import type {
   ChapterEditorAiRevisionRequest,
   ChapterEditorAiRevisionResponse,
+  ChapterEditorCursorContinuationRequest,
+  ChapterEditorCursorContinuationResponse,
   Chapter,
   ChapterEditorWorkspaceResponse,
   ChapterEditorRewritePreviewRequest,
@@ -49,6 +51,7 @@ export async function updateNovelChapter(
   id: string,
   chapterId: string,
   payload: Partial<{
+    expectedUpdatedAt: string;
     title: string;
     order: number;
     content: string;
@@ -119,6 +122,26 @@ export async function previewChapterAiRevision(
   const { data } = await apiClient.post<ApiResponse<ChapterEditorAiRevisionResponse>>(
     `/novels/${novelId}/chapters/${chapterId}/editor/ai-revision-preview`,
     payload,
+  );
+  return data;
+}
+
+export async function previewChapterCursorContinuation(
+  novelId: string,
+  chapterId: string,
+  payload: ChapterEditorCursorContinuationRequest,
+) {
+  const { data } = await apiClient.post<ApiResponse<ChapterEditorCursorContinuationResponse>>(
+    `/novels/${novelId}/chapters/${chapterId}/editor/continue-preview`,
+    payload,
+  );
+  return data;
+}
+
+export async function resolveChapterAuditIssue(novelId: string, issueId: string) {
+  const { data } = await apiClient.post<ApiResponse<unknown>>(
+    `/novels/${novelId}/audit-issues/${issueId}/resolve`,
+    {},
   );
   return data;
 }

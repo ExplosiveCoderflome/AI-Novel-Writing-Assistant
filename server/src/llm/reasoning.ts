@@ -1,17 +1,26 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { REASONING_EFFORTS, type LLMProvider, type ReasoningEffort } from "@ai-novel/shared/types/llm";
+import { isBuiltInProvider } from "./providers";
 
 const THINK_OPEN_TAG = "<think>";
 const THINK_CLOSE_TAG = "</think>";
 const DEEPSEEK_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?deepseek\.com(?:\/|$)/i;
+const GLM_HOST_PATTERN = /(?:^|:\/\/)open\.bigmodel\.cn(?:\/|$)/i;
 const MINIMAX_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?minimax(?:i)?\.(?:io|com)(?:\/|$)/i;
 const MINIMAX_MODEL_PATTERN = /^minimax-m2(?:[.-]|$)/i;
 
 export interface ProviderReasoningBehavior {
   reasoningEnabled: boolean;
+  reasoningEffort: ReasoningEffort | null;
   modelKwargs?: Record<string, unknown>;
   includeRawResponse: boolean;
   usesAccumulatedStreamDeltas: boolean;
+}
+
+export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
+  return typeof value === "string" && (REASONING_EFFORTS as readonly string[]).includes(value)
+    ? value as ReasoningEffort
+    : "high";
 }
 
 export interface StreamFilterResult {
@@ -86,23 +95,53 @@ export function isMiniMaxCompatibleProvider(
   return Boolean(normalizedModel && MINIMAX_MODEL_PATTERN.test(normalizedModel));
 }
 
+function isDeepSeekThinkingToggleModel(model?: string): boolean {
+  const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
+  if (!normalizedModel) {
+    return false;
+  }
+  return normalizedModel === "deepseek-reasoner"
+    || normalizedModel.startsWith("deepseek-flash")
+    || normalizedModel.startsWith("deepseek-pro")
+    || normalizedModel.startsWith("deepseek-v4-flash")
+    || normalizedModel.startsWith("deepseek-v4-pro");
+}
+
 export function isDeepSeekThinkingModeProvider(
   provider: LLMProvider,
   baseURL?: string,
   model?: string,
 ): boolean {
-  const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
-  const supportsThinkingToggle = normalizedModel === "deepseek-v4-pro"
-    || normalizedModel === "deepseek-v4-flash"
-    || normalizedModel === "deepseek-reasoner";
-  if (!supportsThinkingToggle) {
+  if (!isDeepSeekThinkingToggleModel(model)) {
     return false;
   }
   if (provider === "deepseek") {
     return true;
   }
+  if (!isBuiltInProvider(provider)) {
+    return true;
+  }
   const normalizedBaseURL = normalizeOptionalText(baseURL);
   return Boolean(normalizedBaseURL && DEEPSEEK_HOST_PATTERN.test(normalizedBaseURL));
+}
+
+export function isGlmThinkingModeProvider(
+  provider: LLMProvider,
+  baseURL?: string,
+  model?: string,
+): boolean {
+  const normalizedModel = normalizeOptionalText(model)?.toLowerCase().split("/").at(-1);
+  const version = normalizedModel?.match(/^glm-(\d+)(?:\.(\d+))?/);
+  const major = Number(version?.[1] ?? 0);
+  const minor = Number(version?.[2] ?? 0);
+  if (major < 4 || (major === 4 && minor < 5)) {
+    return false;
+  }
+  if (provider === "glm") {
+    return true;
+  }
+  const normalizedBaseURL = normalizeOptionalText(baseURL);
+  return Boolean(normalizedBaseURL && GLM_HOST_PATTERN.test(normalizedBaseURL));
 }
 
 export function resolveProviderReasoningBehavior(input: {
@@ -110,10 +149,12 @@ export function resolveProviderReasoningBehavior(input: {
   baseURL: string;
   model: string;
   reasoningEnabled: boolean;
+  reasoningEffort?: ReasoningEffort | null;
 }): ProviderReasoningBehavior {
-  if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
+  if (isGlmThinkingModeProvider(input.provider, input.baseURL, input.model)) {
     return {
       reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: null,
       modelKwargs: {
         thinking: {
           type: input.reasoningEnabled ? "enabled" : "disabled",
@@ -124,10 +165,27 @@ export function resolveProviderReasoningBehavior(input: {
     };
   }
 
+  if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
+    const reasoningEffort = normalizeReasoningEffort(input.reasoningEffort);
+    return {
+      reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: input.reasoningEnabled ? reasoningEffort : null,
+      modelKwargs: {
+        thinking: {
+          type: input.reasoningEnabled ? "enabled" : "disabled",
+        },
+        ...(input.reasoningEnabled ? { reasoning_effort: reasoningEffort } : {}),
+      },
+      includeRawResponse: false,
+      usesAccumulatedStreamDeltas: false,
+    };
+  }
+
   const isMiniMax = isMiniMaxCompatibleProvider(input.provider, input.baseURL, input.model);
   if (isMiniMax) {
     return {
       reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: null,
       modelKwargs: {
         reasoning_split: true,
       },
@@ -138,6 +196,7 @@ export function resolveProviderReasoningBehavior(input: {
 
   return {
     reasoningEnabled: input.reasoningEnabled,
+    reasoningEffort: null,
     includeRawResponse: false,
     usesAccumulatedStreamDeltas: false,
   };
@@ -299,5 +358,25 @@ export class ThinkTagStreamFilter {
       text,
       reasoning,
     };
+  }
+}
+
+export class ReasoningStreamCollector {
+  private readonly thinkFilter = new ThinkTagStreamFilter();
+
+  private miniMaxReasoningBuffer = "";
+
+  push(chunk: BaseMessageChunk, text: string): string {
+    const rawResponse = (chunk.additional_kwargs as { __raw_response?: unknown } | undefined)
+      ?.__raw_response;
+    const rawReasoning = extractMiniMaxRawStreamData(rawResponse).reasoningBuffer;
+    const normalized = diffAccumulatedText(this.miniMaxReasoningBuffer, rawReasoning);
+    this.miniMaxReasoningBuffer = normalized.nextBuffer;
+    const direct = normalized.delta || extractReasoningTextFromChunk(chunk);
+    return uniqueJoinedText([direct, this.thinkFilter.push(text).reasoning]);
+  }
+
+  flush(): string {
+    return this.thinkFilter.flush().reasoning;
   }
 }

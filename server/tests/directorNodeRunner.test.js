@@ -60,7 +60,6 @@ test("director node runner blocks writes when runtime policy is suggest-only", a
   const store = buildStore(buildSnapshot({
     mode: "suggest_only",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -91,7 +90,6 @@ test("director node runner records target-scoped step completion", async () => {
   const store = buildStore(buildSnapshot({
     mode: "run_until_gate",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -131,7 +129,6 @@ test("director node runner reuses completed idempotent step without rerunning", 
   const store = buildStore(buildSnapshot({
     mode: "run_until_gate",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -140,7 +137,6 @@ test("director node runner reuses completed idempotent step without rerunning", 
     ...buildSnapshot({
       mode: "run_until_gate",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-04-28T00:00:00.000Z",
@@ -193,7 +189,6 @@ test("director node runner can ignore a completed idempotent step for forced rer
     ...buildSnapshot({
       mode: "run_until_gate",
       mayOverwriteUserContent: false,
-      maxAutoRepairAttempts: 1,
       allowExpensiveReview: false,
       modelTier: "balanced",
       updatedAt: "2026-04-28T00:00:00.000Z",
@@ -234,7 +229,6 @@ test("director node runner passes contract policy action into policy decisions",
   const store = buildStore(buildSnapshot({
     mode: "run_until_gate",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -251,8 +245,6 @@ test("director node runner passes contract policy action into policy decisions",
         mayOverwriteUserContent: false,
         affectedArtifacts: [],
         riskTags: [],
-        autoRetryBudget: input.action === "repair" ? 1 : 0,
-        onQualityFailure: input.action === "repair" ? "repair_once" : "continue_with_risk",
       };
     },
   });
@@ -278,7 +270,6 @@ test("director node runner passes contract reads writes and target into policy d
   const store = buildStore(buildSnapshot({
     mode: "run_until_gate",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: false,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -295,8 +286,6 @@ test("director node runner passes contract reads writes and target into policy d
         mayOverwriteUserContent: false,
         affectedArtifacts: [],
         riskTags: ["large_scope_auto_run"],
-        autoRetryBudget: 0,
-        onQualityFailure: "pause_for_manual",
       };
     },
   });
@@ -322,7 +311,6 @@ test("director node runner records blocked scope gates separately from approval 
   const store = buildStore(buildSnapshot({
     mode: "auto_safe_scope",
     mayOverwriteUserContent: false,
-    maxAutoRepairAttempts: 1,
     allowExpensiveReview: true,
     modelTier: "balanced",
     updatedAt: "2026-04-28T00:00:00.000Z",
@@ -335,9 +323,7 @@ test("director node runner records blocked scope gates separately from approval 
       reason: "chapter blocked",
       mayOverwriteUserContent: false,
       affectedArtifacts: [],
-      riskTags: ["quality_blocked_scope"],
-      autoRetryBudget: 0,
-      onQualityFailure: "block_scope",
+      riskTags: ["default_approval"],
     }),
   });
 

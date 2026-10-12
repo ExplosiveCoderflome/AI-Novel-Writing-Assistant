@@ -31,6 +31,9 @@ apiClient.interceptors.response.use(
     const backendError = error.response?.data?.error;
     const backendMessage = error.response?.data?.message;
     const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
+    const source = error.response?.data as (ApiResponse<unknown> & {sourceRoute?: unknown; sourceActionLabel?: unknown}) | undefined;
+    const sourceRoute = typeof source?.sourceRoute === "string" && /^\/(?!\/)/.test(source.sourceRoute) ? source.sourceRoute : null;
+    const sourceAction = status === 409 && sourceRoute ? {label: typeof source?.sourceActionLabel === "string" ? source.sourceActionLabel : "打开创作页面", onClick: () => window.location.assign(sourceRoute)} : undefined;
     let title = backendError ?? error.message ?? "请求失败。";
     let description = backendMessage && backendMessage !== backendError ? backendMessage : undefined;
 
@@ -45,7 +48,9 @@ apiClient.interceptors.response.use(
     if (!status || !silentErrorStatuses.includes(status)) {
       const isGenericServerErrorToast = title === "服务器错误，请稍后重试。";
 
-      if (description) {
+      if (sourceAction) {
+        toast.error(title, {description, action: sourceAction});
+      } else if (description) {
         toast.error(
           title,
           isGenericServerErrorToast

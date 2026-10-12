@@ -12,6 +12,7 @@ import {
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { featureFlags } from "@/config/featureFlags";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 
 export type NovelListItem = NovelListResponse["items"][number];
 export type StatusFilter = "all" | "draft" | "published";
@@ -19,10 +20,12 @@ export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const REFERENCE_CREATE_LINK = "/novels/auto-director?start=reference";
 export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
   ? "/create?form=short_story"
   : null;
 export const PRIMARY_CREATE_LABEL = "AI 自动导演开书";
+export const REFERENCE_CREATE_LABEL = "照着一本书写";
 export const MANUAL_CREATE_LINK = "/novels/create";
 export const NOVEL_LIST_PAGE_SIZE = 24;
 
@@ -45,6 +48,7 @@ export interface WorkflowDisplay {
 }
 
 export function getNovelWorkflowTask(novel: NovelListItem): NovelAutoDirectorTaskSummary | null {
+  if (getDirectorWorkspaceHref(novel)) return null;
   return novel.narrativeForm === "short_story"
     ? novel.latestCreationStudioTask ?? null
     : novel.latestAutoDirectorTask ?? null;
@@ -179,6 +183,7 @@ export function getPrimaryActionLabel(novel: NovelListItem): string {
   if (novel.narrativeForm === "short_story") {
     return "打开作品";
   }
+  if (getDirectorWorkspaceHref(novel)) return "打开导演台";
   const task = getNovelWorkflowTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;

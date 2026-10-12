@@ -53,6 +53,7 @@ interface CharacterPrepOptions {
 }
 
 interface CharacterCastApplyOptions {
+  requireEmptyCast?: boolean;
   overrideQualityGate?: boolean;
   visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
   postApplyMode?: "sync" | "background" | "deferred";
@@ -667,6 +668,9 @@ export class CharacterPreparationService {
       orderBy: { createdAt: "asc" },
     });
 
+    if (options.requireEmptyCast && existingCharacters.length > 0) {
+      throw new Error("本书已有角色，请保留角色资料后重新准备阵容。");
+    }
     const characterIdByName = new Map<string, string>();
     const involvedCharacterIds: string[] = [];
     let createdCount = 0;
@@ -745,7 +749,7 @@ export class CharacterPreparationService {
     }
 
     const uniqueCharacterIds = Array.from(new Set(involvedCharacterIds));
-    await prisma.characterRelation.deleteMany({
+    if (!options.requireEmptyCast) await prisma.characterRelation.deleteMany({
       where: {
         novelId,
         OR: [
@@ -786,7 +790,7 @@ export class CharacterPreparationService {
       await prisma.characterRelation.createMany({ data: relationRows });
     }
 
-    await prisma.characterCastOption.updateMany({
+    if (!options.requireEmptyCast) await prisma.characterCastOption.updateMany({
       where: { novelId },
       data: { status: "draft" },
     });

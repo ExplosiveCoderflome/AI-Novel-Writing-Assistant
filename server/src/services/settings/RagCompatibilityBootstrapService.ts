@@ -27,6 +27,7 @@ import {
   RAG_EMBEDDING_RETRY_BASE_MS_KEY,
   RAG_EMBEDDING_TIMEOUT_MS_KEY,
   RAG_ENABLED_KEY,
+  RAG_RUNTIME_SETTING_KEYS,
   QDRANT_TIMEOUT_MS_KEY,
   QDRANT_UPSERT_MAX_BYTES_KEY,
   CHUNK_SIZE_KEY,
@@ -43,11 +44,45 @@ import {
 interface RagCompatibilityBootstrapReport {
   importedSettingKeys: string[];
   importedProviderRecords: string[];
+  restoredLegacyPackagedDesktopRagDefault: boolean;
 }
 
 interface RagSettingImportCandidate {
   key: string;
   value: string | undefined;
+}
+
+function isDisabled(value: string): boolean {
+  return ["0", "false", "off", "no"].includes(value.trim().toLowerCase());
+}
+
+async function restoreLegacyPackagedDesktopRagDefault(): Promise<boolean> {
+  if (process.env.AI_NOVEL_DESKTOP_PACKAGED !== "true") {
+    return false;
+  }
+
+  try {
+    const settings = await prisma.appSetting.findMany({
+      where: { key: { in: [...RAG_RUNTIME_SETTING_KEYS] } },
+      select: { key: true, value: true },
+    });
+    const enabledSetting = settings.find((setting) => setting.key === RAG_ENABLED_KEY);
+
+    if (settings.length !== 1 || !enabledSetting || !isDisabled(enabledSetting.value)) {
+      return false;
+    }
+
+    await prisma.appSetting.update({
+      where: { key: RAG_ENABLED_KEY },
+      data: { value: "true" },
+    });
+    return true;
+  } catch (error) {
+    if (isMissingTableError(error)) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 function getLegacyEmbeddingProviderFromEnv(): EmbeddingProvider {
@@ -285,6 +320,7 @@ export async function initializeRagSettingsCompatibility(): Promise<RagCompatibi
     importMissingRagSettingsFromEnv(),
     importMissingEmbeddingProviderRecords(),
   ]);
+  const restoredLegacyPackagedDesktopRagDefault = await restoreLegacyPackagedDesktopRagDefault();
 
   await getRagEmbeddingSettings();
   await getRagRuntimeSettings();
@@ -292,5 +328,6 @@ export async function initializeRagSettingsCompatibility(): Promise<RagCompatibi
   return {
     importedSettingKeys,
     importedProviderRecords,
+    restoredLegacyPackagedDesktopRagDefault,
   };
 }

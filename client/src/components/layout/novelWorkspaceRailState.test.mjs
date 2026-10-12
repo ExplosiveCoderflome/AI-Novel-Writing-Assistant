@@ -6,6 +6,7 @@ import {
   extractAutoDirectorResetStepsFromMeta,
   resolveAutoDirectorResetStepsForWorkflowProgress,
 } from "./novelWorkspaceRailState.ts";
+import * as railState from "./novelWorkspaceRailState.ts";
 
 test("auto director downstream reset marks preserved downstream assets as not ready in the rail", () => {
   const resetSteps = extractAutoDirectorResetStepsFromMeta({
@@ -116,4 +117,13 @@ test("auto director downstream reset does not mark completed earlier workflow st
   assert.equal(readiness.character, true);
   assert.equal(readiness.outline, false);
   assert.equal(readiness.structured, false);
+});
+
+test("rail keeps the current failed or paused book projection visible without a URL task pin", () => {
+  for (const status of ["failed", "blocked", "waiting_recovery"]) {
+    assert.equal(railState.shouldShowBookAutomationProjectionWithoutActiveTask({ status, latestTaskId: "current" }), true, status);
+  }
+  assert.equal(railState.shouldShowBookAutomationProjectionWithoutActiveTask({ status: "failed", latestTaskId: null }), false);
+  assert.equal(railState.shouldShowBookAutomationProjectionWithoutActiveTask({ status: "completed", latestTaskId: "current" }), false);
+  assert.equal(railState.shouldShowBookAutomationProjectionWithoutActiveTask({ status: "cancelled", latestTaskId: "current" }), false);
 });

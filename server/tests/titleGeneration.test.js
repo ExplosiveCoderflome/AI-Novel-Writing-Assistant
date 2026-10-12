@@ -55,6 +55,21 @@ test("collectUniqueSuggestions limits overused title skeletons within a batch", 
   assert.ok(scenarioThenSelfCount <= 3);
 });
 
+test("primary title selection preserves the model decision instead of reordering by self score", () => {
+  const titles = collectUniqueSuggestions([
+    { title: "每赢下一个项目，身边就少一个人", clickRate: 76, style: "conflict" },
+    { title: "我赢了，她没了", clickRate: 96, style: "literary" },
+    { title: "我升职了，未婚妻失踪了", clickRate: 88, style: "suspense" },
+    { title: "我拿项目换回失踪的未婚妻", clickRate: 84, style: "conflict" },
+  ], 4, [], {
+    preserveOrder: true,
+    enforceFrameDiversity: false,
+  });
+
+  assert.equal(titles.length, 4);
+  assert.equal(titles[0].title, "每赢下一个项目，身边就少一个人");
+});
+
 test("hasEnoughStructuralVariety rejects batches that reuse one frame too heavily", () => {
   const narrowBatch = [
     { title: "全球感染，我觉醒了物资标记", clickRate: 88, style: "high_concept" },
@@ -74,6 +89,7 @@ test("title prompt render now asks for current output fields and structure diver
   const messages = titleGenerationPrompt.render({
     context: {
       mode: "brief",
+      selectionMode: "pool",
       count: 8,
       brief: "末世丧尸题材，主角拥有不断刷新的超市资源。",
       referenceTitle: "",
@@ -99,4 +115,38 @@ test("title prompt render now asks for current output fields and structure diver
   assert.match(systemPrompt, /hookType/);
   assert.match(systemPrompt, /句式框架/);
   assert.match(systemPrompt, /标题句式框架过于集中/);
+});
+
+test("primary title prompt makes the first result the platform-specific main title", () => {
+  const messages = titleGenerationPrompt.render({
+    context: {
+      mode: "brief",
+      selectionMode: "primary",
+      count: 4,
+      brief: "推荐发布平台：番茄免费网文\n都市职场项目竞争，每次赢下项目都会失去一个重要的人。",
+      referenceTitle: "",
+      novelTitle: "",
+      currentTitle: "",
+      genreName: "都市",
+      genreDescription: "职场竞争与关系悬疑。",
+    },
+    forceJson: true,
+    retryReason: null,
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  const systemPrompt = String(messages[0].content);
+  const humanPrompt = String(messages[1].content);
+
+  assert.match(systemPrompt, /titles\[0\].*唯一主书名/);
+  assert.match(systemPrompt, /主角身份或处境/);
+  assert.match(systemPrompt, /不强制平均覆盖 style/);
+  assert.doesNotMatch(systemPrompt, /至少覆盖 3 种 style/);
+  assert.match(humanPrompt, /titles\[0\] 即最终推荐/);
+  assert.match(humanPrompt, /番茄免费网文/);
 });

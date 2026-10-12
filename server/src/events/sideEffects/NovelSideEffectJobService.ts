@@ -166,6 +166,22 @@ export class NovelSideEffectJobService {
     }
   }
 
+  async deferJob(job: NovelSideEffectJob, runAfter: Date): Promise<void> {
+    const updated = await this.db.novelSideEffectJob.updateMany({where: {
+      id: job.id, status: "running", leaseOwner: job.leaseOwner,
+    }, data: {status: "pending", runAfter, attempts: Math.max(0, job.attempts - 1),
+      leaseOwner: null, leaseExpiresAt: null, lastError: null, finishedAt: null}});
+    if (updated.count !== 1) throw new Error(`Novel side effect job ${job.id} deferral lost its lease.`);
+  }
+
+  async renewLease(job: NovelSideEffectJob, leaseMs: number): Promise<boolean> {
+    const now = this.now();
+    const updated = await this.db.novelSideEffectJob.updateMany({where: {id: job.id, status: "running",
+      leaseOwner: job.leaseOwner, leaseExpiresAt: {gt: now}},
+      data: {leaseExpiresAt: new Date(now.getTime() + leaseMs)}});
+    return updated.count === 1;
+  }
+
   async markFailedOrDead(job: NovelSideEffectJob, error: unknown, options?: { forceDead?: boolean }): Promise<NovelSideEffectJobStatus> {
     const nextStatus: NovelSideEffectJobStatus = options?.forceDead || job.attempts >= job.maxAttempts ? "dead" : "failed";
     const retryDelayMs = nextStatus === "failed"
@@ -217,4 +233,6 @@ export class NovelSideEffectJobService {
 }
 
 export const novelSideEffectJobService = new NovelSideEffectJobService();
+
+export class NovelSideEffectLeaseLostError extends Error {}
 

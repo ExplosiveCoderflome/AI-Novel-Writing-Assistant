@@ -53,7 +53,7 @@ export default function SettingsNavigationCards(props: {
             </Badge>
           </div>
           <Button asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/knowledge?tab=settings">打开知识库设置</Link>
+            <Link to="/settings/knowledge">打开知识库与写法</Link>
           </Button>
         </CardContent>
         </Card>

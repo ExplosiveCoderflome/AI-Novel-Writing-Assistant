@@ -7,7 +7,22 @@ const {
   getModelParameterCompatibility,
   resolveModelTemperature,
 } = require("../dist/llm/capabilities.js");
-const { resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
+const {
+  buildOpenAICompatibleDefaultHeaders,
+  resolveLLMClientOptions,
+  setProviderSecretCache,
+} = require("../dist/llm/factory.js");
+
+test("custom provider auth mode replaces the SDK bearer header when requested", () => {
+  assert.equal(buildOpenAICompatibleDefaultHeaders("bearer", "secret"), undefined);
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("x-api-key", "secret"), {
+    Authorization: null,
+    "x-api-key": "secret",
+  });
+  assert.deepEqual(buildOpenAICompatibleDefaultHeaders("none", "secret"), {
+    Authorization: null,
+  });
+});
 const {
   classifyStructuredOutputFailure,
   resolveStructuredOutputProfile,
@@ -37,12 +52,17 @@ test("kimi thinking models do not enable forced json mode", () => {
   assert.equal(thinkingCapability.supportsJsonObject, false);
 });
 
-test("kimi k2 models force temperature 1 while moonshot models keep requested temperature", () => {
+test("kimi k2 and k3 models force temperature 1 while moonshot models keep requested temperature", () => {
   assert.deepEqual(
     getModelParameterCompatibility("kimi", "kimi-k2-turbo-preview"),
     { fixedTemperature: 1 },
   );
   assert.equal(resolveModelTemperature("kimi", "kimi-k2-turbo-preview", 0.4), 1);
+  assert.deepEqual(
+    getModelParameterCompatibility("kimi", "kimi-k3"),
+    { fixedTemperature: 1 },
+  );
+  assert.equal(resolveModelTemperature("kimi", "kimi-k3", 0.5), 1);
   assert.equal(resolveModelTemperature("kimi", "moonshot-v1-32k", 0.4), 0.4);
   assert.equal(resolveModelTemperature("deepseek", "deepseek-chat", undefined), 0.7);
 });
@@ -76,16 +96,28 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(openaiProfile.nativeJsonSchema, true);
   assert.equal(selectStructuredOutputStrategy(openaiProfile, schema), "json_schema");
 
+  const glmProfile = resolveStructuredOutputProfile({
+    provider: "glm",
+    model: "glm-4.5-air",
+    baseURL: "https://open.bigmodel.cn/api/paas/v4",
+    executionMode: "structured",
+  });
+  assert.equal(glmProfile.family, "glm");
+  assert.equal(glmProfile.nativeJsonObject, true);
+  assert.equal(glmProfile.requiresNonThinkingForStructured, true);
+  assert.equal(glmProfile.supportsReasoningToggle, true);
+  assert.equal(selectStructuredOutputStrategy(glmProfile, schema), "json_object");
+
   const glmBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
     model: "glm-5",
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(glmBehindProxyProfile.family, "glm");
+  assert.equal(glmBehindProxyProfile.family, "default");
   assert.equal(glmBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(glmBehindProxyProfile.nativeJsonObject, true);
-  assert.equal(selectStructuredOutputStrategy(glmBehindProxyProfile, schema), "json_object");
+  assert.equal(glmBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(glmBehindProxyProfile, schema), "prompt_json");
 
   const kimiBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
@@ -93,10 +125,10 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(kimiBehindProxyProfile.family, "kimi");
+  assert.equal(kimiBehindProxyProfile.family, "default");
   assert.equal(kimiBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(kimiBehindProxyProfile.nativeJsonObject, true);
-  assert.equal(selectStructuredOutputStrategy(kimiBehindProxyProfile, schema), "json_object");
+  assert.equal(kimiBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(kimiBehindProxyProfile, schema), "prompt_json");
 
   const minimaxBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
@@ -104,7 +136,7 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(minimaxBehindProxyProfile.family, "minimax");
+  assert.equal(minimaxBehindProxyProfile.family, "default");
   assert.equal(minimaxBehindProxyProfile.nativeJsonSchema, false);
   assert.equal(selectStructuredOutputStrategy(minimaxBehindProxyProfile, schema), "prompt_json");
 
@@ -124,18 +156,28 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
     baseURL: "https://aiproxy.example.com/v1",
     executionMode: "structured",
   });
-  assert.equal(deepseekBehindProxyProfile.family, "deepseek");
+  assert.equal(deepseekBehindProxyProfile.family, "default");
   assert.equal(deepseekBehindProxyProfile.nativeJsonSchema, false);
-  assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "json_object");
+  assert.equal(deepseekBehindProxyProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "prompt_json");
 
   const deepseekFlashProfile = resolveStructuredOutputProfile({
     provider: "deepseek",
-    model: "deepseek-v4-flash",
+    model: "deepseek-flash",
     baseURL: "https://api.deepseek.com/v1",
     executionMode: "structured",
   });
   assert.equal(deepseekFlashProfile.requiresNonThinkingForStructured, true);
   assert.equal(deepseekFlashProfile.supportsReasoningToggle, true);
+
+  const deepseekLegacyFlashProfile = resolveStructuredOutputProfile({
+    provider: "deepseek",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(deepseekLegacyFlashProfile.requiresNonThinkingForStructured, true);
+  assert.equal(deepseekLegacyFlashProfile.supportsReasoningToggle, true);
 
   const kimiProfile = resolveStructuredOutputProfile({
     provider: "kimi",
@@ -207,6 +249,25 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(customProfile.family, "custom_openai_compatible");
   assert.equal(customProfile.nativeJsonObject, false);
   assert.equal(customProfile.preferredStructuredStrategy, "prompt_json");
+
+  const customDeepSeekProfile = resolveStructuredOutputProfile({
+    provider: "custom_ooioo",
+    model: "deepseek-v4-flash-0731-fast",
+    baseURL: "https://ooioo.work/v1",
+    executionMode: "structured",
+  });
+  assert.equal(customDeepSeekProfile.family, "custom_openai_compatible");
+  assert.equal(customDeepSeekProfile.nativeJsonObject, false);
+  assert.equal(selectStructuredOutputStrategy(customDeepSeekProfile, schema), "prompt_json");
+
+  const directDeepSeekThroughCustomProvider = resolveStructuredOutputProfile({
+    provider: "custom_ooioo",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(directDeepSeekThroughCustomProvider.family, "deepseek");
+  assert.equal(selectStructuredOutputStrategy(directDeepSeekThroughCustomProvider, schema), "json_object");
 });
 
 test("resolveLLMClientOptions applies structured reasoning and token guardrails", async () => {
@@ -228,6 +289,18 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
   setProviderSecretCache("deepseek", {
     key: "test-key",
     reasoningEnabled: true,
+  });
+  setProviderSecretCache("glm", {
+    key: "test-key",
+    reasoningEnabled: true,
+  });
+  setProviderSecretCache("kimi", {
+    key: "test-key",
+  });
+  setProviderSecretCache("custom_kimik3", {
+    key: "test-key",
+    model: "kimi-k3",
+    baseURL: "https://gateway.example.com/v1",
   });
 
   try {
@@ -258,6 +331,27 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.maxTokens, undefined);
     assert.equal(qwen.requestProtocol, "openai_compatible");
 
+    const glm = await resolveLLMClientOptions("glm", {
+      model: "glm-4.6v",
+      executionMode: "structured",
+      structuredStrategy: "json_object",
+    });
+    assert.equal(glm.structuredProfile?.family, "glm");
+    assert.equal(glm.reasoningEnabled, false);
+    assert.equal(glm.reasoningForcedOff, true);
+    assert.deepEqual(glm.modelKwargs?.thinking, { type: "disabled" });
+
+    const kimiK3 = await resolveLLMClientOptions("kimi", {
+      model: "kimi-k3",
+      temperature: 0.5,
+    });
+    assert.equal(kimiK3.temperature, 1);
+
+    const proxiedKimiK3 = await resolveLLMClientOptions("custom_kimik3", {
+      temperature: 0.1,
+    });
+    assert.equal(proxiedKimiK3.temperature, 1);
+
     const qwenThinking = await resolveLLMClientOptions("qwen", {
       apiKey: "test-key",
       model: "qwen3-235b-a22b-thinking-2507",
@@ -274,7 +368,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
 
     const deepseekFlash = await resolveLLMClientOptions("deepseek", {
-      model: "deepseek-v4-flash",
+      model: "deepseek-flash",
       executionMode: "structured",
       structuredStrategy: "json_object",
       maxTokens: 5000,
@@ -283,7 +377,17 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(deepseekFlash.reasoningEnabled, false);
     assert.equal(deepseekFlash.reasoningForcedOff, true);
     assert.deepEqual(deepseekFlash.modelKwargs?.thinking, { type: "disabled" });
+    assert.equal(deepseekFlash.modelKwargs?.reasoning_effort, undefined);
+    assert.equal(deepseekFlash.reasoningEffort, null);
     assert.equal(deepseekFlash.modelKwargs?.enable_thinking, undefined);
+
+    const deepseekMax = await resolveLLMClientOptions("deepseek", {
+      model: "deepseek-v4-pro",
+      reasoningEffort: "max",
+    });
+    assert.deepEqual(deepseekMax.modelKwargs?.thinking, { type: "enabled" });
+    assert.equal(deepseekMax.modelKwargs?.reasoning_effort, "max");
+    assert.equal(deepseekMax.reasoningEffort, "max");
 
     const anthropicProtocol = await resolveLLMClientOptions("openai", {
       apiKey: "test-key",
@@ -300,6 +404,9 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     setProviderSecretCache("qwen", null);
     setProviderSecretCache("openai", null);
     setProviderSecretCache("deepseek", null);
+    setProviderSecretCache("glm", null);
+    setProviderSecretCache("kimi", null);
+    setProviderSecretCache("custom_kimik3", null);
   }
 });
 

@@ -20,6 +20,7 @@ export interface ChapterEditorWorkspaceDiagnosisPromptInput {
     text: string;
   }>;
   openIssues: Array<{
+    id: string;
     severity: "low" | "medium" | "high" | "critical";
     auditType: string;
     code: string;
@@ -69,8 +70,9 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
       "2. 问题卡必须可执行，但 recommendedAction 只能输出英文枚举值：compress（精简）、polish（优化表达）、emotion（强化情绪）、conflict（强化冲突）、expand（扩写）。",
       "3. 优先选择真正影响阅读推进、情绪承接或卷内节奏的问题。",
       "4. paragraphStart / paragraphEnd 必须引用提供的段落编号；整章问题可留空。",
-      "5. 不要输出 schema 之外的任何解释。",
-      "6. 不要输出中文动作词本身；只能输出对应的英文枚举值。",
+      "5. 如果问题卡直接对应【开放问题】中的某一条，sourceIssueId 必须填写该条问题的 id；如果只是新的写作建议则留空。",
+      "6. 不要输出 schema 之外的任何解释。",
+      "7. 不要输出中文动作词本身；只能输出对应的英文枚举值。",
       "",
       "推荐逻辑：",
       "1. 如果存在明显的节奏、冲突、情绪或承接问题，优先选择这类问题。",
@@ -89,7 +91,7 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
       "",
       renderList(
         "【开放问题】",
-        input.openIssues.map((issue, index) => `- ${index + 1}. [${issue.severity}/${issue.auditType}/${issue.code}] ${issue.evidence}；建议：${issue.fixSuggestion}`),
+        input.openIssues.map((issue, index) => `- ${index + 1}. id=${issue.id} [${issue.severity}/${issue.auditType}/${issue.code}] ${issue.evidence}；建议：${issue.fixSuggestion}`),
       ),
       "",
       renderList(
