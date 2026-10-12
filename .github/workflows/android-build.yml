@@ -1,0 +1,65 @@
+name: Android 构建
+
+# fork 分支专属：验证安卓移植并产出 APK。
+# 本地 Windows/MSYS 环境照旧可用（README 安卓构建段）；CI 为 Linux x86_64，
+# 可直接运行 build-tools 的 aapt2 等原生工具（arm64 设备无法本地完成打包）。
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "android-v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 设置 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 安装 pnpm
+        run: npm i -g pnpm@10
+
+      - name: 设置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: 设置 Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: 安装依赖
+        run: pnpm install
+
+      # ubuntu-latest 自带 Android SDK（ANDROID_HOME 已配置），确认 platforms;android-35
+      - name: 确认 Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" || true
+          if [ ! -d "$ANDROID_HOME/platforms/android-35" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
+          fi
+
+      # 每次构建必须重新生成 bundle.cjs + www.zip（见 android/build-android-assets.sh 头注释）
+      - name: 构建安卓资产（bundle.cjs + www.zip）
+        run: bash android/build-android-assets.sh
+
+      - name: 构建 APK（debug）
+        run: cd android-app && gradle assembleDebug --no-daemon --stacktrace
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android-app/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
