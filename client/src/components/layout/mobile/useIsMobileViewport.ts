@@ -8,7 +8,21 @@ const MOBILE_WORKSPACE_MEDIA_QUERY = "(max-width: 767px)";
 const ANDROID_PORTRAIT_MEDIA_QUERY = "(orientation: portrait)";
 
 function isAndroidApp(): boolean {
-  return typeof window !== "undefined" && (window as unknown as { __ANDROID_APP__?: boolean }).__ANDROID_APP__ === true;
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { __ANDROID_APP__?: boolean };
+  if (w.__ANDROID_APP__ === true) return true;
+  // MainActivity 的 loadUrl 一开始就带 ?__ANDROID_APP__=1；window 标志要等
+  // onPageFinished 才注入（晚于 React 首帧），这里兜底消除首帧布局竞态，
+  // 检出后固化到 window（SPA 导航 pushState 会丢 query，避免之后回退成宽度断点）
+  try {
+    if (new URLSearchParams(window.location.search).has("__ANDROID_APP__")) {
+      w.__ANDROID_APP__ = true;
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
 
 export function useIsMobileViewport() {

@@ -101,9 +101,39 @@ public class MainActivity extends AppCompatActivity {
             registerReceiver(serverReadyReceiver, filter);
         }
 
-        // 兜底：若 60 秒内广播未到达（如 node 已运行但日志未匹配），也尝试加载前端
-        webView.postDelayed(() -> loadFrontend(), 60_000);
+        // 兜底轮询：广播依赖 node 日志文本匹配（上游改启动日志格式就可能漏发），
+        // 改为主动探测 127.0.0.1:3000 端口；首次安装要解压 40MB+ 资产并跑迁移，
+        // 常超过原来的 60 秒单次兜底且失败后永不重试 → 持续轮询（2s × 150 ≈ 5 分钟），
+        // 就绪即加载前端，超时也加载（至少显示 UI，不白屏卡死）
+        webView.postDelayed(frontendPortPoller, 2_000);
     }
+
+    private int frontendPollAttempts = 0;
+    private final Runnable frontendPortPoller = new Runnable() {
+        @Override
+        public void run() {
+            if (frontendLoaded) return;
+            new Thread(() -> {
+                boolean reachable = false;
+                try (java.net.Socket s = new java.net.Socket()) {
+                    s.connect(new java.net.InetSocketAddress("127.0.0.1", 3000), 1500);
+                    reachable = true;
+                } catch (Exception ignored) {
+                }
+                final boolean up = reachable;
+                runOnUiThread(() -> {
+                    if (up) {
+                        loadFrontend();
+                    } else if (++frontendPollAttempts <= 150) {
+                        webView.postDelayed(this, 2_000);
+                    } else {
+                        android.util.Log.e("AINOVEL", "frontend poll gave up after 5min, loading anyway");
+                        loadFrontend();
+                    }
+                });
+            }).start();
+        }
+    };
 
     private void loadFrontend() {
         if (frontendLoaded) {
@@ -118,10 +148,12 @@ public class MainActivity extends AppCompatActivity {
             File wwwDir = new File(getFilesDir(), "www");
             File indexHtml = new File(wwwDir, "index.html");
             if (indexHtml.exists()) {
-                webView.loadUrl("file://" + indexHtml.getAbsolutePath());
+                // ?__ANDROID_APP__=1：把安卓标志放进 URL，React 首帧即可读到
+                //（onPageFinished 注入 window 标志的时机晚于首帧渲染，会闪移动布局）
+                webView.loadUrl("file://" + indexHtml.getAbsolutePath() + "?__ANDROID_APP__=1");
             } else {
                 // 兜底：若前端未就绪，直接连后端（后端会返回 API 响应/404）
-                webView.loadUrl("http://127.0.0.1:3000/");
+                webView.loadUrl("http://127.0.0.1:3000/?__ANDROID_APP__=1");
             }
             // 隐藏 Loading，显示 WebView
             webView.setVisibility(View.VISIBLE);

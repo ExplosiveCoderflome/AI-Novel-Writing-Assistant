@@ -34,6 +34,8 @@ public class NodeService extends Service {
     private static final int NOTIF_ID = 1001;
 
     private Process nodeProcess;
+    /** node 进程连续崩溃重启计数（server 就绪后清零；超过上限放弃并写 debug.txt） */
+    private volatile int restartAttempts = 0;
 
     @Override
     public void onCreate() {
@@ -56,20 +58,28 @@ public class NodeService extends Service {
             public void run() {
                 try {
                     android.util.Log.e("AINOVEL", "startNode: extracting assets...");
+                    // APK 覆盖安装升级时 files/ 会保留：仅凭 .extracted 存在与否判断，
+                    // 升级后永远用旧资产（旧前端 www.zip、旧依赖 node-project.zip、
+                    // 旧迁移/初始化脚本）→ 升级不生效、新表缺失。
+                    // 用包的 lastUpdateTime 作为版本戳：不一致 → 重新解压。
+                    // zip 解压是覆盖式写入，不清目录，保住同目录下的 dev.db 用户数据。
+                    long appStamp = getAppLastUpdateTime();
                     File nodeDir = new File(getFilesDir(), "nodejs");
                     File extractFlag = new File(nodeDir, ".extracted");
-                    if (!extractFlag.exists()) {
+                    if (!isStampCurrent(extractFlag, appStamp)) {
+                        android.util.Log.e("AINOVEL", "startNode: refreshing node-project.zip (app updated)");
                         extractZip(getAssets(), "nodejs/node-project.zip", nodeDir);
-                        extractFlag.createNewFile();
+                        writeStamp(extractFlag, appStamp);
                     }
                     android.util.Log.e("AINOVEL", "startNode: assets extracted to " + nodeDir.getAbsolutePath());
 
                     // 前端静态资源（解压到 files/www，WebView 用 file:// 加载）
                     File wwwDir = new File(getFilesDir(), "www");
                     File wwwFlag = new File(wwwDir, ".extracted");
-                    if (!wwwFlag.exists()) {
+                    if (!isStampCurrent(wwwFlag, appStamp)) {
+                        android.util.Log.e("AINOVEL", "startNode: refreshing www.zip (app updated)");
                         extractZip(getAssets(), "www.zip", wwwDir);
-                        wwwFlag.createNewFile();
+                        writeStamp(wwwFlag, appStamp);
                     }
 
                     File dataDir = new File(getFilesDir(), "data");
@@ -173,6 +183,18 @@ public class NodeService extends Service {
                     int code = nodeProcess.waitFor();
                     android.util.Log.e("AINOVEL", "node process exited with code " + code);
                     nodeProcess = null;
+                    // START_STICKY 只覆盖「Service 被系统杀掉」，覆盖不了「node 进程自身崩溃」：
+                    // 进程退出后 Service 仍活着但后端已死，App 只能强杀重启。这里自动拉起，
+                    // 连续失败按递增退避（2s→30s 封顶），累计 10 次放弃并记录 debug.txt。
+                    restartAttempts++;
+                    if (restartAttempts <= 10) {
+                        long backoffMs = Math.min(30_000L, 2_000L * restartAttempts);
+                        android.util.Log.e("AINOVEL", "restarting node in " + backoffMs + "ms (attempt " + restartAttempts + ")");
+                        Thread.sleep(backoffMs);
+                        startNode();
+                    } else {
+                        writeDebug("NODE_GIVEUP: exited code " + code + " after 10 restart attempts");
+                    }
                 } catch (Exception e) {
                     android.util.Log.e("AINOVEL", "startNode FAILED", e);
                     writeDebug("START_FAIL: " + android.util.Log.getStackTraceString(e));
@@ -206,9 +228,14 @@ public class NodeService extends Service {
             ZipInputStream zis = new ZipInputStream(bis);
             ZipEntry entry;
             int count = 0;
+            String canonicalDest = destDir.getCanonicalPath();
             while ((entry = zis.getNextEntry()) != null) {
                 String name = entry.getName();
                 File outFile = new File(destDir, name);
+                // Zip-slip 防护：条目路径不得逃出目标目录
+                if (!outFile.getCanonicalPath().startsWith(canonicalDest + File.separator)) {
+                    throw new IOException("zip entry escapes target dir: " + name);
+                }
                 if (entry.isDirectory()) {
                     outFile.mkdirs();
                 } else {
@@ -292,8 +319,11 @@ public class NodeService extends Service {
     private boolean isServerReadyLine(String line) {
         if (line == null) return false;
         String l = line.toLowerCase();
-        return (l.contains("listening") && l.contains("3000"))
-                || l.contains("listening on http://localhost:3000");
+        boolean port3000 = l.contains("3000");
+        return (l.contains("listening") && port3000)
+                || l.contains("listening on http://localhost:3000")
+                || l.contains("listening on http://127.0.0.1:3000")
+                || (port3000 && (l.contains("server started") || l.contains("server ready")));
     }
 
     /** 通知 MainActivity：server 已就绪，可以加载前端 */
@@ -302,9 +332,45 @@ public class NodeService extends Service {
             Intent intent = new Intent(MainActivity.ACTION_SERVER_READY);
             intent.setPackage(getPackageName());
             sendBroadcast(intent);
+            restartAttempts = 0;  // 成功启动过 → 崩溃计数清零，允许后续正常退避重启
             android.util.Log.e("AINOVEL", "SERVER_READY broadcast sent");
         } catch (Exception e) {
             android.util.Log.e("AINOVEL", "broadcast failed: " + e.getMessage());
+        }
+    }
+
+    /** 包的最后更新时间：APK 覆盖安装升级时会变化，用作资产版本戳 */
+    private long getAppLastUpdateTime() {
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                return getPackageManager()
+                        .getPackageInfo(getPackageName(), android.content.pm.PackageManager.PackageInfoFlags.of(0))
+                        .getLastUpdateTime();
+            }
+            return getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
+        } catch (Exception e) {
+            android.util.Log.w("AINOVEL", "getAppLastUpdateTime failed: " + e.getMessage());
+            return 0L;
+        }
+    }
+
+    /** flag 内容等于当前版本戳才算新鲜；取不到版本戳时退回旧逻辑（存在即新鲜） */
+    private static boolean isStampCurrent(File flag, long stamp) {
+        if (stamp == 0L) return flag.exists();
+        if (!flag.exists()) return false;
+        try (BufferedReader r = new BufferedReader(new FileReader(flag))) {
+            String saved = r.readLine();
+            return String.valueOf(stamp).equals(saved == null ? "" : saved.trim());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static void writeStamp(File flag, long stamp) {
+        try (java.io.FileWriter fw = new java.io.FileWriter(flag)) {
+            fw.write(String.valueOf(stamp));
+        } catch (Exception e) {
+            android.util.Log.w("AINOVEL", "writeStamp failed: " + e.getMessage());
         }
     }
 

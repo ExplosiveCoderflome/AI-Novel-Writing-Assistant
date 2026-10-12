@@ -122,6 +122,10 @@ gradle clean assembleDebug
 >
 > 构建环境需配置：Android SDK（compileSdk 35）、JDK 17、Gradle 8.9（或使用 wrapper）。
 > 构建脚本在 MSYS/Git-Bash / Linux / macOS 下均可运行（路径已兼容）。
+>
+> 升级侧：APK 覆盖安装后首次启动会按包的 `lastUpdateTime` 自动重解压 `www.zip` /
+> `node-project.zip`（含数据库迁移与初始化脚本），前端与迁移随 APK 更新生效，
+> **无需清除应用数据**（`dev.db` 不受影响）。
 
 ---
 
