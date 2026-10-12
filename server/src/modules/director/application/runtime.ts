@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import os from "node:os";
-import type { DirectorWorkerRuntime } from "./ports";
+import type { DirectorWorkerRuntime, EventLog } from "./ports";
 import type { RunContract } from "../domain";
+import { recoveryBoundarySeq } from "./revision/regeneration";
 
 const DEFAULT_LEASE_MS = 30_000;
 
@@ -11,6 +12,22 @@ export function automaticRecoveryBudget(contract: RunContract): number {
   if (!policy) return 1;
   const budget = policy.maxAutomaticRetries;
   return Number.isSafeInteger(budget) && budget >= 0 && budget <= 1 ? budget : 0;
+}
+
+/** Successful stages release their retry allowance; explicit recovery starts a new series. */
+export function executionRecoveryFailures(events: Awaited<ReturnType<EventLog["list"]>>, stepId: string | null) {
+  const finished = events.filter(event => {
+    const payload = event.payload as {stepId?: unknown} | null;
+    return event.type === "step_finished" && typeof payload?.stepId === "string" && payload.stepId.trim();
+  }).at(-1)?.seq ?? 0;
+  const boundary = Math.max(recoveryBoundarySeq(events), finished);
+  return events.filter(event => {
+    if (event.type !== "execution_failure" || event.seq <= boundary) return false;
+    const failedStep = (event.payload as {stepId?: unknown} | null)?.stepId;
+    if (failedStep === null) return stepId === null;
+    // Old failure rows have no stage identity: retain them within the saved boundary.
+    return typeof failedStep !== "string" || !failedStep.trim() || failedStep === stepId;
+  });
 }
 
 function resolveLeaseMs(value: string | undefined, fallback: number): number {

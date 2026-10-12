@@ -94,6 +94,42 @@ test('an already recorded execution failure is not charged again as a process in
  assert.equal(harness.events.filter(event=>event.type==='execution_failure').length,1);
 });
 
+test('a completed upstream stage does not consume the next interrupted stage recovery budget', async () => {
+  for (const legacyFailure of [false, true]) {
+    const calls = {};
+    const harness = createHarness({resultFactory: step => {
+      calls[step.id] = (calls[step.id] ?? 0) + 1;
+      if (['story_macro', 'character_cast'].includes(step.id) && calls[step.id] === 1) {
+        throw new Error('temporary failure in ' + step.id);
+      }
+      return {artifact: {scope: 'book', status: 'confirmed', protectedUserContent: false, contentRef: step.id, contentHash: null}};
+    }});
+    await assert.rejects(() => harness.executor.runOnce('run-1'), /story_macro/);
+    assert.equal((await harness.executor.runOnce('run-1')).kind, 'executed');
+    if (legacyFailure) delete harness.events.find(event => event.type === 'execution_failure').payload.stepId;
+    await assert.rejects(() => harness.executor.runOnce('run-1'), /character_cast/);
+    assert.equal((await harness.executor.runOnce('run-1')).kind, 'executed');
+    assert.deepEqual(calls, {story_macro: 2, character_cast: 2});
+    assert.equal(harness.getControl().status, 'running');
+    assert.equal(harness.events.filter(event => event.type === 'execution_failure').length, 2);
+  }
+});
+
+test('failure after saving an upstream artifact does not consume a different stage retry', async () => {
+  let characterCalls = 0;
+  const harness = createHarness({crashOnStepFinished: true, resultFactory: step => {
+    if (step.id === 'character_cast' && ++characterCalls === 1) throw new Error('temporary character failure');
+    return {artifact: {scope: 'book', status: 'confirmed', protectedUserContent: false, contentRef: step.id, contentHash: null}};
+  }});
+  await assert.rejects(() => harness.executor.runOnce('run-1'), /simulated crash/);
+  harness.events.push({seq: harness.events.length + 1, type: 'execution_failure',
+    payload: {stepId: 'story_macro', controlVersion: harness.getControl().version, attempt: 1}, createdAt: new Date()});
+  await assert.rejects(() => harness.executor.runOnce('run-1'), /temporary character/);
+  assert.equal((await harness.executor.runOnce('run-1')).kind, 'executed');
+  assert.deepEqual(harness.executed, ['story_macro', 'character_cast', 'character_cast']);
+  assert.equal(harness.artifacts.filter(row => row.type === 'story_macro').length, 1);
+});
+
 test('saved manual regeneration instructions apply only to the requested step and expire after success', async () => {
   const seen=[];
   // Keep the real executor and facts loader; observe the context at the business boundary.

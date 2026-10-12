@@ -114,7 +114,7 @@ test("one policy retry is allowed before the worker pauses for manual recovery",
   const executor = { runOnce: async () => { failures += 1; throw new Error(`failure-${failures}`); } };
   const eventLog = {
     list: async () => events,
-    append: async (input) => { events.push({ type: input.type, payload: input.payload }); },
+    append: async (input) => { events.push({ seq: events.length + 1, type: input.type, payload: input.payload }); },
   };
   const first = new DirectorWorker({
     runRepository: repository,

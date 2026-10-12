@@ -1,7 +1,7 @@
 import type { RunExecutor } from "./runExecutor";
 import type { DirectorWorkerRuntime, EventLog, RunRepository } from "./ports";
 import { FactIntegrityError, type RunContract, type RunControl } from "../domain";
-import {recoveryBoundarySeq} from "./revision/regeneration";
+import { executionRecoveryFailures } from "./runtime";
 
 export interface DirectorRecoveryPolicy {
   maxAttempts(contract: RunContract): number;
@@ -101,12 +101,12 @@ export class DirectorWorker {
       }, control.version);
       return;
     }
-    const resumedAt = recoveryBoundarySeq(events);
-    const failures = events.filter((event) => event.type === "execution_failure" && (!resumedAt || event.seq > resumedAt)).length;
+    const stepId = control.cursorStepId ?? null;
+    const failures = executionRecoveryFailures(events, stepId).length;
     await this.deps.eventLog.append({
       runId,
       type: "execution_failure",
-      payload: { attempt: failures + 1, controlVersion: control.version, message: error instanceof Error ? error.message : "unknown execution failure" },
+      payload: { attempt: failures + 1, controlVersion: control.version, stepId, message: error instanceof Error ? error.message : "unknown execution failure" },
     });
     const maxAttempts = Math.max(0, Math.floor(this.deps.recoveryPolicy.maxAttempts(contract)));
     if (failures + 1 <= maxAttempts) return;

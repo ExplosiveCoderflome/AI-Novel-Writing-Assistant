@@ -2,8 +2,8 @@ import { checkAction, createPlanOrchestrator, type Action, type Orchestrator, ty
 import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, PlanRegistry } from "./ports";
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
 import { StepRegistry, type StepResult } from "./stepRegistry";
-import { automaticRecoveryBudget } from "./runtime";
-import {recoveryBoundarySeq, regenerationForStep} from "./revision/regeneration";
+import { automaticRecoveryBudget, executionRecoveryFailures } from "./runtime";
+import {regenerationForStep} from "./revision/regeneration";
 
 export type RunExecutionResult =
   | { kind: "idle" }
@@ -136,8 +136,7 @@ export class RunExecutor {
     if (loaded.control.cursorStepId === stepId) {
       // The plan still needs the previously started step: no usable artifact was committed.
       const events = await this.deps.eventLog.list(runId);
-      const resumedAt = recoveryBoundarySeq(events);
-      const failures = events.filter(event => event.type === "execution_failure" && event.seq > resumedAt);
+      const failures = executionRecoveryFailures(events, stepId);
       const counted = failures.some(event => payloadNumber(event.payload, "controlVersion") === loaded.control.version);
       const attempts = failures.length + (counted ? 0 : 1);
       if (!counted) await this.deps.eventLog.append({runId, type: "execution_failure",
