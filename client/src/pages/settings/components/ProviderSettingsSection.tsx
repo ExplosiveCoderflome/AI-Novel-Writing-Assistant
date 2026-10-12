@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import { cn } from "@/lib/utils";
 import ProviderStatusCard, { type ProviderCardViewModel } from "./ProviderStatusCard";
 
 export default function ProviderSettingsSection(props: {
+  embedded?: boolean;
   providers: APIKeyStatus[];
   balances: ProviderBalanceStatus[];
   isBalanceLoading: boolean;
@@ -29,6 +31,7 @@ export default function ProviderSettingsSection(props: {
   removingProvider?: string;
 }) {
   const {
+    embedded = false,
     providers,
     balances,
     isBalanceLoading,
@@ -74,8 +77,14 @@ export default function ProviderSettingsSection(props: {
   const addableBuiltIns = providers.filter((provider) => provider.kind === "builtin" && (!provider.isConfigured || !provider.isActive));
 
   return (
-    <Card id="settings-provider-section" className="min-w-0 scroll-mt-20 overflow-hidden border-primary/10 bg-gradient-to-b from-primary/[0.035] to-background shadow-sm">
-      <CardHeader className="flex flex-col gap-4 border-b bg-background/60 sm:flex-row sm:items-start sm:justify-between">
+    <Card
+      id={embedded ? undefined : "settings-provider-section"}
+      className={cn(
+        "min-w-0 scroll-mt-20 overflow-hidden",
+        embedded ? "border-0 bg-transparent shadow-none" : "border-primary/10 bg-gradient-to-b from-primary/[0.035] to-background shadow-sm",
+      )}
+    >
+      <CardHeader className={cn("flex flex-col gap-4 border-b bg-background/60 sm:flex-row sm:items-start sm:justify-between", embedded && "bg-transparent px-0 pt-0")}>
         <div className="flex min-w-0 gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <Sparkles className="h-5 w-5" />
@@ -96,7 +105,7 @@ export default function ProviderSettingsSection(props: {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="grid min-w-0 gap-4 pt-5 md:grid-cols-2">
+      <CardContent className={cn("grid min-w-0 gap-4 pt-5 md:grid-cols-2", embedded && "px-0 pb-0")}>
         {visibleViewModels.map((item) => (
           <ProviderStatusCard
             key={item.provider.provider}

@@ -52,6 +52,30 @@ test("opens setup only when a resolved status says configuration is required", (
   }), true);
 });
 
+test("does not interrupt model settings with an automatic setup prompt", () => {
+  assert.equal(shouldOpenAutomaticSetupPrompt({
+    statusResolved: true,
+    readyForCreation: false,
+    dismissed: false,
+    modelSettingsOpen: true,
+  }), false);
+});
+
+test("waits until model settings closes before prompting on a gated route", () => {
+  assert.equal(shouldOpenSetupPromptForRoute({
+    statusResolved: true,
+    readyForCreation: false,
+    pathname: "/creative-hub",
+    modelSettingsOpen: true,
+  }), false);
+  assert.equal(shouldOpenSetupPromptForRoute({
+    statusResolved: true,
+    readyForCreation: false,
+    pathname: "/creative-hub",
+    modelSettingsOpen: false,
+  }), true);
+});
+
 test("shows the first novel handoff only after automatic configuration succeeds", () => {
   assert.equal(shouldShowFirstNovelHandoff({
     configurationSucceeded: true,

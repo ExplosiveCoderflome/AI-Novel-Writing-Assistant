@@ -22,7 +22,7 @@ interface NavbarProps {
 
 export default function Navbar(props: NavbarProps) {
   const { workspaceNavMode, onWorkspaceNavModeChange } = props;
-  const { openQuickSetup } = useCreationSetup();
+  const { openModelSettings } = useCreationSetup();
   const location = useLocation();
   const isHome = location.pathname === "/";
   const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);
@@ -62,7 +62,7 @@ export default function Navbar(props: NavbarProps) {
           size="sm"
           variant="outline"
           className="gap-1.5"
-          onClick={openQuickSetup}
+          onClick={openModelSettings}
         >
           <SlidersHorizontal className="h-4 w-4" />
           <span className="hidden lg:inline">模型设置</span>

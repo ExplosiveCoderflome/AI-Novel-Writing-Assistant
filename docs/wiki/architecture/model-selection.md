@@ -23,6 +23,9 @@
 - 没有保存模型的内置厂商不应因为 `PROVIDERS.*.defaultModel` 存在就被视为可运行；需要保存模型、环境模型或可拉取的模型目录。
 - 模型路由、结构化兜底和各任务的显式模型覆盖仍属于独立配置；它们不等同于顶部当前模型。
 - 设置入口保持职责分离：“模型与厂商”只管理连接、鉴权和模型目录；“模型路由管理”独立管理任务路由与结构化备用模型。两页可共享同一厂商数据，但不应重新合并成长页面。
+- 顶部“模型设置”属于日常厂商管理入口，打开独立大弹窗，直接复用设置页的厂商配置组件与保存逻辑；配置内容按需加载。弹窗内只适配容器间距和边框，不维护第二套表单或保存接口。
+- 首次创作环境准备继续使用快速配置向导。厂商管理弹窗打开期间，自动提示和创作页面的就绪检查不得叠加向导；关闭管理界面后，未就绪环境仍按原有规则提示。
+- 添加、修改或移除厂商后，除厂商配置、余额和模型候选外，还应刷新快速配置状态与首次小说引导投影，避免其他入口继续显示保存前的创作可用性。
 - 自定义厂商的鉴权方式属于厂商连接合同，模型目录、连接测试和正式生成必须读取同一设置。当前只支持常见的 `Authorization: Bearer`、`x-api-key` 和无需鉴权三种模式；不得让模型目录能连接而正式生成仍固定发送 Bearer。
 - 用户填写的 API 地址可以是版本根地址，也可以直接是 `/models` 地址。模型目录请求只在路径尚未以 `/models` 结尾时追加该段，避免 Gemini 或网关地址变成重复路径。
 - 自定义厂商已获取的模型目录保存到 `APIKey.availableModels`；新增厂商、保存配置和显式刷新都要更新该目录，设置状态读取时将目录与当前模型合并后再应用 `hiddenModels` 过滤。当前模型不能替代整个目录，否则用户重新打开编辑弹窗时会只看到刚选的模型。
@@ -69,6 +72,9 @@
 - `client/src/components/layout/LLMSelectionBootstrap.tsx`
 - `client/src/components/common/LLMSelector.tsx`
 - `client/src/store/llmStore.ts`
+- `client/src/pages/settings/SettingsPage.tsx`
+- `client/src/pages/settings/models/`
+- `client/src/components/onboarding/CreationSetupContext.tsx`
 
 ## 来源文档
 
