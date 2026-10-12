@@ -342,10 +342,11 @@ public class NodeService extends Service {
     /** 包的最后更新时间：APK 覆盖安装升级时会变化，用作资产版本戳 */
     private long getAppLastUpdateTime() {
         try {
+            // PackageInfo.lastUpdateTime 是公开字段（不是 getter 方法）
             if (Build.VERSION.SDK_INT >= 33) {
                 return getPackageManager()
                         .getPackageInfo(getPackageName(), android.content.pm.PackageManager.PackageInfoFlags.of(0))
-                        .getLastUpdateTime();
+                        .lastUpdateTime;
             }
             return getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
         } catch (Exception e) {
