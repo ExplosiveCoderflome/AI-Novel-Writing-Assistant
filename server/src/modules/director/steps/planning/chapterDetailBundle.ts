@@ -22,6 +22,7 @@ export interface ChapterDetailBundleDependencies<Provider extends string, Docume
     generateVolumes(novelId: string, options: {
       scope: "chapter_detail"; detailMode: "task_sheet"; targetVolumeId: string; targetChapterId: string;
       chapterTaskSheetQualityMode: "full_book_autopilot";
+      forceRegenerate?: boolean;
       provider?: Provider; model?: string; temperature?: number; guidance?: string;
       draftWorkspace: Document; taskId: string; entrypoint: "director_next"; persistIntermediateDocuments: false;
       onChapterTaskSheetQuality: (event: ChapterQualityReport) => Promise<void>;
@@ -68,7 +69,8 @@ export function createChapterDetailBundleStepHandler<Provider extends string, Do
         scope: "chapter_detail", detailMode: "task_sheet", targetVolumeId: target.volumeId, targetChapterId: target.chapterId,
         // Collect usable content independently from issue-policy decisions made below.
         chapterTaskSheetQualityMode: "full_book_autopilot", provider: input.provider, model: input.model,
-        temperature: input.temperature, guidance: input.guidance, draftWorkspace: draft,
+        temperature: input.temperature, guidance: context.regeneration?.guidance ?? input.guidance, draftWorkspace: draft,
+        forceRegenerate: Boolean(context.regeneration),
         taskId: context.runId, entrypoint: "director_next", persistIntermediateDocuments: false,
         onChapterTaskSheetQuality: async report => {
           if (report.chapterId !== target.chapterId || report.chapterOrder !== chapter.chapterOrder) throw new Error("章节质量结果与目标章节不一致。");

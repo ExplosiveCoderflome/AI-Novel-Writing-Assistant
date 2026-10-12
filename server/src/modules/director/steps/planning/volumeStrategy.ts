@@ -4,6 +4,7 @@ export interface VolumeStrategyStepInput<Provider extends string> {
   provider?: Provider;
   model?: string;
   temperature?: number;
+  guidance?: string;
   estimatedChapterCount: number;
   skeletonVolumeCount?: number;
 }
@@ -33,8 +34,10 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
       throw new Error("分卷策略需要有效的目标章节数。");
     }
     const novelId = context.contract.novelId;
+    const guidance = context.regeneration?.guidance ?? input.guidance;
     const options = {
       provider: input.provider, model: input.model, temperature: input.temperature,
+      ...(guidance === undefined ? {} : {guidance}),
       estimatedChapterCount: input.estimatedChapterCount,
       taskId: context.runId, entrypoint: "director_next" as const,
       persistIntermediateDocuments: false as const,

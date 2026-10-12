@@ -158,6 +158,12 @@ export class PrismaCommandRepository implements CommandRepository {
         data: controlUpdate(next),
       });
       if (updated.count !== 1) throw new VersionConflictError(input.expectedVersion, current.version);
+      if (input.gateResolution?.decision === "regenerate") {
+        const latest = await tx.directorNextEvent.findFirst({where: {runId: input.runId}, orderBy: {seq: "desc"}, select: {seq: true}});
+        const seq = (latest?.seq ?? 0) + 1;
+        await tx.directorNextEvent.create({data: {id: `${input.runId}:${seq}`, runId: input.runId, seq, type: "gate_regeneration_requested",
+          payloadJson: JSON.stringify({commandId: input.id, scope: input.gateResolution.scope, artifactTypes: input.gateResolution.artifacts.map(artifact => artifact.type), guidance: input.gateResolution.guidance})}});
+      }
       const result = commandResult(input.runId, next, input.id);
       await tx.directorNextCommand.create({
         data: {

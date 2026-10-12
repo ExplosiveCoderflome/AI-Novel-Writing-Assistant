@@ -11,7 +11,7 @@ import type {GateService} from "./gateService";
 
 export type DirectorCommand =
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVersion: number; idempotencyKey: string }
+  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
@@ -148,7 +148,7 @@ export class CommandService {
     if (control.status !== "waiting_gate") {
       throw new InvalidDirectorCommandError("只有等待确认的创作可以处理门控。");
     }
-    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion) : undefined;
+    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {guidance: command.guidance, chapterPlanEdit: command.chapterPlanEdit}) : undefined;
     return this.transition(command, { type: "resolve_gate" }, resolution);
   }
 

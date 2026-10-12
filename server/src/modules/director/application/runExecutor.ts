@@ -3,6 +3,7 @@ import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, Pl
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
 import { StepRegistry, type StepResult } from "./stepRegistry";
 import { automaticRecoveryBudget } from "./runtime";
+import {recoveryBoundarySeq, regenerationForStep} from "./revision/regeneration";
 
 export type RunExecutionResult =
   | { kind: "idle" }
@@ -135,7 +136,7 @@ export class RunExecutor {
     if (loaded.control.cursorStepId === stepId) {
       // The plan still needs the previously started step: no usable artifact was committed.
       const events = await this.deps.eventLog.list(runId);
-      const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
+      const resumedAt = recoveryBoundarySeq(events);
       const failures = events.filter(event => event.type === "execution_failure" && event.seq > resumedAt);
       const counted = failures.some(event => payloadNumber(event.payload, "controlVersion") === loaded.control.version);
       const attempts = failures.length + (counted ? 0 : 1);
@@ -151,6 +152,7 @@ export class RunExecutor {
     }
     const started = await this.deps.runRepository.transition(runId, { type: "step_started", stepId }, loaded.control.version);
     const result = await this.deps.stepRegistry.get(stepId)({
+      regeneration: regenerationForStep(await this.deps.eventLog.list(runId), loaded.contract.scope, step.produces, stepId),
       runId,
       contract: loaded.contract,
       control: started,

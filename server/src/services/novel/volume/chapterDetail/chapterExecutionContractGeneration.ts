@@ -92,6 +92,7 @@ export async function generateChapterTaskSheetDetail(params: {
 }> {
   const existingChapter = params.promptInput.targetChapter;
   if (
+    !params.options.forceRegenerate &&
     !params.promptInput.guidance?.trim()
     && canReuseChapterExecutionContract({
       novelId: params.promptInput.workspace.novelId,
@@ -100,7 +101,7 @@ export async function generateChapterTaskSheetDetail(params: {
     })
   ) {
     const scenePlan = normalizeChapterScenePlan(
-      existingChapter.sceneCards,
+      JSON.parse(existingChapter.sceneCards ?? "{}"),
       existingChapter.targetWordCount,
     );
     return {

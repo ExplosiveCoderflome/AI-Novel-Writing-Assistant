@@ -8,6 +8,7 @@ import type {
   PlanDefinition,
 } from "../domain";
 import type { RunEvent } from "../domain/control";
+import type {ChapterPlanEdit} from "@ai-novel/shared/types/director/revision";
 
 export interface PlanRegistry {
   get(version: string): PlanDefinition | null;
@@ -39,6 +40,8 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 }
 
 export interface GateResolution {
+  guidance?: string;
+  chapterPlanEdit?: ChapterPlanEdit;
   decision: "confirm" | "confirm_after_edit" | "regenerate";
   scope: string;
   artifacts: readonly {type: string; expectedVersion: number}[];

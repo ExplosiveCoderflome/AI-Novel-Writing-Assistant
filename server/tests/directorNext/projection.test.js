@@ -23,6 +23,13 @@ function view(overrides = {}) {
   });
 }
 
+test('a retry-budget pause shows the actual generation failure instead of an internal error code', () => {
+  const result=view({control:runningControl({status:'paused',pause:{kind:'manual_recovery',reason:'execution_retry_budget_exhausted'}}),executionFailure:'章节场景解析失败'});
+  assert.match(result.detail,/章节场景解析失败/);
+  assert.ok(!result.detail.includes('execution_retry_budget_exhausted'));
+  assert.ok(result.availableActions.some(action=>action.command==='resume'));
+});
+
 test('workspace activity identifies each producer without exposing raw control to the reader', () => {
   const active = view({control: runningControl({cursorStepId: 'character_cast', version: 8}),
     contract: contract({launchInput: {targetVolumeId: 'v2'}, chapterRange: {from: 11, to: 13}})}).workspaceActivity;

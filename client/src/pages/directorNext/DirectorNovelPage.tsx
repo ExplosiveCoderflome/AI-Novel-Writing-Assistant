@@ -13,7 +13,7 @@ import { previewStates, previewTimeline, previewView } from "./preview";
 import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow, useWorkspaceActivity } from "./generation";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
-import { DirectorChapterEditor } from "./workspace/editing";
+import { DirectorChapterEditor, DirectorChapterPlanEditor } from "./workspace/editing";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
   const { novelId: routeNovelId = "" } = useParams();
@@ -75,7 +75,8 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} followGeneration={follow.enabled && !editingChapterId} generation={follow.snapshot} activity={view?.workspaceActivity} onEditChapter={preview ? undefined : setEditingChapterId} editedChapter={editedChapter} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
         </div>} right={directorOpen ? <aside aria-label="导演台" className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain">
           {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p><Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), detailQuery.refetch()])}>重新读取</Button></div>
-            : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}/>
+            : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}
+                renderPlanEditor={!preview && !bookQuery.isError && savedReview?.ready && savedReview.type==="chapter_task_sheet" && savedReview.plan ? input=><DirectorChapterPlanEditor novelId={novelId} plan={savedReview.plan!} {...input}/> : undefined}/>
               : <p className="py-4 text-sm text-muted-foreground">{summaryQuery.isLoading || detailQuery.isLoading ? "正在读取导演信息…" : "选择创作范围，让 AI 从本书内容继续。"}</p>}
           {!error && !view ? startForm?.(null):null}
         </aside> : null}/>

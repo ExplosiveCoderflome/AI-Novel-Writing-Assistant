@@ -88,6 +88,7 @@ export interface ProductionProjection {
 }
 
 export interface ProjectionInput {
+  executionFailure?: string;
   contract: RunContract;
   control: RunControl;
   plan: PlanDefinition;
@@ -166,6 +167,11 @@ export function project(input: ProjectionInput): DashboardView {
     case "paused": {
       const pauseKind = control.pause?.kind ?? "manual_recovery";
       detail = control.pause?.reason ?? null;
+      if (detail === "execution_retry_budget_exhausted") {
+        detail = input.executionFailure?.trim()
+          ? `本阶段生成失败：${input.executionFailure.trim()} 自动重试已结束。`
+          : "本阶段生成中断，自动重试已结束。";
+      }
       nextActionGuidance = "请先查看下方暂停原因，处理后点击“从保存进度继续”；已有正文会保留。";
       if (pauseKind === "replan") {
         headline = "需要重新规划后继续";

@@ -105,6 +105,8 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
+    assert.ok(m.page.includes('编辑任务与场景'),'the current readable chapter gate must offer its scoped plan editor');
+    for(const html of [m.noReview,m.wrongReview,m.missing,m.stale,m.staleVersion,m.invalid]) assert.ok(!html.includes('编辑任务与场景'));
     const automaticHeader=m.page.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0] ?? '';
     const assistedHeader=m.assistedPage.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0] ?? '';
     assert.ok(automaticHeader.includes('当前模式：全自动推进'),'the book header must show the current mode');

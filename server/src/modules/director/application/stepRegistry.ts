@@ -1,6 +1,7 @@
 import type { FactsSnapshot, RunContract, RunControl, StepDefinition, StopSignal } from "../domain";
 
 export interface StepContext {
+  regeneration?: {guidance?: string};
   runId: string;
   contract: RunContract;
   control: RunControl;

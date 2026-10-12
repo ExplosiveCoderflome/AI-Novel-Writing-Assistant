@@ -18,6 +18,7 @@ interface DirectorPanelProps {
   reviewReady?:boolean;
   reviewRunId?:string;
   reviewVersion?:number;
+  renderPlanEditor?:import("./DirectorGate").PlanEditorRenderer;
 }
 
 function formatEvent(event: DirectorTimelineEvent): string {
@@ -37,7 +38,7 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion }: DirectorPanelProps) {
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion, renderPlanEditor }: DirectorPanelProps) {
   const candidates = useDirectorCharacterCandidates(view.runId, !preview);
   const candidatePage = candidates.data?.data;
   const reviewingCharacters = candidatePage?.reviews.some(r => r.blocking) ?? false;
@@ -56,7 +57,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
       <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
       {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}/> : null}
       {candidates.isError ? <p role="alert" className="py-2 text-xs text-destructive">人物候选暂时未能加载，请稍后重试。</p> : null}
-      {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion}/>:null}
+      {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={view.availableActions.find(action=>action.kind==="navigate" && action.target===reviewTarget)?.id.slice("review:".length)} renderPlanEditor={renderPlanEditor}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-current-work">

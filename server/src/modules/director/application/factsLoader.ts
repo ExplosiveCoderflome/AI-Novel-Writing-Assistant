@@ -2,6 +2,7 @@ import { FactIntegrityError, type FactsSnapshot, type RunContract, type RunContr
 import type { ArtifactLedger, EventLog, QualityDebtRepository, RunRepository } from "./ports";
 
 export interface LoadedRunFacts {
+  executionFailure?: string;
   contract: RunContract;
   control: RunControl;
   facts: FactsSnapshot;
@@ -90,7 +91,9 @@ export class FactsLoader {
       this.deps.eventLog.list(runId),
     ]);
     const eventStop = readStopSignal(events);
+    const failure = events.filter(event => event.type === "execution_failure").at(-1)?.payload as {message?: unknown} | undefined;
     return {
+      ...(typeof failure?.message === "string" ? {executionFailure: failure.message} : {}),
       contract,
       control,
       facts: { artifacts, debts, stopSignal: control.pause && eventStop?.reason === control.pause.reason && eventStop.kind === control.pause.kind ? eventStop : savedPause(control) ?? eventStop },

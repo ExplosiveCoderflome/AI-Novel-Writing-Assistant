@@ -1,5 +1,6 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
+import {chapterPlanEditSchema} from "@ai-novel/shared/types/director/revision";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
 import type {ResolveDirectorCharacterCandidates} from "@ai-novel/shared/types/director/characterCandidates";
@@ -52,6 +53,8 @@ const commandBodySchema = z.discriminatedUnion("type", [
     type: z.literal("resolve_gate"),
     runId: nonEmpty,
     decision: z.enum(["confirm", "confirm_after_edit", "regenerate"]),
+    guidance: z.string().trim().max(6000).optional(),
+    chapterPlanEdit: chapterPlanEditSchema.optional(),
     expectedVersion,
     idempotencyKey: nonEmpty,
   }),

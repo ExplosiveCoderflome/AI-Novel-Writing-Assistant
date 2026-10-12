@@ -1,0 +1,75 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {spawnSync}=require('node:child_process');
+
+test('chapter-plan editing validates and atomically saves only the current gate, preserving other plans and author prose',()=>{
+ const root=path.resolve(__dirname,'../../../..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'director-plan-edit-')),script=path.join(dir,'verify.cjs');
+ fs.writeFileSync(script,String.raw`
+const assert=require('node:assert/strict'),path=require('node:path');
+const server=path.join(process.env.DIRECTOR_NEXT_REPO_ROOT,'server');
+const {prisma}=require(path.join(server,'dist/db/prisma'));
+const {ensureRuntimeDatabaseReady}=require(path.join(server,'dist/db/runtimeMigrations'));
+const {createDirectorNextServices}=require(path.join(server,'dist/modules/director'));
+const {PrismaRunRepository,PrismaArtifactLedger}=require(path.join(server,'dist/modules/director/infrastructure'));
+const {definePlan}=require(path.join(server,'dist/modules/director/domain'));
+const {readEditedArtifact}=require(path.join(server,'dist/app/director/savedContent'));
+const plan=definePlan({version:'plan-edit',externalArtifacts:[],steps:[
+ {id:'detail',label:'任务与场景',requires:[],produces:'chapter_task_sheet',needs:[],gateable:true,overwrites:['chapter_task_sheet']},
+ {id:'sync',label:'执行计划',requires:['chapter_task_sheet'],produces:'chapter_execution_contract',needs:[],gateable:true,overwrites:[]}]});
+const services=createDirectorNextServices({plan,readEditedArtifact,contractFactory:input=>({runId:input.runId,novelId:input.novelId,driver:'assisted',planVersion:plan.version,scope:'chapter:1-2',chapterRange:{from:1,to:2},stepIdsInScope:null,modelConfig:{route:'stub',model:'no-ai',version:'v1'},issuePolicy:{mode:'completion_first',version:'v1'},tokenBudget:null,rejectionBudget:3})});
+const runs=new PrismaRunRepository(),ledger=new PrismaArtifactLedger();
+const scenes=JSON.stringify({targetWordCount:2200,scenes:[1,2,3].map(i=>({key:'scene-'+i,title:'场景'+i,purpose:'推进目标',entryState:'开始',exitState:'结束',targetWordCount:700,mustAdvance:[],mustPreserve:[],forbiddenExpansion:[]}))});
+(async()=>{
+ await ensureRuntimeDatabaseReady();
+ await prisma.novel.create({data:{id:'book',title:'编辑测试'}});
+ const chapters=[1,2].map(i=>({id:'plan-'+i,volumeId:'volume',chapterOrder:i,title:'第'+i+'章',summary:'概要',taskSheet:'原任务',sceneCards:scenes,targetWordCount:2200,mustAvoid:'不提前揭底'}));
+ await prisma.volumePlanVersion.create({data:{id:'version',novelId:'book',version:1,status:'active',contentJson:JSON.stringify({novelId:'book',volumes:[{id:'volume',chapters}]})}});
+ await prisma.volumePlan.create({data:{id:'volume',novelId:'book',sortOrder:1,title:'一卷',sourceVersionId:'version',chapters:{create:chapters.map(({volumeId,...chapter})=>chapter)}}});
+ await prisma.volumePlan.create({data:{id:'archived-volume',novelId:'book',sortOrder:2,title:'归档卷',status:'archived',chapters:{create:{...chapters[0],id:'archived-plan',volumeId:undefined}}}});
+ await prisma.chapter.create({data:{id:'body',novelId:'book',order:1,title:'正文',content:'作者正文必须保留'}});
+ const opened=await services.http.commandService.execute({type:'open_run',novelId:'book',driver:'assisted',stepIdsInScope:null,idempotencyKey:'open'});
+ await runs.transition(opened.runId,{type:'start'},0);
+ await runs.transition(opened.runId,{type:'open_gate',gateId:'gate',artifactTypes:['chapter_task_sheet']},1);
+ for(const type of ['chapter_task_sheet','chapter_execution_contract','chapter_draft'])await ledger.record({novelId:'book',type,scope:'chapter:1-2',status:'draft',protectedUserContent:type==='chapter_draft',contentRef:type,contentHash:'old',producedByRunId:opened.runId});
+ const beforeOther=await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'plan-2'}});
+ const beforeArchived=await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'archived-plan'}});
+ const edit={taskSheet:'作者修订任务',sceneCards:scenes,targetWordCount:2400,mustAvoid:'保留秘密',baseRevision:JSON.stringify(['原任务',scenes,2200,'不提前揭底'])};
+ const command={type:'resolve_gate',runId:opened.runId,decision:'confirm_after_edit',chapterPlanEdit:edit,expectedVersion:2,idempotencyKey:'edited'};
+ await assert.rejects(()=>services.http.commandService.execute({...command,idempotencyKey:'invalid',chapterPlanEdit:{...edit,sceneCards:'[]'}}));
+ const partialScenes=JSON.parse(scenes);partialScenes.scenes.push({...partialScenes.scenes[0],key:'broken',purpose:''});
+ await assert.rejects(()=>services.http.commandService.execute({...command,idempotencyKey:'partial-scene',chapterPlanEdit:{...edit,sceneCards:JSON.stringify(partialScenes)}}));
+ await assert.rejects(()=>services.http.commandService.execute({...command,idempotencyKey:'tiny-budget',chapterPlanEdit:{...edit,targetWordCount:1}}));
+ assert.equal((await runs.getControl(opened.runId)).status,'waiting_gate');
+ assert.equal((await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'plan-1'}})).taskSheet,'原任务');
+ await assert.rejects(()=>services.http.commandService.execute({...command,idempotencyKey:'stale-plan',chapterPlanEdit:{...edit,baseRevision:'old'}}),e=>e.statusCode===409);
+ await services.http.commandService.execute(command);
+ assert.equal((await runs.getControl(opened.runId)).status,'running');
+ const saved=await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'plan-1'}});
+ assert.equal(saved.taskSheet,'作者修订任务');assert.equal(saved.targetWordCount,2400);
+ assert.equal(JSON.parse(saved.sceneCards).scenes.length,3);
+ const content=JSON.parse((await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:'version'}})).contentJson);
+ assert.equal(content.volumes[0].chapters[0].taskSheet,'作者修订任务');
+ assert.equal(content.volumes[0].chapters[1].taskSheet,'原任务');
+ assert.deepEqual(await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'plan-2'}}),beforeOther);
+ assert.deepEqual(await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'archived-plan'}}),beforeArchived);
+ assert.equal((await prisma.chapter.findUniqueOrThrow({where:{id:'body'}})).content,'作者正文必须保留');
+ const artifacts=await ledger.listByNovel('book');
+ assert.equal(artifacts.find(a=>a.type==='chapter_task_sheet'&&a.version===2).protectedUserContent,true);
+ assert.equal(artifacts.find(a=>a.type==='chapter_execution_contract').status,'stale');
+ assert.equal(artifacts.find(a=>a.type==='chapter_draft').status,'draft');
+ const replay=await services.http.commandService.execute(command);assert.equal(replay.replayed,true);
+ assert.equal(await prisma.directorNextArtifact.count({where:{type:'chapter_task_sheet'}}),2);
+ await assert.rejects(()=>services.http.commandService.execute({...command,idempotencyKey:'old-control'}),e=>e.statusCode===400||e.statusCode===409);
+ await services.http.eventLog.append({runId:opened.runId,type:'execution_failure',payload:{message:'章节场景拆解至少需要 3 个有效场景。'}});
+ const control=await runs.getControl(opened.runId);
+ await runs.transition(opened.runId,{type:'pause',pause:{kind:'manual_recovery',reason:'execution_retry_budget_exhausted'}},control.version);
+ const view=await services.http.projectionService.get(opened.runId);
+ assert.match(view.detail,/章节场景拆解至少需要 3 个有效场景/);
+ assert.doesNotMatch(view.detail,/execution_retry_budget_exhausted/);
+ assert.ok(view.availableActions.some(action=>action.id==='resume'));
+ await prisma.$disconnect();
+})().catch(async e=>{console.error(e);await prisma.$disconnect();process.exitCode=1;});
+`);
+ const result=spawnSync(process.execPath,[script],{cwd:root,env:{...process.env,NODE_ENV:'test',AI_NOVEL_RUNTIME:'desktop',AI_NOVEL_APP_DATA_DIR:dir,DIRECTOR_NEXT_REPO_ROOT:root,DATABASE_URL:'file:'+path.join(dir,'edit.db').replace(/\\/g,'/')},encoding:'utf8',timeout:60000});
+ assert.equal(result.status,0,result.stderr+'\n'+result.stdout);
+});

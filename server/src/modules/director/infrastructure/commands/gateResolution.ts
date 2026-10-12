@@ -2,7 +2,7 @@ import type {Prisma} from "@prisma/client";
 import {GateResolutionError, type GateResolution} from "../../application";
 import {VersionConflictError, type RunContract, type RunControl} from "../../domain";
 
-export type ArtifactEditReader = (input: {contract: RunContract; type: string; contentRef: string}, tx: Prisma.TransactionClient)
+export type ArtifactEditReader = (input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient)
   => Promise<{contentRef: string; contentHash: string}>;
 
 export async function commitGateResolution(tx: Prisma.TransactionClient, input: {runId: string; contract: RunContract; control: RunControl; resolution: GateResolution}, readEdit?: ArtifactEditReader) {
@@ -19,7 +19,7 @@ export async function commitGateResolution(tx: Prisma.TransactionClient, input: 
     }
     if (resolution.decision === "confirm_after_edit") {
       if (!readEdit) throw new GateResolutionError("请从资产页面保存修改，再确认本阶段。");
-      const edited = await readEdit({contract, type: current.type, contentRef: current.contentRef}, tx);
+      const edited = await readEdit({contract, type: current.type, contentRef: current.contentRef, chapterPlanEdit: resolution.chapterPlanEdit}, tx);
       if (!edited.contentRef.trim() || !edited.contentHash.trim()) throw new GateResolutionError("未读取到已保存的修改。");
       await tx.directorNextArtifact.create({data: {id: `${contract.novelId}:${current.type}:${contract.scope}:${current.version+1}`,
         novelId: contract.novelId, type: current.type, scope: contract.scope, version: current.version+1, status: "user_edited", protectedUserContent: true,

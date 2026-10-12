@@ -1,6 +1,7 @@
 import type { RunExecutor } from "./runExecutor";
 import type { DirectorWorkerRuntime, EventLog, RunRepository } from "./ports";
 import { FactIntegrityError, type RunContract, type RunControl } from "../domain";
+import {recoveryBoundarySeq} from "./revision/regeneration";
 
 export interface DirectorRecoveryPolicy {
   maxAttempts(contract: RunContract): number;
@@ -100,7 +101,7 @@ export class DirectorWorker {
       }, control.version);
       return;
     }
-    const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
+    const resumedAt = recoveryBoundarySeq(events);
     const failures = events.filter((event) => event.type === "execution_failure" && (!resumedAt || event.seq > resumedAt)).length;
     await this.deps.eventLog.append({
       runId,

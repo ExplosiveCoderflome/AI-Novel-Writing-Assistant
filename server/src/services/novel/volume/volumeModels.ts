@@ -78,6 +78,8 @@ export interface VolumeGenerationNovel {
 }
 
 export interface VolumeGenerateOptions {
+  /** Explicit author revision; automatic recovery can still reuse saved contracts. */
+  forceRegenerate?: boolean;
   onChapterTaskSheetQuality?: (event: {
     chapterId: string; chapterOrder: number;
     result: ChapterTaskSheetQualityGateResult;

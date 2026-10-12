@@ -129,6 +129,34 @@ test('task-sheet generation forwards the assessment once while preserving legacy
   } finally {runner.runStructuredPrompt=original;}
 });
 
+test('a saved JSON scene plan is reused without falsely reporting missing scenes', async () => {
+  const candidate=buildCandidate();
+  const chapter={...candidate,id:candidate.chapterId};
+  const detail=await generateChapterTaskSheetDetail({promptInput:{workspace:{novelId:candidate.novelId},targetVolume:{id:candidate.volumeId},targetChapter:chapter},options:{}});
+  assert.equal(detail.taskSheet,candidate.taskSheet);
+  assert.equal(JSON.parse(detail.sceneCards).scenes.length,3);
+});
+
+test('explicit regeneration bypasses a complete saved contract with or without guidance', async () => {
+  const runner=require('../dist/prompting/core/promptRunner.js'),original=runner.runStructuredPrompt;
+  const candidate=buildCandidate(),chapter={...candidate,id:candidate.chapterId};
+  const calls=[];
+  runner.runStructuredPrompt=async input=>{
+    calls.push(input);
+    return {output:input.asset.id===chapterTaskSheetQualityPrompt.id
+      ? {verdict:'safe',safeToSync:true,loadRisk:'normal',recommendedHandling:'sync',summary:'可用',issues:[],repairGuidance:[],confidence:0.9}
+      : {...candidate,taskSheet:'重写后的任务',sceneCards:JSON.parse(candidate.sceneCards).scenes}};
+  };
+  try {
+    for (const guidance of [undefined,'保留残符，让主角主动试探']) {
+      calls.length=0;
+      const detail=await generateChapterTaskSheetDetail({promptInput:{novel:{id:candidate.novelId,title:'测试',characters:[]},workspace:{novelId:candidate.novelId,volumes:[]},storyMacroPlan:null,strategyPlan:null,targetVolume:{id:candidate.volumeId,sortOrder:1,title:'一卷',chapters:[chapter],openPayoffs:[]},targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet',guidance},options:{forceRegenerate:true,chapterTaskSheetQualityMode:'full_book_autopilot'}});
+      assert.equal(detail.taskSheet,'重写后的任务');
+      assert.equal(calls.find(call=>call.asset.id!==chapterTaskSheetQualityPrompt.id)?.promptInput.guidance,guidance);
+    }
+  } finally {runner.runStructuredPrompt=original;}
+});
+
 test("incomplete persisted contracts are regenerated instead of reused", () => {
   const complete = buildCandidate();
   const chapter = {

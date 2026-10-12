@@ -121,6 +121,26 @@ test("command endpoint validates and returns immediately with the run projection
   });
 });
 
+test("revision commands retain human guidance and the chapter patch and reject malformed scenes before dispatch", async () => {
+  const received = [];
+  await withServer(deps({commandService: {execute: async command => {
+    received.push(command);
+    return {runId: command.runId, controlVersion: 3, commandId: 'revision', replayed: false};
+  }}}), async base => {
+    const post = body => fetch(`${base}/api/director-next/commands`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body)});
+    const command = {type: 'resolve_gate', runId: 'run-1', expectedVersion: 2, idempotencyKey: 'revise', decision: 'regenerate'};
+    assert.equal((await post({...command, guidance: '  主角主动试探，保留结尾  '})).status, 202);
+    assert.equal(received[0].guidance, '主角主动试探，保留结尾');
+    const patch = {baseRevision: 'saved', taskSheet: '作者任务', targetWordCount: 2200, mustAvoid: '不揭底', sceneCards: JSON.stringify({scenes: [1,2,3].map(i => ({key: String(i), title: '标题', purpose: '目标', entryState: '入场', exitState: '离场', targetWordCount: 700}))})};
+    assert.equal((await post({...command, decision: 'confirm_after_edit', chapterPlanEdit: patch})).status, 202);
+    assert.deepEqual(received[1].chapterPlanEdit, patch);
+    assert.equal((await post({...command, guidance: 'x'.repeat(6001)})).status, 400);
+    assert.equal((await post({...command, decision: 'confirm_after_edit', chapterPlanEdit: {...patch, sceneCards: '[]'}})).status, 400);
+    assert.equal((await post({...command, decision: 'confirm_after_edit', chapterPlanEdit: {...patch, targetWordCount: 1}})).status, 400);
+    assert.equal(received.length, 2);
+  });
+});
+
 test("current and detail reads use the source page route and never expose a task route", async () => {
   await withServer(deps(), async (baseUrl) => {
     const current = await fetch(`${baseUrl}/api/director-next/novels/novel-1/current`);

@@ -44,9 +44,9 @@ function createHarness({ orchestrator = createPlanOrchestrator(), crashOnStepFin
   };
   const registry = new StepRegistry();
   for (const step of plan.steps) {
-    registry.register(step.id, async () => {
+    registry.register(step.id, async (context) => {
       executed.push(step.id);
-      if (resultFactory) return resultFactory(step);
+      if (resultFactory) return resultFactory(step, context);
       return {
         artifact: {
           scope: "book",
@@ -92,6 +92,19 @@ test('an already recorded execution failure is not charged again as a process in
  harness.events.push({seq:1,type:'execution_failure',payload:{controlVersion:harness.getControl().version,attempt:1},createdAt:new Date()});
  assert.equal((await harness.executor.runOnce('run-1')).kind,'executed');
  assert.equal(harness.events.filter(event=>event.type==='execution_failure').length,1);
+});
+
+test('saved manual regeneration instructions apply only to the requested step and expire after success', async () => {
+  const seen=[];
+  // Keep the real executor and facts loader; observe the context at the business boundary.
+  const targeted=createHarness({resultFactory:(step,context)=>{
+    seen.push(context?.regeneration);
+    return {artifact:{scope:'book',status:'confirmed',protectedUserContent:false,contentRef:step.id,contentHash:null}};
+  }});
+  targeted.events.push({seq:1,type:'gate_regeneration_requested',payload:{scope:'book',artifactTypes:['story_macro'],guidance:'压缩开篇'},createdAt:new Date()});
+  await targeted.executor.runOnce('run-1');
+  await targeted.executor.runOnce('run-1');
+  assert.deepEqual(seen,[{guidance:'压缩开篇'},undefined]);
 });
 
 test("the executor runs every dependency step once and completes the run", async () => {

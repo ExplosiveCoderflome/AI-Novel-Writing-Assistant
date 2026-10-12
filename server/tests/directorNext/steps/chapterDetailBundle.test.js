@@ -35,6 +35,14 @@ test('detail bundle targets only authorized chapters, chains drafts and records 
   assert.equal(calls.find(row=>row[0]==='hash')[1].length,2);
   assert.equal(result.artifact.contentRef,'chapter_task_sheet:novel:chapter:1-2');
 });
+test('manual regeneration reaches the generator with its guidance and bypasses saved content reuse',async()=>{
+  const {handler,calls}=setup();
+  await handler({...context,regeneration:{guidance:'让主角主动试探，保留结尾'}});
+  const options=calls.find(row=>row[0]==='generate')[2];
+  assert.equal(options.forceRegenerate,true);
+  assert.equal(options.guidance,'让主角主动试探，保留结尾');
+});
+
 test('local warnings produce multiple debts and no stop in completion-first mode',async()=>{
   const {handler,calls}=setup({quality:true});const result=await handler(context);
   assert.equal(result.debts.length,2);assert.equal(result.stopSignal,undefined);

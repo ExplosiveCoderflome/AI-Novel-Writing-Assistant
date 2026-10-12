@@ -39,6 +39,19 @@ test('volume skeleton succeeds with no chapter execution contracts',async()=>{
   assert.ok((await handler(context)).artifact);
 });
 
+test('manual revision guidance reaches every strategy phase without changing model or chapter authorization',async()=>{
+  const {handler,calls}=setup();
+  await handler({...context,regeneration:{guidance:'减少卷数，保留结尾'}});
+  const phases=calls.filter(call=>call[0]==='generate');
+  assert.equal(phases.length,3);
+  for (const [,novelId,options] of phases) {
+    assert.equal(novelId,'novel');
+    assert.equal(options.guidance,'减少卷数，保留结尾');
+    assert.equal(options.model,input.model);
+    assert.equal(options.estimatedChapterCount,80);
+  }
+});
+
 test('failed critique does not save a partially generated strategy as complete',async()=>{
   const {handler,calls}=setup({failAt:'strategy_critique'});
   await assert.rejects(()=>handler(context),/generation failed/);
