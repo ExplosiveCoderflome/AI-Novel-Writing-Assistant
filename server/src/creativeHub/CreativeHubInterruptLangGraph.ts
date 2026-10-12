@@ -8,6 +8,7 @@ import { novelProductionService } from "../services/novel/NovelProductionService
 import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
 import { filterCreativeHubActions } from "./creativeHubToolPolicy";
 import { creativeHubService } from "./CreativeHubService";
+import { acquireCreativeHubThread } from "./creativeHubGraphHelpers";
 import {
   appendAssistantMessage,
   buildInterrupt,
@@ -294,6 +295,7 @@ export class CreativeHubInterruptLangGraph {
     input: ResolveInterruptInput,
     emitFrame: (frame: CreativeHubStreamFrame) => void,
   ): Promise<CreativeHubGraphResult> {
+    const releaseThread = acquireCreativeHubThread(input.threadId);
     const invocationId = crypto.randomUUID();
     this.invocations.set(invocationId, { emitFrame });
     try {
@@ -331,6 +333,7 @@ export class CreativeHubInterruptLangGraph {
       };
     } finally {
       this.invocations.delete(invocationId);
+      releaseThread();
     }
   }
 }

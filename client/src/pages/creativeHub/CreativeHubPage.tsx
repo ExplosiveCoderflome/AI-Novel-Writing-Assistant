@@ -57,6 +57,7 @@ export default function CreativeHubPage() {
   const createOriginLocationKeyRef = useRef(searchParams.toString());
   const activeInterruptIdRef = useRef<string | null>(null);
   const createThreadInFlightRef = useRef(false);
+  const skipAutoCreateKeyRef = useRef<string | null>(null);
   const threadActionInFlightRef = useRef(false);
   const bindingInFlightRef = useRef(false);
   const approvalInFlightRef = useRef(false);
@@ -161,6 +162,7 @@ export default function CreativeHubPage() {
       return;
     }
     createThreadInFlightRef.current = true;
+    skipAutoCreateKeyRef.current = null;
     createOriginThreadIdRef.current = activeThreadIdRef.current;
     createOriginSessionRef.current = activeThreadSessionRef.current;
     createOriginLocationKeyRef.current = currentLocationKeyRef.current;
@@ -215,8 +217,9 @@ export default function CreativeHubPage() {
     if (activeThreadId) return;
     if (!threadsQuery.isSuccess) return;
     if (initialThread) return;
+    if (skipAutoCreateKeyRef.current === autoCreateThreadKey) return;
     autoCreateThread();
-  }, [activeThreadId, autoCreateThread, initialThread, threadsQuery.isSuccess]);
+  }, [activeThreadId, autoCreateThread, autoCreateThreadKey, initialThread, threadsQuery.isSuccess]);
 
   const stateQuery = useQuery({
     queryKey: queryKeys.creativeHub.state(activeThreadId || "none"),
@@ -386,15 +389,26 @@ export default function CreativeHubPage() {
     setThreadActionPendingId(threadId);
     try {
       await deleteCreativeHubThread(threadId);
+      await queryClient.cancelQueries({ queryKey: queryKeys.creativeHub.threads });
+      const remainingThreads = (
+        queryClient.getQueryData<ApiResponse<CreativeHubThread[]>>(queryKeys.creativeHub.threads)?.data
+        ?? threads
+      ).filter((thread) => thread.id !== threadId && !thread.archived);
       queryClient.setQueryData<ApiResponse<CreativeHubThread[]>>(queryKeys.creativeHub.threads, (previous) => (
         previous?.data
           ? { ...previous, data: previous.data.filter((thread) => thread.id !== threadId) }
           : previous
       ));
       if (activeThreadIdRef.current === threadId) {
+        const nextThread = remainingThreads[0];
+        skipAutoCreateKeyRef.current = nextThread ? null : buildCreativeHubAutoCreateKey({}, false);
         setSearchParams((prev) => {
-          const next = applyCreativeHubBindingsToSearch(prev, {});
-          next.delete("threadId");
+          const next = applyCreativeHubBindingsToSearch(prev, nextThread?.resourceBindings ?? {});
+          if (nextThread) {
+            next.set("threadId", nextThread.id);
+          } else {
+            next.delete("threadId");
+          }
           return next;
         }, { replace: true });
       }
@@ -568,20 +582,18 @@ export default function CreativeHubPage() {
         )}
       />
 
-      <section className="rounded-lg border border-info/30 bg-info/5 p-4" aria-label="独立 Agent 项目提示">
+      <section className="rounded-lg bg-info/5 p-4" aria-label="创作中枢后续开发说明">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">需要完整 Agent 驱动创作？</h2>
+            <h2 className="text-sm font-semibold text-foreground">关于创作中枢的后续开发</h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-              创作中枢用于查询小说状态、诊断问题和获得下一步建议。完整的 Agent 工作流、工具调用、暂停恢复与本地小说工件，可使用独立项目。
+              创作中枢用于查询小说状态、诊断问题和查看下一步建议，后续可能不会继续深入开发。更完整的 Agent 创作能力，会在专门的 Agent 应用中继续推进。
             </p>
-            <p className="mt-2 break-all font-mono text-xs text-foreground">git clone https://github.com/ExplosiveCoderflome/ani-book-agent.git</p>
-            <p className="mt-1 text-xs text-muted-foreground">进入 ani-book-agent 目录，依次运行 pnpm install 和 pnpm dev；默认工作台地址为 http://127.0.0.1:5175。</p>
-            <p className="mt-1 text-xs text-muted-foreground">独立项目使用自己的小说工作区和运行记录，不会直接修改这里的小说。</p>
+            <p className="mt-2 text-xs text-muted-foreground">可以通过右侧入口了解独立应用；两个应用各自保存小说资料和运行记录。</p>
           </div>
           <Button asChild size="sm" variant="outline" className="shrink-0">
             <a href="https://github.com/ExplosiveCoderflome/ani-book-agent" target="_blank" rel="noreferrer">
-              查看 Agent 仓库
+              了解 Agent 应用
               <ExternalLink className="ml-1.5 h-3.5 w-3.5" aria-hidden="true" />
             </a>
           </Button>

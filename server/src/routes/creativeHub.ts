@@ -64,7 +64,7 @@ const streamRunSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(64).max(16384).optional(),
+  maxTokens: z.number().int().min(64).max(32768).optional(),
 });
 
 const resolveInterruptSchema = z.object({
@@ -259,11 +259,11 @@ router.post("/threads/:threadId/runs/stream", validate({
   try {
     const { threadId } = req.params as { threadId: string };
     const body = req.body as z.infer<typeof streamRunSchema>;
-    const disposeHeartbeat = initCreativeHubSSE(res);
     const threadState = await creativeHubService.getThreadState(threadId);
     const parentCheckpointId = body.checkpointId ?? threadState.currentCheckpointId ?? null;
     const resourceBindings = toBindings(body.resourceBindings);
     const seedMessages = await buildSeedMessages(threadId, parentCheckpointId, body.messages);
+    const disposeHeartbeat = initCreativeHubSSE(res);
 
     try {
       await creativeHubLangGraph.runThread({

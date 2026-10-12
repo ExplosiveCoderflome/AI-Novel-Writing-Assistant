@@ -11,7 +11,7 @@ import { sanitizeCreativeHubToolOutput } from "./toolEventPayloads";
 import { filterCreativeHubActions } from "./creativeHubToolPolicy";
 import { creativeHubService } from "./CreativeHubService";
 import { buildCreativeHubTurnSummary } from "./creativeHubTurnSummary";
-import { latestHumanGoal, toRunStatusContext } from "./creativeHubGraphHelpers";
+import { acquireCreativeHubThread, latestHumanGoal, toRunStatusContext } from "./creativeHubGraphHelpers";
 import {
   appendAssistantMessage,
   buildInterrupt,
@@ -29,9 +29,12 @@ import {
 } from "./langgraphState";
 import type { CreativeHubInterrupt, CreativeHubMessage, CreativeHubResourceBinding, CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import type { CreativeHubStreamFrame } from "@ai-novel/shared/types/api";
+import type { AgentRunStatus } from "@ai-novel/shared/types/agent";
 
 interface CreativeHubGraphInvocation {
   emitFrame: (frame: CreativeHubStreamFrame) => void;
+  runId: string | null;
+  runStatus: AgentRunStatus | null;
 }
 
 interface RunThreadInput {
@@ -94,6 +97,7 @@ export class CreativeHubLangGraph {
       error: message,
       finishedAt: new Date(),
     });
+    this.getInvocation(state).runStatus = "failed";
     callbacks?.onRunStatus?.({
       runId,
       status: "failed",
@@ -139,6 +143,8 @@ export class CreativeHubLangGraph {
         messages: state.runtimeMessages,
       }),
     });
+    const invocation = this.getInvocation(state);
+    invocation.runId = run.id;
 
     await this.store.updateRun(run.id, {
       status: "running",
@@ -146,6 +152,7 @@ export class CreativeHubLangGraph {
       currentStep: "planning",
       currentAgent: "Planner",
     });
+    invocation.runStatus = "running";
 
     this.emitFrame(state, {
       event: "creative_hub/run_status",
@@ -319,6 +326,7 @@ export class CreativeHubLangGraph {
         });
       },
       onRunStatus: (payload) => {
+        this.getInvocation(state).runStatus = payload.status;
         threadStatus = deriveThreadStatusFromRunStatus(payload.status);
         latestError = payload.status === "failed" ? payload.message ?? "创作中枢运行失败。" : null;
         this.emitFrame(state, {
@@ -490,24 +498,29 @@ export class CreativeHubLangGraph {
   }
 
   async runThread(input: RunThreadInput, emitFrame: (frame: CreativeHubStreamFrame) => void): Promise<CreativeHubGraphResult> {
+    const releaseThread = acquireCreativeHubThread(input.threadId);
     const resourceBindings = toBindings(input.resourceBindings);
-    const activeRuns = await this.store.listRuns({
-      sessionId: `creative_hub_${input.threadId}`,
-      novelId: resourceBindings.novelId ?? undefined,
-      limit: 10,
-    });
-    const blockingRun = activeRuns.find((item) => item.status === "running" || item.status === "waiting_approval");
-    if (blockingRun) {
-      throw new Error(
-        blockingRun.status === "waiting_approval"
-          ? "当前已有运行在等待审批，请先处理审批。"
-          : "当前已有运行仍在执行中。",
-      );
-    }
-
     const invocationId = crypto.randomUUID();
-    this.invocations.set(invocationId, { emitFrame });
+    const invocation: CreativeHubGraphInvocation = { emitFrame, runId: null, runStatus: null };
+    this.invocations.set(invocationId, invocation);
     try {
+      const activeRuns = await this.store.listRuns({
+        sessionId: `creative_hub_${input.threadId}`,
+        limit: 10,
+      });
+      if (activeRuns.some((item) => item.status === "waiting_approval")) {
+        throw new Error("当前已有运行在等待审批，请先处理审批。");
+      }
+      // Creative Hub runs in this API process. The thread guard above protects live calls;
+      // persisted running records without a live call were interrupted by a prior failure/restart.
+      for (const staleRun of activeRuns.filter((item) => item.status === "running")) {
+        await this.store.updateRun(staleRun.id, {
+          status: "failed",
+          currentStep: "failed",
+          error: "上一次会话运行已中断，可以重新提问。",
+          finishedAt: new Date(),
+        });
+      }
       const result = await this.graph.invoke({
         invocationId,
         threadId: input.threadId,
@@ -543,8 +556,31 @@ export class CreativeHubLangGraph {
         diagnostics: result.diagnostics,
         turnSummary: result.turnSummary,
       };
+    } catch (error) {
+      if (invocation.runId && invocation.runStatus !== "waiting_approval") {
+        const message = error instanceof Error ? error.message : "创作中枢运行失败。";
+        try {
+          if (invocation.runStatus !== "failed") {
+            await this.store.updateRun(invocation.runId, {
+              status: "failed",
+              currentStep: "failed",
+              error: message,
+              finishedAt: new Date(),
+            });
+          }
+          await creativeHubService.updateThread(input.threadId, {
+            status: "error",
+            latestRunId: invocation.runId,
+            latestError: message,
+          });
+        } catch (finalizeError) {
+          console.error("[creative-hub] Failed to save run failure", finalizeError);
+        }
+      }
+      throw error;
     } finally {
       this.invocations.delete(invocationId);
+      releaseThread();
     }
   }
 }
