@@ -52,9 +52,24 @@ for (const name of names) {
        VALUES (?, ?, ?, current_timestamp, 1)`
     ).run(require('node:crypto').randomUUID(), checksum, name);
   });
-  tx();
-  count++;
-  console.log('[init-db] applied', name);
+  try {
+    tx();
+    count++;
+    console.log('[init-db] applied', name);
+  } catch (e) {
+    const msg = String((e && e.message) || e);
+    // 幂等冲突：目标列/表已存在（如历史补丁迁移先于上游正式版执行过同名变更），
+    // 结构已就位，记账后继续下一条，不中断整条迁移链
+    if (/duplicate column|already exists|duplicate index/i.test(msg)) {
+      db.prepare(
+        `INSERT OR IGNORE INTO "_prisma_migrations" (id, checksum, migration_name, finished_at, applied_steps_count)
+         VALUES (?, ?, ?, current_timestamp, 1)`
+      ).run(require('node:crypto').randomUUID(), checksum, name);
+      console.log('[init-db] structure exists, marked applied:', name, '->', msg.split('\n')[0]);
+    } else {
+      throw e;
+    }
+  }
 }
 
 console.log(`[init-db] done, applied ${count} new migration(s)`);

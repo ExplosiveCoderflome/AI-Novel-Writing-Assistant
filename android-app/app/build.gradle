@@ -11,8 +11,8 @@ android {
         minSdk 31
         targetSdk 35
         // 版本号跟随上游（上游 2026-10-12 为 v0.5.9）；versionCode 单调递增
-        // 0.5.9 内容 = 上游 0.5.9 + 安卓移植（16KB 对齐合规 / 资产自动刷新 / 崩溃自愈等）
-        versionCode 11
+        // 12 = 修复 sqlite 迁移资产缺失（drama portraitData 报错）；11 = 0.5.9 首包
+        versionCode 12
         versionName "0.5.9"
         ndk {
             abiFilters 'arm64-v8a'

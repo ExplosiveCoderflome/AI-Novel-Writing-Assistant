@@ -56,9 +56,27 @@ fi
 echo "[android-assets] PROJECT_ROOT = $PROJECT_ROOT"
 
 # ---------------------------------------------------------------------------
-# 0) 构建 @ai-novel/shared（workspace 包，tsc 编译 dist；bundle 需要其 exports）
+# 0/4 同步 Prisma sqlite 迁移到资产
+#    上游更新 server/src/prisma/migrations.sqlite 后自动跟进（只增不删），
+#    防止 bundle.cjs 新代码要求新列而迁移资产停留在旧版（drama portraitData 事故）
 # ---------------------------------------------------------------------------
-echo "[android-assets] 0/3 构建 @ai-novel/shared ..."
+echo "[android-assets] 0/4 同步 sqlite 迁移 ..."
+MIG_SRC="$PROJECT_ROOT/server/src/prisma/migrations.sqlite"
+MIG_DST="$NODEJS_ASSETS/migrations.sqlite"
+if [ -d "$MIG_SRC" ]; then
+  mkdir -p "$MIG_DST"
+  cp -r --update=none "$MIG_SRC/." "$MIG_DST/" 2>/dev/null \
+    || cp -rn "$MIG_SRC/." "$MIG_DST/" 2>/dev/null \
+    || true
+  echo "  迁移资产 $(ls "$MIG_DST" | grep -cv 'toml') 条"
+else
+  echo "[android-assets] WARN: $MIG_SRC 不存在，跳过迁移同步" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# 1/4 构建 @ai-novel/shared（workspace 包，tsc 编译 dist；bundle 需要其 exports）
+# ---------------------------------------------------------------------------
+echo "[android-assets] 1/4 构建 @ai-novel/shared ..."
 if [ -d "$PROJECT_ROOT/shared" ]; then
   (cd "$PROJECT_ROOT/shared" && pnpm build >/tmp/shared_build.log 2>&1) \
     && echo "  shared build OK" \
@@ -71,7 +89,7 @@ fi
 # 1) bundle.cjs：esbuild 打包 server/src/app.ts（server 全部代码）
 #    只 external 原生/重型模块；express/cors/helmet/morgan 等打进包内
 # ---------------------------------------------------------------------------
-echo "[android-assets] 1/3 构建 bundle.cjs ..."
+echo "[android-assets] 2/4 构建 bundle.cjs ..."
 ESB_WIN="$(to_win "$ESBUILD")"
 SRC_WIN="$(to_win "$PROJECT_ROOT/server/src/app.ts")"
 OUT_WIN="$(to_win "$NODEJS_ASSETS/bundle.cjs")"
@@ -87,7 +105,7 @@ echo "  bundle.cjs $(stat -c%s "$NODEJS_ASSETS/bundle.cjs" 2>/dev/null || wc -c 
 #    注意：必须 AI_NOVEL_CLIENT_BASE=relative（file:// 加载需要相对路径），
 #    VITE_API_BASE_URL 指向 127.0.0.1:3000（安卓上 localhost 解析异常）
 # ---------------------------------------------------------------------------
-echo "[android-assets] 2/3 构建前端 www.zip ..."
+echo "[android-assets] 3/4 构建前端 www.zip ..."
 if [ -d "$PROJECT_ROOT/client/node_modules" ]; then
   (cd "$PROJECT_ROOT/client" && AI_NOVEL_CLIENT_BASE=relative VITE_API_BASE_URL="http://127.0.0.1:3000/api" npx vite build >/tmp/vite_android_build.log 2>&1) \
     && echo "  vite build OK" \
@@ -127,10 +145,10 @@ PYEOF
 #    bad ELF magic）。zip 缺失时从 GitHub Release 下载（见 README）。
 # ---------------------------------------------------------------------------
 if [ -f "$NODEJS_ASSETS/node-project.zip" ]; then
-  echo "[android-assets] 3/3 node-project.zip 已存在（固定资产，跳过重建）"
+  echo "[android-assets] 4/4 node-project.zip 已存在（固定资产，跳过重建）"
   echo "  $(stat -c%s "$NODEJS_ASSETS/node-project.zip" 2>/dev/null || wc -c < "$NODEJS_ASSETS/node-project.zip") bytes"
 else
-  echo "[android-assets] 3/3 WARN: node-project.zip 缺失！" >&2
+  echo "[android-assets] 4/4 WARN: node-project.zip 缺失！" >&2
   echo "  请从 GitHub Release 下载（README 有说明），或从发布版 APK 提取。" >&2
 fi
 
