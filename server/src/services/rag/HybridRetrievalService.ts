@@ -2,7 +2,7 @@ import { prisma } from "../../db/prisma";
 import { ragConfig } from "../../config/rag";
 import { compactSnippet, normalizeRagText, toKeywordTerms } from "./utils";
 import { EmbeddingService } from "./EmbeddingService";
-import { VectorStoreService } from "./VectorStoreService";
+import type { VectorStore } from "./VectorStoreService";
 import { resolveKnowledgeDocumentIds } from "../knowledge/common";
 import { RAG_OWNER_TYPES, type RagOwnerType, type RagSearchOptions, type RetrievedChunk } from "./types";
 import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFacets";
@@ -66,7 +66,7 @@ function buildFacetWhere(facets?: RagChunkFacets) {
 export class HybridRetrievalService {
   constructor(
     private readonly embeddingService: EmbeddingService,
-    private readonly vectorStoreService: VectorStoreService,
+    private readonly vectorStoreService: VectorStore,
     private readonly rerankerService: RagRerankerService = new RagRerankerService(),
   ) {}
 

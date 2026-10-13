@@ -96,6 +96,9 @@ const embeddingProvider = resolveEmbeddingProviderFromEnv();
 
 export const ragConfig = {
   enabled: isEnabled(process.env.RAG_ENABLED, true),
+  // 向量库驱动：qdrant（默认，与上游一致）| local（fork 新增：SQLite 本地向量库，
+  // 无需 Qdrant 服务，适合安卓端与个人本地部署）
+  vectorStoreDriver: (process.env.RAG_VECTOR_STORE ?? "qdrant").trim().toLowerCase() === "local" ? "local" : "qdrant",
   verboseLog: isEnabled(process.env.RAG_VERBOSE_LOG, false),
   defaultTenantId: process.env.RAG_DEFAULT_TENANT ?? "default",
   embeddingProvider,

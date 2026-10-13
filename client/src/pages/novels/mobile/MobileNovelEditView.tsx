@@ -1,7 +1,8 @@
 import { useState } from "react";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 import DirectorStepCalibrationDialog from "../components/DirectorStepCalibrationDialog";
-import { Loader2, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Loader2, MoreHorizontal } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +57,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     activeStepTakeoverEntry,
   } = props;
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const navigate = useNavigate();
 
   const normalizedActiveTab = normalizeNovelWorkspaceTab(activeTab);
   const normalizedWorkflowTab = normalizeNovelWorkspaceTab(workflowCurrentTab ?? normalizedActiveTab);
@@ -124,10 +126,22 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     <div className="mobile-page-novel-edit min-h-screen bg-background px-4 pb-28 pt-3">
       <header className="mobile-novel-workspace-header sticky top-0 z-30 -mx-4 border-b border-border/60 bg-background/95 px-4 pb-3 pt-2 backdrop-blur">
         <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold text-foreground">{novelTitle}</h1>
-            <DirectorVersionControl novelId={id} version="v1" />
-            <p className="mt-0.5 text-xs text-muted-foreground">{statusText}</p>
+          <div className="flex min-w-0 items-start gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-ml-2 mt-0.5 h-8 w-8 shrink-0"
+              aria-label="返回上一层"
+              onClick={() => navigate(-1)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-semibold text-foreground">{novelTitle}</h1>
+              <DirectorVersionControl novelId={id} version="v1" />
+              <p className="mt-0.5 text-xs text-muted-foreground">{statusText}</p>
+            </div>
           </div>
           <Dialog open={isToolsOpen} onOpenChange={setIsToolsOpen}>
             <DialogTrigger asChild>

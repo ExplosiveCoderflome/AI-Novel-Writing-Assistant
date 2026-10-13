@@ -78,7 +78,66 @@
 - 节奏拆章避免重复保存和旧标题覆盖新结果；角色对话缺少章节来源时保留未知状态。
 - 写法检查减少问题关联和原文引用错误，检查未完成时提供具体复查原因，避免将缺失结果当作通过。
 
+### 2026-08-03
+
+- 安卓端构建资产全部入库，fork 仓库后按文档两步即可构建出可运行的 APK。
+- 漫画工作台渲染改用 WASM sharp，免原生库依赖，真机渲染稳定，APK 体积降至约 163MB。
+- 修复首次启动模型配置弹窗、安卓网络连接失败等问题；导出文件写入公共下载目录。
+- 手机端统一为桌面布局（横屏固定），操作入口与电脑端一致。
+
 完整历史更新见 [版本更新说明](./docs/releases/release-notes.md)。
+
+---
+
+## 安卓端构建（fork 后构建必读）
+
+安卓 APK 需要的全部内嵌资产已**入库**（`node-project.zip` 40MB / `noderuntime/` 48MB / `migrations.sqlite/`），
+fork 后 clone 下来即可直接构建，无需从 Release 下载或从 APK 提取：
+
+```bash
+git clone https://github.com/<你的 fork>/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
+pnpm install                          # 安装依赖（esbuild / vite / prisma 等）
+bash android/build-android-assets.sh  # 生成 bundle.cjs + www.zip（node-project.zip 为固定资产，跳过重建）
+cd android-app
+# 首次需创建 local.properties 指向你的 Android SDK：sdk.dir=C:/Android/sdk
+gradle clean assembleDebug
+```
+
+产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 166MB，含内嵌 Node 运行时）。
+
+> ⚠️ **每次构建 APK 前都必须重跑 `build-android-assets.sh`**：NodeService 运行时解压的是
+> `www.zip`（不是 `assets/www/` 目录）。只改前端代码/只同步 `www/` 目录而不重新打 `www.zip`，
+> 打包进 APK 的仍是旧前端（版本号、功能不更新）。前端、后端代码有任何改动，都要先跑
+> `bash android/build-android-assets.sh` 再 `gradle assembleDebug`。
+>
+> 脚本会：① 构建 `@ai-novel/shared`（workspace 包，tsc 生成 dist）；② esbuild 完整打包
+> `server/src/app.ts` → `bundle.cjs`（express 等打进包内，仅 sharp/better-sqlite3/@prisma/client
+> 走原生加载）；③ 打包前端 `www/` → `www.zip`；④ `node-project.zip` 是固定资产（依赖锁定，
+> 含安卓 ELF better-sqlite3 + WASM sharp），存在则跳过重建。
+>
+> 漫画工作台 sharp 使用 **WASM 版**（@img/sharp-wasm32 + @emnapi/runtime，免原生库）：
+> 原生 bionic 版依赖 libvips 全家，libstdc++ ABI 在真机不兼容（dlopen 失败），故已弃用。
+> 旧文档见 [android/sharp-android/README.md](./android/sharp-android/README.md)（历史参考）。
+>
+> 构建环境需配置：Android SDK（compileSdk 35）、JDK 17、Gradle 8.9（或使用 wrapper）。
+> 构建脚本在 MSYS/Git-Bash / Linux / macOS 下均可运行（路径已兼容）。
+>
+> 升级侧：APK 覆盖安装后首次启动会按包的 `lastUpdateTime` 自动重解压 `www.zip` /
+> `node-project.zip`（含数据库迁移与初始化脚本），前端与迁移随 APK 更新生效，
+> **无需清除应用数据**（`dev.db` 不受影响）。
+
+### 安卓端 RAG（fork 新增：本地向量库）
+
+安卓端无法运行 Qdrant（无安卓构建），fork 内置了 SQLite 本地向量库实现
+`LocalVectorStoreService`（暴力余弦，个人知识库量级足够），由环境变量
+`RAG_VECTOR_STORE=local` 启用（NodeService.java 已默认注入，桌面端不受影响）。
+启用 RAG 只需两步：① 在「知识库/设置」面板开启 `rag.enabled`；② 配置
+embedding 模型 API。向量随知识库存入应用数据目录 `rag_local_vectors.db`，
+无需部署任何外部服务；更换 embedding 模型后本地向量会**自动清空**
+（向量属可再生数据，源数据块仍在 SQLite），在知识库重新索引即可，
+无需删文件、更无需重新打包 APK。
+默认 RAG 仍为关闭（`RAG_ENABLED=false`），避免无效连接与 embedding 空烧。
 
 ---
 

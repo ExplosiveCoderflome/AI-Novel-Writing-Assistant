@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ainovel.assistant'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.ainovel.assistant"
+        minSdk 31
+        targetSdk 35
+        // 版本号跟随上游（上游 2026-10-12 为 v0.5.9）；versionCode 单调递增
+        // 13 = 运行时注入 zip（迁移+新 bundle+prisma client，修 portraitData 报错的真正根因）
+        // 12/11 = 0.5.9 首包（未注入，运行时仍为 8 月旧版）
+        versionCode 13
+        versionName "0.5.9"
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+        release {
+            // 支持环境变量注入（CI 用 GitHub Secrets 提供 keystore）；
+            // 本地默认沿用 ../release.keystore，行为不变
+            storeFile file(System.getenv("RELEASE_KEYSTORE_FILE") ?: '../release.keystore')
+            storePassword System.getenv("RELEASE_STORE_PASSWORD") ?: 'ainovel123'
+            keyAlias System.getenv("RELEASE_KEY_ALIAS") ?: 'ainovel'
+            keyPassword System.getenv("RELEASE_KEY_PASSWORD") ?: 'ainovel123'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            applicationIdSuffix ".debug"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // keystore 缺失（如 CI 未配置 Secrets）时回退 debug 签名，避免构建直接失败
+            signingConfig file(System.getenv("RELEASE_KEYSTORE_FILE") ?: '../release.keystore').exists() \
+                    ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 排除 nodejs/node_modules 冗余目录（已在 node-project.zip 内，仅作打包源用；
+    // 见 build-android-assets.sh 步骤 3。运行时只解压 zip）
+    sourceSets {
+        main {
+            assets {
+                srcDirs 'src/main/assets'
+                exclude 'nodejs/node_modules/**'
+            }
+        }
+    }
+
+    aaptOptions {
+        noCompress 'node', 'js', 'so', 'zip'
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.webkit:webkit:1.11.0'
+    implementation 'com.google.android.material:material:1.12.0'
+}

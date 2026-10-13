@@ -8,6 +8,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
+import { ArrowLeft } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -849,10 +850,15 @@ function AutoDirectorCreatePage() {
       ) : null}
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，AI 会持续准备创作资源；项目建立后即可打开查看已完成成果。
+          <div className="flex min-w-0 items-start gap-2">
+            <Button type="button" variant="ghost" size="icon" className="-ml-2 mt-0.5 h-8 w-8 shrink-0 lg:hidden" aria-label="返回" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">
+                从一个起始想法开始，AI 会持续准备创作资源；项目建立后即可打开查看已完成成果。
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-3 sm:justify-end">

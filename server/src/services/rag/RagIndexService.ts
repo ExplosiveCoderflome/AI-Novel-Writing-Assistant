@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma";
 import { ragConfig } from "../../config/rag";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
 import { EmbeddingService } from "./EmbeddingService";
-import { VectorStoreService } from "./VectorStoreService";
+import type { VectorStore } from "./VectorStoreService";
 import { RagContextualChunkService, type RagContextualChunkDocument } from "./RagContextualChunkService";
 import { resolveEmbeddingChunkTokenBudget } from "./embeddingModelLimits";
 import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSourceDocument } from "./types";
@@ -100,7 +100,7 @@ export interface RagJobSummaryRecord {
 export class RagIndexService {
   constructor(
     private readonly embeddingService: EmbeddingService,
-    private readonly vectorStoreService: VectorStoreService,
+    private readonly vectorStoreService: VectorStore,
     private readonly contextualChunkService: RagContextualChunkService = new RagContextualChunkService(),
   ) {}
 
