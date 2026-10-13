@@ -10,8 +10,9 @@ android {
         applicationId "com.ainovel.assistant"
         minSdk 31
         targetSdk 35
-        versionCode 9
-        versionName "0.4.9"
+        // 0.5.0：同步上游 498 提交 + 移除 jniLibs 孤儿图形库（16KB 对齐合规）
+        versionCode 10
+        versionName "0.5.0"
         ndk {
             abiFilters 'arm64-v8a'
         }
@@ -19,10 +20,12 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('../release.keystore')
-            storePassword 'ainovel123'
-            keyAlias 'ainovel'
-            keyPassword 'ainovel123'
+            // 支持环境变量注入（CI 用 GitHub Secrets 提供 keystore）；
+            // 本地默认沿用 ../release.keystore，行为不变
+            storeFile file(System.getenv("RELEASE_KEYSTORE_FILE") ?: '../release.keystore')
+            storePassword System.getenv("RELEASE_STORE_PASSWORD") ?: 'ainovel123'
+            keyAlias System.getenv("RELEASE_KEY_ALIAS") ?: 'ainovel'
+            keyPassword System.getenv("RELEASE_KEY_PASSWORD") ?: 'ainovel123'
         }
     }
 
@@ -34,7 +37,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            // keystore 缺失（如 CI 未配置 Secrets）时回退 debug 签名，避免构建直接失败
+            signingConfig file(System.getenv("RELEASE_KEYSTORE_FILE") ?: '../release.keystore').exists() \
+                    ? signingConfigs.release : signingConfigs.debug
         }
     }
 

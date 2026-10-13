@@ -6,8 +6,12 @@
 
 ### 2026-10-13
 
-#### 安卓端修复（fork 专属）
+#### 安卓端修复与构建（fork 专属）
 
+- **版本号 0.4.9 → 0.5.0**（versionCode 10）：首个同步上游 2026-10-12 全量更新的安卓版本。
+- **移除 jniLibs 中 28 个孤儿图形库**（libvips/cairo/rsvg/OpenEXR/webp 家族等，bionic sharp 弃用后的遗留，运行时已无任何引用）：APK 体积显著下降，**消除安装时「不符合 16 KB 对齐要求」系统弹窗**（保留的 libnodebin/libc++_shared/libcares/libuv 均为 0x4000 合规对齐）。漫画工作台使用 WASM 版 sharp，不受影响。
+- **CI：Release 发布后自动构建 APK 并上传为 Release 附件**（workflow 触发新增 `release: published`）；配置 Secrets `RELEASE_KEYSTORE_B64` 后可额外产出 release 签名包。
+- build.gradle：版本号升级；签名配置支持环境变量注入，keystore 缺失时 release 构建回退 debug 签名（不再直接失败）。
 - 修复 APK 覆盖安装升级后资产不刷新：`.extracted` 标记改用包 `lastUpdateTime` 作版本戳，升级后自动重解压 `www.zip` / `node-project.zip`（含数据库迁移与初始化脚本），前端与迁移随 APK 更新生效，无需清除应用数据。
 - node 进程崩溃后自动重启（递增退避 2s→30s，连续 10 次放弃并写入 `debug.txt`；server 就绪后重置计数）。
 - 前端加载兜底由「60 秒单次」改为端口轮询（2 秒间隔 × 5 分钟）：首次安装解压 40MB+ 资产并跑迁移超过 60 秒也能正常进入；启动日志格式变化导致广播丢失时仍可就绪加载。

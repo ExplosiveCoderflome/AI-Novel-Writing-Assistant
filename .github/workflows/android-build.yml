@@ -1,13 +1,23 @@
 name: Android 构建
 
 # fork 分支专属：验证安卓移植并产出 APK。
-# 本地 Windows/MSYS 环境照旧可用（README 安卓构建段）；CI 为 Linux x86_64，
-# 可直接运行 build-tools 的 aapt2 等原生工具（arm64 设备无法本地完成打包）。
+# 触发方式：
+#   1. workflow_dispatch —— 手动构建，产物上传为 artifact
+#   2. 推送 android-v* 标签 —— 同上
+#   3. 发布 Release —— 自动构建并把 APK 上传为该 Release 的附件
+# 签名：
+#   - 默认 debug 签名（与本地已安装版本同包名 com.ainovel.assistant.debug，可直接覆盖升级）
+#   - 若配置 Secrets RELEASE_KEYSTORE_B64（release.keystore 的 base64），额外产出 release 签名包
 on:
   workflow_dispatch:
   push:
     tags:
       - "android-v*"
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -40,26 +50,62 @@ jobs:
       - name: 安装依赖
         run: pnpm install
 
-      # ubuntu-latest 自带 Android SDK（ANDROID_HOME 已配置），确认 platforms;android-35
       - name: 确认 Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms" || true
           if [ ! -d "$ANDROID_HOME/platforms/android-35" ]; then
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
           fi
 
-      # 每次构建必须重新生成 bundle.cjs + www.zip（见 android/build-android-assets.sh 头注释）
       - name: 构建安卓资产（bundle.cjs + www.zip）
         run: bash android/build-android-assets.sh
 
-      - name: 构建 APK（debug）
-        run: cd android-app && gradle assembleDebug --no-daemon --stacktrace
+      - name: 还原 release keystore（可选 Secrets）
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android-app/release.keystore
+            echo "HAS_KEYSTORE=true" >> "$GITHUB_ENV"
+            echo "已还原 release keystore，将产出 release 签名包"
+          else
+            echo "未配置 RELEASE_KEYSTORE_B64，仅产出 debug 签名包（可直接覆盖升级已装版本）"
+          fi
 
-      - name: 上传 APK
+      - name: 构建 APK（debug；有 keystore 时加 release）
+        env:
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          cd android-app
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            gradle assembleDebug assembleRelease --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: 整理产物
+        run: |
+          mkdir -p dist
+          TAG="${{ github.event.release.tag_name || github.ref_name }}"
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk "dist/AI-Novel-Studio-${TAG}-arm64-debug.apk"
+          if [ -f android-app/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android-app/app/build/outputs/apk/release/app-release.apk "dist/AI-Novel-Studio-${TAG}-arm64-release.apk"
+          fi
+          ls -la dist/
+
+      - name: 上传 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: android-app/app/build/outputs/apk/debug/*.apk
+          name: android-apk
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: 上传 APK 到 Release 附件
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" dist/*.apk --clobber
