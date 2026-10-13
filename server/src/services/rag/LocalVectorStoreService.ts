@@ -147,19 +147,39 @@ export class LocalVectorStoreService implements VectorStore {
       throw new Error(`本地向量库收到非法维度：${dimension}`);
     }
     const db = this.ensureDb();
-    const row = db
-      .prepare("SELECT value FROM rag_local_meta WHERE key = 'dimension'")
-      .get() as { value: string } | undefined;
-    if (row) {
-      const existing = Number(row.value);
-      if (existing !== dimension) {
-        throw new Error(
-          `本地向量库维度不匹配（已存 ${existing}，当前 ${dimension}）。更换 embedding 模型后请删除 rag_local_vectors.db 并重建索引。`,
-        );
-      }
-    } else {
-      db.prepare("INSERT INTO rag_local_meta (key, value) VALUES ('dimension', ?)").run(String(dimension));
+    const currentKey = [
+      ragConfig.embeddingProvider,
+      ragConfig.embeddingModel,
+      `v${ragConfig.embeddingVersion}`,
+    ].join("|");
+    const dimRow = db.prepare("SELECT value FROM rag_local_meta WHERE key = 'dimension'").get() as
+      | { value: string }
+      | undefined;
+    const keyRow = db.prepare("SELECT value FROM rag_local_meta WHERE key = 'embedding_key'").get() as
+      | { value: string }
+      | undefined;
+    const storedDim = dimRow ? Number(dimRow.value) : undefined;
+    const storedKey = keyRow?.value;
+
+    if (storedDim !== undefined && (storedDim !== dimension || (storedKey && storedKey !== currentKey))) {
+      // 换 embedding 模型/维度后旧向量不可用（不同模型的向量空间互不兼容）。
+      // 源数据块仍在 SQLite（knowledgeChunk），向量属可再生数据：自动清空重来，
+      // 免去手机端手动删除文件的麻烦；清空后需在知识库重新索引。
+      const count = (db.prepare("SELECT COUNT(*) AS c FROM rag_local_vectors").get() as { c: number }).c;
+      db.exec("DELETE FROM rag_local_vectors");
+      console.warn(
+        `${this.logPrefix} embedding 配置变更（维度 ${storedDim}→${dimension}，模型 ${storedKey ?? "?"}→${currentKey}），已清空本地向量（${count} 条）。请在知识库重新索引以恢复检索。`,
+      );
     }
+
+    db.prepare(
+      `INSERT INTO rag_local_meta (key, value) VALUES ('dimension', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    ).run(String(dimension));
+    db.prepare(
+      `INSERT INTO rag_local_meta (key, value) VALUES ('embedding_key', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    ).run(currentKey);
     this.ensuredDimension = dimension;
   }
 

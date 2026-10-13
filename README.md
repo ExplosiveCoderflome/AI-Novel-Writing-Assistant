@@ -134,7 +134,9 @@ gradle clean assembleDebug
 `RAG_VECTOR_STORE=local` 启用（NodeService.java 已默认注入，桌面端不受影响）。
 启用 RAG 只需两步：① 在「知识库/设置」面板开启 `rag.enabled`；② 配置
 embedding 模型 API。向量随知识库存入应用数据目录 `rag_local_vectors.db`，
-无需部署任何外部服务；更换 embedding 模型后需删除该文件重建索引。
+无需部署任何外部服务；更换 embedding 模型后本地向量会**自动清空**
+（向量属可再生数据，源数据块仍在 SQLite），在知识库重新索引即可，
+无需删文件、更无需重新打包 APK。
 默认 RAG 仍为关闭（`RAG_ENABLED=false`），避免无效连接与 embedding 空烧。
 
 ---
