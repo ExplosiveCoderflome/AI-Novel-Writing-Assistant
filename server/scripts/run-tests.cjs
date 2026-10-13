@@ -22,6 +22,7 @@ const integrationTests = new Set([
   "gateService.test.js",
   "openRunSwitchSqlite.test.js",
   "planningInventorySqlite.test.js",
+  "missingVolumeStrategySqlite.test.js",
   "processRecoverySqlite.test.js",
   "productionProgressSqlite.test.js",
   "recoveryBudgetSqlite.test.js",

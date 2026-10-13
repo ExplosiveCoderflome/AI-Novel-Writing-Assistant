@@ -21,6 +21,7 @@ interface VolumeStrategyGenerationOptions<Provider extends string, Document> ext
 export interface VolumeStrategyStepDependencies<Provider extends string, Document extends {volumes: readonly unknown[]}> {
   inputProvider: (context: StepContext) => Promise<VolumeStrategyStepInput<Provider>>;
   volumeService: {
+    recoverVolumeStrategy?(novelId: string, options: Omit<VolumeStrategyGenerationOptions<Provider, Document>, "scope">): Promise<Document | null>;
     generateVolumes(novelId: string, options: VolumeStrategyGenerationOptions<Provider, Document>): Promise<Document>;
     updateVolumes(novelId: string, input: Document & {syncToChapterExecution: false}): Promise<Document>;
   };
@@ -42,6 +43,16 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
       taskId: context.runId, entrypoint: "director_next" as const,
       persistIntermediateDocuments: false as const,
     };
+    if (!context.regeneration) {
+      const recovered = await dependencies.volumeService.recoverVolumeStrategy?.(novelId, options);
+      if (recovered) {
+        if (!recovered.volumes.length) throw new Error("分卷策略未保存可用的卷骨架。");
+        return { artifact: {
+          scope: context.contract.scope, status: "draft", protectedUserContent: true,
+          contentRef: `volume_strategy:${novelId}`, contentHash: dependencies.contentHash(recovered),
+        } };
+      }
+    }
     const strategy = await dependencies.volumeService.generateVolumes(novelId, {
       ...options, scope: "strategy", respectExistingVolumeCount: false,
     });

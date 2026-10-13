@@ -27,6 +27,7 @@ import {
   buildVolumeImpactResult,
 } from "./volumePlanUtils";
 import { generateVolumePlanDocument } from "./volumeGenerationOrchestrator";
+import { recoverMissingVolumeStrategy } from "./recovery/missingStrategy";
 import { VolumeChapterSyncService } from "./VolumeChapterSyncService";
 import { getLegacyVolumeSource } from "./legacyVolumeSource";
 import {
@@ -393,6 +394,10 @@ export class NovelVolumeService {
     return this.updateVolumesWithOptions(novelId, workspaceInput, {
       syncToChapterExecution,
     });
+  }
+
+  async recoverVolumeStrategy(novelId: string, options: VolumeGenerateOptions = {}): Promise<VolumePlanDocument | null> {
+    return recoverMissingVolumeStrategy(novelId, this, options);
   }
 
   async updateVolumesWithOptions(

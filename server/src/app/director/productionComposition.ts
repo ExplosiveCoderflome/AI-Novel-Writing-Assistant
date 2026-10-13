@@ -61,6 +61,11 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
       ...(context.contract.chapterRange?.from === 1 ? {skeletonVolumeCount: 1} : {})}), contentHash}),
     volume_beat_sheet: createVolumeBeatSheetStepHandler({volumeService: volumes, inputProvider: async context => {
+      // Old runs may have adopted a skeleton as a complete strategy. Check the saved business facts.
+      await volumes.recoverVolumeStrategy(context.contract.novelId, {
+        ...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
+        taskId: context.runId, entrypoint: "director_next",
+      });
       const range = context.contract.chapterRange;
       if (range) {
         const remaining = range.to-range.from+1;
