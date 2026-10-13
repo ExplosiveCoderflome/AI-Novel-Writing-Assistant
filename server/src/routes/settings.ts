@@ -60,6 +60,12 @@ import {
   MIN_STYLE_EXTRACTION_TIMEOUT_MS,
   saveStyleEngineRuntimeSettings,
 } from "../services/settings/StyleEngineRuntimeSettingsService";
+import {
+  getWorldGenerationTimeoutSettings,
+  MAX_WORLD_GENERATION_TIMEOUT_MS,
+  MIN_WORLD_GENERATION_TIMEOUT_MS,
+  saveWorldGenerationTimeoutSettings,
+} from "../services/settings/worldGeneration/timeoutSettings";
 import { registerCustomProviderRoutes } from "./settings/customProviderRoutes";
 import { registerLLMSelectionRoutes } from "./settings/llmSelectionRoutes";
 
@@ -128,6 +134,14 @@ const styleEngineRuntimeSettingsSchema = z.object({
     .int()
     .min(MIN_STYLE_EXTRACTION_TIMEOUT_MS)
     .max(MAX_STYLE_EXTRACTION_TIMEOUT_MS),
+});
+
+const worldGenerationTimeoutSchema = z.object({
+  timeoutMs: z.coerce
+    .number()
+    .int()
+    .min(MIN_WORLD_GENERATION_TIMEOUT_MS)
+    .max(MAX_WORLD_GENERATION_TIMEOUT_MS),
 });
 
 type APIKeyRecordLike = {
@@ -361,6 +375,36 @@ router.put(
         success: true,
         data,
         message: "写法引擎运行设置保存成功。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get("/world-generation-timeout", async (_req, res, next) => {
+  try {
+    const data = await getWorldGenerationTimeoutSettings();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "世界观生成等待时间读取成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/world-generation-timeout",
+  validate({ body: worldGenerationTimeoutSchema }),
+  async (req, res, next) => {
+    try {
+      const data = await saveWorldGenerationTimeoutSettings(req.body as z.infer<typeof worldGenerationTimeoutSchema>);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "世界观生成等待时间保存成功。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

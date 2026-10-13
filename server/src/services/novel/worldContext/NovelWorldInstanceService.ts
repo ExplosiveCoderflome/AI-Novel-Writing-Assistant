@@ -12,6 +12,10 @@ import type {
 } from "@ai-novel/shared/types/novelWorld";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import {
+  getWorldGenerationTimeoutMs,
+  rethrowWithWorldGenerationTimeoutHint,
+} from "../../settings/worldGeneration/timeoutSettings";
 import { novelThemeWorldGenerationPrompt } from "../../../prompting/prompts/world/world.prompts";
 import {
   applyStructuredWorldToLegacyFields,
@@ -27,7 +31,6 @@ import { listNovelWorldSyncRecords } from "./novelWorldSyncRecords";
 import { NovelWorldSyncService } from "./NovelWorldSyncService";
 import { normalizeStoryWorldSlice } from "../storyWorldSlice/storyWorldSlicePersistence";
 
-const NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS = 120_000;
 const NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS = 4_800;
 
 function buildGeneratedOpeningWorldSlice(input: {
@@ -484,6 +487,7 @@ export class NovelWorldInstanceService {
       throw new Error("小说不存在。");
     }
 
+    const timeoutMs = await getWorldGenerationTimeoutMs();
     const result = await runStructuredPrompt({
       asset: novelThemeWorldGenerationPrompt,
       promptInput: {
@@ -506,9 +510,11 @@ export class NovelWorldInstanceService {
         model: input.model,
         temperature: input.temperature ?? 0.5,
         maxTokens: NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS,
-        timeoutMs: NOVEL_THEME_WORLD_GENERATION_TIMEOUT_MS,
+        timeoutMs,
         entrypoint: "novel-world-generate",
       },
+    }).catch((error: unknown) => {
+      rethrowWithWorldGenerationTimeoutHint(error);
     });
 
     const structuredData = normalizeWorldStructuredData(result.output.structuredData);

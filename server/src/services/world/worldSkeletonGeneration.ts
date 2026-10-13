@@ -9,13 +9,16 @@ import { normalizeWorldSkeletonGenerationOptions } from "@ai-novel/shared/types/
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { worldSkeletonGenerationPrompt } from "../../prompting/prompts/world/worldDraft.prompts";
 import {
+  getWorldGenerationTimeoutMs,
+  rethrowWithWorldGenerationTimeoutHint,
+} from "../settings/worldGeneration/timeoutSettings";
+import {
   buildWorldBindingSupport,
   normalizeWorldBindingSupport,
   normalizeWorldStructuredData,
   WORLD_STRUCTURE_SCHEMA_VERSION,
 } from "./worldStructure";
 
-const WORLD_SKELETON_GENERATION_TIMEOUT_MS = 120_000;
 const WORLD_SKELETON_GENERATION_MAX_TOKENS = 6_000;
 
 export interface WorldSkeletonGenerateInput {
@@ -33,6 +36,7 @@ export async function generateWorldSkeleton(
   input: WorldSkeletonGenerateInput,
 ): Promise<WorldSkeletonGenerationPayload> {
   const options = normalizeWorldSkeletonGenerationOptions(input.options);
+  const timeoutMs = await getWorldGenerationTimeoutMs();
   const result = await runStructuredPrompt({
     asset: worldSkeletonGenerationPrompt,
     promptInput: {
@@ -48,8 +52,10 @@ export async function generateWorldSkeleton(
       model: input.model,
       temperature: 0.7,
       maxTokens: WORLD_SKELETON_GENERATION_MAX_TOKENS,
-      timeoutMs: WORLD_SKELETON_GENERATION_TIMEOUT_MS,
+      timeoutMs,
     },
+  }).catch((error: unknown) => {
+    rethrowWithWorldGenerationTimeoutHint(error);
   });
 
   const output = result.output;

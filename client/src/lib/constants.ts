@@ -122,3 +122,6 @@ function parseApiTimeoutMs(rawValue: string | number | undefined): number {
 }
 
 export const API_TIMEOUT_MS = parseApiTimeoutMs(runtimeConfig.apiTimeoutMs ?? viteEnv.VITE_API_TIMEOUT_MS);
+
+/** Stays 15 seconds above the 10 minute world-generation setting so the page does not abort first. */
+export const WORLD_GENERATION_CLIENT_TIMEOUT_MS = 10 * 60 * 1000 + 15_000;

@@ -14,6 +14,7 @@ import type {
   StoryWorldSliceOverrides,
   StoryWorldSliceView,
 } from "@ai-novel/shared/types/storyWorldSlice";
+import { WORLD_GENERATION_CLIENT_TIMEOUT_MS } from "@/lib/constants";
 import { apiClient } from "./client";
 
 export async function getNovelWorld(id: string) {
@@ -32,7 +33,11 @@ export async function createManualNovelWorld(id: string, payload: NovelWorldManu
 }
 
 export async function generateNovelWorldFromTheme(id: string, payload: NovelWorldGenerateInput) {
-  const { data } = await apiClient.post<ApiResponse<NovelWorldView>>(`/novels/${id}/novel-world/generate`, payload);
+  const { data } = await apiClient.post<ApiResponse<NovelWorldView>>(
+    `/novels/${id}/novel-world/generate`,
+    payload,
+    { timeout: WORLD_GENERATION_CLIENT_TIMEOUT_MS },
+  );
   return data;
 }
 

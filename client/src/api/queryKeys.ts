@@ -160,6 +160,7 @@ export const queryKeys = {
     rag: ["settings", "rag"] as const,
     ragEmbeddingModels: (provider: string) => ["settings", "rag", "embedding-models", provider] as const,
     styleEngineRuntime: ["settings", "style-engine-runtime"] as const,
+    worldGenerationTimeout: ["settings", "world-generation-timeout"] as const,
     modelRoutes: ["settings", "model-routes"] as const,
     modelRouteConnectivity: ["settings", "model-route-connectivity"] as const,
     structuredFallback: ["settings", "structured-fallback"] as const,

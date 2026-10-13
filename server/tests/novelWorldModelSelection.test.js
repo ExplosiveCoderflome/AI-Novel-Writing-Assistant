@@ -5,6 +5,7 @@ const { prisma } = require("../dist/db/prisma.js");
 const { setPromptRunnerStructuredInvokerForTests } = require("../dist/prompting/core/promptRunner.js");
 const { NovelWorldInstanceService } = require("../dist/services/novel/worldContext/NovelWorldInstanceService.js");
 const { novelThemeWorldGenerationPrompt } = require("../dist/prompting/prompts/world/world.prompts.js");
+const { setWorldGenerationTimeoutForTests } = require("../dist/services/settings/worldGeneration/timeoutSettings.js");
 
 test("generating a novel world keeps the selected model instead of forcing DeepSeek", async () => {
   const originalNovel = prisma.novel;
@@ -27,6 +28,7 @@ test("generating a novel world keeps the selected model instead of forcing DeepS
     captured.push(input);
     throw new Error("stop after capturing model selection");
   });
+  setWorldGenerationTimeoutForTests(120_000);
 
   try {
     const service = new NovelWorldInstanceService();
@@ -49,6 +51,7 @@ test("generating a novel world keeps the selected model instead of forcing DeepS
   } finally {
     prisma.novel = originalNovel;
     setPromptRunnerStructuredInvokerForTests();
+    setWorldGenerationTimeoutForTests();
   }
 });
 
