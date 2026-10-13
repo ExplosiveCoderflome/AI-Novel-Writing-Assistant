@@ -50,8 +50,11 @@ export HOST="${HOST:-localhost}"
 export AI_NOVEL_DATABASE_MODE="${AI_NOVEL_DATABASE_MODE:-sqlite}"
 export DATABASE_URL="${DATABASE_URL:-file:${AI_NOVEL_APP_DATA_DIR}/ai_novel.db}"
 
-# 禁用 PC 专属/安卓不可用的能力（RAG 默认关闭，可配 QDRANT_URL 开启）
-export AI_NOVEL_DISABLE_RAG="${AI_NOVEL_DISABLE_RAG:-1}"
+# 禁用 PC 专属/安卓不可用的能力
+# 注意：上游真实开关是 RAG_ENABLED（默认 true）；此前的 AI_NOVEL_DISABLE_RAG 无代码读取，
+# 是死变量。这里改为注入真实开关，默认关闭 RAG；需要时可 RAG_ENABLED=true 运行，
+# 或启动后在「知识库/设置」面板开启（DB 设置在运行时覆盖环境变量）。
+export RAG_ENABLED="${RAG_ENABLED:-false}"
 
 # --- 确保 Prisma SQLite client 已生成（首次运行） ---
 echo "[android] 生成 Prisma SQLite client（首次稍慢）..."

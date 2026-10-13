@@ -147,6 +147,10 @@ public class NodeService extends Service {
                     env.put("CORS_ORIGIN", "null");
                     env.put("PORT", "3000");
                     env.put("HOST", "127.0.0.1");
+                    // 安卓端无 Qdrant 服务，默认关闭 RAG（索引与检索），避免无效连接超时
+                    // 与 embedding 空烧。需要时可在「知识库/设置」面板开启：运行时的
+                    // rag.enabled / rag.qdrantUrl 等 DB 设置会覆盖此处的环境变量默认值。
+                    env.put("RAG_ENABLED", "false");
                     env.put("OPENSSL_CONF", "/dev/null");
                     env.put("LD_LIBRARY_PATH", binDir.getAbsolutePath() + ":" + System.getenv("LD_LIBRARY_PATH"));
                     env.put("HOME", nodeDir.getAbsolutePath());
