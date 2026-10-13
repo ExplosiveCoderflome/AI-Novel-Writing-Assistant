@@ -56,11 +56,11 @@ fi
 echo "[android-assets] PROJECT_ROOT = $PROJECT_ROOT"
 
 # ---------------------------------------------------------------------------
-# 0/4 同步 Prisma sqlite 迁移到资产
+# 0/5 同步 Prisma sqlite 迁移到资产
 #    上游更新 server/src/prisma/migrations.sqlite 后自动跟进（只增不删），
 #    防止 bundle.cjs 新代码要求新列而迁移资产停留在旧版（drama portraitData 事故）
 # ---------------------------------------------------------------------------
-echo "[android-assets] 0/4 同步 sqlite 迁移 ..."
+echo "[android-assets] 0/5 同步 sqlite 迁移 ..."
 MIG_SRC="$PROJECT_ROOT/server/src/prisma/migrations.sqlite"
 MIG_DST="$NODEJS_ASSETS/migrations.sqlite"
 if [ -d "$MIG_SRC" ]; then
@@ -74,9 +74,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 1/4 构建 @ai-novel/shared（workspace 包，tsc 编译 dist；bundle 需要其 exports）
+# 1/5 构建 @ai-novel/shared（workspace 包，tsc 编译 dist；bundle 需要其 exports）
 # ---------------------------------------------------------------------------
-echo "[android-assets] 1/4 构建 @ai-novel/shared ..."
+echo "[android-assets] 1/5 构建 @ai-novel/shared ..."
 if [ -d "$PROJECT_ROOT/shared" ]; then
   (cd "$PROJECT_ROOT/shared" && pnpm build >/tmp/shared_build.log 2>&1) \
     && echo "  shared build OK" \
@@ -86,10 +86,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 1) bundle.cjs：esbuild 打包 server/src/app.ts（server 全部代码）
+# 2/5 生成 Prisma Client（sqlite schema；注入 zip 的 .prisma/client 用）
+# ---------------------------------------------------------------------------
+echo "[android-assets] 2/5 prisma generate (sqlite) ..."
+if [ -d "$PROJECT_ROOT/server" ]; then
+  (cd "$PROJECT_ROOT/server" && AI_NOVEL_DATABASE_MODE=sqlite DATABASE_URL="file:./dev.db" \
+     pnpm run prisma:generate >/tmp/prisma_generate.log 2>&1) \
+    && echo "  prisma generate OK" \
+    || { echo "[android-assets] ERROR: prisma generate 失败（见 /tmp/prisma_generate.log）" >&2; tail -5 /tmp/prisma_generate.log >&2; exit 1; }
+else
+  echo "[android-assets] ERROR: server 目录不存在" >&2; exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# 3/5 bundle.cjs：esbuild 打包 server/src/app.ts（server 全部代码）
 #    只 external 原生/重型模块；express/cors/helmet/morgan 等打进包内
 # ---------------------------------------------------------------------------
-echo "[android-assets] 2/4 构建 bundle.cjs ..."
+echo "[android-assets] 3/5 构建 bundle.cjs ..."
 ESB_WIN="$(to_win "$ESBUILD")"
 SRC_WIN="$(to_win "$PROJECT_ROOT/server/src/app.ts")"
 OUT_WIN="$(to_win "$NODEJS_ASSETS/bundle.cjs")"
@@ -105,7 +118,7 @@ echo "  bundle.cjs $(stat -c%s "$NODEJS_ASSETS/bundle.cjs" 2>/dev/null || wc -c 
 #    注意：必须 AI_NOVEL_CLIENT_BASE=relative（file:// 加载需要相对路径），
 #    VITE_API_BASE_URL 指向 127.0.0.1:3000（安卓上 localhost 解析异常）
 # ---------------------------------------------------------------------------
-echo "[android-assets] 3/4 构建前端 www.zip ..."
+echo "[android-assets] 4/5 构建前端 www.zip ..."
 if [ -d "$PROJECT_ROOT/client/node_modules" ]; then
   (cd "$PROJECT_ROOT/client" && AI_NOVEL_CLIENT_BASE=relative VITE_API_BASE_URL="http://127.0.0.1:3000/api" npx vite build >/tmp/vite_android_build.log 2>&1) \
     && echo "  vite build OK" \
@@ -139,17 +152,21 @@ PYEOF
 )
 
 # ---------------------------------------------------------------------------
-# 3) node-project.zip：固定资产（依赖锁定），不重新打包。
-#    依赖树包含安卓版原生库（better-sqlite3 ELF + WASM sharp 运行时），
-#    Windows 开发机无法凭空生成（pnpm 会装 Windows 版原生库导致真机
-#    bad ELF magic）。zip 缺失时从 GitHub Release 下载（见 README）。
+# 5) node-project.zip 注入：zip 的依赖树（better-sqlite3 ELF + WASM sharp）
+#    是固定资产不可重建，但 bundle.cjs/init-db.cjs/迁移/prisma client 是
+#    构建产物，必须每次注入——运行时只解压 zip，assets 同名文件不可见。
+#    见 android/inject_runtime_into_zip.py 头部说明。
 # ---------------------------------------------------------------------------
+echo "[android-assets] 5/5 向 node-project.zip 注入运行时产物 ..."
 if [ -f "$NODEJS_ASSETS/node-project.zip" ]; then
-  echo "[android-assets] 4/4 node-project.zip 已存在（固定资产，跳过重建）"
-  echo "  $(stat -c%s "$NODEJS_ASSETS/node-project.zip" 2>/dev/null || wc -c < "$NODEJS_ASSETS/node-project.zip") bytes"
+  "$PY" "$SCRIPT_DIR/inject_runtime_into_zip.py" || {
+    echo "[android-assets] ERROR: zip 注入失败，中止（避免打出运行时过期的 APK）" >&2
+    exit 1
+  }
 else
-  echo "[android-assets] 4/4 WARN: node-project.zip 缺失！" >&2
+  echo "[android-assets] ERROR: node-project.zip 缺失！" >&2
   echo "  请从 GitHub Release 下载（README 有说明），或从发布版 APK 提取。" >&2
+  exit 1
 fi
 
 # 注：漫画工作台 sharp 使用 WASM 版（@img/sharp-wasm32 + @emnapi/runtime），

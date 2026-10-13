@@ -11,8 +11,9 @@ android {
         minSdk 31
         targetSdk 35
         // 版本号跟随上游（上游 2026-10-12 为 v0.5.9）；versionCode 单调递增
-        // 12 = 修复 sqlite 迁移资产缺失（drama portraitData 报错）；11 = 0.5.9 首包
-        versionCode 12
+        // 13 = 运行时注入 zip（迁移+新 bundle+prisma client，修 portraitData 报错的真正根因）
+        // 12/11 = 0.5.9 首包（未注入，运行时仍为 8 月旧版）
+        versionCode 13
         versionName "0.5.9"
         ndk {
             abiFilters 'arm64-v8a'

@@ -12,7 +12,7 @@
 - **移除 jniLibs 中 28 个孤儿图形库**（libvips/cairo/rsvg/OpenEXR/webp 家族等，bionic sharp 弃用后的遗留，运行时已无任何引用）：APK 体积显著下降，**消除安装时「不符合 16 KB 对齐要求」系统弹窗**（保留的 libnodebin/libc++_shared/libcares/libuv 均为 0x4000 合规对齐）。漫画工作台使用 WASM 版 sharp，不受影响。
 - **CI：Release 发布后自动构建 APK 并上传为 Release 附件**（workflow 触发新增 `release: published`）；配置 Secrets `RELEASE_KEYSTORE_B64` 后可额外产出 release 签名包。
 - build.gradle：版本号升级；签名配置支持环境变量注入，keystore 缺失时 release 构建回退 debug 签名（不再直接失败）。
-- **修复短剧工作台 `DramaCharacter.portraitData does not exist` 报错**：安卓迁移资产 `migrations.sqlite/` 停留在 2026-08-03，缺上游 32 个新迁移（含 2026-09-16 起的 drama/comic/market_radar/director_next 等全部新表新列）——全新安装也会缺列。已全量同步至上游 113 条；`build-android-assets.sh` 新增迁移自动同步步骤（0/4），此后同步上游自动跟进迁移，不再脱节。
+- **修复短剧工作台 `DramaCharacter.portraitData does not exist` 报错（真正根因）**：运行时的 bundle.cjs / 迁移 / prisma client 全部来自 `node-project.zip`，而该 zip 停在 2026-08-03——缺上游 32 个数据库迁移（2026-09-16 起的 drama/comic/market_radar/director_next 等新表新列），且 zip 内后端 bundle 从未随上游同步更新。新增 `android/inject_runtime_into_zip.py`，构建时将**新 bundle.cjs、113 条全量迁移、容错版 init-db.cjs、prisma generate 客户端、最新 schema** 一并注入 zip（自检不过即中止构建）；`build-android-assets.sh` 重构为 5 步（迁移同步 → shared → prisma generate → bundle → www → zip 注入），此后同步上游自动跟进，**上游 498 提交的后端改动也真正生效于安卓运行时**。
 - 删除 2026-08-03 的 3 个手工 comic 补丁迁移（已由上游 2026-09-16 正式版覆盖，且旧补丁与上游正式版冲突：`ADD COLUMN sceneRef` 无 IF NOT EXISTS 会重复加列报错）；`init-db.cjs` 增加幂等容错（duplicate column / already exists 视为已应用并继续），兼容已应用过旧补丁的存量设备。
 - 修复 APK 覆盖安装升级后资产不刷新：`.extracted` 标记改用包 `lastUpdateTime` 作版本戳，升级后自动重解压 `www.zip` / `node-project.zip`（含数据库迁移与初始化脚本），前端与迁移随 APK 更新生效，无需清除应用数据。
 - node 进程崩溃后自动重启（递增退避 2s→30s，连续 10 次放弃并写入 `debug.txt`；server 就绪后重置计数）。
