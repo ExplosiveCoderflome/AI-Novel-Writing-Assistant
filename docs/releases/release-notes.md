@@ -8,7 +8,7 @@
 
 #### 安卓端修复与构建（fork 专属）
 
-- **版本号 0.4.9 → 0.5.0**（versionCode 10）：首个同步上游 2026-10-12 全量更新的安卓版本。
+- **版本号 0.4.9 → 0.5.9**（versionCode 11）：版本号改为跟随上游版本线（上游 2026-10-12 为 v0.5.9），一眼可辨基于哪个上游版本；此后的安卓版本号与上游同步演进。
 - **移除 jniLibs 中 28 个孤儿图形库**（libvips/cairo/rsvg/OpenEXR/webp 家族等，bionic sharp 弃用后的遗留，运行时已无任何引用）：APK 体积显著下降，**消除安装时「不符合 16 KB 对齐要求」系统弹窗**（保留的 libnodebin/libc++_shared/libcares/libuv 均为 0x4000 合规对齐）。漫画工作台使用 WASM 版 sharp，不受影响。
 - **CI：Release 发布后自动构建 APK 并上传为 Release 附件**（workflow 触发新增 `release: published`）；配置 Secrets `RELEASE_KEYSTORE_B64` 后可额外产出 release 签名包。
 - build.gradle：版本号升级；签名配置支持环境变量注入，keystore 缺失时 release 构建回退 debug 签名（不再直接失败）。
