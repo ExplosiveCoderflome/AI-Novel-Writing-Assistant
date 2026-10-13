@@ -54,7 +54,9 @@ export DATABASE_URL="${DATABASE_URL:-file:${AI_NOVEL_APP_DATA_DIR}/ai_novel.db}"
 # 注意：上游真实开关是 RAG_ENABLED（默认 true）；此前的 AI_NOVEL_DISABLE_RAG 无代码读取，
 # 是死变量。这里改为注入真实开关，默认关闭 RAG；需要时可 RAG_ENABLED=true 运行，
 # 或启动后在「知识库/设置」面板开启（DB 设置在运行时覆盖环境变量）。
+# 向量库使用 fork 新增的 SQLite 本地实现，无需 Qdrant。
 export RAG_ENABLED="${RAG_ENABLED:-false}"
+export RAG_VECTOR_STORE="${RAG_VECTOR_STORE:-local}"
 
 # --- 确保 Prisma SQLite client 已生成（首次运行） ---
 echo "[android] 生成 Prisma SQLite client（首次稍慢）..."

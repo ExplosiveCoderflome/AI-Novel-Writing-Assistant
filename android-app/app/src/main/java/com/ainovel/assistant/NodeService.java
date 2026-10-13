@@ -151,6 +151,9 @@ public class NodeService extends Service {
                     // 与 embedding 空烧。需要时可在「知识库/设置」面板开启：运行时的
                     // rag.enabled / rag.qdrantUrl 等 DB 设置会覆盖此处的环境变量默认值。
                     env.put("RAG_ENABLED", "false");
+                    // 向量库使用 SQLite 本地实现（fork 新增 LocalVectorStoreService），
+                    // 开启 RAG 时无需部署 Qdrant，只需配置 embedding 模型 API。
+                    env.put("RAG_VECTOR_STORE", "local");
                     env.put("OPENSSL_CONF", "/dev/null");
                     env.put("LD_LIBRARY_PATH", binDir.getAbsolutePath() + ":" + System.getenv("LD_LIBRARY_PATH"));
                     env.put("HOME", nodeDir.getAbsolutePath());

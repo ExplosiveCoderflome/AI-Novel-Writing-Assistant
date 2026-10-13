@@ -127,6 +127,16 @@ gradle clean assembleDebug
 > `node-project.zip`（含数据库迁移与初始化脚本），前端与迁移随 APK 更新生效，
 > **无需清除应用数据**（`dev.db` 不受影响）。
 
+### 安卓端 RAG（fork 新增：本地向量库）
+
+安卓端无法运行 Qdrant（无安卓构建），fork 内置了 SQLite 本地向量库实现
+`LocalVectorStoreService`（暴力余弦，个人知识库量级足够），由环境变量
+`RAG_VECTOR_STORE=local` 启用（NodeService.java 已默认注入，桌面端不受影响）。
+启用 RAG 只需两步：① 在「知识库/设置」面板开启 `rag.enabled`；② 配置
+embedding 模型 API。向量随知识库存入应用数据目录 `rag_local_vectors.db`，
+无需部署任何外部服务；更换 embedding 模型后需删除该文件重建索引。
+默认 RAG 仍为关闭（`RAG_ENABLED=false`），避免无效连接与 embedding 空烧。
+
 ---
 
 ## 现在已经能做什么

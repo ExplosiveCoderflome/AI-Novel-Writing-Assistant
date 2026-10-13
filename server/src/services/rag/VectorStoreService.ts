@@ -49,6 +49,15 @@ interface VectorSearchFilter {
   facets?: RagChunkFacets;
 }
 
+// 向量库结构化接口（Qdrant 与本地实现共用）
+export interface VectorStore {
+  ensureCollection(dimension: number): Promise<void>;
+  upsertPoints(points: QdrantPoint[]): Promise<void>;
+  deletePoints(pointIds: string[]): Promise<void>;
+  search(vector: number[], limit: number, filter: VectorSearchFilter): Promise<VectorSearchResult[]>;
+  healthCheck(): Promise<{ ok: boolean; detail?: string }>;
+}
+
 function buildHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
