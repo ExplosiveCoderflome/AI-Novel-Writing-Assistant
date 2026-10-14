@@ -34,7 +34,7 @@ test("半自动审核可以选择其他导演步骤重新校准", async () => {
 
 test("正文编辑器在光标处提供续写候选并保留候选写回入口", async () => {
   const editor = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
-  const toolbar = await read("src/pages/novels/components/chapterEditor/CursorAIFloatingToolbar.tsx");
+  const toolbar = await read("src/pages/novels/components/chapterEditor/CursorAIToolbar.tsx");
   const acceptance = await read("src/pages/novels/components/chapterEditor/review/useCandidateAcceptance.ts");
   assert.match(toolbar, /CHAPTER_EDITOR_CURSOR_OPERATION_LABELS/);
   assert.match(toolbar, /"continue"/);
@@ -45,7 +45,7 @@ test("正文编辑器在光标处提供续写候选并保留候选写回入口",
 });
 
 test("章节问题卡提供保存后确认已处理的来源页闭环", async () => {
-  const sidebar = await read("src/pages/novels/components/chapterEditor/ChapterEditorSidebar.tsx");
+  const sidebar = await read("src/pages/novels/components/chapterEditor/diagnostics/ChapterEditorDiagnosticList.tsx");
   const shell = await read("src/pages/novels/components/chapterEditor/ChapterEditorShell.tsx");
   assert.match(sidebar, /确认问题已处理/);
   assert.match(sidebar, /保存后确认已处理/);

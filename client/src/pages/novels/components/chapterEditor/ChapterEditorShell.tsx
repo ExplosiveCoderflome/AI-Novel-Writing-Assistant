@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   ChapterEditorDiagnosticCard,
@@ -8,8 +10,10 @@ import type {
   ChapterEditorRecommendedTask,
   ChapterEditorRevisionScope,
   ChapterEditorTargetRange,
+  ChapterEditorWorkspaceResponse,
 } from "@ai-novel/shared/types/novel";
 import { useCandidateAcceptance, useCandidateReview } from "./review";
+import { applySavedRevisionToWorkspace, findRecommendedDiagnostic, removeCompletedDiagnostic } from "./diagnostics";
 import {
   readChapterQualityDebtDetails,
   type ChapterQualityDebtDetails,
@@ -24,13 +28,10 @@ import ChapterEditorDirectorPanel from "./ChapterEditorDirectorPanel";
 import ChapterEditorSidebar from "./ChapterEditorSidebar";
 import ChapterVersionDrawer from "./ChapterVersionDrawer";
 import ChapterTextEditor from "./ChapterTextEditor";
-import SelectionAIFloatingToolbar from "./SelectionAIFloatingToolbar";
-import CursorAIFloatingToolbar from "./CursorAIFloatingToolbar";
 import type {
   ChapterEditorSelectionRange,
   ChapterEditorSessionState,
   ChapterEditorShellProps,
-  SelectionToolbarPosition,
 } from "./chapterEditorTypes";
 import {
   CHAPTER_EDITOR_CURSOR_OPERATION_LABELS,
@@ -39,6 +40,7 @@ import {
   countEditorWords,
   getSaveStatusLabel,
   getParagraphWindow,
+  getParagraphIndicesForRange,
   normalizeChapterContent,
   useChapterDraft,
 } from "./document";
@@ -110,6 +112,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
+  const lastPreviewDiagnosticRef = useRef<ChapterEditorDiagnosticCard | undefined>(undefined);
   const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
@@ -118,13 +121,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [selection, setSelection] = useState<ChapterEditorSelectionRange | null>(null);
-  const [selectionToolbarPosition, setSelectionToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
   const [cursorOffset, setCursorOffset] = useState<number | null>(null);
-  const [cursorToolbarPosition, setCursorToolbarPosition] = useState<SelectionToolbarPosition | null>(null);
   const [session, setSession] = useState<ChapterEditorSessionState>(EMPTY_SESSION);
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
+  const [focusRequestKey, setFocusRequestKey] = useState(0);
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
   const [loadedSnapshotId, setLoadedSnapshotId] = useState<string | null>(null);
 
@@ -138,15 +140,15 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   useEffect(() => {
     setSaveStatus("idle");
     setSelection(null);
-    setSelectionToolbarPosition(null);
     setCursorOffset(null);
-    setCursorToolbarPosition(null);
     setSession(EMPTY_SESSION);
     setRevisionInstruction("");
     setRevisionScope("selection");
     setIsVersionDrawerOpen(false);
     setLoadedSnapshotId(null);
     lastPreviewRequestRef.current = null;
+    lastPreviewDiagnosticRef.current = undefined;
+    setFocusRequestKey(0);
     lastContinuationRequestRef.current = null;
   }, [chapter?.id]);
 
@@ -169,6 +171,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     () => workspace?.diagnosticCards.find((card) => card.id === selectedDiagnosticId) ?? null,
     [selectedDiagnosticId, workspace],
   );
+  const primaryDiagnosticCard = useMemo(
+    () => workspace ? findRecommendedDiagnostic(workspace) ?? workspace.diagnosticCards[0] ?? null : null,
+    [workspace],
+  );
+  const assistantDiagnosticCard = selectedDiagnosticCard
+    ?? (!selection && cursorOffset === null && revisionScope === "selection" ? primaryDiagnosticCard : null);
+  const actionContext = assistantDiagnosticCard ? "diagnostic" : selection ? "selection" : cursorOffset !== null ? "cursor" : "chapter";
   const selectedDiagnosticSelection = useMemo(
     () => toSelectionFromRange(contentDraft, selectedDiagnosticCard?.anchorRange ?? null),
     [contentDraft, selectedDiagnosticCard?.anchorRange],
@@ -281,7 +290,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const resolveDiagnosticMutation = useMutation({
     mutationFn: async (issueId: string) => resolveChapterAuditIssue(novelId, issueId),
-    onSuccess: async () => {
+    onSuccess: async (_response, issueId) => {
+      if (chapter) {
+        queryClient.setQueryData<ApiResponse<ChapterEditorWorkspaceResponse>>(
+          queryKeys.novels.chapterEditorWorkspace(novelId, chapter.id),
+          (cached) => {
+            const card = cached?.data?.diagnosticCards.find((item) => item.sourceIssueId === issueId);
+            return cached?.data && card ? { ...cached, data: removeCompletedDiagnostic(cached.data, card) } : cached;
+          },
+        );
+      }
       setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       onRefreshWorkspace?.();
@@ -309,6 +327,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession((current) => ({
         ...current,
         mode: "revision",
+        diagnosticCard: lastPreviewDiagnosticRef.current,
         status: "loading",
         requestLabel: label,
         customInstruction: request.instruction,
@@ -340,10 +359,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         viewMode: "block",
         activeCandidateId: data.activeCandidateId ?? data.candidates[0]?.id ?? null,
         requestLabel: current.requestLabel,
+        diagnosticCard: current.diagnosticCard,
         errorMessage: undefined,
       }));
       setSelection(null);
-      setSelectionToolbarPosition(null);
     },
     onError: (error) => {
       setSession((current) => ({
@@ -366,6 +385,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession((current) => ({
         ...current,
         mode: "continuation",
+        diagnosticCard: undefined,
         status: "loading",
         requestLabel: `正在生成${CHAPTER_EDITOR_CURSOR_OPERATION_LABELS[request.operation]}方案`,
         continuationOperation: request.operation,
@@ -397,9 +417,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         errorMessage: undefined,
       }));
       setSelection(null);
-      setSelectionToolbarPosition(null);
       setCursorOffset(null);
-      setCursorToolbarPosition(null);
     },
     onError: (error) => {
       setSession((current) => ({
@@ -419,10 +437,37 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       ? lastContinuationRequestRef.current?.contentSnapshot : lastPreviewRequestRef.current?.contentSnapshot,
     savedUpdatedAt: draft.savedUpdatedAt,
     acknowledgeSave: draft.acknowledgeSave,
-    onAccepted: async () => {
+    onAccepted: async ({ nextContent, savedUpdatedAt, fullyAccepted }) => {
+      let completedCard = fullyAccepted ? session.diagnosticCard : undefined;
+      if (completedCard?.sourceIssueId) {
+        try {
+          const response = await resolveChapterAuditIssue(novelId, completedCard.sourceIssueId);
+          if (!response.success) throw new Error(response.error || "问题状态更新失败。");
+        } catch {
+          completedCard = undefined;
+          toast.error("正文已保存，但问题状态更新失败。请在问题卡中确认已处理。");
+        }
+      }
+      if (chapter && session.targetRange) {
+        queryClient.setQueryData<ApiResponse<ChapterEditorWorkspaceResponse>>(
+          queryKeys.novels.chapterEditorWorkspace(novelId, chapter.id),
+          (cached) => cached?.data ? {
+            ...cached,
+            data: applySavedRevisionToWorkspace(cached.data, {
+              previousUpdatedAt: draft.savedUpdatedAt,
+              savedUpdatedAt,
+              previousContent: contentDraft,
+              nextContent,
+              targetRange: session.targetRange!,
+              completedCard,
+            }),
+          } : cached,
+        );
+      }
       setSaveStatus("saved");
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
+      setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       await props.onChapterSaved?.();
       setLoadedSnapshotId(null);
@@ -480,8 +525,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       instruction?: string;
       selectionOverride?: ChapterEditorSelectionRange | null;
       task?: ChapterEditorRecommendedTask | null;
+      diagnosticCard?: ChapterEditorDiagnosticCard;
     },
   ) => {
+    if (isBusy || session.status !== "idle") {
+      toast.error("请先完成或拒绝当前候选，再处理其他问题。");
+      return;
+    }
     const resolvedSelection = scope === "selection"
       ? getSelectionTarget(options?.selectionOverride, options?.task)
       : null;
@@ -491,17 +541,30 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       return;
     }
 
+    const selectedCardMatches = selectedDiagnosticCard?.anchorRange && resolvedSelection
+      && selectedDiagnosticCard.anchorRange.from === resolvedSelection.from
+      && selectedDiagnosticCard.anchorRange.to === resolvedSelection.to;
+    const diagnosticCard = options?.diagnosticCard ?? (selectedCardMatches ? selectedDiagnosticCard! : undefined);
     const request = buildAiRevisionRequest({
       source,
       scope,
       presetOperation: options?.presetOperation,
       instruction: options?.instruction,
+      repairBrief: diagnosticCard ? {
+        title: diagnosticCard.title,
+        problemSummary: diagnosticCard.problemSummary,
+        whyItMatters: diagnosticCard.whyItMatters,
+        repairGoal: diagnosticCard.repairGoal,
+        repairApproach: diagnosticCard.repairApproach,
+        mustPreserve: diagnosticCard.mustPreserve,
+      } : undefined,
       selection: resolvedSelection,
       content: contentDraft,
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
     });
+    lastPreviewDiagnosticRef.current = diagnosticCard;
     previewMutation.mutate(request);
   };
 
@@ -518,6 +581,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const handleRunCursorOperation = (operation: ChapterEditorCursorOperation, instruction?: string) => {
+    if (isBusy || session.status !== "idle") {
+      toast.error("请先完成当前操作，再生成续写候选。");
+      return;
+    }
     if (cursorOffset === null) {
       toast.error("请先把光标放在正文中，再选择续写方向。");
       return;
@@ -562,45 +629,55 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setSaveStatus("idle");
     setSession(EMPTY_SESSION);
     setSelection(null);
-    setSelectionToolbarPosition(null);
     setCursorOffset(null);
-    setCursorToolbarPosition(null);
     setSelectedDiagnosticId(null);
   };
 
   const handleFocusDiagnostic = (card: ChapterEditorDiagnosticCard) => {
+    if (isBusy || session.status !== "idle") return;
+    setFocusRequestKey(0);
     if (selectedDiagnosticId === card.id) {
       setSelectedDiagnosticId(null);
       return;
     }
     setSelectedDiagnosticId(card.id);
+    setRevisionScope(card.recommendedScope);
     setSelection(null);
-    setSelectionToolbarPosition(null);
+    setCursorOffset(null);
   };
 
   const handleRunDiagnostic = (card: ChapterEditorDiagnosticCard) => {
-    setSelectedDiagnosticId(card.id);
+    if (isBusy || session.status !== "idle") return;
+    if (contentDraft !== savedContent || workspace?.chapterMeta.updatedAt !== draft.savedUpdatedAt) {
+      toast.error("正文已变化，请先保存并重新分析本章，确认问题位置。");
+      return;
+    }
+    const target = toSelectionFromRange(contentDraft, card.anchorRange ?? null);
+    if (card.recommendedScope === "selection" && !target) {
+      toast.error("问题卡的正文位置需要重新确认，请重新分析本章后再处理。");
+      return;
+    }
+    flushSync(() => {
+      setSelectedDiagnosticId(card.id);
+      setSelection(target ?? toSelectionFromRange(contentDraft, { from: 0, to: contentDraft.length }));
+      setCursorOffset(null);
+      setRevisionScope(card.recommendedScope);
+      setFocusRequestKey((current) => current + 1);
+    });
     runRevision("preset", card.recommendedScope, {
       presetOperation: card.recommendedAction,
-      selectionOverride: toSelectionFromRange(contentDraft, card.anchorRange ?? null),
+      selectionOverride: target,
+      diagnosticCard: card,
+      instruction: revisionInstruction.trim() || undefined,
     });
   };
 
-  const handleRunRecommended = () => {
-    if (!workspace?.recommendedTask) {
-      return;
-    }
-    runRevision("preset", workspace.recommendedTask.recommendedScope, {
-      presetOperation: workspace.recommendedTask.recommendedAction,
-      task: workspace.recommendedTask,
-    });
-  };
 
   const handleRunSelectedDiagnostic = () => {
-    if (!selectedDiagnosticCard) {
+    if (!assistantDiagnosticCard) {
       return;
     }
-    handleRunDiagnostic(selectedDiagnosticCard);
+    handleRunDiagnostic(assistantDiagnosticCard);
   };
 
   const handleRunFreeform = () => {
@@ -609,17 +686,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     });
   };
 
-  const currentTargetDescription = revisionScope === "chapter"
-    ? "整章正文"
-    : selection
-      ? "你手动选中的正文片段"
-      : selectedDiagnosticCard?.paragraphLabel
-        ? `${selectedDiagnosticCard.paragraphLabel} 对应片段`
-        : workspace?.recommendedTask?.paragraphLabel
-          ? `${workspace.recommendedTask.paragraphLabel} 对应片段`
-          : "尚未选中片段";
   const canRunSelectionRevision = Boolean(getSelectionTarget());
   const headerSaveLabel = getSaveStatusLabel(saveStatus, isDirty);
+  const cursorParagraph = cursorOffset !== null
+    ? getParagraphIndicesForRange(contentDraft, { from: cursorOffset, to: cursorOffset })
+    : null;
+  const cursorTargetLabel = cursorParagraph ? `第 ${cursorParagraph.startIndex + 1} 段的光标处` : "正文光标处";
   const gridClassName = "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
 
   return (
@@ -657,33 +729,36 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         </div>
       ) : null}
       <div className={`grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden ${gridClassName}`}>
-        <ChapterEditorSidebar
-          chapter={chapter}
-          workspace={workspace}
-          workspaceStatus={workspaceStatus}
-          wordCount={wordCount}
-          saveStatusLabel={headerSaveLabel}
-          isDirty={isDirty}
-          isSaving={saveMutation.isPending}
-          selectedDiagnosticId={selectedDiagnosticId}
-          onBack={onBack ? () => leaveEditor(onBack) : undefined}
-          backLabel={props.backLabel}
-          onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
-          onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
-          onRefreshWorkspace={onRefreshWorkspace}
-          isRefreshingWorkspace={isRefreshingWorkspace}
-          onSave={() => saveMutation.mutate(contentDraft)}
-          onFocusDiagnostic={handleFocusDiagnostic}
-          onRunDiagnostic={handleRunDiagnostic}
-          onResolveDiagnostic={(card) => {
-            if (card.sourceIssueId) {
-              resolveDiagnosticMutation.mutate(card.sourceIssueId);
-            }
-          }}
-          isResolvingDiagnostic={resolveDiagnosticMutation.isPending}
-        />
+        <div className="order-1 min-h-0 overflow-y-auto xl:order-none">
+          <ChapterEditorSidebar
+            chapter={chapter}
+            workspace={workspace}
+            workspaceStatus={workspaceStatus}
+            wordCount={wordCount}
+            saveStatusLabel={headerSaveLabel}
+            isDirty={isDirty}
+            isSaving={saveMutation.isPending}
+            selectedDiagnosticId={selectedDiagnosticId}
+            onBack={onBack ? () => leaveEditor(onBack) : undefined}
+            backLabel={props.backLabel}
+            onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
+            onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
+            onRefreshWorkspace={onRefreshWorkspace}
+            isRefreshingWorkspace={isRefreshingWorkspace}
+            onSave={() => saveMutation.mutate(contentDraft)}
+            onFocusDiagnostic={handleFocusDiagnostic}
+            onRunDiagnostic={handleRunDiagnostic}
+            onResolveDiagnostic={(card) => {
+              if (card.sourceIssueId) {
+                resolveDiagnosticMutation.mutate(card.sourceIssueId);
+              }
+            }}
+            isResolvingDiagnostic={resolveDiagnosticMutation.isPending}
+            diagnosticsDisabled={isBusy || session.status !== "idle"}
+          />
+        </div>
 
-        <div className="relative min-h-0 overflow-hidden">
+        <div className="relative order-3 min-h-0 overflow-hidden xl:order-none">
           <ChapterTextEditor
             value={contentDraft}
             readOnly={session.status !== "idle"}
@@ -691,77 +766,75 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               draft.setContentDraft(next);
               setSaveStatus("idle");
             }}
-            onSelectionChange={(nextSelection, position) => {
+            onSelectionChange={(nextSelection) => {
               setSelection(nextSelection);
-              setSelectionToolbarPosition(position);
               if (nextSelection) {
+                setRevisionScope("selection");
+                setFocusRequestKey(0);
                 setCursorOffset(null);
-                setCursorToolbarPosition(null);
-              }
-              if (nextSelection) {
                 setSelectedDiagnosticId(null);
               }
             }}
-            onCursorChange={(offset, position) => {
+            onCursorChange={(offset) => {
               setCursorOffset(offset);
-              setCursorToolbarPosition(position);
               if (offset !== null) {
+                setRevisionScope("selection");
+                setFocusRequestKey(0);
                 setSelection(null);
-                setSelectionToolbarPosition(null);
                 setSelectedDiagnosticId(null);
               }
             }}
             preview={previewPayload}
+            focusRequestKey={focusRequestKey}
             focusRange={session.status === "idle"
               ? selection
                 ? { from: selection.from, to: selection.to }
                 : selectedDiagnosticCard?.anchorRange ?? null
               : null}
           />
-          <SelectionAIFloatingToolbar
-            visible={Boolean(selection && session.status === "idle")}
-            position={selectionToolbarPosition}
-            disabled={previewMutation.isPending}
-            onRunOperation={handleRunOperation}
-          />
-          <CursorAIFloatingToolbar
-            visible={Boolean(cursorOffset !== null && !selection && session.status === "idle")}
-            position={cursorToolbarPosition}
-            disabled={continuationMutation.isPending || previewMutation.isPending}
-            onRunOperation={handleRunCursorOperation}
-          />
         </div>
 
-        <div className="min-h-0 overflow-hidden">
-          <ChapterEditorDirectorPanel
-            workspace={workspace}
-            workspaceStatus={workspaceStatus}
-            selectedDiagnosticCard={selectedDiagnosticCard}
-            session={session}
-            activeCandidate={activeCandidate}
-            diffChanges={review.changes}
-            selectedDiffChangeIds={review.selectedChangeIds}
-            reviewError={review.error}
-            hasSelectedChanges={review.resultText !== session.targetRange?.text}
-            revisionScope={revisionScope}
-            revisionInstruction={revisionInstruction}
-            canRunSelectionRevision={canRunSelectionRevision}
-            currentTargetDescription={currentTargetDescription}
-            isGenerating={previewMutation.isPending || continuationMutation.isPending}
-            isApplying={acceptMutation.isPending}
-            onInstructionChange={setRevisionInstruction}
-            onScopeChange={setRevisionScope}
-            onRunRecommended={handleRunRecommended}
-            onRunSelectedDiagnostic={handleRunSelectedDiagnostic}
-            onRunFreeform={handleRunFreeform}
-            onSelectCandidate={(candidateId) => setSession((current) => ({ ...current, activeCandidateId: candidateId }))}
-            onSelectAllChanges={review.selectAll}
-            onToggleDiffChange={review.toggleChange}
-            onChangeViewMode={(mode) => setSession((current) => ({ ...current, viewMode: mode }))}
-            onAccept={() => acceptMutation.mutate()}
-            onReject={handleReject}
-            onRegenerate={handleRegenerate}
-          />
+        <div className="order-2 min-h-0 overflow-hidden xl:order-none">
+            <ChapterEditorDirectorPanel
+              workspace={workspace}
+              workspaceStatus={workspaceStatus}
+              selectedDiagnosticCard={assistantDiagnosticCard}
+              actionContext={actionContext}
+              cursorTargetDescription={cursorTargetLabel}
+              selectionTargetDescription={selection ? `已选中 ${countEditorWords(selection.text)} 字` : ""}
+              session={session}
+              activeCandidate={activeCandidate}
+              diffChanges={review.changes}
+              selectedDiffChangeIds={review.selectedChangeIds}
+              reviewError={review.error}
+              hasSelectedChanges={review.resultText !== session.targetRange?.text}
+              revisionScope={revisionScope}
+              revisionInstruction={revisionInstruction}
+              canRunSelectionRevision={canRunSelectionRevision}
+              isGenerating={isBusy}
+              isApplying={acceptMutation.isPending}
+              onInstructionChange={setRevisionInstruction}
+              onScopeChange={(scope) => {
+                setRevisionScope(scope);
+                if (scope === "chapter") {
+                  setSelection(null);
+                  setCursorOffset(null);
+                  setSelectedDiagnosticId(null);
+                  setFocusRequestKey(0);
+                }
+              }}
+              onRunCursorOperation={(operation) => handleRunCursorOperation(operation, revisionInstruction)}
+              onRunSelectionOperation={(operation) => handleRunOperation(operation, revisionInstruction.trim() || undefined)}
+              onRunSelectedDiagnostic={handleRunSelectedDiagnostic}
+              onRunFreeform={handleRunFreeform}
+              onSelectCandidate={(candidateId) => setSession((current) => ({ ...current, activeCandidateId: candidateId }))}
+              onSelectAllChanges={review.selectAll}
+              onToggleDiffChange={review.toggleChange}
+              onChangeViewMode={(mode) => setSession((current) => ({ ...current, viewMode: mode }))}
+              onAccept={() => acceptMutation.mutate()}
+              onReject={handleReject}
+              onRegenerate={handleRegenerate}
+            />
         </div>
       </div>
       <ChapterVersionDrawer

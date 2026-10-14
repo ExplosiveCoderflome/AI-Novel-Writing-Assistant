@@ -4,10 +4,9 @@ import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/re
 import type { ChapterEditorDiffChunk } from "@ai-novel/shared/types/novel";
 import { applySelectedChapterEditorDiff, groupChapterEditorDiffChanges } from "@ai-novel/shared/types/chapterEditor/document";
 import type { ChapterEditorDiffChange } from "@ai-novel/shared/types/chapterEditor/document";
-import type { ChapterEditorSelectionRange, SelectionToolbarPosition } from "./chapterEditorTypes";
+import type { ChapterEditorSelectionRange } from "./chapterEditorTypes";
 import {
   buildSelectionRangeFromValue,
-  buildToolbarPosition,
   getCursorOffsetFromValue,
   getParagraphIndicesForRange,
   normalizeChapterContent,
@@ -47,10 +46,11 @@ interface ChapterTextEditorProps {
   value: string;
   readOnly?: boolean;
   onChange: (next: string) => void;
-  onSelectionChange: (selection: ChapterEditorSelectionRange | null, position: SelectionToolbarPosition | null) => void;
-  onCursorChange: (offset: number | null, position: SelectionToolbarPosition | null) => void;
+  onSelectionChange: (selection: ChapterEditorSelectionRange | null) => void;
+  onCursorChange: (offset: number | null) => void;
   preview?: ChapterEditorPreview | null;
   focusRange?: Pick<ChapterEditorSelectionRange, "from" | "to"> | null;
+  focusRequestKey?: number;
 }
 
 const EDITOR_BODY_CLASS_NAME = "prose prose-sm max-w-none min-w-0 overflow-hidden break-words text-[15px] leading-8 dark:prose-invert [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words";
@@ -179,11 +179,10 @@ function renderBlockPreview(
 }
 
 export default function ChapterTextEditor(props: ChapterTextEditorProps) {
-  const { value, readOnly = false, onChange, onSelectionChange, onCursorChange, preview, focusRange = null } = props;
+  const { value, readOnly = false, onChange, onSelectionChange, onCursorChange, preview, focusRange = null, focusRequestKey = 0 } = props;
   const [editorSeed, setEditorSeed] = useState(0);
   const [internalText, setInternalText] = useState(() => normalizeChapterContent(value));
   const [paragraphMarkerOffsets, setParagraphMarkerOffsets] = useState<Array<{ index: number; top: number }>>([]);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const isUserEditingRef = useRef(false);
 
@@ -202,44 +201,39 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
     }
     setInternalText(nextValue);
     setEditorSeed((current) => current + 1);
-  }, [internalText, value]);
+    onSelectionChange(null);
+    onCursorChange(null);
+  }, [internalText, onCursorChange, onSelectionChange, value]);
 
   useEffect(() => {
     if (preview || readOnly) {
-      onSelectionChange(null, null);
-      onCursorChange(null, null);
+      onSelectionChange(null);
+      onCursorChange(null);
     }
   }, [onCursorChange, onSelectionChange, preview, readOnly]);
 
   const updateSelection = useCallback(() => {
     if (!editor || preview || readOnly) {
-      onSelectionChange(null, null);
-      onCursorChange(null, null);
+      onSelectionChange(null);
+      onCursorChange(null);
       return;
     }
 
-    const selectionObject = globalThis.window?.getSelection?.();
     const surface = surfaceRef.current;
-    if (!selectionObject || !surface || selectionObject.rangeCount === 0 || selectionObject.isCollapsed) {
-      if (selectionObject?.isCollapsed && surface && selectionObject.rangeCount > 0 && surface.contains(selectionObject.anchorNode)) {
-        const range = selectionObject.getRangeAt(0);
-        const point = editor.selection?.anchor as { path: number[]; offset: number } | undefined;
-        const offset = getCursorOffsetFromValue(editor.children as Value, point);
-        const container = containerRef.current;
-        const position = container ? buildToolbarPosition(container, range) : null;
-        onSelectionChange(null, null);
-        onCursorChange(offset, position);
-      } else {
-        onSelectionChange(null, null);
-        onCursorChange(null, null);
-      }
+    // Keep the last prose target while the author uses the AI controls.
+    if (!surface || !surface.contains(surface.ownerDocument.activeElement)) {
       return;
     }
-
-    const range = selectionObject.getRangeAt(0);
-    if (!surface.contains(range.commonAncestorContainer)) {
-      onSelectionChange(null, null);
-      onCursorChange(null, null);
+    const selectionObject = globalThis.window?.getSelection?.();
+    if (!selectionObject || selectionObject.rangeCount === 0
+      || !surface.contains(selectionObject.anchorNode) || !surface.contains(selectionObject.focusNode)) {
+      return;
+    }
+    if (selectionObject.isCollapsed) {
+      const point = editor.selection?.anchor as { path: number[]; offset: number } | undefined;
+      const offset = getCursorOffsetFromValue(editor.children as Value, point);
+      onSelectionChange(null);
+      onCursorChange(offset);
       return;
     }
 
@@ -248,16 +242,13 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
       focus: { path: number[]; offset: number };
     } | null);
     if (!selectionRange) {
-      onSelectionChange(null, null);
-      onCursorChange(null, null);
+      onSelectionChange(null);
+      onCursorChange(null);
       return;
     }
 
-    const container = containerRef.current;
-    const position = container ? buildToolbarPosition(container, range) : null;
-
-    onSelectionChange(selectionRange, position);
-    onCursorChange(null, null);
+    onSelectionChange(selectionRange);
+    onCursorChange(null);
   }, [editor, onCursorChange, onSelectionChange, preview, readOnly]);
 
   const handleValueChange = useCallback((payload: unknown) => {
@@ -304,9 +295,9 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
         ? "当前正在显示段落 patch 对比，原文和改写会在正文原位置并排落成红绿块。"
         : readOnly
           ? "当前有待确认候选，正文暂时锁定，可在右侧切换候选或接受、拒绝。"
-      : "点击正文放置光标，可选续写、过渡、对话或心理描写；选中片段可用 AI 改写。候选确认后写入正文。";
+      : "点击定位光标或选中片段，在 AI 操作区选择续写或改写。";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const surface = surfaceRef.current;
     if (!surface || preview) {
       return;
@@ -328,9 +319,9 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
     }
     paragraphNodes[paragraphIndices.startIndex]?.scrollIntoView({
       block: "center",
-      behavior: "smooth",
+      behavior: focusRequestKey ? "instant" : "smooth",
     });
-  }, [highlightedParagraphRange, preview]);
+  }, [focusRequestKey, highlightedParagraphRange, preview]);
 
   const updateParagraphMarkers = useCallback(() => {
     const surface = surfaceRef.current;
@@ -402,7 +393,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   ) : null;
 
   return (
-    <div ref={containerRef} className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
+    <div className="relative flex h-full min-h-[540px] flex-col overflow-hidden bg-background xl:min-h-0">
       <div className="shrink-0 flex items-center justify-between border-b border-border/70 px-4 py-3">
         <div className="text-sm font-medium text-foreground">正文</div>
         <div className="text-xs text-muted-foreground">{helperText}</div>

@@ -16,11 +16,6 @@ export interface ChapterEditorSelectionRange {
   text: string;
 }
 
-export interface SelectionToolbarPosition {
-  top: number;
-  left: number;
-}
-
 export interface ChapterEditorSessionState extends Partial<ChapterEditorAiRevisionResponse> {
   status: "idle" | "loading" | "ready" | "error";
   requestLabel?: string;
@@ -29,6 +24,7 @@ export interface ChapterEditorSessionState extends Partial<ChapterEditorAiRevisi
   errorMessage?: string;
   mode: "revision" | "continuation";
   continuationOperation?: ChapterEditorCursorOperation;
+  diagnosticCard?: ChapterEditorDiagnosticCard;
 }
 
 export interface ChapterEditorCursorRequestBuilderInput {
@@ -67,6 +63,7 @@ export interface ChapterEditorRequestBuilderInput {
   scope: ChapterEditorRevisionScope;
   presetOperation?: ChapterEditorOperation;
   instruction?: string;
+  repairBrief?: ChapterEditorAiRevisionRequest["repairBrief"];
   selection?: ChapterEditorSelectionRange | null;
   content: string;
   contextRange?: ChapterEditorSelectionRange | null;

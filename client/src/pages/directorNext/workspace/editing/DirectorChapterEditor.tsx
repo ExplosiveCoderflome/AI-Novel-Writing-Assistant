@@ -32,9 +32,9 @@ export function DirectorChapterEditor({ novelId, chapterId, onClose, onSaved }: 
   }
   return <Dialog open onOpenChange={open => { if (!open) requestClose(); }}>
     <AppDialogContent title={chapter ? `编辑正文 · 第 ${chapter.order} 章 · ${chapter.title}` : "编辑正文"}
-      description="点击正文放置光标，选择 AI 续写类型，比较候选后插入正文。编辑期间暂停跟随生成。"
-      className="h-[calc(100dvh-2rem)] max-w-[1800px]"
-      bodyClassName="flex min-h-0 flex-col overflow-hidden px-3 py-3 sm:px-5"
+      description="点击正文放置光标，在 AI 操作区选择续写方向，比较候选后插入正文。编辑期间暂停跟随生成。"
+      className="left-0 top-0 h-dvh max-h-dvh w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0"
+      bodyClassName="flex min-h-0 flex-col overflow-hidden p-3 sm:p-4"
       onInteractOutside={event => event.preventDefault()}>
       {detailQuery.isError ? <div role="alert" className="space-y-3 py-8 text-sm"><p>章节读取失败，请重新读取后再编辑。</p><Button onClick={() => void detailQuery.refetch()}>重新读取章节</Button></div>
         : !chapter ? <p className="py-8 text-sm text-muted-foreground">{detailQuery.isLoading ? "正在读取章节…" : "未找到本章，请返回目录选择章节。"}</p>

@@ -4,7 +4,6 @@ import { chapterParagraphs, insertChapterContinuation as insertChapterContinuati
 import type {
   ChapterEditorRequestBuilderInput,
   ChapterEditorSelectionRange,
-  SelectionToolbarPosition,
 } from "../chapterEditorTypes";
 
 export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
@@ -200,32 +199,6 @@ export function normalizeValuePayload(payload: unknown): Value {
   return [];
 }
 
-export function buildToolbarPosition(container: HTMLElement, range: Range): SelectionToolbarPosition | null {
-  const containerRect = container.getBoundingClientRect();
-  const rangeRect = range.getBoundingClientRect();
-  if (!rangeRect.width && !rangeRect.height) {
-    return null;
-  }
-
-  const TOOLBAR_WIDTH = 320;
-  const TOOLBAR_HEIGHT = 116;
-  const EDGE_PADDING = 12;
-  const VERTICAL_GAP = 10;
-  const preferredLeft = rangeRect.left - containerRect.left + rangeRect.width / 2 - TOOLBAR_WIDTH / 2;
-  const maxLeft = Math.max(EDGE_PADDING, containerRect.width - TOOLBAR_WIDTH - EDGE_PADDING);
-  const left = Math.max(EDGE_PADDING, Math.min(preferredLeft, maxLeft));
-
-  const topAbove = rangeRect.top - containerRect.top - TOOLBAR_HEIGHT - VERTICAL_GAP;
-  const topBelow = rangeRect.bottom - containerRect.top + VERTICAL_GAP;
-  const maxTop = Math.max(EDGE_PADDING, containerRect.height - TOOLBAR_HEIGHT - EDGE_PADDING);
-  const preferredTop = topAbove >= EDGE_PADDING ? topAbove : topBelow;
-
-  return {
-    top: Math.max(EDGE_PADDING, Math.min(preferredTop, maxTop)),
-    left,
-  };
-}
-
 type ParagraphWindow = {
   beforeParagraphs: string[];
   afterParagraphs: string[];
@@ -309,6 +282,7 @@ export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) 
     scope: input.scope,
     presetOperation: input.presetOperation,
     instruction: input.instruction?.trim() || undefined,
+    repairBrief: input.repairBrief,
     contentSnapshot,
     selection: selection
       ? {
