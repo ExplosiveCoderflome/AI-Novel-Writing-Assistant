@@ -7,6 +7,7 @@ const {
 } = require("../dist/services/novel/application/NovelApplicationServices.js");
 const { NovelChapterEditorService } = require("../dist/services/novel/chapterEditor/NovelChapterEditorService.js");
 const { ChapterEditorWorkspaceService } = require("../dist/services/novel/chapterEditor/ChapterEditorWorkspaceService.js");
+const { getRegisteredPromptAsset } = require("../dist/prompting/registry.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -16,6 +17,55 @@ function listen(server) {
     });
   });
 }
+
+const repairBrief = {
+  title: '痛感重复', problemSummary: '六段重复描写相同痛感', whyItMatters: '拖慢进入危机的节奏',
+  repairGoal: '压缩重复感受并保留两条关键线索', repairApproach: '合并没有增加信息的感受描写',
+  mustPreserve: ['保留黑石裂纹线索', '保留黑丝流入身体的发现'],
+};
+
+test('diagnostic revision passes its specific brief into the registered candidate prompt',async()=>{
+  let captured;
+  const service=new NovelChapterEditorService({loadContext:async()=>createWorkspaceContext()},async input=>{
+    captured=input;
+    return {output:{candidates:[{label:'紧凑',content:'alpha紧凑'},{label:'克制',content:'alpha克制'}]}};
+  });
+  const result=await service.previewAiRevision('novel-1','chapter-1',{
+    source:'preset',scope:'selection',presetOperation:'compress',repairBrief,
+    contentSnapshot:'alpha\n\nbeta',selection:{from:0,to:5,text:'alpha'},
+    constraints:{keepFacts:true,keepPov:true,noUnauthorizedSetting:true,preserveCoreInfo:true},
+  });
+  assert.deepEqual(captured.promptInput.repairBrief,repairBrief);
+  assert.equal(getRegisteredPromptAsset(captured.asset.id,captured.asset.version),captured.asset);
+  const messages=captured.asset.render(captured.promptInput,{}).map(message=>message.content).join('\n');
+  assert.ok(messages.includes(repairBrief.problemSummary));
+  assert.ok(messages.includes(repairBrief.repairGoal));
+  assert.ok(messages.includes('保留黑石裂纹线索'));
+  assert.equal(result.resolvedIntent.editGoal,repairBrief.repairGoal);
+  assert.ok(result.resolvedIntent.mustPreserve.includes('保留黑丝流入身体的发现'));
+});
+
+test('workspace diagnosis retains AI repair goals, approach and protected information',async()=>{
+  const service=new ChapterEditorWorkspaceService({}, {}, async()=>({output:{cards:[{
+    ...repairBrief,recommendedAction:'compress',recommendedScope:'selection',paragraphStart:1,paragraphEnd:1,
+    severity:'medium',sourceTags:['节奏'],
+  }]}}));
+  service.loadContext=async()=>createWorkspaceContext();
+  const workspace=await service.getWorkspace('novel-1','chapter-1');
+  assert.equal(workspace.diagnosticCards[0].repairGoal,repairBrief.repairGoal);
+  assert.equal(workspace.diagnosticCards[0].repairApproach,repairBrief.repairApproach);
+  assert.deepEqual(workspace.diagnosticCards[0].mustPreserve,repairBrief.mustPreserve);
+});
+
+test('registered diagnosis accepts no actionable issues and legacy cards without new repair fields',()=>{
+  const asset=getRegisteredPromptAsset('novel.chapter_editor.workspace_diagnosis','v2');
+  assert.ok(asset);
+  assert.deepEqual(asset.outputSchema.parse({cards:[]}),{cards:[]});
+  assert.doesNotThrow(()=>asset.outputSchema.parse({cards:[{
+    title:'旧诊断',problemSummary:'节奏拖慢',whyItMatters:'推进迟缓',recommendedAction:'compress',
+    recommendedScope:'selection',severity:'medium',
+  }]}));
+});
 
 function createWorkspaceContext() {
   return {
@@ -462,6 +512,7 @@ test("ChapterEditorWorkspaceService maps diagnosis paragraphs into anchor ranges
 test("GET workspace and POST ai-revision-preview routes return the new editor payloads", async () => {
   const originalWorkspaceMethod = DefaultNovelApplicationServices.prototype.getChapterEditorWorkspace;
   const originalRevisionMethod = DefaultNovelApplicationServices.prototype.previewChapterAiRevision;
+  let receivedRevisionPayload;
   DefaultNovelApplicationServices.prototype.getChapterEditorWorkspace = async () => ({
     chapterMeta: {
       chapterId: "chapter-1",
@@ -508,7 +559,9 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
     },
     refreshReason: "已基于本章内容实时生成修文建议。",
   });
-  DefaultNovelApplicationServices.prototype.previewChapterAiRevision = async (_novelId, _chapterId, payload) => ({
+  DefaultNovelApplicationServices.prototype.previewChapterAiRevision = async (_novelId, _chapterId, payload) => {
+    receivedRevisionPayload = payload;
+    return {
     sessionId: "session-1",
     scope: payload.scope,
     resolvedIntent: {
@@ -549,7 +602,8 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
       ],
     }],
     activeCandidateId: "candidate-1",
-  });
+    };
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -571,6 +625,7 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
         source: "freeform",
         scope: "chapter",
         instruction: "把这一章整体改得更压抑，但别改剧情事实。",
+        repairBrief,
         contentSnapshot: "alpha\n\nbeta",
         constraints: {
           keepFacts: true,
@@ -586,6 +641,7 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
     assert.equal(revisionPayload.success, true);
     assert.equal(revisionPayload.data.scope, "chapter");
     assert.equal(revisionPayload.data.candidates.length, 2);
+    assert.deepEqual(receivedRevisionPayload.repairBrief, repairBrief);
   } finally {
     DefaultNovelApplicationServices.prototype.getChapterEditorWorkspace = originalWorkspaceMethod;
     DefaultNovelApplicationServices.prototype.previewChapterAiRevision = originalRevisionMethod;

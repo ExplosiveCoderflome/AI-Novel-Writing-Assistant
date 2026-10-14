@@ -33,6 +33,9 @@ export const chapterEditorWorkspaceDiagnosticCardSchema = z.object({
   title: z.string().trim().min(1).max(60),
   problemSummary: z.string().trim().min(1).max(220),
   whyItMatters: z.string().trim().min(1).max(220),
+  repairGoal: z.string().trim().min(1).max(300).optional(),
+  repairApproach: z.string().trim().min(1).max(400).optional(),
+  mustPreserve: z.array(z.string().trim().min(1).max(200)).max(6).optional(),
   recommendedAction: workspaceDiagnosticActionSchema,
   recommendedScope: workspaceDiagnosticScopeSchema,
   paragraphStart: z.number().int().min(1).nullable().optional(),
@@ -51,7 +54,7 @@ export const chapterEditorWorkspaceRecommendedTaskSchema = z.object({
 });
 
 export const chapterEditorWorkspaceDiagnosisSchema = z.object({
-  cards: z.array(chapterEditorWorkspaceDiagnosticCardSchema).min(1).max(4),
+  cards: z.array(chapterEditorWorkspaceDiagnosticCardSchema).max(4),
   recommendedTask: chapterEditorWorkspaceRecommendedTaskSchema.optional(),
 });
 

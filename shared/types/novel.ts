@@ -380,12 +380,18 @@ export interface ChapterEditorMacroContext {
   mustKeepConstraints: string[];
 }
 
-export interface ChapterEditorDiagnosticCard {
-  id: string;
-  sourceIssueId?: string | null;
+export interface ChapterEditorRepairBrief {
   title: string;
   problemSummary: string;
   whyItMatters: string;
+  repairGoal?: string;
+  repairApproach?: string;
+  mustPreserve?: string[];
+}
+
+export interface ChapterEditorDiagnosticCard extends ChapterEditorRepairBrief {
+  id: string;
+  sourceIssueId?: string | null;
   recommendedAction: ChapterEditorOperation;
   recommendedScope: ChapterEditorRevisionScope;
   anchorRange?: Pick<ChapterEditorTargetRange, "from" | "to"> | null;
@@ -436,6 +442,7 @@ export interface ChapterEditorAiRevisionRequest {
   scope: ChapterEditorRevisionScope;
   presetOperation?: ChapterEditorOperation;
   instruction?: string;
+  repairBrief?: ChapterEditorRepairBrief;
   contentSnapshot: string;
   selection?: ChapterEditorTargetRange;
   context?: ChapterEditorContextWindow;

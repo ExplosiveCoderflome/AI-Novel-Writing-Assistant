@@ -161,6 +161,7 @@ export class NovelChapterEditorService {
         operationLabel: input.presetOperation ? OPERATION_LABELS[input.presetOperation] : "按用户要求修正",
         scope: input.scope,
         customInstruction: input.instruction?.trim() || undefined,
+        repairBrief: input.repairBrief,
         selectedText: targetRange.text,
         beforeParagraphs: contextWindow.beforeParagraphs,
         afterParagraphs: contextWindow.afterParagraphs,
@@ -310,11 +311,17 @@ export class NovelChapterEditorService {
     selectedText: string,
   ): Promise<ChapterEditorAiRevisionIntent> {
     if (input.source === "preset") {
-      return buildPresetIntent(
+      const intent = buildPresetIntent(
         input.presetOperation ?? "polish",
         macroContext.mustKeepConstraints,
         input.instruction,
       );
+      return input.repairBrief ? {
+        ...intent,
+        editGoal: input.repairBrief.repairGoal || input.repairBrief.problemSummary,
+        mustPreserve: Array.from(new Set([...intent.mustPreserve, ...(input.repairBrief.mustPreserve ?? [])])),
+        reasoningSummary: input.repairBrief.whyItMatters,
+      } : intent;
     }
 
     if (!input.instruction?.trim()) {
