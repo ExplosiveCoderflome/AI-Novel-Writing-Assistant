@@ -51,6 +51,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [重复故障模式与排查路径](./debugging/recurring-failure-modes.md)
 - [数据库 Schema 与迁移漂移](./debugging/database-migration-drift.md)
 - [服务端测试的进程与数据库隔离](./debugging/server-test-isolation.md)
+- [本地数据与版本控制边界](./debugging/local-data-and-version-control.md)
 
 ### Product
 
