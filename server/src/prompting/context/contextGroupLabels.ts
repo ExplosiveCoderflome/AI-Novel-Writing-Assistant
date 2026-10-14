@@ -7,6 +7,7 @@ const CONTEXT_GROUP_LABELS: Record<string, string> = {
   book_contract: "书级合约",
   chapter_boundary: "章节边界",
   chapter_mission: "章节任务",
+  completed_milestones: "近期已完成事项参考",
   character_dynamics: "角色关系动态",
   character_hard_facts: "角色硬事实",
   character_resource_context: "角色资源状态",

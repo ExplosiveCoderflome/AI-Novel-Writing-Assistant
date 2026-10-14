@@ -154,6 +154,9 @@ test("assembler only reads planning artifacts prepared before context assembly",
     consistencyFactFindMany: prisma.consistencyFact.findMany,
     chapterFindMany: prisma.chapter.findMany,
     creativeDecisionFindMany: prisma.creativeDecision.findMany,
+    characterMindSnapshotFindMany: prisma.characterMindSnapshot.findMany,
+    characterDialogueInfluenceFindMany: prisma.characterDialogueInfluence.findMany,
+    novelFactEntryFindMany: prisma.novelFactEntry.findMany,
     getChapterPlan: plannerService.getChapterPlan,
     ensureChapterPlan: plannerService.ensureChapterPlan,
     buildPlanPromptBlock: plannerService.buildPlanPromptBlock,
@@ -213,6 +216,9 @@ test("assembler only reads planning artifacts prepared before context assembly",
     prisma.consistencyFact.findMany = async () => [];
     prisma.chapter.findMany = async () => [];
     prisma.creativeDecision.findMany = async () => [];
+    prisma.characterMindSnapshot.findMany = async () => [];
+    prisma.characterDialogueInfluence.findMany = async () => [];
+    prisma.novelFactEntry.findMany = async () => [];
     plannerService.getChapterPlan = async () => ({
       id: "plan-1",
       chapterId: "chapter-1",
@@ -308,7 +314,19 @@ test("assembler only reads planning artifacts prepared before context assembly",
       return new Map([["a",{currentLocation:"牢房",source:"chapter",sourceChapterId:"c10",sourceChapterOrder:10,
         contentHash:"hash10",evidence:"甲被押进牢房。",concern:null}]]);
     };
+    prisma.novelFactEntry.findMany = async ({ where }) => {
+      const facts = [
+        { chapterOrder: 1, category: "completed", text: "旧事件已完成" },
+        { chapterOrder: 11, category: "revealed", text: "最新秘密已揭示" },
+        { chapterOrder: 9, category: "state_changed", text: "稍早状态已变化" },
+      ];
+      return facts.filter(fact => fact.chapterOrder < where.chapterOrder.lt
+        && (typeof where.category === "string" ? fact.category === where.category : where.category.in.includes(fact.category)))
+        .map((fact, index) => ({ ...fact, id: `fact-${index}`, novelId: "novel-1", source: "auto", createdAt: now }));
+    };
     const located=await assembler.assemble("novel-1","chapter-1",{});
+    assert.deepEqual(located.contextPackage.chapterWriteContext.completedMilestones,
+      ["旧事件已完成", "稍早状态已变化", "最新秘密已揭示"], "a recent fact window must use chapter order across all fact categories");
     assert.equal(located.contextPackage.characterRoster[0].currentLocation,"牢房","dynamic location must override a cached profile location");
     assert.equal(located.contextPackage.chapterWriteContext.characterHardFacts[0].locationState.sourceChapterOrder,10);
     assert.equal(located.contextPackage.chapterReviewContext.characterHardFacts[0].currentLocation,"牢房");
@@ -333,6 +351,9 @@ test("assembler only reads planning artifacts prepared before context assembly",
     prisma.consistencyFact.findMany = originals.consistencyFactFindMany;
     prisma.chapter.findMany = originals.chapterFindMany;
     prisma.creativeDecision.findMany = originals.creativeDecisionFindMany;
+    prisma.characterMindSnapshot.findMany = originals.characterMindSnapshotFindMany;
+    prisma.characterDialogueInfluence.findMany = originals.characterDialogueInfluenceFindMany;
+    prisma.novelFactEntry.findMany = originals.novelFactEntryFindMany;
     plannerService.getChapterPlan = originals.getChapterPlan;
     plannerService.ensureChapterPlan = originals.ensureChapterPlan;
     plannerService.buildPlanPromptBlock = originals.buildPlanPromptBlock;

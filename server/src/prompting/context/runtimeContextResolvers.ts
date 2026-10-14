@@ -33,6 +33,7 @@ const CHAPTER_CONTEXT_GROUPS = [
   "book_contract",
   "story_macro",
   "chapter_mission",
+  "completed_milestones",
   "chapter_boundary",
   "reader_experience",
   "character_hard_facts",

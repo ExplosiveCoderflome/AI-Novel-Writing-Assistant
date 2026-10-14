@@ -22,7 +22,7 @@ export interface ChapterWriterPromptInput {
 
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
   id: "novel.chapter.writer",
-  version: "v8",
+  version: "v9",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "writer",
   mode: "text",
@@ -283,7 +283,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "禁止跳跃式推进导致逻辑断裂。",
         "禁止整章只有情绪或氛围而缺乏事件推进。",
         "禁止用总结性语句代替剧情发展。",
-        "禁止重复追求 chapter_mission 中 'Already completed' 列表里已完成的目标（如已办好的证件、已签的协议）。",
+        "禁止把当前状态、近期已完成事项参考和检索资料中已完成的事件（如已办好的证件、已签的协议）再当作新目标；未列入历史参考窗口不代表尚未发生。",
         "禁止重复使用 opening_constraints 中 'Scene pattern blacklist' 列表里标注的场景模式（时间+地点+动作三要素完全相同的场景）。",
         antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "",
         "",

@@ -13,6 +13,67 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test("historical facts cannot grow mandatory context or displace the current task", () => {
+  const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
+  const pkg = createContextPackage();
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const recent = Array.from({ length: 20 }, (_, i) => `近期事实${i}：钥匙已成交，不得再当新目标。`);
+  const before = structuredClone(write);
+  const requiredContents = [];
+  for (const oldCount of [0, 2000]) {
+    write.completedMilestones = [
+      ...Array.from({ length: oldCount }, (_, i) => `旧事实${i}：交易已完成，不得重复追求。`), ...recent,
+    ];
+    const originalFacts = [...write.completedMilestones];
+    const review = buildChapterReviewContext(write, pkg);
+    const repair = buildChapterRepairContext({ writeContext: write, contextPackage: pkg, issues: [] });
+    const stages = [buildChapterWriterContextBlocks(write), buildChapterReviewContextBlocks(review), buildChapterRepairContextBlocks(repair)];
+    requiredContents.push(stages.map(blocks => blocks.filter(b => b.required).map(b => b.content)));
+    for (const blocks of stages) {
+      const selected = selectContextBlocks(blocks, { maxTokensBudget: 100 });
+      const mission = selected.selectedBlocks.find(b => b.group === "chapter_mission");
+      assert.ok(mission.content.includes(write.chapterMission.taskSheet), "the complete task sheet survives an exhausted context budget");
+      assert.ok(mission.content.includes(write.chapterMission.hookTarget));
+      assert.ok(!mission.content.includes("旧事实"), "history cannot hide inside mandatory mission input");
+      const history = blocks.find(b => b.group === "completed_milestones");
+      assert.ok(history && !history.required, "historical reference has its own optional budget");
+      assert.ok(history.content.includes("近期事实19"));
+      assert.ok(history.content.length < 2200, "history stays bounded as the book grows");
+      const guards = blocks.filter(b => ["character_hard_facts", "obligation_contract", "reader_experience"].includes(b.group));
+      for (const guard of guards) assert.equal(selected.selectedBlocks.find(b => b.id === guard.id).content, guard.content);
+    }
+    assert.deepEqual(write.completedMilestones, originalFacts, "the saved fact inventory is not truncated");
+  }
+  assert.deepEqual(requiredContents[0], requiredContents[1]);
+  assert.deepEqual(write.chapterMission, before.chapterMission);
+});
+
+test("review budgets background payoff reminders without dropping explicit payoff obligations", () => {
+  const pkg = createContextPackage();
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const review = buildChapterReviewContext(write, pkg);
+  const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
+  const blocks = buildChapterReviewContextBlocks(review);
+  const selected = selectContextBlocks(blocks, { maxTokensBudget: 100 });
+  assert.ok(!selected.selectedBlocks.some(b => b.group === "payoff_ledger"));
+  for (const group of ["payoff_directives", "obligation_contract", "chapter_boundary"]) {
+    assert.equal(selected.selectedBlocks.find(b => b.group === group).content, blocks.find(b => b.group === group).content);
+  }
+});
+
+test("identical payoff reminders share one body while distinct versions keep their facts", () => {
+  const pkg = createContextPackage();
+  const write = buildChapterWriteContext({ bookContract: pkg.bookContract, contextPackage: pkg });
+  const item = { ...write.ledgerPendingItems[0], title: "唯一线索", summary: "独有的账本事实" };
+  write.ledgerPendingItems = [item]; write.ledgerUrgentItems = [item]; write.ledgerOverdueItems = [item];
+  const ledger = buildChapterReviewContextBlocks(buildChapterReviewContext(write, pkg)).find(b => b.group === "payoff_ledger");
+  assert.equal(ledger.content.split("独有的账本事实").length - 1, 1);
+  for (const label of ["Urgent payoffs", "Overdue payoffs", "Active pending payoffs"]) assert.ok(ledger.content.includes(label));
+  write.ledgerOverdueItems = [{ ...item, summary: "另一版本的事实" }];
+  const distinct = buildChapterReviewContextBlocks(buildChapterReviewContext(write, pkg)).find(b => b.group === "payoff_ledger");
+  assert.ok(distinct.content.includes("独有的账本事实")); assert.ok(distinct.content.includes("另一版本的事实"));
+});
+
 test("writer, acceptance and repair inherit book perspective without modifying the reference asset", () => {
   const pkg = createContextPackage();
   pkg.styleContext = createStyleContext();
@@ -952,7 +1013,7 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "payoff_ledger"
-    && block.required && block.allowSummary === false
+    && !block.required && block.allowSummary === false
     && /urgent: 黑市账户异常/.test(block.content)
     && /overdue: 第一次反压收益/.test(block.content)
   )));
