@@ -8,3 +8,5 @@ export * from "./timeline.service";
 export * from "./chapter-timeline-repair.service";
 export { queueManualChapterTimeline } from "./application/manualContent";
 export { buildTimelineContentHash, TimelineContentVersionError, supersedeChapterTimeline, withCurrentTimelineContent } from "./persistence/chapterVersion";
+export { TimelineFinalizationStore } from "./persistence/TimelineFinalizationStore";
+export * from "./domain/finalizationPolicy";
