@@ -49,8 +49,8 @@
 - GLM 4.5 及以上模型在官方兼容端点执行结构化任务时，必须通过 `thinking: { type: "disabled" }` 关闭思考。`enable_thinking: false` 是 Qwen 兼容参数，不能复用于 GLM；聚合或未知代理端点仍按自身已验证的能力处理。
 - Semantic retry 必须把原始业务失败原因传回重试 prompt，并指明需要整体重排还是局部修正。章节列表、卷级拆章这类结果如果因为标题同构、章节功能重复、摘要空泛或结尾牵引不足被拒绝，重试指令应要求重排整组标题骨架和章节功能分配，而不是只替换被点名的一章。
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
-- Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
-- Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。安全槽位模式不常驻展示该诊断面板，因为用户不能在该模式调整上下文；高级模板模式才显示上下文引用，用于插入稳定 token 和检查必需上下文。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
+- Prompt Workbench 的「常用调整」只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；完整模板编辑只对声明 `advanced_template` 能力的正文提示词开放；contextPolicy 和 schema 始终不能自由编辑。
+- Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。常用调整模式不常驻展示该诊断面板，因为用户不能在该模式调整上下文；完整模板模式通过“查看资料引用”展开上下文引用，用于插入稳定 token 和检查必需上下文。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
 - 正文效果实验室是 `novel.chapter.writer` 的作者入口，不维护独立 Prompt 或生成链。它必须复用 Prompt Workbench 的本书模板、真实章节上下文、预览编译和受控测试接口；从章节编辑器进入时自动带入小说与章节，试写结果不得保存为章节正文或推进自动导演。
 - Prompt Workbench 在“本书”范围下如果同时选择了小说和章节，预览必须优先使用该小说章节的只读上下文；只有没有真实章节或无法装配真实上下文时，才允许通过 `executionContext.metadata.extraContextBlocks` 提供示例资料块。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
 - `novel.chapter.writer` 的 Workbench 预览必须注入只读 `chapterWriteContext`，并通过默认 Context Broker 解析出 `book_contract`、`chapter_mission`、`timeline_context`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 和 `style_contract`。预览按钮不得调用会补写章节计划、推进自动导演或修改小说数据的生成装配器；如果只能使用降级上下文，诊断信息必须说明来源边界。
@@ -81,6 +81,30 @@
 - 阶段性保留的 stream bridge，例如 `graphs/*`、`routes/chat.ts`、`services/novel/runtime/*`。
 
 这些例外不是新增 prompt 的默认入口。触碰例外文件时，优先评估能否迁入 PromptAsset + runner；暂时不能迁入时，应补齐等价的 prompt telemetry bridge，避免形成不可观测的第二套 prompt 执行路径。
+
+## 工作台的编辑与应用边界
+
+### 背景与决策
+
+作者需要先理解和调整写作要求，再决定将模板用在哪本小说。把阅读模板与选择小说绑定，会遮住主要编辑内容，也容易混淆默认要求、模板草稿和本书设置。因此工作台分别处理低风险设置、完整模板编辑和应用范围，不复制正文生产链。
+
+### 当前规则
+
+- 常用调整按注册槽位呈现写作方式、主要调整和补充要求。目录按 `slotSupported` 与 `supportsAdvancedTemplate` 展示可调整项，完整目录与搜索仍覆盖只读提示词。不得根据提示词 ID 在前端另建权限表。
+- 读取完整模板的 GET 接口允许省略 `novelId`，此时从注册的官方模板返回内容，不查询本书模板数据库。保存、恢复官方版本和启用历史版本仍必须指定小说；无小说的草稿不代表全局高级模板覆盖。
+- 完整模板草稿按提示词与小说范围隔离，未绑定小说使用独立的页面内草稿。查询重新获取、切换提示词或切换范围不能覆盖草稿；保存响应只清除对应的已提交草稿，不能清除其他范围或提交之后的新编辑。离开或刷新整个页面不会保留这些内存草稿，界面应明确说明。
+- “保存到小说”直接提交正在编辑的草稿与所选目标小说，不先切换查询范围。先切换范围再保存可能把草稿替换成该书已存模板。保存失败必须保留内容；成功后更新目标小说的缓存与版本。
+- 未选择小说时，工作台使用 `workbench/samplePreviewContext.ts` 内的虚构示例资料。示例只属于预览与受控测试，禁止进入正式生成、章节保存或自动导演。不得伪造小说或章节 ID 触发真实数据库查询。
+- 示例资料覆盖模板与注册资产声明的必需上下文；调用方提供了明确上下文时不能用示例悄悄补齐缺项。所选小说优先走只读真实上下文装配。模板编译、未知引用检查、必需资料保护以及结构化输出 Schema 均保持生效。
+- 短篇的 `production_foundation` 与其他声明的必需组一样，必须在默认 Context Broker 注册解析器；只有数据生成端产出资料、不注册消费端解析器，会造成资料存在但预览与测试仍报告缺失。
+- 切换提示词、小说、章节、模拟场景或编辑模式时清除旧预览和测试结果，取消原流式展示，避免将上一范围的输出误认为本次结果。真实模型测试需由用户触发，结果不写入小说正文。
+
+### 相关模块
+
+- `client/src/pages/promptWorkbench/`：页面分层、草稿生命周期、预览与应用。
+- `server/src/prompting/templates/`：官方模板、版本持久化、编译与必需上下文保护。
+- `server/src/prompting/workbench/`：真实资料的只读装配与独立的示例资料。
+- `server/src/prompting/context/runtimeContextResolvers.ts`：按声明解析实际资料，不决定创作语义。
 
 ## 示例
 

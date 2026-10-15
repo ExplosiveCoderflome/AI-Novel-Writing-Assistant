@@ -27,6 +27,7 @@ import type { PromptContextResolver, PromptExecutionContext } from "./types";
 const CHAPTER_CONTEXT_GROUPS = [
   "writing_platform",
   "creation_intent",
+  "production_foundation",
   "short_story_plan",
   "short_story_continuity",
   "book_style",

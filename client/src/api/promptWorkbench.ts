@@ -548,7 +548,7 @@ export async function keepMySlots(payload: PromptSlotAdoptKeepPayload) {
   return data;
 }
 
-export async function getPromptTemplateOverride(params: { promptId: string; novelId: string }) {
+export async function getPromptTemplateOverride(params: { promptId: string; novelId?: string }) {
   const { data } = await apiClient.get<ApiResponse<PromptTemplateOverrideView>>(
     "/prompt-workbench/template-overrides",
     { params },

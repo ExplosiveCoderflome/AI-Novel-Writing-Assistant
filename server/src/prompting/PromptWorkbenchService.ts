@@ -442,7 +442,7 @@ async function resolvePreviewTemplate(input: {
   template: PromptTemplateJson;
   activeVersionNo?: number;
 } | null> {
-  if (!supportsAdvancedPromptTemplate(input.asset.id) || !input.novelId) {
+  if (!supportsAdvancedPromptTemplate(input.asset.id)) {
     return null;
   }
   if (input.templateDraft) {

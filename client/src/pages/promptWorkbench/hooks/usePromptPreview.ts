@@ -366,8 +366,8 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     if (!prompt) {
       throw new Error("请选择提示词后再生成预览。");
     }
-    const executionNovelId = novelId || "novel-1";
-    const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
+    const executionNovelId = novelId || undefined;
+    const executionChapterId = novelId ? chapterId || previewChapter?.id : undefined;
     const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
     return {
       promptKey: prompt.key,
@@ -412,11 +412,14 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     },
   });
 
+  const hasTemplateDraft = Boolean(templateDraft);
   useEffect(() => {
+    streamedTestRunRef.current = null;
+    testRunStream.abort();
     previewMutation.reset();
     testRunMutation.reset();
     setStreamedTestRun(null);
-  }, [prompt?.key]);
+  }, [prompt?.key, novelId, chapterId, entrypoint, hasTemplateDraft]);
 
   const generatePreview = useCallback(() => {
     previewMutation.mutate();
@@ -444,7 +447,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     testRun: streamedTestRun ?? testRunMutation.data?.data ?? null,
     testRunStreamOutput: testRunStream.isStreaming ? testRunStream.content : "",
     isTestRunPending: testRunStream.isStreaming || testRunMutation.isPending,
-    testRunError: testRunStream.error
+    testRunError: (streamedTestRunRef.current ? testRunStream.error : null)
       ?? (testRunMutation.error instanceof Error ? testRunMutation.error.message : null),
     testRunMutation,
     resetPreview: previewMutation.reset,

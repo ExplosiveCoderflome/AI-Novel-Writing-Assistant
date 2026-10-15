@@ -55,6 +55,8 @@
 - `editModes` 声明 `readonly`、`slots`、`advanced_template`，前端只能按该能力渲染；
 - `advancedTemplate.requiredContextGroups` 定义高级模板不能静默移除的正式上下文。
 
+Workbench 将模板阅读、草稿编辑与应用范围分开：完整模板读取不需要小说，保存与版本切换仍绑定小说。未选小说的预览只使用 `workbench/` 内的示例资料，不得把示例带入正式生成；注册资产的必需上下文和 Schema 校验始终有效。维护时参见 [工作台的编辑与应用边界](../../../docs/wiki/prompts/prompt-registry-and-structured-output.md#工作台的编辑与应用边界)。
+
 结构化正文 Prompt 使用高级模板时，自定义模板先编译，结构化输出提示随后由运行时追加，最终输出仍必须通过注册资产的 Schema。用户模板不能覆盖或删除 Schema、repair、postValidate 和输出字段合同。
 
 ## Naming

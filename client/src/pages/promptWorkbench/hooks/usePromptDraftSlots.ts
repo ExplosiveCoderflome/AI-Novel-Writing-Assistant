@@ -181,7 +181,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
   const novelsQuery = useQuery({
     queryKey: queryKeys.novels.list(1, 50),
     queryFn: () => getNovelList({ page: 1, limit: 50 }),
-    enabled: Boolean(prompt?.slotSupported),
+    enabled: Boolean(prompt?.slotSupported || prompt?.capabilities.supportsAdvancedTemplate),
     staleTime: 60_000,
   });
 

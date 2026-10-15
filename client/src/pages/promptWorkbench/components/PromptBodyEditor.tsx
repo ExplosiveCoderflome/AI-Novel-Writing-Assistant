@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Descendant, Value } from "platejs";
-import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
+import { useMemo } from "react";
 import { CheckCircle2, LockKeyhole, MapPin, RotateCcw, ShieldCheck } from "lucide-react";
 import type {
   PromptCatalogItem,
@@ -19,46 +17,9 @@ import { cn } from "@/lib/utils";
 import {
   CONTEXT_GROUP_LABELS,
   LOCKED_CONTEXT_GROUPS,
-  SLOT_KIND_LABELS,
 } from "../promptWorkbenchLabels";
 import type { PromptEditorSection, PromptSlotValue } from "../promptWorkbenchTypes";
 import { PromptPreviewPanel } from "./PromptPreviewPanel";
-
-function toPlateValue(text: string): Value {
-  const normalized = text.replace(/\r\n/g, "\n");
-  const lines = normalized.length > 0 ? normalized.split("\n") : [""];
-  return lines.map((line) => ({
-    type: "p",
-    children: [{ text: line }],
-  }));
-}
-
-function nodeToText(node: Descendant): string {
-  if ("text" in node && typeof node.text === "string") {
-    return node.text;
-  }
-  if ("children" in node && Array.isArray(node.children)) {
-    return node.children.map((child) => nodeToText(child as Descendant)).join("");
-  }
-  return "";
-}
-
-function toPlainText(value: Value): string {
-  return (value as Descendant[]).map((node) => nodeToText(node)).join("\n");
-}
-
-function normalizeValuePayload(payload: unknown): Value {
-  if (Array.isArray(payload)) {
-    return payload as Value;
-  }
-  if (payload && typeof payload === "object" && "value" in payload) {
-    const value = (payload as { value?: unknown }).value;
-    if (Array.isArray(value)) {
-      return value as Value;
-    }
-  }
-  return [];
-}
 
 function getMaxLength(section: PromptEditorSection): number | undefined {
   if ("maxLength" in section.slot) {
@@ -67,119 +28,9 @@ function getMaxLength(section: PromptEditorSection): number | undefined {
   return undefined;
 }
 
-function PromptSlotTextEditor(props: {
-  value: string;
-  maxLength?: number;
-  placeholder?: string;
-  minHeightClassName?: string;
-  immersive?: boolean;
-  disabled?: boolean;
-  onChange: (next: string) => void;
-}) {
-  const {
-    disabled,
-    immersive,
-    maxLength,
-    minHeightClassName = "min-h-[150px]",
-    onChange,
-    placeholder,
-    value,
-  } = props;
-  const [editorSeed, setEditorSeed] = useState(0);
-  const [internalText, setInternalText] = useState(value);
-
-  const editor = usePlateEditor(
-    {
-      plugins: [ParagraphPlugin],
-      value: toPlateValue(internalText),
-    },
-    [editorSeed],
-  );
-
-  useEffect(() => {
-    if (value === internalText) {
-      return;
-    }
-    setInternalText(value);
-    setEditorSeed((current) => current + 1);
-  }, [internalText, value]);
-
-  const handleValueChange = useCallback((payload: unknown) => {
-    const nextText = toPlainText(normalizeValuePayload(payload));
-    const normalized = maxLength ? nextText.slice(0, maxLength) : nextText;
-    if (normalized === internalText) {
-      return;
-    }
-    setInternalText(normalized);
-    if (normalized !== nextText) {
-      setEditorSeed((current) => current + 1);
-    }
-    onChange(normalized);
-  }, [internalText, maxLength, onChange]);
-
-  const lineCount = Math.max(1, internalText.replace(/\r\n/g, "\n").split("\n").length);
-  const remaining = typeof maxLength === "number" ? maxLength - internalText.length : null;
-
-  return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-md border bg-white shadow-[0_10px_28px_rgba(15,55,48,0.08)]",
-        immersive ? "border-[#a9cfc4]" : "border-[#cbdad6]",
-      )}
-    >
-      <div className="flex min-h-0">
-        <div className="w-12 shrink-0 select-none border-r border-[#dce8e4] bg-[#eef7f3] py-3 pr-2 text-right font-mono text-[11px] leading-6 text-[#6f8d86]">
-          {Array.from({ length: lineCount }).map((_, index) => (
-            <div key={index}>{index + 1}</div>
-          ))}
-        </div>
-        <div className="min-w-0 flex-1">
-          {editor ? (
-            <Plate editor={editor} onValueChange={handleValueChange}>
-              <PlateContent
-                readOnly={disabled}
-                placeholder={placeholder}
-                className={cn(
-                  "prose prose-sm max-w-none rounded-r-md px-4 py-4 text-sm leading-7 outline-none dark:prose-invert",
-                  "break-words [&_p]:m-0 [&_p]:min-h-6 [&_p]:text-foreground",
-                  disabled && "cursor-not-allowed opacity-70",
-                  minHeightClassName,
-                )}
-              />
-            </Plate>
-          ) : null}
-        </div>
-      </div>
-      {remaining !== null ? (
-        <div className="border-t border-[#dce8e4] bg-[#fbfdfb] px-3 py-1.5 text-right text-xs text-[#6f7f78]">
-          {remaining < 0 ? <span className="text-destructive">{remaining}</span> : remaining} 字剩余
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function SlotBadges({ section }: { section: PromptEditorSection }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <Badge variant="outline" className="border-[#cbdad6] bg-[#f7fbf9] text-[#315f58]">
-        {SLOT_KIND_LABELS[section.kind] ?? section.kind}
-      </Badge>
-      <Badge
-        variant={section.source === "official" ? "outline" : "secondary"}
-        className={cn(
-          section.source === "novel_official_default" && "border-[#a7d7ca] bg-[#eaf7f2] text-[#0f766e]",
-          section.source === "global" && "border-[#c9d7ff] bg-[#eef3ff] text-[#344d7a]",
-          section.source === "novel" && "border-[#e7c78f] bg-[#fff7e8] text-[#7a5620]",
-        )}
-      >
-        {section.sourceLabel}
-      </Badge>
-      {section.isDirty ? (
-        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">未保存</Badge>
-      ) : null}
-    </div>
-  );
+  if (!section.isDirty && !section.isSavedOverride) return null;
+  return <span className="text-xs text-muted-foreground">{section.isDirty ? "未保存" : section.sourceLabel}</span>;
 }
 
 function ReconcileMiniBadge({ item }: { item?: PromptSlotReconcileItem }) {
@@ -212,12 +63,12 @@ function PromptSlotSection(props: {
 
   return (
     <section className={cn(
-      "overflow-hidden rounded-md border border-[#d8e2de] bg-white shadow-[0_8px_24px_rgba(20,54,48,0.06)]",
-      immersive && "border-[#b8d9d0] shadow-[0_14px_36px_rgba(15,55,48,0.10)]",
+      "rounded-md bg-card",
+      immersive && "bg-card",
       reconcileItem?.state === "drifted" && "border-amber-300 bg-amber-50/[0.25]",
       reconcileItem?.state === "orphaned" && "border-red-200 bg-red-50/30 opacity-80",
     )}>
-      <div className="flex flex-col gap-3 border-b border-[#dce8e4] bg-[#fbfdfb] px-4 py-3 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3 pt-4 pb-2 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-sm font-semibold text-foreground">{section.label}</h4>
@@ -227,11 +78,7 @@ function PromptSlotSection(props: {
           {section.description ? (
             <p className="mt-1 text-xs text-muted-foreground">{section.description}</p>
           ) : null}
-          {"anchor" in section.slot && section.slot.anchor ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              锚点：<code className="rounded bg-muted px-1">{section.slot.anchor}</code>
-            </p>
-          ) : null}
+
         </div>
         {canReset ? (
           <Button
@@ -240,7 +87,8 @@ function PromptSlotSection(props: {
             variant="ghost"
             onClick={() => onReset(section.slotKey)}
             disabled={disabled}
-            title={section.isOfficialDefaultOverride ? "清除本书官方默认标记，重新继承全局覆盖" : "清除当前层覆盖"}
+            title={section.isOfficialDefaultOverride ? "使用所有小说的默认要求" : "恢复默认要求"}
+            aria-label={`恢复${section.label}的默认要求`}
             className="h-8 w-8 shrink-0 p-0"
           >
             <RotateCcw className="h-4 w-4" />
@@ -248,7 +96,7 @@ function PromptSlotSection(props: {
         ) : null}
       </div>
 
-      <div className="p-4">
+      <div className="pb-4">
         {section.kind === "choice" ? (
           <ChoiceSlotControl
             section={section}
@@ -268,18 +116,16 @@ function PromptSlotSection(props: {
             onChange={(value) => onChange(section.slotKey, value)}
           />
         ) : (
-          <PromptSlotTextEditor
+          <textarea
+            aria-label={section.label}
             value={String(section.value)}
             maxLength={maxLength}
-            immersive={immersive}
             disabled={disabled}
             placeholder={section.kind === "append" && "placeholderHint" in section.slot
-              ? section.slot.placeholderHint
-              : undefined}
-            minHeightClassName={immersive
-              ? section.kind === "append" ? "min-h-[340px]" : "min-h-[280px]"
-              : section.kind === "append" ? "min-h-[180px]" : "min-h-[138px]"}
-            onChange={(value) => onChange(section.slotKey, value)}
+              ? section.slot.placeholderHint : undefined}
+            rows={section.kind === "append" ? 3 : 2}
+            className="min-h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+            onChange={(event) => onChange(section.slotKey, event.target.value)}
           />
         )}
 
@@ -322,7 +168,7 @@ function PromptOfficialVersionPanel(props: {
     .map((item) => item.key);
 
   return (
-    <section className="rounded-md border border-[#b8d9d0] bg-[#f7fbf9] px-4 py-4 shadow-[0_8px_24px_rgba(20,54,48,0.06)]">
+    <section className="rounded-md bg-muted/30 px-4 py-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#25443f]">
@@ -362,13 +208,13 @@ function PromptOfficialVersionPanel(props: {
           正在读取官方版本...
         </div>
       ) : actionableItems.length === 0 ? (
-        <div className="mt-4 rounded-md border border-[#d8e2de] bg-white px-3 py-3 text-sm text-[#315f58]">
+        <div className="mt-4 border-b border-border py-3 text-sm text-[#315f58]">
           当前槽位与官方当前版一致。
         </div>
       ) : (
         <div className="mt-4 space-y-2">
           {actionableItems.map((item) => (
-            <div key={item.key} className="rounded-md border border-[#d8e2de] bg-white px-3 py-3">
+            <div key={item.key} className="border-b border-border py-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -435,18 +281,19 @@ function ChoiceSlotControl(props: {
   const { disabled, onChange, section } = props;
   const slot = section.slot as PromptSlotDefChoice;
   return (
-    <div className="grid gap-2 md:grid-cols-2">
+    <div className="flex flex-wrap gap-2">
       {slot.options.map((option) => (
         <button
           key={option.value}
           type="button"
+          aria-pressed={section.value === option.value}
           disabled={disabled}
           onClick={() => onChange(option.value)}
           className={cn(
-            "rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
+            "flex-1 basis-48 rounded-md border px-3 py-2 text-left text-sm transition-colors",
             section.value === option.value
-              ? "border-[#0f766e] bg-[#eaf7f2] text-foreground"
-              : "border-[#d7e2df] bg-white hover:bg-[#f4faf7]",
+              ? "border-primary bg-primary/10 text-foreground"
+              : "border-input bg-background hover:bg-muted",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >
@@ -469,7 +316,7 @@ function ToggleSlotControl(props: {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
+        <Switch aria-label={section.label} checked={checked} disabled={disabled} onCheckedChange={onChange} />
         <span className="text-sm font-medium text-foreground">{checked ? "已启用" : "已关闭"}</span>
       </div>
       {checked ? (
@@ -491,6 +338,7 @@ function TokenSlotControl(props: {
   return (
     <div className="space-y-2">
       <Input
+        aria-label={section.label}
         value={String(section.value)}
         onChange={(event) => onChange(maxLength ? event.target.value.slice(0, maxLength) : event.target.value)}
         disabled={disabled}
@@ -525,7 +373,7 @@ function ContextReferenceChips(props: {
   }
 
   return (
-    <section className="rounded-md border border-[#d8e2de] bg-[#f8fbfa] px-4 py-3">
+    <section className="rounded-md bg-muted/30 px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
         <MapPin className="h-4 w-4 text-[#0f766e]" />
         上下文引用
@@ -606,13 +454,7 @@ export function PromptBodyEditor(props: {
   const hasEditableSlots = sections.length > 0;
 
   return (
-    <div className={cn("space-y-6", immersive && "mx-auto max-w-[1320px]")}>
-      <ContextReferenceChips
-        prompt={prompt}
-        preview={preview}
-        onContextSelect={onContextSelect}
-      />
-
+    <div className={cn("mx-auto max-w-5xl space-y-6", immersive && "max-w-5xl")}>
       {showReconcile ? (
         <PromptOfficialVersionPanel
           reconcile={reconcile}
@@ -629,7 +471,7 @@ export function PromptBodyEditor(props: {
             <LockKeyhole className="h-4 w-4 text-primary" />
             提示词只读
           </div>
-          该提示词没有声明可编辑槽位。可以查看最终 messages 与上下文注入，但不能直接替换 system prompt 或修改上下文策略。
+          这类提示词负责流程判断或结果校验，使用系统提供的规则。你可以生成预览，查看 AI 收到的内容。
         </div>
       ) : (
         <>
@@ -637,9 +479,9 @@ export function PromptBodyEditor(props: {
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">运行控制</h3>
+                <h3 className="text-sm font-semibold text-foreground">写作方式</h3>
               </div>
-              <div className="grid gap-3 xl:grid-cols-2">
+              <div className="divide-y divide-border">
                 {controlSections.map((section) => (
                   <PromptSlotSection
                     key={section.slotKey}
@@ -657,8 +499,9 @@ export function PromptBodyEditor(props: {
 
           {bodySections.length > 0 ? (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Prompt 主体槽位</h3>
-              <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">主要调整</h3>
+              <p className="text-sm text-muted-foreground">优先修改与你想要的效果有关的要求，其余保持默认即可。</p>
+              <div className="divide-y divide-border">
                 {bodySections.map((section) => (
                   <PromptSlotSection
                     key={section.slotKey}
@@ -676,8 +519,8 @@ export function PromptBodyEditor(props: {
 
           {appendSections.length > 0 ? (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">自定义补充规则</h3>
-              <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">补充要求（选填）</h3>
+              <div className="divide-y divide-border">
                 {appendSections.map((section) => (
                   <PromptSlotSection
                     key={section.slotKey}
@@ -695,8 +538,9 @@ export function PromptBodyEditor(props: {
         </>
       )}
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">最终消息预览</h3>
+      <details key={preview ? "preview" : "empty"} open={Boolean(preview || testRun || testRunPending || testRunError)} className="border-t border-border pt-4">
+        <summary className="cursor-pointer text-sm font-medium">预览与测试结果</summary>
+        <ContextReferenceChips prompt={prompt} preview={preview} onContextSelect={onContextSelect} />
         <PromptPreviewPanel
           preview={preview}
           testRun={testRun}
@@ -704,7 +548,7 @@ export function PromptBodyEditor(props: {
           testRunError={testRunError}
           testRunStreamOutput={testRunStreamOutput}
         />
-      </section>
+      </details>
     </div>
   );
 }

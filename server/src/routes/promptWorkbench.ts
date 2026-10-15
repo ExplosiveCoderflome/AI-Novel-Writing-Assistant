@@ -174,7 +174,7 @@ const officialSlotsQuerySchema = z.object({
 
 const templateOverrideQuerySchema = z.object({
   promptId: z.string().trim().min(1),
-  novelId: z.string().trim().min(1),
+  novelId: z.string().trim().min(1).optional(),
 });
 
 const templateMessageSchema = z.object({
