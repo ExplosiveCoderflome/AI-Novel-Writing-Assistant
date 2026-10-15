@@ -69,3 +69,55 @@ test("state and character resource version checks use only artifact contracts", 
   const contracts = [...dependencyClosure("services/novel/runtime/artifactSync/contracts/index.ts")];
   assert.equal(contracts.some((file) => /RecoveryService|Extraction|CheckpointStore/.test(file)), false);
 });
+
+test("manual chapter removal policy runs without persistence or production dependencies", () => {
+  const exports = {};
+  vm.runInNewContext(compiled("services/novel/chapterEditor/domain/manualChapterPolicy.ts"), {
+    exports,
+    require: (name) => assert.fail(`Manual chapter policy loaded ${name}`),
+  });
+  const placeholder = {
+    generationState: "planned", chapterStatus: "unplanned", content: null,
+    expectation: null, taskSheet: null, sceneCards: null, repairHistory: null, riskFlags: null,
+  };
+  assert.equal(exports.canRemoveManualChapter(placeholder), true);
+  for (const field of ["content", "expectation", "taskSheet", "sceneCards", "repairHistory", "riskFlags"]) {
+    assert.equal(exports.canRemoveManualChapter({ ...placeholder, [field]: "已有创作内容" }), false, field);
+  }
+  assert.equal(exports.canRemoveManualChapter({ ...placeholder, generationState: "drafted" }), false);
+  assert.equal(exports.canRemoveManualChapter({ ...placeholder, chapterStatus: "planned" }), false);
+});
+
+test("manual chapter orchestration delegates transactions without loading production execution", () => {
+  const application = compiled("services/novel/chapterEditor/application/ManualChapterService.ts");
+  assert.match(application, /persistence\/ManualChapterStore/);
+  assert.doesNotMatch(application, /require\("[^"\n]*db\/prisma"\)|\$transaction/);
+  assert.doesNotMatch(application, /ChapterProduction|NovelDirectorPipelineRuntime|NovelDirectorRuntimeOrchestrator/);
+  const store = compiled("services/novel/chapterEditor/persistence/ManualChapterStore.ts");
+  assert.doesNotMatch(store, /ChapterArtifactProjectionService|novelChapterArtifacts|novelCoreSupport|NovelSideEffectJobHandlers|NovelSideEffectWorker/);
+  const crud = compiled("services/novel/novelCoreCrudService.ts");
+  assert.match(crud, /require\("\.\/chapterEditor"\)/);
+  assert.doesNotMatch(crud, /chapterEditor\/(application|persistence|domain)\//);
+});
+
+test("timeline finalization consumes its module persistence facade", () => {
+  const finalizer = compiled("services/novel/runtime/ChapterTimelineFinalizationService.ts");
+  const imports = [...finalizer.matchAll(/require\("([^"]+)"\)/g)].map((match) => match[1]);
+  assert.ok(finalizer.includes("TimelineFinalizationStore"), "finalization must delegate persistence to TimelineFinalizationStore");
+  assert.ok(imports.some((name) => name.endsWith("modules/timeline")), imports.join("\n"));
+  assert.equal(imports.some((name) => /db\/prisma$|modules\/timeline\/persistence\//.test(name)), false, imports.join("\n"));
+  const store = compiled("modules/timeline/persistence/TimelineFinalizationStore.ts");
+  assert.doesNotMatch(store, /ChapterTimelineFinalizationService|NovelDirector|require\("[^"\n]*services\//);
+});
+
+test("catalog and proposal entrypoints keep database concerns in their owned modules", () => {
+  const crud = compiled("services/novel/novelCoreCrudService.ts");
+  assert.match(crud, /require\("\.\/catalog"\)/);
+  assert.doesNotMatch(crud, /listLatestVisibleAutoDirectorTasksByNovelIds|listLatestCreationStudioTasksByNovelIds/);
+  for (const entry of [
+    "services/novel/state/StateCommitService.ts",
+    "services/novel/characterResource/application/CharacterResourceApplicationService.ts",
+  ]) {
+    assert.doesNotMatch(compiled(entry), /require\("[^"\n]*db\/prisma"\)|payloadJson|JSON\.parse/);
+  }
+});

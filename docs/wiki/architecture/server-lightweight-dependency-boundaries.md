@@ -10,6 +10,8 @@
 - 导演事实投影消费 `DirectorFactReadPort`。默认读取器只组织已存在的规划读取与进度检查能力，不能构造完整导演执行 runtime，也不能通过完整小说核心服务取得两个列表。执行器可凭结构兼容向投影提供读取端口，投影不反向依赖执行器实现。
 - 小说业务发布事件使用 `events/publisher`，持久副作用入队使用 `events/sideEffects/queue`。handlers 注册与 worker 启动由应用装配负责。旧宽门面仅供兼容，不能作为新发布方的依赖。
 - 正文 hash、版本错误和资产边界解释使用 `runtime/artifactSync/contracts`；契约入口不能导出恢复、抽取或 checkpoint 持久化编排。
+- 人工章节写入通过 `chapterEditor` 门面，复杂目录查询通过 `catalog` 门面。应用服务编排业务动作，明确归属的持久化模块拥有条件写入及事务；不要求简单单表 CRUD 套用通用仓库。
+- 时间线最终提交由 `modules/timeline` 门面提供存储能力；运行时不能跨层取得事务客户端。状态提案领域校验、应用分派、JSON 映射及条件写入分属 `state/domain`、`state/application`、`state/persistence`。
 
 ## 失败模式与验证
 
