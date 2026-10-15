@@ -4,7 +4,7 @@
 
 - 对应 [Issue #185](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/185)：手动编辑后无法继续导演，以及 AI 推荐修改采纳时保存冲突。
 - 基线为发布标签 `v0.5.10`，提交 `e4420c4b7010bb456baaeaf49dcf611c5dd9ef38`。开发分支为 `codex/fix-chapter-edit-sync`，使用独立工作树，未混入 `codex/prompt-workbench-clarity` 的提示词工作台等功能。
-- 修复已完成代码级验证，可作为独立候选版本的代码范围。界面、真实模型与正式发行包验收尚未执行，不能将本报告视为发布成功证明。
+- 修复已完成代码级验证，版本候选 `1947441e` 已快进合入本地 `beta` 并通过下述集成检查。界面、真实模型与正式发行包验收尚未执行，不能将本报告视为发布成功证明。
 - 发布目标为 `desktop/package.json` 的 `0.5.11`，正式标签必须为 `v0.5.11`。发布准备时已重新拉取远端，`origin/main` 与 `origin/beta` 均为上述 `v0.5.10` 基线，修复提交为 `66fc3894`；不存在混入其他候选功能的分支差异。
 - GitHub 正式打包工作流为 `Desktop Release`（`.github/workflows/desktop-release.yml`），由匹配版本的 tag 推送触发。版本准备阶段尚未触发；正式安装包、自动更新文件与 GitHub Release 上传由该工作流执行。
 
@@ -35,10 +35,15 @@ V1 的摘要、事实与人物时间线兼容处理移入持久任务；V2 保�
 | `node --experimental-strip-types --test client/tests/directorChapterEditing.test.js` | 23 项组件测试通过，包含正文保存/候选接受的原文保护字段、保存冲突保留候选、问题卡处理与保存中操作保护；之后客户端实现未变 |
 | `pnpm check:docs-manifest` | 通过：36 篇公开文档、17 个导演进度键；新增报告和模块说明不属于公开文档注册范围 |
 | `git diff --check` | 通过；按仓库既有换行配置检查 |
+| beta 代码一致性 | `git diff 66fc3894 HEAD -- server client shared pnpm-lock.yaml .github desktop/src desktop/scripts` 为空；可复用同日上述服务端构建与 92 + 23 项回归结果 |
+| beta 桌面前端构建 | `pnpm --filter @ai-novel/client build:desktop` 通过，包含 TypeScript 检查和相对路径静态资源构建，版本注入为 0.5.11；存在 Browserslist 数据较旧与较大 bundle 提示，未影响构建 |
+| beta 桌面主进程构建 | `pnpm --filter @ai-novel/desktop build` 通过 |
+| beta 启动与迁移检查 | `node --test server/tests/prismaMigrationCompleteness.test.js server/tests/runtimeMigrations.test.js server/tests/desktopDirectorDefaults.test.js`：11 项全部通过；使用内存或新建临时数据库 |
+| beta 文档与差异检查 | 公开文档注册检查与相对 `origin/main` 的完整差异空白检查通过 |
 
 SQLite 测试只使用新建临时数据库；模型调用由测试替身提供，未对用户小说执行数据修复或迁移。测试通过真实事务验证：元数据变动可保存、真正的正文冲突被拒绝、并发保存只有一个成功、outbox 写入失败回滚正文、失败消费者重复恢复、跨服务实例继续、旧任务过期、A → B → A、前置章节同步、V1 兼容、V2 暂停回填证明、epoch 拒绝、门控重验及审校期间正文变化。
 
-本机日志保存在 `C:\Users\李皮\AppData\Local\Temp\issue185-release-checks-3c1083db4bd247fb8d7874e5bf0247eb`。主要文件为 `release-targeted-check.log`、`final-recovery-check.log`、`final-gate-check.log` 和 `client-edit-check.log`。
+本机日志保存在 `C:\Users\李皮\AppData\Local\Temp\issue185-release-checks-3c1083db4bd247fb8d7874e5bf0247eb`。主要文件为 `release-targeted-check.log`、`final-recovery-check.log`、`final-gate-check.log`、`client-edit-check.log`、`beta-client-build.log` 和 `beta-desktop-check.log`。
 
 ## 发布前人工验收
 
@@ -50,9 +55,9 @@ SQLite 测试只使用新建临时数据库；模型调用由测试替身提供�
 4. 两个窗口编辑同章，先保存其中一个；另一个窗口应收到真实冲突且草稿/候选仍保留。
 5. 同步遇到模型断网后重启应用；正文应仍可读，从保存进度重试后继续，原预算/重试额度和质量优先暂停不可被清空。
 
-未运行完整全仓测试、真实模型调用、PostgreSQL 实例验证、桌面打包或 beta 集成验收。当前验证足以检查此次修复的代码边界，真实模型资料质量与发行包行为仍需上述验收。
+未运行完整全仓测试、真实模型调用、PostgreSQL 实例验证或本地桌面打包。beta 的代码级集成检查已完成，真实模型资料质量与发行包行为仍需上述验收。GitHub 正式工作流会在上传前执行完整类型检查、桌面 staging、迁移检查和打包布局检查；未获得工作流完成证据前，只能声称已触发发布。
 
-正式发布将此独立修复分支按项目流程集成到 `beta`，完成本次范围的集成检查后推进 `main`，再从 `v0.5.11` 触发 GitHub 打包。版本准备只修改版本源与说明，复用同一修复提交的后端/组件回归证据；桌面前端构建、桌面 TypeScript 构建和迁移兼容检查在 beta 集成阶段补齐。真实界面与模型验收按项目规则交由用户，不能将代码级验证或打包触发当作其通过证据。
+正式发布按 `beta -> main -> v0.5.11` 推进。本地 beta 与修复分支没有代码集成差异，版本准备只修改版本源与说明，桌面前端构建、桌面 TypeScript 构建和迁移兼容检查已补齐。真实界面与模型验收按项目规则交由用户，不能将代码级验证或打包触发当作其通过证据。版本准备和验证记录没有新增长期架构规则，沿用本修复已更新的 wiki，不另设重复条目；验证记录提交不重复增加用户更新说明。
 
 无需数据库结构迁移，但旧版服务不识别新增的手动同步任务类型；如需回退应用版本，应先确认本版本的同步任务已完成或保留升级后恢复计划，不能把“schema 未变”当作所有后台任务均可向旧版回退的保证。
 
