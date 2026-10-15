@@ -88,10 +88,9 @@ test("timeline accepts only known AI hook ids and gives resolution precedence", 
   assert.deepEqual(writes.map((call) => [call.resolved, call.hookIds]), [[false, ["addressed"]], [true, ["resolved"]]]);
 });
 
-function resourceServiceHarness({ chapters = [], proposal = null, rejectCount = 1 } = {}) {
+function resourceServiceHarness({ chapters = [], proposal = null, rejectCount = 1, confirmCount = 1 } = {}) {
   const calls = [];
-  const { CharacterResourceApplicationService } = loadRuntimeSource("../characterResource/application/CharacterResourceApplicationService.ts", {
-    "@ai-novel/shared/types/characterResource": { characterResourceUpdatePayloadSchema: { parse: (value) => value } },
+  const reviewStore = loadRuntimeSource("../characterResource/persistence/CharacterResourceReviewStore.ts", {
     "../../../../db/prisma": { prisma: {
       chapter: {
         findMany: async (input) => { calls.push(["chapters", input]); return chapters; },
@@ -103,6 +102,10 @@ function resourceServiceHarness({ chapters = [], proposal = null, rejectCount = 
         updateMany: async (input) => { calls.push(["reject", input]); return { count: rejectCount }; },
       },
     } },
+  });
+  const { CharacterResourceApplicationService } = loadRuntimeSource("../characterResource/application/CharacterResourceApplicationService.ts", {
+    "@ai-novel/shared/types/characterResource": { characterResourceUpdatePayloadSchema: { parse: (value) => value } },
+    "../persistence/CharacterResourceReviewStore": reviewStore,
     "../../../../middleware/errorHandler": { AppError: class extends Error { constructor(message, status) { super(message); this.status = status; } } },
     "../CharacterResourceExtractionService": { characterResourceExtractionService: {
       extractChapterResourceProposals: async (input) => { calls.push(["extract", input]); return [{ chapterId: input.chapterId }]; },
@@ -110,7 +113,7 @@ function resourceServiceHarness({ chapters = [], proposal = null, rejectCount = 
     "../CharacterResourceLedgerService": { characterResourceLedgerService: { listResources: async () => ["resource"] } },
     "../../state/StateCommitService": { stateCommitService: {
       proposeAndCommit: async (input) => { calls.push(["commit", input]); return { committed: [1], pendingReview: [2], rejected: [] }; },
-      commitExistingProposals: async (input) => calls.push(["confirm", input]),
+      commitExistingProposals: async (input) => { calls.push(["confirm", input]); return { committed: Array(confirmCount).fill(1) }; },
     } },
   });
   return { service: new CharacterResourceApplicationService(), calls };
@@ -154,4 +157,10 @@ test("resource proposal writes reject unavailable pending review records", async
   await assert.rejects(service.confirmProposal("n", "p"), (error) => error.status === 404);
   await assert.rejects(service.rejectProposal("n", "p"), (error) => error.status === 404);
   assert.ok(!calls.some(([kind]) => kind === "confirm"));
+});
+
+
+test("resource confirmation reports unavailable when another review consumes the proposal after its initial read", async () => {
+  const { service } = resourceServiceHarness({ proposal: { chapterId: "c", payloadJson: '{"chapterOrder":5}' }, confirmCount: 0 });
+  await assert.rejects(service.confirmProposal("n", "p"), (error) => error.status === 404);
 });

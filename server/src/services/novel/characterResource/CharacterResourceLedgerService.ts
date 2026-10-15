@@ -145,8 +145,8 @@ function buildStructuredRiskSignals(input: {
 }
 
 export class CharacterResourceLedgerService {
-  async listResources(novelId: string): Promise<CharacterResourceLedgerItem[]> {
-    const rows = await prisma.characterResourceLedgerItem.findMany({
+  async listResources(novelId: string, db: Pick<Prisma.TransactionClient, "characterResourceLedgerItem"> = prisma): Promise<CharacterResourceLedgerItem[]> {
+    const rows = await db.characterResourceLedgerItem.findMany({
       where: { novelId },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     });

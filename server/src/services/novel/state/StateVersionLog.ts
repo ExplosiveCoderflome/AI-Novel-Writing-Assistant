@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type {
   CanonicalStateSnapshot,
   StateVersionRecord,
@@ -29,8 +30,8 @@ export interface CreateStateVersionInput {
 }
 
 export class StateVersionLog {
-  async createVersion(input: CreateStateVersionInput): Promise<StateVersionRecord> {
-    const created = await prisma.$transaction(async (tx) => {
+  async createVersion(input: CreateStateVersionInput, db?: Prisma.TransactionClient): Promise<StateVersionRecord> {
+    const write = async (tx: Prisma.TransactionClient) => {
       const latest = await tx.canonicalStateVersion.findFirst({
         where: { novelId: input.novelId },
         orderBy: { version: "desc" },
@@ -48,7 +49,8 @@ export class StateVersionLog {
           acceptedProposalIdsJson: JSON.stringify(input.acceptedProposalIds),
         },
       });
-    });
+    };
+    const created = db ? await write(db) : await prisma.$transaction(write);
 
     return {
       id: created.id,

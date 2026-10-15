@@ -370,18 +370,25 @@ test("StateCommitService commitExistingProposals applies ledger update and write
         },
       },
       stateChangeProposal: {
-        update: async (args) => {
+        findMany: async () => [proposalRow],
+        updateMany: async (args) => {
+          if (args.data.committedVersionId) {
+            calls.updateMany += 1;
+            assert.deepEqual(args.where.id.in, ["proposal-1"]);
+            assert.equal(args.data.committedVersionId, "version-1");
+            return { count: 1 };
+          }
           calls.proposalUpdate += 1;
           assert.equal(args.where.id, "proposal-1");
+          assert.equal(args.where.novelId, "novel-1");
+          assert.equal(args.where.status, "pending_review");
           assert.equal(args.data.status, "committed");
+          assert.equal(calls.upsert, 0, "claim must happen before ledger application");
+          return { count: 1 };
         },
       },
     });
-    prisma.stateChangeProposal.updateMany = async (args) => {
-      calls.updateMany += 1;
-      assert.deepEqual(args.where.id.in, ["proposal-1"]);
-      assert.equal(args.data.committedVersionId, "version-1");
-    };
+    prisma.stateChangeProposal.updateMany = async () => { throw new Error("version link escaped transaction"); };
     canonicalStateService.getSnapshot = async () => ({ novelId: "novel-1", snapshot: true });
     stateVersionLog.createVersion = async (input) => {
       calls.version += 1;
