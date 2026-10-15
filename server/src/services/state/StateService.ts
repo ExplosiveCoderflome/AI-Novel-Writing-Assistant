@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { ChapterArtifactContentVersionError } from "../novel/runtime/artifactSync/ChapterArtifactSyncResult";
+import { ChapterArtifactContentVersionError } from "../novel/runtime/artifactSync/contracts";
 import { stringifyStringArray } from "../novel/novelP0Utils";
 import { payoffLedgerSyncService } from "../payoff/PayoffLedgerSyncService";
 import { openConflictService } from "./OpenConflictService";

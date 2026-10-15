@@ -2,6 +2,11 @@
 
 `server/src/prompting/` 是本项目产品级 prompt 的唯一新增管理入口。
 
+## 上下文依赖边界
+
+- `context/promptContextRequirements.ts` 只负责从资产声明推导上下文需求，不能导入 Broker、默认 resolver registry 或业务服务。模板配置和管理目录应直接使用该叶子入口。
+- `context/promptContextResolution.ts` 负责实际解析，允许装配业务 resolver，并为旧调用保留需求推导的兼容导出。不要为读取声明而依赖这个执行入口，否则模板运行时会反向加载生产投影与业务 prompt。
+
 ## Hard Rules
 
 - 新增产品级 prompt 必须定义为 `PromptAsset`。
@@ -49,6 +54,8 @@
 - `proseGeneration` 表示它属于小说正文治理门禁；
 - `editModes` 声明 `readonly`、`slots`、`advanced_template`，前端只能按该能力渲染；
 - `advancedTemplate.requiredContextGroups` 定义高级模板不能静默移除的正式上下文。
+
+Workbench 将模板阅读、草稿编辑与应用范围分开：完整模板读取不需要小说，保存与版本切换仍绑定小说。未选小说的预览只使用 `workbench/` 内的示例资料，不得把示例带入正式生成；注册资产的必需上下文和 Schema 校验始终有效。维护时参见 [工作台的编辑与应用边界](../../../docs/wiki/prompts/prompt-registry-and-structured-output.md#工作台的编辑与应用边界)。
 
 结构化正文 Prompt 使用高级模板时，自定义模板先编译，结构化输出提示随后由运行时追加，最终输出仍必须通过注册资产的 Schema。用户模板不能覆盖或删除 Schema、repair、postValidate 和输出字段合同。
 

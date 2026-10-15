@@ -11,6 +11,7 @@
 - 自动导演、手动批量和恢复入口都通过流水线门面进入同一个执行器。
 - V1 与 V2 共用生产能力，但正文作业只能由一个持久化所有者调度。活跃范围查询只读，启动或恢复复用须匹配同一工作流任务或 V2 Run；通用 V1 重试和取消不能处理 V2 作业。版本与执行代次围栏见 `docs/wiki/workflows/director-version-isolation.md`。
 - `preparation/` 拥有正文执行前的规划写入：autopilot 路线与章节执行合同先准备，章节计划随后确保完成。执行合同以当前卷规划为结构基线，并由共享策略分别判断结构完整和正文入口字段兼容；手动与自动入口不得自行维护简化复用条件。`GenerationContextAssembler` 只读取这些产物；审阅、修复和预览等上下文读取入口不得隐式触发规划写入。
+- 规划之前须补齐前文人工修订留下的时间线同步责任和上一章缺失的时间线。后台同步仍在运行时等待同一结果，局部抽取失败可明确降级；不得使用过期事件，也不得清除人工恢复锁。见 [正文保存与时间线](../../../../../docs/wiki/workflows/manual-chapter-timeline.md)。
 - `runtime/context/chapterContextProviderContracts.ts` 定义章节上下文提供者合同。角色硬事实、上一章实际结果和章节义务必须按适用阶段到位；首章的上一章结果不适用，后续章节缺失时必须返回明确缺口。软上下文只能按声明的降级/可选语义处理。
 - 稳定层缓存通过 `novel:updated` 以及角色、卷规划、大纲、书级合同和流水线完成事件失效；任何改变章节上下文的写入口都必须发布其中一个事件，不能只依赖 TTL。
 - `NovelProductionOrchestrator` 的阶段返回区分“已交接执行”和“章节已完成”：正文/修复流保持 `checkpoint + awaiting_stream_completion`，流水线任务保持 `checkpoint + queued/running`，并提供唯一的源页或任务恢复目标。阶段返回不得另行推进 `quality_repair`，因为质量闭环属于统一章节运行时。

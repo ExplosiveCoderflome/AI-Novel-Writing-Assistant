@@ -19,8 +19,10 @@ const {loadRuntimeSource} = require(path.join(server,'tests/novelProduction/sour
 const version = require(path.join(server,'dist/services/novel/runtime/artifactSync/ChapterArtifactContentVersion'));
 const {StateCommitService} = loadRuntimeSource('../state/StateCommitService.ts',{
   '@ai-novel/shared/types/characterResource':require(path.join(server,'../shared/dist/types/characterResource')),
-  '../../../db/prisma':{prisma}, '../runtime/artifactSync':version,
-  '../runtime/artifactSync/ChapterArtifactSyncResult':require(path.join(server,'dist/services/novel/runtime/artifactSync/ChapterArtifactSyncResult')),
+  './persistence/StateProposalStore':require(path.join(server,'dist/services/novel/state/persistence/StateProposalStore')),
+  './domain/StateProposalPolicy':require(path.join(server,'dist/services/novel/state/domain/StateProposalPolicy')),
+  './application/CommittedProposalApplication':require(path.join(server,'dist/services/novel/state/application/CommittedProposalApplication')),
+  '../runtime/artifactSync/contracts':{...version,...require(path.join(server,'dist/services/novel/runtime/artifactSync/ChapterArtifactSyncResult'))},
   '../characterResource/CharacterResourceLedgerService':require(path.join(server,'dist/services/novel/characterResource/CharacterResourceLedgerService')),
   '../characterResource/characterResourceShared':require(path.join(server,'dist/services/novel/characterResource/characterResourceShared')),
   '../characterResource/CharacterResourceValidationService':require(path.join(server,'dist/services/novel/characterResource/CharacterResourceValidationService')),

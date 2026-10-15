@@ -8,6 +8,7 @@ import type {
   TimelineIssue,
 } from "@ai-novel/shared/types/timeline";
 import { prisma } from "../../db/prisma";
+import type { Prisma } from "@prisma/client";
 
 function parseJsonArray(value: string | null | undefined): string[] {
   if (!value) {
@@ -217,8 +218,9 @@ export interface TimelineRepository {
 }
 
 export class PrismaTimelineRepository implements TimelineRepository {
+  constructor(private readonly db: Prisma.TransactionClient = prisma) {}
   async listEventsBeforeChapter(input: { novelId: string; chapterIndex: number; limit?: number }): Promise<StoryTimelineEvent[]> {
-    const rows = await prisma.storyTimelineEvent.findMany({
+    const rows = await this.db.storyTimelineEvent.findMany({
       where: {
         novelId: input.novelId,
         status: { in: ["occurred", "foreshadowed", "resolved"] },
@@ -234,7 +236,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async listPlannedEventsForChapter(input: { novelId: string; chapterIndex: number }): Promise<StoryTimelineEvent[]> {
-    const rows = await prisma.storyTimelineEvent.findMany({
+    const rows = await this.db.storyTimelineEvent.findMany({
       where: {
         novelId: input.novelId,
         status: "planned",
@@ -246,7 +248,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async listForbiddenEventsForChapter(input: { novelId: string; chapterIndex: number }): Promise<StoryTimelineEvent[]> {
-    const rows = await prisma.storyTimelineEvent.findMany({
+    const rows = await this.db.storyTimelineEvent.findMany({
       where: {
         novelId: input.novelId,
         status: "planned",
@@ -259,7 +261,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async listOpenHooks(input: { novelId: string; chapterIndex: number }): Promise<TimelineHook[]> {
-    const rows = await prisma.timelineHook.findMany({
+    const rows = await this.db.timelineHook.findMany({
       where: {
         novelId: input.novelId,
         status: { in: ["open", "addressed"] },
@@ -292,7 +294,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async listActiveConstraints(input: { novelId: string; chapterId?: string; chapterIndex: number }): Promise<TimelineConstraint[]> {
-    const rows = await prisma.timelineConstraint.findMany({
+    const rows = await this.db.timelineConstraint.findMany({
       where: {
         novelId: input.novelId,
         active: true,
@@ -309,14 +311,14 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async getChapterTimeAnchor(input: { novelId: string; chapterId: string }): Promise<ChapterTimeAnchor | null> {
-    const row = await prisma.chapterTimeAnchor.findUnique({
+    const row = await this.db.chapterTimeAnchor.findUnique({
       where: { novelId_chapterId: { novelId: input.novelId, chapterId: input.chapterId } },
     });
     return row ? mapAnchor(row) : null;
   }
 
   async getLatestCheckReport(input: { novelId: string; chapterId: string }): Promise<TimelineCheckReport | null> {
-    const row = await prisma.timelineCheckReport.findFirst({
+    const row = await this.db.timelineCheckReport.findFirst({
       where: { novelId: input.novelId, chapterId: input.chapterId },
       orderBy: { createdAt: "desc" },
     });
@@ -335,7 +337,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
       nextHookIdsJson: stringifyJson(input.nextHookIds),
       forbiddenEventIdsJson: stringifyJson(input.forbiddenEventIds),
     };
-    const row = await prisma.chapterTimeAnchor.upsert({
+    const row = await this.db.chapterTimeAnchor.upsert({
       where: { novelId_chapterId: { novelId: input.novelId, chapterId: input.chapterId } },
       create: {
         novelId: input.novelId,
@@ -350,7 +352,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   async saveExtractedEvents(events: Array<Omit<StoryTimelineEvent, "id" | "createdAt" | "updatedAt">>): Promise<StoryTimelineEvent[]> {
     const created: StoryTimelineEvent[] = [];
     for (const event of events) {
-      const row = await prisma.storyTimelineEvent.create({
+      const row = await this.db.storyTimelineEvent.create({
         data: {
           novelId: event.novelId,
           chapterId: event.chapterId ?? null,
@@ -395,7 +397,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
     if (hooks.length === 0) {
       return;
     }
-    await prisma.timelineHook.createMany({
+    await this.db.timelineHook.createMany({
       data: hooks.map((hook) => ({
         novelId: hook.novelId,
         createdInChapterId: hook.createdInChapterId,
@@ -420,7 +422,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
     if (input.hookIds.length === 0) {
       return;
     }
-    await prisma.timelineHook.updateMany({
+    await this.db.timelineHook.updateMany({
       where: { id: { in: input.hookIds } },
       data: {
         status: input.resolved ? "resolved" : "addressed",
@@ -431,7 +433,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async expireOverdueImmediateHooks(input: { novelId: string; chapterId: string; chapterIndex: number }): Promise<void> {
-    await prisma.timelineHook.updateMany({
+    await this.db.timelineHook.updateMany({
       where: {
         novelId: input.novelId,
         status: { in: ["open", "addressed"] },
@@ -452,7 +454,7 @@ export class PrismaTimelineRepository implements TimelineRepository {
   }
 
   async saveCheckReport(report: Omit<TimelineCheckReport, "id" | "createdAt">): Promise<TimelineCheckReport> {
-    const row = await prisma.timelineCheckReport.create({
+    const row = await this.db.timelineCheckReport.create({
       data: {
         novelId: report.novelId,
         chapterId: report.chapterId,

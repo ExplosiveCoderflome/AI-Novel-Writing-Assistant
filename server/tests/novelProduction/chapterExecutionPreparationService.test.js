@@ -8,6 +8,7 @@ const {
 test("chapter preparation finishes planning writes before it reports ready", async () => {
   const calls = [];
   const service = new ChapterExecutionPreparationService({
+    ensureTimelineReady: async () => { calls.push(["timeline"]); },
     chapterPlanJITService: {
       ensureExecutionReady: async (_novelId, _chapterId, options) => {
         calls.push(["execution_contract", options]);
@@ -33,8 +34,8 @@ test("chapter preparation finishes planning writes before it reports ready", asy
     },
   });
 
-  assert.deepEqual(calls.map(([name]) => name), ["execution_contract", "chapter_plan"]);
-  assert.equal(calls[0][1].completionProfile.targetChapterCount, 48);
+  assert.deepEqual(calls.map(([name]) => name), ["timeline", "execution_contract", "chapter_plan"]);
+  assert.equal(calls[1][1].completionProfile.targetChapterCount, 48);
   assert.deepEqual(result, {
     status: "ready",
     mode: "full_book_autopilot",
@@ -46,6 +47,7 @@ test("chapter preparation finishes planning writes before it reports ready", asy
 test("manual chapter preparation does not create an autopilot route window", async () => {
   let jitCalls = 0;
   const service = new ChapterExecutionPreparationService({
+    ensureTimelineReady: async () => {},
     chapterPlanJITService: {
       ensureExecutionReady: async () => {
         jitCalls += 1;

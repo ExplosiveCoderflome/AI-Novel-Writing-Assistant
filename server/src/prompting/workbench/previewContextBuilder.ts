@@ -8,6 +8,9 @@ import {
   type PreviewNovelRow,
 } from "./previewContextSupport";
 import { buildPreviewChapterWriteContext } from "./writerPreviewContext";
+import { buildSampleTemplatePreviewBlocks } from "./samplePreviewContext";
+import { supportsAdvancedPromptTemplate } from "../templates/templateTypes";
+import { derivePromptContextRequirements } from "../context/promptContextRequirements";
 import {
   buildShortStoryWriterContextBlocks,
   parseWritingPlatformSnapshot,
@@ -122,6 +125,20 @@ export async function prepareWorkbenchPreviewExecutionContext(input: {
   notes: string[];
 }> {
   const { asset, db, executionContext } = input;
+  if (!executionContext.novelId?.trim() && supportsAdvancedPromptTemplate(asset.id)
+    && !hasExtraContextBlocks(executionContext) && !hasChapterWriteContext(executionContext)) {
+    return {
+      executionContext: {
+        ...executionContext,
+        metadata: {
+          ...executionContext.metadata,
+          extraContextBlocks: buildSampleTemplatePreviewBlocks(asset.id,
+            derivePromptContextRequirements(asset).filter((item) => item.required).map((item) => item.group)),
+        },
+      },
+      notes: ["使用虚构示例资料预览模板；选择小说后可检查该书的实际上下文。"],
+    };
+  }
   if (isShortStoryWriterPreviewPrompt(asset)) {
     const novelId = executionContext.novelId?.trim();
     if (!novelId) return { executionContext, notes: [] };

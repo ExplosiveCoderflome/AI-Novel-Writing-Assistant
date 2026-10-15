@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { derivePromptContextRequirements } from "../context/promptContextResolution";
+import { derivePromptContextRequirements } from "../context/promptContextRequirements";
 import type { PromptAsset } from "../core/promptTypes";
 import { findRegisteredPromptAssetById } from "../registry";
 import type { PromptSlotDef } from "../slots/slotTypes";
@@ -146,8 +146,11 @@ function formatDiagnosticsError(prefix: string, diagnostics: ReturnType<typeof a
 }
 
 export class PromptTemplateOverrideService {
-  async get(input: { promptId: string; novelId: string }): Promise<PromptTemplateOverrideView> {
+  async get(input: { promptId: string; novelId?: string }): Promise<PromptTemplateOverrideView> {
     const asset = assertAdvancedTemplatePrompt(input.promptId);
+    if (!input.novelId) {
+      return toOfficialView({ promptId: input.promptId, novelId: "", asset });
+    }
     try {
       const override = await prisma.promptTemplateOverride.findUnique({
         where: {

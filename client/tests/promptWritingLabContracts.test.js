@@ -41,14 +41,17 @@ test("提示词工作台在深色主题下将旧的浅色面板映射为语义�
   assert.match(themeStyles, /\.dark \.prompt-workbench-theme \[class\*="text-\[#254"\]/);
 });
 
-test("提示词目录的状态标签使用语义色，避免深色主题下白字失去背景", () => {
-  assert.match(catalogSidebar, /bg-success px-1\.5 py-0\.5 text-\[11px\] font-medium leading-4 text-success-foreground/);
-  assert.match(catalogSidebar, /bg-success\/15 text-success/);
+test("提示词目录默认按可调整能力筛选并保留全目录搜索", () => {
+  assert.match(catalogSidebar, /prompt\.slotSupported \|\| prompt\.capabilities\.supportsAdvancedTemplate/);
+  assert.match(catalogSidebar, /showAll \|\| searching/);
+  assert.match(catalogSidebar, /bg-primary\/10 text-primary/);
   assert.doesNotMatch(catalogSidebar, /bg-\[#0f766e\].*text-white/);
 });
 
-test("旧的青绿色操作在深色主题下保持成功色对比", () => {
-  assert.match(editorShell, /bg-success text-success-foreground/);
+test("编辑器头部使用语义色并区分草稿与本书模板", () => {
+  assert.match(editorShell, /bg-card/);
+  assert.match(editorShell, /模板草稿/);
+  assert.match(editorShell, /本书模板/);
   assert.match(themeStyles, /background-color: hsl\(var\(--success\)\);/);
   assert.match(themeStyles, /color: hsl\(var\(--success\)\);/);
 });

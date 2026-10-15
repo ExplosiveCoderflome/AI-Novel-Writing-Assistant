@@ -108,6 +108,7 @@ function createExecutorHarness({
     order: 1,
     title: "第一章",
     content: "已保存草稿",
+    artifactSyncCheckpoints: [],
   }];
   novelEventBus.emit = async () => undefined;
 

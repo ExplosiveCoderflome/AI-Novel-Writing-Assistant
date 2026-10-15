@@ -1,5 +1,5 @@
 import { prisma } from "../../../db/prisma";
-import { novelEventBus } from "../../../events";
+import { novelEventBus } from "../../../events/publisher";
 import type { NovelEvent } from "../../../events/types";
 
 /**

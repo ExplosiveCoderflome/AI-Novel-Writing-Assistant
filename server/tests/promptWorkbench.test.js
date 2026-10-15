@@ -62,7 +62,7 @@ function buildAuditWorkbenchSampleContextBlocks() {
 test("prompt workbench catalog exposes registered prompts without override execution", () => {
   const service = new PromptWorkbenchService();
   const catalog = service.listCatalog({ keyword: "planner.intent.parse" });
-  const planner = catalog.find((item) => item.key === "planner.intent.parse@v1");
+  const planner = catalog.find((item) => item.key === "planner.intent.parse@v2");
 
   assert.ok(planner);
   assert.equal(planner.slotSupported, false);
@@ -79,7 +79,7 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.ok(planner.lockedFields.includes("approvalBoundary"));
 
   const chapterWriter = service.listCatalog({ keyword: "novel.chapter.writer" })
-    .find((item) => item.key === "novel.chapter.writer@v8");
+    .find((item) => item.key === "novel.chapter.writer@v9");
   assert.ok(chapterWriter);
   assert.equal(chapterWriter.slotSupported, true);
   assert.equal(chapterWriter.managementStatus, "complete");
@@ -139,7 +139,7 @@ test("context broker resolves creative hub bindings and supplied recent messages
 test("prompt preview renders base prompt messages with resolved context but does not call the LLM", async () => {
   const service = new PromptWorkbenchService();
   const preview = await service.preview({
-    promptKey: "planner.intent.parse@v1",
+    promptKey: "planner.intent.parse@v2",
     promptInput: buildPlannerPromptInput(),
     executionContext: {
       entrypoint: "creative_hub",
@@ -155,7 +155,7 @@ test("prompt preview renders base prompt messages with resolved context but does
     maxContextTokens: 2000,
   });
 
-  assert.equal(preview.prompt.key, "planner.intent.parse@v1");
+  assert.equal(preview.prompt.key, "planner.intent.parse@v2");
   assert.equal(preview.prompt.slotSupported, false);
   assert.ok(preview.messages.length >= 2);
   assert.ok(preview.messages.some((message) => message.role === "system"));
@@ -172,7 +172,7 @@ test("prompt preview renders base prompt messages with resolved context but does
 test("prompt preview reports missing required context for manager diagnosis", async () => {
   const service = new PromptWorkbenchService();
   const preview = await service.preview({
-    promptKey: "novel.chapter_editor.workspace_diagnosis@v1",
+    promptKey: "novel.chapter_editor.workspace_diagnosis@v2",
     promptInput: {
       chapterTitle: "第 3 章",
       chapterMission: "让主角发现关键线索。",
@@ -377,7 +377,7 @@ test("prompt preview assembles selected novel chapter write context for chapter 
   });
 
   const preview = await service.preview({
-    promptKey: "novel.chapter.writer@v8",
+    promptKey: "novel.chapter.writer@v9",
     promptInput: {
       novelTitle: "当代码开始杀人",
       chapterOrder: 3,
@@ -501,7 +501,7 @@ test("prompt preview renders unsaved advanced template draft without reading act
 
   try {
     const preview = await service.preview({
-      promptKey: "novel.chapter.writer@v8",
+      promptKey: "novel.chapter.writer@v9",
       promptInput: {
         novelTitle: "模板测试书",
         chapterOrder: 2,

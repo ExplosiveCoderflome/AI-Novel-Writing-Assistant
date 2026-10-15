@@ -8,6 +8,7 @@ export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
   "novel.pipelineSnapshot",
   "payoff.bookContractSync",
   "chapter.manualSync",
+  "chapter.timelineFinalization",
 ] as const;
 
 export type NovelSideEffectJobType = (typeof NOVEL_SIDE_EFFECT_JOB_TYPES)[number];
@@ -42,13 +43,20 @@ export interface BookContractPayoffSyncPayload {
   novelId: string;
 }
 
+export interface ChapterTimelineFinalizationPayload {
+  novelId: string;
+  chapterId: string;
+  contentHash: string;
+}
+
 export type NovelSideEffectPayload =
   | CharacterVolumeRebuildPayload
   | CharacterPostDraftEnrichmentPayload
   | DirectorV2CharacterEnrichmentPayload
   | PipelineSnapshotPayload
   | BookContractPayoffSyncPayload
-  | ManualChapterSyncPayload;
+  | ManualChapterSyncPayload
+  | ChapterTimelineFinalizationPayload;
 
 export interface EnqueueNovelSideEffectJobInput {
   novelId?: string | null;

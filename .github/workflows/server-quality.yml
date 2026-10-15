@@ -1,0 +1,28 @@
+name: Server Quality
+
+on:
+  pull_request:
+    branches: [beta, main]
+  push:
+    branches: [beta]
+
+permissions:
+  contents: read
+
+jobs:
+  server-quality:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @ai-novel/shared build
+      - run: pnpm --filter @ai-novel/server prisma:generate
+      - run: pnpm --filter @ai-novel/server build
+      - run: pnpm --filter @ai-novel/server test:quality

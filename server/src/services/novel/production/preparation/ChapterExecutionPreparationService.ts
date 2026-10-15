@@ -5,6 +5,7 @@ import { ChapterPlanJITService, type ChapterPlanJITDeps } from "../../planning/C
 import { ChapterRouteWindowService } from "../../planning/ChapterRouteWindowService";
 import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
 import { NovelVolumeService } from "../../volume/NovelVolumeService";
+import { chapterTimelineFinalizationService } from "../../runtime/ChapterTimelineFinalizationService";
 
 export interface ChapterExecutionPreparationResult {
   status: "ready";
@@ -17,6 +18,7 @@ export interface ChapterExecutionPreparationServiceDeps {
   chapterPlanJITService: Pick<ChapterPlanJITService, "ensureExecutionReady">;
   planner: Pick<typeof plannerService, "ensureChapterPlan">;
   loadEstimatedChapterCount: (novelId: string) => Promise<number | null>;
+  ensureTimelineReady: (novelId: string, chapterId: string, request: ChapterRuntimeRequestInput) => Promise<void>;
 }
 
 /** Owns every planning write that must finish before context assembly starts. */
@@ -28,6 +30,7 @@ export class ChapterExecutionPreparationService {
     chapterId: string,
     request: ChapterRuntimeRequestInput,
   ): Promise<ChapterExecutionPreparationResult> {
+    await this.deps.ensureTimelineReady(novelId, chapterId, request);
     const isAutopilot = request.controlPolicy?.advanceMode === "full_book_autopilot";
     const preparedArtifacts: ChapterExecutionPreparationResult["preparedArtifacts"] = [];
     if (isAutopilot) {
@@ -68,6 +71,7 @@ export function createChapterExecutionPreparationService(input: {
     ),
   });
   return new ChapterExecutionPreparationService({
+    ensureTimelineReady: (novelId, chapterId, request) => chapterTimelineFinalizationService.ensureBeforeGeneration({ novelId, chapterId, request }),
     chapterPlanJITService,
     planner: plannerService,
     loadEstimatedChapterCount: async (novelId) => {

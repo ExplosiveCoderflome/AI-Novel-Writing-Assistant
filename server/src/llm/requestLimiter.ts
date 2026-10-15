@@ -1,4 +1,5 @@
 import type { ChatOpenAI } from "@langchain/openai";
+import { IterableReadableStream } from "@langchain/core/utils/stream";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
 const LLM_REQUEST_LIMITER_PATCHED = Symbol("LLM_REQUEST_LIMITER_PATCHED");
@@ -34,30 +35,54 @@ class ProviderModelRequestLimiter {
     this.requestIntervalMs = normalizeNonNegativeInteger(options.requestIntervalMs);
   }
 
-  run<T>(operation: () => Promise<T>): Promise<T> {
+  async run<T>(operation: () => Promise<T>): Promise<T> {
+    const release = await this.acquire();
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
+
+  acquire(signal?: AbortSignal): Promise<() => void> {
+    signal?.throwIfAborted();
     if (this.concurrencyLimit === 0 && this.requestIntervalMs === 0) {
-      return operation();
+      return Promise.resolve(() => {});
     }
 
-    return new Promise<T>((resolve, reject) => {
-      this.queue.push(() => {
+    return new Promise((resolve, reject) => {
+      const onAbort = () => {
+        const index = this.queue.indexOf(start);
+        if (index >= 0) this.queue.splice(index, 1);
+        reject(signal?.reason);
+        this.processQueue();
+      };
+      const start = () => {
+        signal?.removeEventListener("abort", onAbort);
         this.activeCount += 1;
         if (this.requestIntervalMs > 0) {
           this.nextStartAt = Date.now() + this.requestIntervalMs;
         }
-        operation()
-          .then(resolve, reject)
-          .finally(() => {
-            this.activeCount = Math.max(0, this.activeCount - 1);
-            this.processQueue();
-          });
-      });
+        let released = false;
+        resolve(() => {
+          if (released) return;
+          released = true;
+          this.activeCount -= 1;
+          this.processQueue();
+        });
+      };
+      signal?.addEventListener("abort", onAbort, { once: true });
+      this.queue.push(start);
       this.processQueue();
     });
   }
 
   private processQueue(): void {
     if (this.queue.length === 0) {
+      if (this.timer) {
+        clearTimeout(this.timer);
+        this.timer = null;
+      }
       return;
     }
     if (this.concurrencyLimit > 0 && this.activeCount >= this.concurrencyLimit) {
@@ -142,16 +167,71 @@ export function attachLLMRequestLimiter(llm: ChatOpenAI, options: ProviderModelL
   });
   const originalInvoke = llm.invoke.bind(llm);
   const originalStream = llm.stream.bind(llm);
-  const originalBatch = llm.batch.bind(llm);
 
   patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) =>
     limiter.run(() => originalInvoke(...args))) as ChatOpenAI["invoke"];
 
-  patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) =>
-    limiter.run(() => originalStream(...args))) as ChatOpenAI["stream"];
+  patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
+    const signal = args[1]?.signal;
+    const release = await limiter.acquire(signal);
+    const controller = new AbortController();
+    let iterator: AsyncIterator<unknown> | undefined;
+    let outputController: ReadableStreamDefaultController<unknown> | undefined;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      signal?.removeEventListener("abort", onAbort);
+      release();
+    };
+    const close = async (reason?: unknown) => {
+      controller.abort(reason);
+      try {
+        await iterator?.return?.();
+      } finally {
+        finish();
+      }
+    };
+    const onAbort = () => {
+      controller.abort(signal?.reason);
+      outputController?.error(controller.signal.reason);
+      if (iterator) void close(signal?.reason).catch(() => undefined);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+      signal?.throwIfAborted();
+      const source = await originalStream(args[0], { ...args[1], signal: controller.signal });
+      iterator = source[Symbol.asyncIterator]();
+      if (controller.signal.aborted) {
+        await close(controller.signal.reason);
+        controller.signal.throwIfAborted();
+      }
+      return new IterableReadableStream<unknown>({
+        start(output) { outputController = output; },
+        async pull(output) {
+          try {
+            const result = await iterator!.next();
+            if (finished) return;
+            if (result.done) {
+              finish();
+              output.close();
+            } else {
+              output.enqueue(result.value);
+            }
+          } catch (error) {
+            await close(error).catch(() => undefined);
+            output.error(error);
+          }
+        },
+        cancel: close,
+      }, { highWaterMark: 0 });
+    } catch (error) {
+      finish();
+      throw error;
+    }
+  }) as ChatOpenAI["stream"];
 
-  patchable.batch = (async (...args: Parameters<ChatOpenAI["batch"]>) =>
-    limiter.run(() => originalBatch(...args))) as ChatOpenAI["batch"];
+  // batch delegates to this.invoke: an outer permit would deadlock at limit 1.
 
   Object.defineProperty(patchable, LLM_REQUEST_LIMITER_PATCHED, {
     value: true,

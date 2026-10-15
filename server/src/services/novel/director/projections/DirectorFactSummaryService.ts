@@ -9,9 +9,8 @@ import {
   getWorkflowStepProjectionHints,
   type WorkflowStepExecutionContext,
 } from "../workflowStepRuntime/WorkflowStepModule";
-import { getDirectorInputFromSeedPayload } from "../runtime/novelDirectorHelpers";
 import { DirectorStateReader, type DirectorCanonicalState } from "../DirectorStateReader";
-import { DirectorCoreStepModuleRuntime } from "../workflowStepRuntime/DirectorCoreStepModuleRuntime";
+import { DirectorFactReader, type DirectorFactReadPort } from "./DirectorFactReader";
 
 const DIRECTOR_STATE_HINT_KEY = "directorCanonicalState";
 const DIRECTOR_FACT_BASE_SUMMARY_HINT_KEY = "directorFactBaseSummary";
@@ -162,14 +161,14 @@ function buildEmptySummary(state: DirectorCanonicalState): DirectorFactBaseSumma
 
 export class DirectorFactSummaryService {
   private readonly stateReader: DirectorStateReader;
-  private readonly runtime: DirectorCoreStepModuleRuntime;
+  private readonly runtime: DirectorFactReadPort;
 
   constructor(input: {
     stateReader?: DirectorStateReader;
-    runtime?: DirectorCoreStepModuleRuntime;
+    runtime?: DirectorFactReadPort;
   } = {}) {
     this.stateReader = input.stateReader ?? new DirectorStateReader();
-    this.runtime = input.runtime ?? new DirectorCoreStepModuleRuntime();
+    this.runtime = input.runtime ?? new DirectorFactReader();
   }
 
   private buildFallbackState(context: WorkflowStepExecutionContext): DirectorCanonicalState {

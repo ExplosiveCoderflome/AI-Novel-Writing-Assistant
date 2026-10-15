@@ -1,5 +1,5 @@
 import { prisma } from "../../../db/prisma";
-import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
+import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/contracts";
 
 export type NovelFactCategory = "completed" | "revealed" | "state_changed";
 export type NovelFactSource = "auto" | "manual";

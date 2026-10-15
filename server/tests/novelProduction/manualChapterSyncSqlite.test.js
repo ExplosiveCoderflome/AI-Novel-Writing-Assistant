@@ -19,7 +19,7 @@ const { NovelSideEffectJobHandlers } = require('../../dist/events/sideEffects/No
 const { ManualChapterSyncService, readManualChapterSync, queueManualChapterSync } = require('../../dist/services/novel/chapterEditor/synchronization');
 const { ChapterArtifactRecoveryService } = require('../../dist/services/novel/runtime/artifactSync/ChapterArtifactRecoveryService');
 const { chapterArtifactBackgroundSyncService: background } = require('../../dist/services/novel/runtime/ChapterArtifactBackgroundSyncService');
-const { ChapterArtifactSyncService } = require('../../dist/services/novel/runtime/ChapterArtifactSyncService');
+const legacyProjection = require('../../dist/services/novel/chapterEditor/application/ChapterArtifactProjectionService');
 const { buildChapterArtifactContentHash: hash, CHAPTER_ARTIFACT_BOUNDARY_TYPE: boundaryType, hasCurrentChapterArtifactSyncBoundary: hasBoundary } = require('../../dist/services/novel/runtime/artifactSync');
 const { chapterArtifactDeltaOutputSchema } = require('../../dist/prompting/prompts/novel/chapterArtifactDelta.prompts');
 const crud = new NovelCoreCrudService();
@@ -69,11 +69,13 @@ function extraction(t, { onExtract, onApply } = {}) {
 
 test('body compare-and-save tolerates summary updates, rejects real conflicts, and queues atomically', async t => {
   const b = await book({ content: '第一行\r\n第二行' });
+  t.mock.method(legacyProjection, 'syncChapterArtifacts', async () => { throw Error('save must not wait for derived assets'); });
   await prisma.chapter.update({ where: { id: b.chapter.id }, data: { expectation: '后台摘要', updatedAt: new Date(b.chapter.updatedAt.getTime() + 1000) } });
   const updated = await save(b, '作者修订', '第一行\n第二行');
   assert.equal(updated.content, '作者修订');
   assert.equal((await marker(b)).status, 'pending');
   assert.equal(await prisma.novelSideEffectJob.count({ where: { novelId: b.novelId, jobType: 'chapter.manualSync' } }), 1);
+  assert.equal(await prisma.novelSideEffectJob.count({ where: { novelId: b.novelId, jobType: 'chapter.timelineFinalization' } }), 1);
   await assert.rejects(save(b, '过期覆盖'), error => error.statusCode === 409);
   await assert.rejects(crud.updateChapter(b.novelId, b.chapter.id, { title: '改名', content: '作者修订', expectedContent: '作者修订', expectedUpdatedAt: b.chapter.updatedAt.toISOString() }), error => error.statusCode === 409);
   t.mock.method(NovelSideEffectJobService.prototype, 'enqueueJob', async () => { throw Error('outbox unavailable'); });
@@ -159,14 +161,19 @@ test('stale jobs and A-B-A edits cannot reuse an old revision or publish a stale
 test('V1 saves retain legacy summary/timeline work in the durable task without V2 ownership', async t => {
   const b = await book({ v2: false });
   let compatibility = 0;
-  t.mock.method(ChapterArtifactSyncService.prototype, 'syncChapterArtifacts', async (_novel, _chapter, content, options) => {
+  const originalProjection = legacyProjection.syncChapterArtifacts;
+  t.mock.method(legacyProjection, 'syncChapterArtifacts', async (_novel, _chapter, content, options) => {
     compatibility++; assert.equal(content, 'V1修订'); assert.equal(options.scheduleBackgroundSync, false);
+    return originalProjection(_novel, _chapter, content, options);
   });
+  t.mock.method(background, 'scheduleChapterSync', () => assert.fail('durable manual sync must not schedule a second extraction'));
   extraction(t, { onExtract(input) { assert.equal(input.artifactSyncPolicy, undefined); assert.equal(input.directorRunId, undefined); } });
   await save(b, 'V1修订');
   assert.equal(compatibility, 0);
+  assert.equal(await prisma.chapterSummary.count({ where: { chapterId: b.chapter.id } }), 0);
   await new ManualChapterSyncService().ensureCurrent(b.novelId, b.chapter.id);
   assert.equal(compatibility, 1);
+  assert.equal(await prisma.chapterSummary.count({ where: { chapterId: b.chapter.id } }), 1);
 });
 
 test('explicit continuation waits for edited predecessor chapters outside the new generation range', async t => {

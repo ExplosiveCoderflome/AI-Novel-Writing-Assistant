@@ -1,14 +1,8 @@
-import { useMemo, useState } from "react";
-import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
-import type {
-  PromptPreviewResult,
-  PromptTestRunResult,
-  PromptTemplateVersionView,
-} from "@/api/promptWorkbench";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
+import type { PromptPreviewResult, PromptTestRunResult, PromptTemplateVersionView } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { usePromptTemplateEditor } from "../hooks/usePromptTemplateEditor";
 import { labelTemplateToken, type PromptTemplateTokenKind } from "../templateTokenEditor";
 import { PromptTestRunResultPanel } from "./PromptPreviewPanel";
@@ -16,18 +10,7 @@ import { VisualTemplateEditor, type TemplateRole } from "./VisualTemplateEditor"
 
 type TemplateState = ReturnType<typeof usePromptTemplateEditor>;
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
-}
-
-function formatDiagnosticKeys(
-  keys: string[],
-  kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">,
-) {
+function formatDiagnosticKeys(keys: string[], kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">) {
   return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "无";
 }
 
@@ -40,32 +23,15 @@ function VersionRow(props: {
 }) {
   const active = props.activeVersionId === props.version.id;
   return (
-    <div className="grid gap-3 rounded-md border border-[#d7e4e0] bg-white px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-semibold text-[#25443f]">v{props.version.versionNo}</span>
-          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">启用中</Badge> : null}
-          <span className="font-mono text-[11px] text-muted-foreground">{props.version.compiledHash}</span>
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">{formatDate(props.version.createdAt)}</div>
-        {props.version.notes ? (
-          <div className="mt-2 text-sm text-[#52606d]">{props.version.notes}</div>
-        ) : null}
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-3">
+      <div>
+        <span className="text-sm font-medium">版本 {props.version.versionNo}{active ? " · 使用中" : ""}</span>
+        <span className="ml-3 text-xs text-muted-foreground">{new Date(props.version.createdAt).toLocaleString()}</span>
+        {props.version.notes ? <p className="mt-1 text-sm text-muted-foreground">{props.version.notes}</p> : null}
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>
-          查看
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => props.onActivate(props.version.id)}
-          disabled={props.disabled || active}
-          className="border-[#b8d9d0] text-[#0f5f59]"
-        >
-          回滚
-        </Button>
+      <div className="flex gap-2">
+        <Button variant="ghost" size="sm" disabled={props.disabled} onClick={() => props.onLoad(props.version)}>载入编辑</Button>
+        <Button variant="outline" size="sm" disabled={props.disabled || active} onClick={() => props.onActivate(props.version.id)}>应用此版本</Button>
       </div>
     </div>
   );
@@ -81,220 +47,91 @@ export function AdvancedPromptTemplateEditor(props: {
   disabled?: boolean;
   showTestResult?: boolean;
 }) {
-  const {
-    disabled,
-    preview,
-    templateState,
-    testRun = null,
-    testRunError = null,
-    testRunPending = false,
-    testRunStreamOutput = "",
-    showTestResult = true,
-  } = props;
+  const { templateState: state, preview } = props;
+  const [role, setRole] = useState<TemplateRole>("system");
   const [tokenMenuRole, setTokenMenuRole] = useState<TemplateRole | null>(null);
   const [tokenQuery, setTokenQuery] = useState("");
-  const tokenItems = templateState.references?.items ?? [];
-  const templateDiagnostics = preview?.diagnostics.template?.diagnostics;
-  const view = templateState.view;
-  const modeLabel = view?.mode === "custom" ? "本书自定义" : "官方模板";
-  const isBusy = templateState.saveMutation.isPending
-    || templateState.restoreMutation.isPending
-    || templateState.activateMutation.isPending;
+  useEffect(() => state.setFocusedRole(role), [role, state.setFocusedRole]);
+  const diagnostics = preview?.diagnostics.template?.diagnostics;
+  const busy = props.disabled || state.saveMutation.isPending || state.restoreMutation.isPending || state.activateMutation.isPending;
 
-  const previewMessages = useMemo(() => preview?.messages ?? [], [preview]);
-
-  function openTokenMenu(role: TemplateRole) {
-    templateState.setFocusedRole(role);
-    setTokenQuery("");
-    setTokenMenuRole(role);
-  }
-
-  if (!templateState.enabled) {
-    return (
-      <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">
-        选择正文写作提示词、本书范围和具体小说后可编辑高级模板。
-      </div>
-    );
-  }
+  if (state.overrideQuery.isError) return (
+    <div role="alert" className="rounded-md bg-destructive/10 p-4 text-sm">
+      <p>模板读取失败，请重试。</p>
+      <Button variant="outline" className="mt-2" onClick={() => void state.overrideQuery.refetch()}>重新读取</Button>
+    </div>
+  );
+  if (!state.isReady) return <p role="status" className="py-6 text-sm text-muted-foreground">正在读取完整模板…</p>;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border border-[#d7e4e0] bg-[#fbfdfb] p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className={cn(
-                view?.mode === "custom" ? "bg-[#0f766e]" : "bg-[#52606d]",
-                "text-white hover:bg-[#0f766e]",
-              )}>
-                {modeLabel}
-              </Badge>
-              {view?.activeVersion ? (
-                <span className="rounded-md bg-[#eef6f4] px-2 py-1 text-xs text-[#0f5f59]">
-                  v{view.activeVersion.versionNo}
-                </span>
-              ) : null}
-              <span className="rounded-md bg-[#eef3fb] px-2 py-1 text-xs text-[#385273]">
-                {view?.basePromptVersion ?? "v5"}
-              </span>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              高级模板会影响本书正文生成；必需上下文缺失时生成会停止。
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => templateState.restoreMutation.mutate()}
-              disabled={disabled || isBusy || view?.mode !== "custom"}
-              className="border-[#b8d9d0] text-[#0f5f59]"
-            >
-              <ShieldCheck className="mr-2 h-4 w-4" />
-              恢复官方模板
-            </Button>
-            <Button
-              type="button"
-              onClick={() => templateState.saveMutation.mutate()}
-              disabled={disabled || isBusy || !templateState.isDirty}
-              className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              保存为新版本
-            </Button>
-          </div>
-        </div>
+    <div className="mx-auto max-w-5xl space-y-5">
+      <div className="rounded-md bg-muted/40 px-4 py-3 text-sm">
+        <p className="font-medium">{state.canPersist
+          ? (state.view?.mode === "custom" ? "本书使用自定义模板" : "本书使用官方模板")
+          : "从官方模板开始编辑"}</p>
+        <p className="mt-1 leading-relaxed text-muted-foreground">
+          优先调整“写作规则”中的表达要求；“任务与资料”负责章节任务和背景引用。保留引用标签，让 AI 获得必要资料。
+          {!state.canPersist ? " 草稿仅在当前页面保留，点击“保存到小说”后应用。" : " 保存后用于本书后续生成，不改动已有正文。"}
+        </p>
       </div>
-
+      <Tabs value={role} onValueChange={(value) => { setRole(value as TemplateRole); setTokenMenuRole(null); state.setFocusedRole(value as TemplateRole); }}>
+        <TabsList>
+          <TabsTrigger value="system">写作规则 · 主要调整</TabsTrigger>
+          <TabsTrigger value="human">任务与资料</TabsTrigger>
+        </TabsList>
+      </Tabs>
       <VisualTemplateEditor
-        role="system"
-        label="System 模板"
-        value={templateState.systemContent}
-        disabled={disabled || isBusy}
-        textareaRef={templateState.systemRef}
-        tokenItems={tokenItems}
+        key={role}
+        role={role}
+        label={role === "system" ? "写作规则（System）" : "任务与资料（User）"}
+        value={role === "system" ? state.systemContent : state.humanContent}
+        disabled={busy}
+        textareaRef={role === "system" ? state.systemRef : state.humanRef}
+        tokenItems={state.references?.items ?? []}
         tokenMenuRole={tokenMenuRole}
         tokenQuery={tokenQuery}
-        references={templateState.references}
+        references={state.references}
         onTokenQueryChange={setTokenQuery}
-        onOpenTokenMenu={openTokenMenu}
+        onOpenTokenMenu={(nextRole) => { state.setFocusedRole(nextRole); setTokenQuery(""); setTokenMenuRole(nextRole); }}
         onCloseTokenMenu={() => setTokenMenuRole(null)}
-        onFocusRole={templateState.setFocusedRole}
-        onInsertToken={templateState.insertToken}
-        onChange={templateState.setSystemContent}
+        onFocusRole={state.setFocusedRole}
+        onInsertToken={state.insertToken}
+        onChange={role === "system" ? state.setSystemContent : state.setHumanContent}
       />
-
-      <VisualTemplateEditor
-        role="human"
-        label="Human 模板"
-        value={templateState.humanContent}
-        disabled={disabled || isBusy}
-        textareaRef={templateState.humanRef}
-        tokenItems={tokenItems}
-        tokenMenuRole={tokenMenuRole}
-        tokenQuery={tokenQuery}
-        references={templateState.references}
-        onTokenQueryChange={setTokenQuery}
-        onOpenTokenMenu={openTokenMenu}
-        onCloseTokenMenu={() => setTokenMenuRole(null)}
-        onFocusRole={templateState.setFocusedRole}
-        onInsertToken={templateState.insertToken}
-        onChange={templateState.setHumanContent}
-      />
-
-      <div className="rounded-md border border-[#d7e4e0] bg-white p-4">
-        <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">
-          版本说明
-        </label>
-        <Input
-          id="prompt-template-notes"
-          value={templateState.notes}
-          onChange={(event) => templateState.setNotes(event.target.value)}
-          placeholder="说明本次模板调整目标"
-          className="mt-2 border-[#cbdad6]"
-          disabled={disabled || isBusy}
-        />
+      {state.referenceQuery.isError ? <div role="alert" className="text-sm text-destructive">
+        资料引用列表读取失败，模板内容仍可编辑。
+        <Button variant="ghost" size="sm" onClick={() => void state.referenceQuery.refetch()}>重试引用列表</Button>
+      </div> : null}
+      <div>
+        <label className="text-sm font-medium" htmlFor="prompt-template-notes">版本备注（选填）</label>
+        <Input id="prompt-template-notes" value={state.notes} onChange={(event) => state.setNotes(event.target.value)}
+          maxLength={2000} placeholder="例如：对白更简短，减少旁白解释" className="mt-2 shadow-none" disabled={busy} />
       </div>
-
-      {templateDiagnostics ? (
-        <div className="rounded-md border border-[#c8d8f0] bg-[#f5f8ff] p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#344d7a]">
-            <GitBranch className="h-4 w-4" />
-            预览注入结果
-          </div>
-          <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
-            <div>显式上下文：{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
-            <div>保底追加：{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
-            <div>运行变量：{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
-            <div>槽位引用：{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
-          </div>
-        </div>
+      {props.showTestResult !== false ? <PromptTestRunResultPanel result={props.testRun ?? null}
+        isPending={props.testRunPending} error={props.testRunError} streamOutput={props.testRunStreamOutput} /> : null}
+      {preview ? (
+        <details open className="border-t border-border pt-4">
+          <summary className="cursor-pointer text-sm font-medium">预览内容与资料检查</summary>
+          {diagnostics ? <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+            <p>引用资料：{formatDiagnosticKeys(diagnostics.referencedContextGroups, "context")}</p>
+            <p>自动补齐的必需资料：{formatDiagnosticKeys(diagnostics.fallbackRequiredGroups, "context")}</p>
+            <p>任务变量：{formatDiagnosticKeys(diagnostics.referencedInputFields, "input")}</p>
+            <p>常用设置：{formatDiagnosticKeys(diagnostics.referencedSlotKeys, "slot")}</p>
+            {diagnostics.unknownTokens.length ? <p className="text-destructive">无法识别的引用：{diagnostics.unknownTokens.join("、")}</p> : null}
+          </div> : null}
+          {preview.messages.map((message, index) => <div key={index} className="mt-3 rounded-md bg-muted/40 p-3">
+            <div className="mb-2 text-xs font-medium">{message.role}</div>
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap text-xs leading-relaxed">{message.content}</pre>
+          </div>)}
+        </details>
       ) : null}
-
-      {showTestResult ? (
-        <PromptTestRunResultPanel
-          result={testRun}
-          isPending={testRunPending}
-          error={testRunError}
-          streamOutput={testRunStreamOutput}
-        />
-      ) : null}
-
-      {previewMessages.length > 0 ? (
-        <div className="rounded-md border border-[#d7e4e0] bg-white">
-          <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">
-            最终 Messages
-          </div>
-          <div className="space-y-3 p-4">
-            {previewMessages.map((message, index) => (
-              <div key={`${message.role}:${index}`} className="rounded-md bg-[#f7faf9] p-3">
-                <div className="mb-2 font-mono text-[11px] uppercase text-[#0f766e]">{message.role}</div>
-                <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-[#1f2937]">
-                  {message.content}
-                </pre>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="rounded-md border border-[#d7e4e0] bg-[#fbfdfb] p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
-          <History className="h-4 w-4" />
-          版本历史
-        </div>
-        {view?.versions.length ? (
-          <div className="space-y-2">
-            {view.versions.map((version) => (
-              <VersionRow
-                key={version.id}
-                version={version}
-                activeVersionId={view.activeVersionId}
-                disabled={disabled || isBusy}
-                onLoad={templateState.loadVersionToDraft}
-                onActivate={(versionId) => templateState.activateMutation.mutate(versionId)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">
-            保存自定义模板后会生成版本历史。
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={templateState.resetDraft}
-          disabled={!templateState.isDirty || isBusy}
-          className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
-        >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          放弃未保存修改
-        </Button>
-      </div>
+      {state.canPersist ? <details className="border-t border-border pt-4">
+        <summary className="cursor-pointer text-sm font-medium">本书版本历史 · {state.view?.versions.length ?? 0} 个版本</summary>
+        {state.view?.versions.length ? state.view.versions.map((version) => <VersionRow key={version.id}
+          version={version} activeVersionId={state.view?.activeVersionId} disabled={busy}
+          onLoad={state.loadVersionToDraft} onActivate={(id) => state.activateMutation.mutate(id)} />)
+          : <p className="pt-3 text-sm text-muted-foreground">保存模板后，可在这里找回历史版本。</p>}
+      </details> : null}
     </div>
   );
 }

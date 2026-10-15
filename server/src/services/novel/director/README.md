@@ -1,5 +1,9 @@
 # Novel Director 子系统
 
+## 事实读取与执行边界
+
+`projections/DirectorFactSummaryService` 仅依赖七项读取方法组成的 `DirectorFactReadPort`，默认使用 `DirectorFactReader`；完整步骤执行 runtime 仍可作为该读取端口注入。投影构造不能创建自动执行、管线执行和恢复编排器，也不能通过 `NovelContextService` 间接构造完整小说核心服务。读取端口复用既有规划读取服务和章节进度检查，保持分卷就绪、恢复游标与章节进度的判断一致；它不是另一套导演执行入口。
+
 ## 架构概览
 
 长篇小说自动导演的后台执行分为三层：

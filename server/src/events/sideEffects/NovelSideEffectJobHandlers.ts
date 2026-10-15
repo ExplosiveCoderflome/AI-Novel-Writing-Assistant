@@ -4,9 +4,12 @@ import { getSharedNovelServices } from "../../services/novel/application/sharedN
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import { payoffLedgerSyncService } from "../../services/payoff/PayoffLedgerSyncService";
 import { prisma } from "../../db/prisma";
+import { chapterTimelineFinalizationService } from "../../services/novel/runtime/ChapterTimelineFinalizationService";
+import { buildTimelineContentHash, TimelineContentVersionError } from "../../modules/timeline";
 import {directorV2CharacterEnrichmentService} from "../../services/novel/characterPrep/deferred";
 import {
   type BookContractPayoffSyncPayload,
+  type ChapterTimelineFinalizationPayload,
   NOVEL_SIDE_EFFECT_PAYLOAD_VERSION,
   type CharacterPostDraftEnrichmentPayload,
   type DirectorV2CharacterEnrichmentPayload,
@@ -53,6 +56,26 @@ export class NovelSideEffectJobHandlers {
         if (result.characterReviewId) return;
         if (result.status === "pending") return {deferUntil: new Date(Date.now() + 5_000)};
         if (result.status === "failed") throw new Error(result.reason || "正文已保存，章节资料同步失败。");
+        return;
+      }
+      case "chapter.timelineFinalization": {
+        const payload = parsePayload<ChapterTimelineFinalizationPayload>(job);
+        if (payload.novelId !== job.novelId || !payload.chapterId || !payload.contentHash) {
+          throw new UnsupportedNovelSideEffectPayloadError("章节时间线任务的归属或正文版本不完整。");
+        }
+        const chapter = await prisma.chapter.findFirst({
+          where: { id: payload.chapterId, novelId: payload.novelId }, select: { content: true },
+        });
+        if (!chapter || buildTimelineContentHash(chapter.content ?? "") !== payload.contentHash) return;
+        try {
+          const result = await chapterTimelineFinalizationService.finalizeCurrentContent({
+            novelId: payload.novelId, chapterId: payload.chapterId,
+            content: chapter.content ?? "", sourceStage: "manual_chapter_save",
+          });
+          if (!result.checkpointWritten) return { deferUntil: new Date(Date.now() + 5_000) };
+        } catch (error) {
+          if (!(error instanceof TimelineContentVersionError)) throw error;
+        }
         return;
       }
       case "character.volumeRebuild": {

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type {
   CanonicalStateSnapshot,
   CanonicalTimelineEventState,
@@ -80,8 +81,8 @@ export class CanonicalStateService {
     this.now = deps.now ?? (() => new Date());
   }
 
-  async getSnapshot(novelId: string, scope: CanonicalStateScope = {}): Promise<CanonicalStateSnapshot> {
-    const chapterOrder = scope.chapterOrder ?? await this.resolveChapterOrder(novelId, scope.chapterId);
+  async getSnapshot(novelId: string, scope: CanonicalStateScope = {}, db: Prisma.TransactionClient = prisma): Promise<CanonicalStateSnapshot> {
+    const chapterOrder = scope.chapterOrder ?? await this.resolveChapterOrder(novelId, scope.chapterId, db);
     const includeCurrent = scope.includeCurrentChapterState === true;
     const snapshotWhere = typeof chapterOrder === "number"
       ? {
@@ -104,7 +105,7 @@ export class CanonicalStateService {
       timelineRows,
       currentChapter,
     ] = await Promise.all([
-      prisma.novel.findUnique({
+      db.novel.findUnique({
         where: { id: novelId },
         include: {
           genre: { select: { name: true } },
@@ -132,7 +133,7 @@ export class CanonicalStateService {
           },
         },
       }),
-      prisma.storyStateSnapshot.findFirst({
+      db.storyStateSnapshot.findFirst({
         where: snapshotWhere,
         orderBy: { createdAt: "desc" },
         include: {
@@ -145,7 +146,7 @@ export class CanonicalStateService {
           },
         },
       }),
-      prisma.characterRelationStage.findMany({
+      db.characterRelationStage.findMany({
         where: { novelId, isCurrent: true },
         include: {
           sourceCharacter: { select: { name: true } },
@@ -153,7 +154,7 @@ export class CanonicalStateService {
         },
         orderBy: [{ updatedAt: "desc" }],
       }),
-      prisma.openConflict.findMany({
+      db.openConflict.findMany({
         where: {
           novelId,
           status: "open",
@@ -175,12 +176,12 @@ export class CanonicalStateService {
         orderBy: [{ updatedAt: "desc" }],
         take: 12,
       }),
-      prisma.payoffLedgerItem.findMany({
+      db.payoffLedgerItem.findMany({
         where: { novelId },
         orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
       }),
-      characterResourceLedgerService.listResources(novelId).catch(() => []),
-      prisma.chapter.findMany({
+      characterResourceLedgerService.listResources(novelId, db),
+      db.chapter.findMany({
         where: {
           novelId,
           ...(typeof chapterOrder === "number"
@@ -198,7 +199,7 @@ export class CanonicalStateService {
         },
       }),
       scope.chapterId
-        ? prisma.chapter.findFirst({
+        ? db.chapter.findFirst({
             where: { id: scope.chapterId, novelId },
             select: { id: true, order: true, title: true, expectation: true },
           })
@@ -425,11 +426,11 @@ export class CanonicalStateService {
     };
   }
 
-  private async resolveChapterOrder(novelId: string, chapterId?: string): Promise<number | undefined> {
+  private async resolveChapterOrder(novelId: string, chapterId: string | undefined, db: Prisma.TransactionClient): Promise<number | undefined> {
     if (!chapterId) {
       return undefined;
     }
-    const chapter = await prisma.chapter.findFirst({
+    const chapter = await db.chapter.findFirst({
       where: { id: chapterId, novelId },
       select: { order: true },
     });

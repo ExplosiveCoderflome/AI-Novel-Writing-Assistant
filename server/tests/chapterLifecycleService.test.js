@@ -97,6 +97,7 @@ test("pipeline does not regenerate a chapter when正文 persistence is uncertain
     order: 1,
     title: "第一章",
     content: "",
+    artifactSyncCheckpoints: [],
   }];
   novelEventBus.emit = async () => undefined;
 

@@ -10,12 +10,11 @@ const {
   listRegisteredPromptAssets,
 } = require("../dist/prompting/registry.js");
 
-const GOVERNED_DIRECTORIES = [
-  path.join(SOURCE_ROOT, "services"),
-  path.join(SOURCE_ROOT, "agents"),
-  path.join(SOURCE_ROOT, "routes"),
-  path.join(SOURCE_ROOT, "graphs"),
-];
+// New business roots participate automatically. Prompt assets and model adapters
+// have their own contracts and are the only directory-level exemptions.
+const GOVERNED_DIRECTORIES = fs.readdirSync(SOURCE_ROOT, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && !["prompting", "llm"].includes(entry.name))
+  .map((entry) => path.join(SOURCE_ROOT, entry.name));
 
 const INLINE_PROMPT_ALLOWED_FILES = new Set([
   "src/routes/chat.ts",

@@ -12,8 +12,8 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
-import { novelEventBus } from "../../../events";
-import type { VolumeUpdateReason } from "../../../events";
+import { novelEventBus } from "../../../events/publisher";
+import type { VolumeUpdateReason } from "../../../events/publisher";
 import { logMemoryUsage } from "../../../runtime/memoryTelemetry";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";

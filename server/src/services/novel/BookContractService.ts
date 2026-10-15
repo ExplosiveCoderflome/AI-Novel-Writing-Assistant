@@ -1,6 +1,6 @@
 import type { BookContract, BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../db/prisma";
-import { novelEventBus } from "../../events";
+import { novelEventBus } from "../../events/publisher";
 import { hasBookContractPayoffChanges } from "../payoff/sources/bookContractPayoffSources";
 
 function mapRowToBookContract(row: {

@@ -5,7 +5,7 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { writingPlatformRecommendationPrompt } from "../../../../prompting/prompts/novel/writingPlatformRecommendation.prompts";
 import { supportsWritingPlatformForm, writingPlatformProfileService } from "..";
-import { novelEventBus } from "../../../../events";
+import { novelEventBus } from "../../../../events/publisher";
 
 const paramsSchema = z.object({ id: z.string().trim().min(1) });
 const platformSchema = z.enum(["fanqie_free", "qidian_male", "jinjiang_female", "zhihu_story"]);

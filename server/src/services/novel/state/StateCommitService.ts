@@ -2,14 +2,13 @@ import type {
   ContentProvenance,
   StateChangeProposal,
   StateCommitResult,
-  StateVersionRecord,
 } from "@ai-novel/shared/types/canonicalState";
 import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "../../../db/prisma";
-import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
-import { buildChapterArtifactContentHash } from "../runtime/artifactSync";
-import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { stateProposalStore, toStateProposal, type PersistedProposalRow } from "./persistence/StateProposalStore";
+import { compactText, buildVersionSummary, validateStateProposals } from "./domain/StateProposalPolicy";
+import { ChapterArtifactContentVersionError, buildChapterArtifactContentHash } from "../runtime/artifactSync/contracts";
+import { applyCommittedProposal } from "./application/CommittedProposalApplication";
 import { compactText as compactResourceText, normalizeResourceKey } from "../characterResource/characterResourceShared";
 import { characterResourceValidationService } from "../characterResource/CharacterResourceValidationService";
 import { canonicalStateService } from "./CanonicalStateService";
@@ -17,55 +16,9 @@ import { chapterFactExtractor, type ChapterFactExtractorInput } from "./ChapterF
 import { stateVersionLog } from "./StateVersionLog";
 import {
   attachProposalSourceQuality,
-  isDebtSourceProposal,
-  markDebtSourcePendingReview,
   normalizeContentProvenance,
   resolveProposalSourceQuality,
 } from "./stateProposalSourceQuality";
-
-const AUTO_COMMIT_TYPES = new Set<StateChangeProposal["proposalType"]>([
-  "event_record",
-  "character_state_update",
-  "payoff_progression",
-  "conflict_update",
-  "character_resource_update",
-]);
-
-const ALWAYS_REVIEW_TYPES = new Set<StateChangeProposal["proposalType"]>([
-  "relation_state_update",
-  "information_disclosure",
-  "world_rule_change",
-  "book_contract_change",
-]);
-
-function compactText(value: string | null | undefined): string {
-  return String(value ?? "").replace(/\s+/g, " ").trim();
-}
-
-function parseJsonRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : {};
-}
-
-function buildVersionSummary(
-  chapterOrder: number | undefined,
-  committed: StateChangeProposal[],
-): string {
-  const label = typeof chapterOrder === "number" ? `chapter ${chapterOrder}` : "novel";
-  const typeSummary = Array.from(
-    committed.reduce((accumulator, proposal) => {
-      accumulator.set(
-        proposal.proposalType,
-        (accumulator.get(proposal.proposalType) ?? 0) + 1,
-      );
-      return accumulator;
-    }, new Map<string, number>()),
-  )
-    .map(([proposalType, count]) => `${proposalType} x${count}`)
-    .join(", ");
-  return typeSummary ? `${label} committed ${typeSummary}` : `${label} canonical state refreshed`;
-}
 
 export interface StateCommitServiceInput extends ChapterFactExtractorInput {
   proposals?: StateChangeProposal[];
@@ -92,22 +45,6 @@ export interface AutomaticResourceReview {
   assertExecutionOwnership: (db?: Prisma.TransactionClient) => Promise<void>;
 }
 
-interface PersistedProposalRow {
-  id: string;
-  novelId: string;
-  chapterId: string | null;
-  sourceSnapshotId: string | null;
-  sourceType: string;
-  sourceStage: string | null;
-  proposalType: string;
-  riskLevel: string;
-  status: string;
-  summary: string;
-  payloadJson: string;
-  evidenceJson: string | null;
-  validationNotesJson: string | null;
-}
-
 export class StateCommitService {
   async proposeAndCommit(input: StateCommitServiceInput): Promise<StateCommitResult> {
     const extractedProposals = input.skipFactExtraction ? [] : await chapterFactExtractor.extract(input);
@@ -126,47 +63,7 @@ export class StateCommitService {
         content: input.expectedChapterContent,
       } : undefined),
     );
-    const persisted = await this.persistValidated(validation, {
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      expectedChapterContent: input.expectedChapterContent,
-      artifactResourceReview: Boolean(input.artifactResourceReview),
-    });
-
-    let versionRecord: StateVersionRecord | null = null;
-    if (persisted.committed.length > 0) {
-      const snapshot = await canonicalStateService.getSnapshot(input.novelId, {
-        chapterId: input.chapterId,
-        chapterOrder: input.chapterOrder,
-        includeCurrentChapterState: true,
-      });
-      versionRecord = await stateVersionLog.createVersion({
-        novelId: input.novelId,
-        chapterId: input.chapterId ?? null,
-        sourceType: input.sourceType ?? "chapter_runtime",
-        sourceStage: input.sourceStage ?? "chapter_execution",
-        summary: buildVersionSummary(input.chapterOrder, persisted.committed),
-        acceptedProposalIds: persisted.committed.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)),
-        snapshot,
-      });
-      await prisma.stateChangeProposal.updateMany({
-        where: {
-          id: {
-            in: persisted.committed.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)),
-          },
-        },
-        data: {
-          committedVersionId: versionRecord.id,
-        },
-      });
-    }
-
-    return {
-      versionRecord,
-      committed: persisted.committed,
-      pendingReview: persisted.pendingReview,
-      rejected: persisted.rejected,
-    };
+    return this.persistValidated(validation, input);
   }
 
   async commitExistingProposals(input: CommitExistingProposalsInput): Promise<StateCommitResult> {
@@ -181,48 +78,23 @@ export class StateCommitService {
       };
     }
 
-    const rows = await prisma.stateChangeProposal.findMany({
-      where: {
-        novelId: input.novelId,
-        id: { in: proposalIds },
-        status: "pending_review",
-      },
-    });
-    if (rows.length === 0) {
-      return {
-        versionRecord: null,
-        committed: [],
-        pendingReview: [],
-        rejected: [],
-      };
-    }
-
-    const committed = rows.map((row) => {
-      const proposal = this.toProposal(row);
-      return {
-        ...proposal,
-        status: "committed" as const,
-        validationNotes: proposal.validationNotes.concat(`proposal_commit:${input.reason}`),
-      };
-    });
-
-    await prisma.$transaction(async (tx) => {
-      for (const proposal of committed) {
-        await this.applyCommittedProposal(tx, proposal);
-        if (!proposal.id) {
-          continue;
-        }
-        await tx.stateChangeProposal.update({
-          where: { id: proposal.id },
-          data: {
-            status: "committed",
-            validationNotesJson: JSON.stringify(proposal.validationNotes),
-          },
-        });
+    const committed: StateChangeProposal[] = [];
+    return stateProposalStore.transaction(async (tx) => {
+      const rows = await stateProposalStore.findPending(input.novelId, proposalIds, tx);
+      for (const row of rows) {
+        const proposal = toStateProposal(row);
+        const confirmed = {
+          ...proposal,
+          status: "committed" as const,
+          validationNotes: proposal.validationNotes.concat(`proposal_commit:${input.reason}`),
+        };
+        if (!await stateProposalStore.claimPending(confirmed, tx)) continue;
+        await applyCommittedProposal(tx, confirmed);
+        committed.push(confirmed);
       }
+      if (!committed.length) return { versionRecord: null, committed, pendingReview: [], rejected: [] };
+      return this.recordExistingProposalVersion(input, committed, tx);
     });
-
-    return this.recordExistingProposalVersion(input, committed);
   }
 
   private async commitReviewedResourceProposals(input: CommitExistingProposalsInput): Promise<StateCommitResult> {
@@ -231,18 +103,13 @@ export class StateCommitService {
     const committed: StateChangeProposal[] = [];
     const pendingReview: StateChangeProposal[] = [];
     const rejected: StateChangeProposal[] = [];
-    await prisma.$transaction(async tx => {
+    return stateProposalStore.transaction(async tx => {
       await review.assertExecutionOwnership(tx);
-      const chapter = await tx.chapter.findFirst({ where: {
-        id: input.chapterId!, novelId: input.novelId, content: review.expectedChapterContent,
-      }, select: { id: true, order: true } });
+      const chapter = await stateProposalStore.findSavedChapter(input.novelId, input.chapterId!, review.expectedChapterContent, tx);
       if (!chapter) throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝自动资源确认。");
-      const rows = await tx.stateChangeProposal.findMany({ where: {
-        novelId: input.novelId, chapterId: chapter.id, id: { in: input.proposalIds },
-        proposalType: "character_resource_update", sourceType: "chapter_background_sync", status: "pending_review",
-      } });
+      const rows = await stateProposalStore.findReviewedResources(input.novelId, chapter.id, input.proposalIds, tx);
       for (const row of rows) {
-        const proposal = this.toProposal(row);
+        const proposal = toStateProposal(row);
         if (proposal.payload.syncContentHash !== buildChapterArtifactContentHash(review.expectedChapterContent)
           || proposal.payload.chapterOrder !== chapter.order) {
           pendingReview.push(proposal);
@@ -255,30 +122,26 @@ export class StateCommitService {
         if (conflicts.length) {
           const blocked = { ...validated, status: "pending_review" as const, riskLevel: "high" as const,
             validationNotes: validated.validationNotes.concat(conflicts) };
-          await tx.stateChangeProposal.update({ where: { id: row.id }, data: {
-            riskLevel: "high", validationNotesJson: JSON.stringify(blocked.validationNotes),
-          } });
+          await stateProposalStore.saveConflict(blocked, tx);
           pendingReview.push(blocked);
           continue;
         }
         const notes = validated.validationNotes.concat(`proposal_commit:${input.reason}`);
-        const claimed = await tx.stateChangeProposal.updateMany({ where: { id: row.id, status: "pending_review" },
-          data: { status: "committed", validationNotesJson: JSON.stringify(notes) } });
-        if (claimed.count !== 1) continue;
-        await this.applyCommittedProposal(tx, validated);
+        if (!await stateProposalStore.claimPending({ ...validated, validationNotes: notes }, tx)) continue;
+        await applyCommittedProposal(tx, validated);
         committed.push({ ...validated, validationNotes: notes });
       }
+      if (!committed.length) return { versionRecord: null, committed, pendingReview, rejected };
+      return { ...await this.recordExistingProposalVersion(input, committed, tx), pendingReview, rejected };
     });
-    if (!committed.length) return { versionRecord: null, committed, pendingReview, rejected };
-    return { ...await this.recordExistingProposalVersion(input, committed), pendingReview, rejected };
   }
 
-  private async recordExistingProposalVersion(input: CommitExistingProposalsInput, committed: StateChangeProposal[]): Promise<StateCommitResult> {
+  private async recordExistingProposalVersion(input: CommitExistingProposalsInput, committed: StateChangeProposal[], tx: Prisma.TransactionClient): Promise<StateCommitResult> {
     const snapshot = await canonicalStateService.getSnapshot(input.novelId, {
       chapterId: input.chapterId ?? committed[0]?.chapterId ?? undefined,
       chapterOrder: input.chapterOrder ?? undefined,
       includeCurrentChapterState: true,
-    });
+    }, tx);
     const versionRecord = await stateVersionLog.createVersion({
       novelId: input.novelId,
       chapterId: input.chapterId ?? committed[0]?.chapterId ?? null,
@@ -287,17 +150,8 @@ export class StateCommitService {
       summary: buildVersionSummary(input.chapterOrder ?? undefined, committed),
       acceptedProposalIds: committed.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)),
       snapshot,
-    });
-    await prisma.stateChangeProposal.updateMany({
-      where: {
-        id: {
-          in: committed.map((proposal) => proposal.id).filter((id): id is string => Boolean(id)),
-        },
-      },
-      data: {
-        committedVersionId: versionRecord.id,
-      },
-    });
+    }, tx);
+    await stateProposalStore.attachVersion(committed, versionRecord.id, tx);
 
     return {
       versionRecord,
@@ -307,111 +161,8 @@ export class StateCommitService {
     };
   }
 
-  validate(proposals: StateChangeProposal[], artifactReview?: {
-    review: NonNullable<StateCommitServiceInput["artifactResourceReview"]>;
-    novelId: string; chapterId?: string | null; content?: string;
-  }): {
-    accepted: StateChangeProposal[];
-    pendingReview: StateChangeProposal[];
-    rejected: StateChangeProposal[];
-  } {
-    const accepted: StateChangeProposal[] = [];
-    const pendingReview: StateChangeProposal[] = [];
-    const rejected: StateChangeProposal[] = [];
-
-    for (const proposal of proposals) {
-      const normalized = {
-        ...proposal,
-        summary: compactText(proposal.summary),
-        evidence: proposal.evidence.map((item) => compactText(item)).filter(Boolean),
-        validationNotes: proposal.validationNotes.map((item) => compactText(item)).filter(Boolean),
-      } satisfies StateChangeProposal;
-      const sourceNormalized = attachProposalSourceQuality(
-        normalized,
-        resolveProposalSourceQuality(normalized),
-      );
-
-      if (!sourceNormalized.summary) {
-        rejected.push({
-          ...sourceNormalized,
-          status: "rejected",
-          validationNotes: sourceNormalized.validationNotes.concat("missing summary"),
-        });
-        continue;
-      }
-
-      if (sourceNormalized.proposalType === "character_resource_update") {
-        const key = String(sourceNormalized.payload.resourceKey ?? "");
-        const currentVersion = artifactReview && artifactReview.content !== undefined
-          && sourceNormalized.novelId === artifactReview.novelId && sourceNormalized.chapterId === artifactReview.chapterId
-          && sourceNormalized.payload.syncContentHash === buildChapterArtifactContentHash(artifactReview.content);
-        if (artifactReview && !currentVersion) {
-          rejected.push({...sourceNormalized, status: "rejected", validationNotes: sourceNormalized.validationNotes.concat("artifact_resource_review:stale_or_foreign_source")});
-          continue;
-        }
-        const evidenceSupported = artifactReview?.content !== undefined && sourceNormalized.evidence.some(
-          evidence => compactText(artifactReview.content).includes(evidence),
-        );
-        const approved = Boolean(currentVersion && evidenceSupported && artifactReview?.review.approvedResourceKeys.includes(key));
-        let resourceValidation = characterResourceValidationService.validateProposal(sourceNormalized, {automaticReviewApproved: approved});
-        if (artifactReview && resourceValidation.status !== "rejected"
-          && (artifactReview.review.pendingResourceKeys.includes(key) || !approved)) {
-          resourceValidation = {...resourceValidation, status: "pending_review", validationNotes: resourceValidation.validationNotes.concat("artifact_resource_review:hold")};
-        }
-        if (resourceValidation.status === "committed") {
-          accepted.push(resourceValidation);
-        } else if (resourceValidation.status === "pending_review") {
-          pendingReview.push(resourceValidation);
-        } else {
-          rejected.push(resourceValidation);
-        }
-        continue;
-      }
-
-      if (sourceNormalized.proposalType === "character_state_update") {
-        const payload = parseJsonRecord(sourceNormalized.payload);
-        if (typeof payload.characterId !== "string" || !compactText(payload.characterId)) {
-          rejected.push({
-            ...sourceNormalized,
-            status: "rejected",
-            validationNotes: sourceNormalized.validationNotes.concat("missing characterId"),
-          });
-          continue;
-        }
-      }
-
-      const supportedProposalType = AUTO_COMMIT_TYPES.has(sourceNormalized.proposalType)
-        || ALWAYS_REVIEW_TYPES.has(sourceNormalized.proposalType);
-      if (!supportedProposalType) {
-        rejected.push({
-          ...sourceNormalized,
-          status: "rejected",
-          validationNotes: sourceNormalized.validationNotes.concat("unsupported proposal type"),
-        });
-        continue;
-      }
-
-      if (isDebtSourceProposal(sourceNormalized)) {
-        pendingReview.push(markDebtSourcePendingReview(sourceNormalized));
-        continue;
-      }
-
-      if (ALWAYS_REVIEW_TYPES.has(sourceNormalized.proposalType) || sourceNormalized.riskLevel === "high") {
-        pendingReview.push({
-          ...sourceNormalized,
-          status: "pending_review",
-          validationNotes: sourceNormalized.validationNotes.concat("requires manual review"),
-        });
-        continue;
-      }
-
-      accepted.push({
-        ...sourceNormalized,
-        status: "committed",
-      });
-    }
-
-    return { accepted, pendingReview, rejected };
+  validate(...args: Parameters<typeof validateStateProposals>) {
+    return validateStateProposals(...args);
   }
 
   private async persistValidated(
@@ -420,115 +171,52 @@ export class StateCommitService {
       pendingReview: StateChangeProposal[];
       rejected: StateChangeProposal[];
     },
-    integrity: {
-      novelId: string;
-      chapterId?: string | null;
-      expectedChapterContent?: string;
-      artifactResourceReview?: boolean;
-    },
-  ): Promise<{
-    committed: StateChangeProposal[];
-    pendingReview: StateChangeProposal[];
-    rejected: StateChangeProposal[];
-  }> {
+    input: StateCommitServiceInput,
+  ): Promise<StateCommitResult> {
     const committedRows: PersistedProposalRow[] = [];
     const pendingRows: PersistedProposalRow[] = [];
     const rejectedRows: PersistedProposalRow[] = [];
 
-    await prisma.$transaction(async (tx) => {
-      if (integrity.artifactResourceReview) {
-        const novel = await tx.novel.findUnique({where: {id: integrity.novelId}, select: {directorVersion: true}});
-        if (novel?.directorVersion !== "v2" || !integrity.chapterId || integrity.expectedChapterContent === undefined) {
-          throw new Error("统一抽取资源确认必须绑定 V2 小说与已保存正文。");
-        }
-      }
-      if (integrity.expectedChapterContent !== undefined && integrity.chapterId) {
-        const chapter = await tx.chapter.findFirst({
-          where: {
-            id: integrity.chapterId,
-            novelId: integrity.novelId,
-            content: integrity.expectedChapterContent,
-          },
-          select: { id: true },
-        });
-        if (!chapter) {
-          throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝写入过期角色资源状态。");
-        }
-      }
+    return stateProposalStore.transaction(async (tx) => {
+      await stateProposalStore.assertArtifactIntegrity({ ...input, artifactResourceReview: Boolean(input.artifactResourceReview) }, tx);
       for (const proposal of validation.accepted) {
-        if (integrity.artifactResourceReview && proposal.proposalType === "character_resource_update") {
-          const conflicts = await this.findCharacterResourceConflictNotes(integrity.novelId, proposal, tx);
+        if (input.artifactResourceReview && proposal.proposalType === "character_resource_update") {
+          const conflicts = await this.findCharacterResourceConflictNotes(input.novelId, proposal, tx);
           if (conflicts.length) {
             validation.pendingReview.push({...proposal, status: "pending_review", riskLevel: "high", validationNotes: proposal.validationNotes.concat(conflicts)});
             continue;
           }
         }
-        const created = await tx.stateChangeProposal.create({
-          data: {
-            novelId: proposal.novelId,
-            chapterId: proposal.chapterId ?? null,
-            sourceSnapshotId: proposal.sourceSnapshotId ?? null,
-            sourceType: proposal.sourceType,
-            sourceStage: proposal.sourceStage ?? null,
-            proposalType: proposal.proposalType,
-            riskLevel: proposal.riskLevel,
-            status: "committed",
-            summary: proposal.summary,
-            payloadJson: JSON.stringify(proposal.payload),
-            evidenceJson: JSON.stringify(proposal.evidence),
-            validationNotesJson: JSON.stringify(proposal.validationNotes),
-          },
-        });
+        const created = await stateProposalStore.create(proposal, "committed", tx);
         committedRows.push(created);
-        await this.applyCommittedProposal(tx, proposal);
+        await applyCommittedProposal(tx, proposal);
       }
 
       for (const proposal of validation.pendingReview) {
-        const created = await tx.stateChangeProposal.create({
-          data: {
-            novelId: proposal.novelId,
-            chapterId: proposal.chapterId ?? null,
-            sourceSnapshotId: proposal.sourceSnapshotId ?? null,
-            sourceType: proposal.sourceType,
-            sourceStage: proposal.sourceStage ?? null,
-            proposalType: proposal.proposalType,
-            riskLevel: proposal.riskLevel,
-            status: "pending_review",
-            summary: proposal.summary,
-            payloadJson: JSON.stringify(proposal.payload),
-            evidenceJson: JSON.stringify(proposal.evidence),
-            validationNotesJson: JSON.stringify(proposal.validationNotes),
-          },
-        });
+        const created = await stateProposalStore.create(proposal, "pending_review", tx);
         pendingRows.push(created);
       }
 
       for (const proposal of validation.rejected) {
-        const created = await tx.stateChangeProposal.create({
-          data: {
-            novelId: proposal.novelId,
-            chapterId: proposal.chapterId ?? null,
-            sourceSnapshotId: proposal.sourceSnapshotId ?? null,
-            sourceType: proposal.sourceType,
-            sourceStage: proposal.sourceStage ?? null,
-            proposalType: proposal.proposalType,
-            riskLevel: proposal.riskLevel,
-            status: "rejected",
-            summary: proposal.summary,
-            payloadJson: JSON.stringify(proposal.payload),
-            evidenceJson: JSON.stringify(proposal.evidence),
-            validationNotesJson: JSON.stringify(proposal.validationNotes),
-          },
-        });
+        const created = await stateProposalStore.create(proposal, "rejected", tx);
         rejectedRows.push(created);
       }
+      const committed = committedRows.map(toStateProposal);
+      const result = committed.length ? await this.recordExistingProposalVersion({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+        sourceType: input.sourceType ?? "chapter_runtime",
+        sourceStage: input.sourceStage ?? "chapter_execution",
+        reason: "validated_proposals",
+        proposalIds: committed.map(proposal => proposal.id!),
+      }, committed, tx) : { versionRecord: null, committed };
+      return {
+        ...result,
+        pendingReview: pendingRows.map(toStateProposal),
+        rejected: rejectedRows.map(toStateProposal),
+      };
     });
-
-    return {
-      committed: committedRows.map((row) => this.toProposal(row)),
-      pendingReview: pendingRows.map((row) => this.toProposal(row)),
-      rejected: rejectedRows.map((row) => this.toProposal(row)),
-    };
   }
 
   private async applyCharacterResourceConflictChecks(
@@ -574,7 +262,7 @@ export class StateCommitService {
   private async findCharacterResourceConflictNotes(
     novelId: string,
     proposal: StateChangeProposal,
-    db: Pick<Prisma.TransactionClient, "characterResourceLedgerItem"> = prisma,
+    db?: Pick<Prisma.TransactionClient, "characterResourceLedgerItem">,
   ): Promise<string[]> {
     const parsed = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
     if (!parsed.success) {
@@ -587,14 +275,7 @@ export class StateCommitService {
         holderCharacterId: payload.holderCharacterId,
         ownerName: payload.ownerName,
       });
-    const existing = await db.characterResourceLedgerItem.findUnique({
-      where: {
-        novelId_resourceKey: {
-          novelId,
-          resourceKey,
-        },
-      },
-    });
+    const existing = await stateProposalStore.findResource(novelId, resourceKey, db);
     if (!existing) {
       return [];
     }
@@ -641,81 +322,6 @@ export class StateCommitService {
       notes.push("resource_conflict: holder visibility cannot regress from known to unknown");
     }
     return notes;
-  }
-
-  private async applyCommittedProposal(
-    tx: Prisma.TransactionClient,
-    proposal: StateChangeProposal,
-  ): Promise<void> {
-    if (proposal.proposalType === "character_resource_update") {
-      const payload = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
-      if (!payload.success) {
-        return;
-      }
-      await characterResourceLedgerService.applyCommittedUpdate(tx, {
-        novelId: proposal.novelId,
-        chapterId: proposal.chapterId ?? null,
-        chapterOrder: typeof payload.data.chapterOrder === "number" ? payload.data.chapterOrder : null,
-        payload: payload.data,
-        evidence: proposal.evidence,
-        validationNotes: proposal.validationNotes,
-        riskLevel: proposal.riskLevel,
-      });
-      return;
-    }
-
-    if (proposal.proposalType !== "character_state_update") {
-      return;
-    }
-
-    const payload = parseJsonRecord(proposal.payload);
-    const characterId = typeof payload.characterId === "string" ? payload.characterId : "";
-    if (!characterId) {
-      return;
-    }
-
-    await tx.character.update({
-      where: { id: characterId },
-      data: {
-        currentState: typeof payload.currentState === "string" ? compactText(payload.currentState) || null : null,
-        currentGoal: typeof payload.currentGoal === "string" ? compactText(payload.currentGoal) || null : null,
-        lastEvolvedAt: new Date(),
-      },
-    }).catch(() => null);
-  }
-
-  private toProposal(row: PersistedProposalRow): StateChangeProposal {
-    const validationNotes = this.parseStringArray(row.validationNotesJson);
-    const proposal: StateChangeProposal = {
-      id: row.id,
-      novelId: row.novelId,
-      chapterId: row.chapterId ?? null,
-      sourceSnapshotId: row.sourceSnapshotId ?? null,
-      sourceType: row.sourceType,
-      sourceStage: row.sourceStage ?? null,
-      proposalType: row.proposalType as StateChangeProposal["proposalType"],
-      riskLevel: row.riskLevel as StateChangeProposal["riskLevel"],
-      status: row.status as StateChangeProposal["status"],
-      summary: row.summary,
-      payload: JSON.parse(row.payloadJson) as Record<string, unknown>,
-      evidence: this.parseStringArray(row.evidenceJson),
-      validationNotes,
-    };
-    return attachProposalSourceQuality(proposal, resolveProposalSourceQuality(proposal));
-  }
-
-  private parseStringArray(value: string | null | undefined): string[] {
-    if (!value?.trim()) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(value) as unknown;
-      return Array.isArray(parsed)
-        ? parsed.map((item) => compactText(String(item ?? ""))).filter(Boolean)
-        : [];
-    } catch {
-      return [];
-    }
   }
 }
 

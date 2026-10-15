@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../../db/prisma";
-import { NovelSideEffectJobService } from "../../../../events/sideEffects/NovelSideEffectJobService";
+import { NovelSideEffectJobService } from "../../../../events/sideEffects/queue";
 import { buildChapterArtifactContentHash } from "../../runtime/artifactSync/ChapterArtifactContentVersion";
 import { CHAPTER_ARTIFACT_BOUNDARY_TYPE } from "../../runtime/artifactSync/ChapterArtifactSyncBoundary";
 

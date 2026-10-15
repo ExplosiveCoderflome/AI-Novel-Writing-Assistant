@@ -1,6 +1,5 @@
 import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
 import {
-  isDirectorAutoExecutionRunMode,
   type DirectorAutoExecutionState,
   type DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
@@ -24,12 +23,11 @@ import { NovelDirectorRuntimeOrchestrator } from "../runtime/novelDirectorRuntim
 import { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
 import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
 import type { DirectorCharacterSetupPhaseResult } from "../phases/novelDirectorPipelinePhases";
-import { normalizeDirectorAutoExecutionPlan } from "../automation/novelDirectorAutoExecution";
 import { assertHighMemoryDirectorStartAllowed } from "../runtime/autoDirectorMemorySafety";
 import { qualityDebtSettingsService } from "../../../settings/QualityDebtSettingsService";
 import { pendingReviewAutoPromotionService } from "../../state/PendingReviewAutoPromotionService";
 import {
-  resolveStructuredOutlineRecoveryCursor,
+  resolveStructuredOutlineRecoveryCursorForRequest,
   type StructuredOutlineRecoveryCursor,
 } from "../recovery/novelDirectorStructuredOutlineRecovery";
 
@@ -204,11 +202,7 @@ export class DirectorCoreStepModuleRuntime {
     if (!workspace) {
       return null;
     }
-    return resolveStructuredOutlineRecoveryCursor({
-      workspace,
-      plan: request ? normalizeDirectorAutoExecutionPlan(request.autoExecutionPlan) : undefined,
-      allowPartialChapterListReady: isDirectorAutoExecutionRunMode(request?.runMode),
-    });
+    return resolveStructuredOutlineRecoveryCursorForRequest(workspace, request);
   }
 
   async inspectChapterExecutionProgress(novelId: string): Promise<DirectorChapterExecutionProgressSummary | null> {

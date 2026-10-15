@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { claimManualChapterSyncLease } from "./ManualChapterSyncLease";
-import { ChapterArtifactSyncService } from "../../runtime/ChapterArtifactSyncService";
+import { syncChapterArtifacts } from "../application/ChapterArtifactProjectionService";
 import type { RunContract } from "../../../../modules/director";
 import { prisma } from "../../../../db/prisma";
 import { readRunExecutionEpoch } from "../../../../modules/novel/director-routing";
@@ -66,7 +66,7 @@ export class ManualChapterSyncService {
         const run = runs.find(row => readRunExecutionEpoch(row.contractJson) === chapter.novel.directorEpoch);
         const v2 = chapter.novel.directorVersion === "v2" || (!chapter.novel.directorVersion && !!run);
         const contract = run ? JSON.parse(run.contractJson) as RunContract : null;
-        if (!v2) await new ChapterArtifactSyncService().syncChapterArtifacts(payload.novelId, payload.chapterId, chapter.content ?? "", {scheduleBackgroundSync: false});
+        if (!v2) await syncChapterArtifacts(payload.novelId, payload.chapterId, chapter.content ?? "", {scheduleBackgroundSync: false});
         if (!chapter.content?.trim()) {
           result = { ...empty, status: "completed" };
         } else {

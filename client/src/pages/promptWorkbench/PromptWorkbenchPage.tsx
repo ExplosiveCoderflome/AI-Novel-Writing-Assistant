@@ -5,6 +5,9 @@ import { getNovelChapters } from "@/api/novel/chapters";
 import { queryKeys } from "@/api/queryKeys";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import type { LLMSelectorValue } from "@/components/common/LLMSelector";
+import { Button } from "@/components/ui/button";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
+import SelectControl from "@/components/common/SelectControl";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useLLMStore } from "@/store/llmStore";
@@ -37,6 +40,9 @@ export default function PromptWorkbenchPage() {
   const [selectedChapterId, setSelectedChapterId] = useState("");
   const [editMode, setEditMode] = useState<PromptEditMode>(() => writingLab ? "advanced" : "slots");
   const [platformManagerOpen, setPlatformManagerOpen] = useState(false);
+  const [showContext, setShowContext] = useState(writingLab);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveTargetNovelId, setSaveTargetNovelId] = useState("");
   const globalLlmProvider = useLLMStore((state) => state.provider);
   const globalLlmModel = useLLMStore((state) => state.model);
   const globalLlmTemperature = useLLMStore((state) => state.temperature);
@@ -77,11 +83,7 @@ export default function PromptWorkbenchPage() {
     [chapters, selectedChapterId],
   );
   const advancedTemplateSupported = Boolean(selectedPrompt?.capabilities.supportsAdvancedTemplate);
-  const advancedTemplateEnabled = Boolean(
-    advancedTemplateSupported
-    && slotState.scope === "novel"
-    && slotState.activeNovelId,
-  );
+  const advancedTemplateEnabled = advancedTemplateSupported;
   const templateState = usePromptTemplateEditor({
     prompt: selectedPrompt,
     novelId: slotState.scope === "novel" ? slotState.activeNovelId : "",
@@ -98,7 +100,7 @@ export default function PromptWorkbenchPage() {
     previewNovel: activeNovel,
     previewChapter: selectedChapter,
     slotOverrides: slotState.drafts,
-    templateDraft: activeEditMode === "advanced" && advancedTemplateEnabled ? templateState.draftTemplate : undefined,
+    templateDraft: activeEditMode === "advanced" && advancedTemplateEnabled ? templateState.draftTemplate ?? undefined : undefined,
   });
   const preview = previewState.preview;
   const testRunError = previewState.testRunError;
@@ -215,12 +217,15 @@ export default function PromptWorkbenchPage() {
   const effectiveSavePending = isAdvancedMode ? templateState.saveMutation.isPending : slotState.saveMutation.isPending;
   const effectiveSaveSuccess = isAdvancedMode ? templateState.saveMutation.isSuccess : slotState.saveMutation.isSuccess;
   const effectiveSaveError = isAdvancedMode ? templateSaveError : slotState.saveError;
+  const templateBusy = templateState.saveMutation.isPending
+    || templateState.restoreMutation.isPending
+    || templateState.activateMutation.isPending;
   const effectiveSaveDisabled = isAdvancedMode
-    ? !advancedTemplateEnabled || !templateState.isDirty || templateState.saveMutation.isPending
+    ? !templateState.isReady || (!templateState.isDirty && templateState.canPersist) || templateBusy
     : saveDisabled;
-  const effectiveResetDisabled = isAdvancedMode ? !templateState.isDirty : !slotState.hasDirtyDrafts;
+  const effectiveResetDisabled = isAdvancedMode ? !templateState.isDirty || templateBusy : !slotState.hasDirtyDrafts;
   const effectiveOfficialDisabled = isAdvancedMode
-    ? !advancedTemplateEnabled || templateState.view?.mode !== "custom" || templateState.restoreMutation.isPending
+    ? !templateState.canPersist || templateState.view?.mode !== "custom" || templateBusy
     : !selectedPrompt?.slotSupported || slotState.isNovelScopeDisabled;
 
   return (
@@ -231,7 +236,7 @@ export default function PromptWorkbenchPage() {
       )}
     >
       {!immersiveMode && !writingLab ? (
-        <div className="flex h-full min-h-0 w-[360px] min-w-[300px] max-w-[420px] shrink-0 overflow-hidden">
+        <div className="flex h-full min-h-0 w-[260px] min-w-[220px] max-w-[300px] shrink-0 overflow-hidden">
           <PromptCatalogSidebar
             keyword={keyword}
             onKeywordChange={setKeyword}
@@ -251,6 +256,7 @@ export default function PromptWorkbenchPage() {
           <PromptEditorShell
             prompt={selectedPrompt}
             simplified={writingLab}
+            advanced={isAdvancedMode}
             heading={writingLab ? "正文效果实验室" : undefined}
             immersive={immersiveMode}
             onImmersiveChange={setImmersiveMode}
@@ -271,31 +277,29 @@ export default function PromptWorkbenchPage() {
             }))}
             bodyPanel={
               <div className="space-y-4">
-                <div className="flex flex-col gap-3 rounded-md border border-border bg-card/80 p-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
                   <div>
-                    <div className="text-sm font-semibold text-foreground">编辑模式</div>
-                    <div className="text-xs text-muted-foreground">
-                      安全槽位适合稳定调整，高级模板适合本书正文写作自定义。
-                    </div>
+                    <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
+                      <TabsList>
+                        <TabsTrigger value="slots">常用调整</TabsTrigger>
+                        {advancedTemplateSupported ? <TabsTrigger value="advanced">完整模板</TabsTrigger> : null}
+                      </TabsList>
+                    </Tabs>
+                    <p className="mt-2 text-sm text-muted-foreground">{isAdvancedMode
+                      ? "直接编辑完整指令，适合需要深入定制的写法。"
+                      : "从主要调整开始；只改需要的部分，默认设置即可使用。"}</p>
                   </div>
-                  <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
-                    <TabsList className="h-10">
-                      <TabsTrigger value="slots" className="px-4">安全槽位</TabsTrigger>
-                      <TabsTrigger
-                        value="advanced"
-                        className="px-4"
-                        disabled={!advancedTemplateSupported}
-                      >
-                        高级模板
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
+                  {isAdvancedMode ? <Button variant="ghost" size="sm" aria-expanded={showContext}
+                    onClick={() => setShowContext((value) => !value)}>{showContext ? "收起资料引用" : "查看资料引用"}</Button> : null}
                 </div>
-                {slotState.isNovelScopeDisabled ? (
+                {!isAdvancedMode && slotState.isNovelScopeDisabled ? (
                   <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">
-                    选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。
+                    选择小说以单独设置本书要求，或切换到“所有小说”调整默认要求。
                   </div>
                 ) : null}
+                {previewState.previewMutation.isError ? <p role="alert" className="text-sm text-destructive">
+                  {previewState.previewMutation.error instanceof Error ? previewState.previewMutation.error.message : "预览失败，请重试。"}
+                </p> : null}
                 {isAdvancedMode ? (
                   <AdvancedPromptTemplateEditor
                     templateState={templateState}
@@ -305,7 +309,7 @@ export default function PromptWorkbenchPage() {
                     testRunError={testRunError}
                     testRunStreamOutput={previewState.testRunStreamOutput}
                     disabled={!advancedTemplateEnabled}
-                    showTestResult={!writingLab}
+                    showTestResult={!writingLab || !showContext}
                   />
                 ) : (
                   <PromptBodyEditor
@@ -336,7 +340,7 @@ export default function PromptWorkbenchPage() {
                 )}
               </div>
             }
-            contextPanel={isAdvancedMode ? (
+            contextPanel={isAdvancedMode && showContext ? (
               <div className="flex h-full min-h-0 flex-col">
                 {writingLab && (previewState.testRun || previewState.testRunMutation.isPending || testRunError) ? (
                   <div className="max-h-[56%] shrink-0 overflow-y-auto border-b border-border p-3">
@@ -370,14 +374,18 @@ export default function PromptWorkbenchPage() {
                 isSaveSuccess={effectiveSaveSuccess}
                 saveError={effectiveSaveError}
                 saveDisabled={effectiveSaveDisabled}
-                previewDisabled={!selectedPrompt || previewState.previewMutation.isPending}
-                testRunDisabled={!selectedPrompt || previewState.isTestRunPending}
+                previewDisabled={!selectedPrompt || previewState.previewMutation.isPending || (isAdvancedMode && !templateState.isReady)}
+                testRunDisabled={!selectedPrompt || previewState.isTestRunPending || (isAdvancedMode && !templateState.isReady)}
                 testLlm={testLlm}
                 onTestLlmChange={setTestLlm}
                 resetDisabled={effectiveResetDisabled}
                 officialVersionDisabled={effectiveOfficialDisabled}
                 officialVersionLabel={isAdvancedMode ? "恢复官方模板" : "官方版本"}
-                saveLabel={isAdvancedMode ? "保存为新版本" : "保存覆盖"}
+                saveLabel={isAdvancedMode ? (templateState.canPersist ? "保存本书模板" : "保存到小说") : "保存设置"}
+                scopeHint={isAdvancedMode
+                  ? (templateState.canPersist ? `应用到《${activeNovel?.title || "所选小说"}》` : "模板草稿 · 尚未应用到小说")
+                  : slotState.scope === "global" ? "所有小说的默认要求" : `仅应用到《${activeNovel?.title || "请选择小说"}》`}
+                usesSample={!slotState.activeNovelId}
                 onGeneratePreview={previewState.generatePreview}
                 onRunTest={handleRunTest}
                 onOpenOfficialVersion={
@@ -387,7 +395,10 @@ export default function PromptWorkbenchPage() {
                 }
                 onSave={
                   isAdvancedMode
-                    ? () => templateState.saveMutation.mutate()
+                    ? () => {
+                      if (templateState.canPersist) templateState.saveMutation.mutate(undefined);
+                      else { setSaveTargetNovelId(slotState.selectedNovelId); setSaveDialogOpen(true); }
+                    }
                     : slotState.saveDrafts
                 }
                 onReset={isAdvancedMode ? templateState.resetDraft : slotState.resetDrafts}
@@ -403,6 +414,31 @@ export default function PromptWorkbenchPage() {
           </div>
         )}
       </main>
+      <Dialog open={saveDialogOpen} onOpenChange={(open) => { if (!templateState.saveMutation.isPending) setSaveDialogOpen(open); }}>
+        <AppDialogContent title="将模板应用到小说" description="保存为所选小说的新版本，用于后续生成；已有章节正文保持原样。"
+          footer={<>
+            <Button variant="ghost" disabled={templateState.saveMutation.isPending} onClick={() => setSaveDialogOpen(false)}>取消</Button>
+            <Button disabled={!saveTargetNovelId || templateState.saveMutation.isPending} onClick={() => {
+              templateState.saveMutation.mutate(saveTargetNovelId, { onSuccess: () => {
+                setSaveDialogOpen(false);
+                slotState.setScope("novel");
+                slotState.setSelectedNovelId(saveTargetNovelId);
+              } });
+            }}>{templateState.saveMutation.isPending ? "保存中…" : "保存并应用"}</Button>
+          </>}>
+          <SelectControl value={saveTargetNovelId} onChange={(event) => setSaveTargetNovelId(event.target.value)}
+            aria-label="保存模板的目标小说" disabled={templateState.saveMutation.isPending}
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">选择小说</option>
+            {slotState.novels.map((novel) => <option key={novel.id} value={novel.id}>{novel.title || novel.id}</option>)}
+          </SelectControl>
+          {slotState.novelsQuery.isLoading ? <p className="mt-3 text-sm text-muted-foreground">正在读取小说列表…</p>
+            : slotState.novelsQuery.isError ? <p role="alert" className="mt-3 text-sm text-destructive">小说列表读取失败。
+              <Button variant="ghost" onClick={() => void slotState.novelsQuery.refetch()}>重试</Button></p>
+            : slotState.novels.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">创建小说后即可应用模板，草稿可以继续编辑和预览。</p> : null}
+          {templateSaveError ? <p role="alert" className="mt-3 text-sm text-destructive">{templateSaveError}</p> : null}
+        </AppDialogContent>
+      </Dialog>
       <WritingPlatformProfileManager open={platformManagerOpen} onOpenChange={setPlatformManagerOpen} />
     </div>
   );

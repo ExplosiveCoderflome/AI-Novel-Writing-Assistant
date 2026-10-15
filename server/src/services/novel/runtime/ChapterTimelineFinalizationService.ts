@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type {
   ExtractedTimelineEvent,
@@ -7,19 +6,20 @@ import type {
   TimelineHookDraft,
 } from "@ai-novel/shared/types/timeline";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { prisma } from "../../../db/prisma";
 import {
   storyTimelineService,
   timelineCheckerService,
   timelineContextService,
   timelineExtractorService,
-  timelineRepository,
+  buildTimelineContentHash as hashContent,
+  TimelineContentVersionError,
+  TimelineFinalizationStore,
+  TIMELINE_FINALIZATION_RUNNING_STALE_MS,
+  chapterGoalFromContext, fallbackTimeLabel, openHookIds, plannedEventIds, forbiddenEventIds,
+  type ChapterTimelineFinalizationMode,
 } from "../../../modules/timeline";
 
-export type ChapterTimelineFinalizationMode = "stable" | "degraded";
-type TimelineFinalizationClaimStatus = "claimed" | "already_done" | "running";
-
-const TIMELINE_FINALIZATION_RUNNING_STALE_MS = 15 * 60 * 1000;
+export type { ChapterTimelineFinalizationMode } from "../../../modules/timeline";
 
 export interface ChapterTimelineGateResult {
   result: TimelineCheckResult;
@@ -61,75 +61,56 @@ interface FinalizeCurrentContentInput {
   qualityDebt?: boolean;
 }
 
-function hashContent(content: string): string {
-  return createHash("sha1").update(content).digest("hex");
-}
-
-function uniqueStrings(values: Array<string | null | undefined>): string[] {
-  return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));
-}
-
-function chapterGoalFromContext(contextPackage: GenerationContextPackage | null | undefined): string {
-  return uniqueStrings([
-    contextPackage?.chapterMission?.objective,
-    contextPackage?.chapter.expectation,
-    contextPackage?.plan?.objective,
-  ]).join("\n") || "推进当前章节任务";
-}
-
-function fallbackTimeLabel(input: {
-  chapterIndex: number;
-  contextPackage?: GenerationContextPackage | null;
-  timelineContext?: TimelineContextForChapter | null;
-}): string {
-  return input.timelineContext?.currentTime?.label?.trim()
-    || input.contextPackage?.timelineContext?.currentTime?.label?.trim()
-    || `第 ${input.chapterIndex} 章`;
-}
-
-function openHookIds(context: TimelineContextForChapter | null | undefined): string[] {
-  return context?.openHooks?.map((hook) => hook.id) ?? [];
-}
-
-function plannedEventIds(context: TimelineContextForChapter | null | undefined): string[] {
-  return context?.plannedEventsThisChapter?.map((event) => event.id) ?? [];
-}
-
-function forbiddenEventIds(context: TimelineContextForChapter | null | undefined): string[] {
-  return context?.forbiddenEvents?.map((event) => event.id) ?? [];
-}
-
 export class ChapterTimelineFinalizationService {
+  constructor(private readonly store = new TimelineFinalizationStore()) {}
+
+  async ensureBeforeGeneration(input: {
+    novelId: string;
+    chapterId: string;
+    request?: TimelineFinalizationRequestOptions;
+  }): Promise<void> {
+    const current = await this.store.findChapter(input.novelId, input.chapterId);
+    if (!current) throw new Error("章节不存在，无法准备时间线上下文。");
+    const pending = await this.store.listPendingEarlierChapters(input.novelId, current.order);
+    for (const { chapter } of pending) {
+      await this.waitForFinalization(async () => {
+        const latest = await this.store.findChapter(input.novelId, chapter.id);
+        if (!latest) return null;
+        const version = { novelId: input.novelId, chapterId: chapter.id, content: latest.content ?? "" };
+        if (await this.hasCurrentFinalization(version)) return null;
+        return this.finalizeCurrentContent({
+          ...version, request: input.request, sourceStage: "manual_edit_before_generation",
+        });
+      });
+    }
+    await this.waitForFinalization(() => this.ensurePreviousChapterFinalized({
+      novelId: input.novelId, currentChapterOrder: current.order, request: input.request,
+    }));
+  }
+
+  private async waitForFinalization(
+    operation: () => Promise<ChapterTimelineFinalizationResult | null>,
+  ): Promise<void> {
+    const deadline = Date.now() + TIMELINE_FINALIZATION_RUNNING_STALE_MS + 1000;
+    for (;;) {
+      try {
+        const result = await operation();
+        if (!result || result.checkpointWritten) return;
+      } catch (error) {
+        // A concurrent edit is reloaded on the next attempt, never committed as old context.
+        if (!(error instanceof TimelineContentVersionError)) throw error;
+      }
+      if (Date.now() >= deadline) throw new Error("前文时间线同步未能完成，请稍后从章节页继续写作。");
+      await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
   async hasCurrentFinalization(input: {
     novelId: string;
     chapterId: string;
     content: string;
   }): Promise<boolean> {
-    return Boolean(await this.findCurrentFinalizationMode(input));
-  }
-
-  private async findCurrentFinalizationMode(input: {
-    novelId: string;
-    chapterId: string;
-    content: string;
-  }): Promise<ChapterTimelineFinalizationMode | null> {
-    const contentHash = hashContent(input.content.trim());
-    const row = await prisma.chapterArtifactSyncCheckpoint.findFirst({
-      where: {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        contentHash,
-        artifactType: "timeline_finalization",
-        syncMode: { in: ["stable", "degraded"] },
-        status: "succeeded",
-      },
-      orderBy: [
-        { syncMode: "desc" },
-        { updatedAt: "desc" },
-      ],
-      select: { syncMode: true },
-    });
-    return row?.syncMode === "stable" || row?.syncMode === "degraded" ? row.syncMode : null;
+    return Boolean(await this.store.findCurrentFinalizationMode(input));
   }
 
   async ensurePreviousChapterFinalized(input: {
@@ -137,20 +118,7 @@ export class ChapterTimelineFinalizationService {
     currentChapterOrder: number;
     request?: TimelineFinalizationRequestOptions;
   }): Promise<ChapterTimelineFinalizationResult | null> {
-    const previousChapter = await prisma.chapter.findFirst({
-      where: {
-        novelId: input.novelId,
-        order: input.currentChapterOrder - 1,
-        content: { not: null },
-      },
-      select: {
-        id: true,
-        title: true,
-        order: true,
-        content: true,
-        expectation: true,
-      },
-    });
+    const previousChapter = await this.store.findPreviousChapter(input.novelId, input.currentChapterOrder);
     const previousContent = previousChapter?.content?.trim();
     if (!previousChapter || !previousContent) {
       return null;
@@ -162,10 +130,7 @@ export class ChapterTimelineFinalizationService {
     })) {
       return null;
     }
-    const novel = await prisma.novel.findUnique({
-      where: { id: input.novelId },
-      select: { title: true },
-    });
+    const novel = await this.store.findNovelTitle(input.novelId);
     const timelineContext = await timelineContextService.buildForChapter({
       novelId: input.novelId,
       chapterId: previousChapter.id,
@@ -197,7 +162,7 @@ export class ChapterTimelineFinalizationService {
   async finalizeCurrentContent(input: FinalizeCurrentContentInput): Promise<ChapterTimelineFinalizationResult> {
     const content = input.content.trim();
     const contentHash = hashContent(content);
-    const existingMode = await this.findCurrentFinalizationMode({
+    const existingMode = await this.store.findCurrentFinalizationMode({
       novelId: input.novelId,
       chapterId: input.chapterId,
       content,
@@ -227,7 +192,7 @@ export class ChapterTimelineFinalizationService {
     }
 
     const chapter = input.contextPackage?.chapter;
-    const chapterIndex = chapter?.order ?? await this.resolveChapterOrder(input.chapterId);
+    const chapterIndex = chapter?.order ?? await this.store.resolveChapterOrder(input.chapterId);
     const timelineContext = input.timelineGate?.timelineContext
       ?? input.contextPackage?.timelineContext
       ?? await timelineContextService.buildForChapter({
@@ -249,7 +214,7 @@ export class ChapterTimelineFinalizationService {
       });
     }
 
-    const stableClaim = await this.claimCheckpoint({
+    const stableClaim = await this.store.claimCheckpoint({
       novelId: input.novelId,
       chapterId: input.chapterId,
       contentHash,
@@ -294,7 +259,7 @@ export class ChapterTimelineFinalizationService {
     });
 
     if (!gate.timelineContext || !gate.extractorSucceeded || gate.result.status === "failed") {
-      await this.markCheckpointFailed({
+      await this.store.markCheckpointFailed({
         novelId: input.novelId,
         chapterId: input.chapterId,
         contentHash,
@@ -320,19 +285,40 @@ export class ChapterTimelineFinalizationService {
     }
 
     try {
-      await storyTimelineService.commitChapterTimeline({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        chapterIndex,
-        timeAnchor: gate.timeAnchor ?? null,
-        extractedEvents: gate.extractedEvents,
-        extractedHooks: gate.extractedHooks,
-        addressedHookIds: gate.addressedHookIds,
-        resolvedHookIds: gate.resolvedHookIds,
-        timelineContext: gate.timelineContext,
+      await this.store.commitStable({
+        version: input,
+        timeline: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          chapterIndex,
+          timeAnchor: gate.timeAnchor ?? null,
+          extractedEvents: gate.extractedEvents,
+          extractedHooks: gate.extractedHooks,
+          addressedHookIds: gate.addressedHookIds,
+          resolvedHookIds: gate.resolvedHookIds,
+          timelineContext: gate.timelineContext!,
+        },
+        checkpoint: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash,
+          syncMode: "stable",
+          sourceStage: input.sourceStage,
+          metadata: {
+            reason: input.reason ?? "stable_timeline_finalized",
+            sourceStage: input.sourceStage,
+            extractorSucceeded: true,
+            eventCount: gate.extractedEvents.length,
+            hookCount: gate.extractedHooks.length,
+            anchorFallbackUsed: !gate.timeAnchor,
+            qualityDebt: Boolean(input.qualityDebt),
+          },
+        },
       });
+
     } catch (error) {
-      await this.markCheckpointFailed({
+      if (error instanceof TimelineContentVersionError) throw error;
+      await this.store.markCheckpointFailed({
         novelId: input.novelId,
         chapterId: input.chapterId,
         contentHash,
@@ -357,22 +343,6 @@ export class ChapterTimelineFinalizationService {
       });
     }
 
-    await this.markCheckpoint({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      contentHash,
-      syncMode: "stable",
-      sourceStage: input.sourceStage,
-      metadata: {
-        reason: input.reason ?? "stable_timeline_finalized",
-        sourceStage: input.sourceStage,
-        extractorSucceeded: true,
-        eventCount: gate.extractedEvents.length,
-        hookCount: gate.extractedHooks.length,
-        anchorFallbackUsed: !gate.timeAnchor,
-        qualityDebt: Boolean(input.qualityDebt),
-      },
-    });
     return {
       syncMode: "stable",
       contentHash,
@@ -503,45 +473,42 @@ export class ChapterTimelineFinalizationService {
     hookCount: number;
     anchorFallbackUsed: boolean;
   }): Promise<ChapterTimelineFinalizationResult> {
-    const chapterIndex = input.contextPackage?.chapter.order ?? await this.resolveChapterOrder(input.chapterId);
-    await timelineRepository.upsertChapterTimeAnchor({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      chapterIndex,
-      storyDayIndex: input.timelineContext?.currentTime?.storyDayIndex ?? null,
-      timeLabel: fallbackTimeLabel({
-        chapterIndex,
-        contextPackage: input.contextPackage,
-        timelineContext: input.timelineContext,
-      }),
-      startsAfterEventIds: input.timelineContext?.previousEvents?.slice(-3).map((event) => event.id) ?? [],
-      plannedEventIds: plannedEventIds(input.timelineContext),
-      endedWithEventIds: [],
-      previousHookIds: openHookIds(input.timelineContext),
-      nextHookIds: [],
-      forbiddenEventIds: forbiddenEventIds(input.timelineContext),
-    });
-    if (input.qualityDebt || input.sourceStage === "defer_and_continue") {
-      await timelineRepository.expireOverdueImmediateHooks({
+    const chapterIndex = input.contextPackage?.chapter.order ?? await this.store.resolveChapterOrder(input.chapterId);
+    await this.store.commitDegraded({
+      version: input,
+      anchor: {
         novelId: input.novelId,
         chapterId: input.chapterId,
         chapterIndex,
-      });
-    }
-    await this.markCheckpoint({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      contentHash: input.contentHash,
-      syncMode: "degraded",
-      sourceStage: input.sourceStage,
-      metadata: {
-        reason: input.reason ?? "degraded_timeline_finalized",
+        storyDayIndex: input.timelineContext?.currentTime?.storyDayIndex ?? null,
+        timeLabel: fallbackTimeLabel({
+          chapterIndex,
+          contextPackage: input.contextPackage,
+          timelineContext: input.timelineContext,
+        }),
+        startsAfterEventIds: input.timelineContext?.previousEvents?.slice(-3).map((event) => event.id) ?? [],
+        plannedEventIds: plannedEventIds(input.timelineContext),
+        endedWithEventIds: [],
+        previousHookIds: openHookIds(input.timelineContext),
+        nextHookIds: [],
+        forbiddenEventIds: forbiddenEventIds(input.timelineContext),
+      },
+      expireOverdueHooks: Boolean(input.qualityDebt || input.sourceStage === "defer_and_continue"),
+      checkpoint: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        syncMode: "degraded",
         sourceStage: input.sourceStage,
-        extractorSucceeded: input.extractorSucceeded,
-        eventCount: input.eventCount,
-        hookCount: input.hookCount,
-        anchorFallbackUsed: input.anchorFallbackUsed,
-        qualityDebt: Boolean(input.qualityDebt),
+        metadata: {
+          reason: input.reason ?? "degraded_timeline_finalized",
+          sourceStage: input.sourceStage,
+          extractorSucceeded: input.extractorSucceeded,
+          eventCount: input.eventCount,
+          hookCount: input.hookCount,
+          anchorFallbackUsed: input.anchorFallbackUsed,
+          qualityDebt: Boolean(input.qualityDebt),
+        },
       },
     });
     return {
@@ -554,148 +521,6 @@ export class ChapterTimelineFinalizationService {
     };
   }
 
-  private async resolveChapterOrder(chapterId: string): Promise<number> {
-    const chapter = await prisma.chapter.findUnique({
-      where: { id: chapterId },
-      select: { order: true },
-    });
-    return chapter?.order ?? 0;
-  }
-
-  private async markCheckpoint(input: {
-    novelId: string;
-    chapterId: string;
-    contentHash: string;
-    syncMode: ChapterTimelineFinalizationMode;
-    sourceStage: string;
-    metadata: Record<string, unknown>;
-  }): Promise<void> {
-    await prisma.chapterArtifactSyncCheckpoint.upsert({
-      where: {
-        novelId_chapterId_contentHash_artifactType_syncMode: {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          contentHash: input.contentHash,
-          artifactType: "timeline_finalization",
-          syncMode: input.syncMode,
-        },
-      },
-      create: {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        contentHash: input.contentHash,
-        artifactType: "timeline_finalization",
-        syncMode: input.syncMode,
-        status: "succeeded",
-        sourceType: "chapter_runtime",
-        sourceStage: input.sourceStage,
-        metadataJson: JSON.stringify(input.metadata),
-      },
-      update: {
-        status: "succeeded",
-        sourceType: "chapter_runtime",
-        sourceStage: input.sourceStage,
-        metadataJson: JSON.stringify(input.metadata),
-        updatedAt: new Date(),
-      },
-    });
-  }
-
-  private async claimCheckpoint(input: {
-    novelId: string;
-    chapterId: string;
-    contentHash: string;
-    syncMode: ChapterTimelineFinalizationMode;
-    sourceStage: string;
-    metadata: Record<string, unknown>;
-  }): Promise<TimelineFinalizationClaimStatus> {
-    const where = {
-      novelId_chapterId_contentHash_artifactType_syncMode: {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        contentHash: input.contentHash,
-        artifactType: "timeline_finalization",
-        syncMode: input.syncMode,
-      },
-    };
-    const metadataJson = JSON.stringify(input.metadata);
-    try {
-      await prisma.chapterArtifactSyncCheckpoint.create({
-        data: {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          contentHash: input.contentHash,
-          artifactType: "timeline_finalization",
-          syncMode: input.syncMode,
-          status: "running",
-          sourceType: "chapter_runtime",
-          sourceStage: input.sourceStage,
-          metadataJson,
-        },
-      });
-      return "claimed";
-    } catch {
-      const existing = await prisma.chapterArtifactSyncCheckpoint.findUnique({
-        where,
-        select: { status: true, updatedAt: true },
-      }).catch(() => null);
-      if (existing?.status === "succeeded") {
-        return "already_done";
-      }
-      const staleBefore = new Date(Date.now() - TIMELINE_FINALIZATION_RUNNING_STALE_MS);
-      if (existing?.status === "running" && existing.updatedAt > staleBefore) {
-        return "running";
-      }
-      const claimed = await prisma.chapterArtifactSyncCheckpoint.updateMany({
-        where: {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          contentHash: input.contentHash,
-          artifactType: "timeline_finalization",
-          syncMode: input.syncMode,
-          OR: [
-            { status: { not: "running" } },
-            { updatedAt: { lt: staleBefore } },
-          ],
-        },
-        data: {
-          status: "running",
-          sourceType: "chapter_runtime",
-          sourceStage: input.sourceStage,
-          metadataJson,
-          updatedAt: new Date(),
-        },
-      }).catch(() => ({ count: 0 }));
-      return claimed.count > 0 ? "claimed" : "running";
-    }
-  }
-
-  private async markCheckpointFailed(input: {
-    novelId: string;
-    chapterId: string;
-    contentHash: string;
-    syncMode: ChapterTimelineFinalizationMode;
-    sourceStage: string;
-    metadata: Record<string, unknown>;
-  }): Promise<void> {
-    await prisma.chapterArtifactSyncCheckpoint.updateMany({
-      where: {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        contentHash: input.contentHash,
-        artifactType: "timeline_finalization",
-        syncMode: input.syncMode,
-        status: "running",
-      },
-      data: {
-        status: "failed",
-        sourceType: "chapter_runtime",
-        sourceStage: input.sourceStage,
-        metadataJson: JSON.stringify(input.metadata),
-        updatedAt: new Date(),
-      },
-    }).catch(() => null);
-  }
 }
 
 export const chapterTimelineFinalizationService = new ChapterTimelineFinalizationService();

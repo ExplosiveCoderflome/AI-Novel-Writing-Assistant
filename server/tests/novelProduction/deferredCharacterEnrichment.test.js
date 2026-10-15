@@ -92,7 +92,7 @@ function fixture() {
   const {EventBus} = loadSource('events/EventBus.ts', {});
   const {registerNovelEventHandlers} = loadSource('events/handlers/registerNovelEventHandlers.ts', {
     'node:crypto': require('node:crypto'), '../../db/prisma': {prisma: db},
-    '../sideEffects': {novelSideEffectJobService: sideEffectJobs},
+    '../sideEffects/queue': {novelSideEffectJobService: sideEffectJobs},
     '../../services/novel/characterPrep/deferred': {directorV2CharacterEnrichmentService: service},
   });
   const bus = new EventBus();
@@ -214,7 +214,7 @@ function mindFixture() {
   db.$transaction = async callback => callback(db);
   const {CharacterMindService} = loadSource('services/novel/characterMind/CharacterMindService.ts', {
     '../../../db/prisma': {prisma: db},
-    '../runtime/artifactSync/ChapterArtifactSyncResult': {ChapterArtifactContentVersionError: class extends Error {}},
+    '../runtime/artifactSync/contracts': {ChapterArtifactContentVersionError: class extends Error {}},
     '../../../prompting/core/promptRunner': {runStructuredPrompt: async () => {throw new Error('completed minds must not trigger a model call');}},
     '../../../prompting/prompts/novel/characterMind.prompts': {characterMindSnapshotPrompt: {}, buildCharacterMindContextBlocks: () => []},
   });
