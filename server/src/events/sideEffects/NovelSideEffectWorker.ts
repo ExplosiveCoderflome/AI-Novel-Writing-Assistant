@@ -71,8 +71,8 @@ export class NovelSideEffectWorker {
         return;
       }
       let leaseLost = false;
-      // V2 enrichment can include several bounded calls; retain one owner for the whole job.
-      const heartbeat = job.jobType === "character.v2DeferredEnrichment" ? setInterval(() => {
+      // Model-backed enrichment and timeline extraction retain one owner for the whole job.
+      const heartbeat = ["character.v2DeferredEnrichment", "chapter.timelineFinalization"].includes(job.jobType) ? setInterval(() => {
         void this.jobService.renewLease(job, this.leaseMs).then(owned => {
           if (!owned) leaseLost = true;
         }).catch(() => {leaseLost = true;});

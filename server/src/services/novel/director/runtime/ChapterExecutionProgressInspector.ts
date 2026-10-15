@@ -8,7 +8,7 @@ import { hasContinuableQualityLoopRiskFlags } from "./DirectorWorkspaceArtifactI
 import {
   CHAPTER_ARTIFACT_BOUNDARY_TYPE,
   getCurrentChapterArtifactSyncOutcome,
-} from "../../runtime/artifactSync";
+} from "../../runtime/artifactSync/contracts";
 
 export const CHAPTER_EXECUTION_PROGRESS_STAGES = [
   "execution_contract_ready",

@@ -148,7 +148,7 @@ function getSinglePromptQualityEntry() {
 
 test("prompt registry exposes versioned planning assets", () => {
   const keys = [
-    "planner.intent.parse@v1",
+    "planner.intent.parse@v2",
     "agent.runtime.fallback_answer@v1",
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
@@ -191,7 +191,7 @@ test("prompt registry exposes versioned planning assets", () => {
     promptKey(styleProfileExtractionPrompt),
     promptKey(styleProfileFromBookAnalysisPrompt),
     "style.recommendation@v1",
-    "novel.review.chapter@v2",
+    "novel.review.chapter@v3",
     promptKey(chapterWriterPrompt),
     promptKey(chapterArtifactDeltaPrompt),
     "world.draft.generate@v1",
@@ -562,7 +562,7 @@ test("volume skeleton prompt protects compact and long-form volume structures", 
 });
 
 test("workspace diagnosis prompt requires english recommendedAction enum values", () => {
-  const asset = getRegisteredPromptAsset("novel.chapter_editor.workspace_diagnosis", "v1");
+  const asset = getRegisteredPromptAsset("novel.chapter_editor.workspace_diagnosis", "v2");
   assert.ok(asset);
 
   const messages = asset.render({
@@ -689,8 +689,8 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
-    ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v3", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.chapter@v3", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["novel.review.repair@v4", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 

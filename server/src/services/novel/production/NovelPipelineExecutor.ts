@@ -5,7 +5,7 @@ import {
   type DirectorIssueCode,
 } from "@ai-novel/shared/types/directorIssue";
 import { prisma } from "../../../db/prisma";
-import { novelEventBus } from "../../../events";
+import { novelEventBus } from "../../../events/publisher";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";

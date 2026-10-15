@@ -57,6 +57,9 @@ jobs:
       - name: Verify database migrations
         run: pnpm --filter @ai-novel/server exec node --test tests/prismaMigrationCompleteness.test.js tests/runtimeMigrations.test.js
 
+      - name: Verify server production and architecture boundaries
+        run: pnpm --filter @ai-novel/server test:quality
+
       - name: Verify packaged desktop layout
         run: pnpm verify:desktop-package:reuse-stage
 

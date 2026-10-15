@@ -49,11 +49,12 @@ import tasksRouter, { createTasksRouter } from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
 import worldRouter from "./modules/setup/world/http";
 import writingFormulaRouter from "./routes/writingFormula";
-import { novelEventBus, registerNovelEventHandlers } from "./events";
+import { novelEventBus } from "./events/publisher";
+import { registerNovelEventHandlers } from "./events/handlers/registerNovelEventHandlers";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { ragServices } from "./services/rag";
 import { getSharedNovelServices } from "./services/novel/application/sharedNovelServices";
-import { novelSideEffectWorker } from "./events/sideEffects";
+import { novelSideEffectWorker } from "./events/sideEffects/NovelSideEffectWorker";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { recoveryTaskService } from "./services/task/RecoveryTaskService";
 import {

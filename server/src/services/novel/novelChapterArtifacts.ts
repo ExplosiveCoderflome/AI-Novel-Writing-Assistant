@@ -1,8 +1,21 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../db/prisma";
 import { withSqliteRetry } from "../../db/sqliteRetry";
 import { briefSummary, extractCharacterEventLines, extractFacts } from "./novelCoreShared";
 import { queueRagUpsert } from "./novelCoreSupport";
 import { chapterArtifactBackgroundSyncService } from "./runtime/ChapterArtifactBackgroundSyncService";
+
+async function lockCurrentContent(tx: Prisma.TransactionClient, novelId: string, chapterId: string, content: string) {
+  const current = await tx.chapter.findFirst({
+    where: { id: chapterId, novelId, content }, select: { updatedAt: true },
+  });
+  if (!current) return false;
+  const result = await tx.chapter.updateMany({
+    where: { id: chapterId, novelId, content, updatedAt: current.updatedAt },
+    data: { updatedAt: current.updatedAt },
+  });
+  return result.count === 1;
+}
 
 export async function syncCharacterTimelineForChapter(novelId: string, chapterId: string, content: string) {
   const [chapter, characters] = await Promise.all([
@@ -47,6 +60,7 @@ export async function syncCharacterTimelineForChapter(novelId: string, chapterId
 
   await withSqliteRetry(
     () => prisma.$transaction(async (tx) => {
+      if (!await lockCurrentContent(tx, novelId, chapterId, content)) return;
       await tx.characterTimeline.deleteMany({
         where: {
           novelId,
@@ -79,8 +93,9 @@ export async function syncChapterArtifacts(novelId: string, chapterId: string, c
   const facts = extractFacts(content);
   const summary = briefSummary(content, facts);
 
-  await withSqliteRetry(
+  const synced = await withSqliteRetry(
     () => prisma.$transaction(async (tx) => {
+      if (!await lockCurrentContent(tx, novelId, chapterId, content)) return false;
       await tx.chapterSummary.upsert({
         where: { chapterId },
         update: {
@@ -117,9 +132,11 @@ export async function syncChapterArtifacts(novelId: string, chapterId: string, c
           })),
         });
       }
+      return true;
     }),
     { label: "novelChapterArtifacts.summaryAndFacts" },
   );
+  if (!synced) return;
 
   await syncCharacterTimelineForChapter(novelId, chapterId, content);
   chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content);

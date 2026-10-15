@@ -1,0 +1,63 @@
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
+
+const serverRoot = path.resolve(__dirname, "../..");
+const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-novel-quality-"));
+const env = { ...process.env, NODE_ENV: "test", AI_NOVEL_RUNTIME: "desktop",
+  AI_NOVEL_APP_DATA_DIR: temporaryRoot,
+  DATABASE_URL: `file:${path.join(temporaryRoot, "isolated.db").replace(/\\/g, "/")}` };
+
+// This focused release gate uses existing compiled output; builds belong to the caller.
+const tests = [
+  "tests/testInfrastructure/codePolicy.test.js",
+  "tests/serverDependencyBoundaries.test.js",
+  "tests/prompting-governance.test.js",
+  "tests/prompting.test.js",
+  "tests/promptWorkbench.test.js",
+  "tests/planner.test.js",
+  "tests/routeDirectoryBoundary.test.js",
+  "tests/novelServiceBoundary.test.js",
+  "tests/aiDecisionResourceBoundaries.test.js",
+  "tests/llmStreamLifecycle.test.js",
+  "tests/llmRequestLimiter.test.js",
+  "tests/anthropicUsageStream.test.js",
+  "tests/chapterOptimisticConcurrency.test.js",
+  "tests/timelineConstraintLayer.test.js",
+  "tests/chapterRuntimeCoordinator.test.js",
+  "tests/chapterLifecycleService.test.js",
+  "tests/directorNext/boundary.test.js",
+  "tests/directorNext/control.test.js",
+  "tests/directorNext/guard.test.js",
+  "tests/directorNext/projection.test.js",
+  "tests/directorNext/application/startupRecovery.test.js",
+  "tests/directorNext/application/processRecoverySqlite.test.js",
+  "tests/directorNext/application/directorNextReadOnlySqlite.test.js",
+  "tests/directorManualRecoveryLock.test.js",
+  "tests/directorReadPathsArePure.test.js",
+  "tests/directorTaskFactInspection.test.js",
+  "tests/novelDirectorStructuredOutlineScope.test.js",
+  "tests/novelProduction/manualChapterSaveSqlite.test.js",
+  "tests/novelProduction/chapterExecutionPreparationService.test.js",
+  "tests/novelProduction/pipelineExecutionLease.test.js",
+  "tests/novelProduction/pipelineExecutorRecovery.test.js",
+  "tests/novelProduction/finalizedArtifactResume.test.js",
+  "tests/novelProduction/chapterProductionCompletionPolicy.test.js",
+  "tests/novelProduction/v2CompletionBoundary.test.js",
+  "tests/novelProduction/deferredCharacterEnrichment.test.js",
+  "tests/novelProduction/deferredCharacterEnrichmentSqlite.test.js",
+  "tests/novelProduction/styleAcceptance.test.js",
+  "tests/novelProduction/resourceContinuity.test.js",
+  "tests/novelProduction/resourceReview.test.js",
+  "tests/prismaMigrationCompleteness.test.js",
+];
+
+for (const args of [
+  ["scripts/quality/check-code-policy.cjs"],
+  ["--test", "--test-concurrency=4", ...tests],
+]) {
+  const result = spawnSync(process.execPath, args, { cwd: serverRoot, env, stdio: "inherit" });
+  if (result.error) console.error(result.error);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}

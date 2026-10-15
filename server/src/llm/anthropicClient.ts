@@ -1,4 +1,5 @@
 import {applyCacheRequestPolicy,getPromptCacheBoundary,resolveCacheCapability} from "../platform/llm/cache";
+import { IterableReadableStream } from "@langchain/core/utils/stream";
 import {
   AIMessage,
   AIMessageChunk,
@@ -140,17 +141,31 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
   stream: (messages: BaseMessage[], callOptions?: { signal?: AbortSignal }) => Promise<AsyncIterable<AIMessageChunk>>;
   batch: (messages: BaseMessage[][], callOptions?: { signal?: AbortSignal }) => Promise<AIMessage[]>;
 } {
-  async function postMessages(messages: BaseMessage[], callOptions?: { signal?: AbortSignal }, stream = false): Promise<Response> {
+  async function postMessages(messages: BaseMessage[], callOptions?: { signal?: AbortSignal }, stream = false) {
     const converted = convertMessages(messages);
     if (converted.messages.length === 0) {
       throw new Error("Anthropic request requires at least one user or assistant message.");
     }
     const controller = new AbortController();
+    const signal = callOptions?.signal;
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    const onAbort = () => {
+      controller.abort(signal?.reason);
+      cleanup();
+    };
     const timeout = options.timeoutMs
-      ? setTimeout(() => controller.abort(new Error("Anthropic request timed out.")), options.timeoutMs)
+      ? setTimeout(() => {
+        controller.abort(new Error("Anthropic request timed out."));
+        cleanup();
+      }, options.timeoutMs)
       : null;
-    callOptions?.signal?.addEventListener("abort", () => controller.abort(callOptions.signal?.reason), { once: true });
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
     try {
+      controller.signal.throwIfAborted();
       const response = await fetch(`${normalizeBaseURL(options.baseURL)}/messages`, {
         method: "POST",
         signal: controller.signal,
@@ -172,32 +187,47 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
         const detail = await response.text();
         throw new Error(`Anthropic request failed (${response.status}): ${detail || response.statusText}`);
       }
-      return response;
-    } finally {
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+      return { response, controller, cleanup };
+    } catch (error) {
+      cleanup();
+      throw error;
     }
   }
 
   return {
     async invoke(messages, callOptions) {
-      const response = await postMessages(messages, callOptions, false);
-      const payload = await response.json();
-      return new AIMessage({
-        content: extractTextContent(payload),
-        response_metadata: payload && typeof payload === "object" ? payload as Record<string, unknown> : {},
-      });
+      const { response, cleanup } = await postMessages(messages, callOptions, false);
+      try {
+        const payload = await response.json();
+        return new AIMessage({
+          content: extractTextContent(payload),
+          response_metadata: payload && typeof payload === "object" ? payload as Record<string, unknown> : {},
+        });
+      } finally {
+        cleanup();
+      }
     },
     async stream(messages, callOptions) {
-      const response = await postMessages(messages, callOptions, true);
+      const { response, controller, cleanup } = await postMessages(messages, callOptions, true);
       const body = response.body;
       if (!body) {
+        cleanup();
         throw new Error("Anthropic stream response body is empty.");
       }
-      return {
-        async *[Symbol.asyncIterator]() {
-          const reader = body.getReader();
+      const reader = body.getReader();
+      let finished = false;
+      const finish = async () => {
+        if (finished) return;
+        finished = true;
+        cleanup();
+        controller.signal.removeEventListener("abort", onStreamAbort);
+        await reader.cancel().catch(() => undefined);
+        reader.releaseLock();
+      };
+      const onStreamAbort = () => { void finish().catch(() => undefined); };
+      controller.signal.addEventListener("abort", onStreamAbort, { once: true });
+      if (controller.signal.aborted) await finish();
+      const chunks = (async function* () {
           const decoder = new TextDecoder();
           let buffer = "";
           let stopped = false;
@@ -215,7 +245,9 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
           }
           try {
             while (true) {
+              controller.signal.throwIfAborted();
               const { value, done } = await reader.read();
+              controller.signal.throwIfAborted();
               if (done) {
                 break;
               }
@@ -226,6 +258,7 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
                 const chunk = eventChunk(parseStreamLine(line));
                 if (chunk) yield chunk;
               }
+              if (stopped) break;
             }
             const tail = decoder.decode();
             if (tail) {
@@ -237,11 +270,27 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
             }
             if (!stopped) throw new Error("Anthropic stream interrupted before message_stop.");
           } finally {
-            await reader.cancel().catch(() => undefined);
-            reader.releaseLock();
+            await finish();
+          }
+      })();
+      return new IterableReadableStream<AIMessageChunk>({
+        async pull(output) {
+          try {
+            controller.signal.throwIfAborted();
+            const result = await chunks.next();
+            if (result.done) output.close();
+            else output.enqueue(result.value);
+          } catch (error) {
+            output.error(error);
           }
         },
-      };
+        async cancel(reason) {
+          controller.abort(reason);
+          // A generator returned before its first next() never enters finally.
+          await finish();
+          await chunks.return();
+        },
+      }, { highWaterMark: 0 });
     },
     async batch(messages, callOptions) {
       return Promise.all(messages.map((entry) => this.invoke(entry, callOptions)));

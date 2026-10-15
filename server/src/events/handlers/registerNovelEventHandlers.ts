@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../../db/prisma";
-import { novelSideEffectJobService, type NovelSideEffectJobService } from "../sideEffects";
+import { novelSideEffectJobService, type NovelSideEffectJobService } from "../sideEffects/queue";
 import type { EventBus } from "../EventBus";
 import type { VolumeUpdateReason } from "../types";
 import {directorV2CharacterEnrichmentService} from "../../services/novel/characterPrep/deferred";

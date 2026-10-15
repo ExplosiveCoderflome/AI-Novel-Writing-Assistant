@@ -1,3 +1,4 @@
 // Public data/version contracts without importing extractor or recovery orchestration.
 export { buildChapterArtifactContentHash } from "../ChapterArtifactContentVersion";
-export { ChapterArtifactContentVersionError } from "../ChapterArtifactSyncResult";
+export * from "../ChapterArtifactSyncBoundary";
+export * from "../ChapterArtifactSyncResult";

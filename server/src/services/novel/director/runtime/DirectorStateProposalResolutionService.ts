@@ -10,7 +10,7 @@ import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { directorStateProposalResolutionPrompt } from "../../../../prompting/prompts/novel/directorStateProposalResolution.prompts";
 import { canonicalStateService } from "../../state/CanonicalStateService";
 import { stateCommitService, type AutomaticResourceReview } from "../../state/StateCommitService";
-import { buildChapterArtifactContentHash } from "../../runtime/artifactSync";
+import { buildChapterArtifactContentHash } from "../../runtime/artifactSync/contracts";
 import { directorAutomationLedgerEventService } from "./DirectorAutomationLedgerEventService";
 
 const AUTO_RESOLUTION_TYPES = [

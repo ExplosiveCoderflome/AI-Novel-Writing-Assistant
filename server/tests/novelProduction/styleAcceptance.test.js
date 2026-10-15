@@ -283,7 +283,7 @@ test('AI failure retains candidate statistics but never fabricates a passed styl
 test('finalization stores the unified acceptance style report without a second rewriting pass', async () => {
   const report = { riskScore: 0, summary: '检查通过', violations: [], canAutoRewrite: false, appliedRuleIds: ['psychology'] };
   const { ChapterContentFinalizationService } = loadRuntimeSource('ChapterContentFinalizationService.ts', {
-    'node:crypto': require('node:crypto'), '../../../events': {},
+    'node:crypto': require('node:crypto'), '../../../events/publisher': {},
     '../../state/OpenConflictService': { openConflictService: { listOpenConflicts: async () => [] } },
     '../director/runtime/DirectorAutomationLedgerEventService': {}, '../fact/factLedgerFilter': {}, '../fact/NovelFactService': {},
     './ChapterArtifactSyncService': {}, './ChapterQualityGateService': {},

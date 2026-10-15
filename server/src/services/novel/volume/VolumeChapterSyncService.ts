@@ -9,7 +9,7 @@ import {
   formatChapterTaskSheetQualityFailure,
 } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import { prisma } from "../../../db/prisma";
-import type { VolumeUpdateReason } from "../../../events";
+import type { VolumeUpdateReason } from "../../../events/publisher";
 import {
   buildVolumeSyncPlan,
   hasPayoffLedgerRelevantPlanChanges,

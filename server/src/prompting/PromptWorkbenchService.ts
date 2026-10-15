@@ -17,7 +17,7 @@ import { preparePromptExecution } from "./core/promptRunner";
 import { ContextBroker } from "./context/ContextBroker";
 import { formatContextGroupLabel } from "./context/contextGroupLabels";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
-import { derivePromptContextRequirements } from "./context/promptContextResolution";
+import { derivePromptContextRequirements } from "./context/promptContextRequirements";
 import type { PromptExecutionContext } from "./context/types";
 import { findRegisteredPromptAssetById, getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
 import {

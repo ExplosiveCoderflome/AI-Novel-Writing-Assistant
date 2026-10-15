@@ -16,6 +16,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Architecture
 
 - [模块边界与文档治理](./architecture/module-boundaries.md)
+- [服务端轻量契约与执行装配边界](./architecture/server-lightweight-dependency-boundaries.md)
 - [自动导演新内核事实层边界](./architecture/director-next-fact-layer.md)
 - [当前模型选择与厂商默认模型边界](./architecture/model-selection.md)
 - [配置项归属与可见性规范](./architecture/configuration-conventions.md)
@@ -25,6 +26,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [自动导演 Runtime 与恢复边界](./workflows/auto-director-runtime.md)
 - [简易创作模式](./product/simple-creation-mode.md)
 - [章节生产链路](./workflows/chapter-production-chain.md)
+- [人工正文保存与时间线版本边界](./workflows/manual-chapter-timeline.md)
 - [小说 AI 用量与调用日志边界](./workflows/novel-ai-usage.md)
 - [读者体验合同](./workflows/reader-experience-contract.md)
 - [Payoff Ledger 来源与同步合同](./workflows/payoff-ledger-contract.md)
@@ -40,6 +42,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Prompts
 
 - [Prompt Registry 与结构化输出](./prompts/prompt-registry-and-structured-output.md)
+- [结构化 AI 决策与确定性归一化边界](./prompts/structured-decision-authority.md)
 - [平台写法配置与正文 Prompt 可编辑合同](./prompts/platform-writing-profiles.md)
 
 ### RAG
@@ -51,6 +54,8 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [重复故障模式与排查路径](./debugging/recurring-failure-modes.md)
 - [数据库 Schema 与迁移漂移](./debugging/database-migration-drift.md)
 - [服务端测试的进程与数据库隔离](./debugging/server-test-isolation.md)
+- [模型流并发与超时生命周期](./debugging/llm-stream-lifecycle.md)
+- [服务端质量门禁与验证范围](./debugging/server-quality-gate.md)
 - [本地数据与版本控制边界](./debugging/local-data-and-version-control.md)
 
 ### Product

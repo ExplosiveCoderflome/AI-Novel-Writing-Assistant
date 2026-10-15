@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { derivePromptContextRequirements } from "../context/promptContextResolution";
+import { derivePromptContextRequirements } from "../context/promptContextRequirements";
 import type { PromptAsset } from "../core/promptTypes";
 import { findRegisteredPromptAssetById } from "../registry";
 import type { PromptSlotDef } from "../slots/slotTypes";

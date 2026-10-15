@@ -7,7 +7,7 @@ import type {
 } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
-import { buildChapterArtifactContentHash } from "../runtime/artifactSync";
+import { buildChapterArtifactContentHash } from "../runtime/artifactSync/contracts";
 import {
   compactText,
   mapCharacterResourceRow,

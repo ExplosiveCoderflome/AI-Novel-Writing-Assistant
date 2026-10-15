@@ -5,7 +5,7 @@ import type {
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
 import { assessChapterExecutionContractShape } from "@ai-novel/shared/types/chapterTaskSheetQuality";
-import type { DirectorAutoExecutionPlan } from "@ai-novel/shared/types/novelDirector";
+import { isDirectorAutoExecutionRunMode, type DirectorAutoExecutionPlan, type DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionScopeLabel,
   countDirectorAutoExecutionChapterRange,
@@ -57,6 +57,17 @@ export interface StructuredOutlineRecoveryCursor {
   chapterId: string | null;
   chapterOrder: number | null;
   detailMode: StructuredOutlineDetailMode | null;
+}
+
+export function resolveStructuredOutlineRecoveryCursorForRequest(
+  workspace: VolumePlanDocument,
+  request?: DirectorConfirmRequest | null,
+): StructuredOutlineRecoveryCursor {
+  return resolveStructuredOutlineRecoveryCursor({
+    workspace,
+    plan: request ? normalizeDirectorAutoExecutionPlan(request.autoExecutionPlan) : undefined,
+    allowPartialChapterListReady: isDirectorAutoExecutionRunMode(request?.runMode),
+  });
 }
 
 function hasPreparedOutlineChapterBoundary(chapter: VolumeChapterPlan | null): boolean {

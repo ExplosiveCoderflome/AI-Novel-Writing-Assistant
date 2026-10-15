@@ -21,7 +21,7 @@ const version = require(path.join(server, 'dist/services/novel/runtime/artifactS
 const shared = require(path.join(server, 'dist/services/novel/characterResource/characterResourceShared'));
 const {CharacterResourceLedgerService} = loadRuntimeSource('../characterResource/CharacterResourceLedgerService.ts', {
   '../../../db/prisma': {prisma}, './characterResourceShared': shared,
-  '../runtime/artifactSync': version,
+  '../runtime/artifactSync/contracts': version,
 });
 (async () => {
   try {

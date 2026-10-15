@@ -7,8 +7,7 @@ import type {
 import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
-import { ChapterArtifactContentVersionError } from "../runtime/artifactSync/ChapterArtifactSyncResult";
-import { buildChapterArtifactContentHash } from "../runtime/artifactSync";
+import { ChapterArtifactContentVersionError, buildChapterArtifactContentHash } from "../runtime/artifactSync/contracts";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 import { compactText as compactResourceText, normalizeResourceKey } from "../characterResource/characterResourceShared";
 import { characterResourceValidationService } from "../characterResource/CharacterResourceValidationService";

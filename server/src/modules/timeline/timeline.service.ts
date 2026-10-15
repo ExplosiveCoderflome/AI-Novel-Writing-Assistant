@@ -88,17 +88,6 @@ function uniqueHookIds(ids: string[], context: TimelineContextForChapter): strin
   return Array.from(new Set(ids.filter((id) => knownHookIds.has(id))));
 }
 
-function fallbackAddressedHookIds(input: {
-  extractedEvents: ExtractedTimelineEvent[];
-  timelineContext: TimelineContextForChapter;
-}): string[] {
-  return input.timelineContext.openHooks
-    .filter((hook) => hook.status === "open")
-    .filter((hook) => input.extractedEvents.some((event) =>
-      `${event.title}\n${event.summary}`.includes(hook.title) || hook.description.includes(event.title)))
-    .map((hook) => hook.id);
-}
-
 function resolvePlannedEventIds(context: TimelineContextForChapter): string[] {
   return context.plannedEventsThisChapter?.map((event) => event.id) ?? [];
 }
@@ -199,14 +188,8 @@ export class StoryTimelineService {
     const resolvedHookIds = uniqueHookIds(input.resolvedHookIds ?? [], input.timelineContext);
     const addressedHookIds = uniqueHookIds(input.addressedHookIds ?? [], input.timelineContext)
       .filter((id) => !resolvedHookIds.includes(id));
-    const hookIdsToAddress = addressedHookIds.length > 0 || resolvedHookIds.length > 0
-      ? addressedHookIds
-      : fallbackAddressedHookIds({
-          extractedEvents: input.extractedEvents,
-          timelineContext: input.timelineContext,
-        });
     await this.repo.markHooksAddressed({
-      hookIds: hookIdsToAddress,
+      hookIds: addressedHookIds,
       chapterId: input.chapterId,
       chapterIndex: input.chapterIndex,
       resolved: false,

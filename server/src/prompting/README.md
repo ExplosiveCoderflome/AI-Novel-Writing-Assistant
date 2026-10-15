@@ -2,6 +2,11 @@
 
 `server/src/prompting/` 是本项目产品级 prompt 的唯一新增管理入口。
 
+## 上下文依赖边界
+
+- `context/promptContextRequirements.ts` 只负责从资产声明推导上下文需求，不能导入 Broker、默认 resolver registry 或业务服务。模板配置和管理目录应直接使用该叶子入口。
+- `context/promptContextResolution.ts` 负责实际解析，允许装配业务 resolver，并为旧调用保留需求推导的兼容导出。不要为读取声明而依赖这个执行入口，否则模板运行时会反向加载生产投影与业务 prompt。
+
 ## Hard Rules
 
 - 新增产品级 prompt 必须定义为 `PromptAsset`。
