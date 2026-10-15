@@ -96,7 +96,7 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  const futureInput={storyInput:'续写',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'openai',model:'test-no-invocation',executionRange:{from:11,to:13}};
  const futureContract=futureOptions.contractFactory({runId:'future-prep',novelId:'future-batch',driver:'auto',stepIdsInScope:null,launchInput:futureInput});
  const assetsFuture=await readExistingAssets(futureContract);
- assert.ok(assetsFuture.some(asset=>asset.type==='volume_strategy'));
+ assert.equal(assetsFuture.some(asset=>asset.type==='volume_strategy'),false,'a skeleton without a strategy cannot satisfy the prerequisite');
  assert.equal(assetsFuture.some(asset=>['volume_beat_sheet','volume_chapter_list'].includes(asset.type)),false);
  assert.deepEqual(await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:savedFuture.id}}),savedFuture);
  const futureServices=createDirectorNextServices(futureOptions);

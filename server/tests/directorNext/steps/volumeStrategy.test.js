@@ -70,3 +70,14 @@ test('invalid chapter counts fail before model invocation',async()=>{
     assert.equal(calls.some(call=>call[0]==='generate'),false);
   }
 });
+
+test('recovering an existing workspace keeps its skeleton and records the saved protected plan',async()=>{
+  const workspace={novelId:'novel',volumes:[{id:'v1',title:'作者卷',chapters:[{id:'p1',taskSheet:'作者任务'}]}],strategyPlan:{notes:'补齐的战略'}};
+  const handler=createVolumeStrategyStepHandler({inputProvider:async()=>input,contentHash:artifactContentHash,
+    volumeService:{recoverVolumeStrategy:async()=>workspace,
+      generateVolumes:async()=>{throw Error('must not regenerate the existing skeleton');},
+      updateVolumes:async()=>{throw Error('must not replace the recovered workspace');}}});
+  const result=await handler(context);
+  assert.equal(result.artifact.contentHash,artifactContentHash(workspace));
+  assert.equal(result.artifact.protectedUserContent,true);
+});

@@ -103,7 +103,8 @@ test('registered production routes reuse the window service and never request a 
 
 test('registered opening production defers future volume skeletons but planning retains the full-book request',async()=>{
  const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
- const originals={generate:NovelVolumeService.prototype.generateVolumes,save:NovelVolumeService.prototype.updateVolumes};
+ const originals={generate:NovelVolumeService.prototype.generateVolumes,save:NovelVolumeService.prototype.updateVolumes,recover:NovelVolumeService.prototype.recoverVolumeStrategy};
+ NovelVolumeService.prototype.recoverVolumeStrategy=async()=>null;
  const calls=[];NovelVolumeService.prototype.generateVolumes=async(_id,input)=>{calls.push(input);return {volumes:[{id:'v1'}]};};NovelVolumeService.prototype.updateVolumes=async(_id,input)=>input;
  try {
   await options.stepRegistry.get('volume_strategy')(context);
@@ -111,19 +112,35 @@ test('registered opening production defers future volume skeletons but planning 
   assert.equal(calls[0].estimatedChapterCount,10);
   calls.length=0;await options.stepRegistry.get('volume_strategy')({...context,contract:{...contract,chapterRange:null}});
   assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,undefined);
- } finally {NovelVolumeService.prototype.generateVolumes=originals.generate;NovelVolumeService.prototype.updateVolumes=originals.save;}
+ } finally {NovelVolumeService.prototype.generateVolumes=originals.generate;NovelVolumeService.prototype.updateVolumes=originals.save;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;}
 });
 
 
 test('next batch prepares missing future routes before resolving its volume and reuses saved beats',async()=>{
  const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
  const {ChapterRouteWindowService}=require('../../../dist/services/novel/planning/ChapterRouteWindowService');
- const originals={read:NovelVolumeService.prototype.getVolumes,generate:NovelVolumeService.prototype.generateVolumes,window:ChapterRouteWindowService.prototype.ensureRouteWindow};
+ const originals={read:NovelVolumeService.prototype.getVolumes,generate:NovelVolumeService.prototype.generateVolumes,window:ChapterRouteWindowService.prototype.ensureRouteWindow,recover:NovelVolumeService.prototype.recoverVolumeStrategy};
  let workspace={novelId:'novel',volumes:[{id:'v1',sortOrder:1,chapters:[{chapterOrder:1}]}],beatSheets:[]};const calls=[];
+ NovelVolumeService.prototype.recoverVolumeStrategy=async()=>workspace;
  NovelVolumeService.prototype.getVolumes=async()=>workspace;
  NovelVolumeService.prototype.generateVolumes=async()=>{throw Error('prepared beats must not be regenerated');};
  ChapterRouteWindowService.prototype.ensureRouteWindow=async(...args)=>{calls.push(args);workspace={...workspace,volumes:[...workspace.volumes,{id:'v2',sortOrder:2,chapters:[11,12,13].map(chapterOrder=>({chapterOrder}))}],beatSheets:[{volumeId:'v2',beats:[{key:'continuation'}]}]};return {availableRouteCount:3,extended:true};};
  const next=options.contractFactory({runId:'next',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,estimatedChapterCount:30,executionRange:{from:11,to:13}}});
  try {const result=await options.stepRegistry.get('volume_beat_sheet')({runId:'next',contract:next});assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v2');assert.equal(calls.length,1);assert.equal(calls[0][1],11);assert.equal(calls[0][2].completionProfile.targetChapterCount,30);assert.equal(calls[0][2].model,'snapshot-model');}
- finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
+ finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;}
+});
+
+test('a resumed beat-sheet step repairs its missing strategy before preparing the route window',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const {ChapterRouteWindowService}=require('../../../dist/services/novel/planning/ChapterRouteWindowService');
+ const originals={read:NovelVolumeService.prototype.getVolumes,recover:NovelVolumeService.prototype.recoverVolumeStrategy,window:ChapterRouteWindowService.prototype.ensureRouteWindow};
+ let workspace={novelId:'novel',strategyPlan:null,volumes:[{id:'v1',sortOrder:1,chapters:[{chapterOrder:1}]}],beatSheets:[]};
+ NovelVolumeService.prototype.getVolumes=async()=>workspace;
+ NovelVolumeService.prototype.recoverVolumeStrategy=async()=>{workspace={...workspace,strategyPlan:{notes:'补齐'}};return workspace;};
+ ChapterRouteWindowService.prototype.ensureRouteWindow=async()=>{
+  assert.ok(workspace.strategyPlan,'route preparation requires a recovered strategy');
+  workspace={...workspace,beatSheets:[{volumeId:'v1',beats:[{key:'opening'}]}]};return {availableRouteCount:3,extended:true};
+ };
+ try {const result=await options.stepRegistry.get('volume_beat_sheet')(context);assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v1');}
+ finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
 });
