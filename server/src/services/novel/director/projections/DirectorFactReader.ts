@@ -1,13 +1,14 @@
 import { prisma } from "../../../../db/prisma";
 import { BookContractService } from "../../BookContractService";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
-import { NovelVolumeService } from "../../volume/NovelVolumeService";
+import { readVolumeWorkspace } from "../../volume/read-model";
 import type { DirectorChapterExecutionProgressSummary } from "@ai-novel/shared/types/directorRuntime";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
 import { resolveStructuredOutlineRecoveryCursorForRequest, type StructuredOutlineRecoveryCursor } from "../recovery/novelDirectorStructuredOutlineRecovery";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 
+// Null/empty values mean a successful read found no facts; failed reads must reject.
 // Existing execution runtimes remain valid injection ports without loading their implementation.
 export interface DirectorFactReadPort {
   getStoryMacroPlan(novelId: string): Promise<{ decomposition?: unknown; storyInput?: string | null } | null>;
@@ -23,27 +24,26 @@ export interface DirectorFactReadPort {
 export class DirectorFactReader implements DirectorFactReadPort {
   private readonly storyMacroService = new StoryMacroPlanService();
   private readonly bookContractService = new BookContractService();
-  private readonly volumeService = new NovelVolumeService();
   private readonly chapterProgressInspector = new ChapterExecutionProgressInspector();
 
   getStoryMacroPlan(novelId: string) {
-    return this.storyMacroService.getPlan(novelId).catch(() => null);
+    return this.storyMacroService.getPlan(novelId);
   }
 
   getBookContract(novelId: string) {
-    return this.bookContractService.getByNovelId(novelId).catch(() => null);
+    return this.bookContractService.getByNovelId(novelId);
   }
 
   getCharacters(novelId: string) {
-    return prisma.character.findMany({ where: { novelId }, select: { id: true } }).catch(() => []);
+    return prisma.character.findMany({ where: { novelId }, select: { id: true } });
   }
 
   getExecutionChapters(novelId: string) {
-    return prisma.chapter.findMany({ where: { novelId }, select: { order: true }, orderBy: { order: "asc" } }).catch(() => []);
+    return prisma.chapter.findMany({ where: { novelId }, select: { order: true }, orderBy: { order: "asc" } });
   }
 
   async getVolumeWorkspace(novelId: string) {
-    const workspace = await this.volumeService.getVolumes(novelId).catch(() => null);
+    const workspace = await readVolumeWorkspace(novelId);
     return workspace?.volumes.length && workspace.strategyPlan ? workspace : null;
   }
 
@@ -53,6 +53,6 @@ export class DirectorFactReader implements DirectorFactReadPort {
   }
 
   inspectChapterExecutionProgress(novelId: string) {
-    return this.chapterProgressInspector.inspectNovel(novelId).catch(() => null);
+    return this.chapterProgressInspector.inspectNovel(novelId);
   }
 }
