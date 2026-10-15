@@ -234,6 +234,7 @@ test('V2 reader opens editor, previews dialogue, inserts only on acceptance and 
   assert.deepEqual(writes.map(row=>row.url),['/novels/book/chapters/c1/editor/continue-preview','/novels/book/snapshots','/novels/book/chapters/c1']);
   assert.equal(writes[0].body.operation,'dialogue');assert.equal(writes[0].body.cursorOffset,5);
   assert.equal(writes[2].body.expectedUpdatedAt,'2026-10-11T00:00:00.000Z');
+  assert.equal(writes[2].body.expectedContent,'alpha\n\nbeta');
   assert.ok(result.requests.some(row=>row.url==='/director-next/novels/book/workspace'));
 });
 
@@ -279,6 +280,7 @@ test('accepting and saving a complete diagnostic removes only its card and reanc
   assert.deepEqual(result.workspace.diagnosticCards[0].anchorRange,{from:6,to:10});
   assert.equal(result.workspace.recommendedTask,null);
   const saveIndex=result.requests.findIndex(row=>row.method==='put');
+  assert.equal(result.requests[saveIndex].body.expectedContent,'alpha\n\nbeta');
   assert.ok(result.requests.slice(saveIndex+1).every(row=>!row.url.endsWith('/editor/workspace')));
 });
 

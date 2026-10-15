@@ -78,6 +78,7 @@ export interface DirectorNextServiceOptions {
   stepRegistry?: StepRegistry;
   contractFactory?: CommandServiceDeps["contractFactory"];
   prepareOpen?: CommandServiceDeps["prepareOpen"];
+  prepareGate?: CommandServiceDeps["prepareGate"];
   readEditedArtifact?: ArtifactEditReader;
   resumeBusiness?: BusinessResume;
   cancelBusiness?: BusinessResume;
@@ -99,7 +100,7 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes,
     resolveArtifactTypes: options.resolveArtifactTypes, readProductionProjection: options.readProductionProjection, sourceRoute: options.sourceRoute });
   const gateService = new GateService({factsLoader, planRegistry: configuredPlans});
-  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, gateService });
+  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, prepareGate: options.prepareGate, gateService });
   const stepRegistry = options.stepRegistry ?? new StepRegistry();
   const executor = new RunExecutor({
     factsLoader,

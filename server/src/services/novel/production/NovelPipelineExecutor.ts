@@ -1,3 +1,5 @@
+import { manualChapterSyncService, MANUAL_CHAPTER_SYNC_TYPE } from "../chapterEditor/synchronization";
+import { buildChapterArtifactContentHash } from "../runtime/artifactSync/ChapterArtifactContentVersion";
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   DIRECTOR_ISSUE_GOVERNANCE_VERSION,
@@ -404,6 +406,7 @@ export class NovelPipelineExecutor {
           maxRetries,
         });
 
+        if (options.startOrder > 1) await manualChapterSyncService.ensurePrevious(novelId, options.startOrder, checkCancelled);
         const [novel, chapterCandidates] = await Promise.all([
           prisma.novel.findUnique({ where: { id: novelId } }),
           prisma.chapter.findMany({
@@ -414,14 +417,41 @@ export class NovelPipelineExecutor {
             orderBy: { order: "asc" },
             include: {
               artifactSyncCheckpoints: {
-                where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
-                select: { contentHash: true, metadataJson: true },
+                where: { OR: [{artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"}, {artifactType: MANUAL_CHAPTER_SYNC_TYPE}] },
+                select: { contentHash: true, metadataJson: true, artifactType: true },
                 orderBy: { updatedAt: "desc" },
-                take: 6,
               },
             },
           }),
         ]);
+        const manuallyEditedChapterIds = new Set<string>();
+        for (const chapter of chapterCandidates) {
+          const edited = chapter.artifactSyncCheckpoints.some(row => row.artifactType === MANUAL_CHAPTER_SYNC_TYPE
+            && row.contentHash === buildChapterArtifactContentHash(chapter.content ?? ""));
+          if (edited) manuallyEditedChapterIds.add(chapter.id);
+          const terminal = chapter.generationState === "approved" || chapter.generationState === "published" || chapter.chapterStatus === "completed";
+          if (!chapter.content?.trim() || isCurrentV2ChapterProductionCompleted(chapter) || (!edited && !terminal)) continue;
+          await checkCancelled();
+          await this.updateJobSafe(jobId, {currentStage: "reviewing", currentItemKey: chapter.id,
+            currentItemLabel: "正在同步第" + chapter.order + "章修订后的资料"});
+          try { await manualChapterSyncService.ensureCurrent(novelId, chapter.id, checkCancelled); }
+          catch (error) {
+            if (error instanceof PipelineExecutionLeaseLostError || (error instanceof Error && error.message === "PIPELINE_CANCELLED")) throw error;
+            if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError && error.result.characterReviewId) {
+              runtimePayload.directorNext.pendingCharacterReviewId = error.result.characterReviewId;
+              await this.updateJobRequired(jobId, {status: "queued", pendingManualRecovery: true,
+                error: error.message, payload: this.stringifyPipelinePayload(runtimePayload)});
+              throw new PipelineIssueAppliedError(error.message, "pause_for_manual");
+            }
+            throw new PipelineIssueFailure(error instanceof Error ? error.message : "修订正文资料同步失败。",
+              "runtime.data_integrity", "chapter_artifact_sync", chapter.id, chapter.order);
+          }
+          const refreshed = await prisma.chapter.findFirstOrThrow({where: {id: chapter.id, novelId}, include: {
+            artifactSyncCheckpoints: {where: {artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"},
+              select: {contentHash: true, metadataJson: true, artifactType: true}, orderBy: {updatedAt: "desc"}, take: 6},
+          }});
+          Object.assign(chapter, refreshed);
+        }
         const chapters = options.skipCompleted
           ? chapterCandidates.filter((chapter) => !(runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)))
           : chapterCandidates;
@@ -487,7 +517,7 @@ export class NovelPipelineExecutor {
             where: { novelId, order }, orderBy: { order: "asc" },
             include: { artifactSyncCheckpoints: {
               where: { artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded" },
-              select: { contentHash: true, metadataJson: true }, orderBy: { updatedAt: "desc" }, take: 6,
+              select: { contentHash: true, metadataJson: true, artifactType: true }, orderBy: { updatedAt: "desc" }, take: 6,
             } },
           });
           if (!prepared) {
@@ -516,13 +546,16 @@ export class NovelPipelineExecutor {
 
           let chapterResult: Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>> | null = null;
           const savedUsage = runtimePayload.directorNext?.chapterUsage?.find(row => row.chapterId === chapter.id);
-          const recoveringSavedQuality = savedUsage?.endJobTokens !== undefined;
+          const manualRevision = manuallyEditedChapterIds.has(chapter.id);
+          const recoveringSavedQuality = savedUsage?.endJobTokens !== undefined || manualRevision;
           if (recoveringSavedQuality) {
             try {
-              if (savedUsage.chapterOrder !== chapter.order) throw new Error("章节用量检查点身份不一致。");
-              const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true } });
-              observeChapterUsage(runtimePayload.directorNext!, chapter.id, usage.totalTokens);
-              chapterResult = await recoverSavedChapterQuality(novelId, chapter);
+              if (savedUsage?.endJobTokens !== undefined) {
+                if (savedUsage.chapterOrder !== chapter.order) throw new Error("章节用量检查点身份不一致。");
+                const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true } });
+                observeChapterUsage(runtimePayload.directorNext!, chapter.id, usage.totalTokens);
+              }
+              chapterResult = await recoverSavedChapterQuality(novelId, chapter, {manualRevision, provider: runtimePayload.provider, model: runtimePayload.model, temperature: runtimePayload.temperature});
             } catch (error) {
               throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节保存进度无法核验。",
                 error instanceof SavedChapterQualityRecoveryError ? error.issueCode : "runtime.data_integrity",
@@ -800,6 +833,7 @@ export class NovelPipelineExecutor {
             jobId,
             chapter: { id: chapter.id, order: chapter.order },
             chapterResult,
+            authorRevision: manualRevision,
             qualityThreshold,
             runtimePayload,
             qualityAlertDetails,
@@ -988,6 +1022,12 @@ export class NovelPipelineExecutor {
         return;
       }
 
+      if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError && error.result.characterReviewId) {
+        runtimePayload.directorNext.pendingCharacterReviewId = error.result.characterReviewId;
+        await this.updateJobRequired(jobId, {status: "queued", pendingManualRecovery: true,
+          error: error.message, payload: this.stringifyPipelinePayload(runtimePayload)});
+        return;
+      }
       const message = error instanceof Error ? error.message : "流水线执行失败";
       if (isChapterEmptyContentError(error)) {
         logPipelineError("任务因章节空正文失败", {
@@ -1005,6 +1045,8 @@ export class NovelPipelineExecutor {
       const governedAction = await applyGovernedIssue({
         issueCode: error instanceof PipelineIssueFailure
           ? error.issueCode
+          : error instanceof ChapterArtifactSyncBoundaryError
+            ? "runtime.data_integrity"
           : error instanceof ChapterContentPersistenceError
             ? "runtime.persistence_failed"
             : isChapterEmptyContentError(error)

@@ -18,7 +18,7 @@ export function useChapterDraft(input: {
   });
   const current = useRef(draft);
   const isDirty = draft.content !== draft.savedContent;
-  const hasExternalChange = incoming.updatedAt > draft.savedUpdatedAt;
+  const hasExternalChange = incoming.updatedAt > draft.savedUpdatedAt && incoming.content !== draft.savedContent;
 
   const publish = useCallback((next: ChapterDraft) => {
     current.current = next;

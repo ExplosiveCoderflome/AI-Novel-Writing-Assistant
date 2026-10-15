@@ -63,6 +63,7 @@ export interface CommandServiceDeps {
   }) => RunContract;
   prepareOpen?: (contract: RunContract) => Promise<readonly InitialArtifact[]>;
   gateService?: Pick<GateService, "prepare">;
+  prepareGate?: (contract: RunContract, resolution: NonNullable<CommandTransitionInput["gateResolution"]>) => Promise<void>;
 }
 
 function isDirectorCommand(value: unknown): value is DirectorCommand {
@@ -149,6 +150,11 @@ export class CommandService {
       throw new InvalidDirectorCommandError("只有等待确认的创作可以处理门控。");
     }
     const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {guidance: command.guidance, chapterPlanEdit: command.chapterPlanEdit}) : undefined;
+    if (resolution && this.deps.prepareGate) {
+      const contract = await this.deps.runRepository.getContract(command.runId);
+      if (!contract) throw new InvalidDirectorCommandError("找不到要确认的创作。");
+      await this.deps.prepareGate(contract, resolution);
+    }
     return this.transition(command, { type: "resolve_gate" }, resolution);
   }
 

@@ -1,3 +1,5 @@
+import type { ReviewOptions } from "../../novelCoreShared";
+import { readManualChapterSync } from "../../chapterEditor/synchronization";
 import { z } from "zod";
 import { prisma } from "../../../../db/prisma";
 import { chapterAcceptanceAssessmentSchema } from "../../../../prompting/prompts/novel/chapterAcceptance.prompts";
@@ -7,7 +9,7 @@ import type { ChapterProductionCompletionCandidate } from "../completion/Chapter
 import type { PipelineRuntimeResult } from "../../runtime/chapterRuntimePipeline";
 
 const savedAcceptanceSchema = z.object({
-  schemaVersion: z.literal(2), gate: z.literal("acceptance"), contentHash: z.string(),
+  schemaVersion: z.union([z.literal(2), z.literal(3)]), gate: z.literal("acceptance"), contentHash: z.string(),
   result: z.object({
     assessment: chapterAcceptanceAssessmentSchema,
     score: chapterAcceptanceAssessmentSchema.shape.score,
@@ -25,10 +27,11 @@ export class SavedChapterQualityRecoveryError extends Error {
   }
 }
 
-/** Old budget pauses can precede quality bookkeeping. Recover only exact saved facts, never re-audit or rewrite. */
+/** Old budget pauses can precede quality bookkeeping. Recover exact saved facts; explicit author revisions may be reassessed without rewriting. */
 export async function recoverSavedChapterQuality(
   novelId: string,
   chapter: ChapterProductionCompletionCandidate & { id: string },
+  options: ReviewOptions & {manualRevision?: boolean} = {},
 ): Promise<PipelineRuntimeResult> {
   if (!hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints ?? [], {requireAppliedDelta: true})) {
     throw new SavedChapterQualityRecoveryError("本章正文或状态同步记录与保存进度不一致，请核对章节内容后继续。");
@@ -45,12 +48,19 @@ export async function recoverSavedChapterQuality(
   let payload: unknown;
   try { payload = JSON.parse(row?.metadataJson ?? "null"); } catch { payload = null; }
   const parsed = savedAcceptanceSchema.safeParse(payload);
+  if ((!parsed.success || row?.contentHash !== contentHash || parsed.data.contentHash !== contentHash) && options.manualRevision) {
+    const marker = await readManualChapterSync(novelId, chapter.id, chapter.content!);
+    if (marker?.status === "succeeded") {
+      const {recheckEditedChapterQuality} = await import("./recheckEditedChapterQuality");
+      return recheckEditedChapterQuality(novelId, chapter.id, chapter.content!, options);
+    }
+  }
   if (!parsed.success || row?.contentHash !== contentHash || parsed.data.contentHash !== contentHash) {
     throw new SavedChapterQualityRecoveryError("本章缺少与保存正文对应的检查结果，请核对章节内容后继续。");
   }
   const { assessment, score, issues } = parsed.data.result;
-  if (assessment.continuePolicy === "pause" || assessment.status === "needs_manual_review"
-    || assessment.repairability === "plan_misalignment") {
+  if (assessment.repairability === "plan_misalignment"
+    || (!options.manualRevision && (assessment.continuePolicy === "pause" || assessment.status === "needs_manual_review"))) {
     throw new SavedChapterQualityRecoveryError("本章检查要求调整规划或人工处理，请核对检查结果后继续。", "quality.replan_required");
   }
   return {

@@ -3,7 +3,7 @@ import {GateResolutionError, type GateResolution} from "../../application";
 import {VersionConflictError, type RunContract, type RunControl} from "../../domain";
 
 export type ArtifactEditReader = (input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient)
-  => Promise<{contentRef: string; contentHash: string}>;
+  => Promise<{contentRef: string; contentHash: string; protectedUserContent?: boolean}>;
 
 export async function commitGateResolution(tx: Prisma.TransactionClient, input: {runId: string; contract: RunContract; control: RunControl; resolution: GateResolution}, readEdit?: ArtifactEditReader) {
   const {contract, control, resolution} = input;
@@ -17,10 +17,13 @@ export async function commitGateResolution(tx: Prisma.TransactionClient, input: 
       if (current.protectedUserContent) throw new GateResolutionError("该资产包含需保留的内容，不能自动覆盖。");
       continue;
     }
-    if (resolution.decision === "confirm_after_edit") {
-      if (!readEdit) throw new GateResolutionError("请从资产页面保存修改，再确认本阶段。");
-      const edited = await readEdit({contract, type: current.type, contentRef: current.contentRef, chapterPlanEdit: resolution.chapterPlanEdit}, tx);
-      if (!edited.contentRef.trim() || !edited.contentHash.trim()) throw new GateResolutionError("未读取到已保存的修改。");
+    if (resolution.decision === "confirm_after_edit" && !readEdit) throw new GateResolutionError("请从资产页面保存修改，再确认本阶段。");
+    // Chapter confirmation always revalidates saved prose after asynchronous synchronization.
+    const edited = readEdit && (resolution.decision === "confirm_after_edit" || current.type === "chapter_batch_closed")
+      ? await readEdit({contract, type: current.type, contentRef: current.contentRef, chapterPlanEdit: resolution.chapterPlanEdit}, tx)
+      : undefined;
+    if (edited && (!edited.contentRef.trim() || !edited.contentHash.trim())) throw new GateResolutionError("未读取到已保存的修改。");
+    if (edited && (resolution.decision === "confirm_after_edit" || edited.protectedUserContent)) {
       await tx.directorNextArtifact.create({data: {id: `${contract.novelId}:${current.type}:${contract.scope}:${current.version+1}`,
         novelId: contract.novelId, type: current.type, scope: contract.scope, version: current.version+1, status: "user_edited", protectedUserContent: true,
         contentRef: edited.contentRef, contentHash: edited.contentHash, producedByRunId: input.runId}});

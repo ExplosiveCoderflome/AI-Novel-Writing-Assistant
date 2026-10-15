@@ -18,6 +18,8 @@ export async function applyChapterQualityClosure(input: {
   jobId: string;
   chapter: { id: string; order: number };
   chapterResult: ChapterPipelineResult;
+  /** A saved author revision also needs degraded closure if acceptance is unavailable. */
+  authorRevision?: boolean;
   qualityThreshold: number;
   runtimePayload: PipelinePayload;
   qualityAlertDetails: string[];
@@ -110,6 +112,8 @@ export async function applyChapterQualityClosure(input: {
 
   if (chapterResult.reviewExecuted) {
     await createQualityReport(input.novelId, chapter.id, final.score, final.issues);
+  }
+  if (chapterResult.reviewExecuted || input.authorRevision) {
     await chapterQualityLoopService.recordAssessment({
       novelId: input.novelId,
       chapterId: chapter.id,

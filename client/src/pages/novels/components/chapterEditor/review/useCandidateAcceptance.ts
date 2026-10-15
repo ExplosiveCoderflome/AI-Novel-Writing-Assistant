@@ -14,6 +14,7 @@ export function useCandidateAcceptance(input: {
   content: string;
   sourceSnapshot?: string;
   savedUpdatedAt: string;
+  savedContent: string;
   acknowledgeSave: (content: string, saved: { content?: string | null; updatedAt: string }) => void;
   onAccepted: (result: { nextContent: string; savedUpdatedAt: string; fullyAccepted: boolean }) => Promise<void>;
 }) {
@@ -34,7 +35,7 @@ export function useCandidateAcceptance(input: {
         triggerType: "manual", label: `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`,
       });
       const response = await updateNovelChapter(input.novelId, chapter.id, {
-        content: nextContent, expectedUpdatedAt: input.savedUpdatedAt,
+        content: nextContent, expectedUpdatedAt: input.savedUpdatedAt, expectedContent: input.savedContent,
       });
       const fullyAccepted = groupChapterEditorDiffChanges(candidate.diffChunks).every((change) => selectedChangeIds.has(change.id));
       return { nextContent, saved: response.data, fullyAccepted };

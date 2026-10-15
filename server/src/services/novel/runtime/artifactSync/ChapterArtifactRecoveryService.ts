@@ -60,7 +60,7 @@ export class ChapterArtifactRecoveryService {
     input: ChapterArtifactDeltaSyncInput & { artifactSyncMode: ArtifactSyncMode },
   ): Promise<ChapterArtifactDeltaSyncResult> {
     const contentHash = buildContentHash(input.content);
-    await this.assertCurrentContent(input.novelId, input.chapterId, contentHash);
+    await this.assertCurrentContent(input.novelId, input.chapterId, contentHash, input.revisionGuard);
     let extraction = await this.loadOrExtract(input, contentHash);
     if (input.artifactSyncPolicy === "director_v2" && input.directorRunId) {
       const prepare = this.deps.prepareCandidates ?? (async (candidateInput, output) => {
@@ -91,7 +91,7 @@ export class ChapterArtifactRecoveryService {
         throw new ChapterArtifactRecoveryPendingError(identity.artifactType);
       }
       try {
-        await this.assertCurrentContent(input.novelId, input.chapterId, contentHash);
+        await this.assertCurrentContent(input.novelId, input.chapterId, contentHash, input.revisionGuard);
         const result = await this.deps.deltaService.applyChapterArtifactConsumer({
           ...input,
           contentHash,
@@ -99,7 +99,7 @@ export class ChapterArtifactRecoveryService {
           consumer,
           stateSnapshotId: aggregate.stateSnapshotId ?? null,
         });
-        await this.assertCurrentContent(input.novelId, input.chapterId, contentHash);
+        await this.assertCurrentContent(input.novelId, input.chapterId, contentHash, input.revisionGuard);
         await this.deps.checkpoints.succeed(identity, {
           schemaVersion: EXTRACTION_SCHEMA_VERSION,
           consumer,
@@ -119,7 +119,7 @@ export class ChapterArtifactRecoveryService {
     input: ChapterArtifactDeltaSyncInput & { artifactSyncMode: ArtifactSyncMode },
     contentHash: string,
   ): Promise<ChapterArtifactExtractionResult> {
-    const inFlightKey = `${input.novelId}:${input.chapterId}:${contentHash}:${input.artifactSyncMode}`;
+    const inFlightKey = `${input.novelId}:${input.chapterId}:${contentHash}:${input.checkpointScope ?? input.artifactSyncMode}`;
     const running = this.extractionInFlight.get(inFlightKey);
     if (running) return running;
     const promise = this.loadOrExtractOnce(input, contentHash);
@@ -156,7 +156,7 @@ export class ChapterArtifactRecoveryService {
       if (extraction.contentHash !== contentHash) {
         throw new Error("资产抽取结果与当前正文版本不匹配。");
       }
-      await this.assertCurrentContent(input.novelId, input.chapterId, contentHash);
+      await this.assertCurrentContent(input.novelId, input.chapterId, contentHash, input.revisionGuard);
       await this.deps.checkpoints.succeed(identity, {
         schemaVersion: EXTRACTION_SCHEMA_VERSION,
         output: extraction.output,
@@ -208,11 +208,15 @@ export class ChapterArtifactRecoveryService {
       chapterId: input.chapterId,
       contentHash,
       artifactType,
-      syncMode: input.artifactSyncMode,
+      syncMode: input.checkpointScope ?? input.artifactSyncMode,
     };
   }
 
-  private async assertCurrentContent(novelId: string, chapterId: string, contentHash: string): Promise<void> {
+  private async assertCurrentContent(novelId: string, chapterId: string, contentHash: string,
+    revisionGuard?: {id: string; metadataJson: string | null; novel?: {directorEpoch: number; directorVersion: string | null}}): Promise<void> {
+    if (revisionGuard && !await prisma.chapterArtifactSyncCheckpoint.findFirst({where: {...revisionGuard, status: "running"}})) {
+      throw new ChapterArtifactContentVersionError("修订版本已变化，已停止过期资料同步。");
+    }
     const content = await this.deps.readCurrentContent(novelId, chapterId);
     if (content === null || buildContentHash(content) !== contentHash) {
       throw new ChapterArtifactContentVersionError("章节正文版本已变化，已拒绝过期资产恢复。");

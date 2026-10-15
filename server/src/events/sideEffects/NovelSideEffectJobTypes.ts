@@ -1,3 +1,4 @@
+import type { ManualChapterSyncPayload } from "../../services/novel/chapterEditor/synchronization";
 export const NOVEL_SIDE_EFFECT_PAYLOAD_VERSION = 1;
 
 export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
@@ -6,6 +7,7 @@ export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
   "character.v2DeferredEnrichment",
   "novel.pipelineSnapshot",
   "payoff.bookContractSync",
+  "chapter.manualSync",
 ] as const;
 
 export type NovelSideEffectJobType = (typeof NOVEL_SIDE_EFFECT_JOB_TYPES)[number];
@@ -45,7 +47,8 @@ export type NovelSideEffectPayload =
   | CharacterPostDraftEnrichmentPayload
   | DirectorV2CharacterEnrichmentPayload
   | PipelineSnapshotPayload
-  | BookContractPayoffSyncPayload;
+  | BookContractPayoffSyncPayload
+  | ManualChapterSyncPayload;
 
 export interface EnqueueNovelSideEffectJobInput {
   novelId?: string | null;

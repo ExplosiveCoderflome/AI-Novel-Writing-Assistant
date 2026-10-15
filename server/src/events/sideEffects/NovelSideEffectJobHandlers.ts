@@ -1,3 +1,4 @@
+import { manualChapterSyncService, type ManualChapterSyncPayload } from "../../services/novel/chapterEditor/synchronization";
 import type { NovelSideEffectJob } from "@prisma/client";
 import { getSharedNovelServices } from "../../services/novel/application/sharedNovelServices";
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
@@ -42,6 +43,18 @@ export class NovelSideEffectJobHandlers {
 
   async execute(job: NovelSideEffectJob): Promise<void | {deferUntil: Date}> {
     switch (job.jobType) {
+      case "chapter.manualSync": {
+        const payload = parsePayload<ManualChapterSyncPayload>(job);
+        if (payload.novelId !== job.novelId || !payload.chapterId || !payload.contentHash || !payload.revision) {
+          throw new UnsupportedNovelSideEffectPayloadError("正文同步任务缺少归属或版本。");
+        }
+        const result = await manualChapterSyncService.run(payload);
+        // An identity review is resumed only by the author's explicit command.
+        if (result.characterReviewId) return;
+        if (result.status === "pending") return {deferUntil: new Date(Date.now() + 5_000)};
+        if (result.status === "failed") throw new Error(result.reason || "正文已保存，章节资料同步失败。");
+        return;
+      }
       case "character.volumeRebuild": {
         const payload = parsePayload<CharacterVolumeRebuildPayload>(job);
         await characterDynamicsService.rebuildDynamics(payload.novelId, {

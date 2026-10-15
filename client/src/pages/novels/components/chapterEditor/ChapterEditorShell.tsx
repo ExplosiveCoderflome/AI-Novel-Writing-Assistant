@@ -228,7 +228,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           label: `chapter-editor:before-version-load:${chapter.order}:${Date.now()}`,
         });
       }
-      return updateNovelChapter(novelId, chapter.id, { content: nextContent, expectedUpdatedAt: draft.savedUpdatedAt });
+      return updateNovelChapter(novelId, chapter.id, { content: nextContent, expectedUpdatedAt: draft.savedUpdatedAt, expectedContent: draft.savedContent });
     },
     onMutate: () => {
       setSaveStatus("saving");
@@ -436,6 +436,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     sourceSnapshot: session.mode === "continuation"
       ? lastContinuationRequestRef.current?.contentSnapshot : lastPreviewRequestRef.current?.contentSnapshot,
     savedUpdatedAt: draft.savedUpdatedAt,
+    savedContent: draft.savedContent,
     acknowledgeSave: draft.acknowledgeSave,
     onAccepted: async ({ nextContent, savedUpdatedAt, fullyAccepted }) => {
       let completedCard = fullyAccepted ? session.diagnosticCard : undefined;

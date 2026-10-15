@@ -220,6 +220,7 @@ export const chapterSchema = z.object({
 
 export const updateChapterSchema = z.object({
   expectedUpdatedAt: z.iso.datetime().optional(),
+  expectedContent: z.string().nullable().optional(),
   title: z.string().trim().min(1).optional(),
   order: z.number().int().nonnegative().optional(),
   content: z.string().optional(),

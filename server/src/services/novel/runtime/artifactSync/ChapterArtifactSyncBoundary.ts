@@ -7,6 +7,7 @@ export type ChapterArtifactSyncBoundaryOutcome = "completed" | "degraded";
 
 export interface ChapterArtifactSyncBoundaryCheckpoint {
   contentHash: string;
+  artifactType?: string;
   metadataJson: string | null;
 }
 
@@ -18,7 +19,8 @@ export function getCurrentChapterArtifactSyncOutcome(
 ): ChapterArtifactSyncBoundaryOutcome | null {
   if (!content?.trim()) return null;
   const current = checkpoints.find((checkpoint) => (
-    checkpoint.contentHash === buildChapterArtifactContentHash(content)
+    (!checkpoint.artifactType || checkpoint.artifactType === CHAPTER_ARTIFACT_BOUNDARY_TYPE)
+    && checkpoint.contentHash === buildChapterArtifactContentHash(content)
   ));
   if (!current?.metadataJson) return null;
   try {

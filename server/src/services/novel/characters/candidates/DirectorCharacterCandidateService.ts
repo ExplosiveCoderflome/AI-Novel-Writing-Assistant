@@ -1,3 +1,4 @@
+import { MANUAL_CHAPTER_SYNC_TYPE } from "../../chapterEditor/synchronization";
 import {CharacterCandidateReviewRequiredError} from "../../runtime/artifactSync/ChapterArtifactSyncResult";
 export {CharacterCandidateReviewRequiredError} from "../../runtime/artifactSync/ChapterArtifactSyncResult";
 import type {Prisma} from "@prisma/client";
@@ -15,7 +16,7 @@ import {chapterArtifactDeltaOutputSchema} from "../../../../prompting/prompts/no
 const artifactType = (runId: string) => `director_v2_character_candidates:${runId}`;
 const sourceType = "director_v2_character_candidates";
 type StoredReview = DirectorCharacterCandidateReview & {schemaVersion: 1; driver: "auto" | "assisted"};
-type CandidateInput = {novelId: string; chapterId: string; content: string; directorRunId: string};
+type CandidateInput = {novelId: string; chapterId: string; content: string; directorRunId: string; manualRevision?: string};
 
 
 function readReview(value: string | null): StoredReview {
@@ -57,7 +58,13 @@ export class DirectorCharacterCandidateService {
     const review = await withSqliteRetry(() => this.db.$transaction(async tx => {
       const run = await this.owner(input.directorRunId, tx, input.novelId);
       const control = await tx.directorNextRunControl.findUnique({where: {runId: run.id}});
-      if (!control || !["running", "queued"].includes(control.status)) throw new AppError("本次创作未在执行，已停止人物回填。", 409);
+      const manual = input.manualRevision && await tx.chapterArtifactSyncCheckpoint.findFirst({where: {
+        novelId: input.novelId, chapterId: input.chapterId, contentHash: hash,
+        artifactType: MANUAL_CHAPTER_SYNC_TYPE, status: "running",
+      }, select: {metadataJson: true}});
+      const manualAuthorized = !!manual && JSON.parse(manual.metadataJson ?? "{}").revision === input.manualRevision;
+      const allowed = manualAuthorized ? ["running", "queued", "paused", "waiting_gate", "completed"] : ["running", "queued"];
+      if (!control || !allowed.includes(control.status)) throw new AppError("本次创作未在执行，已停止人物回填。", 409);
       const locked = await tx.directorNextRunControl.updateMany({where: {runId: run.id, version: control.version, status: control.status}, data: {version: {increment: 0}}});
       if (!locked.count) throw new AppError("本次创作状态已变化，已停止人物回填。", 409);
       const chapter = await this.assertContent(tx, input.novelId, input.chapterId, hash);

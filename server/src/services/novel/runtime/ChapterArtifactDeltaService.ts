@@ -86,6 +86,9 @@ export interface ChapterArtifactDeltaSyncInput {
   temperature?: number;
   contentProvenance?: ContentProvenance;
   artifactSyncPolicy?: "director_v2";
+  checkpointScope?: string;
+  manualRevision?: string;
+  revisionGuard?: {id: string; metadataJson: string | null; novel?: {directorEpoch: number; directorVersion: string | null}};
   directorRunId?: string;
 }
 

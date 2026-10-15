@@ -8,7 +8,7 @@ const { buildChapterArtifactContentHash } = require('../../../dist/services/nove
 const { novelEventBus } = require('../../../dist/events');
 const promptRunner = require('../../../dist/prompting/core/promptRunner');
 
-async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false } = {}) {
+async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false, edited = false, acceptanceVersion = 2, acceptanceUnavailable = false } = {}) {
   const restore = [];
   const replace = (target, key, value) => {
     const previous = target[key];
@@ -39,6 +39,15 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     Object.assign(chapters[0], { content: '已保存但尚未记录质量债的正文', generationState: 'reviewed', chapterStatus: 'needs_repair' });
     chapters[0].artifactSyncCheckpoints = missingBoundary ? [] : [{ contentHash: buildChapterArtifactContentHash(chapters[0].content), metadataJson: JSON.stringify({ outcome: 'completed' }) }];
   }
+  if (edited) chapters[0].artifactSyncCheckpoints.push({artifactType: "manual_chapter_sync:v1", contentHash: buildChapterArtifactContentHash(chapters[0].content), metadataJson: JSON.stringify({revision: "manual-1"})});
+  const sync = require("../../../dist/services/novel/chapterEditor/synchronization");
+  let synchronized = 0, reassessed = 0;
+  replace(sync.manualChapterSyncService, "ensureCurrent", async () => {synchronized++;});
+  replace(prisma.chapter, "findFirstOrThrow", async () => chapters[0]);
+  replace(prisma.chapterArtifactSyncCheckpoint, "findUnique", async () => edited ? {status: "succeeded"} : null);
+  replace(require("../../../dist/services/novel/production/qualityClosure/recheckEditedChapterQuality"), "recheckEditedChapterQuality", async () => {
+    reassessed++; return {reviewExecuted: !acceptanceUnavailable, pass: false, score, issues, runtimePackage: null, retryCountUsed: 0};
+  });
   const calls = [];
   let usageReads = 0, classifications = 0, planningTokens = 0;
   replace(prisma.llmInvocationUsageRecord, 'aggregate', async () => ({ _sum: { totalTokens: planningTokens } }));
@@ -60,7 +69,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
   replace(directorAutomationLedgerEventService, 'recordQualityLoopAssessment', async () => {});
   replace(prisma.chapterArtifactSyncCheckpoint, 'findFirst', async () => {
     const contentHash = require('node:crypto').createHash('sha1').update(staleAcceptance ? '过期正文' : chapters[0].content).digest('hex');
-    return { contentHash, metadataJson: JSON.stringify({ schemaVersion: 2, gate: 'acceptance', contentHash, result: {
+    return { contentHash, metadataJson: JSON.stringify({ schemaVersion: acceptanceVersion, gate: 'acceptance', contentHash, result: {
       assessment: { status: 'repairable', score, summary: '局部问题', assetSyncRecommendation: { reason: '同步已完成' }, continuePolicy: acceptancePause ? 'pause' : 'repair_once' }, score, issues,
     } }) };
   });
@@ -96,7 +105,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
   try {
     await executor.execute(job.id, 'book', options);
     const outcome = director ? await readBatchOutcome(job, { runId: 'new-run', contract: { novelId: 'book', chapterRange: { from: 1, to: 2 }, issuePolicy: { mode: qualityFirst ? 'quality_first' : 'completion_first' } } }) : null;
-    return { job, chapters, calls, usageReads, classifications, outcome };
+    return { job, chapters, calls, usageReads, classifications, outcome, synchronized, reassessed };
   } finally { for (const undo of restore.reverse()) undo(); }
 }
 
@@ -278,3 +287,33 @@ test('a limited director range also prepares missing chapters without extending 
   assert.equal(result.job.endOrder, 2);
   assert.equal(result.outcome.chapters.every(chapter => chapter.closed), true);
 });
+
+for (const qualityFirst of [false, true]) {
+  test('author edit with no closed usage is reassessed without writing or repairing; qualityFirst=' + qualityFirst, async () => {
+    const result = await exercise({legacySaved: true, edited: true, staleAcceptance: true, qualityFirst, chapterTokens: 100});
+    assert.equal(result.synchronized, 1);
+    assert.equal(result.reassessed, 1);
+    assert.deepEqual(result.calls, qualityFirst ? [] : ['c2']);
+    assert.equal(result.chapters[0].content, '已保存但尚未记录质量债的正文');
+    assert.equal(result.job.pendingManualRecovery, qualityFirst);
+    assert.equal(result.job.retryCount, 0);
+  });
+}
+test('current schema v3 acceptance is recoverable with the original closed usage checkpoint', async () => {
+  const checkpoint = {chapterId: 'c1', chapterOrder: 1, startJobTokens: 0, totalTokens: 87858, endJobTokens: 87858};
+  const result = await exercise({legacySaved: true, acceptanceVersion: 3, initialTokens: 87858, checkpoints: [checkpoint], chapterTokens: 100});
+  assert.deepEqual(result.calls, ['c2']);
+  assert.equal(result.reassessed, 0);
+  assert.deepEqual(JSON.parse(result.job.payload).directorNext.chapterUsage[0], checkpoint);
+  assert.equal(result.job.status, 'succeeded');
+});
+
+for (const qualityFirst of [false, true]) {
+  test('unavailable acceptance retains author prose as quality debt; qualityFirst=' + qualityFirst, async () => {
+    const result = await exercise({legacySaved: true, edited: true, staleAcceptance: true, acceptanceUnavailable: true, qualityFirst, chapterTokens: 100});
+    assert.deepEqual(result.calls, qualityFirst ? [] : ['c2']);
+    assert.equal(result.job.pendingManualRecovery, qualityFirst);
+    assert.equal(JSON.parse(result.chapters[0].riskFlags).qualityLoop.terminalAction, 'defer_and_continue');
+    assert.equal(result.chapters[0].content, '已保存但尚未记录质量债的正文');
+  });
+}

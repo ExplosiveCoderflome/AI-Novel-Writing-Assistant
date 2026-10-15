@@ -1,3 +1,5 @@
+import {MANUAL_CHAPTER_SYNC_TYPE} from "../../services/novel/chapterEditor/synchronization";
+import {buildChapterArtifactContentHash} from "../../services/novel/runtime/artifactSync/ChapterArtifactContentVersion";
 import {directorCharacterCandidates} from "../../services/novel/characters/candidates";
 import type {Prisma} from "@prisma/client";
 import {artifactContentHash, type RunContract} from "../../modules/director";
@@ -16,6 +18,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
   }
   const novelId = input.contract.novelId;
   let content: unknown;
+  let protectedUserContent = false;
   switch (input.type) {
     case "character_cast":
       content = {characters: await tx.character.findMany({where: {novelId}, orderBy: {id: "asc"}}), relations: await tx.characterRelation.findMany({where: {novelId}, orderBy: {id: "asc"}})};
@@ -44,17 +47,23 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
     case "chapter_batch_closed": {
       const range = input.contract.chapterRange;
       if (!range) throw new Error("缺少正文授权范围。");
-      const chapters = await tx.chapter.findMany({where: {novelId, order: {gte: range.from, lte: range.to}}, orderBy: {order: "asc"}, select: {id: true, order: true, content: true, generationState: true, chapterStatus: true, riskFlags: true,
-        artifactSyncCheckpoints: {where: {artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"},
-          select: {contentHash: true, metadataJson: true}, orderBy: {updatedAt: "desc"}, take: 6}}});
+      const chapters = await tx.chapter.findMany({where: {novelId, order: {gte: range.from, lte: range.to}}, orderBy: {order: "asc"}, select: {id: true, order: true, content: true, updatedAt: true, generationState: true, chapterStatus: true, riskFlags: true,
+        artifactSyncCheckpoints: {where: {OR: [{artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"}, {artifactType: MANUAL_CHAPTER_SYNC_TYPE}]},
+          select: {contentHash: true, metadataJson: true, artifactType: true}, orderBy: {updatedAt: "desc"}}}});
       if (chapters.length !== range.to-range.from+1 || chapters.some(chapter => !chapter.content?.trim())) throw new Error("请先保存本批次的章节正文。");
       if (chapters.some(chapter => !isCurrentChapterProductionCompleted(chapter))) throw new AppError("正文修改尚未完成状态同步，请在章节页面完成收尾后再确认。", 400);
+      for (const chapter of chapters) {
+        const locked = await tx.chapter.updateMany({where: {id: chapter.id, novelId, content: chapter.content}, data: {updatedAt: chapter.updatedAt}});
+        if (!locked.count) throw new AppError("正文在确认期间发生变化，请检查修订后再继续。", 409);
+      }
+      protectedUserContent = chapters.some(chapter => chapter.artifactSyncCheckpoints.some(row =>
+        row.artifactType === MANUAL_CHAPTER_SYNC_TYPE && row.contentHash === buildChapterArtifactContentHash(chapter.content ?? "")));
       content = chapters.map(({id, order, content}) => ({id, order, content}));
       break;
     }
     default: throw new Error("该阶段请使用确认结果，或从对应资产页面查看修改。");
   }
-  return {contentRef: input.contentRef, contentHash: artifactContentHash(content)};
+  return {contentRef: input.contentRef, contentHash: artifactContentHash(content), protectedUserContent};
 }
 
 export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient) {

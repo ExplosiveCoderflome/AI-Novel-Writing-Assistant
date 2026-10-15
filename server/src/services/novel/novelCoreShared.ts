@@ -101,6 +101,8 @@ export interface UpdateNovelInput {
 export interface ChapterInput {
   /** Optional optimistic concurrency guard for editing a saved chapter. */
   expectedUpdatedAt?: string;
+  /** Exact saved body, so derived metadata updates do not conflict with prose edits. */
+  expectedContent?: string | null;
   title: string;
   order: number;
   content?: string;
