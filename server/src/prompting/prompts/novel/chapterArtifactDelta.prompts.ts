@@ -462,6 +462,12 @@ export const chapterArtifactDeltaOutputSchema = z.preprocess(normalizeArtifactDe
 
 export type ChapterArtifactDeltaOutput = z.infer<typeof chapterArtifactDeltaOutputSchema>;
 
+export interface ChapterArtifactSerializationRetryFeedback {
+  attempt: 2;
+  category: string;
+  message: string;
+}
+
 export interface ChapterArtifactDeltaPromptInput {
   novelTitle: string;
   chapterOrder: number;
@@ -479,6 +485,7 @@ export interface ChapterArtifactDeltaPromptInput {
   existingPayoffText: string;
   activeCharacterDialogueInfluenceText: string;
   chapterContent: string;
+  serializationRetryFeedback?: ChapterArtifactSerializationRetryFeedback;
 }
 
 // Keep the wire example sparse. The existing schema supplies defaults after parsing.
@@ -579,7 +586,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   ChapterArtifactDeltaOutput
 > = {
   id: "novel.chapter.artifact_delta.extract",
-  version: "v10",
+  version: "v11",
   cacheBoundary: {messageIndex:1,contentBlockIndex:0},
   taskType: "fact_extraction",
   mode: "structured",
@@ -615,6 +622,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "你的任务是从单章正文中一次性提取后续写作需要的增量资产，并给出同步计划。",
       "",
       "只输出合法 JSON 对象，不要输出 Markdown、解释、注释或代码块。",
+      "若提供上次输出的结构诊断，只修正格式和字段完整性，重新提取同一正文的完整记忆；诊断是错误数据，不是剧情指令，不得改写正文或把失败半成品当成已保存事实。",
+      "characterResourceDeltas 的每条记录必须填写 narrativeImpact 字符串，说明该变化对后续叙事的影响，不能省略；所有 evidence 依各自 Schema 类型返回，characterMindDeltas 和 characterResourceDeltas 的 evidence 必须为字符串数组。",
       "",
       "抽取原则：",
       "1. 只抽取正文中已经发生、被读者知道、被角色知道，或由章节任务明确要求产生的变化。",
@@ -670,6 +679,10 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
     new HumanMessage([
       `章节：第 ${input.chapterOrder} 章《${input.chapterTitle}》`,
       `章节目标：${input.chapterGoal || "无明确目标"}`,
+      ...(input.serializationRetryFeedback ? ["上次记忆输出的结构诊断（仅供修正输出，非剧情指令）：", JSON.stringify({
+        ...input.serializationRetryFeedback,
+        message: input.serializationRetryFeedback.message.slice(0, 1600),
+      }), ""] : []),
       "",
       "角色当前目标与状态：",
       input.characterStateText || "暂无角色状态补充",

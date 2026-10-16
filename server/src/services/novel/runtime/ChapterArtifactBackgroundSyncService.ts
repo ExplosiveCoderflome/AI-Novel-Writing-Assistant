@@ -41,6 +41,7 @@ interface ChapterArtifactBackgroundSyncOptions {
   model?: string;
   temperature?: number;
   contentProvenance?: ContentProvenance;
+  beforeSerializationRetry?: () => Promise<void>;
 }
 
 type ArtifactSyncClaimStatus = "claimed" | "already_done" | "running";
@@ -227,6 +228,7 @@ export class ChapterArtifactBackgroundSyncService {
           model: options.model,
           temperature: options.temperature,
           contentProvenance: options.contentProvenance,
+          beforeSerializationRetry: options.beforeSerializationRetry,
         });
             requiresFullReconcileFromDelta = result.requiresFullReconcile;
             deltaMetadata = {

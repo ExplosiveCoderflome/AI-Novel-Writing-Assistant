@@ -29,6 +29,7 @@ export interface ChapterArtifactSyncOptions {
   model?: string;
   temperature?: number;
   contentProvenance?: ContentProvenance;
+  beforeSerializationRetry?: () => Promise<void>;
 }
 
 export class ChapterArtifactSyncService {
@@ -127,6 +128,7 @@ export class ChapterArtifactSyncService {
           model: options.model,
           temperature: options.temperature,
           contentProvenance: options.contentProvenance,
+          beforeSerializationRetry: options.beforeSerializationRetry,
         });
       } else {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
@@ -137,6 +139,7 @@ export class ChapterArtifactSyncService {
           model: options.model,
           temperature: options.temperature,
           contentProvenance: options.contentProvenance,
+          beforeSerializationRetry: options.beforeSerializationRetry,
         });
         deltaResult = {
           status: "pending",

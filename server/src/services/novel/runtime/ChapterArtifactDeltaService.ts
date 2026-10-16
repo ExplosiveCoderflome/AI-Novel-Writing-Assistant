@@ -9,6 +9,7 @@ import {
   chapterArtifactDeltaPrompt,
   chapterArtifactDeltaOutputSchema,
   type ChapterArtifactDeltaOutput,
+  type ChapterArtifactSerializationRetryFeedback,
 } from "../../../prompting/prompts/novel/chapterArtifactDelta.prompts";
 import { ragServices } from "../../rag";
 import type { RagOwnerType } from "../../rag/types";
@@ -85,6 +86,8 @@ export interface ChapterArtifactDeltaSyncInput {
   model?: string;
   temperature?: number;
   contentProvenance?: ContentProvenance;
+  beforeSerializationRetry?: () => Promise<void>;
+  serializationRetryFeedback?: ChapterArtifactSerializationRetryFeedback;
   artifactSyncPolicy?: "director_v2";
   checkpointScope?: string;
   manualRevision?: string;
@@ -365,6 +368,7 @@ export class ChapterArtifactDeltaService {
         chapterOrder: chapter.order,
         chapterTitle: chapter.title,
         chapterGoal: chapter.taskSheet?.trim() || chapter.expectation?.trim() || "无明确章节目标",
+        serializationRetryFeedback: input.serializationRetryFeedback,
         ...ledgerContext,
         locationTrackingEnabled: Boolean(locationStates),
         characterCandidateResolutionEnabled: input.artifactSyncPolicy === "director_v2" && !!input.directorRunId,

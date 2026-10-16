@@ -45,6 +45,10 @@ export class ChapterPipelineRuntimeAdapter {
     options: PipelineRuntimeInput = {},
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
+    const {onCheckCancelled, onCheckBudget} = hooks;
+    const beforeSerializationRetry = onCheckCancelled && onCheckBudget
+      ? async () => { await onCheckCancelled(); await onCheckBudget(); }
+      : undefined;
     const scope = options.finalizedResultScope;
     if (options.artifactSyncPolicy === "director_v2") {
       if (!scope) throw new ChapterArtifactSyncBoundaryError({status: "failed", contentHash: "", completedArtifacts: [], reason: "缺少本次创作的资源回填恢复位置。"});
@@ -54,6 +58,7 @@ export class ChapterPipelineRuntimeAdapter {
         syncFinalChapterArtifacts: (n, c, content, syncOptions) => this.deps.artifactSyncService.syncChapterArtifacts(n, c, content, {
           ...syncOptions, directorRunId: options.directorRunId, scheduleBackgroundSync: true, awaitArtifactDelta: true, skipLegacySummaryAndFacts: true,
           provider: options.provider, model: options.model, temperature: options.temperature,
+          beforeSerializationRetry,
         }),
         markChapterGenerationState: (c, state) => this.markChapterGenerationState(c, state),
       }, novelId, chapterId, saved, options, hooks);
@@ -95,6 +100,7 @@ export class ChapterPipelineRuntimeAdapter {
                 scheduleBackgroundSync: true,
                 artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
                 contentProvenance: syncOptions?.contentProvenance,
+                beforeSerializationRetry,
                 artifactSyncPolicy: syncOptions?.artifactSyncPolicy,
                 directorRunId: options.directorRunId,
                 awaitArtifactDelta: true,

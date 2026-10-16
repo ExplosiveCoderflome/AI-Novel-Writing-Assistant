@@ -15,6 +15,7 @@ import {
   type ChapterArtifactCheckpointIdentity,
 } from "./ChapterArtifactCheckpointStore";
 import { ChapterArtifactContentVersionError } from "./ChapterArtifactSyncResult";
+import { StructuredOutputError } from "../../../../llm/structuredOutput";
 
 const EXTRACTION_SCHEMA_VERSION = 1;
 const EXTRACTION_ARTIFACT_TYPE = "artifact_delta_extraction:v1";
@@ -122,7 +123,8 @@ export class ChapterArtifactRecoveryService {
     const inFlightKey = `${input.novelId}:${input.chapterId}:${contentHash}:${input.checkpointScope ?? input.artifactSyncMode}`;
     const running = this.extractionInFlight.get(inFlightKey);
     if (running) return running;
-    const promise = this.loadOrExtractOnce(input, contentHash);
+    const promise = this.loadOrExtractOnce(input, contentHash)
+      .catch((error) => this.recoverSerializationFailure(input, contentHash, error));
     this.extractionInFlight.set(inFlightKey, promise);
     try {
       return await promise;
@@ -143,6 +145,11 @@ export class ChapterArtifactRecoveryService {
     const claim = await this.deps.checkpoints.claim(identity, {
       schemaVersion: EXTRACTION_SCHEMA_VERSION,
       contentProvenance: input.contentProvenance ?? "confirmed",
+      ...(input.serializationRetryFeedback ? {serializationRecovery: {
+        attempts: 2,
+        category: input.serializationRetryFeedback.category,
+        reason: input.serializationRetryFeedback.message,
+      }} : {}),
     });
     if (claim === "already_done") {
       const completed = await this.deps.checkpoints.read(identity);
@@ -160,12 +167,39 @@ export class ChapterArtifactRecoveryService {
       await this.deps.checkpoints.succeed(identity, {
         schemaVersion: EXTRACTION_SCHEMA_VERSION,
         output: extraction.output,
+        ...(input.serializationRetryFeedback ? {serializationRecovery: {
+          attempts: 2,
+          category: input.serializationRetryFeedback.category,
+          reason: input.serializationRetryFeedback.message,
+        }} : {}),
       });
       return extraction;
     } catch (error) {
       await this.deps.checkpoints.fail(identity, error);
       throw error;
     }
+  }
+
+  /** One fresh extraction after model-format failure; never retry consumers or rewrite prose. */
+  private async recoverSerializationFailure(
+    input: ChapterArtifactDeltaSyncInput & { artifactSyncMode: ArtifactSyncMode },
+    contentHash: string,
+    error: unknown,
+  ): Promise<ChapterArtifactExtractionResult> {
+    if (input.artifactSyncPolicy !== "director_v2" || !input.beforeSerializationRetry
+      || !(error instanceof StructuredOutputError)
+      || !["thinking_pollution", "incomplete_json", "malformed_json", "schema_mismatch"].includes(error.category)) {
+      throw error;
+    }
+    // The failed attempt has released its claim. Reclaim through the normal
+    // checkpoint path so a concurrent owner is respected and the lease is fresh.
+    await input.beforeSerializationRetry();
+    await this.assertCurrentContent(input.novelId, input.chapterId, contentHash, input.revisionGuard);
+    // Calling Once directly is deliberate: a second failure cannot recurse.
+    return this.loadOrExtractOnce({
+      ...input,
+      serializationRetryFeedback: {attempt: 2, category: error.category, message: error.message.slice(0, 1600)},
+    }, contentHash);
   }
 
   private readExtraction(metadataJson: string | null, contentHash: string): ChapterArtifactExtractionResult {
