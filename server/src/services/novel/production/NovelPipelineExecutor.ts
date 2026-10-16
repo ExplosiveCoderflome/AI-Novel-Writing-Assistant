@@ -506,7 +506,7 @@ export class NovelPipelineExecutor {
               min: 3, target: 5,
               provider: runtimePayload.provider, model: runtimePayload.model, temperature: runtimePayload.temperature,
               taskId: runtimePayload.workflowTaskId ?? jobId,
-              completionProfile: buildDirectorCompletionProfile(autopilotTargetEndOrder),
+              completionProfile: buildDirectorCompletionProfile(novel.estimatedChapterCount ?? autopilotTargetEndOrder),
             });
           } catch (error) {
             throw new PipelineIssueFailure(`滚动规划未能准备第 ${order} 章，已保存正文会保留，请检查后继续。`,
