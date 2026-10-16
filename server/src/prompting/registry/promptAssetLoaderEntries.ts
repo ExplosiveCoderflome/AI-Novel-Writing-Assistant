@@ -290,7 +290,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/chapterAcceptance.prompts").chapterAcceptanceAssessmentPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.artifact_delta.extract@v10",
+    key: "novel.chapter.artifact_delta.extract@v11",
     load: () => require("../prompts/novel/chapterArtifactDelta.prompts").chapterArtifactDeltaPrompt as UnknownPromptAsset,
   },
   {
