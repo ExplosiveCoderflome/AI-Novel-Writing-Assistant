@@ -161,6 +161,12 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
         }
     }
     const now = new Date();
+    const cacheHitTokens = usage.inputCache?.cacheHitTokens;
+    const cacheHitIncrement = typeof cacheHitTokens === "number"
+        && Number.isSafeInteger(cacheHitTokens)
+        && cacheHitTokens > 0
+        ? { cacheHitTokens: { increment: cacheHitTokens } }
+        : {};
     await Promise.all([
         context?.directorTelemetry === true
             ? recordDirectorLlmUsage({
@@ -189,6 +195,7 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
                     promptTokens: { increment: usage.promptTokens },
                     completionTokens: { increment: usage.completionTokens },
                     totalTokens: { increment: usage.totalTokens },
+                    ...cacheHitIncrement,
                     llmCallCount: { increment: 1 },
                     lastTokenRecordedAt: now,
                 },

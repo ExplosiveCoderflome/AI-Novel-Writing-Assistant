@@ -35,6 +35,7 @@ import {
   observeChapterUsage,
   finalizeChapterUsage,
 } from "./usage";
+import type { ChapterUsageCounters } from "./usage";
 import {
   loadDirectorIssueTaskContext,
 } from "../director/issues";
@@ -99,7 +100,7 @@ export class NovelPipelineExecutor {
     private readonly assertOwner = assertDirectorPipelineOwner,
   ) {}
 
-  private async readChapterBatchTokens(jobId: string): Promise<number | undefined> {
+  private async readChapterBatchUsage(jobId: string): Promise<ChapterUsageCounters | undefined> {
     try {
       const result = await prisma.llmInvocationUsageRecord.aggregate({
         where: {
@@ -107,9 +108,15 @@ export class NovelPipelineExecutor {
           stage: "chapter_batch",
           totalTokens: { not: null },
         },
-        _sum: { totalTokens: true },
+        _sum: { totalTokens: true, promptTokens: true, completionTokens: true, cacheHitTokens: true },
       });
-      return result._sum.totalTokens ?? 0;
+      const sum = result._sum;
+      return {
+        totalTokens: sum.totalTokens ?? 0,
+        promptTokens: sum.promptTokens ?? 0,
+        completionTokens: sum.completionTokens ?? 0,
+        cacheHitTokens: sum.cacheHitTokens ?? 0,
+      };
     } catch (error) {
       logPipelineWarn("章节规划用量读取失败，沿用作业总量预算", {
         jobId,
@@ -552,8 +559,13 @@ export class NovelPipelineExecutor {
             try {
               if (savedUsage?.endJobTokens !== undefined) {
                 if (savedUsage.chapterOrder !== chapter.order) throw new Error("章节用量检查点身份不一致。");
-                const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true } });
-                observeChapterUsage(runtimePayload.directorNext!, chapter.id, usage.totalTokens);
+                const usage = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId }, select: { totalTokens: true, promptTokens: true, completionTokens: true, cacheHitTokens: true } });
+                observeChapterUsage(runtimePayload.directorNext!, chapter.id, {
+                  totalTokens: usage.totalTokens ?? 0,
+                  promptTokens: usage.promptTokens ?? 0,
+                  completionTokens: usage.completionTokens ?? 0,
+                  cacheHitTokens: usage.cacheHitTokens ?? 0,
+                });
               }
               chapterResult = await recoverSavedChapterQuality(novelId, chapter, {manualRevision, provider: runtimePayload.provider, model: runtimePayload.model, temperature: runtimePayload.temperature});
             } catch (error) {
@@ -566,16 +578,22 @@ export class NovelPipelineExecutor {
           const checkChapterBudget = async (closed = false, reserveTokens = 0) => {
             if (!runtimePayload.directorNext) return;
             const usage = await prisma.generationJob.findUniqueOrThrow({
-              where: { id: jobId }, select: { totalTokens: true },
+              where: { id: jobId }, select: { totalTokens: true, promptTokens: true, completionTokens: true, cacheHitTokens: true },
             });
-            const chapterBatchTokens = await this.readChapterBatchTokens(jobId);
+            const jobUsage: ChapterUsageCounters = {
+              totalTokens: usage.totalTokens ?? 0,
+              promptTokens: usage.promptTokens ?? 0,
+              completionTokens: usage.completionTokens ?? 0,
+              cacheHitTokens: usage.cacheHitTokens ?? 0,
+            };
+            const chapterBatchUsage = await this.readChapterBatchUsage(jobId);
             let initialized: boolean;
             let observed: ReturnType<typeof observeChapterUsage>;
             try {
-              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, usage.totalTokens, chapterBatchTokens);
+              initialized = beginChapterUsage(runtimePayload.directorNext, chapter.id, chapter.order, jobUsage, chapterBatchUsage);
               observed = closed
-                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens, chapterBatchTokens)
-                : observeChapterUsage(runtimePayload.directorNext, chapter.id, usage.totalTokens, chapterBatchTokens);
+                ? finalizeChapterUsage(runtimePayload.directorNext, chapter.id, jobUsage, chapterBatchUsage)
+                : observeChapterUsage(runtimePayload.directorNext, chapter.id, jobUsage, chapterBatchUsage);
             } catch (error) {
               throw new PipelineIssueFailure(error instanceof Error ? error.message : "章节用量记录异常，不能继续生成。",
                 "runtime.data_integrity", "chapter_usage", chapter.id, chapter.order);
@@ -594,11 +612,14 @@ export class NovelPipelineExecutor {
             }
             const normalizedReserve = Math.max(0, Math.floor(reserveTokens));
             const preflightExceeded = normalizedReserve > 0
-              && observed.totalTokens + normalizedReserve >= DIRECTOR_CHAPTER_TOKEN_LIMIT;
+              && observed.effectiveTokens + normalizedReserve >= DIRECTOR_CHAPTER_TOKEN_LIMIT;
             if (observed.exceeded || preflightExceeded) {
+              const usageDetail = observed.breakdownAvailable
+                ? `输入 ${observed.promptTokens}（其中缓存命中 ${observed.cacheHitTokens}），输出 ${observed.completionTokens}`
+                : `累计 ${observed.totalTokens} Tokens`;
               const message = observed.exceeded
-                ? `第${chapter.order}章累计 AI 用量达到 ${observed.totalTokens} Tokens，${closed ? "正文已保存，" : ""}请检查后再继续。`
-                : `第${chapter.order}章当前已用 ${observed.totalTokens} Tokens，下一步预留 ${normalizedReserve} Tokens 后将接近本章上限，${closed ? "正文已保存，" : ""}请检查后再继续。`;
+                ? `第${chapter.order}章 AI 用量达到本章上限（${usageDetail}），${closed ? "正文已保存，" : ""}请检查后再继续。`
+                : `第${chapter.order}章 AI 用量将接近本章上限（${usageDetail}；下一步预留 ${normalizedReserve} Tokens），${closed ? "正文已保存，" : ""}请检查后再继续。`;
               throw new PipelineIssueFailure(message,
                 "runtime.token_budget_exceeded", "chapter_usage", chapter.id, chapter.order);
             }
