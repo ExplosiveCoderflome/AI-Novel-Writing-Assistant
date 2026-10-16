@@ -417,3 +417,23 @@ test("ensureRuntimeDatabaseReady repairs partially satisfied visual asset schema
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("runtime bootstrap adds secret references and preserves existing provider rows", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "novel-bootstrap-secret-ref-"));
+  const file = path.join(root, "dev.db");
+  try {
+    await withDesktopRuntime(file, async () => {
+      await ensureRuntimeDatabaseReady();
+      const database = new Database(file);
+      assert.ok(database.prepare('PRAGMA table_info("APIKey")').all().some(column => column.name === "secretRef"));
+      database.prepare('INSERT INTO "APIKey" (id, provider, key, updatedAt) VALUES (?, ?, ?, ?)')
+        .run("fixture-provider", "fixture", "synthetic-test-key", new Date().toISOString());
+      database.close();
+      await ensureRuntimeDatabaseReady();
+      const updated = new Database(file, {readonly: true});
+      assert.equal(updated.prepare('SELECT key FROM APIKey WHERE id = ?').get("fixture-provider").key, "synthetic-test-key");
+      assert.equal(updated.pragma('integrity_check', {simple: true}), "ok");
+      updated.close();
+    });
+  } finally { fs.rmSync(root, {recursive: true, force: true}); }
+});
