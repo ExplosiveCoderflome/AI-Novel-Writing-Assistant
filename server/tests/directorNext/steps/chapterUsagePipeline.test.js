@@ -8,7 +8,7 @@ const { buildChapterArtifactContentHash } = require('../../../dist/services/nove
 const { novelEventBus } = require('../../../dist/events');
 const promptRunner = require('../../../dist/prompting/core/promptRunner');
 
-async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false, edited = false, acceptanceVersion = 2, acceptanceUnavailable = false, effective = false } = {}) {
+async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false, edited = false, acceptanceVersion = 2, acceptanceUnavailable = false, bookTargetChapterCount, effective = false } = {}) {
   const restore = [];
   const replace = (target, key, value) => {
     const previous = target[key];
@@ -50,6 +50,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     reassessed++; return {reviewExecuted: !acceptanceUnavailable, pass: false, score, issues, runtimePackage: null, retryCountUsed: 0};
   });
   const calls = [];
+  const routeCalls = [];
   let usageReads = 0, classifications = 0, planningTokens = 0, cacheTokens = 0;
   replace(prisma.llmInvocationUsageRecord, 'aggregate', async ({where}) => ({ _sum: where.stage === 'chapter_batch'
     ? {totalTokens:planningTokens,promptTokens:planningTokens,completionTokens:0,cacheHitTokens:0}
@@ -62,7 +63,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     }
     Object.assign(job, data); return job;
   });
-  replace(prisma.novel, 'findUnique', async () => ({ id: 'book', title: '测试小说', estimatedChapterCount: rolling === 'range' ? 10 : 2 }));
+  replace(prisma.novel, 'findUnique', async () => ({ id: 'book', title: '测试小说', estimatedChapterCount: bookTargetChapterCount ?? (rolling === 'range' ? 10 : 2) }));
   let routePrepared = !rolling || secondClosed;
   replace(prisma.chapter, 'findMany', async () => routePrepared ? chapters : chapters.slice(0, 1));
   replace(prisma.chapter, 'findFirst', async ({ where }) => chapters.find(chapter => where.id ? chapter.id === where.id : chapter.order === where.order));
@@ -77,7 +78,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     } }) };
   });
   const { ChapterRouteWindowService } = require('../../../dist/services/novel/planning/ChapterRouteWindowService');
-  replace(ChapterRouteWindowService.prototype, 'ensureRouteWindow', async () => { routePrepared = true; });
+  replace(ChapterRouteWindowService.prototype, 'ensureRouteWindow', async (novelId, order, options) => { routeCalls.push({novelId, order, options}); routePrepared = true; });
   replace(prisma.novelWorkflowTask, 'findUnique', async () => { throw new Error('new pipeline must not read a legacy workflow'); });
   replace(prisma.novelWorkflowTask, 'update', async () => { throw new Error('new pipeline must not write a legacy workflow'); });
   replace(promptRunner, 'runStructuredPrompt', async () => { classifications++; throw new Error('test must not call AI'); });
@@ -110,7 +111,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
   try {
     await executor.execute(job.id, 'book', options);
     const outcome = director ? await readBatchOutcome(job, { runId: 'new-run', contract: { novelId: 'book', chapterRange: { from: 1, to: 2 }, issuePolicy: { mode: qualityFirst ? 'quality_first' : 'completion_first' } } }) : null;
-    return { job, chapters, calls, usageReads, classifications, outcome, synchronized, reassessed };
+    return { job, chapters, calls, routeCalls, usageReads, classifications, outcome, synchronized, reassessed };
   } finally { for (const undo of restore.reverse()) undo(); }
 }
 
@@ -342,3 +343,17 @@ for (const qualityFirst of [false, true]) {
     assert.equal(result.chapters[0].content, '已保存但尚未记录质量债的正文');
   });
 }
+
+test('a partial long-book batch keeps the full-book ending target without extending authorized prose', async () => {
+  const result = await exercise({ rolling: 'range', bookTargetChapterCount: 400, chapterTokens: 100 });
+  assert.ok(result.routeCalls.length > 0);
+  for (const call of result.routeCalls) {
+    assert.equal(call.options.completionProfile.mode, 'serial_book');
+    assert.equal(call.options.completionProfile.targetChapterCount, 400);
+    assert.equal(call.options.completionProfile.endingRequiredBy, 400);
+  }
+  assert.deepEqual(result.calls, ['c1', 'c2']);
+  assert.equal(result.job.endOrder, 2);
+  assert.equal(result.job.totalCount, 2);
+  assert.equal(result.job.status, 'succeeded');
+});
