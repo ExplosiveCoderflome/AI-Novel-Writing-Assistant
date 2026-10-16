@@ -215,3 +215,41 @@ test("rejected actions are recorded and exhaust the rejection budget into a manu
   assert.equal(harness.events.filter((event) => event.type === "action_rejected").length, 2);
   assert.equal(harness.events.filter((event) => event.type === "stop_signal").length, 1);
 });
+
+test("successful progress releases earlier rejection allowance without erasing history", async () => {
+  let reject = true;
+  const valid = createPlanOrchestrator();
+  const harness = createHarness({rejectionBudget: 2, orchestrator: {next: input => reject
+    ? {kind: "run_step", stepId: "not-registered"} : valid.next(input)}});
+  assert.equal((await harness.executor.runOnce("run-1")).kind, "rejected");
+  reject = false;
+  assert.equal((await harness.executor.runOnce("run-1")).kind, "executed");
+  reject = true;
+  assert.equal((await harness.executor.runOnce("run-1")).kind, "rejected");
+  assert.equal(harness.getControl().status, "running");
+  assert.equal((await harness.executor.runOnce("run-1")).kind, "paused");
+  assert.equal(harness.events.filter(event => event.type === "action_rejected").length, 3);
+});
+
+test("a stale protected result opens a saved-result gate instead of exhausting rejections", async () => {
+  for (const driver of ["auto", "assisted"]) {
+    const harness = createHarness({contractOverrides: {driver}});
+    harness.artifacts.push(artifact("story_macro", {status: "stale", protectedUserContent: true}));
+    assert.equal((await harness.executor.runOnce("run-1")).kind, "executed");
+    assert.equal(harness.getControl().status, "waiting_gate");
+    assert.deepEqual(harness.getControl().gate.artifactTypes, ["story_macro"]);
+    assert.deepEqual(harness.executed, []);
+    assert.equal(harness.events.some(event => event.type === "action_rejected"), false);
+  }
+});
+
+test("a protected write rejected by the guard pauses once with the original safety cause", async () => {
+  const harness = createHarness({orchestrator: {next: () => ({kind: "run_step", stepId: "story_macro"})}});
+  harness.artifacts.push(artifact("story_macro", {status: "stale", protectedUserContent: true}));
+  assert.equal((await harness.executor.runOnce("run-1")).kind, "paused");
+  assert.equal(harness.getControl().pause.kind, "safety");
+  assert.equal(harness.getControl().pause.reason, "protected_content");
+  assert.equal(harness.events.filter(event => event.type === "action_rejected").length, 1);
+  assert.equal(harness.events.at(-1).payload.rejection.code, "protected_content");
+  assert.deepEqual(harness.executed, []);
+});

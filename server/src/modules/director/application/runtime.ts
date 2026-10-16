@@ -6,6 +6,12 @@ import { recoveryBoundarySeq } from "./revision/regeneration";
 
 const DEFAULT_LEASE_MS = 30_000;
 
+/** Progress starts a new rejection series; unrelated stages do not share the allowance. */
+export function actionRejectionsSinceProgress(events: Awaited<ReturnType<EventLog["list"]>>) {
+  const boundary = events.filter(event => ["stop_signal_cleared", "step_finished", "gate_regeneration_requested"].includes(event.type)).at(-1)?.seq ?? 0;
+  return events.filter(event => event.type === "action_rejected" && event.seq > boundary);
+}
+
 /** Production snapshots allow zero or one automatic retry; kernel-only runs predate that snapshot. */
 export function automaticRecoveryBudget(contract: RunContract): number {
   const policy = contract.issuePolicy.pipelinePolicy;

@@ -179,3 +179,13 @@ export function readySteps(
   );
 }
 
+/** Stale author edits require confirmation of saved content, never automatic replacement. */
+export function protectedRecoveryGate(
+  plan: PlanDefinition, facts: FactsSnapshot, scope: string, step: StepDefinition,
+): ArtifactType[] {
+  const artifact = latestArtifact(facts, step.produces, scope);
+  return step.gateable && artifact?.status === "stale" && artifact.protectedUserContent
+    && plan.steps.some(candidate => candidate.id === step.id)
+    ? [step.produces] : [];
+}
+

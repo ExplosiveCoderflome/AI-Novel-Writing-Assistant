@@ -23,7 +23,7 @@ export class ProjectionService {
   constructor(private readonly deps: ProjectionServiceDeps) {}
 
   async get(runId: string): Promise<DashboardView> {
-    const { contract, control, facts, executionFailure } = await this.deps.factsLoader.load(runId);
+    const { contract, control, facts, executionFailure, actionRejection } = await this.deps.factsLoader.load(runId);
     const plan = this.deps.planRegistry.get(contract.planVersion);
     if (!plan) {
       throw new UnknownPlanVersionError(contract.planVersion);
@@ -37,6 +37,7 @@ export class ProjectionService {
       plan,
       facts,
       executionFailure,
+      actionRejection,
       artifactTypes: Object.fromEntries(Object.entries(artifactTypes).map(([type,info]) => [type,{
         ...info,
         reviewRoute: info.reviewRoute.replace(":novelId", encodeURIComponent(contract.novelId))

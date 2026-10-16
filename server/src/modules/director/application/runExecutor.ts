@@ -2,7 +2,7 @@ import { checkAction, createPlanOrchestrator, type Action, type Orchestrator, ty
 import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, PlanRegistry } from "./ports";
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
 import { StepRegistry, type StepResult } from "./stepRegistry";
-import { automaticRecoveryBudget, executionRecoveryFailures } from "./runtime";
+import { actionRejectionsSinceProgress, automaticRecoveryBudget, executionRecoveryFailures } from "./runtime";
 import {regenerationForStep} from "./revision/regeneration";
 
 export type RunExecutionResult =
@@ -44,8 +44,7 @@ export class RunExecutor {
     const plan = this.deps.planRegistry.get(loaded.contract.planVersion);
     if (!plan) throw new Error(`director next plan version not found: ${loaded.contract.planVersion}`);
     const events = await this.deps.eventLog.list(runId);
-    const resumedAt = events.filter(event => event.type === "stop_signal_cleared").at(-1)?.seq ?? 0;
-    const rejections = events.filter(event => event.type === "action_rejected" && event.seq > resumedAt).length;
+    const rejections = actionRejectionsSinceProgress(events).length;
     const orchestrator = loaded.contract.driver === "assisted" ? this.deps.assistedOrchestrator ?? this.deps.orchestrator : this.deps.orchestrator;
     const action = orchestrator.next({ plan, contract: loaded.contract, facts: loaded.facts });
     const verdict = checkAction({
@@ -80,16 +79,17 @@ export class RunExecutor {
   ): Promise<RunExecutionResult> {
     const nextRejections = eventCount + 1;
     await this.deps.eventLog.append({ runId, type: "action_rejected", payload: { action, code, message } });
-    if (nextRejections < loaded.contract.rejectionBudget) return { kind: "rejected", code };
-    const reason = "rejection_budget_exhausted";
+    if (code !== "protected_content" && nextRejections < loaded.contract.rejectionBudget) return { kind: "rejected", code };
+    const reason = code === "protected_content" ? "protected_content" : "rejection_budget_exhausted";
+    const kind = code === "protected_content" ? "safety" as const : "manual_recovery" as const;
     await this.deps.eventLog.append({
       runId,
       type: "stop_signal",
-      payload: { kind: "manual_recovery", reason, action: "pause_for_manual", source: "runtime" },
+      payload: { kind, reason, action: "pause_for_manual", source: "runtime", rejection: {code, action, message} },
     });
     await this.deps.runRepository.transition(runId, {
       type: "pause",
-      pause: { kind: "manual_recovery", reason },
+      pause: { kind, reason },
     }, loaded.control.version);
     return { kind: "paused" };
   }

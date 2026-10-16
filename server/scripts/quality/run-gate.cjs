@@ -41,6 +41,8 @@ const tests = [
   "tests/directorNext/application/processRecoverySqlite.test.js",
   "tests/directorNext/application/directorNextReadOnlySqlite.test.js",
   "tests/directorNext/application/gateService.test.js",
+  "tests/directorNext/application/runExecutor.test.js",
+  "tests/directorNext/application/protectedContentRecoverySqlite.test.js",
   "tests/directorNext/application/gateProcessRecoverySqlite.test.js",
   "tests/directorNext/application/confirmationRoutesSqlite.test.js",
   "tests/directorNext/steps/chapterUsagePipeline.test.js",

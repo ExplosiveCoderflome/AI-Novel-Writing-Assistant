@@ -20,7 +20,8 @@ export class GateService {
     const artifacts = control.gate.artifactTypes.map(type => {
       const step = plan.steps.find(step => step.produces === type && step.gateable);
       const artifact = latestArtifact(facts, type, contract.scope);
-      if (!step || (contract.stepIdsInScope && !contract.stepIdsInScope.includes(step.id)) || !artifact || artifact.status === "stale") throw new GateResolutionError("需要确认的资产已变化，请刷新创作页面。");
+      if (!step || (contract.stepIdsInScope && !contract.stepIdsInScope.includes(step.id)) || !artifact
+        || (artifact.status === "stale" && !artifact.protectedUserContent)) throw new GateResolutionError("需要确认的资产已变化，请刷新创作页面。");
       if (decision === "regenerate" && artifact.protectedUserContent) throw new GateResolutionError("该资产包含需保留的内容，请先在资产页面查看并保存调整。");
       return {type, expectedVersion: artifact.version};
     });

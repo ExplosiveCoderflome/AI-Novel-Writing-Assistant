@@ -147,6 +147,11 @@ export interface FactsSnapshot {
   stopSignal: StopSignal | null;
 }
 
+export interface ActionRejection {
+  code: string;
+  stepId?: string;
+}
+
 export type Action =
   | { kind: "run_step"; stepId: string }
   | { kind: "open_gate"; gateId: string; artifactTypes: readonly ArtifactType[] }

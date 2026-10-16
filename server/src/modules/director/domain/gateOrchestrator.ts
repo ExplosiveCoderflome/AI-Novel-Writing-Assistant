@@ -1,4 +1,4 @@
-import { latestArtifact, readySteps, remainingSteps } from "./plan";
+import { latestArtifact, protectedRecoveryGate, readySteps, remainingSteps } from "./plan";
 import type { Orchestrator } from "./types";
 
 /** Assisted driving is a separate policy; it shares dependency facts, never the automatic orchestrator. */
@@ -16,7 +16,11 @@ export function createGateOrchestrator(): Orchestrator {
     if (pending.length) return {kind: "open_gate", gateId: `gate:${contract.runId}:${pending.map(step => `${step.produces}@${latestArtifact(facts, step.produces, contract.scope)!.version}`).join(",")}`,
       artifactTypes: pending.map(step => step.produces)};
     const ready = readySteps(plan, facts, {scope: contract.scope, requireConfirmed: true, stepIdsInScope: contract.stepIdsInScope});
-    if (ready.length) return {kind: "run_step", stepId: ready[0].id};
+    if (ready.length) {
+      const protectedTypes = protectedRecoveryGate(plan, facts, contract.scope, ready[0]);
+      if (protectedTypes.length) return {kind: "open_gate", gateId: `recovery:${contract.runId}:${protectedTypes.join(",")}`, artifactTypes: protectedTypes};
+      return {kind: "run_step", stepId: ready[0].id};
+    }
     if (remainingSteps(plan, facts, contract.scope, contract.stepIdsInScope).length === 0) return {kind: "complete"};
     return {kind: "pause", pause: {kind: "manual_recovery", reason: "no_runnable_step"}};
   }};

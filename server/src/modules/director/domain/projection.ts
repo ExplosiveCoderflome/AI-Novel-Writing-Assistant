@@ -1,7 +1,8 @@
-import { isArtifactSatisfied } from "./plan";
+import { isArtifactSatisfied, latestArtifact } from "./plan";
 import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
 import type {
   ArtifactType,
+  ActionRejection,
   ChapterRange,
   Driver,
   FactsSnapshot,
@@ -92,6 +93,7 @@ export interface ProductionProjection {
 
 export interface ProjectionInput {
   executionFailure?: string;
+  actionRejection?: ActionRejection;
   contract: RunContract;
   control: RunControl;
   plan: PlanDefinition;
@@ -153,6 +155,12 @@ export function project(input: ProjectionInput): DashboardView {
       const types = control.gate?.artifactTypes ?? [];
       headline = `请确认「${types.map((type) => infoOf(type).label).join("、")}」后继续`;
       nextActionGuidance = "打开本阶段结果，核对后点击“确认结果并继续”。AI 会继续推进本次授权范围。";
+      if (types.some(type => {
+        const artifact = latestArtifact(facts, type, contract.scope);
+        return artifact?.status === "stale" && artifact.protectedUserContent;
+      })) {
+        nextActionGuidance = "本阶段包含需保留的修改，请核对已保存结果并确认；AI 将继续使用这些内容。";
+      }
       availableActions = [
         ...types.map(
           (type, index): ActionDescriptor => ({
@@ -174,6 +182,20 @@ export function project(input: ProjectionInput): DashboardView {
         detail = input.executionFailure?.trim()
           ? `本阶段生成失败：${input.executionFailure.trim()} 自动重试已结束。`
           : "本阶段生成中断，自动重试已结束。";
+      }
+      if (detail === "rejection_budget_exhausted" || detail === "protected_content") {
+        const rejection = input.actionRejection;
+        const step = plan.steps.find(row => row.id === rejection?.stepId);
+        const stage = step ? `「${step.label}」` : "当前阶段";
+        const reasons: Record<string, string> = {
+          protected_content: `${stage}涉及需要保留的修改，不能自动覆盖。请核对本书已保存的结果后继续。`,
+          requires_unmet: `${stage}缺少已保存或已确认的前置结果，请核对前面的创作阶段后继续。`,
+          step_out_of_scope: `${stage}超出本次授权范围，请核对创作范围后重新提交。`,
+          unknown_step: "本次创作步骤与保存的计划不一致，请保留运行记录以便排查。",
+          budget_exceeded: "本次创作达到授权用量上限，请核对用量后继续。",
+        };
+        detail = reasons[rejection?.code ?? (detail === "protected_content" ? "protected_content" : "")]
+          ?? "本次推进未通过创作保护检查，请核对已保存结果与运行记录中的拒绝原因后继续。";
       }
       nextActionGuidance = "请先查看下方暂停原因，处理后点击“从保存进度继续”；已有正文会保留。";
       if (pauseKind === "replan") {

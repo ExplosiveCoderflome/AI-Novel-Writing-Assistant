@@ -1,8 +1,10 @@
-import { FactIntegrityError, type FactsSnapshot, type RunContract, type RunControl, type StopSignal } from "../domain";
+import { FactIntegrityError, type ActionRejection, type FactsSnapshot, type RunContract, type RunControl, type StopSignal } from "../domain";
+import {actionRejectionsSinceProgress} from "./runtime";
 import type { ArtifactLedger, EventLog, QualityDebtRepository, RunRepository } from "./ports";
 
 export interface LoadedRunFacts {
   executionFailure?: string;
+  actionRejection?: ActionRejection;
   contract: RunContract;
   control: RunControl;
   facts: FactsSnapshot;
@@ -92,8 +94,11 @@ export class FactsLoader {
     ]);
     const eventStop = readStopSignal(events);
     const failure = events.filter(event => event.type === "execution_failure").at(-1)?.payload as {message?: unknown} | undefined;
+    const rejected = actionRejectionsSinceProgress(events).at(-1)?.payload as {code?: unknown; action?: {kind?: unknown; stepId?: unknown}} | undefined;
     return {
       ...(typeof failure?.message === "string" ? {executionFailure: failure.message} : {}),
+      ...(typeof rejected?.code === "string" ? {actionRejection: {code: rejected.code,
+        ...(rejected.action?.kind === "run_step" && typeof rejected.action.stepId === "string" ? {stepId: rejected.action.stepId} : {})}} : {}),
       contract,
       control,
       facts: { artifacts, debts, stopSignal: control.pause && eventStop?.reason === control.pause.reason && eventStop.kind === control.pause.kind ? eventStop : savedPause(control) ?? eventStop },

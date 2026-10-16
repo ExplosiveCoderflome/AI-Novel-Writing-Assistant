@@ -1,4 +1,4 @@
-import { readySteps, remainingSteps } from "./plan";
+import { protectedRecoveryGate, readySteps, remainingSteps } from "./plan";
 import type { Orchestrator } from "./types";
 
 export function createPlanOrchestrator(): Orchestrator {
@@ -29,6 +29,8 @@ export function createPlanOrchestrator(): Orchestrator {
         stepIdsInScope: contract.stepIdsInScope,
       });
       if (ready.length > 0) {
+        const protectedTypes = protectedRecoveryGate(plan, facts, contract.scope, ready[0]);
+        if (protectedTypes.length) return {kind: "open_gate", gateId: `recovery:${contract.runId}:${protectedTypes.join(",")}`, artifactTypes: protectedTypes};
         return { kind: "run_step", stepId: ready[0].id };
       }
 

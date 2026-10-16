@@ -117,14 +117,22 @@ export function checkAction(input: GuardInput): GuardVerdict {
       return { ok: true };
     }
     case "open_gate": {
-      if (contract.driver !== "assisted") {
+      const recoveryGate = action.artifactTypes.length > 0 && action.artifactTypes.every(type => {
+        const artifact = latestArtifact(facts, type, contract.scope);
+        const step = plan.steps.find(candidate => candidate.produces === type && candidate.gateable);
+        return artifact?.status === "stale" && artifact.protectedUserContent && step
+          && (!contract.stepIdsInScope || contract.stepIdsInScope.includes(step.id))
+          && step.requires.every(required => isArtifactSatisfied(facts, required, contract.scope, contract.driver === "assisted"));
+      });
+      if (contract.driver !== "assisted" && !recoveryGate) {
         return reject("invalid_action", "gates are only available to assisted runs");
       }
       if (action.artifactTypes.length === 0) {
         return reject("invalid_action", "a gate must reference at least one artifact type");
       }
       const missing = action.artifactTypes.filter(
-        (type) => !isArtifactSatisfied(facts, type, contract.scope, false),
+        (type) => !isArtifactSatisfied(facts, type, contract.scope, false)
+          && !(recoveryGate && latestArtifact(facts, type, contract.scope)?.protectedUserContent),
       );
       if (missing.length > 0) {
         return reject("invalid_action", `gate references missing artifacts: ${missing.join(", ")}`);

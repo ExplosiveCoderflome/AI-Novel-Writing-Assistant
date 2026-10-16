@@ -107,6 +107,22 @@ test("open_gate is only valid for assisted runs with existing artifacts", () => 
   );
 });
 
+test("protected recovery gates require an in-scope gateable producer and satisfied dependencies", () => {
+  const gate = { kind: "open_gate", gateId: "recovery", artifactTypes: ["story_macro"] };
+  const recoveryPlan = { ...plan, steps: plan.steps.map(step => step.id === "story_macro" ? { ...step, gateable: true } : step) };
+  const recoveryFacts = facts([artifact("novel_seed"), artifact("story_macro", { status: "stale", protectedUserContent: true })]);
+  const recovery = { action: gate, plan: recoveryPlan, facts: recoveryFacts };
+  assert.deepEqual(check(recovery), { ok: true });
+  for (const overrides of [
+    { contract: contract({ stepIdsInScope: ["character_cast"] }) },
+    { plan: { ...recoveryPlan, steps: recoveryPlan.steps.map(step => ({ ...step, gateable: false })) } },
+    { facts: facts([artifact("story_macro", { status: "stale", protectedUserContent: true })]) },
+    { facts: facts([artifact("novel_seed"), artifact("story_macro", { status: "stale", protectedUserContent: false })]) },
+  ]) {
+    assert.equal(codeOf(check({ ...recovery, ...overrides })), "invalid_action");
+  }
+});
+
 test("record_debt validates its payload", () => {
   assert.deepEqual(check({ action: { kind: "record_debt", chapterOrder: 3, code: "quality.local_patch" } }), { ok: true });
   assert.equal(codeOf(check({ action: { kind: "record_debt", chapterOrder: 0, code: "x" } })), "invalid_action");
