@@ -377,7 +377,8 @@ export class ChapterArtifactDeltaService {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.4),
-        maxTokens: 6000,
+        // Inherit the fact-extraction route's configured output limit. The JSON
+        // repair path must have the same room to preserve all extracted facts.
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_artifact_delta",
