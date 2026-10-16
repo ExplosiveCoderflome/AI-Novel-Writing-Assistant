@@ -9,6 +9,8 @@ import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompl
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {revalidateSavedPlanning} from "./recovery/missingPlanning";
 import {saveChapterPlanEdit} from "./revisions/chapterPlan";
+import {authorizeChapterBudget, readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../services/novel/production/usage";
+import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
@@ -66,15 +68,35 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
   return {contentRef: input.contentRef, contentHash: artifactContentHash(content), protectedUserContent};
 }
 
-export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient) {
+export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient, chapterBudget?: DirectorChapterBudgetGrant) {
   const event = await tx.directorNextEvent.findFirst({where: {runId: contract.runId, type: "chapter_batch_job"}, orderBy: {seq: "desc"}});
-  if (!event) {await revalidateSavedPlanning(contract,tx);return;}
+  if (!event) {
+    if (chapterBudget) throw new AppError("本次创作没有可调整的章节预算。",400);
+    await revalidateSavedPlanning(contract,tx);return;
+  }
   const binding = JSON.parse(event.payloadJson) as {jobId?: unknown};
   if (typeof binding.jobId !== "string") throw new Error("正文恢复绑定无效。");
   const job = await tx.generationJob.findUniqueOrThrow({where: {id: binding.jobId}});
   const payload = parsePipelinePayload(job.payload);
   if (job.novelId !== contract.novelId || payload.directorNext?.runId !== contract.runId) throw new Error("正文作业不属于本次运行。");
+  if (chapterBudget && (!job.pendingManualRecovery || !["queued","running"].includes(job.status) || job.cancelRequestedAt)) {
+    throw new AppError("暂停状态发生变化，请刷新后重试。",400);
+  }
   if (job.pendingManualRecovery) {
+    const pausedBudget = readPausedChapterBudget(payload.directorNext, job.id);
+    if (chapterBudget) {
+      const range = contract.chapterRange;
+      const chapter = await tx.chapter.findFirst({where: {id: chapterBudget.chapterId, novelId: contract.novelId},select: {order: true}});
+      if (!range || !chapter || chapter.order < range.from || chapter.order > range.to) throw new AppError("预算授权不属于本次章节范围。",400);
+      try {
+        const usage = await readChapterUsageCounters(job.id,tx);
+        observeChapterUsage(payload.directorNext,chapterBudget.chapterId,usage.job,usage.batch);
+        authorizeChapterBudget(payload.directorNext, job.id, chapterBudget);
+      }
+      catch (error) {throw new AppError(error instanceof Error ? error.message : "本章额度无效。",400);}
+    } else if (pausedBudget) {
+      throw new AppError("请在导演台确认本章新额度，再从保存进度继续。",400);
+    }
     if (payload.directorNext.pendingCharacterReviewId) {
       await directorCharacterCandidates.assertResolved(contract.runId, payload.directorNext.pendingCharacterReviewId, tx);
       delete payload.directorNext.pendingCharacterReviewId;
@@ -85,7 +107,11 @@ export async function resumeBusiness(contract: RunContract, tx: Prisma.Transacti
     }
     payload.directorNext.resolvedDecisionCount = payload.directorNext.decisions.length;
     payload.replanAlertDetails = [];
-    await tx.generationJob.update({where: {id: job.id}, data: {pendingManualRecovery: false, payload: stringifyPipelinePayload(payload)}});
+    const data = {pendingManualRecovery: false, payload: stringifyPipelinePayload(payload)};
+    if (chapterBudget) {
+      const changed = await tx.generationJob.updateMany({where: {id: job.id, pendingManualRecovery: true, payload: job.payload},data});
+      if (changed.count !== 1) throw new AppError("暂停状态发生变化，请刷新后重试。",409);
+    } else await tx.generationJob.update({where: {id: job.id}, data});
   }
 }
 

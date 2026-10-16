@@ -147,7 +147,7 @@ export class PrismaCommandRepository implements CommandRepository {
       }
       if (input.event.type === "resume") {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
-        await commitExplicitResume(tx, JSON.parse(run.contractJson) as RunContract, input.id, this.options.resumeBusiness);
+        await commitExplicitResume(tx, JSON.parse(run.contractJson) as RunContract, input.id, this.options.resumeBusiness, input.chapterBudget);
       }
       if (input.gateResolution) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});

@@ -37,6 +37,21 @@ function deps(overrides = {}) {
   };
 }
 
+test('resume accepts an explicit scoped budget grant and rejects invalid or weighted metrics',async()=>{
+ const received=[];
+ await withServer(deps({commandService:{execute:async command=>{received.push(command);return {runId:command.runId,controlVersion:3};}}}),async base=>{
+  const body={type:'resume',runId:'run-1',expectedVersion:2,idempotencyKey:'grant',
+   chapterBudget:{jobId:'job',chapterId:'c3',metric:'uncached_tokens_v1',tokenLimit:122000}};
+  const post=value=>fetch(base+'/api/director-next/commands',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(value)});
+  assert.equal((await post(body)).status,202);
+  assert.deepEqual(received,[body]);
+  for(const change of [{tokenLimit:0},{tokenLimit:122000.5},{tokenLimit:10000001},{metric:'output_weight_2'},{chapterId:''}]){
+   assert.equal((await post({...body,chapterBudget:{...body.chapterBudget,...change}})).status,400);
+  }
+  assert.equal(received.length,1);
+ });
+});
+
 test('initial schedule fill is explicit, book-scoped and validates model selection without director commands',async()=>{
   const fills=[];
   await withServer(deps({fillInitialCharacterSchedule:async(novelId,input)=>{fills.push({novelId,input});return {updated:2,remaining:0};},

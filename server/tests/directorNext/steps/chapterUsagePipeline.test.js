@@ -8,7 +8,7 @@ const { buildChapterArtifactContentHash } = require('../../../dist/services/nove
 const { novelEventBus } = require('../../../dist/events');
 const promptRunner = require('../../../dist/prompting/core/promptRunner');
 
-async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false, edited = false, acceptanceVersion = 2, acceptanceUnavailable = false } = {}) {
+async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_000, futurePlanningTokens = 0, director = true, rejectBaseline = false, rolling = false, storedCompleted = 0, firstClosed = false, secondClosed = false, reviewedRisk = false, legacySaved = false, staleAcceptance = false, missingBoundary = false, qualityFirst = false, acceptancePause = false, edited = false, acceptanceVersion = 2, acceptanceUnavailable = false, effective = false } = {}) {
   const restore = [];
   const replace = (target, key, value) => {
     const previous = target[key];
@@ -22,6 +22,7 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     ...(director ? { directorNext: { runId: 'new-run', decisions: [], ...(checkpoints ? { chapterUsage: checkpoints } : {}) } } : {}) };
   const job = { id: 'new-job', novelId: 'book', startOrder: 1, endOrder: 2, status: 'queued', pendingManualRecovery: false,
     startedAt: null, completedCount: storedCompleted, totalCount: 2, retryCount: 0, totalTokens: initialTokens, payload: JSON.stringify(options) };
+  if (effective) Object.assign(job,{promptTokens:0,completionTokens:0});
   const chapters = [1, 2].map(order => ({ id: `c${order}`, novelId: 'book', order, title: `第${order}章`, content: '', artifactSyncCheckpoints: [] }));
   if (firstClosed) {
     chapters[0].content = '原已闭合正文';
@@ -49,8 +50,10 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     reassessed++; return {reviewExecuted: !acceptanceUnavailable, pass: false, score, issues, runtimePackage: null, retryCountUsed: 0};
   });
   const calls = [];
-  let usageReads = 0, classifications = 0, planningTokens = 0;
-  replace(prisma.llmInvocationUsageRecord, 'aggregate', async () => ({ _sum: { totalTokens: planningTokens } }));
+  let usageReads = 0, classifications = 0, planningTokens = 0, cacheTokens = 0;
+  replace(prisma.llmInvocationUsageRecord, 'aggregate', async ({where}) => ({ _sum: where.stage === 'chapter_batch'
+    ? {totalTokens:planningTokens,promptTokens:planningTokens,completionTokens:0,cacheHitTokens:0}
+    : {cacheHitTokens:cacheTokens} }));
   replace(prisma.generationJob, 'findUnique', async () => job);
   replace(prisma.generationJob, 'findUniqueOrThrow', async input => { if (input.select?.totalTokens) usageReads++; return job; });
   replace(prisma.generationJob, 'update', async ({ data }) => {
@@ -88,8 +91,10 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
   const runtime = { runPipelineChapter: async (_novelId, id, _options, hooks) => {
     if (director && !legacySaved) await hooks.onCheckBudget?.(16000);
     calls.push(id);
-    if (director) assert.equal(JSON.parse(job.payload).directorNext.chapterUsage.find(row => row.chapterId === id).startJobTokens, job.totalTokens);
+    if (director) assert.equal(JSON.parse(job.payload).directorNext.chapterUsage.find(row => row.chapterId === id).startJobTokens,
+      checkpoints?.find(row=>row.chapterId===id)?.startJobTokens ?? job.totalTokens);
     job.totalTokens += chapterTokens;
+    if (effective) {job.promptTokens += chapterTokens*0.8;job.completionTokens += chapterTokens*0.2;cacheTokens += chapterTokens*0.4;}
     const chapter = chapters.find(row => row.id === id);
     chapter.content = `已保存的${id}正文`;
     chapter.generationState = reviewedRisk ? 'reviewed' : 'approved';
@@ -161,7 +166,7 @@ test('new director pauses at the saved chapter boundary on the 100000-token ceil
   assert.equal(result.job.status, 'queued');
   assert.equal(result.job.retryCount, 0);
   const snapshot = JSON.parse(result.job.payload).directorNext;
-  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, startChapterBatchTokens: 0, totalTokens: 100000, endJobTokens: 100500, endChapterBatchTokens: 0 }]);
+  assert.deepEqual(snapshot.chapterUsage, [{ chapterId: 'c1', chapterOrder: 1, startJobTokens: 500, startChapterBatchTokens: 0, totalTokens: 100000, endJobTokens: 100500, endChapterBatchTokens: 0, budgetPause:{reserveTokens:0,stage:null} }]);
   assert.equal(snapshot.decisions.at(-1).issueCode, 'runtime.token_budget_exceeded');
   assert.equal(snapshot.decisions.at(-1).locked, true);
   assert.equal(result.outcome.chapters[0].closed, true);
@@ -210,6 +215,26 @@ test('chapter preflight reserves room before starting another AI stage', async (
   assert.equal(result.job.pendingManualRecovery, true);
   assert.match(result.job.error, /预留 16000 Tokens/);
   assert.equal(result.chapters[0].content, '');
+  assert.deepEqual(JSON.parse(result.job.payload).directorNext.chapterUsage[0].budgetPause,{reserveTokens:16000,stage:null});
+});
+
+test('new effective budgets use cache from the invocation ledger and single-weight output across chapters',async()=>{
+ const result=await exercise({effective:true});
+ assert.deepEqual(result.calls,['c1','c2']);
+ assert.equal(result.job.status,'succeeded');
+ assert.equal(result.job.totalTokens,200000);
+ const rows=JSON.parse(result.job.payload).directorNext.chapterUsage;
+ assert.deepEqual(rows.map(row=>row.effectiveTokens),[60000,60000]);
+ assert.deepEqual(rows.map(row=>row.cacheHitTokens),[40000,40000]);
+});
+
+test('a granted legacy chapter resumes with its saved baseline and cumulative usage',async()=>{
+ const result=await exercise({initialTokens:89892,chapterTokens:100,
+  checkpoints:[{chapterId:'c1',chapterOrder:1,startJobTokens:0,totalTokens:89892,tokenLimit:122000}]});
+ assert.deepEqual(result.calls,['c1','c2']);
+ assert.equal(result.job.status,'succeeded');
+ const first=JSON.parse(result.job.payload).directorNext.chapterUsage[0];
+ assert.equal(first.startJobTokens,0);assert.equal(first.totalTokens,89992);assert.equal(first.tokenLimit,122000);
 });
 
 test('recovery keeps the original chapter baseline and refuses another generation after exhaustion', async () => {

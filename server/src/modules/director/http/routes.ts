@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import {chapterPlanEditSchema} from "@ai-novel/shared/types/director/revision";
+import {directorChapterBudgetGrantSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
 import type {ResolveDirectorCharacterCandidates} from "@ai-novel/shared/types/director/characterCandidates";
@@ -58,7 +59,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     expectedVersion,
     idempotencyKey: nonEmpty,
   }),
-  z.object({ type: z.literal("resume"), runId: nonEmpty, expectedVersion, idempotencyKey: nonEmpty }),
+  z.object({ type: z.literal("resume"), runId: nonEmpty, expectedVersion, idempotencyKey: nonEmpty, chapterBudget: directorChapterBudgetGrantSchema.optional() }),
   z.object({
     type: z.literal("handoff"),
     runId: nonEmpty,

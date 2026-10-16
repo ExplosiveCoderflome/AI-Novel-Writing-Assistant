@@ -98,6 +98,12 @@ export function renderedProduction() {
  </MemoryRouter></QueryClientProvider>);
  const running={...previewView('running'),headline:'正在检查第 3 章《第三章》',nextActionGuidance:'等待本批次完成',chapterProgress:{from:1,to:3,done:2,total:3,current:{order:3,title:'第三章',phase:'reviewing'}},nextLaunchRange:{from:4,to:6}};
  return {running:render(running),completed:render({...running,mode:'completed',headline:'第 1—3 章已完成',nextActionGuidance:'核对范围并提交',chapterProgress:{...running.chapterProgress,done:3,current:null},availableActions:[{id:'open_run',command:'open_run',kind:'command',label:'选择并继续写第 4—6 章',primary:true}]})};
+}
+export function renderedBudget() {
+ const view={...previewView('manual'),mode:'paused',availableActions:[],chapterBudget:{jobId:'job',chapterId:'c3',chapterOrder:3,
+  metric:'uncached_tokens_v1',usedTokens:89892,rawTokens:114212,promptTokens:95016,completionTokens:19196,cacheHitTokens:24320,
+  tokenLimit:100000,reserveTokens:16000,recommendedLimit:122000,stage:'review',closed:false}};
+ return renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><MemoryRouter><DirectorPanel view={view} novelId='book' preview/></MemoryRouter></QueryClientProvider>);
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
@@ -106,7 +112,7 @@ export function renderedProduction() {
       define: { 'import.meta.env': '{}' },
       outfile: output,
     });
-    const { renderedStates, renderedSwitchCases, renderedProduction } = await import(pathToFileURL(output).href);
+    const { renderedStates, renderedSwitchCases, renderedProduction, renderedBudget } = await import(pathToFileURL(output).href);
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
@@ -133,6 +139,12 @@ export function renderedProduction() {
     assert.match(production.completed,/提交并生成第 4—6 章/);
     assert.match(production.completed,/更多创作设置/);
     assert.ok(production.completed.indexOf('正在做什么')<production.completed.indexOf('id="director-start"'),'status and next-step context come before launch settings');
+    const budget=renderedBudget();
+    assert.match(budget,/id="director-chapter-budget"/);
+    assert.match(budget,/本章新上限/);assert.match(budget,/value="122000"/);
+    assert.match(budget,/未命中输入.*输出/);
+    assert.match(budget,/追加额度并继续本章/);
+    assert.match(budget,/确认后从保存进度继续/);
   } finally {
     if (fs.existsSync(output)) fs.unlinkSync(output);
   }

@@ -1,5 +1,6 @@
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
+import type {DirectorChapterBudgetStage} from "@ai-novel/shared/types/director/chapterBudget";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StyleRewriteBaseline, StyleRewriteGuard } from "@ai-novel/shared/types/styleEngine";
@@ -33,7 +34,7 @@ export type { ChapterRepairSelectionRecord } from "./selection/ChapterRepairCand
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
   /** Check the chapter budget before an internal AI step starts. */
-  onCheckBudget?: (reserveTokens?: number) => Promise<void>;
+  onCheckBudget?: (reserveTokens?: number, stage?: DirectorChapterBudgetStage) => Promise<void>;
   onStageChange?: (stage: "generating_chapters" | "reviewing" | "repairing") => Promise<void>;
   onEmptyContent?: (event: PipelineEmptyContentEvent) => Promise<void>;
   onRetryConsumed?: (kind: "quality_repair") => Promise<void | boolean>;
@@ -295,7 +296,7 @@ export async function runPipelineChapterWithRuntime(
     }
 
     await hooks.onStageChange?.("reviewing");
-    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
+    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, "review");
     const priorAssessment = attempt > 0 ? originalEvaluation?.result.acceptanceResult?.assessment : undefined;
     latestResult = await deps.finalizeChapterContent({
       novelId,
@@ -425,7 +426,7 @@ export async function runPipelineChapterWithRuntime(
 
     await hooks.onStageChange?.("repairing");
     await hooks.onCheckCancelled?.();
-    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
+    await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, "repair");
     if (await hooks.onRetryConsumed?.("quality_repair") === false) break;
     retryCountUsed += 1;
     await hooks.onCheckCancelled?.();
@@ -519,7 +520,7 @@ export async function resumeFinalizedPipelineChapter(
   hooks: PipelineRuntimeHooks,
 ): Promise<PipelineRuntimeResult> {
   await hooks.onCheckCancelled?.();
-  await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
+  await hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, "artifact_sync");
   const artifactSyncResult = await syncFinalRetainedChapterArtifacts(
     deps, novelId, chapterId, saved.content, options.artifactSyncMode ?? "adaptive",
     saved.result.pass ? "confirmed" : "debt", options.artifactSyncPolicy,
@@ -546,7 +547,7 @@ async function generateNonEmptyDraftFromWriter(input: {
   while (true) {
     await input.hooks.onCheckCancelled?.();
     await input.hooks.onStageChange?.("generating_chapters");
-    await input.hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS);
+    await input.hooks.onCheckBudget?.(DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, "draft");
     try {
       const generatedDraft = await input.deps.generateDraftFromWriter({
         novelId: input.novelId,

@@ -9,6 +9,7 @@ import type {
 } from "../domain";
 import type { RunEvent } from "../domain/control";
 import type {ChapterPlanEdit} from "@ai-novel/shared/types/director/revision";
+import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 export interface PlanRegistry {
   get(version: string): PlanDefinition | null;
@@ -37,6 +38,7 @@ export interface CommandTransitionInput extends CommandExecutionInput {
   event: RunEvent;
   expectedVersion: number;
   gateResolution?: GateResolution;
+  chapterBudget?: DirectorChapterBudgetGrant;
 }
 
 export interface GateResolution {

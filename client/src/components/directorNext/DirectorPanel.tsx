@@ -7,6 +7,7 @@ import DirectorGate from "./DirectorGate";
 import DirectorDriveSwitch from "./DirectorDriveSwitch";
 import type {ReactNode} from "react";
 import DirectorCharacterCandidates, {useDirectorCharacterCandidates} from "./characters/DirectorCharacterCandidates";
+import ChapterBudgetRecovery from "./budget/ChapterBudgetRecovery";
 
 interface DirectorPanelProps {
   view: DashboardView;
@@ -57,6 +58,8 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
       <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
       {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}/> : null}
       {candidates.isError ? <p role="alert" className="py-2 text-xs text-destructive">人物候选暂时未能加载，请稍后重试。</p> : null}
+      {view.mode === "paused" && view.chapterBudget ? <ChapterBudgetRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.chapterBudget.chapterId}`}
+        budget={view.chapterBudget} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
       {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={view.availableActions.find(action=>action.kind==="navigate" && action.target===reviewTarget)?.id.slice("review:".length)} renderPlanEditor={renderPlanEditor}/>:null}
       {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 

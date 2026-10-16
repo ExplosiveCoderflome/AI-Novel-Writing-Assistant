@@ -3,6 +3,7 @@ import {FactIntegrityError, PrismaEventLog, type RunContract, type RunControl, t
 import {parsePipelinePayload, isPipelineActiveStage} from "../../../services/novel/pipelineJobState";
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../../services/novel/runtime/artifactSync";
+import {readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../../services/novel/production/usage";
 
 /** Read saved production facts only. Never claim a live chapter from a human-readable job label. */
 export async function readProductionProjection({contract, control}: {contract: RunContract; control: RunControl}): Promise<ProductionProjection> {
@@ -28,7 +29,7 @@ export async function readProductionProjection({contract, control}: {contract: R
   if (new Set(chapters.map(chapter=>chapter.order)).size !== chapters.length) throw new FactIntegrityError("正文进度存在重复章节序号。");
   const chapterProgress: NonNullable<ProductionProjection["chapterProgress"]> = {...range,
     total:range.to-range.from+1, done:chapters.filter(isCurrentChapterProductionCompleted).length, current:null};
-  const binding = (await new PrismaEventLog().list(contract.runId)).find(event=>event.type === "chapter_batch_job");
+  const binding = (await new PrismaEventLog().list(contract.runId)).filter(event=>event.type === "chapter_batch_job").at(-1);
   if (!binding) return {chapterProgress,nextLaunchRange};
   const jobId = (binding.payload as {jobId?:unknown})?.jobId;
   if (typeof jobId !== "string" || !jobId) throw new FactIntegrityError("正文进度的作业绑定损坏。");
@@ -43,5 +44,19 @@ export async function readProductionProjection({contract, control}: {contract: R
       chapterProgress.current = {order:chapter.order,title:chapter.title,phase:job.currentStage};
     }
   }
-  return {chapterProgress,nextLaunchRange};
+  const snapshot = parsePipelinePayload(job.payload).directorNext!;
+  let chapterBudget = control.status === "paused" && control.pause?.kind === "manual_recovery" && job.pendingManualRecovery
+    ? readPausedChapterBudget(snapshot, jobId) : null;
+  if (chapterBudget) {
+    const budget = chapterBudget;
+    if (!chapters.some(chapter=>chapter.id === budget.chapterId && chapter.order === budget.chapterOrder)) {
+      throw new FactIntegrityError("预算暂停的章节不属于本书授权范围。");
+    }
+    if (!budget.closed) {
+      const usage = await readChapterUsageCounters(jobId);
+      observeChapterUsage(snapshot,budget.chapterId,usage.job,usage.batch);
+      chapterBudget = readPausedChapterBudget(snapshot,jobId);
+    }
+  }
+  return {chapterProgress,nextLaunchRange,...(chapterBudget ? {chapterBudget} : {})};
 }

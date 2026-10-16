@@ -1,4 +1,5 @@
 import { isArtifactSatisfied } from "./plan";
+import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
 import type {
   ArtifactType,
   ChapterRange,
@@ -37,6 +38,7 @@ export interface DashboardView {
   nextActionGuidance: string;
   chapterProgress: ChapterProgress | null;
   nextLaunchRange: ChapterRange | null;
+  chapterBudget?: DirectorChapterBudgetView;
   workspaceActivity: WorkspaceActivity;
   progress: { done: number; total: number; source: "artifact_ledger" };
   debts: { count: number; chapterOrders: number[] };
@@ -85,6 +87,7 @@ export interface ChapterProgress extends ChapterRange {
 export interface ProductionProjection {
   chapterProgress: ChapterProgress | null;
   nextLaunchRange: ChapterRange | null;
+  chapterBudget?: DirectorChapterBudgetView;
 }
 
 export interface ProjectionInput {
@@ -191,6 +194,12 @@ export function project(input: ProjectionInput): DashboardView {
         },
         CANCEL_ACTION,
       ];
+      if (input.production?.chapterBudget && pauseKind === "manual_recovery") {
+        headline = `第 ${input.production.chapterBudget.chapterOrder} 章需要追加额度后继续`;
+        nextActionGuidance = "查看下方本章用量，确认本章额度后从保存进度继续；其他章节的上限保持原值。";
+        availableActions = [{id: "chapter_budget", label: "调整本章额度", kind: "navigate", primary: true,
+          target: `${sourceRoute}#director-chapter-budget`}, CANCEL_ACTION];
+      }
       break;
     }
     case "completed":
@@ -251,6 +260,7 @@ export function project(input: ProjectionInput): DashboardView {
     nextActionGuidance,
     chapterProgress,
     nextLaunchRange,
+    ...(control.status === "paused" && input.production?.chapterBudget ? {chapterBudget: input.production.chapterBudget} : {}),
     workspaceActivity: projectWorkspaceActivity(input),
     progress: { done, total: inScope.length, source: "artifact_ledger" },
     debts: { count: facts.debts.length, chapterOrders },

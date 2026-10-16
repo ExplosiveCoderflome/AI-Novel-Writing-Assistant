@@ -30,6 +30,17 @@ test('a retry-budget pause shows the actual generation failure instead of an int
   assert.ok(result.availableActions.some(action=>action.command==='resume'));
 });
 
+test('chapter budget pause exposes its saved allowance and directs recovery to the source budget section',()=>{
+ const budget={jobId:'job',chapterId:'c3',chapterOrder:3,metric:'raw_tokens_v1',usedTokens:89892,rawTokens:89892,
+  tokenLimit:100000,reserveTokens:16000,recommendedLimit:122000,stage:'review',closed:false};
+ const current=view({control:runningControl({status:'paused',pause:{kind:'manual_recovery',reason:'预算预检暂停'}}),
+  production:{chapterProgress:null,nextLaunchRange:null,chapterBudget:budget}});
+ assert.deepEqual(current.chapterBudget,budget);
+ assert.match(current.nextActionGuidance,/本章额度/);
+ assert.equal(current.availableActions.some(action=>action.command==='resume'),false);
+ assert.ok(current.availableActions.some(action=>action.target==='/novels/n1/edit#director-chapter-budget'));
+});
+
 test('workspace activity identifies each producer without exposing raw control to the reader', () => {
   const active = view({control: runningControl({cursorStepId: 'character_cast', version: 8}),
     contract: contract({launchInput: {targetVolumeId: 'v2'}, chapterRange: {from: 11, to: 13}})}).workspaceActivity;
