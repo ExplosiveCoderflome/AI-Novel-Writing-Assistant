@@ -28,7 +28,7 @@ import {
 } from "./volumePlanUtils";
 import { generateVolumePlanDocument } from "./volumeGenerationOrchestrator";
 import { recoverMissingVolumeStrategy } from "./recovery/missingStrategy";
-import {appendMissingRoutePlans} from "./routeWindow";
+import {appendMissingRoutePlans, mergeSavedRouteRows} from "./routeWindow";
 import { VolumeChapterSyncService } from "./VolumeChapterSyncService";
 import { getLegacyVolumeSource } from "./legacyVolumeSource";
 import {
@@ -414,7 +414,7 @@ export class NovelVolumeService {
       const volumes = await listActiveVolumeRows(novelId, tx);
       const current = version ? normalizeVolumeWorkspaceDocument(novelId, version.contentJson, {activeVersionId: version.id})
         : buildVolumeWorkspaceDocument({novelId, volumes});
-      const next = appendMissingRoutePlans({...current, volumes}, generated);
+      const next = appendMissingRoutePlans(mergeSavedRouteRows(current, volumes), generated);
       const savedChapters = await tx.chapter.findMany({where: {novelId}, orderBy: {order: "asc"}});
       const byOrder = new Map(savedChapters.map(chapter => [chapter.order, chapter]));
       if (byOrder.size !== savedChapters.length) throw new Error("小说存在重复章序，请先核对已保存正文。");

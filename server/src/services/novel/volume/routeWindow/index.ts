@@ -1,1 +1,1 @@
-export {appendMissingRoutePlans} from "./appendRoutes";
+export {appendMissingRoutePlans, mergeSavedRouteRows} from "./appendRoutes";

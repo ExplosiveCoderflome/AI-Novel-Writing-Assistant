@@ -638,7 +638,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/world/world.prompts").worldDeepeningQuestionsPrompt as UnknownPromptAsset,
   },
   {
-    key: "world.deepening.integrate_answers@v1",
+    key: "world.deepening.integrate_answers@v2",
     load: () => require("../prompts/world/deepening/answerIntegration.prompts").worldAnswerIntegrationPrompt as UnknownPromptAsset,
   },
   {

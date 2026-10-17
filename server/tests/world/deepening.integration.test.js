@@ -111,3 +111,31 @@ test('missing answer summaries and invalid relation references are never saved a
   await assert.rejects(f.service.answerDeepeningQuestions(f.id,f.answers),/无效实体或关系/);
   assert.equal((await saved(f.id)).version,1);
 });
+
+test('null optional affiliations and leaders preserve saved values without requiring JSON repair',async()=>{
+  const f=await fixture();
+  const structure={...f.structure,forces:f.structure.forces.map(row=>({...row,leader:'作者保留的负责人'}))};
+  await prisma.world.update({where:{id:f.id},data:{structureJson:JSON.stringify(structure)}});
+  generate=async input=>({answers:input.promptInput.answers.map(row=>({questionId:row.questionId,summary:'商会轮流签发通行证'})),
+    changes:{forces:[{id:'guild',summary:'三家商会轮流签发通行证',factionId:null,leader:null}]}});
+  await f.service.answerDeepeningQuestions(f.id,f.answers);
+  const force=(await getWorldStructure(f.id)).structure.forces.find(row=>row.id==='guild');
+  assert.equal(force.leader,'作者保留的负责人');assert.equal(force.factionId,null);
+  assert.equal(calls.length,1);
+  assert.doesNotThrow(()=>require('zod').toJSONSchema(calls[0].asset.outputSchema));
+});
+
+test('unknown faction, representative and controlling force references cannot be accepted as integrated',async()=>{
+  const f=await fixture();
+  for(const changes of [
+    {forces:[{id:'guild',factionId:'missing-faction'}]},
+    {factions:[{id:'new-faction',name:'新阵营',representativeForceIds:['missing-force']}]},
+    {locations:[{id:'harbor',controllingForceIds:['missing-force']}]},
+  ]) {
+    generate=async input=>({answers:input.promptInput.answers.map(row=>({questionId:row.questionId,summary:'应拒绝的引用'})),changes});
+    await assert.rejects(f.service.answerDeepeningQuestions(f.id,f.answers),error=>error.statusCode===422);
+    assert.equal((await saved(f.id)).version,1);
+    assert.equal((await prisma.worldDeepeningQA.findUnique({where:{id:f.question.id}})).status,'pending');
+    assert.equal(await prisma.worldSnapshot.count({where:{worldId:f.id}}),0);
+  }
+});

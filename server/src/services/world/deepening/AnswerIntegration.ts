@@ -12,7 +12,7 @@ import { buildWorldStructurePromptSource, type DeepeningAnswerInput } from "../w
 
 /** Apply AI-classified updates without deleting unmentioned fields, entities or string-list entries. */
 function mergeChanges(current: unknown, patch: unknown): unknown {
-  if (patch === undefined || patch === "") return current;
+  if (patch === undefined || patch === null || patch === "") return current;
   if (Array.isArray(patch)) {
     const values: unknown[] = Array.isArray(current) ? [...current] : [];
     for (const value of patch) {
@@ -66,6 +66,13 @@ export async function integrateWorldAnswers(worldId: string, answers: DeepeningA
     const ids = collections(next)[index].map(row => row.id);
     if (items.some(row => !ids.includes(row.id))) throw new AppError("整合结果包含无效实体或关系，回答已保留，请重试。", 422);
   });
+  const factionIds = new Set(next.factions.map(row => row.id));
+  const forceIds = new Set(next.forces.map(row => row.id));
+  if (result.output.changes.forces?.some(row => row.factionId && !factionIds.has(row.factionId))
+    || result.output.changes.factions?.some(row => row.representativeForceIds?.some(id => !forceIds.has(id)))
+    || result.output.changes.locations?.some(row => row.controllingForceIds?.some(id => !forceIds.has(id)))) {
+    throw new AppError("整合结果引用了不存在的阵营或组织，回答已保留，请重试。", 422);
+  }
   if (JSON.stringify(next) === JSON.stringify(current)) throw new AppError("AI 未生成有效的设定补充，回答已保留，请重新整合。", 422);
   const fields = applyStructuredWorldToLegacyFields(next, world, buildWorldBindingSupport(next));
   await prisma.$transaction(async tx => {

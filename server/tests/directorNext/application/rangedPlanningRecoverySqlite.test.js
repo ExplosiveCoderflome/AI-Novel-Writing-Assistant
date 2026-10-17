@@ -23,9 +23,10 @@ async function fixture(){
  await prisma.novel.create({data:{id:novelId,title:'第34章起续写',estimatedChapterCount:90}});
  const volumes=new NovelVolumeService();volumes.syncPayoffLedger=()=>{};
  const chapters=Array.from({length:34},(_,index)=>({id:novelId+'-plan-'+(index+1),volumeId,chapterOrder:index+1,beatKey:'opening',
-  title:'已保存标题'+(index+1),summary:'已保存概要',taskSheet:'作者保留的任务',sceneCards:'作者保留的场景',payoffRefs:[]}));
+  title:'已保存标题'+(index+1),summary:'已保存概要',taskSheet:'作者保留的任务',sceneCards:'作者保留的场景',payoffRefs:[],
+  exclusiveEvent:'保留独占事件',endingState:'保留章末状态',nextChapterEntryState:'保留下章入口',styleContract:'保留写法约定'}));
  const initial=buildVolumeWorkspaceDocument({novelId,volumes:[{id:volumeId,novelId,sortOrder:1,title:'作者卷名',summary:'作者卷纲',
-  status:'active',openPayoffs:[],chapters}],beatSheets:[{volumeId,volumeSortOrder:1,status:'generated',beats:[{key:'opening',label:'开局',summary:'原节奏',chapterSpanHint:'36章',mustDeliver:['原任务']}]}]});
+  status:'active',openingHook:'保留开卷钩子',primaryPressureSource:'保留主要压力',coreSellingPoint:'保留卖点',midVolumeRisk:'保留中段风险',payoffType:'保留兑现类型',openPayoffs:[],chapters}],beatSheets:[{volumeId,volumeSortOrder:1,status:'generated',beats:[{key:'opening',label:'开局',summary:'原节奏',chapterSpanHint:'36章',mustDeliver:['原任务']}]}]});
  await volumes.updateVolumesWithOptions(novelId,initial,{emitEvent:false,syncPayoffLedger:false,syncToChapterExecution:false});
  await volumes.updateVolumesWithOptions(novelId,{beatSheets:initial.beatSheets},{emitEvent:false,syncPayoffLedger:false,syncToChapterExecution:false});
  await prisma.chapter.createMany({data:chapters.map(plan=>({id:novelId+'-chapter-'+plan.chapterOrder,novelId,order:plan.chapterOrder,
@@ -74,6 +75,8 @@ test('actual production plan resumes a protected 34–36 route window, appends m
  assert.equal(saved.volumes[0].chapters.length,36);assert.equal(saved.volumes[0].title,'作者卷名');
  assert.equal(saved.volumes[0].chapters[33].title,'已保存标题34');assert.equal(saved.volumes[0].chapters[33].taskSheet,'生成期间作者新任务');
  assert.equal(saved.beatSheets[0].beats[0].summary,'原节奏');
+ for(const key of ['openingHook','primaryPressureSource','coreSellingPoint','midVolumeRisk','payoffType'])assert.equal(saved.volumes[0][key],f.before.volumes[0][key]);
+ for(const plan of saved.volumes[0].chapters.slice(0,34))for(const key of ['beatKey','exclusiveEvent','endingState','nextChapterEntryState','styleContract'])assert.equal(plan[key],f.before.volumes[0].chapters.find(row=>row.id===plan.id)[key]);
  const prose=await prisma.chapter.findMany({where:{novelId:f.novelId},orderBy:{order:'asc'}});
  assert.equal(prose.length,36);assert.equal(prose[32].content,'必须保留正文33');assert.equal(prose[33].taskSheet,'已保存执行任务');
  const protectedFields=rows=>rows.map(({id,order,title,content,taskSheet,sceneCards})=>({id,order,title,content,taskSheet,sceneCards}));

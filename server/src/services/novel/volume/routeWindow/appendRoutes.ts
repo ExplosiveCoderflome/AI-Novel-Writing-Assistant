@@ -1,5 +1,24 @@
-import type {VolumePlanDocument} from "@ai-novel/shared/types/novel";
+import type {VolumePlan, VolumePlanDocument} from "@ai-novel/shared/types/novel";
 import {buildVolumeWorkspaceDocument} from "../volumeWorkspaceDocument";
+
+function retainDocumentFields<T>(saved: T | undefined, row: T, keys: readonly (keyof T)[]): T {
+  const merged = {...saved, ...row};
+  if (saved) for (const key of keys) merged[key] = saved[key];
+  return merged;
+}
+
+/** Relational rows own their persisted fields; null placeholders cannot erase version-only planning. */
+export function mergeSavedRouteRows(current: VolumePlanDocument, rows: VolumePlan[]): VolumePlanDocument {
+  return {...current, volumes: rows.map(row => {
+    const saved = current.volumes.find(volume => volume.id === row.id);
+    const volume = retainDocumentFields(saved, row, ["openingHook", "primaryPressureSource", "coreSellingPoint",
+      "midVolumeRisk", "payoffType", "createdAt", "updatedAt"]);
+    return {...volume, chapters: row.chapters.map(chapter => retainDocumentFields(
+      saved?.chapters.find(item => item.id === chapter.id), chapter,
+      ["beatKey", "exclusiveEvent", "endingState", "nextChapterEntryState", "styleContract", "createdAt", "updatedAt"],
+    ))};
+  })};
+}
 
 /** A route window can fill gaps, never replace saved chapters, move their orders or rewrite a beat. */
 export function appendMissingRoutePlans(current: VolumePlanDocument, generated: VolumePlanDocument): VolumePlanDocument {
