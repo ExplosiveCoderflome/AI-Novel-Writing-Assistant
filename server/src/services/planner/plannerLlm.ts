@@ -16,6 +16,8 @@ export interface PlannerLlmOptions {
 }
 
 export async function invokePlannerLLM(input: {
+  novelId: string;
+  chapterId?: string;
   options: PlannerLlmOptions;
   scopeLabel: string;
   planLevel: StoryPlanLevel;
@@ -33,6 +35,8 @@ export async function invokePlannerLLM(input: {
     },
     contextBlocks: input.contextBlocks,
     options: {
+      novelId: input.novelId,
+      chapterId: input.chapterId,
       provider: input.options.provider,
       model: input.options.model,
       temperature: input.options.temperature ?? 0.4,

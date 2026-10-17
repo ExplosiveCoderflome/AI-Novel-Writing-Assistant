@@ -4,6 +4,23 @@ const { compileIntentToPlan } = require("../dist/agents/planner/compiler.js");
 const { normalizeIntentPayload } = require("../dist/agents/planner/utils.js");
 const { summarizeIntentValidationFailure } = require("../dist/agents/planner/parser.js");
 
+test("planner invocations retain novel and chapter attribution without assigning a chapter to book planning", async (t) => {
+  const runner = require("../dist/prompting/core/promptRunner.js");
+  const { invokePlannerLLM } = require("../dist/services/planner/plannerLlm.js");
+  const original = runner.runStructuredPrompt;
+  const calls = [];
+  runner.runStructuredPrompt = async (request) => { calls.push(request); return { output: { title: "规划", objective: "推进线索" } }; };
+  t.after(() => { runner.runStructuredPrompt = original; });
+  await invokePlannerLLM({ novelId: "book", chapterId: "chapter-2", options: { provider: "deepseek", model: "offline" },
+    scopeLabel: "第二章", planLevel: "chapter", contextBlocks: [] });
+  await invokePlannerLLM({ novelId: "book", options: {}, scopeLabel: "全书", planLevel: "book", contextBlocks: [] });
+  assert.equal(calls[0].options.chapterId, "chapter-2");
+  assert.equal(calls[0].options.novelId, "book");
+  assert.equal(calls[0].options.model, "offline");
+  assert.equal(calls[1].options.novelId, "book");
+  assert.equal(calls[1].options.chapterId, undefined);
+});
+
 test("compileIntentToPlan uses chapter order tools for chapter content", () => {
   const plan = compileIntentToPlan({
     goal: "What happened in the first two chapters?",

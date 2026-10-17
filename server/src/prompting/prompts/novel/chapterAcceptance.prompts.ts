@@ -38,6 +38,16 @@ function normalizeAcceptanceCategory(value: unknown): unknown {
   return normalized;
 }
 
+/** Style metadata has no meaning for an AI-classified non-voice issue. */
+function normalizeAcceptanceIssue(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const issue = value as Record<string, unknown>;
+  const category = normalizeAcceptanceCategory(issue.category);
+  if (category === "voice" || !chapterAcceptanceIssueCategorySchema.safeParse(category).success) return value;
+  const { layer, styleRuleId, canAutoRewrite, ...content } = issue;
+  return content;
+}
+
 function normalizeAcceptanceStatus(value: unknown): unknown {
   if (typeof value !== "string") {
     return value;
@@ -184,7 +194,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     overall: z.number().min(0).max(100),
   }),
   summary: z.string().trim().min(1),
-  blockingIssues: z.array(z.object({
+  blockingIssues: z.array(z.preprocess(normalizeAcceptanceIssue, z.object({
     severity: z.enum(["low", "medium", "high", "critical"]),
     category: z.preprocess(normalizeAcceptanceCategory, chapterAcceptanceIssueCategorySchema),
     code: z.string().trim().min(1),
@@ -194,7 +204,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     evidence: z.string().trim().min(1),
     currentEvidence: z.string().trim().min(1).max(350).optional(),
     fixSuggestion: z.string().trim().min(1),
-  })).default([]),
+  }))).default([]),
   repairDirectives: z.array(z.object({
     mode: z.preprocess(normalizeRepairMode, z.enum(["patch", "rewrite", "manual"])),
     target: z.preprocess(normalizeRepairTarget, z.enum(["continuity", "character", "plot", "ending", "voice"])),
@@ -293,7 +303,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceModelOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v23",
+  version: "v24",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -387,7 +397,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "输出紧凑要求：summary/decisionReason/reason 各用一句短句，证据优先连续复制20-60字的定位原句，不重复整段。跨章核对最多选2项；复验按清单覆盖，保留必要事实，不扩写解释。",
       "24. 写法检测开启时必须输出 styleReview:{riskScore:0至100整数,summary:简短结论,observations:[]}，不要输出 issueCodes。可局部修文的问题使用 blockingIssues 的 voice 项，完整填写 code/category/severity/evidence/fixSuggestion/styleRuleId/layer/canAutoRewrite；不得省略层次和实例许可。code 是本次问题编号，styleRuleId 才是目录规则 ID，普通合同问题用 null；程序从 voice 项生成报告引用。",
       "叙事层、低风险及禁止自动修文风险只进 observations（最多3条，code/styleRuleId/layer/severity/evidence/reason/fixSuggestion），不安排修文、不重复证据。observations 只记录有原文依据的风险，不写符合规则的表扬，无风险返回 []；鼓励性规则未出现不违规。关闭时 styleReview 为 null。",
-      "25. 写法 voice 项必须用 styleRuleId 引用规则目录中的真实 ID；普通写法合同问题用 null。autoRewrite=false 的规则只记录风险提醒，不安排修文。专项表达问题不能单独升级为整章重写、人工暂停或 plan_misalignment；事实、保密与章节义务冲突仍按对应合同判断。",
+      "25. 写法 voice 项必须用 styleRuleId 引用规则目录中的真实 ID；普通写法合同问题用 null。layer 只用于 voice 项且仅取 surface/discourse/narrative；其他 category 不填写 layer/styleRuleId/canAutoRewrite。autoRewrite=false 的规则只记录风险提醒，不安排修文。专项表达问题不能单独升级为整章重写、人工暂停或 plan_misalignment；事实、保密与章节义务冲突仍按对应合同判断。",
       "26. 本书设置与章节硬合同优先于参考写法。人称依据叙述正文而非对话、参考书标签或限知范围；第三人称限知仍是第三人称。禁止在总结中未经核对称其为第一人称。",
       ...(input.styleReviewEnabled ? STYLE_DIAGNOSTIC_RULES : []),
       "正文退化检测边界：",

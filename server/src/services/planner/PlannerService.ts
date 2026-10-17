@@ -172,6 +172,7 @@ export class PlannerService {
     const output = await invokePlannerLLM({
       options,
       scopeLabel: `全书规划：${novel.title}`,
+      novelId,
       planLevel: "book",
       contextBlocks,
     });
@@ -241,6 +242,7 @@ export class PlannerService {
     const output = await invokePlannerLLM({
       options,
       scopeLabel: `分段规划：${arcId}`,
+      novelId,
       planLevel: "arc",
       contextBlocks,
     });
@@ -570,6 +572,8 @@ export class PlannerService {
     const output = await invokePlannerLLM({
       options,
       scopeLabel: `章节规划：第${chapter.order}章《${chapter.title}》`,
+      novelId,
+      chapterId,
       planLevel: "chapter",
       contextBlocks,
     });

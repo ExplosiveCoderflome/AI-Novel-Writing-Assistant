@@ -38,6 +38,28 @@ const invoke = (patch = {}) => invokeStructuredLlmDetailed({ provider: 'deepseek
   schema: z.object({ value: z.string() }), systemPrompt: 'Offline fixture', userPrompt: '当前候选正文：手抄件在林砚手里。',
   label: 'offline.review.budget', maxRepairAttempts: 1, disableFallbackModel: true, ...patch });
 
+test('non-voice style metadata does not spend a format correction or hide the issue', async t => {
+  const { chapterAcceptanceModelSchema } = require('../../dist/prompting/prompts/novel/chapterAcceptance.prompts');
+  const report = { status: 'repairable', score: { coherence: 70, pacing: 70, repetition: 70, engagement: 70, voice: 70, overall: 70 },
+    summary: '保密边界有缺口', continuePolicy: 'repair_once', styleReview: null,
+    assetSyncRecommendation: { reason: '保留事实' },
+    blockingIssues: [{ code: 'protected_reveal_crossing', category: 'plot', severity: 'high', layer: 'plot',
+      styleRuleId: null, canAutoRewrite: true, evidence: '字迹指向父亲', currentEvidence: '字迹指向父亲', fixSuggestion: '保留来源疑点' }] };
+  const calls = models(t, () => JSON.stringify(report));
+  const budget = createTransientChapterReviewRetryBudget({ maxRetries: 1, onExhausted: 'continue_with_warning' });
+  const result = await budget.runCheck('candidate', () => invoke({ schema: chapterAcceptanceModelSchema }));
+  assert.equal(calls.length, 1);
+  assert.equal(budget.summary().used, 0);
+  assert.equal(result.data.blockingIssues[0].code, 'protected_reveal_crossing');
+  assert.equal(result.data.blockingIssues[0].currentEvidence, '字迹指向父亲');
+  assert.equal(result.data.blockingIssues[0].layer, undefined);
+  assert.equal(result.data.blockingIssues[0].canAutoRewrite, undefined);
+  const invalidVoice = structuredClone(report); invalidVoice.blockingIssues[0].category = 'voice';
+  assert.equal(chapterAcceptanceModelSchema.safeParse(invalidVoice).success, false);
+  const invalidCategory = structuredClone(report); invalidCategory.blockingIssues[0].category = 'unknown';
+  assert.equal(chapterAcceptanceModelSchema.safeParse(invalidCategory).success, false);
+});
+
 for (const maxRetries of [0, 1, 3, 5]) {
   test(`all protocol and structural requests obey the user allowance ${maxRetries}`, async t => {
     const calls = models(t, () => '{"value":0}');
@@ -55,7 +77,7 @@ for (const maxRetries of [0, 1, 3, 5]) {
 test('semantic correction and candidate verification share the same chapter allowance', async t => {
   const calls = models(t, () => '{"value":"wrong"}');
   const budget = createTransientChapterReviewRetryBudget({ maxRetries: 2, onExhausted: 'pause_for_manual' });
-  const asset = { id: 'novel.chapter.acceptance_assessment', version: 'v23', taskType: 'review', mode: 'structured',
+  const asset = { id: 'novel.chapter.acceptance_assessment', version: 'v24', taskType: 'review', mode: 'structured',
     contextPolicy: { maxTokensBudget: 100 }, outputSchema: z.object({ value: z.string() }),
     render: () => [new HumanMessage('offline evidence fixture')], semanticRetryPolicy: { maxAttempts: 1, sharedCorrectionBudget: 1 },
     postValidate: () => { throw new Error('evidence is not from the candidate'); } };

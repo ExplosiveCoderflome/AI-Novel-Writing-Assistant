@@ -5,7 +5,7 @@ test('dynamic examples and advanced templates retain tail hint placement',()=>{f
 
 test('updated production assets resolve through registry at their exact versions', () => {
   const { getRegisteredPromptAsset } = require('../dist/prompting/registry');
-  for (const [id, version] of [['novel.chapter.writer', 'v10'], ['novel.chapter.acceptance_assessment', 'v23'], ['novel.review.patch', 'v11'], ['novel.review.chapter', 'v3'], ['novel.review.repair', 'v4'], ['novel.chapter.artifact_delta.extract', 'v10'], ['novel.payoff_ledger.sync', 'v8'], ['style.detection', 'v10'], ['style.rewrite', 'v4']]) {
+  for (const [id, version] of [['novel.chapter.writer', 'v10'], ['novel.chapter.acceptance_assessment', 'v24'], ['novel.review.patch', 'v11'], ['novel.review.chapter', 'v3'], ['novel.review.repair', 'v4'], ['novel.chapter.artifact_delta.extract', 'v10'], ['novel.payoff_ledger.sync', 'v8'], ['style.detection', 'v10'], ['style.rewrite', 'v4']]) {
     const asset = getRegisteredPromptAsset(id, version);
     assert.ok(asset, `${id}@${version} must be registered`);
     assert.equal(asset.version, version);
