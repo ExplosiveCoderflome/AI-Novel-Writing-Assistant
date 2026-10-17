@@ -29,6 +29,8 @@ const tests = [
   "tests/aiDecisionResourceBoundaries.test.js",
   "tests/llmStreamLifecycle.test.js",
   "tests/llmRequestLimiter.test.js",
+  "tests/reasoningHandling.test.js",
+  "tests/llmFactoryRetryPolicy.test.js",
   "tests/anthropicUsageStream.test.js",
   "tests/chapterOptimisticConcurrency.test.js",
   "tests/timelineConstraintLayer.test.js",

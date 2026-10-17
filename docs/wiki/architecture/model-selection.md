@@ -64,6 +64,14 @@
 - Kimi K3 返回 temperature 参数错误：先确认实际模型名进入 Kimi 能力兼容层（包括自定义中转厂商），再检查最终客户端配置是否在构造请求前把 temperature 收敛为 `1.0`；不要要求用户反复调整顶部偏好来规避固定参数约束。
 - 本地模型生成世界观在约 2 分钟时中断：先看「模型与厂商」里的单次生成最长等待是否仍是 2 分钟，再确认失败的是按主题生成或骨架生成。正文生成没有这项上限。页面若先报网络失败，检查这两次生成请求的页面等待是否仍长于服务端上限。
 
+## 本地推理开关的协议边界
+
+Ollama 的 OpenAI 兼容接口 `/v1/chat/completions` 在关闭思考时发送 `reasoning_effort=none`，不能用原生 `/api/chat` 的 `think` 字段代替。开启时保留模型默认，避免强迫不支持思考的模型使用推理参数。依据显式厂商选择执行协议适配，不能因为本地模型名包含 DeepSeek 就发送云端 DeepSeek 专用的 `thinking` 对象。
+
+自定义 `/v1` 地址不能唯一标识 Ollama、llama.cpp、Unsloth 或云端中转。不能依据端口、显示名称或模型名给全部自定义接口注入后端专用参数。排查“关闭后仍消耗推理 Tokens”时，须核对最终请求体与该后端版本的协议，区分控制开关和仅隐藏思考输出；`reasoning_format=none` 只改变输出解析，不能当作停止模型推理。
+
+参考：[Ollama 兼容接口](https://github.com/ollama/ollama/blob/main/docs/api/openai-compatibility.mdx)、[llama.cpp 服务接口](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)。
+
 ## 相关模块
 
 - `server/src/services/settings/LLMSelectionSettingsService.ts`

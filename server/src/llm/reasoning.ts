@@ -151,6 +151,17 @@ export function resolveProviderReasoningBehavior(input: {
   reasoningEnabled: boolean;
   reasoningEffort?: ReasoningEffort | null;
 }): ProviderReasoningBehavior {
+  if (input.provider === "ollama") {
+    return {
+      reasoningEnabled: input.reasoningEnabled,
+      reasoningEffort: null,
+      // /v1/chat/completions uses reasoning_effort, not the native /api/chat think flag.
+      // Leave the enabled model default intact: not every local model supports thinking.
+      ...(!input.reasoningEnabled ? { modelKwargs: { reasoning_effort: "none" } } : {}),
+      includeRawResponse: false,
+      usesAccumulatedStreamDeltas: false,
+    };
+  }
   if (isGlmThinkingModeProvider(input.provider, input.baseURL, input.model)) {
     return {
       reasoningEnabled: input.reasoningEnabled,

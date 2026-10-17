@@ -1,7 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { createLLMFromResolvedOptions } = require("../dist/llm/factory.js");
+const { createLLMFromResolvedOptions, resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
+
+test("Ollama saved thinking-off reaches SDK request parameters in text and structured modes", async (t) => {
+  setProviderSecretCache("ollama", { model: "qwen3.5:9b", baseURL: "http://127.0.0.1:11434/v1", reasoningEnabled: false });
+  t.after(() => setProviderSecretCache("ollama", null));
+  for (const executionMode of ["plain", "structured"]) {
+    const resolved = await resolveLLMClientOptions("ollama", { model: "qwen3.5:9b", executionMode, maxTokens: 3200 });
+    const llm = createLLMFromResolvedOptions(resolved);
+    const body = llm.invocationParams({});
+    assert.equal(body.reasoning_effort, "none");
+    assert.equal(body.max_tokens, 3200);
+    assert.equal(body.think, undefined);
+    assert.equal(body.enable_thinking, undefined);
+  }
+});
 
 test("OpenAI-compatible clients leave retries to explicit product workflows", () => {
   const llm = createLLMFromResolvedOptions({
