@@ -73,6 +73,7 @@ export interface VolumeChapterListPromptInput {
 }
 
 export interface VolumeChapterDetailPromptInput {
+  previousChapterResult?: import("@ai-novel/shared/types/chapterTaskSheetQuality").ChapterExecutionContractQualityCandidate["previousChapterResult"];
   novel: VolumeGenerationNovel;
   workspace: VolumeWorkspace;
   storyMacroPlan: StoryMacroPlan | null;

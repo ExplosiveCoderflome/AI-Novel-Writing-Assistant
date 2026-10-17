@@ -10,11 +10,13 @@ import {
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { StructuredOutputError } from "../../../../llm/structuredOutput";
 import { volumeChapterExecutionContractPrompt } from "../../../../prompting/prompts/novel/volume/chapterDetail.prompts";
 import { buildVolumeChapterDetailContextBlocks } from "../../../../prompting/prompts/novel/volume/contextBlocks";
 import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import {
   ChapterTaskSheetQualityGateService,
+  ChapterTaskSheetQualityGateError,
 } from "../ChapterTaskSheetQualityGateService";
 import type {
   VolumeGenerateOptions,
@@ -23,6 +25,12 @@ import type {
 } from "../volumeModels";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
+type ContractResult = {
+  purpose: string; exclusiveEvent: string; endingState: string; nextChapterEntryState: string;
+  conflictLevel: number; revealLevel: number; targetWordCount: number; mustAvoid: string;
+  payoffRefs: string[]; taskSheet: string; sceneCards: string;
+};
+type QualityEvent = Parameters<NonNullable<VolumeGenerateOptions["onChapterTaskSheetQuality"]>>[0];
 
 export function shouldRetryChapterExecutionContract(error: unknown, attempt: number): boolean {
   if (attempt > 0) {
@@ -66,6 +74,7 @@ export function canReuseChapterExecutionContract(input: {
 
 export async function generateChapterTaskSheetDetail(params: {
   promptInput: {
+    previousChapterResult?: import("@ai-novel/shared/types/chapterTaskSheetQuality").ChapterExecutionContractQualityCandidate["previousChapterResult"];
     novel: VolumeGenerationNovel;
     workspace: VolumeWorkspace;
     storyMacroPlan: StoryMacroPlanResult;
@@ -77,19 +86,7 @@ export async function generateChapterTaskSheetDetail(params: {
     detailMode: "task_sheet";
   };
   options: VolumeGenerateOptions;
-}): Promise<{
-  purpose: string;
-  exclusiveEvent: string;
-  endingState: string;
-  nextChapterEntryState: string;
-  conflictLevel: number;
-  revealLevel: number;
-  targetWordCount: number;
-  mustAvoid: string;
-  payoffRefs: string[];
-  taskSheet: string;
-  sceneCards: string;
-}> {
+}): Promise<ContractResult> {
   const existingChapter = params.promptInput.targetChapter;
   if (
     !params.options.forceRegenerate &&
@@ -121,7 +118,12 @@ export async function generateChapterTaskSheetDetail(params: {
 
   let lastError: Error | null = null;
   let qualityFeedback: string | null = null;
+  let usable: {value: ContractResult; report: QualityEvent} | null = null;
   const qualityGate = new ChapterTaskSheetQualityGateService();
+  const publish = async (saved: NonNullable<typeof usable>) => {
+    await params.options.onChapterTaskSheetQuality?.(saved.report);
+    return saved.value;
+  };
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -162,7 +164,9 @@ export async function generateChapterTaskSheetDetail(params: {
         },
         generated.output.targetWordCount ?? promptInput.targetChapter.targetWordCount,
       );
-      await qualityGate.assertCanEnterExecution({
+      let assessment: QualityEvent["assessment"];
+      const quality = await qualityGate.evaluate({
+        previousChapterResult: promptInput.previousChapterResult,
         novelId: promptInput.workspace.novelId,
         volumeId: promptInput.targetVolume.id,
         chapterId: promptInput.targetChapter.id,
@@ -182,18 +186,16 @@ export async function generateChapterTaskSheetDetail(params: {
         sceneCards: serializeChapterScenePlan(scenePlan),
       }, {
         mode: params.options.chapterTaskSheetQualityMode,
-        onEvaluated: async event => params.options.onChapterTaskSheetQuality?.({
-          chapterId: promptInput.targetChapter.id,
-          chapterOrder: promptInput.targetChapter.chapterOrder,
-          ...event,
-        }),
+        onEvaluated: event => {assessment = event.assessment;},
         provider: params.options.provider,
         model: params.options.model,
         taskId: params.options.taskId,
         entrypoint: params.options.entrypoint,
         signal: params.options.signal,
       });
-      return {
+      if (!quality.canEnterExecution) throw new ChapterTaskSheetQualityGateError(quality);
+      const guidance = [...quality.repairGuidance, ...quality.issues.map(issue => issue.repairHint)].filter(Boolean);
+      const value = {
         purpose: generated.output.purpose.trim(),
         exclusiveEvent: generated.output.exclusiveEvent.trim(),
         endingState: generated.output.endingState.trim(),
@@ -203,11 +205,27 @@ export async function generateChapterTaskSheetDetail(params: {
         targetWordCount: generated.output.targetWordCount,
         mustAvoid: generated.output.mustAvoid.trim(),
         payoffRefs: generated.output.payoffRefs,
-        taskSheet: generated.output.taskSheet.trim(),
+        taskSheet: [generated.output.taskSheet.trim(), ...(guidance.length ? [
+          "本章规划核对指导（写作、审校与修文共同遵守；优先保持前文事实，不得为修复而提前越章）：",
+          ...[...new Set(guidance)].map(item => `- ${item}`),
+        ] : [])].join("\n"),
         sceneCards: serializeChapterScenePlan(scenePlan),
       };
+      usable = {value, report: {chapterId: promptInput.targetChapter.id, chapterOrder: promptInput.targetChapter.chapterOrder,
+        result: quality, assessment}};
+      // Share the existing two-attempt allowance with shape repair; never add a third generation.
+      if (attempt === 0 && params.options.chapterTaskSheetQualityMode === "full_book_autopilot"
+        && assessment?.recommendedHandling === "repair_contract") {
+        qualityFeedback = [quality.summary, ...guidance].join("\n");
+        continue;
+      }
+      return publish(usable);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error("章节执行合同生成失败。");
+      if (attempt > 0 && usable && !params.options.signal?.aborted && (
+        shouldRetryChapterExecutionContract(error, 0)
+        || (error instanceof StructuredOutputError && error.category !== "transport_error")
+      )) return publish(usable);
       if (!shouldRetryChapterExecutionContract(error, attempt)) {
         throw lastError;
       }

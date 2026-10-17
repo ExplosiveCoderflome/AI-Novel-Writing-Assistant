@@ -851,7 +851,7 @@ test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk with
     assert.equal(result.retryCountUsed, 0);
     assert.equal(result.qualityDebtAttribution.repairAttemptsUsed, 0);
     assert.equal(result.qualityDebtAttribution.repairAttemptsAllowed, 1);
-    assert.equal(result.recoverableRepairFailure.message, "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。");
+    assert.equal(result.recoverableRepairFailure.message, "本章部分检查未完成，正文已保留，请从章节页面重新审校。");
     assert.deepEqual(result.recoverableRepairFailure.failureTypes, ["review_gate_unavailable"]);
     assert.deepEqual(needsRepairMarked, ["chapter-1"]);
     assert.deepEqual(savedDrafts, [{

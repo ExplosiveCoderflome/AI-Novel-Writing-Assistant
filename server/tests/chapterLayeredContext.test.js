@@ -13,6 +13,26 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test('review and repair retain the last saved chapter facts even when the optional budget is exhausted', () => {
+  const pkg = createContextPackage();
+  const write = buildChapterWriteContext({bookContract:pkg.bookContract,contextPackage:pkg});
+  write.recentChapterSummaries = ['最近正文：纸条从钟内取出，无信封与邮戳。','更早摘要'];
+  const {selectContextBlocks} = require('../dist/prompting/core/contextSelection');
+  for (const blocks of [buildChapterReviewContextBlocks(buildChapterReviewContext(write,pkg)),
+    buildChapterRepairContextBlocks(buildChapterRepairContext({writeContext:write,contextPackage:pkg,issues:[]}))]) {
+    const source = blocks.find(b=>b.group==='recent_chapters');
+    assert.equal(source.required,true); assert.equal(source.allowSummary,false);
+    assert.ok(source.content.includes('纸条从钟内取出')); assert.ok(!source.content.includes('更早摘要'));
+    assert.equal(selectContextBlocks(blocks,{maxTokensBudget:1}).selectedBlocks.find(b=>b.id===source.id).content,source.content);
+  }
+  write.previousChapterContent='他拆开钟壳，展开夹层里的信纸。\n此前没有信封这一载体。';
+  write.recentChapterSummaries=[];
+  const full=buildChapterReviewContextBlocks(buildChapterReviewContext(write,pkg)).find(b=>b.group==='recent_chapters');
+  assert.ok(full.content.includes(write.previousChapterContent),'facts absent from a summary retain their full source');
+  assert.equal(full.required,true); assert.equal(full.allowSummary,false);
+  assert.ok(!buildChapterWriterContextBlocks(write).some(b=>b.content.includes(write.previousChapterContent)), 'writer input is not enlarged by review evidence');
+});
+
 test("historical facts cannot grow mandatory context or displace the current task", () => {
   const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
   const pkg = createContextPackage();

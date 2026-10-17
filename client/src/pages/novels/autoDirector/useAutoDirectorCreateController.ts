@@ -402,7 +402,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       title: directorBasicForm.title.trim() || undefined,
       seedPayload: {
         directorVersion,
-        basicForm: directorBasicForm,
+        basicForm: {...directorBasicForm,
+          estimatedChapterCount: directorBasicForm.estimatedChapterCountSource === "default" ? undefined : directorBasicForm.estimatedChapterCount},
         idea: nextIdea,
         batches,
         runMode,
@@ -636,7 +637,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
           lane: "auto_director",
           title: nextForm.title.trim() || undefined,
           seedPayload: {
-            basicForm: nextForm,
+            basicForm: {...nextForm, estimatedChapterCount: nextForm.estimatedChapterCountSource === "default" ? undefined : nextForm.estimatedChapterCount},
             genreId: nextForm.genreId || null,
             primaryStoryModeId: nextForm.primaryStoryModeId || null,
             secondaryStoryModeId: nextForm.secondaryStoryModeId || null,

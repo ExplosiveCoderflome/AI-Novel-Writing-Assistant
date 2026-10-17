@@ -38,6 +38,11 @@ export function ChapterReader({ chapter, characters, onCharacter, onChapter, cha
       </div>
       {live ? <p role="status" className="text-xs text-muted-foreground">{live.state === "writing" ? "正在生成正文 · 实时预览" : live.state === "checking" ? "正文生成完成，正在检查与保存" : live.state === "saved" ? "正文已保存" : "生成已中断，请查看导演台的处理提示。正文以保存版为准。"}</p> : null}
       {changed ? <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" role="status">本章有新保存的内容<Button size="sm" variant="outline" onClick={() => setEdition(chapter)}>查看新内容</Button></div> : null}
+      {chapter.qualityDebt ? <div className="space-y-1 bg-muted/40 px-3 py-2 text-sm" role="status">
+        <p className="font-medium">正文已保存，仍有待复查事项</p>
+        <p className="text-muted-foreground">{chapter.qualityDebt.reason}</p>
+        <p className="text-xs text-muted-foreground">可在“编辑正文”中查看问题并使用 AI 检查或修文，后续章节可以继续创作。</p>
+      </div> : null}
       <div className="flex flex-wrap items-center gap-1.5"><span className="mr-2 text-xs text-muted-foreground">快速查看角色</span>{characters.map(character => <Button key={character.id} size="sm" variant="ghost" onClick={() => onCharacter(character.id)}>{character.name}</Button>)}{characters.length === 0 ? <span className="text-xs text-muted-foreground">暂无角色资料</span> : null}</div>
     </div>
     {content?.trim() ? <div className="space-y-6 leading-[2.15] tracking-wide text-foreground/90" style={readingTextStyle(readingDisplay)}>{content.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <p key={index} className="whitespace-pre-wrap break-words">{paragraph}</p>)}{live?.state === "writing" ? <span aria-hidden="true" className="inline-block h-5 w-1 animate-pulse bg-primary"/> : null}</div>

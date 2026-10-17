@@ -78,6 +78,7 @@ export function normalizeChapterWriteContext(writeContext: ChapterWriteContext):
     },
     characterHardFacts: writeContext.characterHardFacts ?? [],
     previousChapterTail: writeContext.previousChapterTail ?? null,
+    previousChapterContent: writeContext.previousChapterContent ?? null,
     styleConstraints: writeContext.styleConstraints ?? [],
     continuationConstraints: writeContext.continuationConstraints ?? [],
     ragFacts: writeContext.ragFacts ?? [],

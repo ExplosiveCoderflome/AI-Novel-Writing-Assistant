@@ -189,7 +189,7 @@ const QUALITY_THRESHOLD = { coherence: 80, repetition: 75, engagement: 75 };
 // Pipeline execution owns the single automatic retry budget. Keeping the
 // writer attempt at zero avoids stacking a hidden empty-content retry on top.
 const EMPTY_CONTENT_GENERATION_RETRY_LIMIT = 0;
-const NON_PATCHABLE_REVIEW_ISSUE_CODES = new Set(["acceptance_gate_unavailable"]);
+const NON_PATCHABLE_REVIEW_ISSUE_CODES = new Set(["acceptance_gate_unavailable", "style_review_unavailable"]);
 
 const AUDIT_CATEGORY_MAP: Record<"continuity" | "character" | "plot" | "mode_fit", ReviewIssue["category"]> = {
   continuity: "coherence",
@@ -305,7 +305,7 @@ export async function runPipelineChapterWithRuntime(
       contextPackage: assembled.contextPackage,
       content,
       repairReviewBaseline: priorAssessment ? {
-        blockingIssues: priorAssessment.blockingIssues,
+        blockingIssues: priorAssessment.blockingIssues.filter(issue => !NON_PATCHABLE_REVIEW_ISSUE_CODES.has(issue.code)),
         missingObligations: priorAssessment.missingObligations,
         repairDirectives: priorAssessment.repairDirectives,
       } : undefined,
@@ -337,6 +337,7 @@ export async function runPipelineChapterWithRuntime(
     const shouldPauseForAcceptance = continuePolicy === "pause" || acceptanceStatus === "needs_manual_review";
     const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
     pass = !shouldPauseForAcceptance
+      && !latestResult.runtimePackage.meta?.riskTags?.includes("style_review_unavailable")
       && !shouldRepairFromAcceptance
       && !latestResult.runtimePackage.audit.hasBlockingIssues
       && latestResult.runtimePackage.timelineCheck?.status !== "failed"
@@ -367,7 +368,8 @@ export async function runPipelineChapterWithRuntime(
           pass,
           runtimePackage: latestResult.runtimePackage,
           issues: latestIssues,
-          assessmentVerified: !latestResult.acceptanceResult?.assessment.riskTags?.includes("acceptance_gate_unavailable"),
+          assessmentVerified: !latestResult.acceptanceResult?.assessment.riskTags?.includes("acceptance_gate_unavailable")
+            && !(rewriteGuard && latestResult.acceptanceResult?.assessment.riskTags?.includes("style_review_unavailable")),
           rewriteGuard,
         },
       });
@@ -411,7 +413,7 @@ export async function runPipelineChapterWithRuntime(
     if (shouldDeferNonPatchableReviewRisk(latestResult.runtimePackage)) {
       recoverableRepairFailure = {
         chapterId,
-        message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
+        message: "本章部分检查未完成，正文已保留，请从章节页面重新审校。",
         repairMode,
         failureTypes: ["review_gate_unavailable"],
         occurredAt: new Date().toISOString(),
@@ -493,7 +495,7 @@ export async function runPipelineChapterWithRuntime(
     : null;
 
   const finalResult: PipelineRuntimeResult = {
-    reviewExecuted: true,
+    reviewExecuted: !latestResult.runtimePackage.meta?.riskTags?.includes("acceptance_gate_unavailable"),
     pass,
     score: latestResult.runtimePackage.audit.score,
     issues: latestIssues,

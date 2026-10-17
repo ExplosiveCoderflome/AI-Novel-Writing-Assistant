@@ -27,6 +27,7 @@ export const CHAPTER_TASK_SHEET_QUALITY_STATUS = [
 export type ChapterTaskSheetQualityStatus = typeof CHAPTER_TASK_SHEET_QUALITY_STATUS[number];
 
 export interface ChapterExecutionContractQualityCandidate {
+  previousChapterResult?: {chapterOrder: number; title: string; summary: string; tail: string; content?: string} | null;
   novelId: string;
   volumeId?: string | null;
   chapterId: string;

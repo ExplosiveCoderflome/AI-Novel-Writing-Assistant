@@ -1,8 +1,11 @@
 import { StructuredOutputError } from "../../../../llm/structuredOutput";
-import { ChapterRepairVerificationError, ChapterStyleReviewValidationError } from "../../../../prompting/prompts/novel/acceptance";
+import { ChapterRepairVerificationError, ChapterStyleReviewValidationError, ChapterContinuityReviewValidationError } from "../../../../prompting/prompts/novel/acceptance";
 
 /** Persist safe, actionable diagnostics; provider responses and credentials stay out of reports. */
 export function describeAcceptanceFailure(error: unknown): { code: string; message: string } {
+  if (error instanceof ChapterContinuityReviewValidationError) {
+    return {code:"continuity_review_evidence_invalid", message:error.message};
+  }
   if (error instanceof ChapterStyleReviewValidationError) {
     return { code: `style_review_${error.code}`, message: error.message };
   }

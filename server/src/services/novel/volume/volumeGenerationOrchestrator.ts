@@ -499,6 +499,17 @@ async function generateChapterDetail(params: {
     throw new Error("生成章节细化时必须指定 detailMode。");
   }
 
+  const previous = detailMode === "task_sheet" && targetChapter.chapterOrder > 1 ? await prisma.chapter.findFirst({
+    where: {novelId: document.novelId, order: {lt: targetChapter.chapterOrder}, content: {not: null}},
+    orderBy: {order: "desc"}, select: {id: true, order: true, title: true, content: true},
+  }) : null;
+  const previousSummary = previous?.content?.trim() ? await prisma.chapterSummary.findFirst({
+    where: {novelId: document.novelId, chapterId: previous.id}, orderBy: {updatedAt: "desc"}, select: {summary: true},
+  }) : null;
+  const previousChapterResult = previous?.content?.trim() ? {
+    chapterOrder: previous.order, title: previous.title, summary: previousSummary?.summary ?? "",
+    tail: previous.content.slice(-800), content: previous.content,
+  } : null;
   const promptInput = {
     novel,
     workspace,
@@ -507,6 +518,7 @@ async function generateChapterDetail(params: {
     targetVolume,
     targetBeatSheet: getBeatSheet(document, targetVolume.id),
     targetChapter,
+    previousChapterResult,
     guidance: options.guidance,
     detailMode,
   };
@@ -563,6 +575,7 @@ async function generateChapterDetail(params: {
         output: await generateChapterTaskSheetDetail({
           promptInput: {
             ...promptInput,
+            previousChapterResult,
             detailMode: "task_sheet",
           },
           options,

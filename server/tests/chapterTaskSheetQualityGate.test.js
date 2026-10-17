@@ -122,7 +122,7 @@ test('task-sheet generation forwards the assessment once while preserving legacy
     const events=[];
     const params={promptInput:{novel:{id:'novel-1',title:'测试小说',characters:[]},workspace:{novelId:'novel-1',volumes:[]},storyMacroPlan:null,strategyPlan:null,targetVolume:{id:'volume-1',sortOrder:1,title:'第一卷',chapters:[chapter],openPayoffs:[]},targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet'},options:{chapterTaskSheetQualityMode:'full_book_autopilot',onChapterTaskSheetQuality:async event=>events.push(event)}};
     const detail=await generateChapterTaskSheetDetail(params);
-    assert.equal(detail.taskSheet,candidate.taskSheet);assert.equal(events.length,1);
+    assert.ok(detail.taskSheet.startsWith(candidate.taskSheet));assert.ok(detail.taskSheet.includes('补足目标'));assert.equal(events.length,1);
     assert.equal(events[0].chapterId,chapter.id);assert.equal(events[0].chapterOrder,1);
     assert.deepEqual(events[0].assessment,assessment);
     await assert.rejects(()=>generateChapterTaskSheetDetail({...params,options:{chapterTaskSheetQualityMode:'ai_copilot'}}),ChapterTaskSheetQualityGateError);
@@ -135,6 +135,49 @@ test('a saved JSON scene plan is reused without falsely reporting missing scenes
   const detail=await generateChapterTaskSheetDetail({promptInput:{workspace:{novelId:candidate.novelId},targetVolume:{id:candidate.volumeId},targetChapter:chapter},options:{}});
   assert.equal(detail.taskSheet,candidate.taskSheet);
   assert.equal(JSON.parse(detail.sceneCards).scenes.length,3);
+});
+
+test('autopilot repairs a local plan once and only publishes the final assessment and guidance', async () => {
+  const runner=require('../dist/prompting/core/promptRunner.js'), original=runner.runStructuredPrompt;
+  const candidate=buildCandidate(), chapter={...candidate,id:candidate.chapterId,taskSheet:null,sceneCards:null};
+  const previousChapterResult={chapterOrder:1,title:'前章',summary:'纸条来自旧钟，无信封。',tail:'他收好钟内纸条。'};
+  const params={promptInput:{novel:{id:candidate.novelId,title:'测试',characters:[]},workspace:{novelId:candidate.novelId,volumes:[]},
+    storyMacroPlan:null,strategyPlan:null,targetVolume:{id:candidate.volumeId,sortOrder:1,title:'一卷',chapters:[chapter],openPayoffs:[]},
+    targetBeatSheet:null,targetChapter:chapter,detailMode:'task_sheet',previousChapterResult},options:{chapterTaskSheetQualityMode:'full_book_autopilot'}};
+  const warning={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'来源冲突',issues:[],repairGuidance:['保留钟内纸条来源'],confidence:0.9};
+  const safe={...warning,verdict:'safe',safeToSync:true,recommendedHandling:'sync',summary:'来源一致',repairGuidance:[]};
+  try {
+    for (const failure of [null,'shape','abort','transport','runtime']) {
+      const calls=[],events=[]; let generations=0;
+      const controller=new AbortController();
+      runner.runStructuredPrompt=async input=>{
+        calls.push(input);
+        if (input.asset.id===chapterTaskSheetQualityPrompt.id) return {output:generations===1?warning:safe};
+        generations++;
+        if (generations===2 && failure) {
+          if (failure==='abort') {controller.abort(); throw new Error('aborted');}
+          if (failure==='transport') throw new (require('../dist/llm/structuredOutput').StructuredOutputError)({message:'transport failed',category:'transport_error',diagnostics:{}});
+          if (failure==='runtime') throw Error('data integrity failed');
+          throw Object.assign(Error('shape invalid'),{promptQualityFailureKind:'post_validate_failed'});
+        }
+        return {output:{...candidate,sceneCards:JSON.parse(candidate.sceneCards).scenes}};
+      };
+      const promise=generateChapterTaskSheetDetail({...params,options:{...params.options,signal:controller.signal,onChapterTaskSheetQuality:e=>events.push(e)}});
+      if (['abort','transport','runtime'].includes(failure)) {
+        await assert.rejects(promise); assert.equal(events.length,0);
+      } else {
+        const detail=await promise;
+        assert.equal(events.length,1);
+        assert.equal(events[0].assessment.verdict,failure?'repairable':'safe');
+        assert.equal(detail.taskSheet.includes('保留钟内纸条来源'),Boolean(failure));
+      }
+      assert.equal(generations,2);
+      const second=calls.filter(c=>c.asset.id!==chapterTaskSheetQualityPrompt.id)[1];
+      assert.ok(second.promptInput.guidance.includes('保留钟内纸条来源'));
+      assert.ok(second.contextBlocks.find(b=>b.id==='previous_chapter_result').content.includes('无信封'));
+      assert.deepEqual(calls.find(c=>c.asset.id===chapterTaskSheetQualityPrompt.id).promptInput.candidate.previousChapterResult,previousChapterResult);
+    }
+  } finally {runner.runStructuredPrompt=original;}
 });
 
 test('explicit regeneration bypasses a complete saved contract with or without guidance', async () => {
@@ -379,6 +422,6 @@ test("chapter task sheet quality service passes usable semantic assessments", as
 });
 
 test("chapter task sheet quality prompt is registered as a product prompt asset", () => {
-  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v2");
+  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v3");
   assert.equal(registered, chapterTaskSheetQualityPrompt);
 });

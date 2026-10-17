@@ -1,5 +1,6 @@
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import { readChapterQualityDebtDetails } from "@ai-novel/shared/types/chapterQualityLoop";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import {
@@ -180,10 +181,18 @@ export class NovelCoreReviewService {
   }
 
   async getQualityReport(novelId: string) {
-    const reports = await prisma.qualityReport.findMany({
-      where: { novelId },
-      orderBy: { createdAt: "desc" },
-    });
+    const [savedReports, chapters] = await Promise.all([
+      prisma.qualityReport.findMany({where: {novelId}, orderBy: {createdAt: "desc"}}),
+      prisma.chapter.findMany({where: {novelId}, select: {id: true, riskFlags: true}}),
+    ]);
+    const unavailableAt = new Map(chapters.flatMap(chapter => {
+      const debt = readChapterQualityDebtDetails(chapter.riskFlags);
+      return debt?.issueCodes.includes("acceptance_gate_unavailable") && debt.evaluatedAt
+        ? [[chapter.id, new Date(debt.evaluatedAt).getTime()] as const] : [];
+    }));
+    // Historical rule scores from an unavailable review are not AI quality grades.
+    const reports = savedReports.filter(report => !report.chapterId || !unavailableAt.has(report.chapterId)
+      || report.createdAt.getTime() > unavailableAt.get(report.chapterId)!);
     if (reports.length === 0) {
       return { novelId, summary: normalizeScore({}), chapterReports: [] };
     }

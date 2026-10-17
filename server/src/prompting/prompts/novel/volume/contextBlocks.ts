@@ -277,6 +277,10 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
 
 export function buildVolumeChapterDetailContextBlocks(input: VolumeChapterDetailPromptInput): PromptContextBlock[] {
   return [
+    ...(input.previousChapterResult ? [createContextBlock({
+      id: "previous_chapter_result", group: "previous_chapter_result", priority: 100, required: true, allowSummary: false,
+      content: `上一章已保存的实际结果（优先于未执行规划；核对物品来源、形态、持有人及人物位置；冲突时调整本章计划，不得改写前文。仅未提及不表示明确不存在）：\n${JSON.stringify(input.previousChapterResult)}`,
+    })] : []),
     createContextBlock({
       id: "book_contract",
       group: "book_contract",

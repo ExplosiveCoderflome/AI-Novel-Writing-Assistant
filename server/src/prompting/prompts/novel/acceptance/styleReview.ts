@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { styleRiskLayerSchema } from "@ai-novel/shared/types/styleEngine";
 import type { ChapterAcceptanceAssessmentOutput, ChapterAcceptancePromptInput } from "../chapterAcceptance.prompts";
+import { validateRepairReview } from "./repairVerification";
+import { validateContinuityReview } from "./continuityReview";
 
 export class ChapterStyleReviewValidationError extends Error {
   constructor(readonly code: string, message: string) {
@@ -78,4 +80,27 @@ export function validateAcceptanceStyleReview(
     }
   }
   return output;
+}
+
+/** A failed style citation cannot authorize a rewrite or erase the independent story review. */
+export function recoverAcceptanceStyleReview(output: ChapterAcceptanceAssessmentOutput, input: ChapterAcceptancePromptInput) {
+  validateRepairReview(output, input);
+  validateContinuityReview(output, input);
+  try {
+    return validateAcceptanceStyleReview(output, input);
+  } catch (error) {
+    if (!(error instanceof ChapterStyleReviewValidationError)) throw error;
+    return {
+      ...output,
+      styleReview: null,
+      styleReviewFailure: {code: error.code, message: error.message},
+      blockingIssues: [...output.blockingIssues.filter(issue => issue.category !== "voice"), {
+        category: "mode_fit" as const, severity: "medium" as const, code: "style_review_unavailable",
+        evidence: error.message, fixSuggestion: "正文已保留，请从章节页面重新检查写法。",
+      }],
+      repairDirectives: output.repairDirectives.filter(directive => directive.target !== "voice"),
+      status: output.status === "accepted" ? "continue_with_risk" as const : output.status,
+      riskTags: [...new Set([...output.riskTags, "style_review_unavailable", `style_review_${error.code}`])],
+    };
+  }
 }

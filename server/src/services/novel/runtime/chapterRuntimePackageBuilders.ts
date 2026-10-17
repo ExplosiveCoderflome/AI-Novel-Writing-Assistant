@@ -486,6 +486,7 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
       stateGoalSummary: input.contextPackage.chapterStateGoal?.summary,
       pendingReviewProposalCount: input.contextPackage.pendingReviewProposalCount,
       acceptanceStatus: input.acceptance.status,
+      scoreAvailable: !input.acceptance.riskTags.includes("acceptance_gate_unavailable"),
       continuePolicy: input.acceptance.continuePolicy,
       riskTags: input.acceptance.riskTags,
       repairDirectives: input.acceptance.repairDirectives,

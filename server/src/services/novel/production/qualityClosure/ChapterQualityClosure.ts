@@ -113,7 +113,7 @@ export async function applyChapterQualityClosure(input: {
   if (chapterResult.reviewExecuted) {
     await createQualityReport(input.novelId, chapter.id, final.score, final.issues);
   }
-  if (chapterResult.reviewExecuted || input.authorRevision) {
+  if (chapterResult.reviewExecuted || runtimePayload.autoReview || input.authorRevision) {
     await chapterQualityLoopService.recordAssessment({
       novelId: input.novelId,
       chapterId: chapter.id,

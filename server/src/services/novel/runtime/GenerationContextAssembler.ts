@@ -525,6 +525,7 @@ export class GenerationContextAssembler {
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
       previousChapterTail,
+      previousChapterContent: recentChapters[0]?.content ?? null,
       openingHint,
       continuation: runtimeContinuation,
       styleContext,

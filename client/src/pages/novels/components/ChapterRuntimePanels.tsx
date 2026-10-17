@@ -352,6 +352,9 @@ export function ChapterRuntimeAuditCard(props: {
   lastReplanResult?: ReplanResult | null;
 }) {
   const audit = buildAuditView(props.runtimePackage, props.auditReports);
+  const scoreAvailable = props.runtimePackage
+    ? props.runtimePackage.meta?.scoreAvailable !== false && !props.runtimePackage.meta?.riskTags?.includes("acceptance_gate_unavailable")
+    : (props.auditReports ?? []).some(report => typeof report.overallScore === "number");
   const replanSummary = buildReplanSummary(
     props.runtimePackage,
     props.auditReports,
@@ -365,7 +368,7 @@ export function ChapterRuntimeAuditCard(props: {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center gap-2">
-          <div className="font-medium">总分 {audit.score.overall}</div>
+          <div className="font-medium">{scoreAvailable ? `总分 ${audit.score.overall}` : "审校未完成，暂无评分"}</div>
           <Badge variant={audit.hasBlockingIssues ? "default" : "outline"}>
             {audit.hasBlockingIssues ? "需处理" : "可继续"}
           </Badge>

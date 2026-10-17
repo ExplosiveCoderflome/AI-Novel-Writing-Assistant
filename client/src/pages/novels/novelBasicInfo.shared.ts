@@ -29,6 +29,7 @@ export interface NovelBasicFormState {
   postGenerationStyleReviewEnabled: boolean;
   defaultChapterLength: number;
   estimatedChapterCount: number;
+  estimatedChapterCountSource?: "default" | "user";
   projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   outlineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
@@ -297,6 +298,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     postGenerationStyleReviewEnabled: true,
     defaultChapterLength: 2800,
     estimatedChapterCount: DEFAULT_ESTIMATED_CHAPTER_COUNT,
+    estimatedChapterCountSource: "default",
     projectStatus: "not_started",
     storylineStatus: "not_started",
     outlineStatus: "not_started",
@@ -316,6 +318,9 @@ export function patchNovelBasicForm(
   patch: Partial<NovelBasicFormState>,
 ): NovelBasicFormState {
   const next = { ...previous, ...patch };
+  if (patch.estimatedChapterCount !== undefined && patch.estimatedChapterCountSource === undefined) {
+    next.estimatedChapterCountSource = "user";
+  }
   if (
     next.primaryStoryModeId
     && next.secondaryStoryModeId

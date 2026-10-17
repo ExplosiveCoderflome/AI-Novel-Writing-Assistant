@@ -148,9 +148,31 @@ test('failed style and repair verification keep distinct safe diagnostics withou
     assert.ok(result.assessment.riskTags.includes('acceptance_gate_unavailable'));
     assert.ok(result.assessment.riskTags.includes(code));
     assert.equal(result.assessment.continuePolicy, 'continue');
+    assert.equal(result.assessment.score.overall, 0, 'unavailable review has no invented estimate');
+    assert.equal(result.auditReports[0].overallScore, null);
+    assert.deepEqual(JSON.parse(result.auditReports[0].legacyScoreJson).scoreAvailable, false);
     assert.ok(!JSON.stringify(result).includes('private-token-123'));
     assert.notEqual(result.assessment.blockingIssues[0].evidence, '章节接收闸门未返回可用结构化结果。');
   }
+});
+
+test('exhausted style citation correction preserves independent story findings without authorizing voice repair', () => {
+  const asset = prompt.chapterAcceptanceAssessmentPrompt;
+  const raw = output({status:'repairable', blockingIssues:[
+    {code:'prop_origin',category:'continuity',severity:'high',evidence:'信封有邮戳',fixSuggestion:'保持钟内纸条来源'},
+    {code:'voice',category:'voice',severity:'medium',evidence:'不存在的原句',fixSuggestion:'润色',layer:'surface',canAutoRewrite:true},
+  ], repairDirectives:[{mode:'patch',target:'continuity',instruction:'修正道具来源'},
+    {mode:'patch',target:'voice',instruction:'润色'}]});
+  const recovered = asset.postValidateFailureRecovery({rawOutput:raw,promptInput:{content:'他取出钟内纸条。',
+    styleReviewEnabled:true,expectedNarrativePov:'third_person'}});
+  assert.equal(recovered.styleReview, null);
+  assert.equal(recovered.styleReviewFailure.code, 'perspective_missing');
+  assert.deepEqual(recovered.blockingIssues.map(i=>i.code), ['prop_origin','style_review_unavailable']);
+  assert.deepEqual(recovered.repairDirectives.map(i=>i.target), ['continuity']);
+  assert.equal(recovered.score.overall, 90);
+  assert.equal(asset.semanticRetryPolicy.maxAttempts, 1);
+  assert.throws(()=>asset.postValidateFailureRecovery({rawOutput:raw,promptInput:{content:'候选',styleReviewEnabled:true,
+    repairReviewBaseline:{blockingIssues:[],missingObligations:[]}}}), /修文|核对|验证|正文/);
 });
 
 test('schema and transport failures are distinguished without storing raw provider errors', () => {
@@ -172,6 +194,21 @@ test('model schema requires a style report field but allows null for disabled ch
   assert.throws(() => prompt.chapterAcceptanceAssessmentPrompt.postValidate(disabled, {
     content: '正文', styleReviewEnabled: true,
   }), /缺失报告/);
+});
+
+test('cross-chapter semantic checks require quotes from both sources and preserve structured continuity conflicts', () => {
+  const args={content:'他把信封递给她。',previousChapterContent:'他展开从笔记本撕下的横格纸。',styleReviewEnabled:false};
+  const check={subject:'信件载体',previousFact:'横格纸',currentFact:'信封',previousEvidence:'从笔记本撕下的横格纸',currentEvidence:'信封',
+    verdict:'conflict',reason:'载体变化未交代',issueCode:'carrier_changed'};
+  const raw=output({continuityChecks:[check],blockingIssues:[{code:'carrier_changed',category:'continuity',severity:'medium',
+    evidence:'信封',fixSuggestion:'保持前文载体并调整本章规划'}]});
+  assert.equal(prompt.chapterAcceptanceAssessmentPrompt.postValidate(raw,args).continuityChecks[0].verdict,'conflict');
+  for (const bad of [output(), {...raw,continuityChecks:[{...check,previousEvidence:'不存在的前文'}]},
+    {...raw,blockingIssues:[]}]) {
+    assert.throws(()=>prompt.chapterAcceptanceAssessmentPrompt.postValidate(bad,args), error=>error.name==='ChapterContinuityReviewValidationError');
+    assert.throws(()=>prompt.chapterAcceptanceAssessmentPrompt.postValidateFailureRecovery({rawOutput:bad,promptInput:args}),
+      error=>error.name==='ChapterContinuityReviewValidationError');
+  }
 });
 
 test('AI refusal and narrative diagnosis retain structured observations without spending automatic repair work', async () => {

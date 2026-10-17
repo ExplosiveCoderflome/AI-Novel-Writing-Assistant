@@ -74,7 +74,7 @@ export class ChapterQualityGateService {
         stage: "acceptance", blocking: true, attemptNo: 1, retryReason: null,
         contentHash, durationMs: Date.now() - startedAt,
         promptAssetKey: "novel.chapter.acceptance_assessment",
-        status: result.assessment.riskTags.includes("acceptance_gate_unavailable") ? "degraded" : "succeeded",
+        status: result.assessment.riskTags.some(tag => tag === "acceptance_gate_unavailable" || tag === "style_review_unavailable") ? "degraded" : "succeeded",
       });
       return result;
     } catch (error) {
@@ -135,6 +135,7 @@ export class ChapterQualityGateService {
   private isCacheable(result: ChapterAcceptanceAssessmentResult): boolean {
     return Boolean(result?.assessment?.riskTags && result.assessment.blockingIssues)
       && !result.assessment.riskTags.includes("acceptance_gate_unavailable")
+      && !result.assessment.riskTags.includes("style_review_unavailable")
       && !result.assessment.blockingIssues.some((issue) => issue.code === "acceptance_gate_unavailable");
   }
 

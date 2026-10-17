@@ -183,21 +183,21 @@ export default function StageBasicSetup({
             min={1}
             max={2000}
             className={controlClassName}
-            value={estimatedChapterCountDraft ?? String(basicForm.estimatedChapterCount)}
+            placeholder="由 AI 根据故事方向推荐"
+            value={estimatedChapterCountDraft ?? (basicForm.estimatedChapterCountSource === "default" ? "" : String(basicForm.estimatedChapterCount))}
             onChange={(event) => {
               const draft = event.target.value;
               setEstimatedChapterCountDraft(draft);
               const estimatedChapterCount = parseEstimatedChapterCountInput(draft);
-              if (estimatedChapterCount !== null) {
-                onBasicFormChange({ estimatedChapterCount });
-              }
+              if (estimatedChapterCount !== null) onBasicFormChange({ estimatedChapterCount, estimatedChapterCountSource: "user" });
+              else if (!draft.trim()) onBasicFormChange({estimatedChapterCountSource: "default"});
             }}
             onBlur={() => setEstimatedChapterCountDraft(null)}
           />
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
+            留空由 AI 推荐；填写后按这个规模安排整书结构和后续卷章规划。
           </div>
-          {basicForm.estimatedChapterCount <= 60 ? (
+          {basicForm.estimatedChapterCountSource !== "default" && basicForm.estimatedChapterCount <= 60 ? (
             <div className={`rounded-lg bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               紧凑全书模式：AI 会在有限篇幅内完成完整结局，必要时最多追加 5 章收尾。
             </div>

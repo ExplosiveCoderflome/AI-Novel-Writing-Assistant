@@ -16,7 +16,7 @@ import {
   type ChapterAcceptancePromptInput,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { openConflictService } from "../../state/OpenConflictService";
-import { normalizeScore, ruleScore } from "../novelP0Utils";
+import { normalizeScore } from "../novelP0Utils";
 import { detectProseQuality } from "./proseQuality/ProseQualityDetector";
 import { buildAcceptanceCacheIdentity, isAcceptanceStyleReviewEnabled, applyAcceptanceStyleContext, buildAcceptanceStyleReport,
   getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy, buildAcceptanceStyleSignals, getAcceptanceNarrativePov, describeAcceptanceFailure } from "./acceptance";
@@ -180,7 +180,7 @@ export function normalizeAssessment(
   targetWordCount?: number | null,
 ): ChapterAcceptanceAssessmentOutput {
   const reconciled = reconcileLengthAssessment(output, content, targetWordCount);
-  const score = normalizeScore(reconciled.score ?? ruleScore(content));
+  const score = normalizeScore(reconciled.score);
   const missingObligations = reconciled.missingObligations ?? [];
   const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
   const hasRepairWork = reconciled.blockingIssues.length > 0
@@ -214,14 +214,18 @@ export function normalizeAssessment(
     score,
     continuePolicy,
     riskTags: Array.from(new Set(reconciled.riskTags.map((item) => item.trim()).filter(Boolean))),
-    blockingIssues: reconciled.blockingIssues.slice(0, 5),
+    blockingIssues: [
+      ...reconciled.blockingIssues.filter(issue => issue.code !== "style_review_unavailable").slice(0, 5),
+      ...reconciled.blockingIssues.filter(issue => issue.code === "style_review_unavailable").slice(0, 1),
+    ],
     repairDirectives: reconciled.repairDirectives.slice(0, 4),
     missingObligations: missingObligations.slice(0, 8),
   };
 }
 
-function buildFallbackAssessment(content: string, failure: ReturnType<typeof describeAcceptanceFailure>): ChapterAcceptanceAssessmentOutput {
-  const score = ruleScore(content);
+function buildFallbackAssessment(failure: ReturnType<typeof describeAcceptanceFailure>): ChapterAcceptanceAssessmentOutput {
+  // Compatibility transport only: unavailable checks have no quality grade and are never published as scores.
+  const score = {coherence: 0, repetition: 0, pacing: 0, voice: 0, engagement: 0, overall: 0};
   return {
     status: "continue_with_risk",
     score,
@@ -260,7 +264,7 @@ export class ChapterAcceptanceAssessmentService {
         promptId: chapterAcceptanceAssessmentPrompt.id, promptVersion: chapterAcceptanceAssessmentPrompt.version,
         code: failure.code, reason: failure.message,
       });
-      return buildFallbackAssessment(input.content, failure);
+      return buildFallbackAssessment(failure);
     });
     const styleReviewReport = buildAcceptanceStyleReport(input.contextPackage, assessment);
     const controlledAssessment = applyAcceptanceStyleRepairPolicy(input.contextPackage, assessment);
@@ -345,6 +349,7 @@ export class ChapterAcceptanceAssessmentService {
         chapterTitle: input.chapterTitle,
         targetWordCount: input.targetWordCount ?? null,
         content: input.content,
+        previousChapterContent: input.contextPackage.previousChapterContent,
         styleReviewEnabled: isAcceptanceStyleReviewEnabled(input.contextPackage),
         styleRuleIds: getAcceptanceStyleRuleIds(input.contextPackage),
         expectedNarrativePov: getAcceptanceNarrativePov(input.contextPackage),
@@ -396,10 +401,10 @@ export class ChapterAcceptanceAssessmentService {
             novelId: input.novelId,
             chapterId: input.chapterId,
             auditType,
-            overallScore: score.overall,
+            overallScore: assessment.riskTags.includes("acceptance_gate_unavailable") ? null : score.overall,
             summary: assessment.summary,
             legacyScoreJson: JSON.stringify({
-              ...score,
+              ...(assessment.riskTags.includes("acceptance_gate_unavailable") ? {scoreAvailable: false} : {...score, scoreAvailable: true}),
               acceptanceStatus: assessment.status,
               continuePolicy: assessment.continuePolicy,
               riskTags: assessment.riskTags,
@@ -454,10 +459,10 @@ export class ChapterAcceptanceAssessmentService {
         novelId: input.novelId,
         chapterId: input.chapterId,
         auditType,
-        overallScore: score.overall,
+        overallScore: assessment.riskTags.includes("acceptance_gate_unavailable") ? null : score.overall,
         summary: assessment.summary,
         legacyScoreJson: JSON.stringify({
-          ...score,
+          ...(assessment.riskTags.includes("acceptance_gate_unavailable") ? {scoreAvailable: false} : {...score, scoreAvailable: true}),
           acceptanceStatus: assessment.status,
           continuePolicy: assessment.continuePolicy,
           riskTags: assessment.riskTags,

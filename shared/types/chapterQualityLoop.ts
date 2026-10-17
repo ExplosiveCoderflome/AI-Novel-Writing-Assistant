@@ -170,7 +170,11 @@ export function readChapterQualityDebtDetails(
       : null,
     repairAttemptsUsed,
     repairAttemptsAllowed,
-    reason: signalReason || pauseReason || "本章保留了需要进一步优化的局部质量项。",
+    reason: issueCodes.includes("acceptance_gate_unavailable")
+      ? "本章审校未完成，不能据此判断质量通过；正文已保留，需重新检查。"
+      : issueCodes.includes("style_review_unavailable")
+        ? "剧情检查结果已保留，写法检查未完成，需重新检查写法。"
+        : signalReason || pauseReason || "本章保留了需要进一步优化的局部质量项。",
     issueCodes,
   };
 }
