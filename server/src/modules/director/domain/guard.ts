@@ -107,8 +107,11 @@ export function checkAction(input: GuardInput): GuardVerdict {
         return reject("requires_unmet", `step ${step.id} is missing: ${missing.join(", ")}`);
       }
       const touched = [...step.overwrites, step.produces];
+      const range = contract.chapterRange;
+      const preserved = range && Number.isSafeInteger(range.from) && Number.isSafeInteger(range.to) && range.from >= 1 && range.to >= range.from
+        ? step.preservesInChapterRange ?? [] : [];
       const protectedType = touched.find(
-        (type) => latestArtifact(facts, type, contract.scope)?.protectedUserContent === true,
+        (type) => !preserved.includes(type) && latestArtifact(facts, type, contract.scope)?.protectedUserContent === true,
       );
       if (protectedType) {
         return reject(

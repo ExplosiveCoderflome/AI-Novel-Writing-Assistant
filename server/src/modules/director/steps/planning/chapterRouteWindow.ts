@@ -1,4 +1,5 @@
 import type {StepHandler, StepContext} from "../../application";
+import {latestArtifact} from "../../domain";
 
 interface RouteChapter {chapterOrder: number}
 interface RouteWorkspace<Chapter extends RouteChapter> {
@@ -16,7 +17,7 @@ interface RouteWindowDependencies<Provider extends string, Chapter extends Route
   routeService: {ensureRouteWindow(novelId: string, from: number, options: {
     min: number; target: number; provider?: Provider; model?: string; temperature?: number; taskId: string;
   }): Promise<{availableRouteCount: number; extended: boolean}>};
-  volumeService: {getVolumes(novelId: string): Promise<RouteWorkspace<Chapter>>};
+  volumeService: {getVolumes(novelId: string, options?: {hydrateCanonical?: boolean}): Promise<RouteWorkspace<Chapter>>};
   contentHash: (content: unknown) => string;
 }
 
@@ -36,7 +37,7 @@ export function createChapterRouteWindowStepHandler<Provider extends string, Cha
     await dependencies.routeService.ensureRouteWindow(novelId, range.from, {
       min, target, provider: input.provider, model: input.model, temperature: input.temperature, taskId: context.runId,
     });
-    const saved = await dependencies.volumeService.getVolumes(novelId);
+    const saved = await dependencies.volumeService.getVolumes(novelId, {hydrateCanonical: false});
     if (saved.novelId !== novelId) throw new Error("已保存的章节路线不属于当前小说。");
     const selected = saved.volumes.find(volume => volume.id === input.targetVolumeId);
     if (!selected?.chapters.some(chapter => chapter.chapterOrder === range.from)) throw new Error("授权起始章节缺少目标卷路线。");
@@ -51,7 +52,8 @@ export function createChapterRouteWindowStepHandler<Provider extends string, Cha
       routes.push(matches[0]);
     }
     if (routes.length < min) throw new Error("授权范围缺少连续的已保存章节路线。");
-    return {artifact: {scope: context.contract.scope, status: "draft", protectedUserContent: false,
+    return {artifact: {scope: context.contract.scope, status: "draft",
+      protectedUserContent: Boolean(latestArtifact(context.facts, "volume_chapter_list", context.contract.scope)?.protectedUserContent),
       contentRef: 'volume_chapter_list:'+novelId+':'+input.targetVolumeId,
       contentHash: dependencies.contentHash(routes)}};
   };

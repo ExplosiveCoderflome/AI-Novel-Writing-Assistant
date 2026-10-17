@@ -106,7 +106,7 @@ test("route window adds a future skeleton before planning the next beat and chap
           : volume
       )), options.draftWorkspace.beatSheets);
     },
-    updateVolumesWithOptions: async (_novelId, input) => {
+    appendMissingRoutes: async (_novelId, input) => {
       workspace = buildWorkspace(input.volumes, input.beatSheets);
       return workspace;
     },
@@ -137,12 +137,31 @@ test('future chapters cannot satisfy a route window whose starting chapter is mi
  const calls=[];
  const service={getVolumes:async()=>workspace,generateVolumes:async(_id,options)=>{
   calls.push(options.scope);return buildWorkspace([createVolume('volume-gap',1,[7,8,9].map(order=>createChapter('route-'+order,'volume-gap',order)))],workspace.beatSheets);
- },syncVolumeChaptersWithOptions:async()=>{planned=true;},updateVolumesWithOptions:async(_id,value)=>{workspace=value;return value;}};
+ },appendMissingRoutes:async(_id,value)=>{planned=true;workspace=value;return value;}};
  const originalCount=prisma.chapter.count,originalRead=prisma.chapter.findMany;
  prisma.chapter.count=async()=>planned?6:3;
  prisma.chapter.findMany=async()=> (planned?[7,8,9,10,11,12]:[10,11,12]).map(order=>({order}));
  try {
   const result=await new ChapterRouteWindowService(service).ensureRouteWindow('novel-1',7,{min:3,target:3});
-  assert.deepEqual(calls,['chapter_list']);assert.equal(result.extended,true);assert.equal(result.availableRouteCount,6);
+  assert.deepEqual(calls,['chapter_list']);assert.equal(result.extended,true);assert.equal(result.availableRouteCount,3);
  } finally {prisma.chapter.count=originalCount;prisma.chapter.findMany=originalRead;}
+});
+
+test('saved plans rebuild missing empty execution rows without generating again',async()=>{
+ let linked=false,calls=0;
+ const workspace=buildWorkspace([createVolume('saved',1,[7,8,9].map(order=>createChapter('saved-'+order,'saved',order)))],[]);
+ const service={getVolumes:async()=>workspace,generateVolumes:async()=>{calls++;throw Error('must reuse saved routes')},
+  appendMissingRoutes:async()=>{linked=true;return workspace}};
+ const original=prisma.chapter.findMany;prisma.chapter.findMany=async()=>linked?[7,8,9].map(order=>({order})):[];
+ try {const result=await new ChapterRouteWindowService(service).ensureRouteWindow('novel-1',7,{min:3,target:3});assert.equal(result.availableRouteCount,3);assert.equal(calls,0)}
+ finally {prisma.chapter.findMany=original}
+});
+
+test('a candidate that adds no continuous route stops after one generation instead of repeatedly spending tokens',async()=>{
+ let calls=0;
+ const workspace=buildWorkspace([createVolume('empty',1)], [{volumeId:'empty',beats:[{key:'open_hook',label:'开局',summary:'需补章节',chapterSpanHint:'3章',mustDeliver:['新路线']}]}]);
+ const service={getVolumes:async()=>workspace,generateVolumes:async()=>{calls++;return workspace},appendMissingRoutes:async()=>workspace};
+ const original=prisma.chapter.findMany;prisma.chapter.findMany=async()=>[];
+ try {await assert.rejects(new ChapterRouteWindowService(service).ensureRouteWindow('novel-1',7,{min:3,target:3}),/未补出/);assert.equal(calls,1)}
+ finally {prisma.chapter.findMany=original}
 });

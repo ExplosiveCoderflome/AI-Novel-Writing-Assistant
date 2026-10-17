@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {createChapterRouteWindowStepHandler}=require('../../../dist/modules/director/steps');
-const context={runId:'run',contract:{novelId:'book',scope:'chapters:7-20',chapterRange:{from:7,to:20}}};
+const context={runId:'run',facts:{artifacts:[],debts:[],stopSignal:null},contract:{novelId:'book',scope:'chapters:7-20',chapterRange:{from:7,to:20}}};
 const chapter=chapterOrder=>({id:'plan-'+chapterOrder,chapterOrder,title:'第'+chapterOrder+'章'});
 const workspace={novelId:'book',volumes:[{id:'v1',chapters:Array.from({length:8},(_,i)=>chapter(i+7))}]};
 function setup(saved=workspace){const calls=[];return{calls,handler:createChapterRouteWindowStepHandler({

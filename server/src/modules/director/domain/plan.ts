@@ -46,6 +46,9 @@ export function definePlan(input: PlanDefinition): PlanDefinition {
         throw new PlanValidationError(`step ${step.id} overwrites unknown artifact type ${type}`);
       }
     }
+    for (const type of step.preservesInChapterRange ?? []) {
+      if (![step.produces, ...step.overwrites].includes(type)) throw new PlanValidationError(`step ${step.id} cannot preserve untouched artifact ${type}`);
+    }
   }
 
   const stepById = new Map(input.steps.map((step) => [step.id, step]));
@@ -80,6 +83,7 @@ export function definePlan(input: PlanDefinition): PlanDefinition {
       requires: Object.freeze([...step.requires]),
       needs: Object.freeze([...step.needs]),
       overwrites: Object.freeze([...step.overwrites]),
+      ...(step.preservesInChapterRange ? {preservesInChapterRange: Object.freeze([...step.preservesInChapterRange])} : {}),
     }))),
   });
 }

@@ -166,7 +166,10 @@ test("chapter production has one governed failure and recovery boundary", () => 
     "services", "novel", "workflow", "NovelWorkflowStoreService.ts",
   );
 
-  assert.equal(routeWindowSource.includes("allowIncompleteExecutionContracts: true"), true);
+  // Route preparation owns only missing routes/empty rows, not a full execution-contract sync.
+  assert.equal(routeWindowSource.includes(".appendMissingRoutes("), true);
+  assert.equal(routeWindowSource.includes(".syncVolumeChaptersWithOptions("), false);
+  assert.equal(routeWindowSource.includes("persistIntermediateDocuments: false"), true);
   assert.equal(pipelineSource.includes('issueCode: "generation.runtime_failed"'), false);
   assert.equal(issueGovernanceSource.includes('"runtime.unclassified"'), true);
   assert.equal(pipelineSource.includes("applyAction: async (decision)"), true);

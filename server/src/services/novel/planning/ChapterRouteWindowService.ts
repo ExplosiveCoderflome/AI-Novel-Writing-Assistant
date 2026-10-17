@@ -60,12 +60,18 @@ export class ChapterRouteWindowService {
       : remaining != null && remaining <= 8
         ? `紧凑全书收束规划：剩余约 ${remaining} 章。优先完成主冲突、关系变化和未兑现回报，不扩展远期世界或新主线。`
         : undefined;
-    let availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder);
+    let workspace = await this.volumeService.getVolumes(novelId, {hydrateCanonical: false});
+    let availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder, workspace);
     if (availableRouteCount >= minimum) {
       return { availableRouteCount, extended: false };
     }
 
-    let workspace = await this.volumeService.getVolumes(novelId);
+    // Saved planning can outlive missing execution rows; rebuild only the absent empty rows, without AI.
+    if (countPlannedRoutes(workspace, fromChapterOrder) >= minimum) {
+      workspace = await this.volumeService.appendMissingRoutes(novelId, workspace);
+      availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder, workspace);
+      if (availableRouteCount >= minimum) return {availableRouteCount, extended: false};
+    }
     let extended = false;
     while (availableRouteCount < target) {
       const next = this.findNextRouteTarget(workspace);
@@ -93,12 +99,13 @@ export class ChapterRouteWindowService {
           taskId: options.taskId,
           guidance: closingGuidance,
           entrypoint: "jit_route_window",
+          persistIntermediateDocuments: false,
         });
-        workspace = await this.volumeService.updateVolumesWithOptions(novelId, workspace, {
-          emitEvent: false,
-          syncPayoffLedger: false,
-          volumeUpdateReason: "chapter_execution_contract_refined",
-        });
+        workspace = await this.volumeService.appendMissingRoutes(novelId, workspace);
+        if (!workspace.beatSheets.some(sheet => sheet.volumeId === next.volumeId && sheet.beats.length)) {
+          throw new Error("未保存可用的节奏板，已保留原有规划，请从保存进度重试。");
+        }
+        availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder, workspace);
         continue;
       }
 
@@ -114,18 +121,13 @@ export class ChapterRouteWindowService {
         taskId: options.taskId,
         guidance: closingGuidance,
         entrypoint: "jit_route_window",
+        persistIntermediateDocuments: false,
       });
-      await this.volumeService.syncVolumeChaptersWithOptions(novelId, {
-        volumes: workspace.volumes,
-        preserveContent: true,
-        applyDeletes: false,
-        allowIncompleteExecutionContracts: true,
-      }, {
-        emitEvent: false,
-        syncPayoffLedger: false,
-      });
+      workspace = await this.volumeService.appendMissingRoutes(novelId, workspace);
       extended = true;
-      availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder);
+      const previousCount = availableRouteCount;
+      availableRouteCount = await this.countAvailableRoute(novelId, fromChapterOrder, workspace);
+      if (availableRouteCount <= previousCount) throw new Error("未补出所需的连续章节路线，已保留原有规划，请从保存进度重试。");
     }
     return { availableRouteCount, extended };
   }
@@ -167,28 +169,18 @@ export class ChapterRouteWindowService {
     if (futureVolumes.length === 0) {
       return null;
     }
-    return this.volumeService.updateVolumesWithOptions(novelId, {
-      volumes: [...workspace.volumes, ...futureVolumes],
-      beatSheets: workspace.beatSheets,
-      rebalanceDecisions: workspace.rebalanceDecisions,
-    }, {
-      emitEvent: false,
-      syncPayoffLedger: false,
-      volumeUpdateReason: "chapter_execution_contract_refined",
-    });
+    const saved = await this.volumeService.appendMissingRoutes(novelId, {...workspace, volumes: [...workspace.volumes, ...futureVolumes]});
+    return saved.volumes.length > workspace.volumes.length ? saved : null;
   }
 
-  private async countAvailableRoute(novelId: string, fromChapterOrder: number): Promise<number> {
+  private async countAvailableRoute(novelId: string, fromChapterOrder: number, workspace: VolumePlanDocument): Promise<number> {
     const chapters = await prisma.chapter.findMany({
       where: {novelId, order: {gte: fromChapterOrder}},
       orderBy: {order: "asc"}, select: {order: true},
     });
-    let nextOrder = fromChapterOrder;
-    for (const chapter of chapters) {
-      if (chapter.order !== nextOrder) break;
-      nextOrder++;
-    }
-    return nextOrder-fromChapterOrder;
+    const orders = new Set(chapters.map(chapter => chapter.order));
+    if (orders.size !== chapters.length) throw new Error("小说存在重复章序，不能自动补齐路线。");
+    return countPlannedRoutes(workspace, fromChapterOrder, orders);
   }
 
   private findNextRouteTarget(workspace: VolumePlanDocument): { volumeId: string; beatKey: string | null } | null {
@@ -209,4 +201,14 @@ export class ChapterRouteWindowService {
     }
     return null;
   }
+}
+
+function countPlannedRoutes(workspace: VolumePlanDocument, from: number, savedOrders?: Set<number>): number {
+  const counts = new Map<number, number>();
+  for (const chapter of workspace.volumes.flatMap(volume => volume.chapters)) {
+    counts.set(chapter.chapterOrder, (counts.get(chapter.chapterOrder) ?? 0)+1);
+  }
+  let end = from;
+  while (counts.get(end) === 1 && (!savedOrders || savedOrders.has(end))) end++;
+  return end-from;
 }

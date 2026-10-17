@@ -178,3 +178,28 @@ test("updateVolumes does not sync chapter execution when the flag is absent", as
     service.syncVolumeChaptersWithOptions = originals.syncVolumeChaptersWithOptions;
   }
 });
+
+test('a generation with persistence disabled neither hydrates nor saves intermediate or final candidates',async()=>{
+  const generation=require('../dist/services/novel/volume/volumeGenerationOrchestrator');
+  const telemetry=require('../dist/services/novel/volume/volumeGenerationTelemetry');
+  const original=generation.generateVolumePlanDocument;
+  const originalGuard=telemetry.withHighMemoryVolumeGenerationGuard;
+  telemetry.withHighMemoryVolumeGenerationGuard=async(_id,_options,run)=>run();
+  try {
+    for(const [setting,expectedWrites] of [[false,0],[undefined,1],[true,2]]) {
+      const service=new NovelVolumeService(),workspace=createWorkspace(1);
+      let writes=0,callbacks=0,hydrations=0;
+      service.getVolumes=async(_id,options)=>{assert.equal(options.hydrateCanonical,false);return workspace};
+      service.ensureVolumeWorkspace=async()=>{hydrations++;return workspace};
+      service.persistWorkspaceDocument=async(_id,value)=>{writes++;return value};
+      generation.generateVolumePlanDocument=async({options})=>{
+        for(const isFinal of [false,true]) await options.onIntermediateDocument({document:workspace,scope:'chapter_list',isFinal});
+        return workspace;
+      };
+      await service.generateVolumes('novel-demo',{scope:'chapter_list',entrypoint:'jit_route_window',persistIntermediateDocuments:setting,
+        onIntermediateDocument:()=>{callbacks++}});
+      assert.equal(writes,expectedWrites);assert.equal(callbacks,2);
+      if(setting===false)assert.equal(hydrations,0);
+    }
+  } finally {generation.generateVolumePlanDocument=original;telemetry.withHighMemoryVolumeGenerationGuard=originalGuard}
+});

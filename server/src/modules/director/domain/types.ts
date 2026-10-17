@@ -32,6 +32,8 @@ export interface StepDefinition {
   needs: readonly string[];
   gateable: boolean;
   overwrites: readonly ArtifactType[];
+  /** Ranged production adapters may only append missing data for these saved assets. */
+  preservesInChapterRange?: readonly ArtifactType[];
 }
 
 export interface PlanDefinition {

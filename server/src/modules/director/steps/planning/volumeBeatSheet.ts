@@ -1,4 +1,5 @@
 import type { StepContext, StepHandler } from "../../application";
+import {latestArtifact} from "../../domain";
 
 interface BeatSheetWorkspace {
   novelId: string;
@@ -51,7 +52,8 @@ export function createVolumeBeatSheetStepHandler<Provider extends string, Docume
     }
     if (input.reuseSaved) {
       const sheet = requireTargetSheet(input.workspace, novelId, input.targetVolumeId);
-      return {artifact: {scope: context.contract.scope, status: "draft", protectedUserContent: false,
+      return {artifact: {scope: context.contract.scope, status: "draft",
+        protectedUserContent: Boolean(latestArtifact(context.facts, "volume_beat_sheet", context.contract.scope)?.protectedUserContent),
         contentRef: 'volume_beat_sheet:'+novelId+':'+input.targetVolumeId,
         contentHash: dependencies.contentHash(sheet)}};
     }

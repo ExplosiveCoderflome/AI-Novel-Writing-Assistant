@@ -106,6 +106,7 @@ export interface VolumeGenerateOptions {
   entrypoint?: string;
   chapterTaskSheetQualityMode?: ChapterTaskSheetQualityMode;
   signal?: AbortSignal;
+  /** false keeps both intermediate and final candidates in memory until the owning adapter saves them. */
   persistIntermediateDocuments?: boolean;
   onPhaseStart?: (event: VolumeGenerationPhaseEvent) => void | Promise<void>;
   onIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;

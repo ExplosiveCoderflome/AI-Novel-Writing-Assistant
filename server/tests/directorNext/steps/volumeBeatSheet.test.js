@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createVolumeBeatSheetStepHandler } = require('../../../dist/modules/director/steps/planning/volumeBeatSheet');
 const { artifactContentHash } = require('../../../dist/modules/director/infrastructure/artifactContentHash');
 
-const context={runId:'run',contract:{novelId:'novel',scope:'volume:v1'}};
+const context={runId:'run',facts:{artifacts:[],debts:[],stopSignal:null},contract:{novelId:'novel',scope:'volume:v1'}};
 const workspace={novelId:'novel',volumes:[{id:'v1',chapters:[]},{id:'v2',chapters:[]}],beatSheets:[{volumeId:'v2',beats:[{key:'existing'}]}]};
 const generated={...workspace,beatSheets:[...workspace.beatSheets,{volumeId:'v1',beats:[{key:'opening',summary:'守门人遇到来客'}]}]};
 const saved={...generated,activeVersionId:'saved-version'};

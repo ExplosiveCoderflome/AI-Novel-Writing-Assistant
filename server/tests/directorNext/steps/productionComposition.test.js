@@ -7,7 +7,7 @@ const {buildChapterArtifactContentHash}=require('../../../dist/services/novel/ru
 const options=createDirectorProductionOptions();
 const launchInput={storyInput:'故事',estimatedChapterCount:10,worldMode:'skip',targetMode:'opening',provider:'openai',model:'snapshot-model',executionRange:{from:1,to:10}};
 const contract=options.contractFactory({runId:'run',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput});
-const context={runId:'run',contract};
+const context={runId:'run',contract,facts:{artifacts:[],debts:[],stopSignal:null}};
 test('real production composition registers all adapters and freezes complete policy settings',()=>{
  for(const step of options.plan.steps)assert.equal(typeof options.stepRegistry.get(step.id),'function');
  assert.equal(contract.modelConfig.model,'snapshot-model');assert.equal(contract.issuePolicy.pipelinePolicy.issueActions['quality.chapter_below_threshold'],'continue_with_warning');
@@ -126,7 +126,7 @@ test('next batch prepares missing future routes before resolving its volume and 
  NovelVolumeService.prototype.generateVolumes=async()=>{throw Error('prepared beats must not be regenerated');};
  ChapterRouteWindowService.prototype.ensureRouteWindow=async(...args)=>{calls.push(args);workspace={...workspace,volumes:[...workspace.volumes,{id:'v2',sortOrder:2,chapters:[11,12,13].map(chapterOrder=>({chapterOrder}))}],beatSheets:[{volumeId:'v2',beats:[{key:'continuation'}]}]};return {availableRouteCount:3,extended:true};};
  const next=options.contractFactory({runId:'next',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,estimatedChapterCount:30,executionRange:{from:11,to:13}}});
- try {const result=await options.stepRegistry.get('volume_beat_sheet')({runId:'next',contract:next});assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v2');assert.equal(calls.length,1);assert.equal(calls[0][1],11);assert.equal(calls[0][2].completionProfile.targetChapterCount,30);assert.equal(calls[0][2].model,'snapshot-model');}
+ try {const result=await options.stepRegistry.get('volume_beat_sheet')({...context,runId:'next',contract:next});assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v2');assert.equal(calls.length,1);assert.equal(calls[0][1],11);assert.equal(calls[0][2].completionProfile.targetChapterCount,30);assert.equal(calls[0][2].model,'snapshot-model');}
  finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;}
 });
 
