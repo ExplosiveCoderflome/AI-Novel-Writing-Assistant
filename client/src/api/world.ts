@@ -322,10 +322,11 @@ export async function generateWorldDeepeningQuestions(
 export async function answerWorldDeepeningQuestions(
   id: string,
   answers: Array<{ questionId: string; answer: string }>,
+  options?: {provider?: LLMProvider; model?: string},
 ) {
   const { data } = await apiClient.post<ApiResponse<WorldDeepeningQuestion[]>>(
     `/worlds/${id}/deepening/answers`,
-    { answers },
+    { answers, ...options },
   );
   return data;
 }

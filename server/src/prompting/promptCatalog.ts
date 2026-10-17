@@ -46,6 +46,7 @@ const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
   "novel.character_resource.extract_updates": "角色资源变化提取",
   "novel.timeline.extractor": "时间线提取",
   "world.consistency.check": "世界观一致性检查",
+  "world.deepening.integrate_answers": "整合世界补充回答",
   "world.import.extract": "世界设定提取",
   "planner.intent.parse": "规划意图理解",
 };

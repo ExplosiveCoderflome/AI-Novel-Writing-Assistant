@@ -218,6 +218,16 @@ export interface WorldStructureMeta {
   lastSectionGenerated?: WorldStructureSectionKey | null;
 }
 
+export interface WorldAnswerIntegrationReceipt { version: 1; summary: string; answerHash: string }
+/** Versioned persistence receipt; legacy Q/A text is not proof of structured integration. */
+export function readWorldAnswerIntegration(value?: string | null): WorldAnswerIntegrationReceipt | null {
+  try {
+    const receipt = JSON.parse(value ?? "null");
+    return receipt?.version === 1 && typeof receipt.summary === "string" && receipt.summary.trim()
+      && typeof receipt.answerHash === "string" && receipt.answerHash.length === 64 ? receipt : null;
+  } catch { return null; }
+}
+
 export interface WorldStructuredData {
   profile: WorldProfile;
   rules: WorldRules;

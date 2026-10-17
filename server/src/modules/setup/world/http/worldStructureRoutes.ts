@@ -216,12 +216,12 @@ export function registerStructureWorldRoutes(router: Router): void {
   router.post("/:id/deepening/answers", requireWorldWizard, validate({ params: worldIdSchema, body: deepeningAnswerSchema }), async (req, res, next) => {
     try {
       const { id } = req.params as z.infer<typeof worldIdSchema>;
-      const { answers } = req.body as z.infer<typeof deepeningAnswerSchema>;
-      const data = await worldService.answerDeepeningQuestions(id, answers);
+      const { answers, provider, model } = req.body as z.infer<typeof deepeningAnswerSchema>;
+      const data = await worldService.answerDeepeningQuestions(id, answers, {provider, model});
       res.status(200).json({
         success: true,
         data,
-        message: "Answers integrated.",
+        message: "回答已整合到世界手册。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

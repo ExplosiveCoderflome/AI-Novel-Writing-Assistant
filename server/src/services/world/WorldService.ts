@@ -611,11 +611,11 @@ export class WorldService {
     return createWorldDeepeningQuestions(worldId, options);
   }
 
-  async answerDeepeningQuestions(worldId: string, answers: DeepeningAnswerInput[]) {
+  async answerDeepeningQuestions(worldId: string, answers: DeepeningAnswerInput[], options: {provider?: LLMProvider; model?: string} = {}) {
     return answerWorldDeepeningQuestions(worldId, answers, {
       createSnapshot: (id, label) => this.createSnapshot(id, label),
       queueWorldUpsert: (id) => this.queueRagUpsert("world", id),
-    });
+    }, options);
   }
 
   async checkConsistency(

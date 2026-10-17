@@ -166,12 +166,14 @@ export const deepeningQuestionSchema = z.object({
 });
 
 export const deepeningAnswerSchema = z.object({
+  provider: providerSchema.optional(),
+  model: z.string().optional(),
   answers: z.array(
     z.object({
       questionId: z.string().trim().min(1),
       answer: z.string().trim().min(1),
     }),
-  ),
+  ).min(1).max(20),
 });
 
 export const consistencyCheckSchema = z.object({

@@ -23,6 +23,7 @@ const tests = [
   "tests/prompting/correctionBudget.test.js",
   "tests/promptWorkbench.test.js",
   "tests/promptTemplateWorkbench.test.js",
+  "tests/worldDeepening.test.js",
   "tests/planner.test.js",
   "tests/routeDirectoryBoundary.test.js",
   "tests/novelServiceBoundary.test.js",

@@ -1,5 +1,5 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import type { WorldDeepeningQuestion } from "@ai-novel/shared/types/world";
+import {readWorldAnswerIntegration, type WorldDeepeningQuestion} from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
 
 interface WorldDeepeningTabProps {
@@ -11,6 +11,14 @@ interface WorldDeepeningTabProps {
   submitPending: boolean;
   onGenerate: () => void;
   onSubmit: () => void;
+}
+
+export function collectWorldAnswerDrafts(questions: WorldDeepeningQuestion[], drafts: Record<string, string>) {
+  return Object.fromEntries(questions.map(question => [question.id, drafts[question.id] ?? question.answer ?? ""])
+    .filter(([id, answer]) => {
+      const question = questions.find(row => row.id === id)!;
+      return answer.trim() && (question.status !== "integrated" || answer.trim() !== question.answer?.trim() || !readWorldAnswerIntegration(question.integratedSummary));
+    }));
 }
 
 export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
@@ -37,7 +45,8 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
       .filter(Boolean)
       .slice(0, 4)
     : [];
-  const answeredCount = questions.filter((question) => answerDrafts[question.id]?.trim()).length;
+  const answeredCount = Object.keys(collectWorldAnswerDrafts(questions, answerDrafts)).length;
+  const activeIntegration = readWorldAnswerIntegration(activeQuestion?.integratedSummary);
 
   return (
     <section className="space-y-6">
@@ -66,7 +75,9 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</div>
               </div>
               {questions.map((question, index) => {
-                const answered = Boolean(answerDrafts[question.id]?.trim());
+                const answered = Boolean(answerDrafts[question.id]?.trim() || question.answer?.trim());
+                const integrated = question.status === "integrated" && readWorldAnswerIntegration(question.integratedSummary)
+                  && (answerDrafts[question.id] === undefined || answerDrafts[question.id].trim() === question.answer?.trim());
                 const selected = activeQuestion?.id === question.id;
                 return (
                   <button
@@ -81,7 +92,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-foreground">问题 {index + 1}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
-                        {answered ? "有回答" : "待回答"}
+                        {integrated ? "已整合" : answered ? "待整合" : "待回答"}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -93,13 +104,17 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
             </div>
 
             {activeQuestion ? (
-              <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
+              <div className="space-y-4 rounded-3xl bg-muted/20 p-5">
                 <div>
                   <div className="text-sm font-medium text-foreground">{activeQuestion.question}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     这条回答会用于补齐世界手册。
                   </div>
                 </div>
+                {activeIntegration ? <div role="status" className="rounded-2xl bg-primary/5 p-3 text-sm leading-6">
+                  <div className="font-medium">手册整合结果</div>
+                  <p>{activeIntegration.summary}</p>
+                </div> : activeQuestion.answer ? <p className="text-sm text-muted-foreground">回答已保存，可提交整合到世界手册。</p> : null}
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
                     <div className="text-xs text-muted-foreground">可直接采用的回答方向</div>
@@ -126,7 +141,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 )}
                 <textarea
                   className="min-h-[120px] w-full rounded-2xl border border-border/45 bg-background/80 p-3 text-sm leading-6"
-                  value={answerDrafts[activeQuestion.id] ?? ""}
+                  value={answerDrafts[activeQuestion.id] ?? activeQuestion.answer ?? ""}
                   onChange={(event) =>
                     setAnswerDrafts((prev) => ({ ...prev, [activeQuestion.id]: event.target.value }))
                   }

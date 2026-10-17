@@ -36,6 +36,16 @@
 - 如果 RAG 混入无关知识库内容，应检查世界生成调用是否只传入用户明确选择的参考上下文。
 - 如果点击“重新整理六层摘要”后出现 JSON、括号残片、异常势力名或地点数骤降，优先检查 `structureJson.metadata.seededFrom` 是否被旧分层流程改成 `legacy-text`；应从可信快照或骨架源恢复，而不是继续基于污染结构生成。
 
+## 世界手册的关键设定回答
+
+回答整合必须更新结构化手册，并从同一结果派生旧字段和阅读摘要。仅追加问答到旧字段不能视为完成，因为手册、图谱与小说世界导入优先读取结构化主源。
+
+语义归类由注册资产 `world.deepening.integrate_answers` 负责，返回稀疏变更、实体 ID 和逐题摘要。写入层只做确定性合并与引用校验：不删除未涉及的实体、地图信息或数组项；模型调用后检查原手册及问题版本，手册、回答完成状态和快照同事务提交。并发保存、无有效变更或模型失败均保留原数据和草稿。
+
+`WorldDeepeningQA.integratedSummary` 的结构化整合回执包含 `version=1`、`summary`、`answerHash`。同一回答重放不重复生成；历史纯文本问答不是结构化整合的证明，来源页允许显式重新整合。回答和整合摘要应在提交后保持可见；样本变化不能自动覆盖小说内的世界副本。
+
+相关模块：`services/world/deepening/`、`prompting/prompts/world/deepening/` 和 `WorldDeepeningTab`。
+
 ## Related Modules
 
 - `shared/types/worldWizard.ts`

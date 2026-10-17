@@ -16,6 +16,7 @@ import {
   nowISO,
 } from "./worldServiceShared";
 import { ragServices } from "../rag";
+import { integrateWorldAnswers } from "./deepening";
 
 interface WorldImprovementCallbacks {
   createSnapshot: (worldId: string, label?: string) => Promise<unknown>;
@@ -171,75 +172,11 @@ export async function answerWorldDeepeningQuestions(
   worldId: string,
   answers: DeepeningAnswerInput[],
   callbacks: WorldImprovementCallbacks,
+  options: {provider?: LLMProvider; model?: string} = {},
 ) {
-  const world = await getRequiredWorld(worldId);
-  if (answers.length === 0) {
-    return prisma.worldDeepeningQA.findMany({
-      where: { worldId },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
-  const questions = await prisma.worldDeepeningQA.findMany({
-    where: { worldId, id: { in: answers.map((item) => item.questionId) } },
-  });
-  const questionMap = new Map(questions.map((item) => [item.id, item]));
-  const appendMap = new Map<WorldTextField, string[]>();
-
-  for (const answer of answers) {
-    const question = questionMap.get(answer.questionId);
-    if (!question) {
-      continue;
-    }
-    const merged = `Q: ${question.question}\nA: ${answer.answer.trim()}`;
-    const targetLayer = normalizeDeepeningTargetLayer(question.targetLayer);
-    const field = normalizeDeepeningTargetField(question.targetField, targetLayer, question.question);
-    if (!field) {
-      continue;
-    }
-    const current = appendMap.get(field) ?? [];
-    current.push(merged);
-    appendMap.set(field, current);
-  }
-
-  await prisma.$transaction(async (tx) => {
-    for (const answer of answers) {
-      const question = questionMap.get(answer.questionId);
-      if (!question) {
-        continue;
-      }
-      const targetLayer = normalizeDeepeningTargetLayer(question.targetLayer);
-      const targetField = normalizeDeepeningTargetField(question.targetField, targetLayer, question.question);
-      await tx.worldDeepeningQA.update({
-        where: { id: question.id },
-        data: {
-          targetLayer,
-          targetField,
-          answer: answer.answer.trim(),
-          integratedSummary: `Q: ${question.question}\nA: ${answer.answer.trim()}`,
-          status: "integrated",
-        },
-      });
-    }
-    if (appendMap.size > 0) {
-      const updateData: Partial<Record<WorldTextField, string>> = {};
-      for (const [field, segments] of appendMap.entries()) {
-        const existing = world[field] ?? "";
-        updateData[field] = `${existing}\n\n${segments.join("\n\n")}`.trim();
-      }
-      await tx.world.update({
-        where: { id: worldId },
-        data: updateData,
-      });
-    }
-  });
-
-  await callbacks.createSnapshot(worldId, "deepening-integrated");
+  const result = await integrateWorldAnswers(worldId, answers, options);
   callbacks.queueWorldUpsert(worldId);
-  return prisma.worldDeepeningQA.findMany({
-    where: { worldId },
-    orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-  });
+  return result;
 }
 
 export async function checkWorldConsistency(
