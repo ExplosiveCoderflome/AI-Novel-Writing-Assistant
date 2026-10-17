@@ -46,7 +46,9 @@ function pauseMatchesSignal(
     if (pause.reason === "no_runnable_step") {
       return signal === null;
     }
-    return (contract.issuePolicy.mode === "quality_first" || signal?.source === "runtime")
+    const explicitRetryPause = signal?.source === "retry_policy"
+      && contract.issuePolicy.pipelinePolicy?.chapterReviewRetryPolicy?.onExhausted === "pause_for_manual";
+    return (contract.issuePolicy.mode === "quality_first" || signal?.source === "runtime" || explicitRetryPause)
       && signal?.kind === "manual_recovery"
       && signal.action === "pause_for_manual";
   }

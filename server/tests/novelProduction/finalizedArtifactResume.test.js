@@ -7,6 +7,7 @@ test('V2 adapter resumes finalized assets before context assembly, generation or
   const result = {reviewExecuted: true, pass: true, score: {overall: 90}, issues: [], runtimePackage: null, retryCountUsed: 1};
   const store = {load: async (...args) => {events.push(['load', ...args]); return {content: 'final repaired draft', result};}, save: async () => {throw Error('cannot save another finalization');}};
   const runtime = loadRuntimeSource('chapterRuntimePipeline.ts', {
+    './acceptance': { currentChapterReviewRetryBudget: () => undefined },
     '../../styleEngine/styleGenerationSanitizer': {}, './chapterEmptyContentError': {},
     './repair/chapterRepairRuntime': {}, './repair/ChapterRepairEligibility': {}, './proseQuality': {},
     '../chapterPatchRepairService': {}, './selection/ChapterRepairCandidateSelection': {},
@@ -52,6 +53,7 @@ test('finalization receipt survives a fresh store, isolates jobs and invalidates
   const hashModule = loadRuntimeSource('artifactSync/ChapterArtifactContentVersion.ts', {'node:crypto': require('node:crypto')});
   class BoundaryError extends Error {constructor(result) {super(result.reason);}}
   const {ChapterPipelineFinalizationStore} = loadRuntimeSource('artifactSync/ChapterPipelineFinalizationStore.ts', {
+    '@ai-novel/shared/types/directorIssue': require('../../../shared/dist/types/directorIssue'),
     'zod': require('zod'), '../../../../db/prisma': {prisma: db},
     './ChapterArtifactContentVersion': hashModule,
     './ChapterArtifactSyncResult': {ChapterArtifactSyncBoundaryError: BoundaryError},
@@ -59,6 +61,7 @@ test('finalization receipt survives a fresh store, isolates jobs and invalidates
   const result = {reviewExecuted: true, pass: false,
     score: {coherence: 70, pacing: 70, repetition: 80, engagement: 75, voice: 80, overall: 75},
     issues: [], runtimePackage: null, retryCountUsed: 1,
+    reviewRetries: {maxRetries: 1, used: 1, onExhausted: 'pause_for_manual', exhausted: true},
     qualityDebtAttribution: {repairAttemptsUsed: 1},
   };
   await new ChapterPipelineFinalizationStore().save('n', 'c', 'job-1', content, result);

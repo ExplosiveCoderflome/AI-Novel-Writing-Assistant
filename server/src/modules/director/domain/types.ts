@@ -47,7 +47,8 @@ export type IssuePolicyMode = "completion_first" | "quality_first";
 export interface IssuePolicySnapshot {
   mode: IssuePolicyMode;
   version: string;
-  pipelinePolicy?: {maxAutomaticRetries: number; issueActions: Readonly<Record<string, string>>};
+  pipelinePolicy?: {maxAutomaticRetries: number; issueActions: Readonly<Record<string, string>>;
+    chapterReviewRetryPolicy?: {maxRetries: number; onExhausted: "continue_with_warning" | "pause_for_manual"}};
 }
 
 export interface ModelConfigSnapshot {
@@ -138,7 +139,7 @@ export interface StopSignal {
   kind: StopSignalKind;
   reason: string;
   action?: StopSignalAction;
-  source?: "quality" | "runtime";
+  source?: "quality" | "runtime" | "retry_policy";
 }
 
 export interface FactsSnapshot {

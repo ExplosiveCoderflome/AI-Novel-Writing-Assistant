@@ -6,6 +6,7 @@ import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StyleRewriteBaseline, StyleRewriteGuard } from "@ai-novel/shared/types/styleEngine";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { ChapterAcceptanceAssessmentResult } from "./ChapterAcceptanceAssessmentService";
+import { currentChapterReviewRetryBudget, type ChapterReviewRetrySummary } from "./acceptance";
 import {
   ChapterArtifactSyncBoundaryError,
   type ChapterArtifactSyncResult,
@@ -88,6 +89,7 @@ export interface QualityDebtAttribution {
 }
 
 export interface PipelineRuntimeResult {
+  reviewRetries?: ChapterReviewRetrySummary;
   reviewExecuted: boolean;
   pass: boolean;
   score: QualityScore;
@@ -494,7 +496,12 @@ export async function runPipelineChapterWithRuntime(
       })
     : null;
 
+  const reviewRetries = await currentChapterReviewRetryBudget()?.loadSummary();
+  if (reviewRetries) reviewRetries.exhausted = reviewRetries.exhausted && !pass && (
+    latestResult.runtimePackage.meta.riskTags?.some(tag => tag === "acceptance_gate_unavailable" || tag === "style_review_unavailable") === true
+    || repairSelection?.reasonCode === "original_retained_unverified_review");
   const finalResult: PipelineRuntimeResult = {
+    reviewRetries,
     reviewExecuted: !latestResult.runtimePackage.meta?.riskTags?.includes("acceptance_gate_unavailable"),
     pass,
     score: latestResult.runtimePackage.audit.score,
@@ -505,6 +512,7 @@ export async function runPipelineChapterWithRuntime(
     repairSelection,
     qualityDebtAttribution,
   };
+  if (finalResult.reviewRetries) latestResult.runtimePackage.meta.reviewRetries = finalResult.reviewRetries;
   await hooks.onCheckCancelled?.();
   if (artifactSyncPolicy === "director_v2") {
     await deps.persistFinalizedChapterResult?.(novelId, chapterId, latestResult.finalContent, finalResult);

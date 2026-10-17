@@ -9,6 +9,7 @@ test('unavailable acceptance retains saved content and quality debt without publ
   assert.equal(h.content,'original draft'); assert.ok(h.events.includes('reviewed'));
   const reports=[],assessments=[],issues=[];
   const {applyChapterQualityClosure}=loadRuntimeSource('../production/qualityClosure/ChapterQualityClosure.ts',{
+    '@ai-novel/shared/types/directorIssue': require('../../../shared/dist/types/directorIssue'),
     '../../novelCoreShared':{logPipelineWarn:()=>{},logPipelineError:()=>{}},
     '../../novelCoreReviewService':{createQualityReport:async(...args)=>reports.push(args)},
     '../../quality/ChapterQualityLoopService':{chapterQualityLoopService:{recordAssessment:async input=>assessments.push(input)}},

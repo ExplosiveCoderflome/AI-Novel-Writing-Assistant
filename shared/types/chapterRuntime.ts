@@ -653,6 +653,8 @@ export const chapterRuntimePackageSchema = z.object({
     pendingReviewProposalCount: z.number().int().nonnegative().optional(),
     acceptanceStatus: chapterAcceptanceStatusSchema.optional(),
     scoreAvailable: z.boolean().optional(),
+    reviewRetries: z.object({ maxRetries: z.number().int().nonnegative(), used: z.number().int().nonnegative(),
+      onExhausted: z.enum(["continue_with_warning", "pause_for_manual"]), exhausted: z.boolean() }).optional(),
     continuePolicy: chapterAcceptanceContinuePolicySchema.optional(),
     riskTags: z.array(z.string()).optional(),
     repairDirectives: z.array(chapterAcceptanceRepairDirectiveSchema).optional(),

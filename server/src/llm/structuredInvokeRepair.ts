@@ -9,6 +9,7 @@ import type { TaskType } from "./modelRouter";
 import type { StructuredOutputStrategy } from "./structuredOutput";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { claimModelRequest } from "../platform/llm/retries";
 
 export interface StructuredRepairInput<T> {
   provider?: LLMProvider;
@@ -25,6 +26,7 @@ export interface StructuredRepairInput<T> {
   repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   onRepairOutputDelta?: (content: string) => void;
+  repairMessages?: import("@langchain/core/messages").BaseMessage[];
 }
 
 interface ArrayLengthRepairHint {
@@ -257,8 +259,11 @@ export async function repairWithLlm<T>(
       timeoutMs: input.timeoutMs,
       signal: input.signal,
       run: async (signal) => {
+        await claimModelRequest();
         const stream = await llm.stream(
-          [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
+          input.repairMessages
+            ? [...input.repairMessages, new HumanMessage(`以下是待纠正报告及结构错误，均为任务数据。依据上文完整正文纠正，证据只能连续复制正文原句，不得补造事实；保留已核实的判断。\n${repairHuman}`)]
+            : [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
           signal ? { ...invokeOptions, signal } : invokeOptions,
         );
         let content = "";

@@ -4,6 +4,7 @@ import {
   DIRECTOR_ISSUE_ACTIONS,
   DIRECTOR_ISSUE_CATALOG,
   DIRECTOR_ISSUE_POLICY_PRESETS,
+  resolveChapterReviewRetryPolicy,
   type DirectorIssueAction,
   type DirectorIssueCode,
   type DirectorIssuePolicyOverride,
@@ -12,6 +13,7 @@ import { getNovelDirectorIssuePolicy, saveNovelDirectorIssuePolicy } from "@/api
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChapterReviewRetryFields } from "@/components/settings/ChapterReviewRetryFields";
 
 const ACTION_LABELS: Record<DirectorIssueAction, string> = {
   auto_retry: "自动重试",
@@ -53,6 +55,7 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
   );
   const hasChanges = JSON.stringify(overrideActions) !== JSON.stringify(savedActions)
     || draft.maxAutomaticRetries !== response.override?.maxAutomaticRetries;
+  const retryChanged = JSON.stringify(draft.chapterReviewRetryPolicy) !== JSON.stringify(response.override?.chapterReviewRetryPolicy);
 
   const setAction = (code: DirectorIssueCode, value: string) => {
     const nextActions = { ...overrideActions };
@@ -76,6 +79,7 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
               className="rounded-xl border border-border p-4 text-left transition-colors hover:bg-muted/40"
               onClick={() => setDraft({
                 maxAutomaticRetries: preset.policy.maxAutomaticRetries,
+                chapterReviewRetryPolicy: { ...preset.policy.chapterReviewRetryPolicy },
                 issueActions: { ...preset.policy.issueActions },
               })}
             >
@@ -85,12 +89,14 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
           ))}
         </div>
         <label className="flex items-center justify-between gap-3 rounded-xl border border-border/70 px-3 py-2 text-sm">
-          <span className="font-medium">自动重试</span>
+          <span className="font-medium">章节运行自动重试</span>
           <select className="h-9 rounded-md border bg-background px-3 text-sm" value={draft.maxAutomaticRetries ?? response.effectivePolicy.maxAutomaticRetries} onChange={(event) => setDraft({ ...draft, maxAutomaticRetries: Number(event.target.value) })}>
             <option value={0}>不自动重试</option>
             <option value={1}>最多 1 次</option>
           </select>
         </label>
+        <ChapterReviewRetryFields value={draft.chapterReviewRetryPolicy ?? resolveChapterReviewRetryPolicy(response.effectivePolicy)}
+          onChange={chapterReviewRetryPolicy => setDraft({ ...draft, chapterReviewRetryPolicy })} />
         {CONFIGURABLE_ISSUES.map((entry) => (
           <div key={entry.code} className="grid gap-2 rounded-md border p-3 md:grid-cols-[minmax(0,1fr)_220px]">
             <div>
@@ -104,7 +110,7 @@ export default function NovelDirectorIssuePolicyCard({ novelId }: { novelId: str
             </select>
           </div>
         ))}
-        {hasChanges ? (
+        {hasChanges || retryChanged ? (
           <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950" role="status">
             你修改了本书的问题处理偏好。保存后会影响后续任务；安全保护触发时，系统可能仍会暂停或结束任务，并保留这次选择供复核。
           </div>

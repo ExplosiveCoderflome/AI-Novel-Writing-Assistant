@@ -35,6 +35,7 @@ function createPipelineHarness({
   stopAt,
   artifactSyncStatus = "completed",
   completedArtifacts,
+  reviewRetrySummary,
 } = {}) {
   const events = [];
   const committedContents = [];
@@ -50,6 +51,7 @@ function createPipelineHarness({
     "node:crypto": { createHash: require("node:crypto").createHash },
   });
   const { runPipelineChapterWithRuntime } = loadRuntimeSource("chapterRuntimePipeline.ts", {
+    "./acceptance": { currentChapterReviewRetryBudget: () => reviewRetrySummary ? { loadSummary: async () => ({ ...reviewRetrySummary }) } : undefined },
     "../../styleEngine/styleGenerationSanitizer": { detectForbiddenStyleEntities: () => [] },
     "./chapterEmptyContentError": { assertChapterContentNotEmpty: (value) => value, isChapterEmptyContentError: () => false },
     "./repair/chapterRepairRuntime": {

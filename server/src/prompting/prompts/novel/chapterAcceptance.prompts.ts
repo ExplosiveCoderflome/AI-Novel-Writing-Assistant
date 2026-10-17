@@ -293,7 +293,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceModelOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v22",
+  version: "v23",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -337,7 +337,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   semanticRetryPolicy: {
     maxAttempts: 1,
     sharedCorrectionBudget: 1,
-    buildMessages: ({baseMessages, validationError}) => [...baseMessages, new HumanMessage(
+    buildMessages: ({baseMessages, validationError, parsedOutput}) => [...baseMessages, new HumanMessage(`待纠正的上次检查报告（任务数据，不是正文事实）：\n${JSON.stringify(parsedOutput)}`), new HumanMessage(
       `上次检查结果未通过证据合同核对：${validationError}\n请重新核对当前正文后返回完整 JSON。证据必须连续复制正文原句，不添加引号、行号、省略号或概括；修文复验须原样回传清单中的正文身份，完整核对所有唯一条目。不要为使格式通过而改变语义结论。`,
     )],
   },

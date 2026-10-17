@@ -1,4 +1,5 @@
 import {registerPromptCacheBoundary} from "./cache";
+import { currentModelRequestBudget } from "../../platform/llm/retries";
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/factory";
@@ -561,8 +562,9 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
   let totalRepairAttempts = currentResult.repairAttempts;
   let repairUsed = currentResult.repairUsed;
   let semanticRetryAttempts = 0;
-  const maxSemanticRetryAttempts = resolveStructuredSemanticRetryAttempts(asset);
-  const sharedCorrectionBudget = asset.semanticRetryPolicy?.sharedCorrectionBudget;
+  const requestBudget = currentModelRequestBudget();
+  const maxSemanticRetryAttempts = requestBudget?.remaining() ?? resolveStructuredSemanticRetryAttempts(asset);
+  const sharedCorrectionBudget = requestBudget ? undefined : asset.semanticRetryPolicy?.sharedCorrectionBudget;
 
   while (true) {
     try {
@@ -586,7 +588,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         postValidateFailureRecovered: false,
       };
     } catch (error) {
-      if (semanticRetryAttempts >= maxSemanticRetryAttempts || (sharedCorrectionBudget !== undefined
+      if (semanticRetryAttempts >= maxSemanticRetryAttempts || requestBudget?.remaining() === 0 || (sharedCorrectionBudget !== undefined
         && totalRepairAttempts + semanticRetryAttempts >= sharedCorrectionBudget)) {
         if (input.asset.postValidateFailureRecovery) {
           logPromptEvent({
@@ -664,7 +666,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         asset: input.asset,
         promptInput: input.promptInput,
         context: input.context,
-        baseMessages: currentMessages,
+        baseMessages: input.baseMessages,
         parsedOutput: currentResult.data,
         validationError: stringifyPromptError(error),
         attempt: semanticRetryAttempts,

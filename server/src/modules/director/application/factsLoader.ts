@@ -32,7 +32,7 @@ function parseStopSignal(payload: unknown, seq: number): StopSignal {
     || !kinds.includes(value.kind as StopSignal["kind"])
     || typeof value.reason !== "string" || !value.reason.trim()
     || (value.action !== undefined && !actions.includes(value.action))
-    || (value.source !== undefined && value.source !== "quality" && value.source !== "runtime")) {
+    || (value.source !== undefined && value.source !== "quality" && value.source !== "runtime" && value.source !== "retry_policy")) {
     throw new InvalidStopSignalError(seq);
   }
   return { kind: value.kind as StopSignal["kind"], reason: value.reason, ...(value.action ? { action: value.action } : {}), ...(value.source ? {source: value.source} : {}) };

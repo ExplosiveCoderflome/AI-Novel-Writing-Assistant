@@ -24,7 +24,9 @@ function output(overrides = {}) {
 function service(result) {
   const requests = [];
   const { ChapterAcceptanceAssessmentService } = loadRuntimeSource('ChapterAcceptanceAssessmentService.ts', {
+    '@ai-novel/shared/types/directorIssue': require('../../../shared/dist/types/directorIssue'),
     '../../../db/prisma': { prisma: {} },
+    '../director/issues/DirectorIssuePolicyService': { directorIssuePolicyService: { getNovelPolicy: async () => ({ effectivePolicy: { maxAutomaticRetries: 1, issueActions: {} } }) } },
     '../../../prompting/core/promptRunner': { runStructuredPrompt: async input => { requests.push(input); if (result instanceof Error) throw result; return { output: result }; } },
     '../../../prompting/context/promptContextResolution': { resolvePromptContextBlocksForAsset: async ({ fallbackBlocks }) => ({ blocks: fallbackBlocks }) },
     '../../../prompting/prompts/novel/chapterLayeredContext': { buildChapterReviewContextBlocks: () => [] },

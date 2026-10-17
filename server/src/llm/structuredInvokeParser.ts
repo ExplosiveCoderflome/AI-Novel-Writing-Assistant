@@ -46,6 +46,7 @@ export interface StructuredInvokeRawParseInput<T> {
   repairGuidance?: string;
   promptMeta?: PromptInvocationMeta;
   onRepairOutputDelta?: (content: string) => void;
+  repairMessages?: import("@langchain/core/messages").BaseMessage[];
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
   fallbackAvailable?: boolean;

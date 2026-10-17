@@ -6,7 +6,7 @@ import type { ChapterRuntimeCoordinator } from "../../runtime/ChapterRuntimeCoor
 import type { DirectorIssueTaskContext } from "../../director/issues";
 import { reportPipelineIssue } from "../issueGovernance/PipelineIssueGovernance";
 import type { ReplanResult } from "@ai-novel/shared/types/novel";
-import type { DirectorIssueDecision } from "@ai-novel/shared/types/directorIssue";
+import { resolveDirectorIssueDecision, type DirectorIssueDecision } from "@ai-novel/shared/types/directorIssue";
 
 type ChapterPipelineResult = Awaited<ReturnType<ChapterRuntimeCoordinator["runPipelineChapter"]>>;
 type ChapterQualityStopAction = Extract<DirectorIssueDecision["action"], "pause_for_manual" | "fail_task">;
@@ -58,7 +58,7 @@ export async function applyChapterQualityClosure(input: {
     }
   };
 
-  if (runtimePayload.autoReview && !chapterResult.reviewExecuted) {
+  if (runtimePayload.autoReview && !chapterResult.reviewExecuted && !chapterResult.reviewRetries?.exhausted) {
     const detail = `第${chapter.order}章接收检查未能执行，正文已保留并等待后续复查。`;
     if (!input.qualityAlertDetails.includes(detail)) input.qualityAlertDetails.push(detail);
     await reportPipelineIssue({
@@ -80,7 +80,7 @@ export async function applyChapterQualityClosure(input: {
     });
   }
 
-  if (chapterResult.recoverableRepairFailure) {
+  if (chapterResult.recoverableRepairFailure && !chapterResult.reviewRetries?.exhausted) {
     input.recoverableRepairDetails.push(
       `第${chapter.order}章需要后续修复：${chapterResult.recoverableRepairFailure.message}`,
     );
@@ -134,6 +134,25 @@ export async function applyChapterQualityClosure(input: {
         error: error instanceof Error ? error.message : String(error),
       });
     });
+  }
+
+  const retries = chapterResult.reviewRetries;
+  if (retries?.exhausted && !chapterResult.pass && replanRecommendation?.scope !== "global_book") {
+    const detail = `第${chapter.order}章检查重试已用 ${retries.used}/${retries.maxRetries} 次，正文已保留，${retries.onExhausted === "pause_for_manual" ? "等待确认后继续" : "检查未完成，继续后续章节"}。`;
+    if (!input.qualityAlertDetails.includes(detail)) input.qualityAlertDetails.push(detail);
+    const policy = { ...(input.governance?.policy ?? { maxAutomaticRetries: 0, issueActions: {} }),
+      issueActions: { ...input.governance?.policy.issueActions, "quality.loop_exhausted": retries.onExhausted } };
+    if (input.governance) {
+      await reportPipelineIssue({ governance: { ...input.governance, policy }, workflowTaskId: input.workflowTaskId,
+        novelId: input.novelId, jobId: input.jobId, issueCode: "quality.loop_exhausted", stage: "chapter_review_retry_exhausted",
+        summary: detail, chapterId: chapter.id, chapterOrder: chapter.order, attempt: retries.used, hasUsableOutput: true,
+        applyAction: applyDecision });
+    } else {
+      await applyDecision(resolveDirectorIssueDecision({ policy, occurrence: { issueCode: "quality.loop_exhausted",
+        attempt: retries.used, maxAttempts: retries.maxRetries, hasUsableOutput: true } }));
+    }
+    await input.beforeFuturePlanning?.();
+    return { shouldStopAfterCurrentChapter, stopAction };
   }
 
   if (chapterResult.reviewExecuted && !chapterResult.pass) {

@@ -3,6 +3,7 @@ import { buildChapterArtifactContentHash } from "../runtime/artifactSync/Chapter
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
   DIRECTOR_ISSUE_GOVERNANCE_VERSION,
+  resolveChapterReviewRetryPolicy,
   type DirectorIssueAction,
   type DirectorIssueCode,
 } from "@ai-novel/shared/types/directorIssue";
@@ -12,6 +13,7 @@ import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
+import { createPersistedChapterReviewRetryBudget, withChapterReviewRetryBudget, ReviewRetryPersistenceError } from "../runtime/acceptance";
 import { CHAPTER_ARTIFACT_BOUNDARY_TYPE, ChapterArtifactSyncBoundaryError } from "../runtime/artifactSync";
 import { isChapterEmptyContentError } from "../runtime/chapterEmptyContentError";
 import { ChapterContentPersistenceError } from "../runtime/lifecycle";
@@ -473,6 +475,7 @@ export class NovelPipelineExecutor {
         const chaptersToProcess = chapters.slice(remainingStartIndex);
         const closedOrders = new Set(chapterCandidates.filter(chapter => runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)).map(chapter => chapter.order));
         let pendingManualRecovery = false;
+        let pendingManualRecoveryReason = "章节需要人工确认，后续生成已暂停。";
 
         if (runtimePayload.directorNext) {
           await this.updateJobRequired(jobId, {
@@ -650,11 +653,14 @@ export class NovelPipelineExecutor {
           };
           try {
             previouslyConsumed = chapterRetryCountUsed = await this.automaticAttempts.used(jobId, chapter.id);
+            const reviewRetryBudget = createPersistedChapterReviewRetryBudget({ novelId, chapterId: chapter.id,
+              executionId: jobId, policy: resolveChapterReviewRetryPolicy(issueGovernance?.policy),
+              beforeRequest: async () => { await checkCancelled(); await checkChapterBudget(false, DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, "review"); } });
             while (!chapterResult) {
               try {
                 await checkCancelled();
                 await checkChapterBudget();
-                chapterResult = await this.chapterRuntimeCoordinator.runPipelineChapter(
+                chapterResult = await withChapterReviewRetryBudget(reviewRetryBudget, () => this.chapterRuntimeCoordinator.runPipelineChapter(
                   novelId,
                   chapter.id,
                   {
@@ -708,9 +714,12 @@ export class NovelPipelineExecutor {
                     logPipelineError("章节生成连续未返回正文，准备自动重试当前章", meta);
                   },
                   },
-                );
+                ));
                 break;
               } catch (error) {
+                if (error instanceof ReviewRetryPersistenceError) {
+                  throw new PipelineIssueFailure(error.message, "runtime.data_integrity", "chapter_review", chapter.id, chapter.order);
+                }
                 if (runtimePayload.directorNext && error instanceof ChapterArtifactSyncBoundaryError && error.result.characterReviewId) {
                   await checkCancelled();
                   runtimePayload.directorNext.pendingCharacterReviewId = error.result.characterReviewId;
@@ -891,6 +900,7 @@ export class NovelPipelineExecutor {
           }
           if (shouldStopAfterCurrentChapter) {
             pendingManualRecovery = true;
+            if (chapterResult.reviewRetries?.exhausted) pendingManualRecoveryReason = `第${chapter.order}章检查重试已用 ${chapterResult.reviewRetries.used}/${chapterResult.reviewRetries.maxRetries} 次，正文已保留，请从小说工作台确认后继续。`;
             logPipelineWarn("章节需要人工处理，已暂停后续章节流水线", {
               jobId,
               order: chapter.order,
@@ -904,7 +914,7 @@ export class NovelPipelineExecutor {
           await this.updateJobSafe(jobId, {
             status: "queued",
             pendingManualRecovery: true,
-            error: "章节需要人工确认，后续生成已暂停。",
+            error: pendingManualRecoveryReason,
             heartbeatAt: null,
             currentStage: "queued",
             currentItemKey: null,

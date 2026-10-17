@@ -80,6 +80,7 @@ Workbench 将模板阅读、草稿编辑与应用范围分开：完整模板读�
 
 - `repairPolicy` 负责 JSON 解析 / schema 校验失败后的 repair
 - `semanticRetryPolicy` 负责 JSON 已合法但 `postValidate` 未通过时的再生成
+- 章节检查在 `platform/llm/retries` 的请求额度上下文内执行；格式、语义、协议与模型切换共用用户设置，不能仅用最终成功策略的 repairAttempts 推断总次数。参见 [检查重试策略](../../../docs/wiki/workflows/chapter-review-retry-policy.md)。
 
 ## Migration Default
 

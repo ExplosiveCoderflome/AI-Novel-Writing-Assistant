@@ -91,8 +91,25 @@ export const DEFAULT_DIRECTOR_ISSUE_POLICY = {
   issueActions: {},
 } satisfies DirectorIssuePolicy;
 
+export const MAX_CHAPTER_REVIEW_RETRIES = 20;
+export const chapterReviewRetryPolicySchema = z.object({
+  maxRetries: z.number().int().min(0).max(MAX_CHAPTER_REVIEW_RETRIES),
+  onExhausted: z.enum(["continue_with_warning", "pause_for_manual"]),
+});
+export type ChapterReviewRetryPolicy = z.infer<typeof chapterReviewRetryPolicySchema>;
+
+/** Historical tasks retain their saved quality preference, rather than reading new defaults. */
+export function resolveChapterReviewRetryPolicy(policy?: DirectorIssuePolicy | null): ChapterReviewRetryPolicy {
+  return policy?.chapterReviewRetryPolicy ?? {
+    maxRetries: 1,
+    onExhausted: policy?.issueActions["quality.acceptance_unavailable"] === "pause_for_manual"
+      ? "pause_for_manual" : "continue_with_warning",
+  };
+}
+
 export const directorIssuePolicySchema = z.object({
   maxAutomaticRetries: z.number().int().min(0).max(1).default(1),
+  chapterReviewRetryPolicy: chapterReviewRetryPolicySchema.optional(),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).default({}),
 }).superRefine((policy, context) => {
   for (const [code, action] of Object.entries(policy.issueActions)) {
@@ -107,6 +124,7 @@ export type DirectorIssuePolicy = z.infer<typeof directorIssuePolicySchema>;
 
 export const directorIssuePolicyOverrideSchema = z.object({
   maxAutomaticRetries: z.number().int().min(0).max(1).optional(),
+  chapterReviewRetryPolicy: chapterReviewRetryPolicySchema.optional(),
   issueActions: z.partialRecord(directorIssueCodeSchema, directorIssueActionSchema).optional(),
 }).superRefine((override, context) => {
   for (const [code, action] of Object.entries(override.issueActions ?? {})) {
@@ -135,6 +153,7 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
     description: "局部问题处理一次后保留正文并继续，统一留到后续优化。",
     policy: {
       maxAutomaticRetries: 1,
+      chapterReviewRetryPolicy: { maxRetries: 1, onExhausted: "continue_with_warning" },
       issueActions: buildPresetIssueActions({
         "quality.chapter_below_threshold": "continue_with_warning",
         "quality.acceptance_unavailable": "continue_with_warning",
@@ -152,6 +171,7 @@ export const DIRECTOR_ISSUE_POLICY_PRESETS = [
     description: "局部问题处理一次后仍未解决会暂停，等待你确认后再继续。",
     policy: {
       maxAutomaticRetries: 1,
+      chapterReviewRetryPolicy: { maxRetries: 1, onExhausted: "pause_for_manual" },
       issueActions: buildPresetIssueActions({
         "quality.chapter_below_threshold": "pause_for_manual",
         "quality.acceptance_unavailable": "pause_for_manual",
@@ -227,6 +247,7 @@ export function mergeDirectorIssuePolicy(
 ): DirectorIssuePolicy {
   return directorIssuePolicySchema.parse({
     maxAutomaticRetries: override?.maxAutomaticRetries ?? base.maxAutomaticRetries,
+    chapterReviewRetryPolicy: override?.chapterReviewRetryPolicy ?? base.chapterReviewRetryPolicy,
     issueActions: { ...base.issueActions, ...(override?.issueActions ?? {}) },
   });
 }

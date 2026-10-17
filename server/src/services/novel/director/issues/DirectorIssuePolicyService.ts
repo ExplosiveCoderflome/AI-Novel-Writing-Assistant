@@ -30,6 +30,8 @@ function compactOverride(
     }),
   ) as Partial<Record<DirectorIssueCode, DirectorIssuePolicy["issueActions"][DirectorIssueCode]>>;
   const compacted: DirectorIssuePolicyOverride = {
+    ...(input.chapterReviewRetryPolicy && JSON.stringify(input.chapterReviewRetryPolicy) !== JSON.stringify(globalPolicy.chapterReviewRetryPolicy)
+      ? { chapterReviewRetryPolicy: input.chapterReviewRetryPolicy } : {}),
     ...(input.maxAutomaticRetries !== undefined && input.maxAutomaticRetries !== globalPolicy.maxAutomaticRetries
       ? { maxAutomaticRetries: input.maxAutomaticRetries }
       : {}),

@@ -33,8 +33,10 @@ export async function readBatchOutcome(job: BatchJob, context: StepContext): Pro
   }
   if (saved.pendingManualRecovery && terminal?.action === "pause_for_manual") {
     const quality = DIRECTOR_ISSUE_CATALOG_BY_CODE[terminal.issueCode].category === "quality";
-    if (quality && context.contract.issuePolicy.mode !== "quality_first") throw new Error("完成优先运行出现了不一致的质量暂停策略。");
-    return {...outcome, stopSignal: {kind: "manual_recovery", action: "pause_for_manual", source: quality ? "quality" : "runtime", reason: saved.error?.trim() || terminal.reason}};
+    const retryPause = terminal.issueCode === "quality.loop_exhausted"
+      && context.contract.issuePolicy.pipelinePolicy?.chapterReviewRetryPolicy?.onExhausted === "pause_for_manual";
+    if (quality && context.contract.issuePolicy.mode !== "quality_first" && !retryPause) throw new Error("完成优先运行出现了不一致的质量暂停策略。");
+    return {...outcome, stopSignal: {kind: "manual_recovery", action: "pause_for_manual", source: retryPause ? "retry_policy" : quality ? "quality" : "runtime", reason: saved.error?.trim() || terminal.reason}};
   }
   return outcome;
 }

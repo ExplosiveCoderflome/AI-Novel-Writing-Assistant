@@ -5,6 +5,8 @@ import type {
   RuntimeStyleDetectionReport,
 } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { resolveChapterReviewRetryPolicy } from "@ai-novel/shared/types/directorIssue";
+import { directorIssuePolicyService } from "../director/issues/DirectorIssuePolicyService";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { resolvePromptContextBlocksForAsset } from "../../../prompting/context/promptContextResolution";
@@ -20,7 +22,8 @@ import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore } from "../novelP0Utils";
 import { detectProseQuality } from "./proseQuality/ProseQualityDetector";
 import { buildAcceptanceCacheIdentity, isAcceptanceStyleReviewEnabled, applyAcceptanceStyleContext, buildAcceptanceStyleReport,
-  getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy, buildAcceptanceStyleSignals, getAcceptanceNarrativePov, describeAcceptanceFailure } from "./acceptance";
+  getAcceptanceStyleRuleIds, applyAcceptanceStyleRepairPolicy, buildAcceptanceStyleSignals, getAcceptanceNarrativePov, describeAcceptanceFailure,
+  currentChapterReviewRetryBudget, createTransientChapterReviewRetryBudget, ReviewRetryPersistenceError } from "./acceptance";
 
 export interface ChapterAcceptanceAssessmentInput {
   novelId: string;
@@ -258,7 +261,12 @@ export class ChapterAcceptanceAssessmentService {
   }
 
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
-    const assessment = await this.invokeAssessment(input).catch((error: unknown) => {
+    const retryBudget = currentChapterReviewRetryBudget() ?? createTransientChapterReviewRetryBudget(
+      resolveChapterReviewRetryPolicy((await directorIssuePolicyService.getNovelPolicy(input.novelId)).effectivePolicy));
+    const scope = input.repairReviewBaseline ? "candidate" : "initial";
+    const assessment = await retryBudget.runCheck(scope, () => this.invokeAssessment(input)).catch((error: unknown) => {
+      retryBudget.throwIfUnsafe();
+      if (error instanceof ReviewRetryPersistenceError) throw error;
       const failure = describeAcceptanceFailure(error);
       console.warn("[chapter-runtime] acceptance unavailable", {
         novelId: input.novelId, chapterId: input.chapterId,
@@ -267,6 +275,7 @@ export class ChapterAcceptanceAssessmentService {
       });
       return buildFallbackAssessment(failure);
     });
+    await retryBudget.recordResult(scope, !assessment.riskTags.some(tag => tag === "acceptance_gate_unavailable" || tag === "style_review_unavailable"));
     const styleReviewReport = buildAcceptanceStyleReport(input.contextPackage, assessment);
     const controlledAssessment = applyAcceptanceStyleRepairPolicy(input.contextPackage, assessment);
     const proseQuality = detectProseQuality(input.content);

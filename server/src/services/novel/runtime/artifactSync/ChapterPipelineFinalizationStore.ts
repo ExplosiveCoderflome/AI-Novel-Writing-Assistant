@@ -2,6 +2,7 @@ import {z} from "zod";
 import {prisma} from "../../../../db/prisma";
 import type {ChapterRuntimePackage} from "@ai-novel/shared/types/chapterRuntime";
 import type {PipelineRuntimeResult} from "../chapterRuntimePipeline";
+import {chapterReviewRetryPolicySchema} from "@ai-novel/shared/types/directorIssue";
 import {buildChapterArtifactContentHash} from "./ChapterArtifactContentVersion";
 import {ChapterArtifactSyncBoundaryError} from "./ChapterArtifactSyncResult";
 
@@ -12,6 +13,8 @@ const resultSchema = z.object({
   issues: z.array(z.object({severity: z.enum(["low", "medium", "high", "critical"]), category: z.string(), evidence: z.string(), fixSuggestion: z.string()})),
   runtimePackage: z.custom<ChapterRuntimePackage>(value => !!value && typeof value === "object" && "audit" in value && "context" in value).nullable(),
   retryCountUsed: z.number().int().nonnegative(),
+  reviewRetries: chapterReviewRetryPolicySchema.extend({used: z.number().int().nonnegative(), exhausted: z.boolean()})
+    .refine(state => state.used <= state.maxRetries, "检查重试记录超过保存的次数上限。").optional(),
 }).passthrough();
 const receiptSchema = z.object({schemaVersion: z.literal(1), result: resultSchema});
 

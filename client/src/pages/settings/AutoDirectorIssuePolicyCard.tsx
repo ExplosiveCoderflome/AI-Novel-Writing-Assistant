@@ -4,12 +4,14 @@ import {
   DIRECTOR_ISSUE_CATALOG,
   DIRECTOR_ISSUE_POLICY_PRESETS,
   findDirectorIssuePolicyPreset,
+  resolveChapterReviewRetryPolicy,
   type DirectorIssueAction,
   type DirectorIssueCategory,
   type DirectorIssuePolicy,
 } from "@ai-novel/shared/types/directorIssue";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChapterReviewRetryFields } from "@/components/settings/ChapterReviewRetryFields";
 
 const ACTION_LABELS: Record<DirectorIssueAction, string> = {
   auto_retry: "自动重试",
@@ -44,6 +46,7 @@ export function AutoDirectorIssuePolicyCard(props: {
   const current = draft ?? policy;
   const hasChanges = Boolean(policy && current && (
     current.maxAutomaticRetries !== policy.maxAutomaticRetries
+    || JSON.stringify(current.chapterReviewRetryPolicy) !== JSON.stringify(policy.chapterReviewRetryPolicy)
     || JSON.stringify(current.issueActions) !== JSON.stringify(policy.issueActions)
   ));
   const entries = useMemo(() => DIRECTOR_ISSUE_CATALOG.filter((entry) => {
@@ -84,13 +87,15 @@ export function AutoDirectorIssuePolicyCard(props: {
 
         <div className="max-w-sm">
           <label className="space-y-2 text-sm">
-            <span className="font-medium">自动重试</span>
+            <span className="font-medium">章节运行自动重试</span>
             <select className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={current.maxAutomaticRetries} onChange={(event) => setDraft({ ...current, maxAutomaticRetries: Number(event.target.value) })}>
               <option value={0}>不自动重试</option>
               <option value={1}>最多 1 次</option>
             </select>
           </label>
         </div>
+
+        <ChapterReviewRetryFields value={resolveChapterReviewRetryPolicy(current)} onChange={chapterReviewRetryPolicy => setDraft({ ...current, chapterReviewRetryPolicy })} />
 
         <div className="flex flex-wrap gap-2">
           <select className="h-9 rounded-md border bg-background px-3 text-sm" value={category} onChange={(event) => setCategory(event.target.value as DirectorIssueCategory | "all")}>

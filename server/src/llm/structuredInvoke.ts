@@ -36,6 +36,7 @@ import {
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { ReasoningStreamCollector } from "./reasoning";
+import { claimModelRequest, currentModelRequestBudget } from "../platform/llm/retries";
 
 export {
   parseStructuredLlmRawContentDetailed,
@@ -275,6 +276,7 @@ async function invokeStructuredAttempt<T>(input: {
       timeoutMs: input.baseInput.timeoutMs,
       signal: input.baseInput.signal,
       run: async (signal) => {
+        await claimModelRequest();
         const stream = await llm.stream(
           messages,
           signal ? { ...invokeOptions, signal } : invokeOptions,
@@ -326,6 +328,7 @@ async function invokeStructuredAttempt<T>(input: {
       maxRepairAttempts: input.baseInput.maxRepairAttempts,
       repairGuidance: input.baseInput.repairGuidance,
       promptMeta: input.baseInput.promptMeta,
+      repairMessages: currentModelRequestBudget() ? messages : undefined,
       onRepairOutputDelta: (content) => {
         if (!repairStarted) {
           repairStarted = true;
@@ -388,8 +391,11 @@ async function tryStructuredStrategies<T>(input: {
     ]
     : sequence;
   let lastError: StructuredOutputError | null = null;
-  for (let index = 0; index < preferredSequence.length; index += 1) {
-    const strategy = preferredSequence[index]!;
+  const budget = currentModelRequestBudget();
+  for (let index = 0; index < preferredSequence.length || Boolean(budget && budget.remaining() > 0
+    && (!input.fallbackAvailable || input.fallbackUsed)); index += 1) {
+    const strategy = preferredSequence[index] ?? preferredSequence.at(-1)!;
+    const remainingBefore = budget?.remaining();
     try {
       return await invokeStructuredAttempt({
         baseInput: input.baseInput,
@@ -408,10 +414,12 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
+      if (currentModelRequestBudget()?.remaining() === 0) break;
+      if (budget && index >= preferredSequence.length - 1 && budget.remaining() === remainingBefore) break;
       if (lastError.category === "transport_error" && !lastError.retryWithNextStrategy) {
         break;
       }
-      if (lastError.category === "schema_mismatch" && strategy === "prompt_json") {
+      if (!budget && lastError.category === "schema_mismatch" && strategy === "prompt_json") {
         break;
       }
     }
@@ -448,6 +456,7 @@ async function tryStructuredStrategiesWithTransportRetries<T>(input: {
         structuredError?.category !== "transport_error"
         || retryAttempt >= input.retryCount
         || input.baseInput.signal?.aborted
+        || currentModelRequestBudget()?.remaining() === 0
       ) {
         throw error;
       }
@@ -499,7 +508,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
       retryCount: transportRetryCount,
     });
   } catch (primaryError) {
-    if (!fallbackEnabled || !fallbackSettings) {
+    if (!fallbackEnabled || !fallbackSettings || currentModelRequestBudget()?.remaining() === 0) {
       throw primaryError;
     }
 
