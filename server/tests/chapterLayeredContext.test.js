@@ -30,7 +30,9 @@ test('review and repair retain the last saved chapter facts even when the option
   const full=buildChapterReviewContextBlocks(buildChapterReviewContext(write,pkg)).find(b=>b.group==='recent_chapters');
   assert.ok(full.content.includes(write.previousChapterContent),'facts absent from a summary retain their full source');
   assert.equal(full.required,true); assert.equal(full.allowSummary,false);
-  assert.ok(!buildChapterWriterContextBlocks(write).some(b=>b.content.includes(write.previousChapterContent)), 'writer input is not enlarged by review evidence');
+  const writerSource = buildChapterWriterContextBlocks(write).find(b=>b.group==='recent_chapters');
+  assert.ok(writerSource.content.includes(write.previousChapterContent), 'writer and reviewer must receive the same saved physical facts');
+  assert.equal(writerSource.required,true); assert.equal(writerSource.allowSummary,false);
 });
 
 test("historical facts cannot grow mandatory context or displace the current task", () => {

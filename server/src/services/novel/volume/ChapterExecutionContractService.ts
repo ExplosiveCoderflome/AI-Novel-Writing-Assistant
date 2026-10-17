@@ -17,6 +17,8 @@ import {
 } from "./volumeWorkspacePersistence";
 import { serializeVolumeWorkspaceDocument } from "./volumeWorkspaceDocument";
 import { inspectChapterExecutionContractReadiness } from "./chapterDetail/chapterExecutionContractReadiness";
+import { reviewChapterExecutionContinuity } from "./chapterDetail";
+import { ChapterTaskSheetQualityGateError } from "./ChapterTaskSheetQualityGateService";
 
 export interface ChapterExecutionContractServiceDeps {
   storyMacroPlanService: Pick<StoryMacroPlanService, "getPlan">;
@@ -129,7 +131,27 @@ export class ChapterExecutionContractService {
         persisted: chapter,
       })
       : null;
-    if (readiness?.canReuse) {
+    let continuityGuidance: string | undefined;
+    let reviewedPrevious: { order: number; content: string } | null = null;
+    if (readiness?.canReuse && currentRequirement && !chapter.content?.trim() && chapter.order > 1) {
+      const previous = await prisma.chapter.findFirst({ where: { novelId, order: chapter.order - 1 },
+        select: { order: true, title: true, content: true } });
+      if (previous?.content?.trim()) reviewedPrevious = { order: previous.order, content: previous.content };
+      const checked = previous?.content?.trim() ? await reviewChapterExecutionContinuity({
+        ...currentRequirement, novelId, volumeId: matched.volumeId, chapterId, chapterOrder: chapter.order,
+        previousChapterResult: { chapterOrder: previous.order, title: previous.title, summary: "", tail: previous.content.slice(-800), content: previous.content },
+      }, { ...options, mode: options.chapterTaskSheetQualityMode ?? "ai_copilot" }) : null;
+      if (checked && (checked.assessment.recommendedHandling !== "use_as_is" || checked.result.status !== "passed")) {
+        if (!checked.result.canEnterExecution) throw new ChapterTaskSheetQualityGateError(checked.result);
+        continuityGuidance = [checked.result.summary, ...checked.result.repairGuidance,
+          ...checked.result.issues.map(issue => issue.repairHint)].filter(Boolean).join("\n");
+      }
+    }
+    if (readiness?.canReuse && !continuityGuidance) {
+      if (reviewedPrevious) {
+        const source = await prisma.chapter.findFirst({ where: { novelId, order: reviewedPrevious.order }, select: { content: true } });
+        if (source?.content !== reviewedPrevious.content) throw new Error("前章正文在规划核对期间发生变化，请重新准备本章。");
+      }
       const styleContract = await this.resolveStyleContract(novelId, chapterId, options.taskStyleProfileId);
       return {
         ...chapter,
@@ -141,6 +163,8 @@ export class ChapterExecutionContractService {
       workspace,
       options: {
         ...options,
+        ...(continuityGuidance ? { forceRegenerate: true,
+          guidance: [options.guidance, "上一章实际正文与本章规划需要协调，保留本章目标并按以下核对结果修订入口、场景和收尾：", continuityGuidance].filter(Boolean).join("\n") } : {}),
         scope: "chapter_detail",
         detailMode: "task_sheet",
         targetVolumeId: matched.volumeId,
@@ -190,6 +214,12 @@ export class ChapterExecutionContractService {
     targetChapter.styleContract = styleContract;
 
     const persistedChapter = await runVolumeWorkspaceTransaction(async (tx) => {
+      const current = await tx.chapter.findFirst({ where: { id: chapterId, novelId }, select: { taskSheet: true, sceneCards: true } });
+      if (current?.taskSheet !== chapter.taskSheet || current?.sceneCards !== chapter.sceneCards) throw new Error("本章规划在生成期间发生变化，已保留新修改，请重新准备本章。");
+      if (reviewedPrevious) {
+        const source = await tx.chapter.findFirst({ where: { novelId, order: reviewedPrevious.order }, select: { content: true } });
+        if (source?.content !== reviewedPrevious.content) throw new Error("前章正文在规划生成期间发生变化，请重新准备本章。");
+      }
       const { versionId } = await this.deps.ensureActiveVersionRecord(
         tx,
         novelId,

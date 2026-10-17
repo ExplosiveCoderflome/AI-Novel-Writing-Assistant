@@ -65,6 +65,8 @@ function createSystemPrompt(mode: ChapterTaskSheetQualityPromptInput["mode"]): s
     "还要判断本章是否被塞入过多彼此争夺篇幅的必达义务；如果任务单显示当前章职责已经过载，loadRisk=overloaded，recommendedHandling=replan_window。",
     "如果问题仍可在本章合同内收口，recommendedHandling=repair_contract；只有合同已经足够稳时才用 use_as_is。",
     "若提供上一章实际结果，核对道具的来源、形态、持有人及人物位置是否承接；不得用本章尚未执行的计划改写已保存事实。可局部调整本章入口与行动来承接时给 repair_contract 和明确指导。",
+    "已有任务单也必须核对上一章真实结束位置、行动方向与本章全部场景，不能只看开头。若前章已离开某地，本章收尾仍要求在那里，必须明确合理的返回经过，或建议把收尾线索迁移到实际承接地点；不能让写作与审校分别遵守冲突版本。",
+    "区分物品载体、所有者与记载内容，不能把手抄件和复印件当作同义表述。前文状态不是永久不变量：本章计划允许的新字迹、位置或持有变化，只要有明确过程和依据，不因前章状态不同就判违规。",
     "如果存在问题，给出面向自动修复器的具体 repairGuidance。",
     "",
     "输出严格 JSON，不要 Markdown、注释、解释或额外字段。",
@@ -105,7 +107,7 @@ export const chapterTaskSheetQualityPrompt: PromptAsset<
   AiChapterTaskSheetQualityAssessment
 > = {
   id: "novel.volume.chapter_task_sheet_quality",
-  version: "v3",
+  version: "v4",
   taskType: "review",
   mode: "structured",
   language: "zh",

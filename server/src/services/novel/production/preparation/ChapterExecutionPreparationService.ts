@@ -9,7 +9,7 @@ import { chapterTimelineFinalizationService } from "../../runtime/ChapterTimelin
 
 export interface ChapterExecutionPreparationResult {
   status: "ready";
-  mode: "manual" | "full_book_autopilot";
+  mode: "manual" | "full_book_autopilot" | "director_execution";
   planId: string;
   preparedArtifacts: Array<"chapter_execution_contract" | "chapter_plan">;
 }
@@ -32,10 +32,13 @@ export class ChapterExecutionPreparationService {
   ): Promise<ChapterExecutionPreparationResult> {
     await this.deps.ensureTimelineReady(novelId, chapterId, request);
     const isAutopilot = request.controlPolicy?.advanceMode === "full_book_autopilot";
+    const isDirectorExecution = request.controlPolicy?.advanceMode === "auto_to_execution"
+      && request.controlPolicy.kickoffMode === "director_start";
     const preparedArtifacts: ChapterExecutionPreparationResult["preparedArtifacts"] = [];
-    if (isAutopilot) {
+    if (isAutopilot || isDirectorExecution) {
       const estimatedChapterCount = await this.deps.loadEstimatedChapterCount(novelId);
       await this.deps.chapterPlanJITService.ensureExecutionReady(novelId, chapterId, {
+        ...(isDirectorExecution ? { prepareRouteWindow: false } : {}),
         min: 3,
         target: 5,
         provider: request.provider,
@@ -50,7 +53,7 @@ export class ChapterExecutionPreparationService {
     preparedArtifacts.push("chapter_plan");
     return {
       status: "ready",
-      mode: isAutopilot ? "full_book_autopilot" : "manual",
+      mode: isAutopilot ? "full_book_autopilot" : isDirectorExecution ? "director_execution" : "manual",
       planId: plan.id,
       preparedArtifacts,
     };

@@ -238,7 +238,7 @@ export function buildChapterWriterContextBlocks(
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
   const includeOpenConflicts = !isIncremental && writeContext.openConflictSummaries.length > 0;
   const includeRecentChapters = !isIncremental && (writeContext.recentChapterSummaries.length > 0
-    || (mode !== "full" && Boolean(writeContext.previousChapterContent?.trim())));
+    || Boolean(writeContext.previousChapterContent?.trim()));
   const includeStyleContract = mode !== "incremental" && Boolean(writeContext.styleContract);
   const includeContinuationConstraints = mode === "full" && writeContext.continuationConstraints.length > 0;
   const wordRange = resolveTargetWordRange(writeContext.chapterMission.targetWordCount);
@@ -483,10 +483,10 @@ export function buildChapterWriterContextBlocks(
       ? createContextBlock({
         id: "recent_chapters",
         group: "recent_chapters",
-        priority: mode === "full" ? 86 : 100,
-        required: mode !== "full",
-        allowSummary: mode === "full",
-        content: mode !== "full" && writeContext.previousChapterContent?.trim()
+        priority: writeContext.previousChapterContent?.trim() ? 100 : 86,
+        required: Boolean(writeContext.previousChapterContent?.trim()) || mode !== "full",
+        allowSummary: !writeContext.previousChapterContent?.trim() && mode === "full",
+        content: writeContext.previousChapterContent?.trim()
           ? `上一章已保存的完整正文（仅供核对事实，不是当前待审正文；实际发生的事实优先于未执行规划。逐项核对关键物品的来源、形态、持有人和人物位置，不能把载体变化当作同义改写；仅未提及不表示明确不存在）：\n${writeContext.previousChapterContent}`
           : toListBlock(mode === "full" ? "Recent chapter summaries" : "已保存前文摘要（实际发生的事实优先于尚未执行的规划；不能改写道具来源与持有状态）",
             mode === "full" ? writeContext.recentChapterSummaries : writeContext.recentChapterSummaries.slice(0, 1)),

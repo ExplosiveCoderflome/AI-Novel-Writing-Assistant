@@ -9,12 +9,12 @@ import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "./Chap
  *
  * 在执行第 N 章之前被调用，确保 task sheet 已就绪。
  * 若章节尚无 task sheet，则调用 volumeService 即时生成，并将已发生事实
- * 注入到生成上下文中。已有完整执行合同必须直接复用；事实变化由正文运行时
- * 上下文承接，不能把每次执行都变成合同重建。
+ * 注入到生成上下文中。已有完整执行合同还须与实际前文核对；相同输入复用
+ * 核对结果，只有 AI 明确给出修订指导时才进入现有合同生成链。
  *
  * 兼容性：
- * - 旧小说已有完整 taskSheet 时直接复用，不因事实数量重复生成。
- * - 只在 autopilot 流水线路径调用（manual 单章模式继续用 ChapterExecutionContractService）。
+ * - 不按事实数量重建合同；准备度和语义核对均由中央合同服务拥有。
+ * - 选定范围的导演执行只准备当前合同，不自动扩展路线窗口。
  */
 
 export interface ChapterPlanJITDeps {
@@ -55,7 +55,7 @@ export class ChapterPlanJITService {
   async ensureExecutionReady(
     novelId: string,
     chapterId: string,
-    routeOptions: ChapterRouteWindowOptions = {},
+    routeOptions: ChapterRouteWindowOptions & { prepareRouteWindow?: boolean } = {},
   ): Promise<void> {
     const loadChapter = this.deps.loadChapter ?? ((targetNovelId: string, targetChapterId: string) => prisma.chapter.findFirst({
       where: { id: targetChapterId, novelId: targetNovelId },
@@ -69,7 +69,7 @@ export class ChapterPlanJITService {
       return;
     }
 
-    await this.deps.ensureRouteWindow?.(novelId, chapter.order, routeOptions);
+    if (routeOptions.prepareRouteWindow !== false) await this.deps.ensureRouteWindow?.(novelId, chapter.order, routeOptions);
 
     // 合同是否可复用由唯一的准备度策略判断；JIT 不再维护第二套字段规则。
     const facts = await (this.deps.listFacts ?? novelFactService.listForChapter)({
