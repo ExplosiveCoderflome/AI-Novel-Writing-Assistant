@@ -14,6 +14,7 @@ import {
   chapterAcceptanceAssessmentPrompt,
   type ChapterAcceptanceAssessmentOutput,
   type ChapterAcceptancePromptInput,
+  resolveChapterAcceptanceOutputTokens,
 } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { openConflictService } from "../../state/OpenConflictService";
 import { normalizeScore } from "../novelP0Utils";
@@ -362,7 +363,7 @@ export class ChapterAcceptanceAssessmentService {
         provider: input.provider,
         model: input.model,
         temperature: Math.min(input.temperature ?? 0.2, 0.35),
-        maxTokens: 3200,
+        maxTokens: resolveChapterAcceptanceOutputTokens(input),
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_acceptance",

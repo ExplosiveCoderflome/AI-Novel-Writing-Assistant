@@ -20,6 +20,7 @@ const tests = [
   "tests/characterResourceValidationService.test.js",
   "tests/prompting-governance.test.js",
   "tests/prompting.test.js",
+  "tests/prompting/correctionBudget.test.js",
   "tests/promptWorkbench.test.js",
   "tests/promptTemplateWorkbench.test.js",
   "tests/planner.test.js",

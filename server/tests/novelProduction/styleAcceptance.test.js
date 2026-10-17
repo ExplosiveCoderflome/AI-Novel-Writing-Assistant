@@ -52,6 +52,15 @@ test('enabled style review reuses one acceptance call and returns a report from 
   assert.equal(result.styleReviewReport.riskScore, 65);
   assert.equal(result.styleReviewReport.violations[0].excerpt, '终于懂得生活的真谛');
   assert.equal(result.issues[0].category, 'voice');
+  assert.equal(h.requests[0].options.maxTokens,4096);
+});
+
+test('repair verification has bounded output space for its complete evidence checklist',async()=>{
+  const h=service(output());
+  await h.instance.assess({...input(context()),repairReviewBaseline:{blockingIssues:[],missingObligations:[],repairDirectives:[]}});
+  assert.equal(h.requests[0].options.maxTokens,6144);
+  assert.equal(prompt.chapterAcceptanceAssessmentPrompt.semanticRetryPolicy.sharedCorrectionBudget,1);
+  assert.equal(prompt.chapterAcceptanceAssessmentPrompt.fallbackRepairPolicy.maxAttempts,0);
 });
 test('disabled style review omits detection context and report while retaining writer style context', async () => {
   const pkg = context(false), h = service(output());

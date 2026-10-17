@@ -256,6 +256,10 @@ export interface ChapterAcceptancePromptInput {
     "blockingIssues" | "missingObligations" | "repairDirectives">;
 }
 
+export function resolveChapterAcceptanceOutputTokens(input: Pick<ChapterAcceptancePromptInput, "repairReviewBaseline">): number {
+  return input.repairReviewBaseline ? 6144 : 4096;
+}
+
 const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceModelOutput = {
   status: "accepted",
   styleReview: { riskScore: 0, summary: "写法规则已核对，无需局部修正。", observations: [],
@@ -289,7 +293,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceModelOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v21",
+  version: "v22",
   cacheBoundary: {messageIndex:0,contentBlockIndex:0},
   taskType: "review",
   mode: "structured",
@@ -329,8 +333,10 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     note: "示例只演示格式，不预设当前章节通过。blockingIssues 项使用 severity/category/code/evidence/fixSuggestion；专项写法 voice 项另须 styleRuleId/layer/canAutoRewrite。repairDirectives 项使用 mode/target/instruction；missingObligations 项使用 kind/summary/evidence。styleReview 不输出 issueCodes，由程序关联同次 voice 问题。修文复验按尾部清单输出 repairVerification/currentEvidence。所有判断以当前合同和正文为准。",
   },
   outputSchema: chapterAcceptanceModelSchema,
+  fallbackRepairPolicy: {maxAttempts: 0},
   semanticRetryPolicy: {
     maxAttempts: 1,
+    sharedCorrectionBudget: 1,
     buildMessages: ({baseMessages, validationError}) => [...baseMessages, new HumanMessage(
       `上次检查结果未通过证据合同核对：${validationError}\n请重新核对当前正文后返回完整 JSON。证据必须连续复制正文原句，不添加引号、行号、省略号或概括；修文复验须原样回传清单中的正文身份，完整核对所有唯一条目。不要为使格式通过而改变语义结论。`,
     )],
@@ -378,6 +384,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "21. 结尾可用未决选择、已建立的代价或明确下一步形成追读钩子；仅因没有新增追兵、反转或更强刺激，不应输出 blockingIssues / repairDirectives。普通表达提升放入 riskTags；确实未兑现本章硬合同仍须报告。",
       "22. 判断秘密泄漏须引用具体正文和 forbidden crossing / protected reveals；角色含糊警告、怀疑或误解不等同于对方已知秘密。若歧义会导致读者误判关键事实，说明冲突和必须明确的范围，避免把推测当成已发生的泄漏。",
       "23. 检查完整合同与正文后一次列齐需立即修复的缺口；同一缺口保持含义明确的 code，不用不同措辞制造新问题。summary、decisionReason 和指令简短，证据引用足以定位的句段，避免多字段重复长篇解释。",
+      "输出紧凑要求：summary/decisionReason/reason 各用一句短句，证据优先连续复制20-60字的定位原句，不重复整段。跨章核对最多选2项；复验按清单覆盖，保留必要事实，不扩写解释。",
       "24. 写法检测开启时必须输出 styleReview:{riskScore:0至100整数,summary:简短结论,observations:[]}，不要输出 issueCodes。可局部修文的问题使用 blockingIssues 的 voice 项，完整填写 code/category/severity/evidence/fixSuggestion/styleRuleId/layer/canAutoRewrite；不得省略层次和实例许可。code 是本次问题编号，styleRuleId 才是目录规则 ID，普通合同问题用 null；程序从 voice 项生成报告引用。",
       "叙事层、低风险及禁止自动修文风险只进 observations（最多3条，code/styleRuleId/layer/severity/evidence/reason/fixSuggestion），不安排修文、不重复证据。observations 只记录有原文依据的风险，不写符合规则的表扬，无风险返回 []；鼓励性规则未出现不违规。关闭时 styleReview 为 null。",
       "25. 写法 voice 项必须用 styleRuleId 引用规则目录中的真实 ID；普通写法合同问题用 null。autoRewrite=false 的规则只记录风险提醒，不安排修文。专项表达问题不能单独升级为整章重写、人工暂停或 plan_misalignment；事实、保密与章节义务冲突仍按对应合同判断。",

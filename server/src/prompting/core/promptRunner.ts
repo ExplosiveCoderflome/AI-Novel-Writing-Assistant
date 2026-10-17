@@ -562,6 +562,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
   let repairUsed = currentResult.repairUsed;
   let semanticRetryAttempts = 0;
   const maxSemanticRetryAttempts = resolveStructuredSemanticRetryAttempts(asset);
+  const sharedCorrectionBudget = asset.semanticRetryPolicy?.sharedCorrectionBudget;
 
   while (true) {
     try {
@@ -585,7 +586,8 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         postValidateFailureRecovered: false,
       };
     } catch (error) {
-      if (semanticRetryAttempts >= maxSemanticRetryAttempts) {
+      if (semanticRetryAttempts >= maxSemanticRetryAttempts || (sharedCorrectionBudget !== undefined
+        && totalRepairAttempts + semanticRetryAttempts >= sharedCorrectionBudget)) {
         if (input.asset.postValidateFailureRecovery) {
           logPromptEvent({
             event: "semantic_retry_recovered",
@@ -678,8 +680,10 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         taskType: input.asset.taskType,
         messages: currentMessages,
         schema: input.outputSchema,
-        maxRepairAttempts: resolveStructuredRepairAttempts(asset),
-        fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(asset),
+        maxRepairAttempts: Math.min(resolveStructuredRepairAttempts(asset), sharedCorrectionBudget === undefined
+          ? Infinity : Math.max(0, sharedCorrectionBudget - totalRepairAttempts - semanticRetryAttempts)),
+        fallbackMaxRepairAttempts: Math.min(resolveStructuredFallbackRepairAttempts(asset), sharedCorrectionBudget === undefined
+          ? Infinity : Math.max(0, sharedCorrectionBudget - totalRepairAttempts - semanticRetryAttempts)),
         repairGuidance: resolveStructuredRepairGuidance(asset),
         promptMeta: buildPromptInvocationMeta(
           asset,

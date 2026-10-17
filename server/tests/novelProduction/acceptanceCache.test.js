@@ -114,7 +114,8 @@ test("cache identity renders effective context, overrides and model without vola
     "../../../../prompting/core/promptRunner": { preparePromptExecution: ({ promptInput, contextBlocks }) => ({ context: {}, messages: [{ getType: () => "human", content: JSON.stringify({ promptInput, contextBlocks }) }] }) },
     "../../../../prompting/context/promptContextResolution": { resolvePromptContextBlocksForAsset: async () => ({ blocks: [state.context] }) },
     "../../../../prompting/prompts/novel/chapterLayeredContext": { buildChapterReviewContextBlocks: () => [] },
-    "../../../../prompting/prompts/novel/chapterAcceptance.prompts": { chapterAcceptanceAssessmentPrompt: asset },
+    "../../../../prompting/prompts/novel/chapterAcceptance.prompts": { chapterAcceptanceAssessmentPrompt: asset,
+      resolveChapterAcceptanceOutputTokens: require('../../dist/prompting/prompts/novel/chapterAcceptance.prompts').resolveChapterAcceptanceOutputTokens },
     "../../../../prompting/slots/PromptSlotOverrideService": { promptSlotOverrideService: { resolveForRuntime: async () => ({ appendBlocks: [state.slot] }) } },
     "../../../../prompting/templates/templateRuntime": { resolveAdvancedPromptMessages: async ({ officialMessages }) => [...officialMessages, { getType: () => "system", content: state.template }] },
   });

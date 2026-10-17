@@ -182,6 +182,8 @@ export interface PromptSemanticRetryBuildInput<I, R> {
 
 export interface PromptSemanticRetryPolicy<I, R> {
   maxAttempts: number;
+  /** Optional shared allowance for structural repairs and semantic correction. */
+  sharedCorrectionBudget?: number;
   buildMessages?: (input: PromptSemanticRetryBuildInput<I, R>) => BaseMessage[];
 }
 
