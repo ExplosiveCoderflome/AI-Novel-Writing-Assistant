@@ -1,7 +1,20 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+
+// Direct node --test runs must not inherit the workspace database.
+const isolatedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "director-resource-confirmation-"));
+process.env.NODE_ENV = "test";
+process.env.AI_NOVEL_RUNTIME = "desktop";
+process.env.AI_NOVEL_APP_DATA_DIR = isolatedDirectory;
+process.env.DATABASE_URL = `file:${path.join(isolatedDirectory, "isolated.db").replaceAll("\\", "/")}`;
 const { prisma } = require("../../dist/db/prisma.js");
+const { ensureRuntimeDatabaseReady } = require("../../dist/db/runtimeMigrations.js");
 const { NovelDirectorAutoExecutionRuntime } = require("../../dist/services/novel/director/automation/novelDirectorAutoExecutionRuntime.js");
+
+test.before(async () => { await ensureRuntimeDatabaseReady(); });
 
 for (const [runMode, withQualityNotice] of [["full_book_autopilot", false], ["full_book_autopilot", true], ["auto_to_execution", false]]) {
   test(`successful final chapter reconciles resources only for ${runMode} (qualityNotice=${withQualityNotice})`, async () => {
