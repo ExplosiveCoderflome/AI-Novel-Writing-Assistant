@@ -47,6 +47,7 @@ export async function run(scenario) {
   const requests=[];
   let finishPendingSave;
   const diagnostic=scenario.startsWith('diagnostic');
+  const rewrite=scenario.startsWith('rewrite');
   globalThis.__chapterFocusRanges=[];
   let chapter={...previewBook.chapters[0],content:'alpha\\n\\nbeta',wordCount:9,updatedAt:'2026-10-11T00:00:00.000Z'};
   const book={...previewBook,novel:{...previewBook.novel,id:'book'},chapters:[chapter],
@@ -177,11 +178,11 @@ export async function run(scenario) {
         }
         await click(scenario==='diagnostic-partial' ? '接受已选' : '接受全部');
       }
-      return {previewHasCard,content:chapter.content,workspace:client.getQueryData(queryKeys.novels.chapterEditorWorkspace('book','c1')).data,
+      return {previewHasCard,content:chapter.content,editorText:dialog.querySelector('[data-testid="editor-prose"]').textContent,workspace:client.getQueryData(queryKeys.novels.chapterEditorWorkspace('book','c1')).data,
         candidateRetained:[...dialog.querySelectorAll('button')].some(button=>button.textContent.trim()==='接受全部' && !button.disabled),requests};
     }
-    await click(scenario==='rewrite' ? '测试选择片段' : '测试放置光标');
-    await click(scenario==='rewrite' ? 'AI 优化这段' : '增加对话');
+    await click(rewrite ? '测试选择片段' : '测试放置光标');
+    await click(rewrite ? 'AI 优化这段' : '增加对话');
     const previewText=dialog.textContent;
     const savedBeforeAccept=chapter.content;
     if(scenario==='dirty-close') {
@@ -189,10 +190,17 @@ export async function run(scenario) {
       const protectedCandidate=Boolean(document.querySelector('[role=dialog]'));
       return {protectedCandidate,requests};
     }
-    await click(scenario==='rewrite' ? '接受全部' : '插入正文');
+    await click(rewrite ? '接受全部' : '插入正文');
     if(scenario==='conflict') return {content:chapter.content,candidateRetained:dialog.textContent.includes('插入正文'),requests};
+    const editorText=dialog.querySelector('[data-testid="editor-prose"]').textContent;
+    const saveDisabled=[...dialog.querySelectorAll('button')].find(row=>row.textContent.trim()==='保存 · Ctrl/Cmd+S').disabled;
+    const storedDraft=sessionStorage.getItem('ai-novel:chapter-draft:v1:book:c1');
+    await act(async()=>window.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',ctrlKey:true,cancelable:true})));
+    await flush();
+    const writesAfterShortcut=requests.filter(row=>row.method==='put').length;
+    if(scenario==='rewrite-then-edit') {await click('测试输入正文');await click('保存 · Ctrl/Cmd+S');}
     await click('返回正文阅读');
-    return {before,pausedFollow,previewText,savedBeforeAccept,content:chapter.content,reader:document.querySelector('article').textContent,
+    return {before,pausedFollow,previewText,savedBeforeAccept,editorText,saveDisabled,storedDraft,writesAfterShortcut,content:chapter.content,reader:document.querySelector('article').textContent,
       dialogClosed:!document.querySelector('[role=dialog]'),followRestored:!follow.disabled && follow.checked,
       routePreserved:document.body.textContent.includes(scenario==='review' ? '查看本阶段结果' : '章节正文'),requests};
   } finally {
@@ -212,7 +220,7 @@ export async function run(scenario) {
 import React,{useLayoutEffect} from 'react';
 export default function Editor(props) {
   useLayoutEffect(()=>{if(props.focusRange) globalThis.__chapterFocusRanges.push({...props.focusRange});},[props.focusRange,props.focusRequestKey]);
-  return <div><p>{props.value}</p>
+  return <div><p data-testid="editor-prose">{props.value}</p>
   <button onClick={()=>props.onCursorChange(5)}>测试放置光标</button>
   <button onClick={()=>props.onSelectionChange({from:0,to:5,text:'alpha'})}>测试选择片段</button>
   <button onClick={()=>props.onChange(props.value+'末')}>测试输入正文</button>
@@ -229,6 +237,8 @@ test('V2 reader opens editor, previews dialogue, inserts only on acceptance and 
   assert.equal(result.savedBeforeAccept,'alpha\n\nbeta');
   assert.match(result.previewText,/候选一/);assert.match(result.previewText,/候选二/);
   assert.equal(result.content,'alpha门外响起敲门声。\n\nbeta');
+  assert.equal(result.editorText,result.content);assert.equal(result.saveDisabled,true);assert.equal(result.storedDraft,null);
+  assert.equal(result.writesAfterShortcut,1);
   assert.match(result.reader,/门外响起敲门声/);assert.equal(result.dialogClosed,true);
   const writes=result.requests.filter(row=>row.method!=='get');
   assert.deepEqual(writes.map(row=>row.url),['/novels/book/chapters/c1/editor/continue-preview','/novels/book/snapshots','/novels/book/chapters/c1']);
@@ -241,8 +251,19 @@ test('V2 reader opens editor, previews dialogue, inserts only on acceptance and 
 test('V2 editor selection rewrite preserves unselected prose and uses the same protected save',async()=>{
   const result=await run('rewrite');
   assert.equal(result.content,'新的开场\n\nbeta');
+  assert.equal(result.editorText,result.content);assert.equal(result.saveDisabled,true);assert.equal(result.storedDraft,null);
+  assert.equal(result.writesAfterShortcut,1);
   assert.equal(result.requests.filter(row=>row.method!=='get').length,3);
   assert.ok(result.requests.every(row=>!row.url.includes('director/commands')));
+});
+
+test('manual editing and saving after accepting a rewrite retains the accepted prose',async()=>{
+  const result=await run('rewrite-then-edit');
+  assert.equal(result.editorText,'新的开场\n\nbeta');assert.equal(result.writesAfterShortcut,1);
+  assert.equal(result.content,'新的开场\n\nbeta末');
+  const saves=result.requests.filter(row=>row.method==='put');
+  assert.equal(saves.length,2);assert.equal(saves[1].body.content,result.content);
+  assert.equal(saves[1].body.expectedContent,'新的开场\n\nbeta');
 });
 
 test('V2 chapter review opens editing and returns to the same review context',async()=>{
@@ -276,6 +297,7 @@ test('accepting and saving a complete diagnostic removes only its card and reanc
   const result=await run('diagnostic');
   assert.equal(result.previewHasCard,true);
   assert.equal(result.content,'新的开场\n\nbeta');
+  assert.equal(result.editorText,result.content);
   assert.deepEqual(result.workspace.diagnosticCards.map(row=>row.id),['problem-2']);
   assert.deepEqual(result.workspace.diagnosticCards[0].anchorRange,{from:6,to:10});
   assert.equal(result.workspace.recommendedTask,null);
@@ -297,6 +319,7 @@ test('a failed diagnostic save keeps its pending card and candidate',async()=>{
 
 test('partial diagnostic acceptance keeps the card pending',async()=>{
   const result=await run('diagnostic-partial');
+  assert.equal(result.editorText,result.content);
   assert.equal(result.content,'Alpha\n\nbeta');assert.equal(result.workspace.diagnosticCards.length,2);
 });
 

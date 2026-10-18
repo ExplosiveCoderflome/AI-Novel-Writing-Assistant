@@ -15,22 +15,23 @@ export function useCandidateAcceptance(input: {
   sourceSnapshot?: string;
   savedUpdatedAt: string;
   savedContent: string;
-  acknowledgeSave: (content: string, saved: { content?: string | null; updatedAt: string }) => void;
+  acknowledgeSave: (expectedDraftContent: string, saved: { content?: string | null; updatedAt: string }) => void;
   onAccepted: (result: { nextContent: string; savedUpdatedAt: string; fullyAccepted: boolean }) => Promise<void>;
 }) {
   return useMutation({
     mutationFn: async () => {
       const { chapter, candidate, session, selectedChangeIds } = input;
+      const sourceContent = input.content;
       if (!chapter || !candidate || !session.targetRange || session.status !== "ready") {
         throw new Error("当前没有可应用的候选版本。");
       }
       if (selectedChangeIds.size === 0) throw new Error("请先选择要采纳的修改。");
-      if (input.sourceSnapshot !== input.content) throw new Error("正文已变化，请重新生成修改建议。");
+      if (input.sourceSnapshot !== sourceContent) throw new Error("正文已变化，请重新生成修改建议。");
       const replacement = applySelectedChapterEditorDiff(session.targetRange.text, candidate.content, candidate.diffChunks, selectedChangeIds);
       const nextContent = session.mode === "continuation"
-        ? insertChapterContinuation(input.content, session.targetRange.from, replacement)
-        : replaceChapterSelection(input.content, session.targetRange, replacement);
-      if (nextContent === input.content) throw new Error("所选修改与原文相同，无需再次保存。");
+        ? insertChapterContinuation(sourceContent, session.targetRange.from, replacement)
+        : replaceChapterSelection(sourceContent, session.targetRange, replacement);
+      if (nextContent === sourceContent) throw new Error("所选修改与原文相同，无需再次保存。");
       await createNovelSnapshot(input.novelId, {
         triggerType: "manual", label: `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`,
       });
@@ -38,11 +39,11 @@ export function useCandidateAcceptance(input: {
         content: nextContent, expectedUpdatedAt: input.savedUpdatedAt, expectedContent: input.savedContent,
       });
       const fullyAccepted = groupChapterEditorDiffChanges(candidate.diffChunks).every((change) => selectedChangeIds.has(change.id));
-      return { nextContent, saved: response.data, fullyAccepted };
+      return { sourceContent, nextContent, saved: response.data, fullyAccepted };
     },
-    onSuccess: async ({ nextContent, saved, fullyAccepted }) => {
+    onSuccess: async ({ sourceContent, nextContent, saved, fullyAccepted }) => {
       const savedUpdatedAt = String(saved?.updatedAt ?? Date.now());
-      input.acknowledgeSave(nextContent, { content: saved?.content ?? nextContent, updatedAt: savedUpdatedAt });
+      input.acknowledgeSave(sourceContent, { content: saved?.content ?? nextContent, updatedAt: savedUpdatedAt });
       await input.onAccepted({ nextContent: saved?.content ?? nextContent, savedUpdatedAt, fullyAccepted });
       toast.success("所选修改已保存，修改前版本可在历史中查看。");
     },

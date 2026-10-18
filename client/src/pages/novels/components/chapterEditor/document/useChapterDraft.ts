@@ -57,8 +57,8 @@ export function useChapterDraft(input: {
     savedUpdatedAt: draft.savedUpdatedAt,
     isDirty, hasExternalChange, restored, storageError,
     setContentDraft: (content: string) => publish({ ...current.current, content }),
-    acknowledgeSave: (submitted: string, saved: { content?: string | null; updatedAt: string }) => {
-      publish(acknowledgeChapterSave(current.current, submitted, { content: normalizeChapterText(saved.content), updatedAt: saved.updatedAt }));
+    acknowledgeSave: (expectedDraftContent: string, saved: { content?: string | null; updatedAt: string }) => {
+      publish(acknowledgeChapterSave(current.current, expectedDraftContent, { content: normalizeChapterText(saved.content), updatedAt: saved.updatedAt }));
       setRestored(false);
     },
     loadSavedVersion: () => {

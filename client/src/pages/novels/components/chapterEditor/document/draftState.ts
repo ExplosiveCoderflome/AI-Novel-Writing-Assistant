@@ -20,9 +20,10 @@ export function receiveChapter(draft: ChapterDraft, incoming: { content: string;
   return { content: incoming.content, savedContent: incoming.content, savedUpdatedAt: incoming.updatedAt };
 }
 
-export function acknowledgeChapterSave(draft: ChapterDraft, submitted: string, saved: { content: string; updatedAt: string }): ChapterDraft {
+/** Advance the draft only if it still matches the local text captured when saving began. */
+export function acknowledgeChapterSave(draft: ChapterDraft, expectedDraftContent: string, saved: { content: string; updatedAt: string }): ChapterDraft {
   return {
-    content: draft.content === submitted ? saved.content : draft.content,
+    content: draft.content === expectedDraftContent ? saved.content : draft.content,
     savedContent: saved.content,
     savedUpdatedAt: saved.updatedAt,
   };

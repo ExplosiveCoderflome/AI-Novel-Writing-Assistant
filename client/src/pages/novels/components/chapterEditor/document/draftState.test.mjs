@@ -29,3 +29,22 @@ test("save acknowledgement preserves newer local typing", () => {
 test("invalid draft storage falls back to the saved version", () => {
   assert.deepEqual(restoreChapterDraft("{broken", saved), saved);
 });
+
+test("accepted AI prose replaces its source draft and remains clean after refresh", () => {
+  const source = { ...saved, content: "甲\n\n作者未保存的乙" };
+  const response = { content: "甲\n\nAI 改写的乙", updatedAt: "2026-10-11T00:03:00.000Z" };
+  const accepted = acknowledgeChapterSave(source, source.content, response);
+  assert.equal(accepted.content, response.content);
+  assert.equal(accepted.content, accepted.savedContent);
+  assert.deepEqual(receiveChapter(accepted, response, false), accepted);
+});
+
+test("an AI save receipt preserves typing made after acceptance began", () => {
+  const source = saved.content;
+  const current = { ...saved, content: source + "\n\n刚输入的新段落" };
+  const accepted = acknowledgeChapterSave(current, source, {
+    content: "甲\n\nAI 改写的乙", updatedAt: "2026-10-11T00:03:00.000Z",
+  });
+  assert.equal(accepted.content, current.content);
+  assert.equal(accepted.savedContent, "甲\n\nAI 改写的乙");
+});
