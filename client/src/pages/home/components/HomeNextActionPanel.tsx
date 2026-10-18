@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getWorkflowBadge } from "@/lib/novelWorkflowTaskUi";
-import { getNovelEditHref } from "@/lib/novelRoutes";
+import { getDirectorWorkspaceHref, getNovelEditHref } from "@/lib/novelRoutes";
 import { cn } from "@/lib/utils";
 import {
   DIRECTOR_CREATE_LINK,
@@ -16,9 +16,12 @@ import {
   MANUAL_CREATE_LINK,
   SHORT_STORY_CREATE_LINK,
   getHomeNovelTask,
+  getHomeWrittenChapters,
+  isHomeV2Novel,
   type HomeNovelItem,
 } from "../homeViewModel";
 import { buildHomeJourney } from "../homeJourney";
+import HomeBookProgress from "./HomeBookProgress";
 
 export type RenderNovelPrimaryAction = (
   novel: HomeNovelItem,
@@ -75,7 +78,8 @@ export function HomeNextActionPanel(props: {
 
   const novel = props.primaryNovel;
   const task = getHomeNovelTask(novel);
-  const workflowBadge = getWorkflowBadge(task);
+  const directorRoute = getDirectorWorkspaceHref(novel);
+  const workflowBadge = isHomeV2Novel(novel) ? null : getWorkflowBadge(task);
   const journey = buildHomeJourney(task);
   const hasGeneratedCover = Boolean(novel.primaryCover?.url);
   const coverUrl = novel.primaryCover?.url
@@ -113,7 +117,8 @@ export function HomeNextActionPanel(props: {
               </div>
             </div>
 
-            <div className="mt-7" aria-label="整本创作旅程">
+            {isHomeV2Novel(novel) && novel.bookProgress ? <HomeBookProgress progress={novel.bookProgress} /> :
+            isHomeV2Novel(novel) ? <p className="mt-7 text-sm text-muted-foreground">打开导演台查看正文与创作进度。</p> : <div className="mt-7" aria-label="整本创作旅程">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <div>
                   <div className="text-sm font-semibold text-foreground">整本创作旅程</div>
@@ -145,7 +150,7 @@ export function HomeNextActionPanel(props: {
                   </li>
                 ))}
               </ol>
-            </div>
+            </div>}
           </div>
 
           <aside className="flex h-full flex-col rounded-2xl border border-border/65 bg-background/80 p-4 shadow-[0_18px_45px_-38px_rgba(15,23,42,0.5)] backdrop-blur-sm">
@@ -167,19 +172,19 @@ export function HomeNextActionPanel(props: {
               <div className="[&>button]:w-full">
                 {props.renderNovelPrimaryAction(novel, { size: "lg" })}
               </div>
-              <Button asChild variant="ghost" className="text-muted-foreground">
+              {!isHomeV2Novel(novel) || directorRoute ? <Button asChild variant="ghost" className="text-muted-foreground">
                 <Link to={novel.narrativeForm === "short_story"
                   ? `/novels/${novel.id}/story`
-                  : getNovelEditHref(novel.id, { taskPanel: Boolean(task) })}>
+                  : directorRoute ?? getNovelEditHref(novel.id, { taskPanel: Boolean(task) })}>
                   {novel.narrativeForm === "short_story" ? "阅读完整作品" : task ? "查看创作记录" : "打开小说工作台"}
                 </Link>
-              </Button>
+              </Button> : null}
             </div>
           </aside>
         </div>
 
         <div className="mt-7 grid gap-3 border-t border-border/65 pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          <HeroFact label="已沉淀章节" value={`${novel._count.chapters} 章`} />
+          <HeroFact label="已写正文" value={`${getHomeWrittenChapters(novel)} 章`} />
           <HeroFact label="主要角色" value={`${novel._count.characters} 位`} />
           <HeroFact label="故事世界" value={novel.world?.name ?? "等待准备"} />
           <HeroFact label="最近创作" value={formatHomeDate(novel.updatedAt)} />

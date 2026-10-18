@@ -6,7 +6,7 @@
 - 计划出场优先采用最新有效章节 `StoryPlan.participantsJson`，再采用初排；有效空名单同样覆盖初排。初排供详细任务细化，实际正文出场独立核对。
 - 实际出场复用 `chapterArtifactDeltaPrompt` 的 `characterAppearances`。正常写入位于最终修复、正文保存和候选身份处理之后，下一章之前。
 - `present`、`mention`、`flashback`、`dream` 由 AI 结构化分类。持久化只校验本书身份、正文短摘录和版本，不通过名字匹配正文推测出场。
-- `applyFinalChapter` 校验 V2 归属、运行批次、执行世代和运行控制。`writeCharacterAppearances` 供已持有归属锁的候选确认事务使用，不能作为绕过归属检查的公开写入入口。
+- `applyFinalChapter` 的生产路径校验 V2 归属、运行批次、执行世代和运行控制；手动修订路径通过 artifactSync 的 `contracts` 门面，在消费者事务内校验同书、同章、同正文、同世代与运行中 revision/attempt 证明，允许已完成或停止的批次整理作者保存正文。该证明不授予生成或恢复权限，不修改导演控制。`writeCharacterAppearances` 供已持有归属锁的候选确认事务使用，不能作为绕过归属检查的公开写入入口。
 - 出场投影存放于按小说、章节、正文哈希隔离的检查点。重复消费幂等；正文改变时旧记录不会展示。
 - 自动模式暂缓的候选使覆盖状态保持 `untracked`；确认身份时复用持久化提取结果，事务内补齐首次出场，无需新 AI 调用。
 - 缺少字段的历史提取、无效证据或未解决身份不能解释为角色缺席。已知的有效事件仍可显示，但只有完整覆盖章节允许提示计划与实际不一致。

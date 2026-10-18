@@ -10,6 +10,7 @@ import {
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { featureFlags } from "@/config/featureFlags";
+import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
@@ -57,9 +58,35 @@ export interface HomeNextAction {
 }
 
 export function getHomeNovelTask(novel: HomeNovelItem) {
+  if (isHomeV2Novel(novel)) return null;
   return novel.narrativeForm === "short_story"
     ? novel.latestCreationStudioTask ?? null
     : novel.latestAutoDirectorTask ?? null;
+}
+
+export function isHomeV2Novel(novel: HomeNovelItem): boolean {
+  return novel.narrativeForm !== "short_story" && (novel.directorVersion === "v2" || !!getDirectorWorkspaceHref(novel));
+}
+
+export function getHomeWrittenChapters(novel: HomeNovelItem): number {
+  return novel.bookProgress?.writtenChapters ?? (isHomeV2Novel(novel) ? 0 : novel._count.chapters);
+}
+
+function isHomeRunning(novel: HomeNovelItem): boolean {
+  return isHomeV2Novel(novel) ? ["queued", "running"].includes(novel.bookProgress?.director?.status ?? "")
+    : isWorkflowRunningInBackground(getHomeNovelTask(novel));
+}
+
+function isHomeActionRequired(novel: HomeNovelItem): boolean {
+  return isHomeV2Novel(novel) ? ["paused", "waiting_gate", "failed"].includes(novel.bookProgress?.director?.status ?? "")
+    : isWorkflowActionRequired(getHomeNovelTask(novel));
+}
+
+function canHomeWrite(novel: HomeNovelItem): boolean {
+  if (isHomeV2Novel(novel)) return novel.bookProgress?.director?.status === "completed"
+    && (!novel.bookProgress.targetChapters || getHomeWrittenChapters(novel) < novel.bookProgress.targetChapters);
+  return novel.narrativeForm === "short_story" ? getHomeNovelTask(novel)?.status === "succeeded"
+    : canEnterChapterExecution(getHomeNovelTask(novel));
 }
 
 export function formatHomeDate(value: string | undefined): string {
@@ -74,6 +101,7 @@ export function formatHomeDate(value: string | undefined): string {
 }
 
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
+  if (isHomeV2Novel(novel)) return isHomeActionRequired(novel) ? 0 : isHomeRunning(novel) ? 3 : canHomeWrite(novel) ? 4 : 6;
   const task = getHomeNovelTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return 0;
@@ -97,6 +125,7 @@ export function getNovelPriorityScore(novel: HomeNovelItem): number {
 }
 
 export function getNovelLeadSummary(novel: HomeNovelItem): string {
+  if (isHomeV2Novel(novel)) return "进入小说导演台查看规划、正文与本次创作进度。";
   const workflowDescription = getWorkflowDescription(getHomeNovelTask(novel));
   if (workflowDescription) {
     return workflowDescription;
@@ -137,6 +166,16 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   }
 
   const task = getHomeNovelTask(primaryNovel);
+  if (isHomeV2Novel(primaryNovel)) {
+    const status = primaryNovel.bookProgress?.director?.status;
+    const action = status === "waiting_gate" ? "确认本阶段结果" : isHomeActionRequired(primaryNovel) || status === "cancelled"
+      ? "查看创作中断" : isHomeRunning(primaryNovel) ? "查看创作进度"
+      : primaryNovel.bookProgress?.targetChapters && getHomeWrittenChapters(primaryNovel) >= primaryNovel.bookProgress.targetChapters
+        ? "阅读并检查正文" : "继续创作小说";
+    return {kind: "novel", eyebrow: "推荐下一步", title: action, description: getNovelLeadSummary(primaryNovel),
+      reason: "在本书导演台核对保存结果、质量提醒和后续章节范围，再继续创作。",
+      tone: isHomeActionRequired(primaryNovel) ? "warning" : "info"};
+  }
   if (primaryNovel.narrativeForm === "short_story") {
     return {
       kind: "novel",
@@ -224,17 +263,15 @@ export function buildHomeMetrics(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeMetric[] {
   const liveWorkflowCount = input.novels.filter((novel) => (
-    isWorkflowRunningInBackground(getHomeNovelTask(novel))
+    isHomeRunning(novel)
   )).length;
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(getHomeNovelTask(novel))
+    isHomeActionRequired(novel)
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    novel.narrativeForm === "short_story"
-      ? getHomeNovelTask(novel)?.status === "succeeded"
-      : canEnterChapterExecution(getHomeNovelTask(novel))
+    canHomeWrite(novel)
   )).length;
-  const totalChapterCount = input.novels.reduce((sum, novel) => sum + novel._count.chapters, 0);
+  const totalChapterCount = input.novels.reduce((sum, novel) => sum + getHomeWrittenChapters(novel), 0);
 
   return [
     {
@@ -260,7 +297,7 @@ export function buildHomeMetrics(input: {
     },
     {
       id: "chapters",
-      title: "已沉淀章节",
+      title: "已写正文",
       value: totalChapterCount,
       hint: "所有作品中持续积累的章节。",
       tone: totalChapterCount > 0 ? "info" : "neutral",
@@ -273,12 +310,10 @@ export function buildHomeAttentionItems(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeAttentionItem[] {
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(getHomeNovelTask(novel))
+    isHomeActionRequired(novel)
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    novel.narrativeForm === "short_story"
-      ? getHomeNovelTask(novel)?.status === "succeeded"
-      : canEnterChapterExecution(getHomeNovelTask(novel))
+    canHomeWrite(novel)
   )).length;
   const runningCount = input.taskOverview?.runningCount ?? 0;
   const waitingApprovalCount = input.taskOverview?.waitingApprovalCount ?? 0;
@@ -332,7 +367,7 @@ export function buildHomeAssetHealthItems(novels: HomeNovelItem[]): HomeAssetHea
   const totalNovels = novels.length;
   const worldBoundCount = novels.filter((novel) => Boolean(novel.world?.id || novel.worldId)).length;
   const totalCharacters = novels.reduce((sum, novel) => sum + novel._count.characters, 0);
-  const totalChapters = novels.reduce((sum, novel) => sum + novel._count.chapters, 0);
+  const totalChapters = novels.reduce((sum, novel) => sum + getHomeWrittenChapters(novel), 0);
   const resourceScores = novels
     .map((novel) => novel.resourceReadyScore)
     .filter((score): score is number => typeof score === "number" && Number.isFinite(score));

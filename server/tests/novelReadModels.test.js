@@ -45,6 +45,8 @@ test("catalog keeps pagination, archived filtering, failed tasks and live step l
     imageGenerationTask: { findMany: async () => [{ id: "cover", novelId: "a", status: "failed" }] },
   };
   const { listNovels } = loadWithStubs("../dist/services/novel/catalog/queries/NovelCatalogQuery.js", {
+    "./NovelBookProgressQuery": {readNovelBookProgress: async books => new Map(books.map(book => [book.id,
+      {writtenChapters: 0, targetChapters: null, director: null}]))},
     "../../../../db/prisma": { prisma },
     "../../../task/taskArchive": { getArchivedTaskIdSet: async () => new Set(["archived"]) },
     "../../novelTokenUsageSummary": { listNovelTokenUsageByNovelIds: async () => new Map() },

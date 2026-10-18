@@ -2,3 +2,4 @@
 export { buildChapterArtifactContentHash } from "../ChapterArtifactContentVersion";
 export * from "../ChapterArtifactSyncBoundary";
 export * from "../ChapterArtifactSyncResult";
+export {authorizeManualRevision, type ManualRevisionProof} from "../authorization";

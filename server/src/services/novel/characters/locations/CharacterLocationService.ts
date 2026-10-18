@@ -4,7 +4,7 @@ import {
   type CharacterLocationState,
 } from "@ai-novel/shared/types/characterLocation";
 import { prisma } from "../../../../db/prisma";
-import { buildChapterArtifactContentHash, ChapterArtifactContentVersionError } from "../../runtime/artifactSync/contracts";
+import { authorizeManualRevision, buildChapterArtifactContentHash, ChapterArtifactContentVersionError, type ManualRevisionProof } from "../../runtime/artifactSync/contracts";
 import { projectLocationDeltas } from "./locationProjection";
 
 export const CHARACTER_LOCATION_ARTIFACT_TYPE = "character_location_projection:v1";
@@ -12,13 +12,14 @@ const SYNC_MODE = "director_v2";
 const PAGE_SIZE = 50;
 
 export class CharacterLocationService {
-  async applyFinalChapter(input: {
+  async applyFinalChapter(input: ManualRevisionProof & {
     novelId: string; chapterId: string; content: string; contentHash: string;
     deltas: CharacterLocationDelta[];
     contentProvenance?: "confirmed" | "debt";
   }): Promise<void> {
     if (buildChapterArtifactContentHash(input.content) !== input.contentHash) throw new ChapterArtifactContentVersionError();
     await prisma.$transaction(async tx => {
+      await authorizeManualRevision(tx, input);
       const chapter = await tx.chapter.findFirst({
         where: { id: input.chapterId, novelId: input.novelId, content: input.content },
         select: { id: true, order: true, novel: { select: { directorVersion: true } } },

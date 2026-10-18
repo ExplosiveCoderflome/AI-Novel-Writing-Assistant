@@ -20,5 +20,5 @@ test("home hero presents a consumer-facing creation journey", () => {
   assert.match(status, /rounded-2xl/);
   assert.match(status, /home-status-metric-card/);
   assert.doesNotMatch(viewModel, /title: "失败任务"/);
-  assert.match(viewModel, /title: "已沉淀章节"/);
+  assert.match(viewModel, /title: "已写正文"/);
 });

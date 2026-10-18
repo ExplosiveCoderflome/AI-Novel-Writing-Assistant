@@ -5,6 +5,7 @@ import { getArchivedTaskIdSet } from "../../../task/taskArchive";
 import { listNovelTokenUsageByNovelIds } from "../../novelTokenUsageSummary";
 import { toImageAsset } from "../../../image/imageGenerationMappers";
 import { normalizeNovelOutput, type PaginationInput } from "../../novelCoreShared";
+import {readNovelBookProgress} from "./NovelBookProgressQuery";
 
 export async function listNovels({ page, limit, search, status, narrativeForm, writingMode, sort = "updated" }: PaginationInput) {
   const normalizedSearch = search?.trim();
@@ -28,6 +29,8 @@ export async function listNovels({ page, limit, search, status, narrativeForm, w
       where,
       select: {
         id: true,
+        directorVersion: true,
+        directorEpoch: true,
         title: true,
         description: true,
         targetAudience: true,
@@ -82,7 +85,7 @@ export async function listNovels({ page, limit, search, status, narrativeForm, w
   ]);
 
   const novelIds = items.map((item) => item.id);
-  const [latestAutoDirectorTaskByNovelId, latestCreationStudioTaskByNovelId, tokenUsageByNovelId, coverAssets, coverTasks] = await Promise.all([
+  const [latestAutoDirectorTaskByNovelId, latestCreationStudioTaskByNovelId, tokenUsageByNovelId, coverAssets, coverTasks, bookProgress] = await Promise.all([
     listLatestVisibleAutoDirectorTasksByNovelIds(novelIds),
     listLatestCreationStudioTasksByNovelIds(novelIds),
     listNovelTokenUsageByNovelIds(novelIds),
@@ -97,6 +100,7 @@ export async function listNovels({ page, limit, search, status, narrativeForm, w
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     }),
+    readNovelBookProgress(items),
   ]);
   const primaryCoverByNovelId = new Map<string, ReturnType<typeof toImageAsset>>();
   for (const asset of coverAssets) {
@@ -122,7 +126,9 @@ export async function listNovels({ page, limit, search, status, narrativeForm, w
       return {
         ...normalized,
         world,
-        latestAutoDirectorTask: latestAutoDirectorTaskByNovelId.get(item.id) ?? null,
+        latestAutoDirectorTask: item.directorVersion === "v2" || bookProgress.get(item.id)?.director
+          ? null : latestAutoDirectorTaskByNovelId.get(item.id) ?? null,
+        bookProgress: bookProgress.get(item.id)!,
         latestCreationStudioTask: latestCreationStudioTaskByNovelId.get(item.id) ?? null,
         tokenUsage: tokenUsageByNovelId.get(item.id) ?? null,
         primaryCover: primaryCoverByNovelId.get(item.id) ?? null,

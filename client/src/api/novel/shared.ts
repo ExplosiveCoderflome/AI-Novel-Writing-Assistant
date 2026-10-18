@@ -63,6 +63,7 @@ export type NovelListItem = Pick<
   | "createdAt"
   | "updatedAt"
 > & NovelWorkspaceEntry & {
+  bookProgress?: import("@ai-novel/shared/types/director/bookProgress").NovelBookProgress;
   primaryCover?: ImageAsset | null;
   coverGeneration?: {
     taskId: string;

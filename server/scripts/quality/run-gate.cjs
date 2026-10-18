@@ -57,6 +57,8 @@ const tests = [
   "tests/novelDirectorStructuredOutlineScope.test.js",
   "tests/novelProduction/manualChapterSaveSqlite.test.js",
   "tests/novelProduction/manualChapterSyncSqlite.test.js",
+  "tests/novelProduction/manualChapterConsumersSqlite.test.js",
+  "tests/novelCatalog/bookProgressSqlite.test.js",
   "tests/novelProduction/stateCommitAtomicSqlite.test.js",
   "tests/novelProduction/chapterExecutionPreparationService.test.js",
   "tests/novelProduction/pipelineExecutionLease.test.js",

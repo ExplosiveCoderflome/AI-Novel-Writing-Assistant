@@ -204,13 +204,15 @@ test('paused V2 candidate synchronization requires proof of a current manual rev
   await assert.rejects(service.prepare(input, output), /未在执行/);
   const p = await prisma.$transaction(tx => queueManualChapterSync(tx, b.chapter));
   const row = await marker(b);
-  await prisma.chapterArtifactSyncCheckpoint.update({where: {id: row.id}, data: {status: 'running'}});
-  await assert.rejects(service.prepare({...input, manualRevision: 'wrong-revision'}, output), /未在执行/);
-  await service.prepare({...input, manualRevision: p.revision}, output);
+  const metadataJson = JSON.stringify({...p, attemptId: randomUUID()});
+  await prisma.chapterArtifactSyncCheckpoint.update({where: {id: row.id}, data: {status: 'running', metadataJson}});
+  const revisionGuard = {id: row.id, metadataJson, novel: {directorEpoch: 1, directorVersion: 'v2'}};
+  await assert.rejects(service.prepare({...input, manualRevision: 'wrong-revision', revisionGuard}, output), /修订/);
+  await service.prepare({...input, manualRevision: p.revision, revisionGuard}, output);
   assert.equal(await prisma.character.count({where: {novelId: b.novelId}}), 1);
   assert.equal((await prisma.directorNextRunControl.findUnique({where: {runId: b.contract.runId}})).status, 'paused');
   await prisma.novel.update({where: {id: b.novelId}, data: {directorEpoch: 2}});
-  await assert.rejects(service.prepare({...input, manualRevision: p.revision}, output), /归属/);
+  await assert.rejects(service.prepare({...input, manualRevision: p.revision, revisionGuard}, output), /修订/);
 });
 
 test('gate preparation completes the current edit before its short confirmation transaction', async t => {

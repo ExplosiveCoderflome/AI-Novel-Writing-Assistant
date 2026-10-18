@@ -4,14 +4,14 @@ import {characterAppearanceSchema, type CharacterAppearance, type DirectorCharac
 import {prisma} from "../../../../db/prisma";
 import {withSqliteRetry} from "../../../../db/sqliteRetry";
 import {AppError} from "../../../../middleware/errorHandler";
-import {buildChapterArtifactContentHash, ChapterArtifactContentVersionError} from "../../runtime/artifactSync/contracts";
+import {authorizeManualRevision, buildChapterArtifactContentHash, ChapterArtifactContentVersionError, type ManualRevisionProof} from "../../runtime/artifactSync/contracts";
 import {assertNovelDirectorVersion, readRunExecutionEpoch} from "../../../../modules/novel/director-routing";
 import {initialScheduleByOrder,readInitialScheduleDocument} from "./planning/InitialScheduleDocument";
 
 export const CHARACTER_APPEARANCE_ARTIFACT = "director_v2_character_appearances:v1";
 const projectionSchema = z.object({schemaVersion: z.literal(1), records: z.array(characterAppearanceSchema),
   coverage: z.enum(["recorded", "untracked"])});
-type AppearanceInput = {novelId: string; chapterId: string; content: string; contentHash: string;
+type AppearanceInput = ManualRevisionProof & {novelId: string; chapterId: string; content: string; contentHash: string;
   appearances?: CharacterAppearance[]; directorRunId?: string};
 
 /** Also used inside candidate confirmation's transaction to bind deferred first appearances. */
@@ -45,6 +45,10 @@ export async function writeCharacterAppearances(tx: Prisma.TransactionClient, in
 export class CharacterAppearanceService {
   async applyFinalChapter(input: AppearanceInput) {
     await withSqliteRetry(() => prisma.$transaction(async tx => {
+      if (await authorizeManualRevision(tx, input)) {
+        await writeCharacterAppearances(tx, input);
+        return;
+      }
       if (!input.directorRunId) throw new AppError("角色出场回填缺少本次创作归属。", 409);
       const run = await tx.directorNextRun.findFirst({where: {id: input.directorRunId, novelId: input.novelId}});
       if (!run) throw new AppError("角色出场记录不属于本次创作。", 409);
