@@ -168,8 +168,11 @@ export function attachLLMRequestLimiter(llm: ChatOpenAI, options: ProviderModelL
   const originalInvoke = llm.invoke.bind(llm);
   const originalStream = llm.stream.bind(llm);
 
-  patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) =>
-    limiter.run(() => originalInvoke(...args))) as ChatOpenAI["invoke"];
+  patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
+    const signal = args[1]?.signal;
+    const release = await limiter.acquire(signal);
+    try {signal?.throwIfAborted(); return await originalInvoke(...args);} finally {release();}
+  }) as ChatOpenAI["invoke"];
 
   patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
     const signal = args[1]?.signal;

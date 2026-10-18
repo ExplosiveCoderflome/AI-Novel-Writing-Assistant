@@ -23,6 +23,7 @@ function createHarness() {
     },
   };
   const runtime = (workerId) => ({
+    nextId: require('node:crypto').randomUUID,
     workerId: () => workerId,
     now: () => now,
     leaseExpiresAt: (value) => new Date(value.getTime() + 10_000),
@@ -63,7 +64,7 @@ test("a lease that expires can be claimed by another worker", async () => {
   harness.advance(11_000);
   assert.equal(await second.tick(), true);
   assert.deepEqual(harness.executions, ["run-1", "run-1"]);
-  assert.equal(harness.leases.get("run-1").owner, "worker-b");
+  assert.match(harness.leases.get("run-1").owner, /^worker-b:/);
 });
 
 test("a newly opened queued run is started before its first execution turn", async () => {

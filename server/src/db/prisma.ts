@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { getDatabaseUrl } from "../config/database";
 import { resolveDatabaseFilePath } from "../runtime/appPaths";
 import { configureSqliteRuntimePragmas } from "./sqlitePragmas";
+import {assertExecutionActive} from "../platform/runtime/execution";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -48,7 +49,11 @@ export const prisma =
   new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-  });
+  }).$extends({query: {$allOperations({model, args, query}) {
+    // Usage is an observed billing fact even when the execution lost authority.
+    if (model !== "LlmInvocationUsageRecord") assertExecutionActive();
+    return query(args);
+  }}}) as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;

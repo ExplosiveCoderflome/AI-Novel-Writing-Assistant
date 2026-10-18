@@ -11,6 +11,7 @@ import type {GateService} from "./gateService";
 import {directorChapterBudgetGrantSchema, type DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 export type DirectorCommand =
+  | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant }
@@ -52,6 +53,7 @@ export class CommandVersionConflictError extends Error {
 }
 
 export interface CommandServiceDeps {
+  wakeWorker?: () => void;
   runRepository: Pick<RunRepository, "findActiveRunIdByNovel" | "open" | "getControl" | "getContract" | "transition">;
   commandRepository: CommandRepository;
   runtime: DirectorRuntime;
@@ -100,11 +102,14 @@ export class CommandService {
           throw new InvalidDirectorCommandError("同一预算授权不能改用其他章节或额度，请刷新后重试。");
         }
       }
+      if (input.type === "retry_start") this.deps.wakeWorker?.();
       return replayResult(existing);
     }
 
     try {
-      return await this.executeFresh(input);
+      const result = await this.executeFresh(input);
+      if (input.type === "retry_start") this.deps.wakeWorker?.();
+      return result;
     } catch (error) {
       if (error instanceof VersionConflictError || (error instanceof Error && error.name === "VersionConflictError")) {
         const conflict = error instanceof VersionConflictError ? error : new VersionConflictError(-1, -1);
@@ -122,6 +127,11 @@ export class CommandService {
         return this.resolveGate(command);
       case "resume":
         return this.resume(command);
+      case "retry_start":
+        if ((await this.requireControl(command.runId)).status !== "queued") {
+          throw new InvalidDirectorCommandError("只有尚未启动的创作可以重新排队。");
+        }
+        return this.transition(command, {type: "retry_start"});
       case "cancel":
         return this.transition(command, { type: "cancel" });
       case "handoff":
@@ -191,6 +201,7 @@ export class CommandService {
       expectedVersion: command.expectedVersion,
       ...(gateResolution ? {gateResolution} : {}),
       ...(command.type === "resume" && command.chapterBudget ? {chapterBudget: command.chapterBudget} : {}),
+      ...(command.type === "retry_start" ? {retryAt: this.deps.runtime.now?.() ?? new Date()} : {}),
     });
     return {
       runId: result.runId,

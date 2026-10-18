@@ -15,7 +15,7 @@ export interface PlanRegistry {
   get(version: string): PlanDefinition | null;
 }
 
-export type DirectorCommandType = "open_run" | "resolve_gate" | "resume" | "handoff" | "cancel";
+export type DirectorCommandType = "open_run" | "resolve_gate" | "resume" | "handoff" | "cancel" | "retry_start";
 
 export interface DirectorCommandRecord {
   id: string;
@@ -34,6 +34,7 @@ export interface CommandExecutionInput {
 }
 
 export interface CommandTransitionInput extends CommandExecutionInput {
+  retryAt?: Date;
   runId: string;
   event: RunEvent;
   expectedVersion: number;
@@ -77,6 +78,7 @@ export interface CommandRepository {
 
 export interface DirectorRuntime {
   nextId(): string;
+  now?(): Date;
 }
 
 export interface DirectorWorkerRuntime extends DirectorRuntime {
@@ -97,6 +99,8 @@ export interface RunRepository {
   heartbeat(runId: string, owner: string, leaseExpiresAt: Date, now: Date): Promise<boolean>;
   listLeaseCandidates(now: Date, limit: number, owner?: string, offset?: number): Promise<string[]>;
   listExpiredLeases(now: Date): Promise<string[]>;
+  releaseLease(runId: string, owner: string): Promise<void>;
+  getSchedulingState(runId: string): Promise<{createdAt: Date; leaseOwner: string | null; leaseExpiresAt: Date | null} | null>;
 }
 
 export interface ArtifactLedger {

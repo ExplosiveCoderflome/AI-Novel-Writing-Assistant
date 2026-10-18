@@ -2,6 +2,7 @@ import type { ArtifactType, RunControl, RunPause, RunStatus } from "./types";
 
 export type RunEvent =
   | { type: "start" }
+  | { type: "retry_start" }
   | { type: "step_started"; stepId: string }
   | { type: "step_finished" }
   | { type: "open_gate"; gateId: string; artifactTypes: readonly ArtifactType[] }
@@ -35,7 +36,7 @@ export class VersionConflictError extends Error {
 }
 
 const TRANSITIONS: Record<RunStatus, Partial<Record<RunEventType, RunStatus>>> = {
-  queued: { start: "running", cancel: "cancelled" },
+  queued: { start: "running", retry_start: "queued", cancel: "cancelled" },
   running: {
     step_started: "running",
     step_finished: "running",
@@ -64,6 +65,7 @@ export const RUN_STATUSES: readonly RunStatus[] = [
 
 export const RUN_EVENT_TYPES: readonly RunEventType[] = [
   "start",
+  "retry_start",
   "step_started",
   "step_finished",
   "open_gate",

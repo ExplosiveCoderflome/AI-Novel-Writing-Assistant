@@ -19,6 +19,7 @@ import {
   PrismaEventLog,
   PrismaQualityDebtRepository,
   PrismaRunRepository,
+  withDirectorExecution,
   type ArtifactEditReader,
   type BusinessResume,
   type RunOpenBoundary,
@@ -73,6 +74,7 @@ export interface DirectorNextServiceOptions {
     beforeOpen: RunOpenBoundary;
     assertRun: (runId: string) => Promise<void>;
     canRun: (runId: string) => Promise<boolean>;
+    beforeRetry?: (contract: RunContract, tx: Parameters<RunOpenBoundary>[1]) => Promise<void>;
   };
   plan?: PlanDefinition;
   stepRegistry?: StepRegistry;
@@ -93,14 +95,17 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const artifactLedger = new PrismaArtifactLedger();
   const qualityDebtRepository = new PrismaQualityDebtRepository();
   const eventLog = new PrismaEventLog();
-  const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness, cancelBusiness: options.cancelBusiness});
+  const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness, cancelBusiness: options.cancelBusiness,
+    beforeRetry: options.executionBoundary?.beforeRetry});
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
   const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
   const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes,
-    resolveArtifactTypes: options.resolveArtifactTypes, readProductionProjection: options.readProductionProjection, sourceRoute: options.sourceRoute });
+    resolveArtifactTypes: options.resolveArtifactTypes, readProductionProjection: options.readProductionProjection, sourceRoute: options.sourceRoute,
+    readScheduling: id => runRepository.getSchedulingState(id), readWorkerHealth: () => worker.getHealth(), now: runtime.now });
   const gateService = new GateService({factsLoader, planRegistry: configuredPlans});
-  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, prepareGate: options.prepareGate, gateService });
+  const commandService = new CommandService({ runRepository, commandRepository, runtime, contractFactory: options.contractFactory ?? contractFactory, prepareOpen: options.prepareOpen, prepareGate: options.prepareGate, gateService,
+    wakeWorker: () => worker.wake() });
   const stepRegistry = options.stepRegistry ?? new StepRegistry();
   const executor = new RunExecutor({
     factsLoader,
@@ -114,6 +119,7 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
     stepRegistry,
   });
   const worker = new DirectorWorker({
+    executionScope: withDirectorExecution,
     runRepository,
     executor: options.executionBoundary ? {runOnce: async runId => {
       await options.executionBoundary!.assertRun(runId);

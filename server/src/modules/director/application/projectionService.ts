@@ -1,6 +1,9 @@
 import { project, type ArtifactType, type ArtifactTypeInfo, type DashboardView, type RunContract, type RunControl, type ProductionProjection } from "../domain";
 import type { FactsLoader } from "./factsLoader";
 import type { PlanRegistry } from "./ports";
+import type {DirectorWorkerHealth} from "./worker";
+import type {RunRepository} from "./ports";
+import {projectQueuedRun} from "./scheduling";
 
 export class UnknownPlanVersionError extends Error {
   constructor(readonly version: string) {
@@ -17,6 +20,9 @@ export interface ProjectionServiceDeps {
   resolveArtifactTypes?: (input: {contract: RunContract; control: RunControl}) => Promise<Readonly<Record<ArtifactType, ArtifactTypeInfo>>>;
   readProductionProjection?: (input: {contract: RunContract; control: RunControl}) => Promise<ProductionProjection>;
   sourceRoute?: (novelId: string) => string;
+  readScheduling?: RunRepository["getSchedulingState"];
+  readWorkerHealth?: () => DirectorWorkerHealth;
+  now?: () => Date;
 }
 
 export class ProjectionService {
@@ -31,7 +37,7 @@ export class ProjectionService {
     const sourceRoute=this.deps.sourceRoute?.(contract.novelId) ?? `/lab/director/${encodeURIComponent(contract.novelId)}`;
     const artifactTypes = this.deps.resolveArtifactTypes
       ? await this.deps.resolveArtifactTypes({contract, control}) : this.deps.artifactTypes ?? {};
-    return project({
+    const view = project({
       contract,
       control,
       plan,
@@ -46,5 +52,8 @@ export class ProjectionService {
       sourceRoute,
       production: await this.deps.readProductionProjection?.({contract, control}),
     });
+    if (view.mode !== "queued" || !this.deps.readScheduling || !this.deps.readWorkerHealth) return view;
+    const scheduling = await this.deps.readScheduling(runId);
+    return scheduling ? projectQueuedRun(view, scheduling, this.deps.readWorkerHealth(), this.deps.now?.() ?? new Date()) : view;
   }
 }

@@ -1,5 +1,6 @@
 import { isArtifactSatisfied, latestArtifact } from "./plan";
 import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
+import type {DirectorWorkerStatus} from "@ai-novel/shared/types/director/worker";
 import type {
   ArtifactType,
   ActionRejection,
@@ -24,12 +25,13 @@ export interface ActionDescriptor {
   label: string;
   kind: "command" | "navigate";
   primary: boolean;
-  command?: "resume" | "cancel" | "open_run" | "handoff";
+  command?: "resume" | "cancel" | "open_run" | "handoff" | "retry_start";
   toDriver?: Driver;
   target?: string;
 }
 
 export interface DashboardView {
+  workerStatus?: DirectorWorkerStatus;
   runId: string;
   novelId: string;
   mode: RunStatus;

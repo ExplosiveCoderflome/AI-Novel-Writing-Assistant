@@ -95,6 +95,8 @@ const next=async runId=>createGateOrchestrator().next({plan,...await factsLoader
   assert.equal(macro.status,'user_edited');assert.equal(macro.protectedUserContent,true);
   assert.equal(refs.find(a=>a.type==='character_cast').status,'stale');
   assert.deepEqual(await next(runId),{kind:'run_step',stepId:'cast'});
+  // Model a crash with an explicitly held lease; healthy saved boundaries release theirs.
+  await runs.acquireLease(runId,'interrupted-confirmation-worker',new Date(Date.now()+30000),new Date());
   save('edited',await snapshot(runId));process.exit(75);
  }
  assert.deepEqual(JSON.parse(JSON.stringify(await snapshot(runId))),read('edited'));

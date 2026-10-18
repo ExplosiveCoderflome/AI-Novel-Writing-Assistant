@@ -60,6 +60,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     idempotencyKey: nonEmpty,
   }),
   z.object({ type: z.literal("resume"), runId: nonEmpty, expectedVersion, idempotencyKey: nonEmpty, chapterBudget: directorChapterBudgetGrantSchema.optional() }),
+  z.object({type: z.literal("retry_start"), runId: nonEmpty, expectedVersion, idempotencyKey: nonEmpty}),
   z.object({
     type: z.literal("handoff"),
     runId: nonEmpty,

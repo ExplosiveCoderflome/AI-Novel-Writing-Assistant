@@ -2,6 +2,13 @@ import type { RunExecutor } from "./runExecutor";
 import type { DirectorWorkerRuntime, EventLog, RunRepository } from "./ports";
 import { FactIntegrityError, type RunContract, type RunControl } from "../domain";
 import { executionRecoveryFailures } from "./runtime";
+import {RunLeaseSession} from "./execution";
+
+export interface DirectorWorkerHealth {
+  state: "stopped" | "idle" | "working" | "retrying";
+  activeRunId: string | null;
+  lastPollAt: Date | null;
+}
 
 export interface DirectorRecoveryPolicy {
   maxAttempts(contract: RunContract): number;
@@ -16,62 +23,100 @@ export interface DirectorWorkerDeps {
   pollMs?: number;
   heartbeatMs?: number;
   canExecute?: (runId: string) => Promise<boolean>;
+  onError?: (error: unknown) => void;
+  executionScope?: <T>(signal: AbortSignal, work: () => Promise<T>) => Promise<T>;
 }
 
 export class DirectorWorker {
   private stopped = false;
+  private running?: Promise<void>;
+  private wakeWait?: () => void;
+  private session?: RunLeaseSession;
+  private health: DirectorWorkerHealth = {state: "stopped", activeRunId: null, lastPollAt: null};
 
   constructor(private readonly deps: DirectorWorkerDeps) {}
 
   stop(): void {
     this.stopped = true;
+    this.session?.cancel();
+    this.wakeWait?.();
+  }
+
+  getHealth(): DirectorWorkerHealth {return {...this.health};}
+
+  wake(): void {
+    if (this.stopped) return;
+    this.wakeWait?.();
+    void this.start().catch(error => this.report(error));
+  }
+
+  private report(error: unknown): void {
+    this.health.state = "retrying";
+    try {(this.deps.onError ?? (error => console.error("[director-next.worker] execution deferred", error)))(error);}
+    catch { /* A logging adapter cannot stop the worker. */ }
+  }
+
+  private async inScope<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+    signal.throwIfAborted();
+    const result = await (this.deps.executionScope ? this.deps.executionScope(signal, work) : work());
+    signal.throwIfAborted();
+    return result;
   }
 
   async tick(): Promise<boolean> {
     if (this.stopped) return false;
+    this.health = {state: "idle", activeRunId: null, lastPollAt: this.deps.runtime.now()};
     const now = this.deps.runtime.now();
     const pageSize = this.deps.canExecute ? 100 : 1;
     for (let offset = 0; ; offset += pageSize) {
-      const candidates = await this.deps.runRepository.listLeaseCandidates(now, pageSize, this.deps.runtime.workerId(), offset);
+      const candidates = await this.deps.runRepository.listLeaseCandidates(now, pageSize, undefined, offset);
       for (const runId of candidates) {
-        if (this.deps.canExecute && !await this.deps.canExecute(runId)) continue;
-        const acquired = await this.deps.runRepository.acquireLease(
-          runId,
-          this.deps.runtime.workerId(),
-          this.deps.runtime.leaseExpiresAt(now),
-          now,
-        );
-        if (!acquired) continue;
-        const renewal = setInterval(() => {
-          void this.deps.runRepository.heartbeat(
-            runId,
-            this.deps.runtime.workerId(),
-            this.deps.runtime.leaseExpiresAt(this.deps.runtime.now()),
-            this.deps.runtime.now(),
-          );
-        }, this.deps.heartbeatMs ?? 10_000);
-        renewal.unref();
+        let acquired: boolean;
+        const owner = `${this.deps.runtime.workerId()}:${this.deps.runtime.nextId()}`;
+        let expiresAt: Date;
         try {
-          if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {
-            const control = await this.deps.runRepository.getControl(runId);
-            if (control?.status === "queued") {
-              await this.deps.runRepository.transition(runId, { type: "start" }, control.version);
+          if (this.deps.canExecute && !await this.deps.canExecute(runId)) continue;
+          const claimedAt = this.deps.runtime.now();
+          expiresAt = this.deps.runtime.leaseExpiresAt(claimedAt);
+          acquired = await this.deps.runRepository.acquireLease(
+            runId,
+            owner,
+            expiresAt,
+            claimedAt,
+          );
+        } catch (error) {this.report(error); continue;}
+        if (!acquired) continue;
+        this.health.state = "working";
+        this.health.activeRunId = runId;
+        const session = this.session = new RunLeaseSession({runId, owner, runtime: this.deps.runtime,
+          repository: this.deps.runRepository, expiresAt,
+          heartbeatMs: this.deps.heartbeatMs ?? 10_000, onError: error => this.report(error)});
+        try {
+          await this.inScope(session.signal, async () => {
+            if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {
+              const control = await this.deps.runRepository.getControl(runId);
+              if (control?.status === "queued") {
+                await this.deps.runRepository.transition(runId, { type: "start" }, control.version);
+              }
             }
-          }
-          await this.deps.executor.runOnce(runId);
+            session.signal.throwIfAborted();
+            await this.deps.executor.runOnce(runId);
+            session.signal.throwIfAborted();
+          });
         } catch (error) {
-          if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;
-          await this.handleExecutionFailure(runId, error);
+          if (!session.signal.aborted) {
+            if (!this.deps.eventLog || !this.deps.recoveryPolicy) throw error;
+            await this.inScope(session.signal, () => this.handleExecutionFailure(runId, error));
+          }
         } finally {
-          clearInterval(renewal);
+          await session.close();
+          this.session = undefined;
+          this.health.activeRunId = null;
+          const repo = this.deps.runRepository as DirectorWorkerDeps["runRepository"] & Partial<Pick<RunRepository, "releaseLease">>;
+          await repo.releaseLease?.(runId, owner);
+          if (this.getHealth().state !== "retrying") this.health.state = "idle";
         }
-        await this.deps.runRepository.heartbeat(
-          runId,
-          this.deps.runtime.workerId(),
-          this.deps.runtime.leaseExpiresAt(this.deps.runtime.now()),
-          this.deps.runtime.now(),
-        );
-        return true;
+        return !session.interrupted;
       }
       if (!this.deps.canExecute || candidates.length < pageSize) break;
     }
@@ -122,11 +167,24 @@ export class DirectorWorker {
     }, control.version);
   }
 
-  async start(): Promise<void> {
-    const pollMs = this.deps.pollMs ?? 1_000;
+  start(): Promise<void> {
+    if (this.running) return this.running;
+    this.stopped = false;
+    this.running = this.loop().finally(() => {this.running = undefined; this.health.state = "stopped";});
+    return this.running;
+  }
+
+  private async loop(): Promise<void> {
+    let failures = 0;
+    const pollMs = Math.max(1, this.deps.pollMs ?? 1_000);
     while (!this.stopped) {
-      const didWork = await this.tick();
-      if (!didWork) await new Promise((resolve) => setTimeout(resolve, pollMs));
+      let didWork = false;
+      try {didWork = await this.tick();} catch (error) {this.report(error);}
+      failures = this.health.state === "retrying" ? Math.min(failures + 1, 5) : 0;
+      if (!this.stopped && !didWork) await new Promise<void>(resolve => {
+        const timer = setTimeout(() => {this.wakeWait = undefined; resolve();}, Math.min(30_000, pollMs * 2 ** failures));
+        this.wakeWait = () => {clearTimeout(timer); this.wakeWait = undefined; resolve();};
+      });
     }
   }
 }

@@ -25,7 +25,7 @@ import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompl
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {directorArtifactTypes, resolveConfirmationArtifactTypes} from "./projections/confirmationRoutes";
 import {readProductionProjection} from "./projections/productionProgress";
-import {assertNovelDirectorVersion, assertV2RunExecution} from "../../modules/novel/director-routing";
+import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import {AppError} from "../../middleware/errorHandler";
 import {directorIssuePolicyService} from "../../services/novel/director/issues/DirectorIssuePolicyService";
 
@@ -115,6 +115,12 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
         return (await assertNovelDirectorVersion(novelId, "v2", undefined, tx)).epoch;
       },
       assertRun: assertV2RunExecution,
+      beforeRetry: async (contract, tx) => {
+        const epoch = readRunExecutionEpoch(JSON.stringify(contract));
+        const locked = await tx.novel.updateMany({where: {id: contract.novelId, directorEpoch: epoch}, data: {directorEpoch: {increment: 0}}});
+        if (!locked.count) throw new AppError("本书创作归属已变化，请重新打开导演台。", 409);
+        await assertNovelDirectorVersion(contract.novelId, "v2", epoch, tx);
+      },
       canRun: async runId => {
         try {await assertV2RunExecution(runId); return true;} catch (error) {
           if (error instanceof AppError && error.statusCode === 409) return false;

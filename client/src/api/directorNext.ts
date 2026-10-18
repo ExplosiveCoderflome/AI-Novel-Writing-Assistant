@@ -41,12 +41,13 @@ export interface DirectorAction {
   label: string;
   kind: "command" | "navigate";
   primary: boolean;
-  command?: "resume" | "cancel" | "open_run" | "handoff";
+  command?: "resume" | "cancel" | "open_run" | "handoff" | "retry_start";
   toDriver?: DirectorDriver;
   target?: string;
 }
 
 export interface DashboardView {
+  workerStatus?: import("@ai-novel/shared/types/director/worker").DirectorWorkerStatus;
   runId: string;
   novelId: string;
   mode: DirectorMode;
@@ -94,6 +95,7 @@ export interface DirectorRunRecord {
 }
 
 export type DirectorCommand =
+  | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string; launchInput?: {
     storyInput: string; estimatedChapterCount: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
     targetVolumeId?: string | null; provider: string; model: string; temperature?: number;

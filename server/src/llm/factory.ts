@@ -1,4 +1,5 @@
 import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
+import {attachExecutionSignal} from "../platform/llm/execution";
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { ChatOpenAI } from "@langchain/openai";
@@ -433,7 +434,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     requestIntervalMs: resolved.requestIntervalMs,
   });
   (limited as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
-  return limited;
+  return attachExecutionSignal(limited);
 }
 
 export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {

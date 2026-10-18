@@ -86,7 +86,8 @@ function fromRow(row: {
 }
 
 export class PrismaCommandRepository implements CommandRepository {
-  constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume; cancelBusiness?: BusinessResume} = {}) {}
+  constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume; cancelBusiness?: BusinessResume;
+    beforeRetry?: (contract: RunContract, tx: Prisma.TransactionClient) => Promise<void>} = {}) {}
 
   async find(idempotencyKey: string): Promise<DirectorCommandRecord | null> {
     const row = await this.db.directorNextCommand.findUnique({ where: { idempotencyKey } });
@@ -140,6 +141,13 @@ export class PrismaCommandRepository implements CommandRepository {
       const row = await tx.directorNextRunControl.findUnique({ where: { runId: input.runId } });
       if (!row) throw new Error(`director next run control not found: ${input.runId}`);
       const current = controlFromRow(row);
+      if (input.event.type === "retry_start") {
+        if (!input.retryAt || (row.leaseOwner && (!row.leaseExpiresAt || row.leaseExpiresAt >= input.retryAt))) {
+          throw Object.assign(new Error("本次创作仍由后台执行，请等待当前执行结束后重试。"), {statusCode: 409});
+        }
+        const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
+        await this.options.beforeRetry?.(JSON.parse(run.contractJson) as RunContract, tx);
+      }
       const next = applyEvent(current, input.event, input.expectedVersion);
       if (input.event.type === "cancel" && this.options.cancelBusiness) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
@@ -154,8 +162,9 @@ export class PrismaCommandRepository implements CommandRepository {
         await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
       }
       const updated = await tx.directorNextRunControl.updateMany({
-        where: { runId: input.runId, version: input.expectedVersion },
-        data: controlUpdate(next),
+        where: { runId: input.runId, version: input.expectedVersion,
+          ...(input.event.type === "retry_start" ? {status: "queued", OR: [{leaseOwner: null}, {leaseExpiresAt: {lt: input.retryAt!}}]} : {}) },
+        data: {...controlUpdate(next), ...(input.event.type === "retry_start" ? {leaseOwner: null, leaseExpiresAt: null} : {})},
       });
       if (updated.count !== 1) throw new VersionConflictError(input.expectedVersion, current.version);
       if (input.gateResolution?.decision === "regenerate") {

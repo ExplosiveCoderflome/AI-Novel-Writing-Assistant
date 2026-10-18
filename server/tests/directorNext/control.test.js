@@ -4,7 +4,7 @@ const { domain } = require("./fixtures");
 
 // 测试自带的期望表，独立于实现；修改迁移表必须同时修改这里。
 const ALLOWED = {
-  queued: { start: "running", cancel: "cancelled" },
+  queued: { start: "running", retry_start: "queued", cancel: "cancelled" },
   running: {
     step_started: "running",
     step_finished: "running",

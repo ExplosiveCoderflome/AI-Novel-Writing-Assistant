@@ -98,7 +98,7 @@ const contract = {
   let attempts = 0;
   const worker = new DirectorWorker({runRepository: runs, eventLog: events, recoveryPolicy: {maxAttempts: () => 9},
     executor: {runOnce: async runId => {attempts++; await factsLoader.load(runId); assert.fail('invalid facts reached execution');}},
-    runtime: {workerId: () => 'integrity-worker', now: () => new Date('2026-10-03T00:00:00Z'),
+    runtime: {nextId: require('node:crypto').randomUUID, workerId: () => 'integrity-worker', now: () => new Date('2026-10-03T00:00:00Z'),
       leaseExpiresAt: now => new Date(now.getTime()+10_000)}});
   assert.equal(await worker.tick(), true);
   const stopped = await runs.getControl('invalid-run');

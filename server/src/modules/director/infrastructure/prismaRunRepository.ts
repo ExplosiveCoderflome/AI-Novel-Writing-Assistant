@@ -209,4 +209,15 @@ export class PrismaRunRepository implements RunRepository {
     });
     return rows.map((row) => row.runId);
   }
+
+  async releaseLease(runId: string, owner: string): Promise<void> {
+    await this.db.directorNextRunControl.updateMany({where: {runId, leaseOwner: owner},
+      data: {leaseOwner: null, leaseExpiresAt: null}});
+  }
+
+  async getSchedulingState(runId: string) {
+    const row = await this.db.directorNextRunControl.findUnique({where: {runId},
+      select: {leaseOwner: true, leaseExpiresAt: true, run: {select: {createdAt: true}}}});
+    return row ? {...row, createdAt: row.run.createdAt} : null;
+  }
 }

@@ -77,7 +77,7 @@ export async function exercise() {
     await submit(<DirectorStart novelId='book' estimatedChapterCount={30} nextChapter={1} initialStory='故事方向' suggestedRange={{from:1,to:10}}/>);
     for(const decision of ['confirm','confirm_after_edit','regenerate']) await submit(<DirectorGate {...props}/>,decision);
     await submit(<DirectorDriveSwitch {...props} toDriver='assisted' label='切换'/>);
-    for(const command of ['resume','cancel','resume']) {
+    for(const command of ['resume','cancel','resume','retry_start']) {
       const action={id:command,command,kind:'command',label:'处理',primary:true};
       await submit(<DirectorBadge novelId='book' view={{...view,availableActions:[action]}}/>,action);
     }
@@ -117,10 +117,10 @@ async function withCrypto(value, action) {
 }
 
 function assertCommands(posts) {
-  assert.equal(posts.length,8);
+  assert.equal(posts.length,9);
   const keys=posts.map(({idempotencyKey})=>idempotencyKey);
   assert.ok(keys.every(key=>typeof key==='string' && key.length>0));
-  assert.equal(new Set(keys).size,8,'separate submissions must not share an idempotency key');
+  assert.equal(new Set(keys).size,9,'separate submissions must not share an idempotency key');
   const {idempotencyKey,...launch}=posts[0];
   assert.deepEqual(launch,{type:'open_run',novelId:'book',driver:'assisted',stepIdsInScope:null,
     launchInput:{storyInput:'故事方向',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'deepseek',
@@ -131,7 +131,7 @@ function assertCommands(posts) {
   }
   const {idempotencyKey:handoffKey,...handoff}=posts[4];
   assert.deepEqual(handoff,{type:'handoff',runId:'run',toDriver:'assisted',expectedVersion:17});
-  for(const [index,type] of ['resume','cancel','resume'].entries()) {
+  for(const [index,type] of ['resume','cancel','resume','retry_start'].entries()) {
     const {idempotencyKey,...command}=posts[index+5];
     assert.deepEqual(command,{type,runId:'run',expectedVersion:17});
   }

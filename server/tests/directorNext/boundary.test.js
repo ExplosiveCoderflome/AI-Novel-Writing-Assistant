@@ -77,10 +77,12 @@ test("the director module only imports files inside itself", () => {
           && revisionContractConsumers.has(relative.replace(/\\/g, "/"));
         const allowedChapterBudgetContract = specifier === "@ai-novel/shared/types/director/chapterBudget"
           && chapterBudgetContractConsumers.has(relative.replace(/\\/g, "/"));
+        const allowedWorkerContract = specifier === "@ai-novel/shared/types/director/worker"
+          && relative.replace(/\\/g, "/") === "domain/projection.ts";
         if (allowedChapterBudgetContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorChapterBudgetView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/chapterBudget["']/);
         }
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract) {
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedWorkerContract) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;
@@ -91,7 +93,9 @@ test("the director module only imports files inside itself", () => {
         continue;
       }
       if (resolved !== moduleRoot && !resolved.startsWith(`${moduleRoot}${path.sep}`)) {
-        if (!isInfrastructure || specifier !== "../../../db/prisma") {
+        const ownedExecutionAdapter = relative.replace(/\\/g, "/") === "infrastructure/execution/ExecutionScopeAdapter.ts"
+          && specifier === "../../../../platform/runtime/execution";
+        if ((!isInfrastructure || specifier !== "../../../db/prisma") && !ownedExecutionAdapter) {
           violations.push(`${relative} imports outside the module: "${specifier}"`);
         }
       }
