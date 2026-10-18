@@ -76,10 +76,29 @@ test('expiry cancels an execution even when its renewal never settles', {timeout
   assert.equal(await worker.tick(), false);
 });
 
+test('a finished step releases its lease and revokes its scope without waiting for a stuck renewal', {timeout: 2000}, async () => {
+  let entered, settle, signal, releases = 0;
+  const renewing = new Promise(r => {entered = r;});
+  const renewal = new Promise(r => {settle = r;});
+  const worker = new DirectorWorker({runtime: {...runtime, leaseExpiresAt: n => new Date(n.getTime()+40)}, heartbeatMs: 1,
+    onError: () => {}, runRepository: repo({heartbeat: async () => {entered();return renewal;}, releaseLease: async () => releases++}),
+    executor: {runOnce: async () => {signal = executionSignal();await renewing;}}});
+  const tick = worker.tick();
+  let timer;
+  try {
+    assert.equal(await Promise.race([tick, new Promise(r => {timer = setTimeout(() => r('stuck'), 150);})]), true);
+    assert.equal(releases, 1); assert.equal(signal.aborted, true);
+  } finally {
+    clearTimeout(timer);settle(false);await tick;
+  }
+  assert.equal(worker.getHealth().state, 'idle');
+});
+
 test('renewal is serialized and each execution receives a distinct lease owner', {timeout: 2000}, async () => {
-  let inFlight = 0, peak = 0; const owners = [];
+  let peak = 0; const owners = [], inFlight = new Map();
   const worker = new DirectorWorker({runtime, heartbeatMs: 1, runRepository: repo({acquireLease: async (_id, owner) => {owners.push(owner);return true;},
-    heartbeat: async () => {peak = Math.max(peak, ++inFlight);await new Promise(r => setTimeout(r,5));inFlight--;return true;}}),
+    heartbeat: async (_id, owner) => {const count = (inFlight.get(owner) ?? 0) + 1;inFlight.set(owner, count);peak = Math.max(peak, count);
+      await new Promise(r => setTimeout(r,5));inFlight.set(owner, count-1);return true;}}),
     executor: {runOnce: async () => new Promise(r => setTimeout(r,22))}});
   await worker.tick(); await worker.tick();
   assert.equal(peak, 1); assert.notEqual(owners[0], owners[1]);
@@ -95,6 +114,24 @@ test('stop cancels in-flight work and wake cannot revive a stopped service', {ti
   }}});
   const loop = worker.start(); await started; worker.stop(); await loop;
   worker.wake(); assert.equal(worker.getHealth().state, 'stopped');
+});
+
+test('stop during lease acquisition prevents late execution and releases the acquired owner', {timeout: 2000}, async () => {
+  let entered, acquired, runs = 0, releases = 0;
+  const claiming = new Promise(r => {entered = r;});
+  const claim = new Promise(r => {acquired = r;});
+  const worker = new DirectorWorker({runtime, runRepository: repo({acquireLease: async () => {entered();return claim;},
+    releaseLease: async () => releases++}), executor: {runOnce: async () => runs++}});
+  const loop = worker.start();await claiming;worker.stop();acquired(true);await loop;
+  assert.equal(runs, 0);assert.equal(releases, 1);assert.equal(worker.getHealth().state, 'stopped');
+});
+
+test('an acquisition returned after its deadline cannot start business execution', async () => {
+  let clock = 0, runs = 0, errors = 0, releases = 0;
+  const worker = new DirectorWorker({runtime: {...runtime, now: () => new Date(clock), leaseExpiresAt: n => new Date(n.getTime()+10)},
+    onError: () => errors++, runRepository: repo({acquireLease: async () => {clock = 20;return true;}, releaseLease: async () => releases++}),
+    executor: {runOnce: async () => runs++}});
+  assert.equal(await worker.tick(), false);assert.equal(runs, 0);assert.equal(errors, 1);assert.equal(releases, 1);
 });
 
 test('execution cancellation removes an invoke waiting for a model permit without a second request', async () => {

@@ -76,6 +76,7 @@ export class DirectorWorker {
         let expiresAt: Date;
         try {
           if (this.deps.canExecute && !await this.deps.canExecute(runId)) continue;
+          if (this.stopped) return false;
           const claimedAt = this.deps.runtime.now();
           expiresAt = this.deps.runtime.leaseExpiresAt(claimedAt);
           acquired = await this.deps.runRepository.acquireLease(
@@ -91,6 +92,7 @@ export class DirectorWorker {
         const session = this.session = new RunLeaseSession({runId, owner, runtime: this.deps.runtime,
           repository: this.deps.runRepository, expiresAt,
           heartbeatMs: this.deps.heartbeatMs ?? 10_000, onError: error => this.report(error)});
+        if (this.stopped) session.cancel();
         try {
           await this.inScope(session.signal, async () => {
             if (this.deps.runRepository.getControl && this.deps.runRepository.transition) {

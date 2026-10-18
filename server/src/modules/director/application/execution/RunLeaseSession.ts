@@ -9,7 +9,6 @@ export class RunLeaseSession {
   private readonly controller = new AbortController();
   private renewal?: ReturnType<typeof setTimeout>;
   private deadline?: ReturnType<typeof setTimeout>;
-  private pending?: Promise<void>;
   private closed = false;
   private lost = false;
   readonly signal = this.controller.signal;
@@ -34,6 +33,7 @@ export class RunLeaseSession {
   private armDeadline(expiresAt: Date): void {
     clearTimeout(this.deadline);
     const delay = Math.max(0, expiresAt.getTime() - this.input.runtime.now().getTime());
+    if (delay === 0) {this.lose(new RunLeaseLostError()); return;}
     this.deadline = setTimeout(() => this.lose(new RunLeaseLostError()), delay);
     this.deadline.unref();
   }
@@ -41,7 +41,7 @@ export class RunLeaseSession {
   private schedule(): void {
     if (this.closed || this.signal.aborted) return;
     this.renewal = setTimeout(() => {
-      this.pending = this.renew().catch(error => this.lose(error));
+      void this.renew().catch(error => this.lose(error));
     }, this.input.heartbeatMs);
     this.renewal.unref();
   }
@@ -62,8 +62,8 @@ export class RunLeaseSession {
     this.closed = true;
     clearTimeout(this.renewal);
     clearTimeout(this.deadline);
-    // A timed-out renewal may settle late. Its unique owner cannot renew a later attempt.
-    if (!this.signal.aborted) await this.pending;
+    // The executor has settled. A stuck renewal must not block releasing this owner.
+    // Late renewal results are ignored and cannot renew a later attempt's unique owner.
     this.controller.abort(new RunLeaseLostError());
   }
 }
