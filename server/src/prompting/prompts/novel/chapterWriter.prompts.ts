@@ -228,6 +228,12 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         ].filter(Boolean).join("\n")
       : "";
 
+    // NOTE(#196): 严格 Jinja 聊天模板要求 system 消息必须在首位，
+    // 因此所有系统指令合并到单个 SystemMessage，禁止出现第二个 SystemMessage。
+    const modeConstraintBlock = [lengthBlock, mode === "continue"
+      ? "当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
+      : "章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。", continuationBlock].filter(Boolean).join("\n\n");
+
     return [
       new SystemMessage([
         "你是中文长篇网络小说写作助手。",
@@ -300,12 +306,12 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "(3) 是否违反了任何禁止规则（新角色、场景模式重复、未铺垫转折）？",
         "(4) 读者是否实际获得了 promisedReward，并能看见 keyTurn、netChange 和旧钩子承接？",
         "确认通过后再开始输出，不需要在正文中输出核查结果。",
+        "",
+        "【篇幅与模式约束】",
+        modeConstraintBlock,
       ].filter((line) => line !== "").join("\n")),
       new HumanMessage([
         `小说：${input.novelTitle}`,stable].filter(Boolean).join("\n\n")),
-      new SystemMessage([lengthBlock, mode === "continue"
-        ? "当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
-        : "章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。",continuationBlock].filter(Boolean).join("\n\n")),
       new HumanMessage([
         `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,
         mode === "continue" ? "任务模式：补写当前章节，补足篇幅并完成未兑现的本章职责。" : "任务模式：完整生成本章正文。",
