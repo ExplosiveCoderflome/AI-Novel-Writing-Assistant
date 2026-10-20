@@ -658,18 +658,16 @@ test("chapter writer prompt does not expose scene contract controls", () => {
   });
 
   const systemContent = String(messages[0].content);
-  const humanContent = String(messages[1].content);
-  const taskSystemContent = String(messages[2].content);
-  assert.equal(messages[2]._getType(), "system");
-  assert.match(taskSystemContent, /本章目标长度：约 3000 字/);
-  assert.match(taskSystemContent, /不得明显超过上限/);
-  assert.doesNotMatch(systemContent, /本章目标长度/);
-  const allSystemContent = messages.filter(message => message._getType() === "system").map(message => String(message.content)).join("\n");
-  assert.doesNotMatch(allSystemContent, /当前场景合同/);
-  assert.doesNotMatch(allSystemContent, /场景标题/);
-  assert.doesNotMatch(allSystemContent, /控字数模式/);
-  assert.doesNotMatch(allSystemContent, /本轮硬上限/);
-  assert.doesNotMatch(humanContent + String(messages[3].content), /只写当前场景/);
+  const humanContent = messages.filter(message => message._getType() === "human")
+    .map(message => String(message.content)).join("\n");
+  assert.deepEqual(messages.map(message => message._getType()), ["system", "human", "human"]);
+  assert.match(systemContent, /本章目标长度：约 3000 字/);
+  assert.match(systemContent, /不得明显超过上限/);
+  assert.doesNotMatch(systemContent, /当前场景合同/);
+  assert.doesNotMatch(systemContent, /场景标题/);
+  assert.doesNotMatch(systemContent, /控字数模式/);
+  assert.doesNotMatch(systemContent, /本轮硬上限/);
+  assert.doesNotMatch(humanContent, /只写当前场景/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
@@ -749,9 +747,9 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.equal(draftMessages[2]._getType(), "system");
-  assert.match(String(draftMessages[2].content), /本章目标长度：约 3000 字/);
-  assert.match(String(draftMessages[2].content), /2550-3450/);
+  assert.deepEqual(draftMessages.map(message => message._getType()), ["system", "human", "human"]);
+  assert.match(String(draftMessages[0].content), /本章目标长度：约 3000 字/);
+  assert.match(String(draftMessages[0].content), /2550-3450/);
 
   const continueMessages = asset.render({
     novelTitle: "霜轨档案",
@@ -769,10 +767,10 @@ test("chapter writer prompt carries explicit target length and continuation inst
     summarizedBlockIds: [],
     estimatedInputTokens: 0,
   });
-  assert.equal(continueMessages[2]._getType(), "system");
-  assert.match(String(continueMessages[2].content), /不得重写章节开头/);
-  assert.match(String(continueMessages[2].content), /本次追加目标约 900 字的有效正文，补足后自然收束/);
-  assert.match(String(continueMessages[3].content), /任务模式：补写当前章节/);
+  assert.deepEqual(continueMessages.map(message => message._getType()), ["system", "human", "human"]);
+  assert.match(String(continueMessages[0].content), /不得重写章节开头/);
+  assert.match(String(continueMessages[0].content), /本次追加目标约 900 字的有效正文，补足后自然收束/);
+  assert.match(String(continueMessages[2].content), /任务模式：补写当前章节/);
 });
 
 test("director blueprint schema accepts chapter shells without scenes", () => {
