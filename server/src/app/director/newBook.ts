@@ -6,6 +6,7 @@ import {getDirectorProductionServices} from "./services";
 import {AppError} from "../../middleware/errorHandler";
 import {StyleBindingService} from "../../services/styleEngine/StyleBindingService";
 import {assertNovelDirectorVersion} from "../../modules/novel/director-routing";
+import {normalizeDirectorTargetChapterCount} from "../../services/novel/director/runtime/novelDirectorHelpers";
 
 /** New-book handoff is an entry adapter; it creates no legacy director task. */
 export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourceTaskId: string, source: "creation_studio" | "original_opening" = "creation_studio") {
@@ -16,7 +17,11 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
   const reservedNovelId = confirmation ? confirmation.novelId ?? `director-book-${confirmation.id}` : `director-opening-book-${sourceTaskId}`;
   const existing = await prisma.novel.findUnique({where:{id:reservedNovelId}});
   if (existing?.directorVersion) await assertNovelDirectorVersion(existing.id, "v2", 0);
-  const chapterCount = input.estimatedChapterCount ?? input.candidate.targetChapterCount;
+  // #199: both the request field and the candidate's targetChapterCount can be
+  // absent (chapter count left on "AI 推荐" + sparse candidate payload), while
+  // the v2 run contract requires a concrete count. Normalize through the same
+  // shared fallback the legacy pipeline uses (default 80, clamped to range).
+  const chapterCount = normalizeDirectorTargetChapterCount(input.estimatedChapterCount ?? input.candidate.targetChapterCount);
   const novel = existing ?? await new NovelCoreService().createNovel({id:reservedNovelId,title:input.title ?? input.candidate.workingTitle,description:input.description ?? input.candidate.logline,
       bookSellingPoint:input.bookSellingPoint,styleTone:input.styleTone,estimatedChapterCount:chapterCount,
       defaultChapterLength:input.defaultChapterLength,projectMode:input.projectMode,writingMode:input.writingMode,

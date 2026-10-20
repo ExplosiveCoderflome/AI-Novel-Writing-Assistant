@@ -77,10 +77,17 @@ interface ConfirmTaskSeedPayload extends Record<string, unknown> {
   batches?: DirectorCandidateBatch[];
   candidate?: unknown;
   commercialTags?: unknown;
+  estimatedChapterCount?: unknown;
   directorInput?: {
     candidate?: unknown;
   };
   styleIntentSummary?: unknown;
+}
+
+function readPositiveChapterCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 1
+    ? Math.round(value)
+    : undefined;
 }
 
 function containsUnicodeReplacementCharacter(value: unknown): boolean {
@@ -178,6 +185,12 @@ function resolveConfirmRequestFromTaskSeed(
     commercialTags,
     styleTone: recoverText(input.styleTone, seed.styleTone, basicForm.styleTone),
     styleIntentSummary,
+    // #199: the create form omits this field when the chapter count stays on
+    // "AI 推荐"; recover the value captured in the task seed so the launch
+    // contract does not lose it between candidate generation and confirmation.
+    estimatedChapterCount: readPositiveChapterCount(input.estimatedChapterCount)
+      ?? readPositiveChapterCount(seed.estimatedChapterCount)
+      ?? readPositiveChapterCount(basicForm.estimatedChapterCount),
   };
   if (containsUnicodeReplacementCharacter(normalized)) {
     throw new AppError("书级方向包含无法还原的异常字符，请刷新候选方案后重新确认。", 400);

@@ -159,6 +159,100 @@ test("resource recommendation prompt distinguishes candidate ordinals from stabl
   assert.match(loaders, /novel\.create\.resource_recommendation@v3/);
 });
 
+function recommendationInputWithCatalogOptions() {
+  return recommendationInput({
+    allowedGenreIds: [
+      "genre_history_root",
+      "genre_urban_root",
+      "genre_urban_superpower",
+      "genre_urban_workplace",
+      "genre_urban_life",
+    ],
+    genreCatalogOptions: [
+      { id: "genre_history_root", name: "历史", path: "历史" },
+      { id: "genre_urban_root", name: "都市", path: "都市" },
+      { id: "genre_urban_superpower", name: "都市异能", path: "都市 / 都市异能" },
+      { id: "genre_urban_workplace", name: "都市职场", path: "都市 / 都市职场" },
+      { id: "genre_urban_life", name: "都市生活", path: "都市 / 都市生活" },
+    ],
+    storyModeCatalogOptions: [
+      { id: "mode-a", name: "模式甲", path: "模式甲" },
+      { id: "mode-b", name: "模式乙", path: "模式乙" },
+      { id: "mode-c", name: "模式丙", path: "模式丙" },
+    ],
+  });
+}
+
+test("resource recommendation resolves annotated catalog titles instead of trusting the annotated ordinal (#198)", () => {
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const validate = novelCreateResourceRecommendationPrompt.postValidate;
+  const input = recommendationInputWithCatalogOptions();
+
+  // The #198 report: the model returned "都市生活（1）". The annotated "1" is
+  // not the catalog ordinal of 都市生活 (name-sorted flattening puts it last
+  // in this list), so resolution must follow the exact catalog title and
+  // must not fall back to allowedIds[0].
+  assert.equal(
+    validate(recommendationOutput({ genreId: "都市生活（1）" }), input, {}).genreId,
+    "genre_urban_life",
+  );
+  // Half-width parentheses and a stray space resolve the same way.
+  assert.equal(
+    validate(recommendationOutput({ genreId: "都市生活 (2)" }), input, {}).genreId,
+    "genre_urban_life",
+  );
+  // A full catalog path in front of the annotation also resolves by title.
+  assert.equal(
+    validate(recommendationOutput({ genreId: "都市 / 都市生活（3）" }), input, {}).genreId,
+    "genre_urban_life",
+  );
+  // The annotated title wins over a conflicting ordinal for root entries too.
+  assert.equal(
+    validate(recommendationOutput({ genreId: "都市（4）" }), input, {}).genreId,
+    "genre_urban_root",
+  );
+  // Story mode fields share the same resolver.
+  assert.equal(
+    validate(
+      recommendationOutput({ genreId: "genre_urban_root", primaryStoryModeId: "模式乙（1）" }),
+      input,
+      {},
+    ).primaryStoryModeId,
+    "mode-b",
+  );
+});
+
+test("resource recommendation keeps annotated ids deterministic when the title is unknown (#198)", () => {
+  const { novelCreateResourceRecommendationPrompt } = require(
+    "../dist/prompting/prompts/novel/resourceRecommendation.prompts.js"
+  );
+  const validate = novelCreateResourceRecommendationPrompt.postValidate;
+  const input = recommendationInputWithCatalogOptions();
+
+  // Unknown title: fall back to the annotated ordinal, mirroring the bare
+  // ordinal rule that already exists.
+  assert.equal(
+    validate(recommendationOutput({ genreId: "不存在的题材（2）" }), input, {}).genreId,
+    "genre_urban_root",
+  );
+  // Out-of-range annotated ordinals still fail validation.
+  assert.throws(
+    () => validate(recommendationOutput({ genreId: "不存在的题材（99）" }), input, {}),
+    /题材推荐结果包含非法 ID/,
+  );
+  assert.throws(
+    () => validate(recommendationOutput({ genreId: "不存在的题材（02）" }), input, {}),
+    /题材推荐结果包含非法 ID/,
+  );
+  // Without catalog options the annotated form stays invalid, exactly as before.
+  assert.throws(
+    () => validate(recommendationOutput({ genreId: "都市生活（1）" }), recommendationInput(), {}),
+    /题材推荐结果包含非法 ID/,
+  );
+});
+
 test("candidate workflow persists the resolved production foundation for recovery", () => {
   const stage = read("src/services/novel/director/phases/novelDirectorCandidateStage.ts");
   const directorTypes = read("../shared/types/novelDirector.ts");

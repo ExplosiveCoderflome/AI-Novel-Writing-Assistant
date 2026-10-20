@@ -19,6 +19,7 @@ const integrationTests = new Set([
   "commandRepositorySqlite.test.js",
   "batchProcessRecoverySqlite.test.js",
   "confirmationRoutesSqlite.test.js",
+  "directorChapterCountFallbackSqlite.test.js",
   "gateProcessRecoverySqlite.test.js",
   "gateService.test.js",
   "openRunSwitchSqlite.test.js",

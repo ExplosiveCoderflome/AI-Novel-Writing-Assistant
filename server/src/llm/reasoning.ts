@@ -205,9 +205,14 @@ export function resolveProviderReasoningBehavior(input: {
     };
   }
 
+  // OpenAI-compatible catch-all (llama.cpp / Unsloth / custom endpoints, #192):
+  // translate the user's disabled-thinking toggle into the endpoint's flag.
+  // Branches above (ollama / GLM / DeepSeek / MiniMax) return earlier and are unaffected.
+  const catchAllModelKwargs = !input.reasoningEnabled ? { enable_thinking: false } : undefined;
   return {
     reasoningEnabled: input.reasoningEnabled,
     reasoningEffort: null,
+    ...(catchAllModelKwargs ? { modelKwargs: catchAllModelKwargs } : {}),
     includeRawResponse: false,
     usesAccumulatedStreamDeltas: false,
   };

@@ -3,6 +3,12 @@ import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import { novelCreateResourceRecommendationSchema } from "./resourceRecommendation.promptSchemas";
 
+export interface CatalogSelectionOption {
+  id: string;
+  name: string;
+  path: string;
+}
+
 export interface NovelCreateResourceRecommendationPromptInput {
   userIntentSummary: string;
   powerSystemPreference: "ai_recommend" | "none" | "soft" | "ranked";
@@ -10,19 +16,75 @@ export interface NovelCreateResourceRecommendationPromptInput {
   storyModeCatalogText: string;
   allowedGenreIds: string[];
   allowedStoryModeIds: string[];
+  genreCatalogOptions?: CatalogSelectionOption[];
+  storyModeCatalogOptions?: CatalogSelectionOption[];
 }
 
-function resolveCatalogSelectionId(value: string, allowedIds: string[]): string | null {
+function parseCanonicalOrdinal(text: string): number | null {
+  const ordinal = Number(text);
+  if (!Number.isSafeInteger(ordinal) || ordinal < 1 || String(ordinal) !== text) {
+    return null;
+  }
+  return ordinal;
+}
+
+function matchCatalogTitle(
+  options: CatalogSelectionOption[],
+  title: string,
+): CatalogSelectionOption[] {
+  const squashedTitle = title.replace(/\s+/g, "");
+  if (!squashedTitle) {
+    return [];
+  }
+  return options.filter((option) =>
+    option.name === title
+    || option.path === title
+    || option.name.replace(/\s+/g, "") === squashedTitle
+    || option.path.replace(/\s+/g, "") === squashedTitle
+  );
+}
+
+function resolveCatalogSelectionId(
+  value: string,
+  allowedIds: string[],
+  options?: CatalogSelectionOption[],
+): string | null {
   const normalized = value.trim();
   if (allowedIds.includes(normalized)) {
     return normalized;
   }
 
-  const ordinal = Number(normalized);
-  if (!Number.isSafeInteger(ordinal) || ordinal < 1 || String(ordinal) !== normalized) {
-    return null;
+  const ordinal = parseCanonicalOrdinal(normalized);
+  if (ordinal !== null) {
+    return allowedIds[ordinal - 1] ?? null;
   }
-  return allowedIds[ordinal - 1] ?? null;
+
+  // #198: some models answer with "目录名称（序号）" (e.g. "都市生活（1）") instead
+  // of the bare ID. The annotated number is not reliable — catalog flattening
+  // is name-sorted, so it routinely disagrees with the catalog ordinal. The
+  // title is an exact catalog string, so resolve by title first; only when
+  // the title matches nothing fall back to the annotated ordinal, mirroring
+  // the bare-ordinal rule above.
+  const annotated = normalized.match(/^(.+?)\s*[（(](\d+)[）)]$/);
+  if (annotated && options) {
+    const titleMatches = matchCatalogTitle(options, annotated[1].trim());
+    if (titleMatches.length === 1) {
+      return titleMatches[0].id;
+    }
+    const annotatedOrdinal = parseCanonicalOrdinal(annotated[2]);
+    if (annotatedOrdinal === null) {
+      return null;
+    }
+    if (titleMatches.length > 1) {
+      const byOrdinal = options[annotatedOrdinal - 1];
+      return byOrdinal && titleMatches.some((option) => option.id === byOrdinal.id)
+        ? byOrdinal.id
+        : null;
+    }
+    return allowedIds[annotatedOrdinal - 1] ?? null;
+  }
+
+  return null;
 }
 
 function formatAllowedIds(ids: string[]): string {
@@ -101,10 +163,15 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
     ].join("\n")),
   ],
   postValidate: (output, input) => {
-    const genreId = resolveCatalogSelectionId(output.genreId, input.allowedGenreIds);
+    const genreId = resolveCatalogSelectionId(
+      output.genreId,
+      input.allowedGenreIds,
+      input.genreCatalogOptions,
+    );
     const primaryStoryModeId = resolveCatalogSelectionId(
       output.primaryStoryModeId,
       input.allowedStoryModeIds,
+      input.storyModeCatalogOptions,
     );
 
     if (!genreId) {
@@ -125,7 +192,7 @@ export const novelCreateResourceRecommendationPrompt: PromptAsset<
 
     const secondaryRawId = output.secondaryStoryModeId?.trim() ?? "";
     const secondaryStoryModeId = secondaryRawId
-      ? resolveCatalogSelectionId(secondaryRawId, input.allowedStoryModeIds)
+      ? resolveCatalogSelectionId(secondaryRawId, input.allowedStoryModeIds, input.storyModeCatalogOptions)
       : null;
     if (secondaryRawId) {
       if (!secondaryStoryModeId) {
