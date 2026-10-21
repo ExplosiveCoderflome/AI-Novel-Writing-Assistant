@@ -161,6 +161,10 @@ export function getJsonCapability(provider: LLMProvider, model?: string, baseURL
       supportsJsonObject: false,
       supportsJsonSchema: false,
     },
+    atlascloud: {
+      supportsJsonObject: false,
+      supportsJsonSchema: false,
+    },
   };
 
   const cap = isBuiltinLLMProvider(provider) ? jsonCapabilities[provider] : undefined;
