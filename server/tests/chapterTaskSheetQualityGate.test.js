@@ -381,6 +381,39 @@ test("chapter task sheet quality prompt declares strict JSON contract", () => {
   assert.match(systemText, /"verdict": "repairable"/);
 });
 
+test("semantic review receives the same parsed scene plan as the writer, with array obligations and a sibling reader contract", () => {
+  const scenePlan = JSON.parse(buildSceneCards());
+  scenePlan.readerExperience = {
+    readerQuestion: "谁在偷走资源？", promisedReward: "确认资源缺口来自内部。", rewardLevel: "partial",
+    protagonistWant: "守住作坊", primaryResistance: "账目被篡改", keyTurn: "找到内部领料凭据",
+    emotionalShift: "从慌乱到警觉", informationReveal: "领料人来自内部", netChange: "有了可追查的凭据",
+    inheritedHookResponsibilities: [], endingHook: "凭据上的签名为何属于失踪的师兄？",
+  };
+  const messages = chapterTaskSheetQualityPrompt.render({
+    candidate: buildCandidate({ sceneCards: JSON.stringify(scenePlan) }), mode: "ai_copilot",
+  });
+  const reviewInput = JSON.parse(String(messages[1].content));
+  assert.equal(reviewInput.mode, "ai_copilot");
+  assert.equal(reviewInput.candidate.sceneCards, undefined);
+  assert.equal(reviewInput.candidate.scenePlan.scenes.length, 3);
+  assert.deepEqual(reviewInput.candidate.scenePlan.scenes[0].mustAdvance, ["暴露危机来源"]);
+  assert.deepEqual(reviewInput.candidate.scenePlan.readerExperience, scenePlan.readerExperience);
+  assert.equal(reviewInput.candidate.scenePlan.readerExperience.sceneCards, undefined);
+  assert.equal(reviewInput.candidate.taskSheet, buildCandidate().taskSheet);
+});
+
+test("review preview preserves malformed scene evidence while the structural gate prevents semantic calls", async () => {
+  const candidate = buildCandidate({ sceneCards: "{bad-scene-json" });
+  const messages = chapterTaskSheetQualityPrompt.render({ candidate, mode: "manual" });
+  assert.equal(JSON.parse(String(messages[1].content)).candidate.scenePlan, "{bad-scene-json");
+  const gate = new ChapterTaskSheetQualityGateService(async () => {
+    assert.fail("invalid scene structures must be rejected before calling AI");
+  });
+  const result = await gate.evaluate(candidate);
+  assert.equal(result.canEnterExecution, false);
+  assert.ok(result.issues.some(issue => issue.id === "invalid_scene_cards"));
+});
+
 test("chapter task sheet quality service marks overloaded contracts for window replan", async () => {
   const service = new ChapterTaskSheetQualityGateService(async () => ({
     verdict: "repairable",
@@ -422,6 +455,6 @@ test("chapter task sheet quality service passes usable semantic assessments", as
 });
 
 test("chapter task sheet quality prompt is registered as a product prompt asset", () => {
-  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v4");
+  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v5");
   assert.equal(registered, chapterTaskSheetQualityPrompt);
 });

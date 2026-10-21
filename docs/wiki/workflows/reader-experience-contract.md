@@ -25,6 +25,8 @@
 ## Current Rule
 
 - 新章节执行合同必须由 AI 返回完整读者体验合同和场景体验字段。
+- 持久化的 `sceneCards` 是序列化的 `ChapterScenePlan`，其中 `scenes` 与 `readerExperience` 同级。章节细化质量审核必须通过正文共用的 `parseChapterScenePlan` 读取，再向 AI 提供明确的 `candidate.scenePlan` 对象，不能让 AI 从存储字段名推断层级。
+- 场景的 `mustAdvance`、`mustPreserve`、`forbiddenExpansion` 是字符串数组。结构和类型由程序校验；AI 评估推进事项是否具体、是否有内容冲突。`endingHook` 是自然语言悬念，不要求固定前缀；整章与末场对同一转折或钩子的呼应不等于重复执行。
 - writer、acceptance、repair 和 patch repair 消费同一个 `reader_experience` context block，不得各自重新解释一套读者目标。
 - `promisedReward`、`keyTurn` 和 `netChange` 必须能在正文中被读者直接感知。
 - `rewardLevel` 表示本章计划提供的可见回报强度，合法值只有 `setup`、`partial`、`major`，不是正文对承诺的兑现比例或事后完成状态。即使 `promisedReward` 已被完整兑现，也不应改成不存在的 `full`；只有计划回报强度与章节职责不匹配时，才在三种合法级别之间调整。
@@ -57,6 +59,7 @@
 - **合同存在但 writer 看不到**：检查 `reader_experience` 是否进入 writer required groups，以及上下文 Broker 是否允许该 group。
 - **修文破坏原有爽点**：检查 repair context 是否消费同一合同，并要求保留已经兑现的 `readerValue`。
 - **审查建议出现 `rewardLevel=full`**：这是把回报强度误读成兑现完成度。检查章节任务单质量 Prompt 是否保留枚举和语义边界；不要将该建议写回合同，因为 `full` 不属于结构化合同 schema。
+- **审核要求 `readerExperience.sceneCards`、把数组判为错误类型或要求钩子固定格式**：先检查审核实际输入与正文解析结果是否一致，以及注册的质量 Prompt 是否说明真实契约。不要迁移场景数据、改成字符串或删掉审核结果来迎合模型臆测。仍需保留具体内容缺口、前后事实矛盾和职责过载的语义检查。
 - **卷规划有回报、章节运行时丢失**：检查当前卷 `sourceVersion.contentJson` 中的 `strategyPlan` 是否被恢复到 `VolumeWindowContext`。
 - **旧章节恢复失败**：检查兼容读取是否错误使用了只适用于新生成结果的严格 schema。
 - **普通读感问题阻断全书**：检查验收是否把读者体验缺口错误升级为 `needs_manual_review` 或 `replan_required`。
