@@ -98,7 +98,7 @@ export type DirectorCommand =
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string; launchInput?: {
     storyInput: string; estimatedChapterCount: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
-    targetVolumeId?: string | null; provider: string; model: string; temperature?: number;
+    targetVolumeId?: string | null; provider: string; model: string; temperature?: number; chapterTokenLimit?: number;
     executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
   } }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }

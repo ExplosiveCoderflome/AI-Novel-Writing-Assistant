@@ -36,7 +36,8 @@ test('chapter budget pause exposes its saved allowance and directs recovery to t
  const current=view({control:runningControl({status:'paused',pause:{kind:'manual_recovery',reason:'预算预检暂停'}}),
   production:{chapterProgress:null,nextLaunchRange:null,chapterBudget:budget}});
  assert.deepEqual(current.chapterBudget,budget);
- assert.match(current.nextActionGuidance,/本章额度/);
+ assert.match(current.nextActionGuidance,/增加预算/);
+ assert.match(current.nextActionGuidance,/本任务后续章节/);
  assert.equal(current.availableActions.some(action=>action.command==='resume'),false);
  assert.ok(current.availableActions.some(action=>action.target==='/novels/n1/edit#director-chapter-budget'));
 });

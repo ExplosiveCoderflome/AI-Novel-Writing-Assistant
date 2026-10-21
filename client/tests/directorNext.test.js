@@ -69,6 +69,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DirectorPanel from './src/components/directorNext/DirectorPanel';
 import DirectorStart from './src/components/directorNext/DirectorStart';
+import {ChapterBudgetSettingsSection} from './src/pages/settings/director/ChapterBudgetSettingsSection';
+import {queryKeys} from './src/api/queryKeys';
 import { previewStates, previewTimeline, previewView } from './src/pages/directorNext/preview';
 export function renderedStates() {
   return previewStates.map(state => {
@@ -104,6 +106,11 @@ export function renderedBudget() {
   metric:'uncached_tokens_v1',usedTokens:89892,rawTokens:114212,promptTokens:95016,completionTokens:19196,cacheHitTokens:24320,
   tokenLimit:100000,reserveTokens:16000,recommendedLimit:122000,stage:'review',closed:false}};
  return renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><MemoryRouter><DirectorPanel view={view} novelId='book' preview/></MemoryRouter></QueryClientProvider>);
+}
+export function renderedBudgetSettings(tokenLimit) {
+ const cache=new QueryClient();
+ cache.setQueryData(queryKeys.settings.directorChapterBudget,{success:true,data:{tokenLimit}});
+ return renderToStaticMarkup(<QueryClientProvider client={cache}><ChapterBudgetSettingsSection/></QueryClientProvider>);
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
@@ -112,7 +119,7 @@ export function renderedBudget() {
       define: { 'import.meta.env': '{}' },
       outfile: output,
     });
-    const { renderedStates, renderedSwitchCases, renderedProduction, renderedBudget } = await import(pathToFileURL(output).href);
+    const { renderedStates, renderedSwitchCases, renderedProduction, renderedBudget, renderedBudgetSettings } = await import(pathToFileURL(output).href);
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
@@ -144,6 +151,17 @@ export function renderedBudget() {
     assert.match(budget,/本章新上限/);assert.match(budget,/value="122000"/);
     assert.match(budget,/未命中输入.*输出/);
     assert.match(budget,/追加额度并继续本章/);
+    assert.match(budget,/同时应用于本任务后续章节/);
+    assert.match(budget,/保持暂停/);
+    assert.doesNotMatch(budget,/<input[^>]*type="checkbox"[^>]*checked/);
+    assert.match(production.completed,/单章 AI 用量上限/);
+    for(const tokenLimit of [100000,200000]) {
+      const settings=renderedBudgetSettings(tokenLimit);
+      assert.match(settings,/单章 AI 用量上限/);
+      assert.ok(settings.includes(`value="${tokenLimit}"`));
+      assert.match(settings,/min="16001".*max="10000000"/);
+      assert.match(settings,/与模型的单次最大输出不同/);
+    }
     assert.match(budget,/确认后从保存进度继续/);
   } finally {
     if (fs.existsSync(output)) fs.unlinkSync(output);

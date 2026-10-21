@@ -28,6 +28,8 @@ import {readProductionProjection} from "./projections/productionProgress";
 import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import {AppError} from "../../middleware/errorHandler";
 import {directorIssuePolicyService} from "../../services/novel/director/issues/DirectorIssuePolicyService";
+import {getDirectorChapterBudgetSettings} from "../../services/settings/chapterBudget";
+import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -96,7 +98,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
         if (saved.some(chapter => chapter.content?.trim() && !isCurrentChapterProductionCompleted(chapter))) throw new Error("授权范围包含已有正文，请选择尚未写作的章节；已有正文可从章节页面查看和调整。");
       }
       const policy = directorIssuePolicySchema.parse(context.contract.issuePolicy.pipelinePolicy);
-      return {...modelOptions(context), startOrder: range.from, endOrder: range.to, directorNext: {runId: context.runId, decisions: []},
+      return {...modelOptions(context), startOrder: range.from, endOrder: range.to, directorNext: {runId: context.runId, decisions: [],
+        chapterTokenLimit: input.chapterTokenLimit ?? DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT},
         issueGovernanceVersion: 1 as const, issuePolicySnapshot: policy, autoReview: true, autoRepair: true,
         controlPolicy: {kickoffMode: "director_start" as const, advanceMode: range.to === input.estimatedChapterCount ? "full_book_autopilot" as const : "auto_to_execution" as const,
           reviewCheckpoints: [], autoExecutionRange: {mode: "chapter_range" as const, start: range.from, end: range.to}}};
@@ -148,6 +151,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     requireLaunch(contract);return contract;
   }, prepareOpen: async contract => {
     await assertNovelDirectorVersion(contract.novelId, "v2");
+    const launch = requireLaunch(contract);
+    launch.chapterTokenLimit ??= (await getDirectorChapterBudgetSettings()).tokenLimit;
     const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;
     if (configured && contract.issuePolicy.pipelinePolicy) contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...configured};
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});

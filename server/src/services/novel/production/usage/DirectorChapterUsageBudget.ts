@@ -1,6 +1,7 @@
 import type {PipelineDirectorSnapshot} from "../directorBridge";
+import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
 
-export const DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
+export const DIRECTOR_CHAPTER_TOKEN_LIMIT = DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT;
 /** Conservative fallback when the next stage has no usable estimate. */
 export const DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS = 16_000;
 
@@ -35,6 +36,7 @@ export function beginChapterUsage(snapshot: PipelineDirectorSnapshot, chapterId:
     return false;
   }
   const row: Checkpoint = {chapterId, chapterOrder, startJobTokens: jobTokens, totalTokens: 0,
+    tokenLimit: snapshot.chapterTokenLimit ?? DIRECTOR_CHAPTER_TOKEN_LIMIT,
     ...(batch !== undefined ? {startChapterBatchTokens: total(batch)} : {})};
   if (typeof job !== "number" && (batch === undefined || typeof batch !== "number")) {
     Object.assign(row, {metric: "uncached_tokens_v1", startPromptTokens: job.promptTokens,

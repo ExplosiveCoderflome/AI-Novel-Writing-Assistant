@@ -3,6 +3,7 @@ import type { StepContext, RunContract } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import type { DirectorBookContractPromptInput } from "../../prompting/prompts/novel/directorPlanning.prompts";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 
 export function requireLaunch(contract: RunContract) {
   const input = contract.launchInput;
@@ -11,6 +12,7 @@ export function requireLaunch(contract: RunContract) {
     || !contract.modelConfig.model.trim() || contract.modelConfig.model === "default") throw new Error("创作运行缺少故事、章数或模型快照。");
   if (contract.chapterRange && (contract.chapterRange.from < 1 || contract.chapterRange.to < contract.chapterRange.from
     || contract.chapterRange.to > input.estimatedChapterCount)) throw new Error("正文授权范围与目标章节数不一致。");
+  if (input.chapterTokenLimit !== undefined) directorChapterTokenLimitSchema.parse(input.chapterTokenLimit);
   return input;
 }
 export function modelOptions(context: StepContext) {

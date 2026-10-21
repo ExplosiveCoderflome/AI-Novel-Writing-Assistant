@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import {chapterPlanEditSchema} from "@ai-novel/shared/types/director/revision";
-import {directorChapterBudgetGrantSchema} from "@ai-novel/shared/types/director/chapterBudget";
+import {directorChapterBudgetGrantSchema, directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
 import type {ResolveDirectorCharacterCandidates} from "@ai-novel/shared/types/director/characterCandidates";
@@ -38,6 +38,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     launchInput: z.object({
       storyInput: nonEmpty,
       estimatedChapterCount: z.number().int().positive(),
+      chapterTokenLimit: directorChapterTokenLimitSchema.optional(),
       temperature: z.number().min(0).max(2).optional(),
       worldMode: z.enum(["generate", "reuse", "skip"]),
       targetVolumeId: nonEmpty.nullable().optional(),

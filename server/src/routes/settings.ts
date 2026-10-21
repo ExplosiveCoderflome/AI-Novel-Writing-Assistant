@@ -68,6 +68,7 @@ import {
 } from "../services/settings/worldGeneration/timeoutSettings";
 import { registerCustomProviderRoutes } from "./settings/customProviderRoutes";
 import { registerLLMSelectionRoutes } from "./settings/llmSelectionRoutes";
+import {registerChapterBudgetSettingsRoutes} from "./settings/chapterBudgetRoutes";
 
 const router = Router();
 const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
@@ -351,6 +352,7 @@ function buildCustomProviderStatus(item: {
 router.use(authMiddleware);
 registerCustomProviderRoutes(router);
 registerLLMSelectionRoutes(router);
+registerChapterBudgetSettingsRoutes(router);
 
 router.get("/style-engine-runtime", async (_req, res, next) => {
   try {

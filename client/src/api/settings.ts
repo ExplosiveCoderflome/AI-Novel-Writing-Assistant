@@ -3,6 +3,8 @@ import type {
   DirectorAutoApprovalPreferenceSettings,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
+import type {DirectorChapterBudgetSettings} from "@ai-novel/shared/types/director/chapterBudget";
+
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteConfig,
@@ -11,6 +13,14 @@ import type {
   ModelRouteTaskType,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
+
+export async function getDirectorChapterBudgetSettings() {
+  return (await apiClient.get<ApiResponse<DirectorChapterBudgetSettings>>("/settings/auto-director/chapter-budget")).data;
+}
+
+export async function saveDirectorChapterBudgetSettings(payload: DirectorChapterBudgetSettings) {
+  return (await apiClient.put<ApiResponse<DirectorChapterBudgetSettings>>("/settings/auto-director/chapter-budget", payload)).data;
+}
 
 export type EmbeddingProvider = LLMProvider;
 

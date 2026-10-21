@@ -1,4 +1,5 @@
 import type {DirectorChapterBudgetGrant, DirectorChapterBudgetStage, DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
+import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import type {PipelineDirectorSnapshot} from "../directorBridge";
 import {DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, DIRECTOR_CHAPTER_TOKEN_LIMIT} from "./DirectorChapterUsageBudget";
 
@@ -31,6 +32,9 @@ export function readPausedChapterBudget(snapshot: PipelineDirectorSnapshot, jobI
 }
 
 export function authorizeChapterBudget(snapshot: PipelineDirectorSnapshot, jobId: string, grant: DirectorChapterBudgetGrant): void {
+  if (grant.applyToRemaining && !directorChapterTokenLimitSchema.safeParse(grant.tokenLimit).success) {
+    throw new Error("后续章节上限须为 16,001 至 10,000,000 之间的整数。");
+  }
   const view = readPausedChapterBudget(snapshot, jobId);
   if (!view || grant.jobId !== jobId || grant.chapterId !== view.chapterId) throw new Error("预算授权与暂停章节不一致，请刷新后重试。");
   if (grant.metric !== view.metric) throw new Error("预算计量口径发生变化，请刷新后重试。");
@@ -40,6 +44,7 @@ export function authorizeChapterBudget(snapshot: PipelineDirectorSnapshot, jobId
   }
   const row = snapshot.chapterUsage!.find(item => item.chapterId === view.chapterId)!;
   row.tokenLimit = grant.tokenLimit;
+  if (grant.applyToRemaining) snapshot.chapterTokenLimit = grant.tokenLimit;
   delete row.budgetPause;
 }
 

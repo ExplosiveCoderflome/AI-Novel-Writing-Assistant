@@ -220,7 +220,7 @@ export function project(input: ProjectionInput): DashboardView {
       ];
       if (input.production?.chapterBudget && pauseKind === "manual_recovery") {
         headline = `第 ${input.production.chapterBudget.chapterOrder} 章需要追加额度后继续`;
-        nextActionGuidance = "查看下方本章用量，确认本章额度后从保存进度继续；其他章节的上限保持原值。";
+        nextActionGuidance = "查看下方用量，选择是否增加预算后继续；可仅调整本章，或同时应用于本任务后续章节。";
         availableActions = [{id: "chapter_budget", label: "调整本章额度", kind: "navigate", primary: true,
           target: `${sourceRoute}#director-chapter-budget`}, CANCEL_ACTION];
       }

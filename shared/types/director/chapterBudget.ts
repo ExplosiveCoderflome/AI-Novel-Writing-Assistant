@@ -1,5 +1,12 @@
 import {z} from "zod";
 
+export const DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
+export const MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT = 10_000_000;
+/** A new task must cover the conservative 16,000-token next-step reserve. */
+export const directorChapterTokenLimitSchema = z.number().int().min(16_001).max(MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT);
+export const directorChapterBudgetSettingsSchema = z.object({tokenLimit: directorChapterTokenLimitSchema}).strict();
+export type DirectorChapterBudgetSettings = z.infer<typeof directorChapterBudgetSettingsSchema>;
+
 export const directorChapterBudgetMetricSchema = z.enum(["raw_tokens_v1", "uncached_tokens_v1"]);
 export type DirectorChapterBudgetMetric = z.infer<typeof directorChapterBudgetMetricSchema>;
 
@@ -9,6 +16,7 @@ export const directorChapterBudgetGrantSchema = z.object({
   chapterId: z.string().trim().min(1),
   metric: directorChapterBudgetMetricSchema,
   tokenLimit: z.number().int().positive().max(10_000_000),
+  applyToRemaining: z.boolean().optional(),
 }).strict();
 export type DirectorChapterBudgetGrant = z.infer<typeof directorChapterBudgetGrantSchema>;
 export type DirectorChapterBudgetStage = "draft" | "review" | "repair" | "artifact_sync";

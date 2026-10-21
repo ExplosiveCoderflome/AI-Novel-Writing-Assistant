@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { directorIssueDecisionSchema } from "@ai-novel/shared/types/directorIssue";
 import {chapterUsageCheckpointSchema} from "./ChapterUsageCheckpoint";
+import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 
 export const pipelineDirectorSnapshotSchema = z.object({
   runId: z.string().trim().min(1),
   decisions: z.array(directorIssueDecisionSchema.extend({chapterOrder: z.number().int().positive().optional()})),
   pendingCharacterReviewId: z.string().trim().min(1).optional(),
   resolvedDecisionCount: z.number().int().nonnegative().optional(),
+  chapterTokenLimit: directorChapterTokenLimitSchema.optional(),
   chapterUsage: z.array(chapterUsageCheckpointSchema)
     .refine(rows=>new Set(rows.map(row=>row.chapterId)).size === rows.length && new Set(rows.map(row=>row.chapterOrder)).size === rows.length).optional(),
 }).refine(value => (value.resolvedDecisionCount ?? 0) <= value.decisions.length);

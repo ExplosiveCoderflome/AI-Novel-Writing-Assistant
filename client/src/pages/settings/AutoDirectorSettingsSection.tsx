@@ -21,6 +21,8 @@ import {
   type AutoDirectorChannelDraft,
 } from "./autoDirectorEventOptions";
 
+import {ChapterBudgetSettingsSection} from "./director/ChapterBudgetSettingsSection";
+
 export default function AutoDirectorSettingsSection(props: {
   onActionResult: (message: string) => void;
   collapseAdvanced?: boolean;
@@ -120,6 +122,7 @@ export default function AutoDirectorSettingsSection(props: {
 
   return (
     <>
+      <ChapterBudgetSettingsSection />
       <AutoDirectorBrowserNotificationSettingsCard onActionResult={onActionResult} />
 
       <AutoDirectorIssuePolicyCard

@@ -16,6 +16,7 @@ import type {
 } from "../application/ports";
 import {commitGateResolution, type ArtifactEditReader} from "./commands/gateResolution";
 import {commitExplicitResume, type BusinessResume} from "./commands/resumeRun";
+import {assertChapterBudgetReplay} from "../application/commandService";
 
 function parseJson<T>(value: string | null): T | null {
   return value ? JSON.parse(value) as T : null;
@@ -137,7 +138,10 @@ export class PrismaCommandRepository implements CommandRepository {
   async transition(input: CommandTransitionInput): Promise<{ runId: string; control: RunControl; commandId: string; replayed: boolean }> {
     return this.db.$transaction(async (tx) => {
       const existing = await tx.directorNextCommand.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-      if (existing) return this.replay(tx, existing);
+      if (existing) {
+        assertChapterBudgetReplay(JSON.parse(existing.payloadJson), input.payload);
+        return this.replay(tx, existing);
+      }
       const row = await tx.directorNextRunControl.findUnique({ where: { runId: input.runId } });
       if (!row) throw new Error(`director next run control not found: ${input.runId}`);
       const current = controlFromRow(row);

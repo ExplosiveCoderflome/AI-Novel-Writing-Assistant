@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {spawnSync}=require('node:child_process');
 
-test('chapter budget authorization and resume commit atomically, replay after restart, and preserve prose and usage',()=>{
+for(const applyToRemaining of [false,true]) test(`chapter budget authorization (${applyToRemaining?'remaining chapters':'one chapter'}) commits atomically and replays after restart`,()=>{
  const root=path.resolve(__dirname,'../../../..'),dir=fs.mkdtempSync(path.join(os.tmpdir(),'chapter-budget-recovery-'));
  const script=path.join(dir,'worker.cjs');
  fs.writeFileSync(script,String.raw`
@@ -17,7 +17,8 @@ const {contract}=require(path.join(server,'tests/directorNext/fixtures'));
 const runs=new PrismaRunRepository(prisma),commands=new PrismaCommandRepository(prisma,{resumeBusiness});
 let seq=0;
 const service=new CommandService({runRepository:runs,commandRepository:commands,runtime:{nextId:()=>process.argv[2]+'-'+(++seq)},contractFactory:contract});
-const grant={jobId:'job',chapterId:'c3',metric:'raw_tokens_v1',tokenLimit:122000};
+const remaining=process.env.BUDGET_APPLY_TO_REMAINING==='true';
+const grant={jobId:'job',chapterId:'c3',metric:'raw_tokens_v1',tokenLimit:122000,...(remaining?{applyToRemaining:true}:{})};
 const command={type:'resume',runId:'run',expectedVersion:2,idempotencyKey:'grant-once',chapterBudget:grant};
 (async()=>{
  if(process.argv[2]==='create'){
@@ -55,9 +56,14 @@ const command={type:'resume',runId:'run',expectedVersion:2,idempotencyKey:'grant
  }
  const replay=await service.execute(command);assert.equal(replay.replayed,true);
  await assert.rejects(service.execute({...command,chapterBudget:{...grant,tokenLimit:140000}}),error=>error.statusCode===400);
+ await assert.rejects(service.execute({...command,chapterBudget:{...grant,applyToRemaining:!remaining}}),error=>error.statusCode===400);
+ const changedScope={...grant,applyToRemaining:!remaining};
+ await assert.rejects(commands.transition({id:'racing-replay',idempotencyKey:command.idempotencyKey,runId:'run',
+  expectedVersion:2,event:{type:'resume'},type:'resume',payload:{...command,chapterBudget:changedScope},chapterBudget:changedScope}),error=>error.statusCode===400);
  const job=await prisma.generationJob.findUniqueOrThrow({where:{id:'job'}}),snapshot=JSON.parse(job.payload).directorNext;
  assert.equal(job.totalTokens,142892);assert.equal(job.retryCount,1);assert.equal(job.pendingManualRecovery,false);
  assert.equal(snapshot.chapterUsage[0].tokenLimit,122000);assert.equal(snapshot.chapterUsage[0].startJobTokens,50000);
+ assert.equal(snapshot.chapterTokenLimit,remaining?122000:undefined);
  assert.equal(snapshot.chapterUsage[0].totalTokens,92892);assert.equal(snapshot.decisions.length,1);assert.equal(snapshot.resolvedDecisionCount,1);
  assert.equal((await prisma.chapter.findUniqueOrThrow({where:{id:'c3'}})).content,'用户保存的正文');
  assert.equal((await runs.getControl('run')).status,'running');
@@ -68,7 +74,7 @@ const command={type:'resume',runId:'run',expectedVersion:2,idempotencyKey:'grant
 })().catch(async error=>{console.error(error);await prisma.$disconnect();process.exitCode=1;});
 `);
  const env={...process.env,NODE_ENV:'test',AI_NOVEL_RUNTIME:'desktop',AI_NOVEL_APP_DATA_DIR:dir,
-  DIRECTOR_NEXT_REPO_ROOT:root,DATABASE_URL:'file:'+path.join(dir,'budget.db').replace(/\\/g,'/')};
+  DIRECTOR_NEXT_REPO_ROOT:root,BUDGET_APPLY_TO_REMAINING:String(applyToRemaining),DATABASE_URL:'file:'+path.join(dir,'budget.db').replace(/\\/g,'/')};
  for(const mode of ['create','restart']){
   const result=spawnSync(process.execPath,[script,mode],{cwd:root,env,encoding:'utf8',timeout:60000});
   assert.equal(result.status,0,result.stderr+'\n'+result.stdout);

@@ -85,6 +85,7 @@ export interface RunContract {
 export interface RunLaunchInput {
   storyInput: string;
   estimatedChapterCount: number;
+  chapterTokenLimit?: number;
   temperature?: number;
   worldMode: "generate" | "reuse" | "skip";
   targetVolumeId?: string | null;

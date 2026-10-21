@@ -82,6 +82,22 @@ function replayResult(record: { result: unknown }): DirectorCommandResult {
   return { ...result, replayed: true };
 }
 
+/** Check both the optimistic lookup and the transaction replay after a concurrent insert. */
+export function assertChapterBudgetReplay(savedPayload: unknown, inputPayload: unknown): void {
+  const saved = savedPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
+  const input = inputPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
+  const grant = input?.chapterBudget, previous = saved?.chapterBudget;
+  if (!grant && !previous) return;
+  if (input?.type !== "resume" || saved?.type !== "resume" || saved.runId !== input.runId
+    || saved.expectedVersion !== input.expectedVersion || !grant || !previous
+    || grant.jobId !== previous.jobId || grant.chapterId !== previous.chapterId
+    || grant.metric !== previous.metric || grant.tokenLimit !== previous.tokenLimit
+    || !directorChapterBudgetGrantSchema.safeParse(grant).success
+    || Boolean(grant.applyToRemaining) !== Boolean(previous.applyToRemaining)) {
+    throw new InvalidDirectorCommandError("同一预算授权不能修改章节、额度或适用范围，请刷新后重试。");
+  }
+}
+
 export class CommandService {
   constructor(private readonly deps: CommandServiceDeps) {}
 
@@ -91,17 +107,7 @@ export class CommandService {
     }
     const existing = await this.deps.commandRepository.find(input.idempotencyKey);
     if (existing) {
-      const saved = existing.payload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
-      const grant = input.type === "resume" ? input.chapterBudget : undefined;
-      if (grant || saved?.chapterBudget) {
-        const previous = saved?.chapterBudget;
-        if (input.type !== "resume" || saved?.type !== "resume" || saved.runId !== input.runId
-          || saved.expectedVersion !== input.expectedVersion || !grant || !previous
-          || grant.jobId !== previous.jobId || grant.chapterId !== previous.chapterId
-          || grant.metric !== previous.metric || grant.tokenLimit !== previous.tokenLimit) {
-          throw new InvalidDirectorCommandError("同一预算授权不能改用其他章节或额度，请刷新后重试。");
-        }
-      }
+      assertChapterBudgetReplay(existing.payload, input);
       if (input.type === "retry_start") this.deps.wakeWorker?.();
       return replayResult(existing);
     }

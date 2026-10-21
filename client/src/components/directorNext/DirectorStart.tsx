@@ -1,5 +1,7 @@
 import {useState} from "react";
-import {useMutation, useQueryClient} from "@tanstack/react-query";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {directorChapterTokenLimitSchema, MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
+import {getDirectorChapterBudgetSettings} from "@/api/settings";
 import LLMSelector from "@/components/common/LLMSelector";
 import {useLLMStore} from "@/store/llmStore";
 import {Button} from "@/components/ui/button";
@@ -17,12 +19,16 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
   const [assisted,setAssisted] = useState(initialDriver === "assisted"), [qualityFirst,setQualityFirst] = useState(false);
   const [world,setWorld] = useState<"skip"|"reuse"|"generate">(worldId ? "reuse" : "skip");
   const model = useLLMStore(), queries = useQueryClient();
+  const [chapterBudget, setChapterBudget] = useState("");
+  const budgetSettings = useQuery({queryKey: queryKeys.settings.directorChapterBudget, queryFn: getDirectorChapterBudgetSettings});
+  const validBudget = !chapterBudget.trim() || directorChapterTokenLimitSchema.safeParse(Number(chapterBudget)).success;
   const mutation = useMutation({mutationFn: async () => {
     if (!story.trim() || !model.provider || !model.model || !Number.isInteger(count) || count < 1) throw new Error("请填写故事方向、目标章数并选择模型。");
     if (production && (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from || to > count)) throw new Error("请填写目标章数以内的有效章节范围。");
+    if (!validBudget) throw new Error("单章 AI 用量上限须为 16,001 至 10,000,000 之间的整数。");
     return submitDirectorCommand({type:"open_run",novelId,driver:assisted ? "assisted" : "auto",stepIdsInScope:null,idempotencyKey:createDirectorCommandKey(),
       launchInput:{storyInput:story.trim(),estimatedChapterCount:count,worldMode:world,targetMode:"opening",provider:model.provider,model:model.model,temperature:model.temperature,
-        issuePolicyMode:qualityFirst ? "quality_first" : "completion_first",...(production ? {executionRange:{from,to}} : {})}});
+        issuePolicyMode:qualityFirst ? "quality_first" : "completion_first",...(chapterBudget.trim() ? {chapterTokenLimit:Number(chapterBudget)} : {}),...(production ? {executionRange:{from,to}} : {})}});
   },onSuccess: async()=>{await Promise.all([queries.invalidateQueries({queryKey:queryKeys.directorNext.summary(novelId)}),queries.invalidateQueries({queryKey:queryKeys.directorNext.detail(novelId)})]);}});
   return <section id="director-start" className="space-y-4 border-t border-border/50 py-5">
     <h2 className="text-sm font-semibold">{suggestedRange ? "选择后续正文范围" : "选择下一步创作"}</h2>
@@ -31,9 +37,14 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
     {production ? <div className="grid grid-cols-2 gap-3"><label className="space-y-2 text-xs">起始章<Input type="number" min={1} max={count} value={from} onChange={e=>setFrom(Number(e.target.value))}/></label><label className="space-y-2 text-xs">结束章<Input type="number" min={from} max={count} value={to} onChange={e=>setTo(Number(e.target.value))}/></label><p className="col-span-2 text-xs text-muted-foreground">本次只写上述范围。取消“生成指定章节正文”可只补齐规划。</p></div>:null}
     <label className="flex gap-2 text-xs"><input type="checkbox" checked={assisted} onChange={e=>setAssisted(e.target.checked)}/>按阶段确认结果（半自动）</label>
     <p className="text-xs text-muted-foreground">本次创作：{assisted ? "按阶段确认结果" : "全自动推进"} · {qualityFirst ? "质量问题需确认" : "局部质量问题记录提醒并继续"} · {model.model || "请在更多创作设置中选择模型"}</p>
-    <Button className="w-full" disabled={mutation.isPending} onClick={()=>mutation.mutate()}>{mutation.isPending ? "提交中…" : production ? `提交并生成第 ${from}—${to} 章` : "提交并补齐创作规划"}</Button>
+    <Button className="w-full" disabled={mutation.isPending || !validBudget} onClick={()=>mutation.mutate()}>{mutation.isPending ? "提交中…" : production ? `提交并生成第 ${from}—${to} 章` : "提交并补齐创作规划"}</Button>
     {mutation.isError ? <p role="alert" className="text-xs text-destructive">{mutation.error.message}</p>:null}
-    <details className="space-y-4 text-xs"><summary className="cursor-pointer text-muted-foreground">更多创作设置（故事方向、模型、质量处理）</summary>
+    <details className="space-y-4 text-xs"><summary className="cursor-pointer text-muted-foreground">更多创作设置（故事方向、模型、预算、质量处理）</summary>
+    <label className="block space-y-2 text-xs">单章 AI 用量上限（Tokens）<Input type="number" min={16001} max={MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT} step={1}
+      value={chapterBudget} placeholder={budgetSettings.data?.data ? `沿用全局设置：${budgetSettings.data.data.tokenLimit.toLocaleString("zh-CN")}` : "留空沿用全局设置"}
+      aria-invalid={!validBudget} onChange={event=>setChapterBudget(event.target.value)}/></label>
+    <p className="text-xs text-muted-foreground">留空沿用全局默认；填写后仅对本任务生效。达到预算时保存进度，确认追加后继续。</p>
+    {!validBudget ? <p className="text-xs text-destructive">请输入 16,001 至 10,000,000 之间的整数，或留空沿用全局设置。</p> : null}
     <label className="block space-y-2 text-xs">故事方向<textarea className="min-h-24 w-full rounded-md border border-input bg-background p-2 text-sm" value={story} onChange={e=>setStory(e.target.value)} placeholder="这本书讲什么，主角想达成什么？" /></label>
     <label className="block space-y-2 text-xs">全书目标章数<Input type="number" min={1} value={count} onChange={e=>setCount(Number(e.target.value))}/></label>
     <LLMSelector compact showHelperText />
