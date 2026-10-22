@@ -11,7 +11,7 @@
 - 所有文档用中文。表格列名和列顺序必须与本计划一致，不得增删列。
 - 每一行都必须有代码证据，写成 `路径:行号`，路径相对于仓库根目录。找不到证据时写 `UNKNOWN`，并在报告中列出。
 - 不得猜测。拿不准的分类写 `UNKNOWN`，并附一句原因。
-- 命令在仓库根目录 `D:\code\ai-production-kernel` 下的 PowerShell 中执行。PowerShell 5.1 对中文正则不可靠，需要匹配中文时，用 Grep 工具或 `node -e` 执行。
+- 命令在仓库根目录 `D:\code\ai` 下的 PowerShell 中执行，当前分支必须是 `refactor/production-kernel`。PowerShell 5.1 对中文正则不可靠，需要匹配中文时，用 Grep 工具或 `node -e` 执行。
 
 "内核归属"一列只允许以下取值：
 

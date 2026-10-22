@@ -1,7 +1,7 @@
 # 正文生产内核 · 计划 00：路线图与执行协议
 
 **设计文档：** `docs/superpowers/specs/2026-10-22-production-kernel-design.md`
-**分支 / 工作区：** `refactor/production-kernel`，路径 `D:\code\ai-production-kernel`，基线为 `main` 的 `7f06e54b`。
+**功能分支：** `refactor/production-kernel`，在主工作区 `D:\code\ai` 中切换使用，基线为 `main` 的 `7f06e54b`。
 **分工：** 低阶 LLM 按计划执行；验收由设计者（我）完成。凡标注"不交低阶"的计划，由我或高阶模型执行。
 
 ## 1. 计划总表
@@ -41,7 +41,7 @@
 
 ## 3. 全局约束（每个计划都必须遵守）
 
-1. 只在 `D:\code\ai-production-kernel` 工作。不得修改 `D:\code\ai` 和其他 worktree。
+1. 只在功能分支 `refactor/production-kernel` 上工作。开始前先用 `git branch --show-current` 确认分支；工作区有不属于本计划的未提交改动时，先停下报告，不得暂存、丢弃或一并提交。不得切换到其他分支提交，也不得创建新的 worktree。
 2. 遵守 `AGENTS.md`：数据保护、AI-First、质量门不阻塞、运行记录只读、UI 文案、文件长度与目录规则、Prompt Governance。
 3. **V1 冻结**：`services/novel/director/`、V1 工作流，以及旧生产代码（`services/novel/runtime`、`production`、`state`、`fact`、`dynamics`、`quality`、`chapterEditor`）**不得修改行为**。唯一例外是计划 08，它只允许删除 V2 分支。
 4. 内核代码放在 `server/src/modules/production/`。领域层不得有 IO、时钟、随机数，只能导入本目录与 `modules/production/common/`。
