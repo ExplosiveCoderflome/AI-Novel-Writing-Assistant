@@ -138,9 +138,11 @@ prepare ──> draft ──> accept ──┬─> commit ──> reconcile ─�
 | `accept` | 一次结构化审校，输出问题、缺失义务、可修复性和事实证据；按"正文哈希加输入指纹"缓存 | `ChapterAcceptanceAssessmentService`、`ChapterQualityGateService` |
 | `repair` | 生成候选稿，**候选稿不是正史** | `repair/chapterRepairRuntime` |
 | `verify` | 候选稿复审，并核对修后事实是否保持 | 现有 `repairVerification.factPreservation` |
-| `select` | 原稿与候选稿二选一，只使用已有的结构化结论 | `selection/ChapterRepairCandidateSelection` |
+| `select` | 只在产生过候选稿时执行：原稿与候选稿二选一，只使用已有的结构化结论 | `selection/ChapterRepairCandidateSelection` |
 | `commit` | 带版本围栏写入正文和生命周期状态；不得覆盖用户编辑过的内容 | `ChapterLifecycleService`、`ChapterTimelineFinalizationService` |
 | `reconcile` | 抽取状态变更集并分消费者应用；每个消费者有独立检查点，写入前再次校验正文版本 | `ChapterArtifactDeltaService` 及其消费者 |
+
+**最终选稿：** `commit` 只写入"最终选稿"。没有进入修复时，原稿直接成为最终选稿，不经过 `select`；进入修复后，由 `select` 在原稿与候选稿之间选定。"候选稿被选中之前不得落库"只约束已经产生候选稿的路径。
 
 ### 5.1 决策器（纯函数）
 

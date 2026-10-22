@@ -1,6 +1,6 @@
 # 正文生产内核 · 计划 01：只读盘点
 
-状态：**可交付**，适合低阶 LLM 执行。
+状态：**可交付**，由计划执行者实施。
 **目标：** 为长篇内核、共用约定与小工具、短篇迁移产出五份盘点文档：规则清单、单章决策点、V2 分支、共用约定与短篇依赖、状态表归属。
 **性质：** 只读。**不得修改任何源代码、测试、schema 或配置。** 只允许在 `docs/superpowers/inventory/production-kernel/` 下新建文档，并在 `docs/superpowers/reports/production-kernel/` 下写报告。
 
@@ -133,7 +133,14 @@ rg -n "director_v2|directorNext|isCurrentV2|V2|v2Run|runExecution|directorVersio
 - `server/src/prompting/prompts/shortStory/shortStory.prompts.ts`
 - `server/src/prisma/schema.prisma` 中的 `ShortStoryPlan`、`ShortStorySegment` 模型
 - `docs/wiki/workflows/creation-studio-short-story.md`
-- 进行中的短篇分支（只读）：`git diff main...codex/short-story-revision-recovery --stat`，以及该分支中与短篇相关的文件差异
+- 进行中的短篇开发（只读）。这部分开发同时包含已提交和**尚未提交**的改动，只比较分支提交会漏掉后者，所以按下面的步骤取差异：
+  1. 用 `git worktree list` 找到检出 `codex/short-story-revision-recovery` 的工作区路径，下文记为 `<短篇工作区>`。截至 2026-10-22，这个路径是 `C:/Users/Administrator/.codex/worktrees/short-story-recovery/ai`。
+  2. `git -C <短篇工作区> status --short`：列出未提交的改动和未跟踪的文件。
+  3. `git -C <短篇工作区> diff main --stat` 与 `git -C <短篇工作区> diff main -- <文件>`：工作区相对 `main` 的全部差异，已提交和未提交的都包含在内。
+  4. 对 `status` 中标为 `??` 的未跟踪文件，直接读取文件内容。
+  - **不得**以 `git diff main...codex/short-story-revision-recovery` 的结果为准。它只比较已提交的内容，输出为空也不能说明没有改动。
+  - 对 `<短篇工作区>` 只读：不得在那里编辑、暂存、提交、切换分支或执行 stash。
+  - 找不到这个工作区时，在报告中写明，并停在 Task 4 第 5 节。
 
 **分五节：**
 
@@ -169,7 +176,7 @@ rg -n "director_v2|directorNext|isCurrentV2|V2|v2Run|runExecution|directorVersio
 - 逐项确认短篇是否具备修后核对（修复后是否再审一次），以及全篇审校前是否检查上下文预算。写明证据位置。
 - 列出短篇的字数范围、段数、每段输出上限、全篇审校输出上限、修复次数，每项写明在代码中的来源。
 
-**第 5 节：进行中分支的影响。** 列出 `codex/short-story-revision-recovery` 改动了第 1～4 节中的哪些内容。如果该分支不存在，写"分支不存在"。
+**第 5 节：进行中开发的影响。** 按上面"来源"中的步骤取得差异，列出进行中的短篇开发改动了第 1～4 节中的哪些内容，每项都要注明来自"已提交"、"未提交"还是"未跟踪文件"。第 1～4 节以 `main` 为准；第 5 节说明进行中的开发会让哪些结论发生变化。
 
 ## Task 5：状态表归属
 
@@ -201,14 +208,14 @@ rg -n "\.<model>\.(findMany|findUnique|findFirst|count|aggregate|groupBy)\b|<mod
    - 所有 `UNKNOWN` 项；
    - Task 2 中"代码中有、文档中没有"的隐含规则；
    - 只读不写、只写不读的模型。
-2. 提交（只添加本计划产出的文件）：
+2. 提交（只添加本计划产出的文件）。遵守计划 00 第 3 节第 8 条的本地例外：北京时间 18:00 之前默认不提交，改动保持未提交状态等待验收；18:00 之后或用户明确要求时，才执行下面的命令。
 
 ```powershell
 git add docs/superpowers/inventory/production-kernel docs/superpowers/reports/production-kernel
 git commit -m "优化：盘点正文生产内核所需的规则、决策点与状态归属"
 ```
 
-3. 确认 `git status --short` 中没有其他改动。
+3. 确认 `git status --short` 中只有本计划的改动（尚未提交时），或者没有任何改动（已经提交时）。
 
 ## 停止条件
 

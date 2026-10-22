@@ -50,7 +50,7 @@ export interface UnitProgress {
   repairAttemptsUsed: number;
   original?: { contentHash: string; verdict?: AcceptanceVerdict };
   candidate?: { contentHash: string; verdict?: AcceptanceVerdict };
-  selected?: "original" | "candidate";
+  selected?: "original" | "candidate";  // 最终选稿；commit 只写入这里选定的稿件
   committedContentHash?: string;
   userEditedSinceStart: boolean;       // 由调用方的版本围栏结果写入
 }
@@ -66,12 +66,23 @@ export type UnitAction =
 
 计划 01 若发现字段不足，由我在补齐本计划时修改，执行者不得自行增删字段。
 
+### 最终选稿规则（定稿）
+
+`commit` 的唯一前提是 `selected` 已确定。`selected` 只有两种确定方式：
+
+| 路径 | `selected` 何时确定 | 是否经过 `select` 阶段 |
+| --- | --- | --- |
+| 未进入修复：审校通过；或修复不适用、修复次数已用完，只记质量债 | 决策器判定不修复时，原稿直接成为最终选稿，即 `selected = "original"` | 否 |
+| 进入了修复：`repair → verify` 之后 | 由 `selectCandidate` 在原稿与候选稿之间选定，结果可能是 `"original"`，也可能是 `"candidate"` | 是 |
+
+所以"候选稿不得提前落库"只约束已经产生候选稿的路径；没有候选稿时，原稿就是最终选稿，正常路径不会被阻断。
+
 ## Tasks
 
 | Task | 内容 | 必测行为（每条至少一个测试） |
 | --- | --- | --- |
 | 1 | `types.ts`、`profile.ts` | 配置缺少 `accept` 却启用了 `repair` 时，`defineProfile` 抛错；`repair.maxAttempts` 只能是 0 或 1；`stages` 顺序必须符合状态机顺序；同一个 `id` 重复定义时报错 |
-| 2 | `unitMachine.ts` | 合法序列 `prepare→draft→accept→commit→reconcile` 可以走通；没有 `accept` 不能进入 `repair`；`verify` 之前必须有 `repair`；`commit` 之后不得再进入 `repair`；非法转换抛 `InvalidUnitTransitionError` |
+| 2 | `unitMachine.ts` | 合法序列 `prepare→draft→accept→commit→reconcile` 可以走通，此时原稿为最终选稿；合法序列 `prepare→draft→accept→repair→verify→select→commit→reconcile` 可以走通；`selected` 未确定时不能进入 `commit`；没有 `accept` 不能进入 `repair`；`verify` 之前必须有 `repair`；`commit` 之后不得再进入 `repair`；非法转换抛 `InvalidUnitTransitionError` |
 | 3 | `candidateSelection.ts` | 候选稿新增 high 或 critical 问题时保留原稿；候选稿新增未兑现义务时保留原稿；`factPreservation` 为 `violated` 或 `unknown` 时保留原稿；`proseRegression` 时保留原稿；候选稿审校不可用时保留原稿；候选稿减少阻塞问题且没有新增严重风险时采用候选稿；只有分数提高、没有结构化改善时保留原稿；问题的身份按 `code` 比较，不按描述文字比较 |
 | 4 | `decideNext.ts` 与 `rules/` | 见下方"决策器必测行为"；计划 01 验收后补齐全部规则 |
 | 4b | `replay.ts` 与回放夹具 | 在 `server/tests/production/domain/fixtures/` 下至少放 5 份夹具，每份是"阶段结论序列加期望动作序列"的 JSON：直接通过；修复后采用候选稿；修复后保留原稿；审校不可用；需要全书重规划。回放结果必须与期望完全一致；同一夹具回放两次结果相同 |
@@ -80,9 +91,9 @@ export type UnitAction =
 ### 决策器必测行为（第一批，来自现有 wiki）
 
 1. 没有正文时，下一步是 `draft`；`draft` 之后仍没有正文时，返回 `fail: no_usable_content`。
-2. 审校通过后，下一步是 `commit`。
+2. 审校通过后，原稿成为最终选稿（`selected = "original"`），下一步是 `commit`，不经过 `repair`、`verify`、`select`。
 3. 存在可修复的问题、修复次数未用完、配置启用了 `repair` 时，下一步是 `repair`。
-4. 修复次数已用完时不再修复，返回 `record_debt`，之后进入 `commit`。
+4. 修复次数已用完时不再修复，原稿成为最终选稿，返回 `record_debt`，之后进入 `commit`。
 5. 只有 `gateAvailable=false`、没有其他问题时，不修复，记录复查类质量债。
 6. 配置的修复模式为 `detect_only` 时，永不进入 `repair`。
 7. `replan=global_book` 时返回 `stop_for_replan`。`replan=local_window` 不停止整本，而是记录质量债，再由调用方处理窗口重规划。
@@ -90,7 +101,7 @@ export type UnitAction =
 9. 问题策略为 `pause_for_manual` 且出现阻塞问题时，返回 `pause_for_manual`；策略为继续时，记录质量债并继续。
 10. 正文可用时，局部质量问题永远不会产生 `fail`。
 11. `userEditedSinceStart=true` 时，不得进入 `repair` 或 `commit` 覆盖用户内容，返回 `pause_for_manual`，原因为用户已修改。
-12. 候选稿未被选中之前，`commit` 不可达。
+12. 已经产生候选稿（执行过 `repair`）时，`select` 完成之前 `commit` 不可达；没有候选稿时不受此限，原稿按第 2、4、5 条直接成为最终选稿。
 13. `commit` 完成后，若配置启用 `reconcile` 则进入 `reconcile`，否则 `done`。
 14. 同一输入调用两次，返回完全相同的动作（纯函数，没有隐含状态）。
 
@@ -112,6 +123,6 @@ node --test (Get-ChildItem server/tests/production/domain -Recurse -Filter *.tes
 
 ## 验收者检查项
 
-1. 变异检查：把"修复最多一次"改成两次、删掉 `factPreservation` 判断、让 `local_window` 也返回停止，测试都必须失败。
+1. 变异检查：把"修复最多一次"改成两次、删掉 `factPreservation` 判断、让 `local_window` 也返回停止、让审校通过的路径也必须经过 `select` 才能 `commit`，测试都必须失败。
 2. 用 `rg` 检查领域层的导入和禁用调用。
 3. 逐条核对必测行为都有对应的测试名称。
