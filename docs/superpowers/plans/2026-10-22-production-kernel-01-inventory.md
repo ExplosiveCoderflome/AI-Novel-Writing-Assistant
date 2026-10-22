@@ -1,10 +1,10 @@
 # 正文生产内核 · 计划 01：只读盘点
 
 状态：**可交付**，适合低阶 LLM 执行。
-**目标：** 为内核设计产出五份盘点文档：规则清单、决策点、V2 分支、短篇能力、状态表归属。
+**目标：** 为长篇内核、共用约定与小工具、短篇迁移产出五份盘点文档：规则清单、单章决策点、V2 分支、共用约定与短篇依赖、状态表归属。
 **性质：** 只读。**不得修改任何源代码、测试、schema 或配置。** 只允许在 `docs/superpowers/inventory/production-kernel/` 下新建文档，并在 `docs/superpowers/reports/production-kernel/` 下写报告。
 
-先读：`docs/superpowers/plans/2026-10-22-production-kernel-00-roadmap.md`（全局约束与停止条件），以及 `docs/superpowers/specs/2026-10-22-production-kernel-design.md` 第 3～7 节（理解"内核归属"一列里各个取值的含义）。
+先读：`docs/superpowers/plans/2026-10-22-production-kernel-00-roadmap.md`（全局约束与停止条件），以及 `docs/superpowers/specs/2026-10-22-production-kernel-design.md` 第 2、4～9 节（理解"内核归属"一列里各个取值的含义）。
 
 ## 通用规则
 
@@ -19,7 +19,8 @@
 | --- | --- |
 | `decision` | 决策器 `decideNext` 的一条规则 |
 | `stage:<阶段名>` | 某个单元阶段的内部行为，阶段名取 prepare、draft、accept、repair、verify、select、commit、reconcile 之一 |
-| `work_stage` | 作品级阶段（全篇审校或修复） |
+| `common` | 共用约定与小工具（长篇与短篇都使用），见设计文档第 8 节 |
+| `short_story` | 只属于短篇自己的生产逻辑，不进入内核 |
 | `port:story_state` | 故事状态端口 |
 | `port:budget` | 预算端口 |
 | `port:fence` | 所有权或取消围栏 |
@@ -116,13 +117,15 @@ rg -n "director_v2|directorNext|isCurrentV2|V2|v2Run|runExecution|directorVersio
 
 - ID 格式为 `B001`……
 - "分类"只允许填：`V2 专属行为`、`V1/V2 版本判断`、`类型或参数透传`、`注释`、`误匹配`。
-- "内核接管后的处理"只允许填：`计划 07 删除`、`改为内核阶段行为`、`保留（V1 也需要）`、`误匹配无需处理`、`UNKNOWN`。
+- "内核接管后的处理"只允许填：`计划 08 删除`、`改为内核阶段行为`、`保留（V1 也需要）`、`误匹配无需处理`、`UNKNOWN`。
 
 **完整性自检：** 表格行数必须等于命令输出的行数，两个数字都写进报告。
 
-## Task 4：短篇生产能力
+## Task 4：共用约定与短篇依赖
 
-**输出：** `docs/superpowers/inventory/production-kernel/04-short-story-capabilities.md`
+**输出：** `docs/superpowers/inventory/production-kernel/04-common-and-short-story.md`
+
+**背景：** 短篇不进入内核。它保留独立的生产逻辑，挂到 V2 运行记录上，与长篇共用"约定与小工具"（设计文档第 8、9 节）。本 Task 为计划 04（共用约定与小工具）和计划 06（短篇挂 V2）提供依据。
 
 **来源：**
 
@@ -132,23 +135,41 @@ rg -n "director_v2|directorNext|isCurrentV2|V2|v2Run|runExecution|directorVersio
 - `docs/wiki/workflows/creation-studio-short-story.md`
 - 进行中的短篇分支（只读）：`git diff main...codex/short-story-revision-recovery --stat`，以及该分支中与短篇相关的文件差异
 
-**分四节：**
+**分五节：**
 
-**第 1 节：流程表。** 按执行顺序列出短篇生产的每一步。
+**第 1 节：短篇流程表。** 按执行顺序列出短篇生产的每一步。这些步骤将成为 V2 短篇计划中的步骤。
 
-| 步骤 | 函数（路径:行号） | 使用的 Prompt | 读写的表与字段 | 失败或暂停的处理 |
-| --- | --- | --- | --- | --- |
+| 步骤 | 函数（路径:行号） | 使用的 Prompt | 读写的表与字段 | 失败或暂停的处理 | 对应的 V2 步骤候选名 |
+| --- | --- | --- | --- | --- | --- |
 
-**第 2 节：七项能力对照表。** 七行，依次为事实一致、人物状态、信息来源、因果与承诺兑现、审校、修后核对、编辑保护。
+**第 2 节：短篇对 V1 工作流任务的依赖。** 列出短篇模块中所有对 `NovelWorkflowService`、`NovelWorkflowTask`、`novelWorkflowTask` 的调用。
 
-| 能力 | 短篇的实现（路径:行号，没有则写"无"） | 长篇的对应实现（路径:行号） | 差异 | 可否直接使用内核同名阶段 |
-| --- | --- | --- | --- | --- |
+| 位置（路径:行号） | 调用 | 作用（一句话） | 挂到 V2 后由什么替代 |
+| --- | --- | --- | --- |
 
-"可否直接使用"一列只允许填 `可以`、`需配置参数`、`需作品级阶段`、`UNKNOWN`。
+"由什么替代"一列只允许填：`V2 命令`、`V2 运行控制状态`、`V2 产物台账`、`V2 质量债`、`V2 确认门`、`短篇模块自身`、`UNKNOWN`。
 
-**第 3 节：篇幅相关的参数。** 列出短篇特有的预算、段数、字数、连续性、审校范围、修复次数等，每项写明它在代码里的来源。这些是 `short_story` 配置的原始素材。
+**第 3 节：长篇与短篇的重复实现。** 找出两边各自实现、语义相同的能力：
 
-**第 4 节：进行中分支的影响。** 列出 `codex/short-story-revision-recovery` 改动了上述哪些步骤和能力。如果该分支不存在，写"分支不存在"。
+- 质量债的结构与写入方式；
+- 问题策略的语义；
+- "什么情况才能停止整条生产"的判定；
+- 补丁应用；
+- 带版本校验的保存与保存前快照；
+- 人工编辑保护；
+- 用量记账。
+
+| 能力 | 长篇实现（路径:行号） | 短篇实现（路径:行号，没有则写"无"） | 两者是否一致 | 不一致之处 | 归属 |
+| --- | --- | --- | --- | --- | --- |
+
+"归属"一列只允许填 `common`、`short_story`、`UNKNOWN`。
+
+**第 4 节：短篇的能力缺口与篇幅参数。**
+
+- 逐项确认短篇是否具备修后核对（修复后是否再审一次），以及全篇审校前是否检查上下文预算。写明证据位置。
+- 列出短篇的字数范围、段数、每段输出上限、全篇审校输出上限、修复次数，每项写明在代码中的来源。
+
+**第 5 节：进行中分支的影响。** 列出 `codex/short-story-revision-recovery` 改动了第 1～4 节中的哪些内容。如果该分支不存在，写"分支不存在"。
 
 ## Task 5：状态表归属
 

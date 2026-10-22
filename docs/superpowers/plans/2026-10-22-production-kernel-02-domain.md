@@ -2,13 +2,14 @@
 
 状态：**接口与必测行为已定**。计划 01 验收后，我会把盘点得到的规则补进 Task 4 的测试清单，并把本计划标为"可交付"。**在那之前不得开始执行。**
 
-**目标：** 在 `server/src/modules/production/domain/` 下实现纯类型、生产配置结构、单元状态机、决策器和候选选择。全部是纯函数，配齐测试。
+**目标：** 在 `server/src/modules/production/domain/` 下实现长篇单章生产的纯类型、生产配置结构、单元状态机、决策器、候选选择和回放夹具。全部是纯函数，配齐测试。
 **依赖：** 计划 01 验收通过；用户已确认设计文档。
+**范围：** 只服务长篇章节。不包含作品级阶段，也不包含短篇类型（设计文档第 2 节）。
 
 ## 全局约束
 
 - 继承计划 00 第 3 节的全部约束。
-- 领域层只允许相对路径导入本目录内的文件，以及 `zod`。不得出现 `prisma`、`fs`、`fetch`、`Date.now`、`new Date(`、`Math.random`、`process.env`、`console.`。
+- 领域层只允许相对路径导入本目录内的文件、`../common`（共用约定，计划 04；若计划 04 尚未完成，先在 `domain/types.ts` 中定义 `QualityDebt` 与 `StopSignal`，计划 04 完成后改为从 `../common` 导入），以及 `zod`。不得出现 `prisma`、`fs`、`fetch`、`Date.now`、`new Date(`、`Math.random`、`process.env`、`console.`。
 - 不导入 `shared/types/chapterRuntime` 等现有类型。领域类型独立定义；与现有类型之间的映射放到计划 03 的适配器里做。这样领域层不会被旧合同拖住。
 - 测试放在 `server/tests/production/domain/*.test.js`，只 `require("../../../dist/modules/production/domain")`，不访问数据库，属于快速测试。
 - 单个文件不超过 400 行。
@@ -17,19 +18,21 @@
 
 | 路径 | 职责 |
 | --- | --- |
-| `domain/types.ts` | `UnitRef`、`StageId`、`WorkStageId`、`AcceptanceVerdict`、`QualityDebt`、`StopSignal`、`UnitProgress`、`UnitAction`、`IssuePolicySnapshot` |
+| `domain/types.ts` | `UnitRef`、`StageId`、`AcceptanceVerdict`、`QualityDebt`、`StopSignal`、`UnitProgress`、`UnitAction`、`IssuePolicySnapshot` |
 | `domain/profile.ts` | `ProductionProfile` 的 zod schema、`defineProfile()`（带校验）、`isStageEnabled()` |
 | `domain/unitMachine.ts` | 单元进度的状态转换：`applyStageResult(progress, result)`；非法转换抛 `InvalidUnitTransitionError` |
 | `domain/decideNext.ts` | 决策器 `decideNext(input): UnitAction` |
 | `domain/candidateSelection.ts` | `selectCandidate(original, candidate): { selected, reasonCode }` |
 | `domain/rules/*.ts` | 决策器用到的具名规则，每条规则一个导出函数，按主题分文件 |
+| `domain/replay.ts` | `replayDecisions(fixture): UnitAction[]`：按顺序把记录下来的阶段结论喂给决策器，返回每一步的动作 |
 | `domain/index.ts` | 唯一出口 |
 
 ## 核心类型（定稿）
 
 ```ts
+export interface UnitRef { novelId: string; chapterId: string; order: number }
+
 export type StageId = "prepare" | "draft" | "accept" | "repair" | "verify" | "select" | "commit" | "reconcile";
-export type WorkStageId = "work_accept" | "work_repair";
 
 export interface AcceptanceVerdict {
   contentHash: string;
@@ -71,6 +74,7 @@ export type UnitAction =
 | 2 | `unitMachine.ts` | 合法序列 `prepare→draft→accept→commit→reconcile` 可以走通；没有 `accept` 不能进入 `repair`；`verify` 之前必须有 `repair`；`commit` 之后不得再进入 `repair`；非法转换抛 `InvalidUnitTransitionError` |
 | 3 | `candidateSelection.ts` | 候选稿新增 high 或 critical 问题时保留原稿；候选稿新增未兑现义务时保留原稿；`factPreservation` 为 `violated` 或 `unknown` 时保留原稿；`proseRegression` 时保留原稿；候选稿审校不可用时保留原稿；候选稿减少阻塞问题且没有新增严重风险时采用候选稿；只有分数提高、没有结构化改善时保留原稿；问题的身份按 `code` 比较，不按描述文字比较 |
 | 4 | `decideNext.ts` 与 `rules/` | 见下方"决策器必测行为"；计划 01 验收后补齐全部规则 |
+| 4b | `replay.ts` 与回放夹具 | 在 `server/tests/production/domain/fixtures/` 下至少放 5 份夹具，每份是"阶段结论序列加期望动作序列"的 JSON：直接通过；修复后采用候选稿；修复后保留原稿；审校不可用；需要全书重规划。回放结果必须与期望完全一致；同一夹具回放两次结果相同 |
 | 5 | `index.ts` 与边界测试 | 领域层文件只有相对导入和 `zod`；不含上面列出的禁用调用；每个文件不超过 400 行 |
 
 ### 决策器必测行为（第一批，来自现有 wiki）
@@ -94,7 +98,7 @@ export type UnitAction =
 
 ```powershell
 pnpm --filter @ai-novel/server build
-node --test (Get-ChildItem server/tests/production/domain -Filter *.test.js | % FullName)
+node --test (Get-ChildItem server/tests/production/domain -Recurse -Filter *.test.js | % FullName)
 ```
 
 ## 停止条件
