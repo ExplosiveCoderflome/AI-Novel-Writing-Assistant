@@ -105,12 +105,15 @@ export function resolveDesktopWindowIcon(): string {
     return path.resolve(process.env.AI_NOVEL_DESKTOP_ICON_PATH.trim());
   }
 
-  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", "app-icon.ico");
+  // macOS ignores BrowserWindow icons and reads the bundle icon instead, but the
+  // same helper still serves the staged/dev window icon lookup.
+  const iconFileName = process.platform === "darwin" ? "app-icon.icns" : "app-icon.ico";
+  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", iconFileName);
   if (fs.existsSync(packagedIconPath)) {
     return packagedIconPath;
   }
 
-  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", "app-icon.ico");
+  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", iconFileName);
 }
 
 export function resolvePackagedServerEntry(): string {

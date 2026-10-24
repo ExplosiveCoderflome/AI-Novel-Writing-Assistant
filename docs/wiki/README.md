@@ -39,6 +39,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [拆书工作流](./workflows/book-analysis-workflow.md)
 - [图片生成确认与统一运行时](./workflows/image-generation-confirmation-runtime.md)
 - [Creative Hub 边界](./workflows/creative-hub-boundary.md)
+- [桌面端 macOS 打包边界](./workflows/desktop-macos-packaging.md)
 
 ### Prompts
 

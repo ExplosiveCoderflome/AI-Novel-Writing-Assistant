@@ -9,8 +9,15 @@ const electronBuilderRequire = createRequire(electronBuilderPackageJson);
 const asar = electronBuilderRequire("@electron/asar");
 const buildDir = path.join(desktopDir, "build");
 const appDir = path.join(buildDir, "app");
-const unpackedDir = path.join(buildDir, "dist", "win-unpacked");
-const builderWindowIcon = path.join(desktopDir, "builder", "app-icon.ico");
+const distDir = path.join(buildDir, "dist");
+const appProductName = "Biz Novel Studio";
+const targetPlatform = detectTargetPlatform(process.argv.slice(2));
+const isMac = targetPlatform === "mac";
+const unpackedDir = isMac ? resolveMacUnpackedDir() : path.join(distDir, "win-unpacked");
+const unpackedResourcesDir = isMac
+  ? path.join(unpackedDir, `${appProductName}.app`, "Contents", "Resources")
+  : path.join(unpackedDir, "resources");
+const builderWindowIcon = path.join(desktopDir, "builder", isMac ? "app-icon.icns" : "app-icon.ico");
 const appPackageJsonPath = path.join(appDir, "package.json");
 const stagedServerEntry = path.join(appDir, "node_modules", "@ai-novel", "server", "dist", "app.js");
 const stagedPrismaRuntimeEntry = path.join(appDir, "node_modules", ".prisma", "client", "default.js");
@@ -28,10 +35,40 @@ const sourceServerSqliteMigrationsDir = path.join(repoRoot, "server", "src", "pr
 const stagedServerSqliteMigrationsDir = path.join(appDir, "node_modules", "@ai-novel", "server", "src", "prisma", "migrations.sqlite");
 const stagedAppUpdateConfig = path.join(buildDir, "resources", "app-update.yml");
 const stagedClientIndex = path.join(buildDir, "resources", "client", "dist", "index.html");
-const unpackedClientIndex = path.join(unpackedDir, "resources", "client", "dist", "index.html");
-const unpackedAppArchive = path.join(unpackedDir, "resources", "app.asar");
-const unpackedWindowIcon = path.join(unpackedDir, "resources", "icons", "app-icon.ico");
+const unpackedClientIndex = path.join(unpackedResourcesDir, "client", "dist", "index.html");
+const unpackedAppArchive = path.join(unpackedResourcesDir, "app.asar");
+const unpackedWindowIcon = path.join(unpackedResourcesDir, "icons", isMac ? "app-icon.icns" : "app-icon.ico");
 const stagedRuntimeFile = path.join(appDir, "dist", "runtime", "server.js");
+
+function detectTargetPlatform(args) {
+  for (const rawArg of args) {
+    const arg = rawArg.replace(/^--?/, "").toLowerCase();
+    if (arg === "mac" || arg === "macos" || arg === "darwin") {
+      return "mac";
+    }
+    if (arg === "win" || arg === "windows") {
+      return "win";
+    }
+  }
+
+  return process.platform === "darwin" ? "mac" : "win";
+}
+
+function resolveMacUnpackedDir() {
+  // electron-builder writes arch-specific output folders on macOS, e.g. mac-arm64.
+  const candidates = fs.existsSync(distDir)
+    ? fs.readdirSync(distDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith("mac"))
+        .map((entry) => path.join(distDir, entry.name))
+    : [];
+
+  const withApp = candidates.filter((candidate) => fs.existsSync(path.join(candidate, `${appProductName}.app`)));
+  if (withApp.length === 0) {
+    return path.join(distDir, "mac-arm64");
+  }
+
+  return withApp.sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs)[0];
+}
 
 function assertExists(targetPath, description) {
   if (!fs.existsSync(targetPath)) {
@@ -71,6 +108,59 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function findFirstFileRecursive(rootDir, predicate) {
+  if (!fs.existsSync(rootDir)) {
+    return null;
+  }
+
+  const pending = [rootDir];
+  while (pending.length > 0) {
+    const currentDir = pending.pop();
+    for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+      const entryPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+        continue;
+      }
+      if (predicate(entry.name)) {
+        return entryPath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function verifyMacAppBundle() {
+  const appBundleDir = path.join(unpackedDir, `${appProductName}.app`);
+  assertExists(appBundleDir, "packaged macOS app bundle");
+
+  const contentsDir = path.join(appBundleDir, "Contents");
+  const infoPlistPath = path.join(contentsDir, "Info.plist");
+  const macOsExecutablePath = path.join(contentsDir, "MacOS", appProductName);
+  const bundleIconPath = path.join(unpackedResourcesDir, "icon.icns");
+  assertExists(infoPlistPath, "packaged macOS Info.plist");
+  assertExists(macOsExecutablePath, "packaged macOS executable");
+  assertExists(bundleIconPath, "packaged macOS bundle icon");
+
+  const infoPlistSource = fs.readFileSync(infoPlistPath, "utf8");
+  if (!infoPlistSource.includes("com.ai-novel.desktop")) {
+    throw new Error("Packaged macOS Info.plist is missing the expected bundle identifier.");
+  }
+  if (!infoPlistSource.includes("icon.icns")) {
+    throw new Error("Packaged macOS Info.plist does not reference the branded bundle icon.");
+  }
+
+  const unpackedNodeModulesDir = path.join(unpackedResourcesDir, "app.asar.unpacked", "node_modules");
+  const nativeModulePath = findFirstFileRecursive(unpackedNodeModulesDir, (name) => name === "better_sqlite3.node");
+  if (!nativeModulePath) {
+    throw new Error(`Packaged macOS app is missing the unpacked better-sqlite3 native binding under ${unpackedNodeModulesDir}.`);
+  }
+
+  console.log(`[verify:desktop-package] macOS app bundle inspected at ${appBundleDir}`);
+  console.log(`[verify:desktop-package] native binding: ${nativeModulePath}`);
+}
+
 function main() {
   assertExists(appPackageJsonPath, "staged desktop package.json");
   assertExists(builderWindowIcon, "builder desktop window icon");
@@ -108,7 +198,11 @@ function main() {
     throw new Error("Desktop updater feed configuration is missing the GitHub provider.");
   }
 
-  const packagedFiles = new Set(asar.listPackage(unpackedAppArchive).map((entry) => entry.replace(/^\\/, "").replace(/\\/g, "/")));
+  // asar entries are prefixed with the host path separator, so both `\dist\x`
+  // (Windows) and `/dist/x` (macOS/Linux) must normalize to `dist/x`.
+  const packagedFiles = new Set(
+    asar.listPackage(unpackedAppArchive).map((entry) => entry.replace(/^[\\/]/, "").replace(/\\/g, "/")),
+  );
   const packagedEntries = Array.from(packagedFiles);
   const sourceSqliteMigrations = listMigrationNames(sourceServerSqliteMigrationsDir);
   const stagedSqliteMigrations = listMigrationNames(stagedServerSqliteMigrationsDir);
@@ -142,6 +236,10 @@ function main() {
     /^node_modules\/(?:\.pnpm\/[^/]+\/node_modules\/)?@prisma\/client\/default\.js$/,
     "packaged Prisma client entrypoint inside app.asar",
   );
+
+  if (isMac) {
+    verifyMacAppBundle();
+  }
 
   console.log("[verify:desktop-package] staged package layout looks valid.");
   console.log(`[verify:desktop-package] unpacked app inspected at ${unpackedDir}`);
