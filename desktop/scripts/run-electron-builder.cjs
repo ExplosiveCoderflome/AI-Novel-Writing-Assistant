@@ -87,44 +87,120 @@ function firstNonEmpty(...values) {
   return "";
 }
 
+function detectRequestedPlatforms(args) {
+  const platforms = new Set();
+
+  for (const rawArg of args) {
+    const arg = rawArg.replace(/^--?/, "").toLowerCase();
+    if (arg === "win" || arg === "windows") {
+      platforms.add("win");
+    } else if (arg === "mac" || arg === "macos" || arg === "darwin") {
+      platforms.add("mac");
+    } else if (arg === "linux") {
+      platforms.add("linux");
+    }
+  }
+
+  if (platforms.size === 0) {
+    platforms.add(process.platform === "darwin" ? "mac" : process.platform === "win32" ? "win" : "linux");
+  }
+
+  return platforms;
+}
+
+function resolveNotarizationConfigured(env) {
+  return Boolean(
+    firstNonEmpty(env.APPLE_KEYCHAIN_PROFILE) ||
+      (firstNonEmpty(env.APPLE_API_KEY) &&
+        firstNonEmpty(env.APPLE_API_KEY_ID) &&
+        firstNonEmpty(env.APPLE_API_ISSUER)) ||
+      (firstNonEmpty(env.APPLE_ID) &&
+        firstNonEmpty(env.APPLE_APP_SPECIFIC_PASSWORD) &&
+        firstNonEmpty(env.APPLE_TEAM_ID)),
+  );
+}
+
 function normalizeBuildEnvironment(sourceEnv, args) {
   const env = { ...sourceEnv };
   const releaseChannel = firstNonEmpty(env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
   const isPublishRequested = args.includes("--publish");
-  const allowUnsignedRelease =
+  const platforms = detectRequestedPlatforms(args);
+  const buildsWindows = platforms.has("win");
+  const buildsMac = platforms.has("mac");
+  const allowUnsignedWindowsRelease =
     firstNonEmpty(
       env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
       env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
     ).toLowerCase() === "true";
+  const allowUnsignedMacRelease =
+    firstNonEmpty(
+      env.AI_NOVEL_ALLOW_UNSIGNED_MAC_RELEASE,
+      env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
+    ).toLowerCase() === "true";
 
-  const signingLink = firstNonEmpty(
-    env.CSC_LINK,
+  const windowsSigningLink = firstNonEmpty(
     env.WIN_CSC_LINK,
     env.AI_NOVEL_WINDOWS_CSC_LINK,
     env.AI_NOVEL_WINDOWS_CSC_FILE,
   );
-  const signingPassword = firstNonEmpty(
-    env.CSC_KEY_PASSWORD,
+  const windowsSigningPassword = firstNonEmpty(
     env.WIN_CSC_KEY_PASSWORD,
     env.AI_NOVEL_WINDOWS_CSC_KEY_PASSWORD,
     env.AI_NOVEL_WINDOWS_CSC_PASSWORD,
   );
+  const macSigningLink = firstNonEmpty(
+    env.MAC_CSC_LINK,
+    env.AI_NOVEL_MAC_CSC_LINK,
+    env.AI_NOVEL_MAC_CSC_FILE,
+  );
+  const macSigningPassword = firstNonEmpty(
+    env.MAC_CSC_KEY_PASSWORD,
+    env.AI_NOVEL_MAC_CSC_KEY_PASSWORD,
+    env.AI_NOVEL_MAC_CSC_PASSWORD,
+  );
   const githubToken = firstNonEmpty(env.GH_TOKEN, env.GITHUB_TOKEN, env.AI_NOVEL_GITHUB_TOKEN);
 
-  if (signingLink) {
-    env.CSC_LINK = signingLink;
+  // electron-builder only reads the generic CSC_* variables, so each platform's
+  // dedicated secret slot is mapped onto them for the matching build only. A
+  // Windows certificate can therefore never be handed to the macOS signer.
+  if (buildsWindows) {
+    const signingLink = windowsSigningLink || firstNonEmpty(env.CSC_LINK);
+    const signingPassword = windowsSigningPassword || firstNonEmpty(env.CSC_KEY_PASSWORD);
+    if (signingLink) {
+      env.CSC_LINK = signingLink;
+    }
+    if (signingPassword) {
+      env.CSC_KEY_PASSWORD = signingPassword;
+    }
   }
-  if (signingPassword) {
-    env.CSC_KEY_PASSWORD = signingPassword;
+
+  if (buildsMac) {
+    const signingLink = macSigningLink || firstNonEmpty(env.CSC_LINK);
+    const signingPassword = macSigningPassword || firstNonEmpty(env.CSC_KEY_PASSWORD);
+    if (signingLink) {
+      env.CSC_LINK = signingLink;
+    }
+    if (signingPassword) {
+      env.CSC_KEY_PASSWORD = signingPassword;
+    }
   }
+
   if (githubToken) {
     env.GH_TOKEN = githubToken;
   }
 
-  const hasSigning = Boolean(signingLink);
-  if (!releaseChannel.startsWith("beta") && !hasSigning && !allowUnsignedRelease) {
+  const hasWindowsSigning = Boolean(firstNonEmpty(env.CSC_LINK, windowsSigningLink));
+  if (buildsWindows && !releaseChannel.startsWith("beta") && !hasWindowsSigning && !allowUnsignedWindowsRelease) {
     throw new Error(
-      "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK first, or explicitly allow an unsigned release.",
+      "Public Windows desktop releases require signing material. Provide WIN_CSC_LINK/CSC_LINK first, or explicitly allow an unsigned release.",
+    );
+  }
+
+  const hasMacSigning = Boolean(firstNonEmpty(env.CSC_LINK, macSigningLink));
+  const hasMacNotarization = resolveNotarizationConfigured(env);
+  if (buildsMac && !releaseChannel.startsWith("beta") && !allowUnsignedMacRelease && !(hasMacSigning && hasMacNotarization)) {
+    throw new Error(
+      "Public macOS desktop releases require signing and notarization material. Provide MAC_CSC_LINK/MAC_CSC_KEY_PASSWORD plus APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID (or APPLE_API_KEY credentials), or explicitly allow an unsigned release.",
     );
   }
 
@@ -133,29 +209,38 @@ function normalizeBuildEnvironment(sourceEnv, args) {
   }
 
   console.log(
-    `[dist:desktop] releaseChannel=${releaseChannel} publish=${isPublishRequested ? "yes" : "no"} signing=${hasSigning ? "configured" : allowUnsignedRelease ? "unsigned-opt-in" : "unsigned-beta"}`,
+    `[dist:desktop] platforms=${Array.from(platforms).join(",")} releaseChannel=${releaseChannel} publish=${isPublishRequested ? "yes" : "no"} windowsSigning=${hasWindowsSigning ? "configured" : "none"} macSigning=${hasMacSigning ? "configured" : "none"} macNotarization=${hasMacNotarization ? "configured" : "none"}`,
   );
 
   return env;
 }
 
 function main() {
+  // The traversal collector patch keeps pnpm's symlinked node_modules layout
+  // working on every platform, so it is applied for all builds.
   ensurePatchedElectronBuilder();
 
-  const shortNsisTemplatesDir = resolveShortNsisTemplateDir();
+  const args = process.argv.slice(2);
+  const buildsWindows = detectRequestedPlatforms(args).has("win");
   const electronBuilderCli = resolveModule("electron-builder/cli.js");
-  const args = ["--config", "electron-builder.config.cjs", ...process.argv.slice(2)];
+  const builderArgs = ["--config", "electron-builder.config.cjs", ...args];
   const env = normalizeBuildEnvironment(process.env, args);
+  const extraEnv = {
+    [traversalEnvOverrideName]: "true",
+  };
 
-  console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
+  if (buildsWindows) {
+    const shortNsisTemplatesDir = resolveShortNsisTemplateDir();
+    console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
+    extraEnv[nsisEnvOverrideName] = shortNsisTemplatesDir;
+  }
 
-  execFileSync(process.execPath, [electronBuilderCli, ...args], {
+  execFileSync(process.execPath, [electronBuilderCli, ...builderArgs], {
     cwd: desktopDir,
     stdio: "inherit",
     env: {
       ...env,
-      [nsisEnvOverrideName]: shortNsisTemplatesDir,
-      [traversalEnvOverrideName]: "true",
+      ...extraEnv,
     },
   });
 }

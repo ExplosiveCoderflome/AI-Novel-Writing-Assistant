@@ -21,12 +21,23 @@ function markUpdaterSnapshot(snapshot: ReturnType<typeof createUpdaterSnapshot>)
   desktopUpdaterStore.setSnapshot(snapshot);
 }
 
+function isMacInAppUpdateEnabled(): boolean {
+  return process.env.AI_NOVEL_DESKTOP_MAC_UPDATER?.trim().toLowerCase() === "true";
+}
+
 function isUpdaterSupported(options: DesktopUpdaterOptions): boolean {
   if (!options.isPackaged) {
     return false;
   }
 
   if (options.isPortable) {
+    return false;
+  }
+
+  // Squirrel.Mac installs updates from a signed ZIP asset. macOS builds that are
+  // distributed outside a signed release feed would only report feed errors, so
+  // in-app updates stay opt-in until a macOS release channel exists.
+  if (process.platform === "darwin" && !isMacInAppUpdateEnabled()) {
     return false;
   }
 
@@ -44,9 +55,11 @@ export function initializeDesktopUpdater(options: DesktopUpdaterOptions): Deskto
     ? "开发环境不下载安装包，请在正式安装版中检查更新。"
     : options.isPortable
       ? "便携版需要下载新版安装包后手动替换。"
-      : !hasFeedConfig
-        ? "此安装包未配置版本更新通道。"
-        : "桌面版更新已被运行环境关闭。";
+      : process.platform === "darwin" && !isMacInAppUpdateEnabled()
+        ? "macOS 版请从发布页下载新安装包替换。"
+        : !hasFeedConfig
+          ? "此安装包未配置版本更新通道。"
+          : "桌面版更新已被运行环境关闭。";
 
   markUpdaterSnapshot(createUpdaterSnapshot({
     status: supported && hasFeedConfig ? "idle" : "disabled",

@@ -1,18 +1,18 @@
 # 安装与准备
 
-这篇文档帮助你在 Windows 上准备 AI 小说创作工作台（Biz Novel Studio），并确认模型、存储和知识库能力是否可用。
+这篇文档帮助你在 Windows 或 macOS 上准备 AI 小说创作工作台（Biz Novel Studio），并确认模型、存储和知识库能力是否可用。
 
 ## 推荐安装方式
 
 普通用户优先使用 GitHub Releases 页面提供的桌面版：
 
 1. 打开 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)。
-2. 下载 Windows 安装包或 portable 包。
+2. 下载对应平台的安装包：Windows 安装包 / portable 包，或 macOS 的 dmg 镜像。
 3. 运行应用，进入系统设置。
 4. 配置至少一个可用模型供应商。
 5. 创建一本测试小说，跑通新手上路。
 
-安装版适合长期使用；portable 版适合临时试用或放在独立目录中运行。
+安装版适合长期使用；portable 版适合临时试用或放在独立目录中运行。macOS 的 dmg 打开后把应用拖入“应用程序”即可。
 
 ## 首次启动前准备
 
@@ -83,6 +83,41 @@ pnpm --filter @ai-novel/site dev
 ```
 
 源码运行适合开发和调试；普通写作使用优先选择桌面版。
+
+## macOS 安装包
+
+macOS 安装包由 GitHub Actions 在每次版本发布时自动构建，和 Windows 安装包一起放在同一个 Releases 页面：
+
+1. 打开 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)。
+2. 下载 `Biz Novel Studio-<版本>-mac-arm64.dmg`。
+3. 打开镜像，把应用拖入“应用程序”。
+4. 如果系统提示应用来自未验证的开发者，在“系统设置 → 隐私与安全性”中允许打开一次。
+
+需要自己从源码打包时（例如改了代码想先本地验证）：
+
+```bash
+pnpm install
+pnpm stage:desktop
+pnpm dist:desktop:mac
+```
+
+产物位于 `desktop/build/dist/`：
+
+- `Biz Novel Studio-<版本>-mac-arm64.dmg`：安装镜像，打开后把应用拖入“应用程序”即可。
+- `Biz Novel Studio-<版本>-mac-arm64.zip`：压缩包形式，便于分发。
+
+默认构建 `arm64`（Apple Silicon）。如果需要在 Intel Mac 上运行，用 `AI_NOVEL_MAC_ARCHS=x64 pnpm dist:desktop:mac`，或直接运行 `pnpm dist:desktop:mac:x64`。
+
+打包完成后建议做两层检查：
+
+```bash
+pnpm verify:desktop-package:mac:reuse-stage   # 检查包体结构、迁移与原生模块
+pnpm verify:desktop:mac-app                   # 真实启动应用并确认本地服务可用
+```
+
+未配置签名证书时，构建会使用 ad-hoc 签名，仅适合在本机自用或内测；把安装包分发给其他 Mac 前，需要配置 Apple 开发者签名与公证，否则系统会提示应用来自未验证的开发者。相关环境变量与发布门禁见《桌面端 macOS 打包边界》。
+
+macOS 版暂不提供应用内自动更新，升级时从发布页下载新的安装包替换即可。
 
 ## 安装后建议
 

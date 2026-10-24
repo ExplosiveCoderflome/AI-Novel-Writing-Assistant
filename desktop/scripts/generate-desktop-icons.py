@@ -116,6 +116,12 @@ def main() -> None:
 
     generated_images[512].save(BUILDER_DIR / "app-icon.png")
     generated_images[512].save(BUILDER_DIR / "app-icon.ico", sizes=ICO_SIZES)
+
+    # macOS reads the bundle icon from an .icns container. Pillow writes the
+    # standard multi-resolution set, so macOS can pick the right size per context.
+    icns_image = create_brand_icon(1024)
+    icns_image.save(BUILDER_DIR / "app-icon.icns", format="ICNS")
+
     print(f"Generated desktop icon assets in {BUILDER_DIR}")
 
 
