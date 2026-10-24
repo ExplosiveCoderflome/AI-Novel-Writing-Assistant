@@ -287,6 +287,48 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
   assert.match(systemText, /80-180/);
 });
 
+test("chapter artifact delta prompt normalizes payoff evidence missing summary (#201)", () => {
+  // Regression for #201: the model omitted evidence[].summary for all three
+  // payoff deltas; JSON repair did not add it. Pre-fix this throws a ZodError
+  // at payoffDeltas.{0,1,2}.evidence.0.summary ("expected string, received
+  // undefined") and fails the whole chapter; post-fix it parses with the
+  // parent delta's summary as deterministic fallback.
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "程秩在本章布下三处伏笔，相关证据留待后续兑现。",
+    stateDeltas: {},
+    payoffDeltas: [0, 1, 2].map((index) => ({
+      ledgerKey: `foreshadow-${index + 1}`,
+      title: `伏笔${index + 1}`,
+      summary: `第${index + 1}处伏笔的本章摘要。`,
+      scopeType: "book",
+      currentStatus: "hinted",
+      evidence: [{ chapterOrder: 3 }],
+    })),
+  });
+
+  assert.equal(parsed.payoffDeltas.length, 3);
+  for (const [index, delta] of parsed.payoffDeltas.entries()) {
+    assert.equal(delta.evidence.length, 1);
+    assert.equal(delta.evidence[0].summary, `第${index + 1}处伏笔的本章摘要。`);
+    assert.equal(delta.evidence[0].chapterOrder, 3);
+  }
+
+  // Alias key path: an evidence item carrying its text under "text" keeps it.
+  const aliasParsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "别名键兜底。",
+    stateDeltas: {},
+    payoffDeltas: [{
+      ledgerKey: "foreshadow-alias",
+      title: "伏笔别名",
+      summary: "父级摘要。",
+      scopeType: "book",
+      currentStatus: "hinted",
+      evidence: [{ text: "程秩把后门铜钥匙收进袖中。", chapterOrder: 3 }],
+    }],
+  });
+  assert.equal(aliasParsed.payoffDeltas[0].evidence[0].summary, "程秩把后门铜钥匙收进袖中。");
+});
+
 test("character mind snapshot prompt keeps subjective reasoning evidence-backed", () => {
   const output = characterMindSnapshotResponseSchema.parse({
     snapshots: [{

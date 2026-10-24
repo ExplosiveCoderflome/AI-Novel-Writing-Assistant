@@ -215,6 +215,25 @@ function normalizePayoffRiskSignal(value: unknown, index: number): unknown {
   };
 }
 
+function normalizePayoffEvidenceItem(value: unknown, deltaSummary: string | undefined): unknown {
+  if (typeof value === "string") {
+    const summary = value.trim();
+    return summary ? { summary } : undefined;
+  }
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const summary = readString(value, ["summary", "description", "text", "quote", "excerpt"])
+    ?? deltaSummary;
+  if (!summary) {
+    return undefined;
+  }
+  return {
+    ...value,
+    summary,
+  };
+}
+
 function normalizePayoffDelta(value: unknown): unknown {
   if (!isRecord(value)) {
     return value;
@@ -246,10 +265,17 @@ function normalizePayoffDelta(value: unknown): unknown {
   const riskSignals = Array.isArray(value.riskSignals)
     ? value.riskSignals.map((signal, index) => normalizePayoffRiskSignal(signal, index))
     : value.riskSignals;
+  const deltaSummary = readString(value, ["summary"]);
+  const evidence = Array.isArray(value.evidence)
+    ? value.evidence
+        .map((item) => normalizePayoffEvidenceItem(item, deltaSummary))
+        .filter((item) => item !== undefined)
+    : value.evidence;
   return {
     ...value,
     scopeType,
     currentStatus,
+    evidence,
     riskSignals,
   };
 }
