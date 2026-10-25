@@ -1,3 +1,4 @@
+import { validateOutputTokens } from "./modelTokens";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 
@@ -30,13 +31,7 @@ function normalizeTemperature(value: unknown): number {
   return Math.min(2, Math.max(0, value));
 }
 
-function normalizeMaxTokens(value: unknown): number | undefined {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return undefined;
-  }
-  const normalized = Math.floor(value);
-  return normalized >= 256 && normalized <= 32768 ? normalized : undefined;
-}
+function normalizeMaxTokens(value: unknown): number | undefined { return validateOutputTokens(value); }
 
 function parseSelectionPayload(value: string): LLMSelectionSettings | null {
   try {
@@ -46,7 +41,7 @@ function parseSelectionPayload(value: string): LLMSelectionSettings | null {
     if (!provider || !model) {
       return null;
     }
-    const maxTokens = normalizeMaxTokens(payload.maxTokens);
+    const maxTokens = payload.maxTokens === 4096 && payload.maxTokensExplicit !== true ? undefined : normalizeMaxTokens(payload.maxTokens);
     return {
       provider,
       model,
@@ -64,6 +59,7 @@ function serializeSelection(input: LLMSelectionSettings): string {
     provider: input.provider,
     model: input.model,
     temperature: normalizeTemperature(input.temperature),
+    maxTokensExplicit: maxTokens !== undefined,
     ...(maxTokens !== undefined ? { maxTokens } : {}),
   });
 }

@@ -163,8 +163,8 @@ test("ThinkTagStreamFilter strips think tags across split chunks", () => {
   const flushed = filter.flush();
 
   assert.deepEqual(first, { text: "", reasoning: "" });
-  assert.deepEqual(second, { text: "", reasoning: "先思考" });
-  assert.deepEqual(flushed, { text: "回答", reasoning: "" });
+  assert.deepEqual(second, { text: "回答", reasoning: "先思考" });
+  assert.deepEqual(flushed, { text: "", reasoning: "" });
 });
 
 test("extractReasoningTextFromChunk supports generic reasoning payloads", () => {

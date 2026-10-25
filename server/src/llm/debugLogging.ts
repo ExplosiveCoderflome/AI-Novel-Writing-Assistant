@@ -10,6 +10,7 @@ const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
 const LOG_FALSE_VALUES = new Set(["0", "false", "off", "no"]);
 
 let logSequence = 0;
+const includePrivateContent = () => process.env.LLM_DEBUG_INCLUDE_CONTENT === "true";
 
 interface LLMDebugMeta {
   provider: LLMProvider;
@@ -135,6 +136,7 @@ function serializeMessages(messages: unknown[]): MessageLogEntry[] {
 }
 
 function serializeSingleLLMInput(input: unknown): MessageLogEntry[] | string {
+  if(!includePrivateContent()) return JSON.stringify({inputChars:safeStringify(input).length});
   if (Array.isArray(input)) {
     return serializeMessages(input);
   }
@@ -221,6 +223,11 @@ function buildMetadataSections(value: unknown, label: string): string[] {
 }
 
 function serializeSingleLLMOutputForJson(output: unknown, fallbackRole: string): unknown {
+  if(!includePrivateContent()) {
+    const record=(output ?? {}) as any,meta=record.response_metadata ?? {};
+    return {role:detectMessageRole(output,fallbackRole),contentChars:record.contentChars ?? stringifyContent(record.content ?? output).length,
+      finishReason:meta.finish_reason ?? meta.stop_reason ?? meta.incomplete_details?.reason ?? null,status:meta.status ?? null,usageMetadata:record.usage_metadata};
+  }
   if (typeof output === "string") {
     return output;
   }
@@ -250,6 +257,7 @@ function serializeSingleLLMOutputForJson(output: unknown, fallbackRole: string):
 }
 
 function serializeSingleLLMOutput(output: unknown, fallbackRole: string): string {
+  if(!includePrivateContent()) return safeStringify(serializeSingleLLMOutputForJson(output,fallbackRole));
   if (typeof output === "string") {
     return output;
   }
@@ -473,7 +481,8 @@ function logLLMResponse(method: "invoke" | "stream" | "batch", output: unknown, 
 }
 
 function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta: LLMDebugMeta, requestId: string, latencyMs: number, output?: unknown): void {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = includePrivateContent() ? error instanceof Error ? error.message : String(error)
+    : `${error instanceof Error ? error.name : "Error"} status=${(error as any)?.status ?? "unknown"} code=${(error as any)?.code ?? "unknown"}`;
   console.warn(
     [
       "[llm.debug]",
@@ -493,7 +502,7 @@ function logLLMError(method: "invoke" | "stream" | "batch", error: unknown, meta
     latencyMs,
     payload: output === undefined ? undefined : serializeLLMOutputForJson(method, output),
     error: error instanceof Error
-      ? { name: error.name, message: error.message, stack: error.stack ?? null }
+      ? { name: error.name, message, ...(includePrivateContent()?{stack:error.stack ?? null}:{}) }
       : { message },
   });
 }
@@ -503,7 +512,8 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
     async *[Symbol.asyncIterator]() {
       const chunks: string[] = [];
       let usage: LlmTokenUsageSnapshot | null = null;
-      const output = () => ({ content: chunks.join(""), ...(usage ? { usage_metadata: {
+      let contentChars=0;const response_metadata:Record<string,unknown>={};
+      const output = () => ({ content: chunks.join(""), contentChars,response_metadata, ...(usage ? { usage_metadata: {
         input_tokens: usage.promptTokens, output_tokens: usage.completionTokens, total_tokens: usage.totalTokens,
         ...(usage.inputCache ? { inputCache: usage.inputCache } : {}),
         ...(usage.reasoningTokens !== undefined ? { output_token_details: { reasoning: usage.reasoningTokens } } : {}),
@@ -511,11 +521,10 @@ function wrapLoggedStream(stream: AsyncIterable<unknown>, meta: LLMDebugMeta, re
       try {
         for await (const chunk of stream) {
           usage = mergeStreamTokenUsage(usage, extractLlmTokenUsage(chunk));
-          if (chunk && typeof chunk === "object" && "content" in (chunk as Record<string, unknown>)) {
-            chunks.push(stringifyContent((chunk as { content?: unknown }).content));
-          } else {
-            chunks.push(safeStringify(chunk));
-          }
+          const record=chunk as any;
+          const text=chunk && typeof chunk === "object" && "content" in record ? stringifyContent(record.content) : safeStringify(chunk);
+          contentChars+=text.length;if(includePrivateContent())chunks.push(text);
+          for(const key of ["finish_reason","stop_reason","status","incomplete_details"]) if(record?.response_metadata?.[key] !== undefined) response_metadata[key]=record.response_metadata[key];
           yield chunk;
         }
         logLLMResponse(

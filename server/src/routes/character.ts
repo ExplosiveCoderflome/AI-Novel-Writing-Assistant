@@ -1,3 +1,5 @@
+import { characterNamingRequestSchema } from "@ai-novel/shared/types/characterNaming";
+import { generateCharacterNamingCandidates } from "../services/character/naming/CharacterNamingService";
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
@@ -49,6 +51,15 @@ const generateSchema = z.object({
 });
 
 router.use(authMiddleware);
+
+const namingSchema = characterNamingRequestSchema.extend({ provider: llmProviderSchema.optional(), model: z.string().trim().min(1).max(200).optional() });
+router.post("/naming-candidates", validate({ body: namingSchema }), async (req, res, next) => {
+  try {
+    const { provider, model, ...request } = req.body as z.infer<typeof namingSchema>;
+    const data = await generateCharacterNamingCandidates(request, { provider, model });
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+});
 
 router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => {
   try {

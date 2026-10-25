@@ -122,6 +122,7 @@ export interface PromptRunTrace {
 }
 
 export interface PromptExecutionOptions {
+  defaultMaxTokens?: number;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

@@ -64,7 +64,7 @@ const streamRunSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(64).max(32768).optional(),
+  maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 });
 
 const resolveInterruptSchema = z.object({

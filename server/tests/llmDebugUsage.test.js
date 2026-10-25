@@ -5,13 +5,13 @@ const { attachLLMDebugLogging } = require('../dist/llm/debugLogging');
 const { attachLLMUsageTracking, runWithLlmUsageTracking } = require('../dist/llm/usageTracking');
 const { prisma } = require('../dist/db/prisma');
 
-async function exercise(chunks, failAfterChunks = false) {
+async function exercise(chunks, failAfterChunks = false, includeContent=true) {
   const entries = [], updates = [], forwarded = [];
   const previous = { append: sessionLog.appendLlmSessionLog, info: console.info,
-    warn: console.warn, update: prisma.generationJob.updateMany, env: process.env.LLM_DEBUG_LOG };
+    warn: console.warn, update: prisma.generationJob.updateMany, contentEnv:process.env.LLM_DEBUG_INCLUDE_CONTENT, env: process.env.LLM_DEBUG_LOG };
   sessionLog.appendLlmSessionLog = entry => entries.push(entry);
   console.info = console.warn = () => {};
-  process.env.LLM_DEBUG_LOG = 'true';
+  process.env.LLM_DEBUG_LOG = 'true';process.env.LLM_DEBUG_INCLUDE_CONTENT=String(includeContent);
   prisma.generationJob.updateMany = async data => { updates.push(data); return { count: 1 }; };
   const llm = {
     invoke: async () => {}, batch: async () => [],
@@ -36,6 +36,7 @@ async function exercise(chunks, failAfterChunks = false) {
     sessionLog.appendLlmSessionLog = previous.append;
     console.info = previous.info; console.warn = previous.warn;
     prisma.generationJob.updateMany = previous.update;
+    if(previous.contentEnv===undefined)delete process.env.LLM_DEBUG_INCLUDE_CONTENT;else process.env.LLM_DEBUG_INCLUDE_CONTENT=previous.contentEnv;
     if (previous.env === undefined) delete process.env.LLM_DEBUG_LOG;
     else process.env.LLM_DEBUG_LOG = previous.env;
   }
@@ -80,3 +81,8 @@ test('stream log preserves cache hit and miss from normalized usage', async () =
 
 // Isolated collector tests never persist against a configured database.
 prisma.llmInvocationUsageRecord.create=async ({data})=>data;
+
+test('diagnostic logging omits private content by default while preserving counts and finish reason',async()=>{
+  const result=await exercise([{content:'private-novel-fixture',additional_kwargs:{__raw_response:{secret:'never'}},response_metadata:{finish_reason:'length'}}],false,false);
+  const log=result.entries.find(e=>e.event==='response');assert.equal(log.payload.contentChars,21);assert.equal(log.payload.finishReason,'length');assert.equal(log.payload.content,undefined);assert.ok(!JSON.stringify(result.entries).includes('private-novel-fixture'));
+});

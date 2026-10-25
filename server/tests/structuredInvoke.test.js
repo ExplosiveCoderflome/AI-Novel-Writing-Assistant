@@ -9,33 +9,17 @@ const structuredInvoke = require("../dist/llm/structuredInvoke.js");
 const { plannerOutputSchema } = require("../dist/services/planner/plannerSchemas.js");
 const { normalizePlannerOutput } = require("../dist/services/planner/PlannerService.js");
 
-test("parseStructuredLlmRawContentDetailed recovers when repair output is truncated but completable", async () => {
-  const originalGetLLM = factory.getLLM;
-
-  factory.getLLM = async () => ({
-    stream: async function* () {
-      yield { content: "{\"value\":\"fixed\"" };
-    },
-  });
-
+test("truncated repair output is rejected without blind JSON completion", async () => {
+  const original = factory.getLLM;
+  let calls = 0;
+  factory.getLLM = async () => ({stream: async function* () {calls++; yield {content:'{"value":"fixed"'};}});
   try {
-    const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
-      rawContent: "这不是合法 JSON。",
-      schema: z.object({
-        value: z.string(),
-      }),
-      provider: "deepseek",
-      model: "deepseek-chat",
-      label: "structured.invoke.test",
-      maxRepairAttempts: 1,
-    });
-
-    assert.deepEqual(result.data, { value: "fixed" });
-    assert.equal(result.repairUsed, true);
-    assert.equal(result.repairAttempts, 1);
-  } finally {
-    factory.getLLM = originalGetLLM;
-  }
+    await assert.rejects(() => structuredInvoke.parseStructuredLlmRawContentDetailed({
+      rawContent:"not JSON",schema:z.object({value:z.string()}),provider:"deepseek",model:"deepseek-chat",
+      label:"offline.truncated-repair",maxRepairAttempts:1,
+    }), e=>e.category==='incomplete_json');
+    assert.equal(calls,1);
+  } finally {factory.getLLM=original;}
 });
 
 test("parseStructuredLlmRawContentDetailed unwraps singleton array wrappers for object schemas before repair", async () => {
@@ -763,73 +747,21 @@ test("invokeStructuredLlmDetailed preserves explicit Anthropic protocol through 
   }
 });
 
-test("parseStructuredLlmRawContentDetailed ignores generated string length limits while preserving trim normalization", async () => {
-  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
-    rawContent: JSON.stringify({
-      summary: "  short  ",
-      hook: "toolongvalue",
-      code: "  abcd  ",
-    }),
-    schema: z.object({
-      summary: z.string().trim().min(10),
-      hook: z.string().max(5),
-      code: z.string().trim().length(3),
-    }),
-    provider: "deepseek",
-    model: "deepseek-chat",
-    label: "structured.invoke.length.relaxed",
-    maxRepairAttempts: 0,
-    strategy: "prompt_json",
-    profile: resolveStructuredOutputProfile({
-      provider: "deepseek",
-      model: "deepseek-chat",
-      executionMode: "structured",
-    }),
-  });
-
-  assert.deepEqual(result.data, {
-    summary: "short",
-    hook: "toolongvalue",
-    code: "abcd",
-  });
-  assert.equal(result.repairUsed, false);
-  assert.equal(result.repairAttempts, 0);
+test("structured parsing enforces the supplied string length contract without weakening it",async()=>{
+  const schema=z.object({summary:z.string().trim().min(10),hook:z.string().max(5),code:z.string().trim().length(3)});
+  const common={schema,provider:"deepseek",model:"deepseek-chat",label:"offline-length-contract",maxRepairAttempts:0,strategy:"prompt_json",profile:resolveStructuredOutputProfile({provider:"deepseek"})};
+  await assert.rejects(()=>structuredInvoke.parseStructuredLlmRawContentDetailed({...common,rawContent:JSON.stringify({summary:"short",hook:"toolongvalue",code:"abcd"})}),e=>e.category==='schema_mismatch');
+  const result=await structuredInvoke.parseStructuredLlmRawContentDetailed({...common,rawContent:JSON.stringify({summary:"  valid full summary  ",hook:"valid",code:" abc "})});
+  assert.deepEqual(result.data,{summary:"valid full summary",hook:"valid",code:"abc"});assert.equal(result.repairUsed,false);
 });
 
-test("parseStructuredLlmRawContentDetailed trims oversized arrays to exact schema length without invoking repair", async () => {
-  const result = await structuredInvoke.parseStructuredLlmRawContentDetailed({
-    rawContent: JSON.stringify({
-      chapters: [
-        { title: "a" },
-        { title: "b" },
-        { title: "c" },
-      ],
-    }),
-    schema: z.object({
-      chapters: z.array(z.object({
-        title: z.string(),
-      })).length(2),
-    }),
-    provider: "deepseek",
-    model: "deepseek-chat",
-    label: "structured.invoke.array.trim",
-    maxRepairAttempts: 0,
-    strategy: "prompt_json",
-    profile: resolveStructuredOutputProfile({
-      provider: "deepseek",
-      model: "deepseek-chat",
-      executionMode: "structured",
-    }),
-  });
-
-  assert.deepEqual(result.data, {
-    chapters: [
-      { title: "a" },
-      { title: "b" },
-    ],
-  });
-  assert.equal(result.repairUsed, false);
-  assert.equal(result.repairAttempts, 0);
+test("oversized arrays are rejected without silently dropping model items", async () => {
+  await assert.rejects(() => structuredInvoke.parseStructuredLlmRawContentDetailed({
+    rawContent:JSON.stringify({chapters:[{title:"a"},{title:"b"},{title:"c"}]}),
+    schema:z.object({chapters:z.array(z.object({title:z.string()})).length(2)}),
+    provider:"deepseek",model:"deepseek-chat",label:"offline.oversized-array",maxRepairAttempts:0,
+    strategy:"prompt_json",profile:resolveStructuredOutputProfile({provider:"deepseek",model:"deepseek-chat"}),
+  }), e=>e.category==='schema_mismatch');
 });
 
 test("parseStructuredLlmRawContentDetailed does not invent missing array items when output is undersized", async () => {

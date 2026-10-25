@@ -4,6 +4,8 @@ import {
   type DirectorCandidateBatch,
   type DirectorCandidatesRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import type { CreativeProfile } from "@ai-novel/shared/types/creativeProfile";
+import { parseCreativeProfileInput } from "../../../../modules/novel/creative-profile";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
   getDirectorLlmOptionsFromSeedPayload,
@@ -24,6 +26,15 @@ type WorkflowTaskFailurePort = Pick<NovelWorkflowService, "markTaskFailed">;
 
 function readText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/** 恢复时保留显式清除；损坏的已选配置不能变成网文默认。 */
+function readSeedCreativeProfile(value: unknown): CreativeProfile | null | undefined {
+  if (value === null) return null;
+  if (value === undefined) return undefined;
+  const parsed = parseCreativeProfileInput(value);
+  if (!parsed.success) throw new Error("保存的创作取向无法读取，请重新选择后继续。");
+  return parsed.profile;
 }
 
 export class NovelDirectorCandidateRuntime {
@@ -302,6 +313,7 @@ export class NovelDirectorCandidateRuntime {
       continuationBookAnalysisSections: continuationBookAnalysisSections as DirectorCandidatesRequest["continuationBookAnalysisSections"],
       referenceBookAnalysisId: readText(directorTaskData.referenceBookAnalysisId),
       referenceBookAnalysisSections: referenceBookAnalysisSections as DirectorCandidatesRequest["referenceBookAnalysisSections"],
+      creativeProfile: readSeedCreativeProfile(directorTaskData.creativeProfile),
       provider: llm?.provider,
       model: llm?.model,
       temperature: llm?.temperature,

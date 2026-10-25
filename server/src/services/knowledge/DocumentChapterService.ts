@@ -312,7 +312,7 @@ export class DocumentChapterService {
         options: {
           provider: "deepseek",
           temperature: 0.1,
-          maxTokens: 1600,
+          defaultMaxTokens: 1600,
         },
       });
       return validateLlmChapters(content, result.output?.chapters);

@@ -51,7 +51,7 @@ export async function generateWorldSkeleton(
       provider: input.provider ?? "deepseek",
       model: input.model,
       temperature: 0.7,
-      maxTokens: WORLD_SKELETON_GENERATION_MAX_TOKENS,
+      defaultMaxTokens: WORLD_SKELETON_GENERATION_MAX_TOKENS,
       timeoutMs,
     },
   }).catch((error: unknown) => {

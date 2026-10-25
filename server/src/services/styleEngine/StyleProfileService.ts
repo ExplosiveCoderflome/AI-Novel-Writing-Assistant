@@ -1,3 +1,5 @@
+import { resolveLLMClientOptions } from "../../llm/factory";
+import { extractSourceSegments } from "./extraction/SegmentedExtraction";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
   StyleExtractionDraft,
@@ -562,27 +564,28 @@ export class StyleProfileService {
       provider: input.provider ?? "deepseek",
       model: input.model ?? null,
       temperature: input.temperature ?? 0.5,
-      maxTokens: STYLE_EXTRACTION_MAX_TOKENS,
+      defaultMaxTokens: STYLE_EXTRACTION_MAX_TOKENS,
       timeoutMs: input.timeoutMs ?? null,
       sourceTextChars: input.sourceText.length,
     });
     const initialStartedAt = Date.now();
-    const initialResult = await runStructuredPrompt({
-      asset: styleProfileExtractionPrompt,
-      promptInput: {
-        name: input.name,
-        category: input.category,
-        sourceText: input.sourceText,
-      },
-      options: {
-        provider: input.provider ?? "deepseek",
-        model: input.model,
-        temperature: input.temperature ?? 0.5,
-        maxTokens: STYLE_EXTRACTION_MAX_TOKENS,
-        timeoutMs: input.timeoutMs,
-        signal: input.signal,
-      },
-    });
+    const resolved = await resolveLLMClientOptions(input.provider ?? "deepseek", { model: input.model, taskType: "planner", requireApiKey:false });
+    const shared = resolved.tokenSettings?.budgetSharing === "shared";
+    const window = resolved.tokenSettings?.contextWindowTokens;
+    const remaining = window == null ? undefined : Math.max(0,window - (shared ? resolved.maxTokens ?? STYLE_EXTRACTION_MAX_TOKENS : 0) - 2048);
+    const configuredInput = resolved.tokenSettings?.maxInputTokens;
+    const inputCapacity = configuredInput == null ? remaining : remaining == null ? configuredInput : Math.min(configuredInput,remaining);
+    if(inputCapacity !== undefined && inputCapacity < 1000) throw new Error("当前上下文和输出预留不足以提取来源，请调整模型预算。");
+    const featureBudget=Math.max(1,Math.floor(((resolved.maxTokens ?? STYLE_EXTRACTION_MAX_TOKENS)-900)/380));
+    const segmentChars = inputCapacity ? Math.max(1000, Math.floor(inputCapacity * 0.75)) : 24000;
+    const initialOutput = await extractSourceSegments({ name: input.name, category: input.category, sourceText: input.sourceText, featureBudget }, async (promptInput) => {
+      const result = await runStructuredPrompt({ asset: styleProfileExtractionPrompt, promptInput,
+        options: { provider: input.provider ?? "deepseek", model: input.model,
+          temperature: input.temperature ?? 0.5, defaultMaxTokens: STYLE_EXTRACTION_MAX_TOKENS,
+          timeoutMs: input.timeoutMs, signal: input.signal } });
+      return result.output;
+    }, segmentChars);
+    const initialResult = { output: initialOutput };
     const initialFeatureCount = countExtractionFeatures(initialResult.output);
     const initialHasUsableFeatures = this.hasUsableExtractionFeatures(initialResult.output);
     logStyleExtractionRuntimeEvent("extract_initial_result", {
@@ -600,23 +603,14 @@ export class StyleProfileService {
       reason: "empty_or_unusable_features",
     });
     const retryStartedAt = Date.now();
-    const retriedResult = await runStructuredPrompt({
-      asset: styleProfileExtractionPrompt,
-      promptInput: {
-        name: input.name,
-        category: input.category,
-        sourceText: input.sourceText,
-        retryForFeatures: true,
-      },
-      options: {
-        provider: input.provider ?? "deepseek",
-        model: input.model,
-        temperature: input.temperature ?? 0.5,
-        maxTokens: STYLE_EXTRACTION_MAX_TOKENS,
-        timeoutMs: input.timeoutMs,
-        signal: input.signal,
-      },
-    });
+    const retriedResult = { output: await extractSourceSegments({ name: input.name, category: input.category,
+      sourceText: input.sourceText, retryForFeatures: true }, async (promptInput) => {
+      const result = await runStructuredPrompt({ asset: styleProfileExtractionPrompt, promptInput,
+        options: { provider: input.provider ?? "deepseek", model: input.model,
+          temperature: input.temperature ?? 0.5, defaultMaxTokens: STYLE_EXTRACTION_MAX_TOKENS,
+          timeoutMs: input.timeoutMs, signal: input.signal } });
+      return result.output;
+    }, segmentChars) };
     logStyleExtractionRuntimeEvent("extract_retry_result", {
       name: input.name,
       latencyMs: Date.now() - retryStartedAt,
@@ -780,7 +774,7 @@ export class StyleProfileService {
         provider: input.llmInput.provider ?? "deepseek",
         model: input.llmInput.model,
         temperature: 0.2,
-        maxTokens: STYLE_METADATA_MAX_TOKENS,
+        defaultMaxTokens: STYLE_METADATA_MAX_TOKENS,
         timeoutMs: input.llmInput.timeoutMs,
         signal: input.llmInput.signal,
       },
@@ -813,7 +807,7 @@ export class StyleProfileService {
         provider: input.llmInput.provider ?? "deepseek",
         model: input.llmInput.model,
         temperature: 0.2,
-        maxTokens: STYLE_ANTI_AI_SELECTION_MAX_TOKENS,
+        defaultMaxTokens: STYLE_ANTI_AI_SELECTION_MAX_TOKENS,
         timeoutMs: input.llmInput.timeoutMs,
         signal: input.llmInput.signal,
       },

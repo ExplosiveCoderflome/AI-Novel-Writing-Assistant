@@ -1,3 +1,4 @@
+import { collectLlmResponse, ResponseTerminationError } from "./structured";
 import type { ZodType } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
@@ -57,6 +58,7 @@ export interface StructuredInvokeInput<T> {
   authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
+  defaultMaxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   taskType?: TaskType;
@@ -78,6 +80,7 @@ interface StructuredAttemptTarget {
   authMode?: ProviderAuthMode;
   temperature: number;
   maxTokens?: number;
+  defaultMaxTokens?: number;
   profile: StructuredOutputProfile;
   requestProtocol: ResolvedLLMClientOptions["requestProtocol"];
   preferredStrategy: StructuredOutputStrategy | null;
@@ -162,6 +165,7 @@ async function resolveAttemptTarget(input: {
   authMode?: ProviderAuthMode;
   temperature?: number;
   maxTokens?: number;
+  defaultMaxTokens?: number;
   taskType?: TaskType;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredStrategy?: StructuredOutputStrategy;
@@ -181,6 +185,7 @@ async function resolveAttemptTarget(input: {
     model: input.model,
     temperature: input.temperature,
     maxTokens: input.maxTokens,
+    defaultMaxTokens: input.defaultMaxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
@@ -281,18 +286,10 @@ async function invokeStructuredAttempt<T>(input: {
           messages,
           signal ? { ...invokeOptions, signal } : invokeOptions,
         );
-        let rawContent = "";
-        let tokenUsage = null;
-        const reasoningCollector = new ReasoningStreamCollector();
-        for await (const chunk of stream) {
-          const content = toText(chunk.content);
-          liveSession.reasoning(reasoningCollector.push(chunk, content));
-          rawContent += content;
-          liveSession.delta(content);
-          tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
-        }
-        liveSession.reasoning(reasoningCollector.flush());
-        return { rawContent, tokenUsage };
+        return collectLlmResponse(stream, {
+          onText: (text) => liveSession.delta(text),
+          onReasoning: (text) => liveSession.reasoning(text),
+        });
       },
     });
     const rawContent = collected.rawContent;
@@ -304,6 +301,7 @@ async function invokeStructuredAttempt<T>(input: {
       taskType: input.baseInput.taskType,
       latencyMs: Date.now() - startedAt,
       rawChars: rawContent.length,
+      response: collected.response,
       strategy: input.strategy,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
@@ -314,6 +312,7 @@ async function invokeStructuredAttempt<T>(input: {
       rawContent,
       schema: input.baseInput.schema,
       tokenUsage: collected.tokenUsage,
+      response: collected.response,
       provider: resolved.provider,
       model: resolved.model,
       apiKey: input.target.apiKey,
@@ -355,6 +354,7 @@ async function invokeStructuredAttempt<T>(input: {
       : classifyStructuredOutputFailure({ error });
     logStructuredInvokeEvent({
       event: "invoke_error",
+      response: error instanceof ResponseTerminationError ? error.response : error instanceof StructuredOutputError ? error.diagnostics.response : undefined,
       label: input.baseInput.label,
       provider: resolved.provider,
       model: resolved.model,
@@ -414,7 +414,7 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
-      if (currentModelRequestBudget()?.remaining() === 0) break;
+      if (!lastError.retryable || currentModelRequestBudget()?.remaining() === 0) break;
       if (budget && index >= preferredSequence.length - 1 && budget.remaining() === remainingBefore) break;
       if (lastError.category === "transport_error" && !lastError.retryWithNextStrategy) {
         break;
@@ -453,7 +453,7 @@ async function tryStructuredStrategiesWithTransportRetries<T>(input: {
     } catch (error) {
       const structuredError = error instanceof StructuredOutputError ? error : null;
       if (
-        structuredError?.category !== "transport_error"
+        structuredError?.retryable === false || structuredError?.category !== "transport_error"
         || retryAttempt >= input.retryCount
         || input.baseInput.signal?.aborted
         || currentModelRequestBudget()?.remaining() === 0
@@ -484,6 +484,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
     authMode: input.authMode,
     temperature: input.temperature ?? 0.3,
     maxTokens: input.maxTokens,
+    defaultMaxTokens: input.defaultMaxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
@@ -508,7 +509,7 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
       retryCount: transportRetryCount,
     });
   } catch (primaryError) {
-    if (!fallbackEnabled || !fallbackSettings || currentModelRequestBudget()?.remaining() === 0) {
+    if ((primaryError instanceof StructuredOutputError && !primaryError.retryable) || !fallbackEnabled || !fallbackSettings || currentModelRequestBudget()?.remaining() === 0) {
       throw primaryError;
     }
 
@@ -569,6 +570,7 @@ export function summarizeStructuredOutputFailure(input: {
     thinking_pollution: `当前模型的思考内容污染了结构化输出${suffix}`,
     incomplete_json: incompleteJsonSummary,
     malformed_json: `模型输出的 JSON 格式不稳定${suffix}`,
+    input_budget_exceeded: "完整请求超过本地安全预算，请分段处理来源或缩小生成范围。",
     schema_mismatch: `模型输出未满足目标结构要求${suffix}`,
     transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,
   };

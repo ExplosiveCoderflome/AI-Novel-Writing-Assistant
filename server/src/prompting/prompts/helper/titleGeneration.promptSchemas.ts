@@ -18,7 +18,7 @@ export const titleSuggestionHookTypeSchema = z.enum([
 
 export const rawTitleSuggestionSchema = z
   .object({
-    title: z.string().trim().min(4).max(26),
+    title: z.string().trim().min(1).max(26),
     clickRate: z.number().min(35).max(99).optional(),
     score: z.number().min(35).max(99).optional(),
     style: titleSuggestionStyleSchema.optional(),

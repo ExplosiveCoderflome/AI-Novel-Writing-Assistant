@@ -71,6 +71,7 @@ export async function markTitleLibraryUsed(id: string) {
 }
 
 export async function generateTitleIdeas(payload: {
+  creativeProfile?: import("@ai-novel/shared/types/creativeProfile").CreativeProfile | null;
   mode: TitleFactoryMode;
   brief?: string;
   referenceTitle?: string;

@@ -1,3 +1,4 @@
+import { MODEL_ROUTE_REQUEST_PROTOCOLS } from "@ai-novel/shared/types/novel";
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { PROVIDER_AUTH_MODES } from "@ai-novel/shared/types/llm";
@@ -29,7 +30,7 @@ const structuredFallbackSchema = z.object({
   provider: z.string().trim().min(1).optional(),
   model: z.string().trim().min(1).optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.union([z.number().int().min(64).max(32768), z.null()]).optional(),
+  maxTokens: z.union([z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), z.null()]).optional(),
   retryCount: z.number().int().min(0).max(3).optional(),
 });
 
@@ -160,8 +161,8 @@ const modelRouteUpsertSchema = z.object({
   provider: z.string().trim().min(1),
   model: z.string().trim().min(1),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.union([z.number().int().min(64).max(16384), z.null()]).optional(),
-  requestProtocol: z.enum(["auto", "openai_compatible", "anthropic"]).optional(),
+  maxTokens: z.union([z.number().int().min(1).max(Number.MAX_SAFE_INTEGER), z.null()]).optional(),
+  requestProtocol: z.enum(MODEL_ROUTE_REQUEST_PROTOCOLS).optional(),
   structuredResponseFormat: z.enum(["auto", "json_schema", "json_object", "prompt_json"]).optional(),
 });
 

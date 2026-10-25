@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -20,6 +20,12 @@ import {
 } from "@/lib/llmSelection";
 import { useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
+
+function selectionErrorMessage(error: unknown): string {
+  const data=(error as {response?:{data?:{error?:unknown;message?:unknown}}})?.response?.data;
+  const message=data?.error ?? data?.message;
+  return typeof message === "string" ? message : error instanceof Error ? error.message : "模型列表刷新失败，请检查接口设置。";
+}
 
 const NO_PROVIDER_VALUE = "__no_runnable_provider__";
 
@@ -46,8 +52,8 @@ function clampTemperature(value: number): number {
   return Math.min(2, Math.max(0, value));
 }
 
-function clampMaxTokens(value: number): number {
-  return Math.min(32768, Math.max(256, Math.floor(value)));
+function clampMaxTokens(value: number): number | undefined {
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
 export default function LLMSelector({
@@ -61,6 +67,7 @@ export default function LLMSelector({
   showHelperText = true,
   className,
 }: LLMSelectorProps) {
+  const [outputError,setOutputError] = useState("");
   const store = useLLMStore();
   const queryClient = useQueryClient();
   const latestProviderRefreshRef = useRef<LLMProvider | null>(null);
@@ -296,10 +303,11 @@ export default function LLMSelector({
         {showModel ? (
           <SearchableSelect
             value={resolvedModel}
+            allowCustomValue
             onValueChange={onModelChange}
             options={models.map((model) => ({ value: model }))}
             placeholder={hasRunnableProviders ? "选择模型" : "暂无可用模型"}
-            searchPlaceholder="搜索模型"
+            searchPlaceholder="搜索或输入模型 ID"
             emptyText="没有可用模型"
             className={cn(compact ? "w-[184px] lg:w-[220px]" : "w-full sm:w-[240px]")}
             triggerClassName={compact ? "h-9 px-2.5" : undefined}
@@ -347,6 +355,8 @@ export default function LLMSelector({
         ) : null}
       </div>
 
+      {refreshProviderModelsMutation.isError ? <p role="alert" className="text-xs text-destructive">{selectionErrorMessage(refreshProviderModelsMutation.error)} 可输入手动模型 ID，已保存的模型仍可选择。</p> : null}
+
       {showHelperText && !hasRunnableProviders && !apiKeySettingsQuery.isLoading ? (
         <div className="text-xs text-muted-foreground">
           当前没有已配置且启用的模型厂商，请先到系统设置里完成 API Key 和模型配置。
@@ -388,16 +398,17 @@ export default function LLMSelector({
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">最大 Tokens (留空 = 不限制)</span>
+            <span className="text-muted-foreground">最大输出 Tokens（留空使用模型设置或功能默认）</span>
             <Input
               type="number"
               step="1"
-              min={256}
-              max={32768}
+              min={1}
+
               value={resolvedMaxTokens ?? ""}
               disabled={!hasRunnableProviders}
               onChange={(event) => {
                 if (!event.target.value.trim()) {
+                  setOutputError("");
                   updateValue({
                     provider: effectiveProvider,
                     model: resolvedModel,
@@ -407,9 +418,10 @@ export default function LLMSelector({
                   return;
                 }
                 const parsed = Number(event.target.value);
-                if (!Number.isFinite(parsed)) {
-                  return;
+                if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+                  setOutputError("最大输出需为正整数；无效值未保存，仍使用已保存值。"); return;
                 }
+                setOutputError("");
                 updateValue({
                   provider: effectiveProvider,
                   model: resolvedModel,
@@ -435,6 +447,8 @@ export default function LLMSelector({
                 });
               }}
             />
+
+            {outputError ? <p role="alert" className="text-xs text-destructive">{outputError}</p> : null}
           </label>
         </div>
       ) : null}

@@ -215,7 +215,10 @@ export function resolveProviderReasoningBehavior(input: {
 
 export function extractReasoningTextFromChunk(chunk: BaseMessageChunk): string {
   const additionalKwargs = (chunk.additional_kwargs ?? {}) as Record<string, unknown>;
+  const raw = additionalKwargs.__raw_response as { choices?: Array<{ delta?: Record<string, unknown> }> } | undefined;
   const directReasoning = [
+    ...collectTextArray(raw?.choices?.[0]?.delta?.reasoning_content),
+    ...collectTextArray(raw?.choices?.[0]?.delta?.reasoning_details),
     ...collectTextArray(additionalKwargs.reasoning_content),
     ...collectTextArray(additionalKwargs.reasoning_details),
     ...extractReasoningTextFromSummary(additionalKwargs.reasoning),
@@ -309,6 +312,8 @@ export function diffAccumulatedText(previousBuffer: string, nextBuffer?: string)
 }
 
 export class ThinkTagStreamFilter {
+  private structuredBody = false;
+  constructor(private readonly protectStructuredContent = false) {}
   private pending = "";
 
   private insideThink = false;
@@ -320,6 +325,20 @@ export class ThinkTagStreamFilter {
 
   flush(): StreamFilterResult {
     return this.consume(true);
+  }
+
+  private safeLength(flush: boolean, tags: string[]): number {
+    if (flush) return this.pending.length;
+    let keep = 0;
+    for (const tag of tags) {
+      for (let size = Math.min(tag.length - 1, this.pending.length); size > keep; size -= 1) {
+        if (this.pending.endsWith(tag.slice(0, size))) {
+          keep = size;
+          break;
+        }
+      }
+    }
+    return this.pending.length - keep;
   }
 
   private consume(flush: boolean): StreamFilterResult {
@@ -340,7 +359,7 @@ export class ThinkTagStreamFilter {
           this.insideThink = false;
           continue;
         }
-        const safeLength = flush ? this.pending.length : Math.max(0, this.pending.length - (THINK_CLOSE_TAG.length - 1));
+        const safeLength = this.safeLength(flush, [THINK_CLOSE_TAG]);
         if (safeLength === 0) {
           break;
         }
@@ -350,6 +369,13 @@ export class ThinkTagStreamFilter {
       }
 
       const openIndex = this.pending.indexOf(THINK_OPEN_TAG);
+      const jsonStart = this.pending.search(/[\[{]/);
+      if (this.structuredBody || (this.protectStructuredContent && jsonStart >= 0 && (openIndex < 0 || jsonStart < openIndex))) {
+        this.structuredBody = true;
+        text += this.pending;
+        this.pending = "";
+        break;
+      }
       if (openIndex >= 0) {
         text += this.pending.slice(0, openIndex);
         this.pending = this.pending.slice(openIndex + THINK_OPEN_TAG.length);
@@ -357,7 +383,7 @@ export class ThinkTagStreamFilter {
         continue;
       }
 
-      const safeLength = flush ? this.pending.length : Math.max(0, this.pending.length - (THINK_OPEN_TAG.length - 1));
+      const safeLength = this.safeLength(flush, [THINK_OPEN_TAG, THINK_CLOSE_TAG]);
       if (safeLength === 0) {
         break;
       }
@@ -373,21 +399,31 @@ export class ThinkTagStreamFilter {
 }
 
 export class ReasoningStreamCollector {
-  private readonly thinkFilter = new ThinkTagStreamFilter();
+  private readonly thinkFilter: ThinkTagStreamFilter;
+  constructor(protectStructuredContent = false) { this.thinkFilter = new ThinkTagStreamFilter(protectStructuredContent); }
 
   private miniMaxReasoningBuffer = "";
 
   push(chunk: BaseMessageChunk, text: string): string {
+    return this.pushParts(chunk, text).reasoning;
+  }
+
+  pushParts(chunk: BaseMessageChunk, text: string): { text: string; reasoning: string } {
     const rawResponse = (chunk.additional_kwargs as { __raw_response?: unknown } | undefined)
       ?.__raw_response;
     const rawReasoning = extractMiniMaxRawStreamData(rawResponse).reasoningBuffer;
     const normalized = diffAccumulatedText(this.miniMaxReasoningBuffer, rawReasoning);
     this.miniMaxReasoningBuffer = normalized.nextBuffer;
     const direct = normalized.delta || extractReasoningTextFromChunk(chunk);
-    return uniqueJoinedText([direct, this.thinkFilter.push(text).reasoning]);
+    const filtered = this.thinkFilter.push(text);
+    return { text: filtered.text, reasoning: uniqueJoinedText([direct, filtered.reasoning]) };
   }
 
   flush(): string {
-    return this.thinkFilter.flush().reasoning;
+    return this.flushParts().reasoning;
+  }
+
+  flushParts(): { text: string; reasoning: string } {
+    return this.thinkFilter.flush();
   }
 }

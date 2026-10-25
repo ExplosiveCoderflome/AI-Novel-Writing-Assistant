@@ -1,3 +1,5 @@
+import { readStoredCreativeProfile, creativePromptGuidanceFromStored, resolveNamingBackground } from "../../../modules/novel/creative-profile";
+import { buildCreativeProfileContextBlock } from "../creativeProfile/creativePromptGuidance";
 import type { PromptContextBlock } from "../../core/promptTypes";
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -42,6 +44,7 @@ function stringifyJsonLike(value: string | null | undefined, fallback: string): 
 }
 
 export interface CharacterCastContextBlocksInput {
+  creativeProfileJson?: string | null;
   projectTitle: string;
   storyInput: string;
   genreName?: string | null;
@@ -90,6 +93,7 @@ function formatWorldFocusHints(input: {
 
 export function buildCharacterCastContextBlocks(input: CharacterCastContextBlocksInput): PromptContextBlock[] {
   const blocks = [
+    buildCreativeProfileContextBlock(creativePromptGuidanceFromStored(input, "planning")),
     createBlock({
       id: "character_cast_story_input",
       group: "idea_seed",
@@ -110,6 +114,7 @@ export function buildCharacterCastContextBlocks(input: CharacterCastContextBlock
         `题材：${toOptionalText(input.genreName) ?? "未指定"}`,
         input.storyModeBlock ? `故事模式：\n${input.storyModeBlock}` : "故事模式：无",
         `文风基调：${toOptionalText(input.styleTone) ?? "未指定"}`,
+        input.creativeProfileJson ? `人物命名背景（角色自己的年代优先）：${JSON.stringify(resolveNamingBackground(readStoredCreativeProfile(input)))}` : null,
         `叙事视角：${toOptionalText(input.narrativePov) ?? "未指定"}`,
         `节奏偏好：${toOptionalText(input.pacePreference) ?? "未指定"}`,
         `情绪强度：${toOptionalText(input.emotionIntensity) ?? "未指定"}`,
@@ -206,6 +211,7 @@ export function buildCharacterCastContextBlocks(input: CharacterCastContextBlock
 }
 
 export interface CharacterCastSupplementalContextBlocksInput {
+  creativeProfileJson?: string | null;
   projectTitle: string;
   modeLabel: string;
   targetRoleLabel: string;
@@ -239,6 +245,7 @@ export function buildSupplementalCharacterContextBlocks(
   input: CharacterCastSupplementalContextBlocksInput,
 ): PromptContextBlock[] {
   const blocks = [
+    buildCreativeProfileContextBlock(creativePromptGuidanceFromStored(input, "planning")),
     createBlock({
       id: "supplemental_character_request",
       group: "idea_seed",
@@ -263,6 +270,7 @@ export function buildSupplementalCharacterContextBlocks(
         `题材：${toOptionalText(input.genreName) ?? "未指定"}`,
         input.storyModeBlock ? `故事模式：\n${input.storyModeBlock}` : "故事模式：无",
         `文风基调：${toOptionalText(input.styleTone) ?? "未指定"}`,
+        input.creativeProfileJson ? `人物命名背景（角色自己的年代优先）：${JSON.stringify(resolveNamingBackground(readStoredCreativeProfile(input)))}` : null,
         `叙事视角：${toOptionalText(input.narrativePov) ?? "未指定"}`,
         `节奏偏好：${toOptionalText(input.pacePreference) ?? "未指定"}`,
         `情绪强度：${toOptionalText(input.emotionIntensity) ?? "未指定"}`,

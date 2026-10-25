@@ -10,6 +10,8 @@ import {
 } from "../../llm/providers";
 import { normalizeRagText } from "./utils";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
+import { EmbeddingCheckpointStore, isEmbeddingVector } from "./indexing";
+import { readSanitizedResponseError } from "./transport";
 
 interface EmbeddingResult {
   vectors: number[][];
@@ -23,6 +25,13 @@ interface EmbeddingRuntimeTarget {
   apiKey?: string;
   baseUrl: string;
 }
+
+interface EmbeddingOptions {
+  checkpointScope?: string;
+  assertActive?: () => Promise<void>;
+}
+
+type SaveEmbeddingBatch = (texts: string[], vectors: number[][]) => Promise<void>;
 
 class EmbeddingRequestError extends Error {
   constructor(
@@ -57,27 +66,27 @@ function toErrorMessage(error: unknown): string {
   return "unknown error";
 }
 
-function truncateErrorText(rawText: string, maxLength = 240): string {
-  const text = rawText.replace(/\s+/g, " ").trim();
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.slice(0, maxLength)}...`;
-}
-
 export class EmbeddingService {
-  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  private readonly checkpointStores = new Map<string, EmbeddingCheckpointStore>();
+
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, consume: (response: Response) => Promise<T>): Promise<T> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ragConfig.embeddingTimeoutMs);
+    const timeoutMs = ragConfig.embeddingTimeoutMs;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetch(url, {
+      const response = await fetch(url, {
         ...init,
+        redirect: "error",
         signal: controller.signal,
       });
+      // Fetch resolves at headers; the deadline must include JSON/error-body reads.
+      return await consume(response);
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new EmbeddingRequestError(`Embedding request timed out (>${ragConfig.embeddingTimeoutMs}ms).`, true, true);
+      if (controller.signal.aborted) {
+        throw new EmbeddingRequestError(`Embedding request timed out (>${timeoutMs}ms).`, true, true);
       }
+      if (error instanceof EmbeddingRequestError) throw error;
+      if (error instanceof SyntaxError) throw new EmbeddingRequestError("Embedding response is not valid JSON.", false, false);
       throw new EmbeddingRequestError(`Embedding network request failed: ${toErrorMessage(error)}.`, true, true);
     } finally {
       clearTimeout(timer);
@@ -170,10 +179,11 @@ export class EmbeddingService {
     return resolved;
   }
 
-  private async requestEmbeddingBatch(texts: string[], target: EmbeddingRuntimeTarget): Promise<number[][]> {
+  private async requestEmbeddingBatch(texts: string[], target: EmbeddingRuntimeTarget, options?: EmbeddingOptions): Promise<number[][]> {
     for (let attempt = 0; attempt <= ragConfig.embeddingMaxRetries; attempt += 1) {
+      await options?.assertActive?.();
       try {
-        const response = await this.fetchWithTimeout(`${target.baseUrl}/embeddings`, {
+        return await this.fetchWithTimeout(`${target.baseUrl}/embeddings`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -183,34 +193,39 @@ export class EmbeddingService {
             model: target.model,
             input: texts,
           }),
+        }, async (response) => {
+          if (!response.ok) {
+            const errorText = await readSanitizedResponseError(response, target.apiKey);
+            const status = response.status;
+            const retryable = status === 408 || status === 409 || status === 429 || status >= 500;
+            const shouldSplitBatch = status === 413 || status === 414 || status === 429 || status >= 500;
+            throw new EmbeddingRequestError(
+              `Embedding request failed (${status}): ${errorText || "unknown error"}.`,
+              retryable,
+              shouldSplitBatch,
+            );
+          }
+
+          const payload = await response.json() as {
+            data?: Array<{ embedding?: unknown; index?: number }>;
+          };
+          if (!Array.isArray(payload?.data) || payload.data.length !== texts.length) {
+            throw new EmbeddingRequestError("Embedding response vector count did not match the input count.", false, false);
+          }
+          const rows = payload.data;
+          const hasIndexes = rows.some((row) => row?.index !== undefined);
+          if (hasIndexes && (rows.some((row) => !Number.isInteger(row?.index) || row.index! < 0 || row.index! >= texts.length)
+            || new Set(rows.map((row) => row.index)).size !== texts.length)) {
+            throw new EmbeddingRequestError("Embedding response indexes must cover each input exactly once.", false, false);
+          }
+          const ordered = hasIndexes ? [...rows].sort((a, b) => a.index! - b.index!) : rows;
+          const vectors = ordered.map((row) => row?.embedding);
+          if (!vectors.every(isEmbeddingVector)
+            || vectors.some((vector) => vector.length !== vectors[0].length)) {
+            throw new EmbeddingRequestError("Embedding response contains invalid or inconsistent vector dimensions.", false, false);
+          }
+          return vectors;
         });
-
-        if (!response.ok) {
-          const errorText = truncateErrorText(await response.text());
-          const status = response.status;
-          const retryable = status === 408 || status === 409 || status === 429 || status >= 500;
-          const shouldSplitBatch = status === 413 || status === 414 || status === 429 || status >= 500;
-          throw new EmbeddingRequestError(
-            `Embedding request failed (${status}): ${errorText || "unknown error"}.`,
-            retryable,
-            shouldSplitBatch,
-          );
-        }
-
-        const payload = await response.json() as {
-          data?: Array<{ embedding?: number[]; index?: number }>;
-        };
-
-        const vectors = (payload.data ?? [])
-          .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-          .map((item) => item.embedding ?? [])
-          .filter((item): item is number[] => Array.isArray(item) && item.length > 0);
-
-        if (vectors.length !== texts.length) {
-          throw new EmbeddingRequestError("Embedding response vector count did not match the input count.", false, false);
-        }
-
-        return vectors;
       } catch (error) {
         const normalized = this.normalizeRequestError(error);
         if (normalized.retryable && attempt < ragConfig.embeddingMaxRetries) {
@@ -224,23 +239,29 @@ export class EmbeddingService {
     throw new EmbeddingRequestError("Embedding request failed after exhausting retries.", true, true);
   }
 
-  private async embedWithAdaptiveSplit(texts: string[], target: EmbeddingRuntimeTarget): Promise<number[][]> {
+  private async embedWithAdaptiveSplit(
+    texts: string[], target: EmbeddingRuntimeTarget, options?: EmbeddingOptions, saveBatch?: SaveEmbeddingBatch,
+  ): Promise<number[][]> {
     try {
-      return await this.requestEmbeddingBatch(texts, target);
+      const vectors = await this.requestEmbeddingBatch(texts, target, options);
+      // Persist each successful adaptive sub-batch, even if a later sub-batch fails.
+      await saveBatch?.(texts, vectors);
+      return vectors;
     } catch (error) {
+      if (!(error instanceof EmbeddingRequestError)) throw error;
       const normalized = this.normalizeRequestError(error);
       if (texts.length <= 1 || !normalized.shouldSplitBatch) {
         throw normalized;
       }
 
       const splitAt = Math.ceil(texts.length / 2);
-      const leftVectors = await this.embedWithAdaptiveSplit(texts.slice(0, splitAt), target);
-      const rightVectors = await this.embedWithAdaptiveSplit(texts.slice(splitAt), target);
+      const leftVectors = await this.embedWithAdaptiveSplit(texts.slice(0, splitAt), target, options, saveBatch);
+      const rightVectors = await this.embedWithAdaptiveSplit(texts.slice(splitAt), target, options, saveBatch);
       return [...leftVectors, ...rightVectors];
     }
   }
 
-  async embedTexts(inputTexts: string[]): Promise<EmbeddingResult> {
+  async embedTexts(inputTexts: string[], options?: EmbeddingOptions): Promise<EmbeddingResult> {
     const texts = inputTexts
       .map((item) => normalizeRagText(item))
       .filter(Boolean);
@@ -263,7 +284,34 @@ export class EmbeddingService {
       model: this.resolveModel(provider, settings.model),
     };
 
-    const vectors = await this.embedWithAdaptiveSplit(texts, target);
+    let vectors: number[][];
+    if (options?.checkpointScope) {
+      const checkpointTarget = {
+        provider: target.provider, model: target.model, baseUrl: target.baseUrl, version: ragConfig.embeddingVersion,
+      };
+      const storeKey = JSON.stringify([options.checkpointScope, checkpointTarget]);
+      let store = this.checkpointStores.get(storeKey);
+      if (!store) {
+        store = new EmbeddingCheckpointStore(options.checkpointScope, checkpointTarget);
+        this.checkpointStores.set(storeKey, store);
+      }
+      await store.prepare();
+      const cached = await Promise.all(texts.map((text) => store.read(text)));
+      const missing = [...new Set(texts.filter((_, index) => !cached[index]))];
+      const saved = new Map<string, number[]>();
+      if (missing.length > 0) {
+        const fresh = await this.embedWithAdaptiveSplit(missing, target, options, async (batch, batchVectors) => {
+          await Promise.all(batch.map((text, index) => store!.write(text, batchVectors[index])));
+        });
+        missing.forEach((text, index) => saved.set(text, fresh[index]));
+      }
+      vectors = texts.map((text, index) => cached[index] ?? saved.get(text)!);
+      if (!vectors.every(isEmbeddingVector) || vectors.some((vector) => vector.length !== vectors[0].length)) {
+        throw new EmbeddingRequestError("Embedding checkpoint dimensions do not match the current model response.", false, false);
+      }
+    } else {
+      vectors = await this.embedWithAdaptiveSplit(texts, target, options);
+    }
     return {
       vectors,
       model: target.model,

@@ -34,7 +34,9 @@ test("clearFinishedJobs deletes only terminal job records", async () => {
   const originalTransaction = prisma.$transaction;
   const originalCount = prisma.ragIndexJob.count;
   const originalDeleteMany = prisma.ragIndexJob.deleteMany;
+  const originalFindMany = prisma.ragIndexJob.findMany;
   const calls = [];
+  prisma.ragIndexJob.findMany = async () => [];
 
   prisma.$transaction = async (operations) => Promise.all(operations);
   prisma.ragIndexJob.count = async (args) => {
@@ -70,6 +72,7 @@ test("clearFinishedJobs deletes only terminal job records", async () => {
           status: {
             in: ["succeeded", "failed", "cancelled"],
           },
+          OR: [{ ownerType: { not: "knowledge_document" } }],
         },
       },
     ]);
@@ -77,7 +80,24 @@ test("clearFinishedJobs deletes only terminal job records", async () => {
     prisma.$transaction = originalTransaction;
     prisma.ragIndexJob.count = originalCount;
     prisma.ragIndexJob.deleteMany = originalDeleteMany;
+    prisma.ragIndexJob.findMany = originalFindMany;
   }
+});
+
+test("unfinished index cleanup and rollback records cannot be removed as finished history", async (t) => {
+  const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
+  const service = new RagJobCleanupService();
+  const payloadJson = JSON.stringify({ replacement: { state: "committed", cleanupPending: true } });
+  stubDatabaseMethod(t, prisma.ragIndexJob, "findUnique", async () => ({ status: "failed", payloadJson }));
+  stubDatabaseMethod(t, prisma.ragIndexJob, "delete", async () => assert.fail("pending cleanup record was deleted"));
+  assert.deepEqual(await service.deleteFinishedJob("pending"), { status: "failed", deletedCount: 0 });
+  stubDatabaseMethod(t, prisma.ragIndexJob, "findMany", async () => [{ id: "pending", payloadJson }]);
+  stubDatabaseMethod(t, prisma.ragIndexJob, "count", async ({ where }) => { assert.deepEqual(where.OR[1], { id: { in: ["pending"] } }); return 1; });
+  stubDatabaseMethod(t, prisma.ragIndexJob, "deleteMany", async ({ where }) => {
+    assert.deepEqual(where.OR, [{ ownerType: { not: "knowledge_document" } }]); return { count: 0 };
+  });
+  stubDatabaseMethod(t, prisma, "$transaction", async (operations) => Promise.all(operations));
+  assert.deepEqual(await service.clearFinishedJobs(), { deletedCount: 0, activeCount: 1 });
 });
 
 test("deleteFinishedJob keeps active job records", async () => {

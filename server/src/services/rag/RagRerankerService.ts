@@ -1,4 +1,5 @@
 import { ragConfig } from "../../config/rag";
+import { readSanitizedResponseError } from "./transport";
 import type { RetrievedChunk } from "./types";
 
 export interface RagRerankerDocument {
@@ -101,6 +102,7 @@ export class RagRerankerService {
     try {
       const response = await fetch(ragConfig.rerankerEndpoint, {
         method: "POST",
+        redirect: "error",
         headers: buildHeaders(),
         signal: controller.signal,
         body: JSON.stringify({
@@ -118,7 +120,7 @@ export class RagRerankerService {
         }),
       });
       if (!response.ok) {
-        const detail = await response.text().catch(() => "");
+        const detail = await readSanitizedResponseError(response, ragConfig.rerankerApiKey).catch(() => "");
         return {
           used: false,
           results: [],

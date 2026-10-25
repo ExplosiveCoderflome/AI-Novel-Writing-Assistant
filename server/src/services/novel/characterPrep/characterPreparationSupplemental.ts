@@ -238,6 +238,7 @@ export class CharacterPreparationSupplementalService {
       ),
       genreName: novel.genre?.name ?? "未指定",
       storyModeBlock,
+      creativeProfileJson: novel.creativeProfileJson,
       styleTone: novel.styleTone ?? "未指定",
       narrativePov: novel.narrativePov ?? "未指定",
       pacePreference: novel.pacePreference ?? "未指定",

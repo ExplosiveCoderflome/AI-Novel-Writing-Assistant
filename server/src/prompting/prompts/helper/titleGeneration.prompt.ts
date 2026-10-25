@@ -8,12 +8,38 @@ import {
   minimumStyleVariety,
 } from "../../../services/title/titleGeneration.shared";
 import { titleGenerationRawOutputSchema } from "./titleGeneration.promptSchemas";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+  type CreativePromptGuidance,
+} from "../creativeProfile/creativePromptGuidance";
 
 export interface TitleGenerationPromptInput {
   context: TitlePromptContext;
   forceJson: boolean;
   retryReason: string | null;
+  /** 书的创作取向；未设置时提示词与 v2 逐字一致。 */
+  creativeGuidance?: CreativePromptGuidance | null;
 }
+
+/** 非网文取向：按作品取向选标题标准；clickRate 只为兼容旧格式，表示贴合度估计。 */
+const ORIENTATION_TITLE_RULES = {
+  identity: "你是中文小说书名策划。本书的创作取向由用户明确选择，书名标准服从这一取向：可以是文学化、意象化或朴素的书名，只要贴合作品、可读可记。",
+  titleField: "2. title 必须像这本书的书名，贴合作品取向与题材，适合封面展示，不要写成简介句、栏目名或世界观说明。",
+  clickRateField: "4. clickRate 使用 35-99 的整数，为兼容旧格式保留，表示书名与本书取向和目标读者的贴合度估计，不是点击率预测。",
+  reasonField: "8. reason 用 8-40 个字说明这个书名为什么贴合这本书，不要复述剧情。",
+  primaryQuality: `1. 主书名要让目标读者感到这本书的气质与关注点，并与作品内容相符。
+2. 优先从输入中已经存在的具体人物、关系、地点、物象或核心问题里取材；避免可套在任何故事上的空泛大词。
+3. 如果一个标题换到多数同类故事上仍然成立，它就不够具体，必须重写。
+4. 平台只影响发布呈现；文学化、意象化的书名可以作为主书名。
+5. 先确定主书名，再生成备选；不要用 clickRate 高低代替主书名决策。`,
+  poolQuality: `1. 每个标题都要和作品的人物、关系、处境或主题有可辨认的联系。
+2. 标题之间在取材角度上拉开：人物、关系、地点、物象、核心问题各有侧重。
+3. 至少 2 个标题不要机械复用用户原始关键词，换一个更贴切的切入角度。
+4. 不要求反差、异常规则或稀缺资源感；只有作品本身具备时才使用。`,
+  modeNovel: "你要围绕当前项目的题材基底、简介和现有标题，生成一组贴合作品取向的书名候选。当前标题只能作为避重参考，不能做同义改写。",
+  modeBrief: "你要围绕创作简报产出可供筛选的书名池，贴合作品取向与气质，而不是复述剧情。",
+} as const;
 
 function resolveModeLabel(mode: TitlePromptContext["mode"]): string {
   switch (mode) {
@@ -26,7 +52,7 @@ function resolveModeLabel(mode: TitlePromptContext["mode"]): string {
   }
 }
 
-function buildModeInstruction(input: TitlePromptContext): string {
+function buildModeInstruction(input: TitlePromptContext, webDefaults: boolean): string {
   if (input.selectionMode === "primary") {
     return "你要围绕当前方案做一次主书名决策：第一条是可直接采用的最终推荐，其余条目只是不同具体卖点角度的备选。";
   }
@@ -34,9 +60,13 @@ function buildModeInstruction(input: TitlePromptContext): string {
     case "adapt":
       return "你要学习参考标题的信息密度、节奏和钩子组织方式，但绝不能照抄词组、句式骨架或核心设定。";
     case "novel":
-      return "你要围绕当前项目的题材基底、简介和现有标题，生成一组更适合点击测试的候选。当前标题只能作为避重参考，不能做同义改写。";
+      return webDefaults
+        ? "你要围绕当前项目的题材基底、简介和现有标题，生成一组更适合点击测试的候选。当前标题只能作为避重参考，不能做同义改写。"
+        : ORIENTATION_TITLE_RULES.modeNovel;
     default:
-      return "你要围绕创作简报直接产出可用于筛选的标题池，突出题材卖点和点击冲动，而不是复述剧情。";
+      return webDefaults
+        ? "你要围绕创作简报直接产出可用于筛选的标题池，突出题材卖点和点击冲动，而不是复述剧情。"
+        : ORIENTATION_TITLE_RULES.modeBrief;
   }
 }
 
@@ -64,17 +94,33 @@ function buildTitleGenerationMessages(
   options: {
     forceJson?: boolean;
     retryReason?: string | null;
+    creativeGuidance?: CreativePromptGuidance | null;
   } = {},
 ): BaseMessage[] {
   const primarySelection = input.selectionMode === "primary";
   const forceJsonInstruction = options.forceJson
     ? "\n当前模型支持稳定 JSON 输出，请直接返回 JSON 对象本体。"
     : "";
+  const webDefaults = keepsWebSerialPromptDefaults(options.creativeGuidance);
+  const identity = webDefaults
+    ? `你是中文网文平台的资深标题策划。${primarySelection
+      ? "你的任务是为一套已经确定的长篇网文方向，直接确定最适合当前平台与读者的主书名，并给出少量备选。"
+      : "你的目标不是写“文艺名字”，而是输出一组适合封面展示、点击测试和投放筛选的小说标题候选。"}`
+    : `${ORIENTATION_TITLE_RULES.identity}${primarySelection
+      ? "你的任务是为一套已经确定的长篇小说方向确定主书名，并给出少量备选。"
+      : "你的目标是输出一组可供作者筛选的书名候选。"}${renderCreativeGuidanceSection(options.creativeGuidance).join("\n")}`;
+  const titleField = webDefaults
+    ? "2. title 必须像中文网文书名，适合封面展示，不要写成简介句、栏目名或世界观说明。"
+    : ORIENTATION_TITLE_RULES.titleField;
+  const clickRateField = webDefaults
+    ? "4. clickRate 使用 35-99 的整数，表示主观点击预估分。"
+    : ORIENTATION_TITLE_RULES.clickRateField;
+  const reasonField = webDefaults
+    ? "8. reason 用 8-40 个字说明标题为什么能成立，重点说“点击理由”，不要复述剧情。"
+    : ORIENTATION_TITLE_RULES.reasonField;
 
   return [
-    new SystemMessage(`你是中文网文平台的资深标题策划。${primarySelection
-      ? "你的任务是为一套已经确定的长篇网文方向，直接确定最适合当前平台与读者的主书名，并给出少量备选。"
-      : "你的目标不是写“文艺名字”，而是输出一组适合封面展示、点击测试和投放筛选的小说标题候选。"}
+    new SystemMessage(`${identity}
 
 【唯一任务】
 ${primarySelection
@@ -98,17 +144,19 @@ ${primarySelection
 
 【字段要求】
 1. 必须恰好输出 ${input.count} 个标题，不多不少。
-2. title 必须像中文网文书名，适合封面展示，不要写成简介句、栏目名或世界观说明。
-3. 标题建议 6-16 个汉字，最长不超过 20 个字符。
-4. clickRate 使用 35-99 的整数，表示主观点击预估分。
+${titleField}
+${webDefaults ? "3. 标题建议 6-16 个汉字，最长不超过 20 个字符。" : "3. 书名可以简短、意象化或朴素，建议 2-20 字，具体服从作品与语言文化。"}
+${clickRateField}
 5. style 只允许使用：literary / conflict / suspense / high_concept。
-6. hookType 表示标题主钩子机制，只允许使用：identity_gap / abnormal_situation / power_mutation / rule_hook / direct_conflict / high_concept。
+${webDefaults ? "6. hookType 表示标题主钩子机制，只允许使用：identity_gap / abnormal_situation / power_mutation / rule_hook / direct_conflict / high_concept。" : "6. hookType 为兼容旧格式保留上述枚举；意象或主题标题可用 high_concept，不据此强造悬念、规则、身份反差或外部冲突。"}
 7. angle 用 4-20 个字概括这一条标题主打的唯一切入角度。
-8. reason 用 8-40 个字说明标题为什么能成立，重点说“点击理由”，不要复述剧情。
+${reasonField}
 9. 禁止输出任何额外字段。
 
 【质量要求】
-${primarySelection
+${!webDefaults
+      ? (primarySelection ? ORIENTATION_TITLE_RULES.primaryQuality : ORIENTATION_TITLE_RULES.poolQuality)
+      : primarySelection
       ? `1. 主书名必须让目标读者快速识别这是什么类型的故事，以及最值得点开的独有承诺。
 2. 主书名至少清楚承载以下四类信息中的两类：主角身份或处境、题材场景或具体事件、独有机制或优势、必须付出的具体代价。
 3. 优先使用输入中已经存在的具体人物关系、职业场景、关键行动、异常规则和稀缺资源；不要把它们抽象成“成功、失败、失去、命运、真相、抉择”等可套在任何故事上的情绪词。
@@ -123,13 +171,13 @@ ${primarySelection
 5. 不要把所有标题都写成单一“求生困境”，必须同时覆盖“压力型”和“掌控型”标题。`}
 
 【多样性规则】
-1. ${buildDiversityInstruction(input)}
+1. ${webDefaults ? buildDiversityInstruction(input) : "按取材与意义拉开候选；允许同为 literary 的不同短书名，不强制固定句式框架或 style 配额。"}
 2. 严禁只换近义词、只换一个名词，或在同一标题骨架上做轻微改写。
 3. 不允许连续多个标题使用同一开头、同一标点骨架或同一反差结构。
 4. 冒号标题可以有，但不能刷屏；逗号反差句也不能刷屏。
 
 【模式理解】
-${buildModeInstruction(input)}
+${buildModeInstruction(input, webDefaults)}
 ${buildRetryInstruction(options.retryReason)}${forceJsonInstruction}`),
     new HumanMessage(`任务输入
 - 模式：${resolveModeLabel(input.mode)}
@@ -154,7 +202,7 @@ export const titleGenerationPrompt: PromptAsset<
   typeof titleGenerationRawOutputSchema._output
 > = {
   id: "title.generation",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -165,5 +213,6 @@ export const titleGenerationPrompt: PromptAsset<
   render: (input) => buildTitleGenerationMessages(input.context, {
     forceJson: input.forceJson,
     retryReason: input.retryReason,
+    creativeGuidance: input.creativeGuidance,
   }),
 };

@@ -2,8 +2,10 @@ import { ragConfig } from "../../config/rag";
 import type { RagOwnerType } from "./types";
 import type { RagChunkFacets } from "./chunkFacets";
 import { runWithConcurrency } from "./utils";
+import { readSanitizedResponseError } from "./transport";
 
 interface QdrantPayload {
+  indexGeneration?: string;
   tenantId: string;
   ownerType: RagOwnerType;
   ownerId: string;
@@ -41,6 +43,7 @@ export interface VectorSearchResult {
 }
 
 interface VectorSearchFilter {
+  knowledgeGenerations?: Array<{ ownerId: string; generation: string | null }>;
   tenantId: string;
   novelId?: string;
   worldId?: string;
@@ -65,6 +68,16 @@ function estimateJsonBytes(value: unknown): number {
 }
 
 export class VectorStoreService {
+  constructor(private readonly target?: { url: string; collection: string; apiKey: string }) {}
+  forTarget(target: { url: string; collection: string; apiKey: string }): VectorStoreService {
+    return new VectorStoreService({ ...target });
+  }
+  private collectionUrl(suffix: string): string {
+    return this.target ? `${this.target.url}/collections/${this.target.collection}${suffix}` : toCollectionUrl(suffix);
+  }
+  private headers(): HeadersInit {
+    return this.target ? { "Content-Type": "application/json", ...(this.target.apiKey ? { "api-key": this.target.apiKey } : {}) } : buildHeaders();
+  }
   private ensuredDimension = 0;
   private readonly upsertWrapperBytes = estimateJsonBytes({ points: [] });
   private static readonly timeoutPattern = /Qdrant 请求超时/;
@@ -92,17 +105,20 @@ export class VectorStoreService {
     console.warn(`${VectorStoreService.logPrefix} ${message}`);
   }
 
-  private async fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  private async fetchWithTimeout<T>(url: string, init: RequestInit, consume: (response: Response) => Promise<T>): Promise<T> {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ragConfig.qdrantTimeoutMs);
+    const timeoutMs = ragConfig.qdrantTimeoutMs;
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      return await fetch(url, {
+      const response = await fetch(url, {
         ...init,
+        redirect: "error",
         signal: controller.signal,
       });
+      return await consume(response);
     } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Qdrant 请求超时（>${ragConfig.qdrantTimeoutMs}ms）。`);
+      if (controller.signal.aborted) {
+        throw new Error(`Qdrant 请求超时（>${timeoutMs}ms）。`);
       }
       throw error;
     } finally {
@@ -111,22 +127,23 @@ export class VectorStoreService {
   }
 
   private async request<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await this.fetchWithTimeout(url, {
+    return this.fetchWithTimeout(url, {
       ...init,
       headers: {
-        ...buildHeaders(),
+        ...this.headers(),
         ...(init?.headers ?? {}),
       },
+    }, async (response) => {
+      if (!response.ok) {
+        const text = await readSanitizedResponseError(response, this.target?.apiKey ?? ragConfig.qdrantApiKey);
+        throw new Error(`Qdrant 请求失败(${response.status})：${text}`);
+      }
+      return await response.json() as T;
     });
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Qdrant 请求失败(${response.status})：${text}`);
-    }
-    return await response.json() as T;
   }
 
   private async upsertPointBatch(points: QdrantPoint[]): Promise<void> {
-    await this.request(toCollectionUrl("/points?wait=true"), {
+    await this.request(this.collectionUrl("/points?wait=true"), {
       method: "PUT",
       body: JSON.stringify({ points }),
     });
@@ -135,7 +152,9 @@ export class VectorStoreService {
   private async upsertPointBatchAdaptive(
     points: QdrantPoint[],
     context: { batchIndex: number; totalBatches: number; depth: number },
+    assertActive?: () => Promise<void>,
   ): Promise<void> {
+    await assertActive?.();
     const startedAt = Date.now();
     const batchBytes = estimateJsonBytes({ points });
     try {
@@ -173,11 +192,11 @@ export class VectorStoreService {
     await this.upsertPointBatchAdaptive(points.slice(0, splitAt), {
       ...context,
       depth: context.depth + 1,
-    });
+    }, assertActive);
     await this.upsertPointBatchAdaptive(points.slice(splitAt), {
       ...context,
       depth: context.depth + 1,
-    });
+    }, assertActive);
   }
 
   private splitPointBatches(points: QdrantPoint[]): QdrantPoint[][] {
@@ -222,7 +241,7 @@ export class VectorStoreService {
   private async ensurePayloadIndexes(): Promise<void> {
     for (const field of this.PAYLOAD_INDEX_FIELDS) {
       try {
-        await this.request(toCollectionUrl("/index"), {
+        await this.request(this.collectionUrl("/index"), {
           method: "PUT",
           body: JSON.stringify({ field_name: field, field_schema: "keyword" }),
         });
@@ -241,13 +260,16 @@ export class VectorStoreService {
       return;
     }
 
-    const getResponse = await this.fetchWithTimeout(toCollectionUrl(""), { headers: buildHeaders() });
+    const getResponse = await this.fetchWithTimeout(this.collectionUrl(""), { headers: this.headers() }, async (response) => ({
+      ok: response.ok, status: response.status,
+      text: response.ok ? await response.text() : await readSanitizedResponseError(response, this.target?.apiKey ?? ragConfig.qdrantApiKey),
+    }));
     if (getResponse.status === 404) {
       this.logInfo("Collection not found; creating collection.", {
         collection: ragConfig.qdrantCollection,
         dimension,
       });
-      await this.request(toCollectionUrl(""), {
+      await this.request(this.collectionUrl(""), {
         method: "PUT",
         body: JSON.stringify({
           vectors: {
@@ -261,10 +283,10 @@ export class VectorStoreService {
       return;
     }
     if (!getResponse.ok) {
-      const text = await getResponse.text();
+      const text = getResponse.text;
       throw new Error(`Qdrant 集合检查失败(${getResponse.status})：${text}`);
     }
-    const payload = await getResponse.json() as {
+    const payload = JSON.parse(getResponse.text) as {
       result?: {
         config?: {
           params?: {
@@ -287,7 +309,7 @@ export class VectorStoreService {
     this.ensuredDimension = dimension;
   }
 
-  async upsertPoints(points: QdrantPoint[]): Promise<void> {
+  async upsertPoints(points: QdrantPoint[], assertActive?: () => Promise<void>): Promise<void> {
     if (points.length === 0) {
       return;
     }
@@ -304,7 +326,7 @@ export class VectorStoreService {
         batchIndex: index + 1,
         totalBatches: batches.length,
         depth: 0,
-      });
+      }, assertActive);
     });
     this.logInfo("Upsert points finished.", {
       totalPoints: points.length,
@@ -318,16 +340,26 @@ export class VectorStoreService {
       return;
     }
     const startedAt = Date.now();
-    await this.request(toCollectionUrl("/points/delete?wait=true"), {
+    for (let offset = 0; offset < pointIds.length; offset += 1000) {
+    await this.request(this.collectionUrl("/points/delete?wait=true"), {
       method: "POST",
       body: JSON.stringify({
-        points: pointIds,
+        points: pointIds.slice(offset, offset + 1000),
       }),
     });
+    }
     this.logInfo("Delete points finished.", {
       points: pointIds.length,
       elapsedMs: Date.now() - startedAt,
     });
+  }
+
+  async deleteGeneration(tenantId: string, ownerId: string, generation: string): Promise<void> {
+    if (!tenantId || !ownerId || !/^[a-f0-9]{64}$/.test(generation)) throw new Error("Invalid staging cleanup scope.");
+    await this.request(this.collectionUrl("/points/delete?wait=true"), { method: "POST", body: JSON.stringify({ filter: { must: [
+      { key: "tenantId", match: { value: tenantId } }, { key: "ownerType", match: { value: "knowledge_document" } },
+      { key: "ownerId", match: { value: ownerId } }, { key: "indexGeneration", match: { value: generation } },
+    ] } }) });
   }
 
   async search(vector: number[], limit: number, filter: VectorSearchFilter): Promise<VectorSearchResult[]> {
@@ -374,10 +406,17 @@ export class VectorStoreService {
         match: { any: normalizedValues },
       });
     }
+    if (filter.knowledgeGenerations) {
+      if (filter.knowledgeGenerations.length === 0) return [];
+      must.push({ should: filter.knowledgeGenerations.map((item) => ({ must: [
+        { key: "ownerId", match: { value: item.ownerId } },
+        item.generation ? { key: "indexGeneration", match: { value: item.generation } } : { is_empty: { key: "indexGeneration" } },
+      ] })) });
+    }
 
     const response = await this.request<{
       result?: Array<{ id: string; score: number; payload?: QdrantPayload }>;
-    }>(toCollectionUrl("/points/search"), {
+    }>(this.collectionUrl("/points/search"), {
       method: "POST",
       body: JSON.stringify({
         vector,
@@ -399,13 +438,15 @@ export class VectorStoreService {
 
   async healthCheck(): Promise<{ ok: boolean; detail?: string }> {
     try {
-      const response = await this.fetchWithTimeout(`${ragConfig.qdrantUrl}/healthz`, {
-        headers: buildHeaders(),
+      await this.fetchWithTimeout(`${this.target?.url ?? ragConfig.qdrantUrl}/healthz`, {
+        headers: this.headers(),
+      }, async (response) => {
+        if (!response.ok) {
+          const text = await readSanitizedResponseError(response, this.target?.apiKey ?? ragConfig.qdrantApiKey);
+          throw new Error(`Qdrant health check failed(${response.status})：${text}`);
+        }
+        await response.text();
       });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Qdrant health check failed(${response.status})：${text}`);
-      }
       return { ok: true };
     } catch (error) {
       return { ok: false, detail: error instanceof Error ? error.message : "qdrant health check failed" };

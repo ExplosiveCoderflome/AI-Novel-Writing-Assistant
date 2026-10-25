@@ -4,7 +4,7 @@ import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import { appendLlmRepairSessionLog } from "./sessionLogFile";
 
 interface StructuredRepairLogInput {
-  event: "repair_start" | "repair_done" | "repair_error";
+  event: "repair_start" | "repair_done" | "repair_generation_done" | "repair_error";
   label: string;
   repairAttempt: number;
   provider?: LLMProvider;
@@ -61,9 +61,10 @@ export function logStructuredRepairSession(input: StructuredRepairLogInput): voi
     promptMeta: buildPromptMeta(input.promptMeta),
     validationError: input.validationError ?? null,
     schemaPaths: input.schemaPaths ?? [],
-    repairSystem: input.repairSystem ?? null,
-    repairHuman: input.repairHuman ?? null,
-    repairOutput: typeof input.rawOutput === "string" ? input.rawOutput : null,
+    repairSystem: process.env.LLM_DEBUG_INCLUDE_CONTENT === "true" ? input.repairSystem ?? null : null,
+    repairHuman: process.env.LLM_DEBUG_INCLUDE_CONTENT === "true" ? input.repairHuman ?? null : null,
+    repairOutput: process.env.LLM_DEBUG_INCLUDE_CONTENT === "true" ? input.rawOutput ?? null : null,
+    repairOutputChars: input.rawOutput?.length ?? null,
     repairError: input.error instanceof Error
       ? {
         name: input.error.name,

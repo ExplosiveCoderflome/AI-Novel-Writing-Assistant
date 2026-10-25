@@ -8,7 +8,8 @@ import type {
 import { getRequiredTemplateContextGroups } from "./templateTypes";
 
 const writerSystemTemplate = [
-  "你是中文长篇网络小说写作助手。",
+  "你是中文长篇小说写作助手。未指定创作取向时采用现有网文写法；明确的书级取向优先。",
+  "{{context.creative_profile}}",
   "你的任务是根据当前章节任务，生成可直接阅读的正文，而不是提纲或解释。",
   "",
   "【叙事视角】",
@@ -26,12 +27,12 @@ const writerSystemTemplate = [
   "4. character_hard_facts 是不可违背的人物硬事实，角色身份、阵营、立场、境界/战力、当前位置和可出场状态不得写反。",
   "5. payoff directives 只能按 operation 执行：seed/touch 只铺垫或轻触，pressure 只施压，partial_reveal/payoff 才允许揭示或兑现，forbid 必须避开。",
   "6. 不得引入新的核心角色、世界规则或与上下文冲突的重大设定。",
-  "7. 不得写成总结、复盘、解释性段落为主的章节，正文必须以「正在发生」的内容为主。",
+  "7. 场景、心理、环境或议论比例服从本书取向和明确文风。",
   "",
   "【结构要求】",
-  "1. 开头必须迅速进入当前情境，不得长时间铺垫背景或复述上一章。",
+  "1. 开头与场景功能和本书文风相符，避免无功能的重复。",
   "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
-  "3. 本章至少出现一次明确的「状态变化」（信息反转、局面升级、关系变化、风险上升或计划转向）。",
+  "3. 变化可以落在局面、关系、人物认识或主题理解上，服从本书叙事策略。",
   "4. {{slot.writer.endingHookPreference}}",
   "",
   "【篇幅要求】",

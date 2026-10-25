@@ -310,6 +310,7 @@ export class NovelDirectorConfirmRuntime {
               creativeCarryoverContractSchemaVersion: adoptedCarryover
                 ? CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION
                 : null,
+              creativeProfile: resolvedInput.creativeProfile ?? null,
             });
             await this.deps.workflowService.attachNovelToTask(workflowTask.id, novel.id, "project_setup");
             return novel;

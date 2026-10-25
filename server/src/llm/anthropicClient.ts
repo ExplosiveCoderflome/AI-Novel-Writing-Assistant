@@ -1,3 +1,5 @@
+import { normalizeApiBaseURL, originBoundFetch, readSseJSON, assertApiResponse } from "./protocols/transport";
+import { toJSONSchema } from "zod";
 import {applyCacheRequestPolicy,getPromptCacheBoundary,resolveCacheCapability} from "../platform/llm/cache";
 import { IterableReadableStream } from "@langchain/core/utils/stream";
 import {
@@ -15,13 +17,15 @@ interface AnthropicLLMOptions {
   temperature: number;
   maxTokens?: number;
   timeoutMs?: number;
+  modelKwargs?: Record<string, unknown>;
+  tools?: any[];
 }
 
 type AnthropicRole = "user" | "assistant";
 
 interface AnthropicMessage {
   role: AnthropicRole;
-  content: {type:"text";text:string}[];
+  content: any[];
 }
 
 function stringifyMessageContent(content: MessageContent | unknown): string {
@@ -52,10 +56,7 @@ function detectRole(message: BaseMessage): "system" | AnthropicRole {
   return "user";
 }
 
-function normalizeBaseURL(baseURL: string): string {
-  const trimmed = baseURL.trim().replace(/\/+$/u, "");
-  return trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
-}
+function normalizeBaseURL(baseURL: string): string { return normalizeApiBaseURL(baseURL,"anthropic"); }
 
 function convertMessages(messages: BaseMessage[]): { system?: {type:"text";text:string}[]; messages: AnthropicMessage[]; cacheBoundary: import("../platform/llm/cache").PromptCacheBoundary|null } {
   const systemParts: string[] = [];
@@ -65,6 +66,14 @@ function convertMessages(messages: BaseMessage[]): { system?: {type:"text";text:
   let cacheBoundary:import("../platform/llm/cache").PromptCacheBoundary|null=null;
   for (const [sourceIndex,message] of messages.entries()) {
     const content = stringifyMessageContent(message.content).trim();
+    const tools = (message as any).tool_calls as any[] | undefined;
+    const preserved = (message.additional_kwargs as any)?.anthropic_content as any[] | undefined;
+    if (message._getType() === "tool") {
+      converted.push({role:"user",content:[{type:"tool_result",tool_use_id:(message as any).tool_call_id,content}]}); continue;
+    }
+    if (tools?.length || preserved?.length) {
+      converted.push({role:"assistant",content:preserved ?? [...(content?[{type:"text",text:content}]:[]),...tools!.map(t=>({type:"tool_use",id:t.id,name:t.name,input:t.args}))]}); continue;
+    }
     if (!content) {
       continue;
     }
@@ -108,39 +117,7 @@ function extractTextContent(payload: unknown): string {
   }).join("");
 }
 
-function parseStreamLine(line: string): unknown | null {
-  const trimmed = line.trim();
-  if (!trimmed.startsWith("data:")) {
-    return null;
-  }
-  const raw = trimmed.slice("data:".length).trim();
-  if (!raw || raw === "[DONE]") {
-    return null;
-  }
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
-}
-
-function extractDeltaText(event: unknown): string {
-  if (!event || typeof event !== "object") {
-    return "";
-  }
-  const delta = (event as { delta?: unknown }).delta;
-  if (!delta || typeof delta !== "object") {
-    return "";
-  }
-  const candidate = delta as { type?: unknown; text?: unknown };
-  return candidate.type === "text_delta" && typeof candidate.text === "string" ? candidate.text : "";
-}
-
-export function createAnthropicLLM(options: AnthropicLLMOptions): {
-  invoke: (messages: BaseMessage[], callOptions?: { signal?: AbortSignal }) => Promise<AIMessage>;
-  stream: (messages: BaseMessage[], callOptions?: { signal?: AbortSignal }) => Promise<AsyncIterable<AIMessageChunk>>;
-  batch: (messages: BaseMessage[][], callOptions?: { signal?: AbortSignal }) => Promise<AIMessage[]>;
-} {
+export function createAnthropicLLM(options: AnthropicLLMOptions) {
   async function postMessages(messages: BaseMessage[], callOptions?: { signal?: AbortSignal }, stream = false) {
     const converted = convertMessages(messages);
     if (converted.messages.length === 0) {
@@ -166,7 +143,7 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
     if (signal?.aborted) onAbort();
     try {
       controller.signal.throwIfAborted();
-      const response = await fetch(`${normalizeBaseURL(options.baseURL)}/messages`, {
+      const response = await originBoundFetch(options.baseURL)(`${normalizeBaseURL(options.baseURL)}/messages`, {
         method: "POST",
         signal: controller.signal,
         headers: {
@@ -177,16 +154,15 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
         body: JSON.stringify(applyCacheRequestPolicy({
           model: options.model,
           max_tokens: options.maxTokens ?? 4096,
-          temperature: options.temperature,
+          ...(options.modelKwargs?.thinking && (options.modelKwargs.thinking as any).type !== "disabled" ? {} : {temperature: options.temperature}),
+          ...options.modelKwargs,
+          ...(options.tools?.length ? {tools:options.tools.map((t:any)=>({name:t.function?.name ?? t.name,description:t.function?.description ?? t.description,input_schema:t.function?.parameters ?? (t.schema?.safeParse?toJSONSchema(t.schema):t.schema)}))}:{}),
           stream,
           ...(converted.system ? { system: converted.system } : {}),
           messages: converted.messages,
         },resolveCacheCapability({model:options.model,protocol:"anthropic",baseURL:options.baseURL}),converted.cacheBoundary)),
       });
-      if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(`Anthropic request failed (${response.status}): ${detail || response.statusText}`);
-      }
+      await assertApiResponse(response,options.apiKey);
       return { response, controller, cleanup };
     } catch (error) {
       cleanup();
@@ -195,83 +171,75 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
   }
 
   return {
-    async invoke(messages, callOptions) {
+    bindTools(tools:any[]) { return createAnthropicLLM({...options,tools}); },
+    async invoke(messages: BaseMessage[], callOptions?: {signal?:AbortSignal}) {
       const { response, cleanup } = await postMessages(messages, callOptions, false);
       try {
-        const payload = await response.json();
+        const payload = await response.json() as any;
         return new AIMessage({
           content: extractTextContent(payload),
-          response_metadata: payload && typeof payload === "object" ? payload as Record<string, unknown> : {},
+          response_metadata: {...payload,finish_reason:payload.stop_reason},
+          additional_kwargs:{anthropic_content:payload.content,reasoning_content:(payload.content ?? []).filter((p:any)=>p.type==="thinking").map((p:any)=>p.thinking).join("")},
+          tool_calls:(payload.content ?? []).filter((p:any)=>p.type==="tool_use").map((p:any)=>({name:p.name,id:p.id,args:p.input,type:"tool_call"})),
         });
       } finally {
         cleanup();
       }
     },
-    async stream(messages, callOptions) {
+    async stream(messages: BaseMessage[], callOptions?: {signal?:AbortSignal}) {
       const { response, controller, cleanup } = await postMessages(messages, callOptions, true);
       const body = response.body;
       if (!body) {
         cleanup();
         throw new Error("Anthropic stream response body is empty.");
       }
-      const reader = body.getReader();
       let finished = false;
       const finish = async () => {
         if (finished) return;
-        finished = true;
-        cleanup();
+        finished = true; cleanup();
         controller.signal.removeEventListener("abort", onStreamAbort);
-        await reader.cancel().catch(() => undefined);
-        reader.releaseLock();
+        if (!body.locked) await body.cancel().catch(() => undefined);
       };
       const onStreamAbort = () => { void finish().catch(() => undefined); };
-      controller.signal.addEventListener("abort", onStreamAbort, { once: true });
+      controller.signal.addEventListener("abort", onStreamAbort, {once:true});
       if (controller.signal.aborted) await finish();
       const chunks = (async function* () {
-          const decoder = new TextDecoder();
-          let buffer = "";
-          let stopped = false;
-          let usage: Record<string, unknown> = {};
-          function eventChunk(event: unknown): AIMessageChunk | null {
-            if (!event || typeof event !== "object") return null;
-            const control=event as {type?:string;error?:{message?:string}};
-            if(control.type === "error") throw new Error(control.error?.message ?? "Anthropic stream error.");
-            if(control.type === "message_stop") stopped=true;
-            const e = event as { message?: { usage?: Record<string, unknown> }; usage?: Record<string, unknown> };
-            const reported = e.message?.usage ?? e.usage;
-            if (reported) usage = { ...usage, ...reported };
-            const text = extractDeltaText(event);
-            return text || reported ? new AIMessageChunk({ content: text, ...(reported ? { response_metadata: { usage } } : {}) }) : null;
+        let stopped = false, usage:Record<string,unknown> = {}, stopReason:string|undefined;
+        const blocks:any[]=[];
+        try {
+          for await (const {data:event} of readSseJSON(body,controller.signal)) {
+            controller.signal.throwIfAborted();
+            if (!event) continue;
+            if (event.type === "error") throw new Error(String(event.error?.message ?? "Anthropic 流返回服务错误，未接受部分结果。").split(options.apiKey || "[NO_KEY]").join("[REDACTED]").slice(0,240));
+            const reported = event.message?.usage ?? event.usage;
+            if (reported) usage={...usage,...reported};
+            if (event.type === "message_delta" && event.delta?.stop_reason) stopReason=event.delta.stop_reason;
+            let text="", reasoning=""; const tool_call_chunks:any[]=[];
+            if (event.type === "content_block_start") {
+              blocks[event.index]={...event.content_block};
+              const block=blocks[event.index];
+              if (block.type === "text") text=block.text ?? "";
+              if (block.type === "thinking") reasoning=block.thinking ?? "";
+              if (block.type === "tool_use") {block._json="";tool_call_chunks.push({name:block.name,id:block.id,index:event.index,args:"",type:"tool_call_chunk"});}
+            }
+            if (event.type === "content_block_delta") {
+              const d=event.delta ?? {}, block=blocks[event.index];
+              if (d.type === "text_delta") {text=d.text ?? "";if(block)block.text=(block.text ?? "")+text;}
+              if (d.type === "thinking_delta") {reasoning=d.thinking ?? "";if(block)block.thinking=(block.thinking ?? "")+reasoning;}
+              if (d.type === "signature_delta" && block) block.signature=(block.signature ?? "")+(d.signature ?? "");
+              if (d.type === "input_json_delta") {if(block)block._json=(block._json ?? "")+d.partial_json;tool_call_chunks.push({index:event.index,args:d.partial_json,type:"tool_call_chunk"});}
+            }
+            if (event.type === "message_stop") {
+              stopped=true;
+              for(const block of blocks) if(block?._json!==undefined) {block.input=block._json?JSON.parse(block._json):block.input;delete block._json;}
+            }
+            if(text || reasoning || reported || stopReason || tool_call_chunks.length || (stopped && blocks.length)) yield new AIMessageChunk({content:text,tool_call_chunks,
+              additional_kwargs:{...(reasoning?{reasoning_content:reasoning}:{}),...(stopped?{anthropic_content:blocks.filter(Boolean)}:{})},
+              response_metadata:{...(reported?{usage}:{}),...(stopReason?{finish_reason:stopReason}: {})}});
+            if(stopped) break;
           }
-          try {
-            while (true) {
-              controller.signal.throwIfAborted();
-              const { value, done } = await reader.read();
-              controller.signal.throwIfAborted();
-              if (done) {
-                break;
-              }
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split(/\r?\n/u);
-              buffer = lines.pop() ?? "";
-              for (const line of lines) {
-                const chunk = eventChunk(parseStreamLine(line));
-                if (chunk) yield chunk;
-              }
-              if (stopped) break;
-            }
-            const tail = decoder.decode();
-            if (tail) {
-              buffer += tail;
-            }
-            for (const line of buffer.split(/\r?\n/u)) {
-              const chunk = eventChunk(parseStreamLine(line));
-              if (chunk) yield chunk;
-            }
-            if (!stopped) throw new Error("Anthropic stream interrupted before message_stop.");
-          } finally {
-            await finish();
-          }
+          if(!stopped) throw new Error("Anthropic stream interrupted before message_stop.");
+        } finally {await finish();}
       })();
       return new IterableReadableStream<AIMessageChunk>({
         async pull(output) {
@@ -292,7 +260,7 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
         },
       }, { highWaterMark: 0 });
     },
-    async batch(messages, callOptions) {
+    async batch(messages: BaseMessage[][], callOptions?: {signal?:AbortSignal}) {
       return Promise.all(messages.map((entry) => this.invoke(entry, callOptions)));
     },
   };

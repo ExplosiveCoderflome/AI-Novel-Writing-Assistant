@@ -58,6 +58,7 @@ async function loadPreviewNovelAndChapter(input: {
         targetAudience: true,
         bookSellingPoint: true,
         first30ChapterPromise: true,
+        creativeProfileJson: true,
         narrativePov: true,
         pacePreference: true,
         emotionIntensity: true,

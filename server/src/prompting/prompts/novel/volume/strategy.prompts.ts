@@ -16,6 +16,15 @@ import {
   buildVolumeStrategyCritiqueContextBlocks,
 } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+} from "../../creativeProfile/creativePromptGuidance";
+import {
+  VOLUME_CRITIQUE_ORIENTATION_RULES as CRITIQUE_RULES,
+  VOLUME_ORIENTATION_FIELD_MEANING,
+  VOLUME_STRATEGY_ORIENTATION_RULES as STRATEGY_RULES,
+} from "../../creativeProfile/orientationPromptRules";
 
 interface CreateVolumeStrategyPromptConfig {
   maxVolumeCount?: number;
@@ -47,7 +56,7 @@ export function createVolumeStrategyPrompt(
 
   return {
     id: "novel.volume.strategy",
-    version: "v2",
+    version: "v3",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -64,10 +73,16 @@ export function createVolumeStrategyPrompt(
       fixedRecommendedVolumeCount,
       hardPlannedVolumeRange,
     }),
-    render: (_input, context) => [
+    render: (input, context) => {
+      // 旧调用与测试可能只传上下文块，novel 缺省时按未设置处理。
+      const guidance = input.novel?.creativeGuidance;
+      const webDefaults = keepsWebSerialPromptDefaults(guidance);
+      return [
       new SystemMessage([
-        "你是长篇网文分卷策略规划助手。",
+        webDefaults ? "你是长篇网文分卷策略规划助手。" : STRATEGY_RULES.identity,
         "你的任务不是直接生成最终分卷骨架，而是先确定整本书应分几卷、哪些卷需要硬规划、哪些卷只保留软规划，并给出一套适合连载推进的分卷策略。",
+        ...renderCreativeGuidanceSection(guidance),
+        ...(webDefaults ? [] : [VOLUME_ORIENTATION_FIELD_MEANING]),
         "",
         "【任务边界】",
         "当前阶段只做整书层面的分卷策略，不展开单卷骨架，不展开章节，不补写剧情细纲。",
@@ -88,17 +103,19 @@ export function createVolumeStrategyPrompt(
         "如果没有固定卷数，必须在结构建议区间内结合故事结构决策，不要只按章节数平均除法切卷。",
         "紧凑全书也必须服从上下文给出的三幕卷数约束：开局、转向和终局必须各有独立空间，避免把结尾塞进前期推进。",
         "超长篇必须避免把大量章节压成少数巨卷；不要让单卷粗到失去阶段感、回报节点和卷级工作台意义。",
-        "如果 Story macro 存在，每个 volume.roleLabel 都必须能映射到主线卖点、冲突升级、成长路径或结尾风味之一。",
+        webDefaults
+          ? "如果 Story macro 存在，每个 volume.roleLabel 都必须能映射到主线卖点、冲突升级、成长路径或结尾风味之一。"
+          : STRATEGY_RULES.roleMapping,
         "如果 Story macro 为 none，不要臆造精细主线阶段；应采用更保守的卷数与更高 uncertainty，说明缺少主线骨架带来的风险。",
         "",
         "【核心目标】",
-        "1. strategy 必须优先服务连载追读动力，而不是一次性写死后半本。",
-        "2. 分卷策略必须兼顾开书抓力、中段续航、后段升级空间与长期连载可调度性。",
+        webDefaults ? "1. strategy 必须优先服务连载追读动力，而不是一次性写死后半本。" : STRATEGY_RULES.goal1,
+        webDefaults ? "2. 分卷策略必须兼顾开书抓力、中段续航、后段升级空间与长期连载可调度性。" : STRATEGY_RULES.goal2,
         "3. hard 规划用于锁定前期最关键的承诺、卖点、推进秩序与节奏稳定性。",
         "4. soft 规划用于保留后续卷的弹性，方便根据连载反馈、篇幅变化、卖点强化和剧情自然增长进行调整。",
         "",
         "【规划原则】",
-        "1. recommendedVolumeCount 不是均分剧情，而是按阶段承诺、卖点切换、局面升级和阶段性兑现来决定。",
+        webDefaults ? "1. recommendedVolumeCount 不是均分剧情，而是按阶段承诺、卖点切换、局面升级和阶段性兑现来决定。" : STRATEGY_RULES.countRule,
         "2. hardPlannedVolumeCount 只覆盖真正需要提前锁定的前期卷数，不要机械求多。",
         "3. 越靠前的卷，越需要明确控制；越靠后的卷，越应保留调整空间。",
         "4. 分卷策略必须让前几卷具备清晰的抓手、承诺和递进，避免刚开书就陷入长线铺陈。",
@@ -106,7 +123,7 @@ export function createVolumeStrategyPrompt(
         "",
         "【重点判断项】",
         "1. 这本书适合短卷数强推进，还是较多卷数分阶段展开，但决策必须尊重上下文给出的允许区间与固定卷数约束。",
-        "2. 前几卷是否承担开书、立主卖点、第一阶段兑现、世界扩展、格局升级等关键任务，是否必须硬规划。",
+        webDefaults ? "2. 前几卷是否承担开书、立主卖点、第一阶段兑现、世界扩展、格局升级等关键任务，是否必须硬规划。" : STRATEGY_RULES.keyTask,
         "3. 中后段是否存在较大弹性，适合保留软规划，以避免早期过度透支。",
         "4. 分卷数量是否与题材、主卖点密度、成长跨度、冲突层级和连载模式匹配。",
         "5. 判断故事是否需要三幕式、阶段副本、地图/势力扩展、能力成长阶梯、关系阶段变化或长期反派层级。",
@@ -132,12 +149,13 @@ export function createVolumeStrategyPrompt(
         "- volumes.length 必须等于 recommendedVolumeCount",
         `- hardPlannedVolumeCount 必须落在 ${hardPlannedVolumeRange.min}-${hardPlannedVolumeRange.max} 之间`,
         "- 前 hardPlannedVolumeCount 卷必须为 hard，后续卷必须为 soft",
-        "- 优先保证前期抓力、中期续航与后期可调度性",
+        webDefaults ? "- 优先保证前期抓力、中期续航与后期可调度性" : STRATEGY_RULES.outputPriority,
         "",
         "【规划上下文】",
         renderSelectedContextBlocks(context),
       ].join("\n")),
-    ],
+      ];
+    },
   };
 }
 
@@ -146,7 +164,7 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
   ReturnType<typeof createVolumeStrategyCritiqueSchema>["_output"]
 > = {
   id: "novel.volume.strategy.critique",
-  version: "v1",
+  version: "v2",
   taskType: "review",
   mode: "structured",
   language: "zh",
@@ -156,13 +174,19 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
     preferredGroups: ["macro_constraints", "existing_volume_window", "guidance"],
   },
   outputSchema: createVolumeStrategyCritiqueSchema(),
-  render: (_input, context) => [
+  render: (input, context) => {
+    const guidance = input.novel?.creativeGuidance;
+    const webDefaults = keepsWebSerialPromptDefaults(guidance);
+    return [
     new SystemMessage([
-      "你是长篇网文分卷策略审查助手。",
+      webDefaults ? "你是长篇网文分卷策略审查助手。" : CRITIQUE_RULES.identity,
       "你的任务不是重写分卷策略，而是识别当前策略中会影响长篇连载稳定性的关键问题，并输出可供后续修正的结构化审查结果。",
+      ...renderCreativeGuidanceSection(guidance),
       "",
       "【任务边界】",
-      "只审查当前分卷策略是否存在：过早锁死、前后期规划失衡、回报同质、阶段升级断裂、卷数分配失真、软规划失去意义、不确定性声明不足等问题。",
+      webDefaults
+        ? "只审查当前分卷策略是否存在：过早锁死、前后期规划失衡、回报同质、阶段升级断裂、卷数分配失真、软规划失去意义、不确定性声明不足等问题。"
+        : CRITIQUE_RULES.scope,
       "不要改写整套策略，不要输出新的完整分卷方案，不要输出 Markdown、解释、注释或额外文本。",
       "只输出严格 JSON。",
       "",
@@ -172,16 +196,16 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
       "如果策略整体可接受，也可以输出空 issues，但不要为了凑问题而制造伪问题。",
       "",
       "【审查目标】",
-      "重点判断当前分卷策略是否真正服务于长篇网文连载，而不是表面上完成了 hard / soft 切分。",
+      webDefaults ? "重点判断当前分卷策略是否真正服务于长篇网文连载，而不是表面上完成了 hard / soft 切分。" : CRITIQUE_RULES.goal,
       "你的审查要关注结构风险，而不是措辞好不好看。",
       "",
       "【重点检查项】",
       "1. 是否过早锁死后半本，导致 soft 规划名义存在、实质失效。",
       "2. hardPlannedVolumeCount 是否过多或过少，导致前期不稳或后期弹性不足。",
       "3. recommendedVolumeCount 是否与题材体量、卖点密度、成长跨度和冲突层级明显失配。",
-      "4. 前几卷是否承担了清晰的开书抓手、主卖点建立和阶段承诺推进；若没有，应视为高优先级问题。",
-      "5. 各卷阶段职责是否过于同质，例如连续多卷都只是“继续推进”“继续升级”。",
-      "6. 分卷之间是否存在升级断裂、阶段目标断层、回报密度失衡或卷间功能重复。",
+      webDefaults ? "4. 前几卷是否承担了清晰的开书抓手、主卖点建立和阶段承诺推进；若没有，应视为高优先级问题。" : CRITIQUE_RULES.check4,
+      webDefaults ? "5. 各卷阶段职责是否过于同质，例如连续多卷都只是“继续推进”“继续升级”。" : CRITIQUE_RULES.check5,
+      webDefaults ? "6. 分卷之间是否存在升级断裂、阶段目标断层、回报密度失衡或卷间功能重复。" : CRITIQUE_RULES.check6,
       "7. soft 卷是否只有空泛方向，没有保留真正可调度的弹性。",
       "8. 策略中是否缺少对不确定性的承认，例如把尚未稳定的中后期发展写得过死。",
       "",
@@ -195,7 +219,7 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
       "detail 必须说明：问题是什么，为什么这是结构风险，它会造成什么连载后果。",
       "不要只写“节奏有问题”“规划偏死”“需要优化”这类空泛判断。",
       "要尽量指出问题的结构性质，例如：",
-      "- 前期承诺不足，导致读者难以建立追读理由",
+      webDefaults ? "- 前期承诺不足，导致读者难以建立追读理由" : CRITIQUE_RULES.detailExample,
       "- 中后段被过早写死，削弱连载中途调整空间",
       "- 相邻卷阶段职责重复，导致回报体验同质化",
       "",
@@ -203,7 +227,7 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
       "1. 只抓真正影响结构的关键问题，避免细枝末节泛滥。",
       "2. 同类问题不要重复拆成多条近义 issue。",
       "3. 如果一个问题会影响整套策略，应优先以更高层 targetRef 指出，而不是碎片化报错。",
-      "4. 审查结论要有网文连载视角，优先考虑抓力、续航、升级、兑现与可调度性。",
+      webDefaults ? "4. 审查结论要有网文连载视角，优先考虑抓力、续航、升级、兑现与可调度性。" : CRITIQUE_RULES.perspective,
       "5. 在信息不足时可以保守，但不要放过明显的结构隐患。",
     ].join("\n")),
     new HumanMessage([
@@ -218,7 +242,8 @@ export const volumeStrategyCritiquePrompt: PromptAsset<
       "【待审查的分卷策略上下文】",
       renderSelectedContextBlocks(context),
     ].join("\n")),
-  ],
+    ];
+  },
 };
 
 export {

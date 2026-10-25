@@ -1,3 +1,4 @@
+import { loadCreativePromptGuidance } from "../../modules/novel/creative-profile/loader";
 import type { AuditReport, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { readChapterQualityDebtDetails } from "@ai-novel/shared/types/chapterQualityLoop";
@@ -266,6 +267,7 @@ export class NovelCoreReviewService {
           chapterTitle,
           content,
           ragContext: ragContext || "",
+          creativeGuidance: await loadCreativePromptGuidance(novelId, "auditing"),
         },
         options: {
           provider: options.provider,

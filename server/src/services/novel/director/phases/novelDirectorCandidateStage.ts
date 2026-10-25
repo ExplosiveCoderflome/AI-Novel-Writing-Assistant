@@ -37,6 +37,7 @@ import {
 } from "../runtime/novelDirectorHelpers";
 import { DIRECTOR_PROGRESS } from "../projections/novelDirectorProgress";
 import { marketRadarService } from "../../../../modules/marketRadar/application/MarketRadarService";
+import { creativePromptGuidanceFromProfile } from "../../../../modules/novel/creative-profile";
 
 type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTaskRunning" | "recordCandidateSelectionRequired">;
 
@@ -200,6 +201,7 @@ export class NovelDirectorCandidateStageService {
         batches: context.batches,
         presets: context.presets,
         feedback: context.feedback,
+        creativeGuidance: creativePromptGuidanceFromProfile(context.request.creativeProfile, "positioning"),
       },
       contextBlocks: buildDirectorCandidateContextBlocks({
         idea: context.idea,
@@ -490,6 +492,7 @@ export class NovelDirectorCandidateStageService {
         batches: input.previousBatches,
         presets: input.presets ?? [],
         feedback: input.feedback,
+        creativeGuidance: creativePromptGuidanceFromProfile(input.creativeProfile, "positioning"),
       },
       contextBlocks: buildDirectorCandidateContextBlocks({
         idea: input.idea,
@@ -605,6 +608,7 @@ export class NovelDirectorCandidateStageService {
         feedback: input.feedback,
       }),
       genreId: input.genreId ?? null,
+      creativeProfile: input.creativeProfile,
       count: 4,
       provider: input.provider,
       model: input.model,

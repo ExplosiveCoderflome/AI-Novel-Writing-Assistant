@@ -26,7 +26,7 @@ function normalizeMaxTokens(maxTokens: unknown): number | undefined {
   if (normalized < 256) {
     return undefined;
   }
-  return normalized === 4096 ? undefined : normalized;
+  return Number.isSafeInteger(maxTokens) && normalized > 0 ? normalized : undefined;
 }
 
 interface LLMStoreState {

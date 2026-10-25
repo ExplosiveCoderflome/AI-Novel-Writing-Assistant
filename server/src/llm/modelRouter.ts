@@ -153,28 +153,24 @@ function normalizeProviderId(value: string | null | undefined): LLMProvider {
   return trimmed || "deepseek";
 }
 
-function normalizeMaxTokens(provider: LLMProvider, maxTokens?: number): number | undefined {
-  if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
-    return undefined;
+function normalizeMaxTokens(_provider: LLMProvider, maxTokens?: number): number | undefined {
+  if (maxTokens === undefined) return undefined;
+  if (!Number.isSafeInteger(maxTokens) || maxTokens <= 0) throw new Error("最大输出必须是正整数。");
+  return maxTokens;
+}
+async function readStoredMaxTokens(provider: LLMProvider, row: {maxTokens: number | null; taskType: string}): Promise<number | undefined> {
+  if (row.maxTokens === 4096) {
+    try {
+      const marker = await prisma.appSetting.findUnique({where:{key:`llm.routeOutputExplicit.${row.taskType}`}});
+      if (marker?.value !== "true") return undefined;
+    } catch (error) { if((error as {code?:string})?.code === "P2021") return undefined;throw error; }
   }
-  const normalized = Math.floor(maxTokens);
-  if (normalized < 1) {
-    return undefined;
-  }
-  // Historical UI defaults persisted 4096 as a placeholder for "use provider defaults".
-  if (normalized === 4096) {
-    return undefined;
-  }
-  const providerLimit = isBuiltInProvider(provider) ? PROVIDERS[provider].maxTokens : undefined;
-  if (typeof providerLimit === "number") {
-    return Math.min(normalized, providerLimit);
-  }
-  return normalized;
+  return normalizeMaxTokens(provider, row.maxTokens ?? undefined);
 }
 
 export function normalizeRequestProtocol(value?: string | null): ModelRouteRequestProtocol {
-  if (value === "openai_compatible" || value === "anthropic") {
-    return value;
+  if (["openai_compatible", "openai_responses", "deepseek", "anthropic", "gemini", "llama_cpp"].includes(value ?? "")) {
+    return value as ModelRouteRequestProtocol;
   }
   return "auto";
 }
@@ -286,15 +282,15 @@ export async function resolveModel(
         provider,
         model: row.model,
         temperature: row.temperature,
-        maxTokens: normalizeMaxTokens(provider, row.maxTokens ?? undefined),
+        maxTokens: await readStoredMaxTokens(provider, row),
         ...routePreferences,
         routeKey: normalizedTaskType,
         routeDegraded: false,
       };
       return applyOverrides(resolved, userOverride);
     }
-  } catch {
-    // table may not exist yet
+  } catch (error) {
+    if((error as {code?:string})?.code !== "P2021") throw error;
   }
 
   return applyOverrides({
@@ -318,7 +314,7 @@ export async function listModelRouteConfigs(): Promise<Array<{
     const rows = await prisma.modelRouteConfig.findMany({
       orderBy: { taskType: "asc" },
     });
-    return rows.map((r) => {
+    return Promise.all(rows.map(async (r) => {
       const provider = normalizeProviderId(r.provider);
       const routePreferences = normalizeRoutePreferences({
         requestProtocol: "requestProtocol" in r ? r.requestProtocol : null,
@@ -329,12 +325,13 @@ export async function listModelRouteConfigs(): Promise<Array<{
         taskType: r.taskType,
         model: r.model,
         temperature: r.temperature,
-        maxTokens: normalizeMaxTokens(provider, r.maxTokens ?? undefined) ?? null,
+        maxTokens: await readStoredMaxTokens(provider, r) ?? null,
         ...routePreferences,
       };
-    });
-  } catch {
-    return [];
+    }));
+  } catch (error) {
+    if((error as {code?:string})?.code === "P2021") return [];
+    throw error;
   }
 }
 
@@ -359,6 +356,9 @@ export async function upsertModelRouteConfig(
     requestProtocol: data.requestProtocol,
     structuredResponseFormat: data.structuredResponseFormat,
   });
+  await prisma.appSetting.upsert({where:{key:`llm.routeOutputExplicit.${normalizedTaskType}`},
+    create:{key:`llm.routeOutputExplicit.${normalizedTaskType}`,value:String(data.maxTokens != null)},
+    update:{value:String(data.maxTokens != null)}});
   await prisma.modelRouteConfig.upsert({
     where: { taskType: normalizedTaskType },
     create: {

@@ -10,6 +10,15 @@ import {
 import { type VolumeChapterDetailPromptInput } from "./shared";
 import { buildVolumeChapterDetailContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+  type CreativePromptGuidance,
+} from "../../creativeProfile/creativePromptGuidance";
+import {
+  CHAPTER_DETAIL_ORIENTATION_RULES as DETAIL_RULES,
+  READER_EXPERIENCE_ORIENTATION_MEANING,
+} from "../../creativeProfile/orientationPromptRules";
 
 const TITLE_EVENT_ANCHOR_HINTS = [
   "激活",
@@ -210,18 +219,25 @@ function validateAdjacentChapterBoundary<T extends {
   return output;
 }
 
-function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInput["detailMode"]): string {
+function createVolumeDetailSystemPrompt(
+  detailMode: VolumeChapterDetailPromptInput["detailMode"],
+  guidance: CreativePromptGuidance | null | undefined = null,
+): string {
+  const webDefaults = keepsWebSerialPromptDefaults(guidance);
+  const identity = webDefaults ? "你是资深网文章节编辑。" : DETAIL_RULES.identity;
+  const orientation = renderCreativeGuidanceSection(guidance);
   if (detailMode === "purpose") {
     return [
-      "你是资深网文章节编辑。",
+      identity,
       "当前任务是收束单章 purpose。",
       "只输出严格 JSON，且只包含 purpose 字段。",
       "purpose 必须说明这一章要推进什么，不要复述摘要。",
+      ...orientation,
     ].join("\n");
   }
   if (detailMode === "boundary") {
     return [
-      "你是资深网文章节编辑。",
+      identity,
       "当前任务是为单章定义执行边界。",
       "只输出严格 JSON，且只包含 exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs。",
       "exclusiveEvent 表示只能由本章承担的一次性里程碑事件，必须具体，不能写成空泛主题。",
@@ -230,20 +246,27 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
       "边界合同必须保证：上一章已完成的独占事件不重复，本章独占事件不偷跑到下一章，下一章只承接状态不重演本章里程碑。",
       "各字段必须与当前卷节奏和相邻章节保持一致。",
       "如果 conflict_level_curve 标出用户锚定的 conflictLevel，该数值是硬约束，不得改写。",
+      ...orientation,
     ].join("\n");
   }
   return [
-    "你是资深网文章节编辑。",
+    identity,
     "当前任务是生成可直接交给正文生成器的章节执行合同。",
+    ...orientation,
     "只输出严格 JSON，且只包含 taskSheet、readerExperience、sceneCards 三个字段。",
+    ...(webDefaults ? [] : [READER_EXPERIENCE_ORIENTATION_MEANING]),
     "taskSheet 是给用户读的简洁执行摘要，需要覆盖情绪基调、冲突对象、关键推进和收尾要求。",
     "readerExperience 是本章唯一的读者体验合同，必须包含 readerQuestion、promisedReward、rewardLevel、protagonistWant、primaryResistance、keyTurn、emotionalShift、informationReveal、netChange、inheritedHookResponsibilities、endingHook。",
     "rewardLevel 只能是 setup、partial、major；由本章在卷节奏中的职责决定，不要每章都写成 major。",
     "inheritedHookResponsibilities 必须优先承接相邻章已经提出的问题；没有明确旧钩子时返回空数组，不要编造。",
     "promisedReward 与 netChange 必须是读者在正文中能看见的回报和变化，不能写成作者意图或抽象主题。",
     "sceneCards 必须是 3-8 个场景卡数组，每个场景卡都必须包含 key、title、purpose、mustAdvance、mustPreserve、entryState、exitState、forbiddenExpansion、targetWordCount、resistance、turn、emotionalShift、readerValue。",
-    "每个场景都必须有具体阻力和转折；readerValue 要说明该场景给读者带来的推进、揭示、情绪或关系价值。",
-    "sceneCards 必须完整覆盖整章推进和结尾 hook，不要把整章压成一个场景。",
+    webDefaults
+      ? "每个场景都必须有具体阻力和转折；readerValue 要说明该场景给读者带来的推进、揭示、情绪或关系价值。"
+      : DETAIL_RULES.sceneValue,
+    webDefaults
+      ? "sceneCards 必须完整覆盖整章推进和结尾 hook，不要把整章压成一个场景。"
+      : DETAIL_RULES.sceneCoverage,
     "当前章节的 title、summary、purpose、exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、mustAvoid、payoffRefs 共同组成了本章硬边界合同。taskSheet 和 sceneCards 只能执行当前章合同，不能改写或覆盖它。",
     "你必须把 chapter_neighbors 视为相邻章边界提示：上一章已经完成的关键首次事件不能在本章重写一次，下一章标题或摘要中的关键首次事件也不能提前写进本章。",
     "本章结尾只能把局面推到下一章入口，不能直接落完下一章标题所承诺的核心里程碑。",
@@ -270,16 +293,21 @@ function createExecutionContractSystemPromptGarbledBackup(): string {
   ].join("\n");
 }
 
-function createExecutionContractSystemPrompt(): string {
+function createExecutionContractSystemPrompt(guidance: CreativePromptGuidance | null | undefined = null): string {
+  const webDefaults = keepsWebSerialPromptDefaults(guidance);
   return [
-    "你是资深网文章节编辑。",
+    webDefaults ? "你是资深网文章节编辑。" : DETAIL_RULES.identity,
     "当前任务是一次性生成可直接交给写作器的章节执行合同。",
+    ...renderCreativeGuidanceSection(guidance),
     "只输出严格 JSON，必须同时包含 purpose、exclusiveEvent、endingState、nextChapterEntryState、conflictLevel、revealLevel、targetWordCount、mustAvoid、payoffRefs、taskSheet、readerExperience、sceneCards。",
+    ...(webDefaults ? [] : [READER_EXPERIENCE_ORIENTATION_MEANING]),
     "purpose 用一句话说明本章到底要推进什么，不要写成摘要复述。",
     "exclusiveEvent / endingState / nextChapterEntryState 等字段不可缺失，它们是章节的硬边界合同。",
     "taskSheet 是给正文写作器的简洁执行指令，sceneCards 是 3-8 个场景卡的执行拆解。",
     "readerExperience 是本章唯一的读者体验合同，必须完整包含 readerQuestion、promisedReward、rewardLevel、protagonistWant、primaryResistance、keyTurn、emotionalShift、informationReveal、netChange、inheritedHookResponsibilities、endingHook。",
-    "rewardLevel 只能使用 setup、partial、major；promisedReward 和 netChange 必须能在正文中被读者直接感知。",
+    webDefaults
+      ? "rewardLevel 只能使用 setup、partial、major；promisedReward 和 netChange 必须能在正文中被读者直接感知。"
+      : DETAIL_RULES.reward,
     "sceneCards 除原字段外还必须包含 resistance、turn、emotionalShift、readerValue，确保每个场景都有阻力、转折和读者价值。",
     "taskSheet 和 sceneCards 只能执行当前章的合同，不得提前占用相邻章的一次性事件，也不得重写上一章已经完成的里程碑。",
     "如果 conflict_level_curve 标出用户锚定的 conflictLevel，该数值是硬约束，不得改写。",
@@ -312,7 +340,7 @@ export const volumeChapterPurposePrompt: PromptAsset<
   ReturnType<typeof createChapterPurposeSchema>["_output"]
 > = {
   id: "novel.volume.chapter_purpose",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -322,7 +350,7 @@ export const volumeChapterPurposePrompt: PromptAsset<
   },
   outputSchema: createChapterPurposeSchema(),
   render: (input, context) => [
-    new SystemMessage(createVolumeDetailSystemPrompt("purpose")),
+    new SystemMessage(createVolumeDetailSystemPrompt("purpose", input.novel?.creativeGuidance)),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => validatePurposeDistinct(output, input),
@@ -333,7 +361,7 @@ export const volumeChapterBoundaryPrompt: PromptAsset<
   ReturnType<typeof createChapterBoundarySchema>["_output"]
 > = {
   id: "novel.volume.chapter_boundary",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -343,7 +371,7 @@ export const volumeChapterBoundaryPrompt: PromptAsset<
   },
   outputSchema: createChapterBoundarySchema(),
   render: (input, context) => [
-    new SystemMessage(createVolumeDetailSystemPrompt("boundary")),
+    new SystemMessage(createVolumeDetailSystemPrompt("boundary", input.novel?.creativeGuidance)),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => validateBoundaryContract(output, input),
@@ -354,7 +382,7 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
   ReturnType<typeof createChapterTaskSheetSchema>["_output"]
 > = {
   id: "novel.volume.chapter_task_sheet",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -364,7 +392,7 @@ export const volumeChapterTaskSheetPrompt: PromptAsset<
   },
   outputSchema: createChapterTaskSheetSchema(),
   render: (input, context) => [
-    new SystemMessage(createVolumeDetailSystemPrompt("task_sheet")),
+    new SystemMessage(createVolumeDetailSystemPrompt("task_sheet", input.novel?.creativeGuidance)),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => validateAdjacentChapterBoundary(output, input),
@@ -375,14 +403,14 @@ export const volumeChapterExecutionContractPrompt: PromptAsset<
   ReturnType<typeof createChapterExecutionContractSchema>["_output"]
 > = {
   id: "novel.volume.chapter_execution_contract",
-  version: "v4",
+  version: "v5",
   taskType: "planner",
   mode: "structured",
   language: "zh",
   contextPolicy: baseContextPolicy,
   outputSchema: createChapterExecutionContractSchema(),
   render: (input, context) => [
-    new SystemMessage(createExecutionContractSystemPrompt()),
+    new SystemMessage(createExecutionContractSystemPrompt(input.novel?.creativeGuidance)),
     new HumanMessage(buildChapterDetailPrompt(renderSelectedContextBlocks(context), input.detailMode)),
   ],
   postValidate: (output, input) => {

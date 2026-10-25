@@ -12,6 +12,11 @@ import {
 import { type VolumeBeatSheetPromptInput } from "./shared";
 import { buildVolumeBeatSheetContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+} from "../../creativeProfile/creativePromptGuidance";
+import { VOLUME_BEAT_ORIENTATION_RULES as BEAT_RULES } from "../../creativeProfile/orientationPromptRules";
 
 const REQUIRED_SLOT_LINES = VOLUME_BEAT_REQUIRED_SLOT_KEYS
   .map((key) => `- ${key}（${getVolumeBeatRoleLabel(key)}）`)
@@ -30,7 +35,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
   ReturnType<typeof createVolumeBeatSheetSchema>["_output"]
 > = {
   id: "novel.volume.beat_sheet",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -47,11 +52,15 @@ export const volumeBeatSheetPrompt: PromptAsset<
     maxAttempts: 1,
   },
   outputSchema: createVolumeBeatSheetSchema(),
-  render: (input, context) => [
+  render: (input, context) => {
+    const guidance = input.novel?.creativeGuidance;
+    const webDefaults = keepsWebSerialPromptDefaults(guidance);
+    return [
     new SystemMessage([
-      "你是网文单卷节奏规划助手。",
+      webDefaults ? "你是网文单卷节奏规划助手。" : BEAT_RULES.identity,
       "你的任务不是写章节目录，也不是扩写剧情梗概，而是把“卷骨架”转成可供后续拆章使用的 beat sheet。",
       "beat 是卷内一个阶段性的节奏任务单元，代表一段章节范围内最主要的推进职责、阅读功能与必须兑现的内容。",
+      ...renderCreativeGuidanceSection(guidance),
       "",
       "【任务边界】",
       "当前阶段只生成单卷 beat sheet，不展开具体章节，不写场景细纲，不补人物小传，不写对白。",
@@ -79,6 +88,7 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "可选槽位（最多使用 2 个，用于本卷确实需要的额外阶段）：",
       OPTIONAL_SLOT_LINES,
       `推荐顺序：${SLOT_ORDER_LINE}`,
+      ...(webDefaults ? [] : [BEAT_RULES.slotMeaning]),
       "",
       "【硬性要求】",
       "1. beats 必须输出 6-8 条，且必须覆盖全部 6 个必需槽位。",
@@ -88,15 +98,15 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "5. summary 必须写清：这一拍推进了什么、承担什么节奏职责、与卷骨架中的哪类承诺或压力相关。",
       "6. chapterSpanHint 必须是非空字符串，使用类似“1-2章”“3章”“7-8章”的表达。",
       "7. mustDeliver 必须是 1-6 条非空字符串，优先写必须兑现的局面、信号、压力、转向、读者感知，不要只写抽象口号。",
-      "8. 各 beat 的节奏职责必须有差异，不能把多个 beat 都写成‘冲突升级’或‘继续推进’。",
-      "9. 不要把高潮前挤压写成提前高潮，也不要把卷尾钩子写成泛泛留白。",
+      webDefaults ? "8. 各 beat 的节奏职责必须有差异，不能把多个 beat 都写成‘冲突升级’或‘继续推进’。" : BEAT_RULES.rule8,
+      webDefaults ? "9. 不要把高潮前挤压写成提前高潮，也不要把卷尾钩子写成泛泛留白。" : BEAT_RULES.rule9,
       `10. 所有 chapterSpanHint 必须从第 1 章连续覆盖到第 ${input.targetChapterCount} 章附近，不能只覆盖少量开头章节。`,
       "11. summary 控制在 40-120 个汉字；mustDeliver 每条控制在 12-80 个汉字，禁止展开成剧情正文。",
       "12. 整份输出只保留 6-8 个节奏段所需信息，完成最后一个 beat 后立即结束 JSON。",
       "",
       "【卷骨架承接要求】",
       "1. open_hook 必须承接 target_volume 中的 openingHook 与 mainPromise。",
-      "2. first_escalation 与中前段 beats 必须逐步体现 primaryPressureSource 与 escalationMode。",
+      webDefaults ? "2. first_escalation 与中前段 beats 必须逐步体现 primaryPressureSource 与 escalationMode。" : BEAT_RULES.escalation,
       "3. midpoint_turn 必须体现 midVolumeRisk 或等价的局面转向，不能只是线性加码。",
       "4. climax 必须承接卷高潮承诺，形成明确兑现。",
       "5. end_hook 必须承接 nextVolumeHook，并通过 resetPoint 或残局重组形成下一卷入口。",
@@ -104,8 +114,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "【质量要求】",
       "1. 每个 beat 都要回答：这一段章节为什么必须存在。",
       "2. 相邻 beat 要形成递进或转向关系，而不是同义重复。",
-      "3. 节奏上要体现前段立钩子与承诺，中段换挡与抬代价，后段挤压与兑现，结尾留入口。",
-      "4. title 要具体到本卷，例如“夜市夺印”“宗门试炼开局”，不要输出“开卷抓手”“第一次升级”这类职能复读。",
+      webDefaults ? "3. 节奏上要体现前段立钩子与承诺，中段换挡与抬代价，后段挤压与兑现，结尾留入口。" : BEAT_RULES.rhythm,
+      webDefaults ? "4. title 要具体到本卷，例如“夜市夺印”“宗门试炼开局”，不要输出“开卷抓手”“第一次升级”这类职能复读。" : BEAT_RULES.titleExample,
       "5. 信息不足时也必须给出完整字段，但应保守，不要发明脱离上下文的大设定。",
       "",
       `Current volume target chapter count: ${input.targetChapterCount}.`,
@@ -128,7 +138,8 @@ export const volumeBeatSheetPrompt: PromptAsset<
       "",
       renderSelectedContextBlocks(context),
     ].join("\n")),
-  ],
+    ];
+  },
   postValidate: (output, input) => {
     const coverage = validateBeatSheetChapterCoverage({
       beatSheet: output,

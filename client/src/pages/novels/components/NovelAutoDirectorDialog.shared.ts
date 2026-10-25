@@ -55,6 +55,7 @@ export function buildAutoDirectorRequestPayload(
     idea: idea.trim(),
     workflowTaskId: workflowTaskId || undefined,
     marketBriefId: options?.marketBriefId?.trim() || undefined,
+    ...(basicForm.creativeProfile !== undefined ? { creativeProfile: basicForm.creativeProfile } : {}),
     title: basicForm.title.trim() || undefined,
     description: basicForm.description.trim() || undefined,
     targetAudience: basicForm.targetAudience.trim() || undefined,

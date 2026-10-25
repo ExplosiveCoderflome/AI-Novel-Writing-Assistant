@@ -1,3 +1,4 @@
+import { recoverCreativeProfilePreference } from "../../../../modules/novel/creative-profile";
 import type {
   DirectorCommandAcceptedResponse,
   DirectorRuntimePolicyUpdateRequest,
@@ -183,6 +184,7 @@ function resolveConfirmRequestFromTaskSeed(
       basicForm.first30ChapterPromise,
     ),
     commercialTags,
+    creativeProfile: recoverCreativeProfilePreference(input.creativeProfile, seed.creativeProfile, basicForm.creativeProfile),
     styleTone: recoverText(input.styleTone, seed.styleTone, basicForm.styleTone),
     styleIntentSummary,
     // #199: the create form omits this field when the chapter count stays on

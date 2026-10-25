@@ -1,5 +1,6 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
+import { creativePromptGuidanceFromProfile } from "../../../../modules/novel/creative-profile";
 import { BookContractGenerationService } from "../../bookContract";
 import { BookContractService } from "../../BookContractService";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
@@ -105,6 +106,7 @@ export async function runDirectorBookContractPhase(input: {
           candidate: request.candidate,
           storyMacroPlan: hydratedStoryMacroPlan,
           targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
+          creativeGuidance: creativePromptGuidanceFromProfile(request.creativeProfile, "positioning"),
         },
       });
     },

@@ -28,7 +28,7 @@ async function runIdeaInspirationPrompt(input: DirectorIdeaInspirationRequest, t
       provider: input.provider,
       model: input.model,
       temperature,
-      maxTokens: IDEA_INSPIRATION_MAX_TOKENS,
+      defaultMaxTokens: IDEA_INSPIRATION_MAX_TOKENS,
     },
   });
 }

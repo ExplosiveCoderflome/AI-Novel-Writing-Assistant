@@ -311,6 +311,7 @@ export class GenerationContextAssembler {
       return !novelStyleTone || normalized !== novelStyleTone;
     });
     const bookContract = buildBookContractContext({
+      creativeProfileJson: novel.creativeProfileJson,
       title: canonicalState.bookContract.title,
       genre: canonicalState.bookContract.genre ?? null,
       targetAudience: canonicalState.bookContract.targetAudience ?? novel.targetAudience,

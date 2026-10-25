@@ -1,3 +1,4 @@
+import { creativeGuidanceFromContext, keepsWebSerialPromptDefaults } from "../creativeProfile/creativePromptGuidance";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -74,7 +75,7 @@ export interface AuditChapterPromptInput {
 
 export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.infer<typeof lightAuditOutputSchema>> = {
   id: "audit.chapter.light",
-  version: "v1",
+  version: "v2",
   taskType: "light_review",
   mode: "structured",
   language: "zh",
@@ -94,6 +95,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
     ],
   },
   contextRequirements: [
+    { group: "creative_profile", priority: 106 },
     { group: "chapter_mission", priority: 100 },
     { group: "chapter_boundary", required: true, priority: 99 },
     { group: "structure_obligations", priority: 94 },
@@ -133,6 +135,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
       ?? "问题必须具体且可执行，默认优先让章节继续推进。";
     return [
     new SystemMessage([
+      ...(!keepsWebSerialPromptDefaults(creativeGuidanceFromContext(context)) ? ["按 creative_profile 评价人物、关系、主题与文风一致性；不因缺少网文升级、爽点或钩子扣分，收尾按明确选择评判。"] : []),
       "你是中文长篇小说章节轻审校助手。",
       "你的任务是快速判断当前章节是否可以继续推进，还是必须升级到完整审校。",
       "",
@@ -168,7 +171,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
 
 export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<typeof fullAuditOutputSchema>> = {
   id: "audit.chapter.full",
-  version: "v2",
+  version: "v3",
   taskType: "critical_review",
   mode: "structured",
   language: "zh",
@@ -188,6 +191,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     ],
   },
   contextRequirements: [
+    { group: "creative_profile", priority: 106 },
     { group: "chapter_mission", priority: 100 },
     { group: "chapter_boundary", required: true, priority: 99 },
     { group: "structure_obligations", required: true, priority: 94 },
@@ -238,6 +242,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       ?? "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。";
     return [
     new SystemMessage([
+      ...(!keepsWebSerialPromptDefaults(creativeGuidanceFromContext(context)) ? ["按 creative_profile 评价人物、关系、主题与文风一致性；不因缺少网文升级、爽点或钩子扣分，收尾按明确选择评判。"] : []),
       "repetition scoring: 0 means heavily repetitive, 100 means repetition is well controlled; higher is better.",
       "你是中文长篇小说章节审校助手。",
       "你的任务是基于章节正文、分层上下文、故事模式约束和检索补充，输出可被系统直接消费的严格 JSON 审校结果。",

@@ -22,6 +22,18 @@ import {
   directorPlanBlueprintSchema,
 } from "../../../services/novel/director/runtime/novelDirectorSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+  type CreativePromptGuidance,
+} from "../creativeProfile/creativePromptGuidance";
+import {
+  BOOK_CONTRACT_ORIENTATION_EXAMPLE,
+  BOOK_CONTRACT_ORIENTATION_FIELD_RULES,
+  BOOK_CONTRACT_ORIENTATION_QUALITY_RULES,
+  DIRECTOR_CANDIDATE_ORIENTATION_RULES,
+  ORIENTATION_NEUTRAL_IDENTITY,
+} from "../creativeProfile/orientationPromptRules";
 
 export interface DirectorCandidatePromptInput {
   idea: string;
@@ -30,6 +42,8 @@ export interface DirectorCandidatePromptInput {
   batches: DirectorCandidateBatch[];
   presets: DirectorCorrectionPreset[];
   feedback?: string;
+  /** 用户明确选择的创作取向（定位阶段）；未选择时不传，提示词与旧版一致。 */
+  creativeGuidance?: CreativePromptGuidance | null;
 }
 
 export interface DirectorCandidatePatchPromptInput {
@@ -39,6 +53,7 @@ export interface DirectorCandidatePatchPromptInput {
   batches: DirectorCandidateBatch[];
   presets: DirectorCorrectionPreset[];
   feedback: string;
+  creativeGuidance?: CreativePromptGuidance | null;
 }
 
 export interface DirectorBlueprintPromptInput {
@@ -55,6 +70,7 @@ export interface DirectorBookContractPromptInput {
   candidate: DirectorCandidate;
   storyMacroPlan: StoryMacroPlan | null;
   targetChapterCount: number;
+  creativeGuidance?: CreativePromptGuidance | null;
 }
 
 function formatPresetHints(presets: DirectorCorrectionPreset[]): string {
@@ -99,7 +115,7 @@ export const directorCandidatePrompt: PromptAsset<
   typeof directorCandidateResponseSchema._output
 > = {
   id: "novel.director.candidates",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -110,10 +126,13 @@ export const directorCandidatePrompt: PromptAsset<
     dropOrder: ["latest_batch"],
   },
   outputSchema: directorCandidateResponseSchema,
-  render: (input, context) => [
+  render: (input, context) => {
+    const webDefaults = keepsWebSerialPromptDefaults(input.creativeGuidance);
+    return [
     new SystemMessage([
-      "你是长篇小说书级方向规划导演，服务对象是不懂写作流程的新手用户。",
+      webDefaults ? "你是长篇小说书级方向规划导演，服务对象是不懂写作流程的新手用户。" : ORIENTATION_NEUTRAL_IDENTITY.directorCandidates,
       "你的任务不是展开大纲，也不是写章节，而是基于种子想法生成一批现在就可以继续推进整本书规划的候选方向卡片。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "",
       "【任务边界】",
       "当前阶段只生成书级候选卡片，不展开大纲、不进入章节、不进入场景细节、不补人物小传。",
@@ -122,7 +141,9 @@ export const directorCandidatePrompt: PromptAsset<
       "",
       "【字段要求】",
       "每个候选必须完整包含：workingTitle、logline、positioning、sellingPoint、coreConflict、protagonistPath、endingDirection、hookStrategy、progressionLoop、whyItFits、recommendedWritingPlatform、writingPlatformReason、toneKeywords、targetChapterCount。",
-      "可选字段 titleOptions（最多 4 条）：为封面与点击向的书名备选。每条必须含 title、clickRate（35-99 的整数）、style。",
+      webDefaults
+        ? "可选字段 titleOptions（最多 4 条）：为封面与点击向的书名备选。每条必须含 title、clickRate（35-99 的整数）、style。"
+        : DIRECTOR_CANDIDATE_ORIENTATION_RULES.titleOptions,
       "style 只能是以下四个英文小写值之一：literary、conflict、suspense、high_concept（与标题工坊一致），不得使用中文标签、同义词或其它拼写。",
       "angle、reason 可选；不要输出 titleOptions 以外的额外字段。",
       "若不需要书名备选，可省略 titleOptions 或置为空数组。",
@@ -136,11 +157,16 @@ export const directorCandidatePrompt: PromptAsset<
       "5. coreConflict 必须写清真正能支撑长篇连载的主要矛盾，不要只写一时事件。",
       "6. protagonistPath 必须体现主角长期变化方向，而不是静态人设描述。",
       "7. endingDirection 只给高层终局方向，不要写死详细结局。",
-      "8. hookStrategy 必须说明前期如何抓住读者追读，而不是空泛写“制造悬念”。",
-      "9. progressionLoop 必须说明这本书主要靠什么循环推进，比如升级、博弈、探索、关系裂变、任务兑现等。",
+      webDefaults
+        ? "8. hookStrategy 必须说明前期如何抓住读者追读，而不是空泛写“制造悬念”。"
+        : DIRECTOR_CANDIDATE_ORIENTATION_RULES.hookStrategy,
+      webDefaults
+        ? "9. progressionLoop 必须说明这本书主要靠什么循环推进，比如升级、博弈、探索、关系裂变、任务兑现等。"
+        : DIRECTOR_CANDIDATE_ORIENTATION_RULES.progressionLoop,
       "10. whyItFits 必须说明这条候选为什么适合当前用户输入，而不是夸候选本身。",
       "11. toneKeywords 必须是能帮助后续创作定调的关键词，避免空泛抒情词堆叠。",
       "12. recommendedWritingPlatform 只能是 fanqie_free、qidian_male、jinjiang_female。必须基于作品体验、受众、冲突引擎和推进方式判断，并在 writingPlatformReason 说明。若用户明确指定平台则采用指定值。不得用关键词或题材正则机械路由。",
+      ...(webDefaults ? [] : [DIRECTOR_CANDIDATE_ORIENTATION_RULES.platform]),
       "12. targetChapterCount 必须是合理的整书目标体量，与题材密度和推进方式相匹配。",
       "",
       "【差异化要求】",
@@ -180,7 +206,8 @@ export const directorCandidatePrompt: PromptAsset<
       "- 每套候选都必须可直接进入后续整书规划",
       "- 优先保证候选差异度、可执行性与新手可理解性",
     ].join("\n")),
-  ],
+    ];
+  },
 };
 
 export const directorCandidatePatchPrompt: PromptAsset<
@@ -188,7 +215,7 @@ export const directorCandidatePatchPrompt: PromptAsset<
   typeof directorCandidateSchema._output
 > = {
   id: "novel.director.candidate_patch",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -199,10 +226,13 @@ export const directorCandidatePatchPrompt: PromptAsset<
     dropOrder: ["latest_batch"],
   },
   outputSchema: directorCandidateSchema,
-  render: (input, context) => [
+  render: (input, context) => {
+    const webDefaults = keepsWebSerialPromptDefaults(input.creativeGuidance);
+    return [
     new SystemMessage([
       "你是长篇小说书级方向修正导演，服务对象是不懂写作流程的新手用户。",
       "你的任务不是重新发散两套新方案，而是基于用户已经偏向的一套候选，做一次定向修正。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "",
       "【任务边界】",
       "本次只输出 1 套修正后的完整候选卡片。",
@@ -218,13 +248,16 @@ export const directorCandidatePatchPrompt: PromptAsset<
       "【字段要求】",
       "输出字段必须完整包含：workingTitle、logline、positioning、sellingPoint、coreConflict、protagonistPath、endingDirection、hookStrategy、progressionLoop、whyItFits、recommendedWritingPlatform、writingPlatformReason、toneKeywords、targetChapterCount。",
       "可选字段 titleOptions（最多 4 条）：每条含 title、clickRate（35-99）、style；style 只能是 literary、conflict、suspense、high_concept 四者之一（英文小写）。",
+      ...(webDefaults ? [] : ["clickRate 为兼容旧格式保留，表示书名与本书取向和目标读者的贴合度估计，不是点击率预测。"]),
       "不需要书名备选时可省略 titleOptions 或置为空数组。",
       "不得缺漏字段，不得改名，不得新增 schema 之外字段。",
       "",
       "【质量要求】",
       "1. 修正后要比原方案更贴近用户口味，而不是更抽象。",
       "2. 如果用户要求都市感、现实感、钩子更强、冲突更猛等，要落实到卖点、冲突和推进循环，而不只是改几个词。",
-      "3. workingTitle 仍然必须适合中文网文封面展示，不要回退成概念短语或土味套壳名。",
+      webDefaults
+        ? "3. workingTitle 仍然必须适合中文网文封面展示，不要回退成概念短语或土味套壳名。"
+        : DIRECTOR_CANDIDATE_ORIENTATION_RULES.patchTitle,
       "4. whyItFits 必须说明这次修正为什么更贴近用户反馈。",
     ].join("\n")),
     new HumanMessage([
@@ -253,7 +286,8 @@ export const directorCandidatePatchPrompt: PromptAsset<
       "- 保留原候选主方向，不要重做成完全不同的书",
       "- 优先修准用户指出的偏差点",
     ].join("\n")),
-  ],
+    ];
+  },
 };
 
 export const directorBlueprintPrompt: PromptAsset<
@@ -261,7 +295,7 @@ export const directorBlueprintPrompt: PromptAsset<
   typeof directorPlanBlueprintSchema._output
 > = {
   id: "novel.director.blueprint",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -342,7 +376,7 @@ export const directorBookContractPrompt: PromptAsset<
   typeof directorBookContractSchema._output
 > = {
   id: "novel.director.book_contract",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -355,53 +389,38 @@ export const directorBookContractPrompt: PromptAsset<
   structuredOutputHint: {
     mode: "auto",
     note: "absoluteRedLines 必须输出 2 到 6 条，超过 6 条时先合并相近禁区再输出。",
-    example: {
-      readingPromise: "示例：持续提供哪一种追读满足感。",
-      protagonistFantasy: "示例：主角视角下最核心的代入爽点。",
-      coreSellingPoint: "示例：整本书最不可替代的核心卖点。",
-      chapter3Payoff: "示例：前 3 章必须兑现的抓手。",
-      chapter10Payoff: "示例：第 10 章左右的阶段回报。",
-      chapter30Payoff: "示例：第 30 章左右的中段承诺兑现。",
-      escalationLadder: "示例：整本书的升级阶梯。",
-      relationshipMainline: "示例：长期驱动推进的核心关系线。",
-      absoluteRedLines: [
-        "示例禁区 1",
-        "示例禁区 2",
-        "示例禁区 3",
-      ],
-    },
+    example: (input: DirectorBookContractPromptInput) => (keepsWebSerialPromptDefaults(input.creativeGuidance)
+      ? DIRECTOR_BOOK_CONTRACT_DEFAULT_EXAMPLE
+      : BOOK_CONTRACT_ORIENTATION_EXAMPLE),
   },
-  render: (input, context) => [
+  render: (input, context) => {
+    const webDefaults = keepsWebSerialPromptDefaults(input.creativeGuidance);
+    return [
     new SystemMessage([
-      "你是长篇网文总导演，负责把已确认的书级方向收束成一本书的 Book Contract。",
+      webDefaults
+        ? "你是长篇网文总导演，负责把已确认的书级方向收束成一本书的 Book Contract。"
+        : ORIENTATION_NEUTRAL_IDENTITY.bookContract,
       "服务对象是不懂写作流程的新手用户。",
       "你的任务不是重写大纲，而是提炼这本书后续所有规划都必须服从的高层创作契约。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "",
       "【任务边界】",
       "只输出严格 JSON，不要输出解释文本、Markdown、注释或额外字段。",
       "必须输出字段：readingPromise、protagonistFantasy、coreSellingPoint、chapter3Payoff、chapter10Payoff、chapter30Payoff、escalationLadder、relationshipMainline、absoluteRedLines。",
       "",
       "【字段要求】",
-      "1. readingPromise 必须写清这本书持续给读者什么阅读满足，说明读者为什么会追下去。",
-      "2. protagonistFantasy 必须写清主角视角下最核心的代入幻想或爽点承载，不要泛写成人设标签。",
-      "3. coreSellingPoint 必须指出这本书最不可替代的主卖点，而不是多个卖点平均罗列。",
-      "4. chapter3Payoff、chapter10Payoff、chapter30Payoff 必须体现明确的连载兑现节奏，说明在对应阶段读者能拿到什么阶段性满足。",
-      "5. escalationLadder 必须体现整书主要升级阶梯或压力抬升路径，而不是抽象写‘越来越难’。",
-      "6. relationshipMainline 必须写清核心关系线如何驱动长期推进，不要只写人物关系现状。",
-      "7. absoluteRedLines 必须是明确禁区，能防止故事写歪、卖点跑偏或角色失真。",
+      ...(webDefaults ? DIRECTOR_BOOK_CONTRACT_DEFAULT_FIELD_RULES : BOOK_CONTRACT_ORIENTATION_FIELD_RULES),
       "",
       "【核心原则】",
       "1. Book Contract 必须足够短硬，能指导后续分卷、拆章、续写与审查。",
       "2. 它不是宣传文案，而是创作约束文件。",
-      "3. 它必须同时服务前期抓力、中期续航、长期连载稳定性。",
+      webDefaults
+        ? "3. 它必须同时服务前期抓力、中期续航、长期连载稳定性。"
+        : "3. 它必须同时服务开篇、中段与长篇的稳定性，具体手段服从用户选择的取向。",
       "4. 对新手用户要清晰，不能写成模糊抽象的文学评论。",
       "",
       "【质量要求】",
-      "1. chapter3Payoff 应偏向开书抓手与快速兑现。",
-      "2. chapter10Payoff 应体现中前段建立后的第一阶段回报或局面变化。",
-      "3. chapter30Payoff 应体现更稳定的中段承诺兑现或阶段性大跃迁。",
-      "4. escalationLadder 要能与题材、主卖点、成长逻辑相匹配。",
-      "5. absoluteRedLines 必须具体可执行，避免“不要崩”“保持一致”这类空话。",
+      ...(webDefaults ? DIRECTOR_BOOK_CONTRACT_DEFAULT_QUALITY_RULES : BOOK_CONTRACT_ORIENTATION_QUALITY_RULES),
       "",
       "【生成原则】",
       "信息不足时可以保守补全，但必须保证每个字段都能真实约束后续创作。",
@@ -418,10 +437,48 @@ export const directorBookContractPrompt: PromptAsset<
       "【输出要求】",
       "- 只输出严格 JSON",
       "- 必须完整输出所有指定字段",
-      "- 优先保证可约束性、可执行性与连载节奏指导价值",
+      webDefaults
+        ? "- 优先保证可约束性、可执行性与连载节奏指导价值"
+        : "- 优先保证可约束性、可执行性，以及对所选取向的指导价值",
     ].join("\n")),
+    ];
+  },
+};
+
+/** 未设置取向或明确选择网文连载时的原文案，逐字保留。 */
+const DIRECTOR_BOOK_CONTRACT_DEFAULT_EXAMPLE = {
+  readingPromise: "示例：持续提供哪一种追读满足感。",
+  protagonistFantasy: "示例：主角视角下最核心的代入爽点。",
+  coreSellingPoint: "示例：整本书最不可替代的核心卖点。",
+  chapter3Payoff: "示例：前 3 章必须兑现的抓手。",
+  chapter10Payoff: "示例：第 10 章左右的阶段回报。",
+  chapter30Payoff: "示例：第 30 章左右的中段承诺兑现。",
+  escalationLadder: "示例：整本书的升级阶梯。",
+  relationshipMainline: "示例：长期驱动推进的核心关系线。",
+  absoluteRedLines: [
+    "示例禁区 1",
+    "示例禁区 2",
+    "示例禁区 3",
   ],
 };
+
+const DIRECTOR_BOOK_CONTRACT_DEFAULT_FIELD_RULES = [
+      "1. readingPromise 必须写清这本书持续给读者什么阅读满足，说明读者为什么会追下去。",
+      "2. protagonistFantasy 必须写清主角视角下最核心的代入幻想或爽点承载，不要泛写成人设标签。",
+      "3. coreSellingPoint 必须指出这本书最不可替代的主卖点，而不是多个卖点平均罗列。",
+      "4. chapter3Payoff、chapter10Payoff、chapter30Payoff 必须体现明确的连载兑现节奏，说明在对应阶段读者能拿到什么阶段性满足。",
+      "5. escalationLadder 必须体现整书主要升级阶梯或压力抬升路径，而不是抽象写‘越来越难’。",
+      "6. relationshipMainline 必须写清核心关系线如何驱动长期推进，不要只写人物关系现状。",
+      "7. absoluteRedLines 必须是明确禁区，能防止故事写歪、卖点跑偏或角色失真。",
+];
+
+const DIRECTOR_BOOK_CONTRACT_DEFAULT_QUALITY_RULES = [
+      "1. chapter3Payoff 应偏向开书抓手与快速兑现。",
+      "2. chapter10Payoff 应体现中前段建立后的第一阶段回报或局面变化。",
+      "3. chapter30Payoff 应体现更稳定的中段承诺兑现或阶段性大跃迁。",
+      "4. escalationLadder 要能与题材、主卖点、成长逻辑相匹配。",
+      "5. absoluteRedLines 必须具体可执行，避免“不要崩”“保持一致”这类空话。",
+];
 
 export {
   buildDirectorBookContractContextBlocks,

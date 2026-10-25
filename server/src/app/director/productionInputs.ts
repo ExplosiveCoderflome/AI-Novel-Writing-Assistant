@@ -4,6 +4,7 @@ import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacr
 import type { DirectorBookContractPromptInput } from "../../prompting/prompts/novel/directorPlanning.prompts";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
+import {creativePromptGuidanceFromStored} from "../../modules/novel/creative-profile";
 
 export function requireLaunch(contract: RunContract) {
   const input = contract.launchInput;
@@ -26,6 +27,7 @@ export async function bookContractInput(context: StepContext, macroService: Stor
   if (!macro?.decomposition) throw new Error("缺少已保存的故事宏观规划。");
   const decomposition = macro.decomposition;
   return {idea: input.storyInput, targetChapterCount: input.estimatedChapterCount, storyMacroPlan: macro,
+    creativeGuidance: creativePromptGuidanceFromStored(novel, "positioning"),
     context: {title: novel.title, description: novel.description ?? undefined, targetAudience: novel.targetAudience ?? undefined,
       bookSellingPoint: novel.bookSellingPoint ?? undefined, genreId: novel.genreId ?? undefined, estimatedChapterCount: input.estimatedChapterCount},
     // Only project already-structured story output. No legacy task seed or invented creative judgment.

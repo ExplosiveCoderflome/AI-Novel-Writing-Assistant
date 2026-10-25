@@ -3,6 +3,8 @@ import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { parseCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
+import type { CreativeProfile, CreativeProfileIssue } from "@ai-novel/shared/types/creativeProfile";
+import { projectStoredCreativeProfile } from "../../modules/novel/creative-profile";
 import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 import type { PipelineDirectorSnapshot } from "./production/directorBridge";
 
@@ -57,6 +59,8 @@ export interface CreateNovelInput {
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   creativeCarryoverContractJson?: string | null;
   creativeCarryoverContractSchemaVersion?: number | null;
+  /** 已校验的创作取向；省略或 null 均不写入，旧行为不变。 */
+  creativeProfile?: CreativeProfile | null;
 }
 
 export interface UpdateNovelInput {
@@ -96,6 +100,8 @@ export interface UpdateNovelInput {
   worldId?: string | null;
   outline?: string | null;
   structuredOutline?: string | null;
+  /** null 表示明确清除；省略表示不修改。 */
+  creativeProfile?: CreativeProfile | null;
 }
 
 export interface ChapterInput {
@@ -300,10 +306,22 @@ const CONTINUATION_ANALYSIS_SECTION_KEYS: BookAnalysisSectionKey[] = [
 const CONTINUATION_ANALYSIS_SECTION_KEY_SET = new Set<BookAnalysisSectionKey>(CONTINUATION_ANALYSIS_SECTION_KEYS);
 export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
+type CreativeProfileProjection = {
+  creativeProfile?: CreativeProfile | null;
+  creativeProfileIssue?: CreativeProfileIssue | null;
+};
+
+/** 只在查询确实取了 creativeProfileJson 时投影，避免未选择该列的查询被误报为"未设置"。 */
+function projectCreativeProfileField(novel: { creativeProfileJson?: string | null }): CreativeProfileProjection {
+  if (!("creativeProfileJson" in novel)) return {};
+  return projectStoredCreativeProfile(novel);
+}
+
 export function normalizeNovelOutput<T extends {
   continuationBookAnalysisSections?: string | null;
   referenceBookAnalysisSections?: string | null;
   commercialTagsJson?: string | null;
+  creativeProfileJson?: string | null;
   bookContract?: {
     id: string;
     novelId: string;
@@ -341,19 +359,22 @@ export function normalizeNovelOutput<T extends {
   } | null;
 }>(
   novel: T,
-): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson"> & {
+): Omit<T, "continuationBookAnalysisSections" | "referenceBookAnalysisSections" | "commercialTagsJson" | "creativeProfileJson"> & {
   continuationBookAnalysisSections: BookAnalysisSectionKey[] | null;
   referenceBookAnalysisSections: BookAnalysisSectionKey[] | null;
   commercialTags: string[];
-} {
+} & CreativeProfileProjection {
+  const creativeProfileProjection = projectCreativeProfileField(novel);
   const {
     continuationBookAnalysisSections,
     referenceBookAnalysisSections,
     commercialTagsJson,
+    creativeProfileJson: _creativeProfileJson,
     ...rest
   } = novel;
   return {
     ...rest,
+    ...creativeProfileProjection,
     continuationBookAnalysisSections: parseContinuationBookAnalysisSections(continuationBookAnalysisSections),
     referenceBookAnalysisSections: parseContinuationBookAnalysisSections(referenceBookAnalysisSections),
     commercialTags: parseCommercialTagsJson(commercialTagsJson),

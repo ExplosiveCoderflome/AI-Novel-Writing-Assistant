@@ -1,3 +1,4 @@
+import { CharacterNamingChooser } from "./CharacterNamingChooser";
 import { useEffect, useMemo, useState } from "react";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
@@ -100,6 +101,7 @@ export function CharacterEditDialog({
         </DialogHeader>
 
         <div className="grid gap-2 md:grid-cols-2">
+              <CharacterNamingChooser currentName={form.name} role={form.role} background={form.background} onSelect={(name) => setForm((previous) => ({ ...previous, name }))} />
           <Input
             placeholder="角色名称"
             value={form.name}

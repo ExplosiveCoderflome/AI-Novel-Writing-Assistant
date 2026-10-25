@@ -1,4 +1,5 @@
 import { serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
+import { serializeCreativeProfile } from "../../modules/novel/creative-profile";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { NovelWorkflowService } from "./workflow/NovelWorkflowService";
@@ -121,6 +122,7 @@ export class NovelCoreCrudService {
         referenceBookAnalysisSections: referenceBookAnalysisId ? referenceBookAnalysisSections : null,
         creativeCarryoverContractJson: input.creativeCarryoverContractJson ?? null,
         creativeCarryoverContractSchemaVersion: input.creativeCarryoverContractSchemaVersion ?? null,
+        creativeProfileJson: serializeCreativeProfile(input.creativeProfile ?? null).creativeProfileJson,
       },
     });
 
@@ -222,8 +224,13 @@ export class NovelCoreCrudService {
       competingFeel: _ignoreCompetingFeel,
       first30ChapterPromise: _ignoreFirst30ChapterPromise,
       commercialTags: _ignoreCommercialTags,
+      creativeProfile: _ignoreCreativeProfile,
       ...restInput
     } = input;
+    // 省略 = 不修改；null = 明确清除；对象 = 已在 HTTP 层校验，序列化时再校验一次。
+    const creativeProfileJson = input.creativeProfile !== undefined
+      ? serializeCreativeProfile(input.creativeProfile).creativeProfileJson
+      : undefined;
 
     const serializedContinuationSections = serializeContinuationBookAnalysisSections(nextContinuationBookAnalysisSections);
     const serializedReferenceSections = serializeContinuationBookAnalysisSections(nextReferenceBookAnalysisSections);
@@ -247,6 +254,7 @@ export class NovelCoreCrudService {
         competingFeel: normalizeOptionalTextForUpdate(input.competingFeel),
         first30ChapterPromise: normalizeOptionalTextForUpdate(input.first30ChapterPromise),
         commercialTagsJson,
+        creativeProfileJson,
         continuationBookAnalysisSections:
           nextWritingMode === "continuation"
           && (nextSourceNovelId || nextSourceKnowledgeDocumentId)

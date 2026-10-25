@@ -41,7 +41,7 @@ const chatSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(64).max(16384).optional(),
+  maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
   enableSearch: z.boolean().optional(),
   enableRag: z.boolean().optional(),
   chatMode: z.enum(["standard", "agent"]).optional(),

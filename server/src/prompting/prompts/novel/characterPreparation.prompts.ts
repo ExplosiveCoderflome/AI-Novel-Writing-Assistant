@@ -197,7 +197,7 @@ export const characterCastOptionPrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -219,6 +219,7 @@ export const characterCastOptionPrompt: PromptAsset<
   outputSchema: characterCastOptionResponseSchema,
   render: (input, context) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是长篇中文网文的角色阵容策划师，服务对象是不懂写作流程的新手用户。",
       "你的任务是为当前小说生成可直接进入正文规划的核心角色阵容，而不是输出抽象功能网络。",
       "",
@@ -235,6 +236,7 @@ export const characterCastOptionPrompt: PromptAsset<
       "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "",
       "【命名硬规则】",
+      "命名依据：结合角色自己的出生/成长年代、地域语言文化、年龄、家庭命名习惯及人物作用；尊重用户约束和已确认姓名，优先自然可信的名字，不要求人人华丽。跨代人物分别判断；在文化依据不足时保守处理，不编造命名史实。",
       "1. name 只能写可直接进入正文的真实人物名、稳定称谓、历史官职称呼、宫廷称呼、江湖称号或阵营身份称呼。",
       "2. 绝对禁止把功能词写进 name，例如：谜团催化剂、知识导师位、外部威胁位、情感位、关系变量、功能位。",
       "3. storyFunction 才负责写叙事职责，name 不负责承载功能描述。",
@@ -280,7 +282,7 @@ export const characterCastOptionRepairPrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions.repair",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -290,6 +292,7 @@ export const characterCastOptionRepairPrompt: PromptAsset<
   outputSchema: characterCastOptionResponseSchema,
   render: (input, context) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是中文网文角色策划修复编辑，负责把一份已经生成出来但质量不合格的角色阵容 JSON 修正为可直接入库的版本。",
       "你只能修正内容，不要改变整体故事方向。",
       "",
@@ -304,6 +307,7 @@ export const characterCastOptionRepairPrompt: PromptAsset<
       "6. 必须保持同一故事方向、主角锚点、核心冲突和隐藏身份线索，不要重写成另一套书。",
       "",
       "重点修复原则：",
+      "命名依据：结合角色自己的出生/成长年代、地域语言文化、年龄、家庭命名习惯及人物作用；尊重用户约束和已确认姓名，优先自然可信的名字，不要求人人华丽。跨代人物分别判断；在文化依据不足时保守处理，不编造命名史实。",
       "1. name 不能再出现“某某位、催化剂、威胁源、功能位、关系变量”这类抽象槽位。",
       "2. 如果上下文存在主角当前身份或隐藏身份线索，至少要让主角方案显式承接这些线索。",
       "3. 同一方案内避免多人承担同一故事功能。",
@@ -330,7 +334,7 @@ export const characterCastOptionNormalizePrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -340,6 +344,7 @@ export const characterCastOptionNormalizePrompt: PromptAsset<
   outputSchema: characterCastOptionResponseSchema,
   render: (input) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是中文小说角色策划编辑，负责对角色阵容 JSON 做语言归一化。",
       "你的任务是把所有面向用户展示的文本值改写为自然、流畅、可直接阅读的简体中文表达。",
       "",
@@ -368,7 +373,7 @@ export const characterCastAutoPrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -390,6 +395,7 @@ export const characterCastAutoPrompt: PromptAsset<
   outputSchema: characterCastAutoResponseSchema,
   render: (_input, context) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是长篇中文网文的角色阵容策划师，服务对象是不懂写作流程的新手用户。",
       "你的任务是直接产出 1 套可自动落库、可直接进入正文规划的核心角色阵容，而不是提供多套待选方案。",
       "",
@@ -405,6 +411,7 @@ export const characterCastAutoPrompt: PromptAsset<
       "7. 每个角色必须输出角色硬事实字段：identityLabel、factionLabel、stanceLabel、powerLevel、realm、currentLocation、availability、prohibitions；拿不准可填空字符串或空数组，但不得编造超过书级设定的重大事实。世界明确不设战力体系时 powerLevel、realm 必须留空；软性强弱只允许 powerLevel 填定性描述，realm 留空。",
       "",
       "【命名硬规则】",
+      "命名依据：结合角色自己的出生/成长年代、地域语言文化、年龄、家庭命名习惯及人物作用；尊重用户约束和已确认姓名，优先自然可信的名字，不要求人人华丽。跨代人物分别判断；在文化依据不足时保守处理，不编造命名史实。",
       "1. name 只能写可直接进入正文的真实人名、稳定称谓、历史官职称谓、宫廷称谓、江湖称号或阵营身份称呼。",
       "2. 绝对禁止把功能词写进 name，例如：谜团催化剂、知识导师位、外部威胁位、情感位、关系变量、功能位。",
       "3. storyFunction 才负责写叙事职责，name 不负责承载功能描述。",
@@ -450,7 +457,7 @@ export const characterCastAutoRepairPrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto.repair",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -460,6 +467,7 @@ export const characterCastAutoRepairPrompt: PromptAsset<
   outputSchema: characterCastAutoResponseSchema,
   render: (input, context) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是中文网文角色策划修复编辑，负责把一份已经生成出来但质量不合格的角色阵容 JSON 修正为可直接入库的版本。",
       "你只能修正内容，不要改变整体故事方向。",
       "",
@@ -474,6 +482,7 @@ export const characterCastAutoRepairPrompt: PromptAsset<
       "6. 必须保持同一故事方向、主角锚点、核心冲突和隐藏身份线索，不要重写成另一套书。",
       "",
       "重点修复原则：",
+      "命名依据：结合角色自己的出生/成长年代、地域语言文化、年龄、家庭命名习惯及人物作用；尊重用户约束和已确认姓名，优先自然可信的名字，不要求人人华丽。跨代人物分别判断；在文化依据不足时保守处理，不编造命名史实。",
       "1. name 不能再出现“某某位、催化剂、威胁源、功能位、关系变量”这类抽象槽位。",
       "2. 如果上下文存在主角当前身份或隐藏身份线索，至少要让主角方案显式承接这些线索。",
       "3. 同一阵容内避免多人承担同一个故事功能。",
@@ -500,7 +509,7 @@ export const characterCastAutoNormalizePrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -510,6 +519,7 @@ export const characterCastAutoNormalizePrompt: PromptAsset<
   outputSchema: characterCastAutoResponseSchema,
   render: (input) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是中文小说角色策划编辑，负责对角色阵容 JSON 做语言归一化。",
       "你的任务是把所有面向用户展示的文本值改写为自然、流畅、可直接阅读的简体中文表达。",
       "",
@@ -538,7 +548,7 @@ export const supplementalCharacterPrompt: PromptAsset<
   z.infer<typeof supplementalCharacterGenerationResponseSchema>
 > = {
   id: "novel.character.supplemental",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -548,6 +558,7 @@ export const supplementalCharacterPrompt: PromptAsset<
   outputSchema: supplementalCharacterGenerationResponseSchema,
   render: (_input, context) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是长篇中文小说项目的补充角色策划师。",
       "你的任务不是重建整套阵容，而是在现有角色系统基础上，精准补足人物压力、情感张力、关系牵引或功能缺口。",
       "",
@@ -589,7 +600,7 @@ export const supplementalCharacterNormalizePrompt: PromptAsset<
   z.infer<typeof supplementalCharacterGenerationResponseSchema>
 > = {
   id: "novel.character.supplemental.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -599,6 +610,7 @@ export const supplementalCharacterNormalizePrompt: PromptAsset<
   outputSchema: supplementalCharacterGenerationResponseSchema,
   render: (input) => [
     new SystemMessage([
+      "姓名应结合时代、地域、语言文化、年龄、家庭与人物作用，避免同音近形和人人寓意化；不改已确认姓名，服从书级命名背景和明确用户约束。",
       "你是中文小说角色策划编辑，负责对补充角色 JSON 做语言归一化与润色。",
       "你的任务是把所有展示给用户的文本值改写为自然、流畅、可直接阅读的简体中文表达。",
       "",

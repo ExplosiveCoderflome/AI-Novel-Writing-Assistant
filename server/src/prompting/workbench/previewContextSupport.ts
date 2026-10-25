@@ -1,4 +1,5 @@
 export type PreviewNovelRow = {
+  creativeProfileJson?: string | null;
   id: string;
   title: string;
   description: string | null;

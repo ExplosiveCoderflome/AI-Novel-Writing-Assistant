@@ -1,5 +1,6 @@
 import { ragConfig } from "../../config/rag";
 import { RagIndexService, RagJobCancelledError } from "./RagIndexService";
+import { RagLeaseLostError, RagIndexRollbackError, RAG_LEASE_HEARTBEAT_MS } from "./indexing";
 
 function backoffMs(attempt: number): number {
   const factor = Math.min(Math.max(attempt, 1), 6);
@@ -24,9 +25,6 @@ export class RagWorker {
   }
 
   private logWarn(message: string, meta?: Record<string, unknown>): void {
-    if (!ragConfig.verboseLog) {
-      return;
-    }
     if (meta) {
       console.warn(`[RAG][Worker] ${message}`, meta);
       return;
@@ -43,7 +41,8 @@ export class RagWorker {
       maxAttempts: ragConfig.workerMaxAttempts,
       retryBaseMs: ragConfig.workerRetryBaseMs,
     });
-    void this.requeueInterruptedJobs();
+    // Recovery completes before the first poll. Settings stop/start must not requeue
+    // a request still running in this same worker instance.
     this.timer = setInterval(() => {
       void this.tick();
     }, ragConfig.workerPollMs);
@@ -52,7 +51,7 @@ export class RagWorker {
 
   private async requeueInterruptedJobs(): Promise<void> {
     while (true) {
-      const runningJobs = await this.ragIndexService.listJobs(500, "running");
+      const runningJobs = await this.ragIndexService.listInterruptedJobs();
       if (runningJobs.length === 0) {
         return;
       }
@@ -60,13 +59,7 @@ export class RagWorker {
         count: runningJobs.length,
       });
       await Promise.all(
-        runningJobs.map((job) =>
-          this.ragIndexService.updateJobStatus(job.id, {
-            status: "queued",
-            runAfter: new Date(),
-            lastError: job.lastError ?? "RAG worker restarted; interrupted job requeued.",
-          })
-        ),
+        runningJobs.map((job) => this.ragIndexService.recoverJob(job)),
       );
     }
   }
@@ -86,8 +79,16 @@ export class RagWorker {
     }
     this.isTicking = true;
     try {
+      await this.requeueInterruptedJobs();
+      if (!this.timer || !ragConfig.enabled) return;
       const job = await this.ragIndexService.getNextRunnableJob();
       if (!job) {
+        return;
+      }
+      if (job.attempts >= job.maxAttempts) {
+        await this.ragIndexService.updateJobStatus(job.id, {
+          status: "failed", lastError: job.lastError ?? "RAG job exhausted its attempt limit.",
+        });
         return;
       }
 
@@ -102,25 +103,28 @@ export class RagWorker {
         attempt: nextAttempt,
         maxAttempts: job.maxAttempts,
       });
-      await this.ragIndexService.updateJobStatus(job.id, {
-        status: "running",
-        attempts: nextAttempt,
-        lastError: null,
-      });
+      const claimed = await this.ragIndexService.claimJob(job);
+      if (!claimed) return;
+      const heartbeat = setInterval(() => {
+        void this.ragIndexService.renewJob(claimed).catch((error: unknown) => {
+          this.logWarn("Lease heartbeat failed.", { jobId: job.id, error: error instanceof Error ? error.message : "Unknown heartbeat error." });
+        });
+      }, RAG_LEASE_HEARTBEAT_MS);
+      heartbeat.unref?.();
 
       try {
-        const result = await this.ragIndexService.processJob(job);
+        const result = await this.ragIndexService.processJob(claimed);
         await this.ragIndexService.updateJobStatus(job.id, {
           status: "succeeded",
           lastError: null,
-        });
+        }, claimed);
         this.logInfo("Job succeeded.", {
           jobId: job.id,
           chunks: result.chunks,
           elapsedMs: Date.now() - startedAt,
         });
       } catch (error) {
-        if (error instanceof RagJobCancelledError) {
+        if (error instanceof RagJobCancelledError || error instanceof RagLeaseLostError) {
           this.logInfo("Job cancelled.", {
             jobId: job.id,
             elapsedMs: Date.now() - startedAt,
@@ -128,12 +132,12 @@ export class RagWorker {
           return;
         }
         const message = error instanceof Error ? error.message : "RAG 索引任务失败。";
-        if (nextAttempt >= job.maxAttempts) {
+        if (nextAttempt >= job.maxAttempts || error instanceof RagIndexRollbackError) {
           await this.ragIndexService.updateJobStatus(job.id, {
             status: "failed",
             attempts: nextAttempt,
             lastError: message,
-          });
+          }, claimed);
           this.logWarn("Job failed permanently.", {
             jobId: job.id,
             attempt: nextAttempt,
@@ -149,7 +153,7 @@ export class RagWorker {
           attempts: nextAttempt,
           runAfter: new Date(Date.now() + delayMs),
           lastError: message,
-        });
+        }, claimed);
         this.logWarn("Job failed and requeued.", {
           jobId: job.id,
           attempt: nextAttempt,
@@ -157,7 +161,9 @@ export class RagWorker {
           elapsedMs: Date.now() - startedAt,
           error: message,
         });
-      }
+      } finally { clearInterval(heartbeat); }
+    } catch (error) {
+      this.logWarn("Worker poll failed.", { error: error instanceof Error ? error.message : "Unknown worker error." });
     } finally {
       this.isTicking = false;
     }

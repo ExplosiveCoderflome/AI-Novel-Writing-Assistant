@@ -505,6 +505,9 @@ export class PromptWorkbenchService {
     templateDiagnosticPayload?: PromptPreviewResult["diagnostics"]["template"];
   }> {
     const asset = getAssetFromPreviewInput(input);
+    if (asset.id === "character.naming.candidates" && input.promptInput === undefined) {
+      input = { ...input, promptInput: (await import("./workbench/namingPreviewInput")).buildNamingPreviewInput() };
+    }
     const prompt = toCatalogItem(asset);
     const previewContext = await this.preparePreviewExecutionContext({
       asset,

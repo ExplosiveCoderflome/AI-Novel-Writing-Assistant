@@ -71,6 +71,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
 
   const suggestionMutation = useMutation({
     mutationFn: () => suggestBookFraming({
+      creativeProfile: basicForm.creativeProfile,
       title: basicForm.title.trim() || undefined,
       description: effectiveDescription || undefined,
       genreLabel: selectedGenreLabel || undefined,

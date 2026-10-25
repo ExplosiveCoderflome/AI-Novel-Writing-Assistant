@@ -186,56 +186,6 @@ async function invokeJsonWithRetry(
   }
 }
 
-function buildFallbackSkeleton(input: CharacterGenerateInput, constraints: CharacterGenerateConstraints | null): Record<string, unknown> {
-  const description = input.description.trim();
-  const growthStart = constraints?.growthStage ?? "start";
-  return {
-    nameSuggestion: description.slice(0, 12) || "Unnamed Character",
-    role: constraints?.storyFunction || input.category.trim(),
-    corePersona: constraints?.toneStyle || "rational and restrained with hidden emotional tension",
-    surfaceTemperament: constraints?.toneStyle || "calm on the surface, intense underneath",
-    coreDrive: constraints?.internalNeed || "needs recognition and emotional safety",
-    socialMask: "appears composed and in-control in public, reveals anxiety in private",
-    behaviorPatterns: [
-      constraints?.externalGoal ? `prioritizes actions around "${constraints.externalGoal}"` : "result-driven in critical moments",
-      constraints?.moralBottomLine ? `keeps moral line: "${constraints.moralBottomLine}"` : "keeps a personal bottom line under pressure",
-    ],
-    triggerPoints: [
-      constraints?.coreFear ? `strong stress reaction when touching "${constraints.coreFear}"` : "reacts strongly to betrayal or being underestimated",
-    ],
-    lifeOrigin: constraints?.relationshipHooks || `derived from user description: ${description}`,
-    relationshipNetwork: constraints?.relationshipHooks ? [constraints.relationshipHooks] : ["strong tie to core cast"],
-    externalGoal: constraints?.externalGoal || "secure a staged victory while preserving key relationships",
-    internalNeed: constraints?.internalNeed || "be understood and accepted",
-    coreFear: constraints?.coreFear || "losing control and hurting important people",
-    moralBottomLine: constraints?.moralBottomLine || "does not actively harm innocents",
-    secret: constraints?.secret || "keeps a decisive truth from the past",
-    coreFlaw: constraints?.coreFlaw || "overcontrol that strains relationships",
-    growthArc: [
-      `${growthStart}: acts for external objective`,
-      "turning point: flaw exposed in major conflict with real cost",
-      "resolution: integrates inner need with external mission and makes a new choice",
-    ],
-    keyEvents: [
-      "trigger event: pulled into high-pressure conflict",
-      "breakthrough event: secret exposed or core relationship ruptures",
-      "resolution event: makes a decisive trade-off",
-    ],
-    dailyAnchors: ["regular solo debrief", "stabilizes mood with fixed rituals"],
-    habitualActions: ["brief pause before key responses", "adjusts sleeves when tense"],
-    speechStyle: "concise and controlled; direct at decision points",
-    talents: ["information synthesis", "rapid situational judgment", "execution under pressure"],
-    conflictKeywords: ["control", "trust", "sacrifice"],
-    themeKeywords: ["growth", "redemption", "cost"],
-    bodyType: "fit build, tense posture, efficient movement",
-    facialFeatures: "sharp eye focus and high facial recognizability",
-    styleSignature: "utility-first outfit with one repeating signature accessory",
-    auraAndVoice: "cool and steady voice, noticeable presence",
-    appearance: "clean and capable look with memorable detail",
-    toneStyle: constraints?.toneStyle || "restrained, calm, high inner tension",
-  };
-}
-
 function buildFallbackFinalPayload(
   input: CharacterGenerateInput,
   constraints: CharacterGenerateConstraints | null,
@@ -300,7 +250,7 @@ function buildFallbackFinalPayload(
   ].filter(Boolean));
 
   return {
-    name: toTrimmedText(skeleton.nameSuggestion) || input.description.trim().slice(0, 12) || "Unnamed Character",
+    name: toTrimmedText(skeleton.nameSuggestion) || "",
     role,
     personality: personality || input.description.trim(),
     background: background || `derived from user description: ${input.description.trim()}` ,
@@ -372,7 +322,8 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
     });
   }
 
-  const skeleton = stageOne.parsed ?? buildFallbackSkeleton(input, constraints);
+  if (!stageOne.parsed) throw new Error("角色草稿生成失败，请调整描述或重试；没有保存虚构的兜底角色。");
+  const skeleton = stageOne.parsed;
   const stageTwo = await invokeJsonWithRetry(provider, model, temperature, {
     skeleton,
     constraintsText,
@@ -386,6 +337,7 @@ export async function generateBaseCharacterFromAI(input: CharacterGenerateInput)
     });
   }
 
+  if (!stageTwo.parsed || !toTrimmedText(stageTwo.parsed.name)) throw new Error("角色结果缺少有效姓名，请确认人物设定后重试；没有保存角色。");
   const fallbackPayload = buildFallbackFinalPayload(input, constraints, skeleton);
   const finalPayload = mergeFinalPayload(stageTwo.parsed, fallbackPayload, constraints);
   const outputAnomaly = !stageOne.parsed || !stageTwo.parsed;

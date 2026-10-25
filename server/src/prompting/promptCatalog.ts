@@ -1,4 +1,5 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "character.naming.candidates": "人物取名候选",
   "novel.chapter.writer": "章节正文生成",
   "novel.short_story.segment.write": "短篇正文生成",
   "novel.short_story.full.audit": "短篇全文审校",

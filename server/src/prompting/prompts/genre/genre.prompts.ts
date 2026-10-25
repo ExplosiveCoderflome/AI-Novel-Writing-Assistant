@@ -11,7 +11,7 @@ export interface GenreTreePromptInput {
 
 export const genreTreePrompt: PromptAsset<GenreTreePromptInput, z.infer<typeof genreTreeDraftNodeSchema>> = {
   id: "genre.tree.generate",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -29,6 +29,7 @@ export const genreTreePrompt: PromptAsset<GenreTreePromptInput, z.infer<typeof g
 
     return [
       new SystemMessage([
+      "区分题材、创作取向、叙事形式和文风：现代文学不等于现代年代；允许人物、关系、家庭、社会、心理与主题推进，不把所有类型都归入升级、爽点或章末钩子。",
         "你是资深网络小说类型策划专家。",
         "你的任务是根据用户给出的创作方向，生成一棵适合小说策划与产品标签使用的“类型树”。",
         "这棵树的目标不是堆砌名词，而是建立清晰、可区分、可落地的题材层级结构，帮助后续进行定位、标签组织与内容规划。",
@@ -67,7 +68,7 @@ export const genreTreePrompt: PromptAsset<GenreTreePromptInput, z.infer<typeof g
         "4. 名称优先体现题材核心差异，而不是泛泛的情绪词或质量判断。",
         "",
         "描述规则：",
-        "1. description 必须说明该类型的题材特征、常见爽点、叙事重心或读者期待。",
+        "1. description 必须说明该类型的题材特征、常见阅读期待、叙事重心或读者期待。",
         "2. 描述应具体、凝练，不要写成空话，如“内容精彩”“情节丰富”“很有代入感”。",
         "3. 描述应服务于类型区分，帮助用户理解“为什么它属于这一类”。",
         "",

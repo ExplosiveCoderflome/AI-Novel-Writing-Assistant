@@ -275,6 +275,7 @@ export const tokenBudgetPolicySchema = z.object({
 });
 
 export const bookContractContextSchema = z.object({
+  creativeProfileJson: z.string().nullable().optional(),
   title: z.string(),
   genre: z.string(),
   targetAudience: z.string(),

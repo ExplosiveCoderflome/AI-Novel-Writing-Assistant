@@ -58,6 +58,7 @@ export async function resolveDirectorBookFraming(input: {
       description: input.description,
       genreLabel: input.genreLabel,
       styleTone: normalizeOptionalText(input.context.styleTone),
+      creativeProfile: input.context.creativeProfile,
     });
     const suggestedTags = normalizeCommercialTags(suggested.commercialTags);
     return {

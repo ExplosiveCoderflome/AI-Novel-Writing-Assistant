@@ -12,6 +12,11 @@ import {
   isChapterTitleDuplicateIssue,
   isChapterTitleDiversityIssue,
 } from "../../../../services/novel/volume/chapterTitleDiversity";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+} from "../../creativeProfile/creativePromptGuidance";
+import { CHAPTER_LIST_ORIENTATION_RULES as LIST_RULES } from "../../creativeProfile/orientationPromptRules";
 
 function safeJsonStringify(value: unknown): string {
   try {
@@ -114,6 +119,7 @@ function getChapterFunctionQualityIssue(
     summary: string;
     beatKey: string;
   }>,
+  options: { webSerialChecks?: boolean } = {},
 ): string | null {
   if (!chapters.length) {
     return "章节列表不能为空。";
@@ -212,6 +218,12 @@ function getChapterFunctionQualityIssue(
     return "过多章节摘要偏空泛，不能大量使用“进一步推动 / 局势复杂 / 为后续铺垫 / 埋下伏笔”等低信息密度表达。";
   }
 
+  // 以下关键词检查按网文推进（主动动作词、兑现词、章末钩子词）设计；用户明确选择非网文取向时不套用，
+  // 避免把人物与关系推进的章节误判后触发额外重试。
+  if (options.webSerialChecks === false) {
+    return null;
+  }
+
   const activeCount = summaries.filter((summary) =>
     activePatterns.some((pattern) => pattern.test(summary)),
   ).length;
@@ -294,7 +306,7 @@ export function createVolumeChapterListPrompt(
 
   return {
     id: "novel.volume.chapter_list",
-    version: withSchedule ? "v10" : "v9",
+    version: withSchedule ? "v11" : "v9",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -319,8 +331,10 @@ export function createVolumeChapterListPrompt(
         attempt,
         baseMessages,
         parsedOutput,
+        promptInput,
         validationError,
       }) => {
+        const webDefaults = keepsWebSerialPromptDefaults(promptInput.novel?.creativeGuidance);
         const normalizedValidationError = validationError?.trim() || "未通过章节列表业务校验。";
         const retryIssueClass = classifyChapterListRetryIssue(normalizedValidationError);
         return [
@@ -338,7 +352,9 @@ export function createVolumeChapterListPrompt(
               "4. 不要只局部替换触发校验的一章；需要保证整组章节的标题骨架、章节功能、摘要推进和结尾牵引同时通过。",
               "5. 若失败原因是标题重复或标题骨架集中，必须重写所有命中重复骨架的标题，而不是只局部修补几章。",
               "6. 若失败原因是章节功能重复，必须重新分配章节功能，避免连续多章只做调查、发现、意识到或铺垫。",
-              "7. 每章 summary 必须体现新增推进，优先体现核心视角角色的选择、试探、反击、布局、交换、隐忍或承担代价。",
+              webDefaults
+                ? "7. 每章 summary 必须体现新增推进，优先体现核心视角角色的选择、试探、反击、布局、交换、隐忍或承担代价。"
+                : LIST_RULES.retryAgency,
               "8. 明确避免大量使用“X的Y / X中的Y / 在X中Y”骨架。",
               "9. 明确避免整批标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
               "10. 标题必须是客观章名，不用第一人称，不写成完整剧情句，核心字数不超过 16 个。",
@@ -346,7 +362,9 @@ export function createVolumeChapterListPrompt(
               "12. 摘要必须体现本章造成的局面变化，不得空泛复述标题。",
               isBookFinale
                 ? "13. 全书终章必须完成结局合同，不得创建必须续写的新主线或下一 beat 钩子。"
-                : "13. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。",
+                : webDefaults
+                  ? "13. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。"
+                  : LIST_RULES.retryEnding,
               "",
               "上一次的 JSON 输出：",
               safeJsonStringify(parsedOutput),
@@ -365,12 +383,17 @@ export function createVolumeChapterListPrompt(
       characterIds,
     }),
 
-    render: (promptInput, context) => [
+    render: (promptInput, context) => {
+      const guidance = promptInput.novel?.creativeGuidance;
+      const webDefaults = keepsWebSerialPromptDefaults(guidance);
+      const pick = (webText: string, orientationText: string) => (webDefaults ? webText : orientationText);
+      return [
       new SystemMessage(
         [
-          "你是网文章节拆分规划助手。",
+          pick("你是网文章节拆分规划助手。", LIST_RULES.identity),
           "你的任务不是写正文，也不是扩写细纲，而是只为当前卷的单个节奏段生成一块可执行的章节列表。",
           "你必须同时满足：结构化输出正确、章节功能清晰、标题像章节名、摘要有真实推进。",
+          ...renderCreativeGuidanceSection(guidance),
           "",
           "一、任务边界",
           withSchedule ? "1. 只能为用户消息指定的目标节奏段生成指定数量章节，数量不得多也不得少。" : `1. 你当前只能为「${targetBeatLabel}」生成 ${targetChapterCount} 章，数量不得多也不得少。`,
@@ -394,47 +417,50 @@ export function createVolumeChapterListPrompt(
           "三、章节规划核心原则",
           "1. 章节列表必须严格服从当前卷骨架与当前目标 beat 合同，不能偷跑到相邻 beat。",
           "2. 每章都必须回答：这一章为什么必须存在，它推进了什么，它造成了什么新的局面变化。",
-          "3. 当前节奏段的章节拆分要体现网文阅读感，但不能机械平均切分。",
+          pick("3. 当前节奏段的章节拆分要体现网文阅读感，但不能机械平均切分。", LIST_RULES.readingFeel),
           "4. 章节必须形成连续递进，不能出现只是换说法、没有新增推进的信息重复章。",
           "5. 每章 summary 不只要写“发生了什么”，还要写“因此改变了什么”。",
           "",
           "四、章节功能分配要求",
-          "1. 生成前必须在脑内把当前 beat 拆成若干章节功能：承接、加压、试探、发现、转折、反击、兑现、余波或钩子。",
+          pick("1. 生成前必须在脑内把当前 beat 拆成若干章节功能：承接、加压、试探、发现、转折、反击、兑现、余波或钩子。", LIST_RULES.functions),
           "2. 实际输出时不要暴露这些功能标签，但每章 summary 必须体现清晰功能。",
           "3. 连续章节不能承担完全相同的功能，尤其不能连续多章只做调查、讨论、铺垫、等待、意识到或发现。",
-          "4. 若目标章数大于等于 5，至少应包含一次局面加压、一次关键发现或判断反转、一次阶段性兑现或明确转向。",
+          pick("4. 若目标章数大于等于 5，至少应包含一次局面加压、一次关键发现或判断反转、一次阶段性兑现或明确转向。", LIST_RULES.minimumMix),
           "5. 关键推进可以占更多章节，过渡章要短促有力，不要为了凑数制造低信息密度章节。",
-          withSchedule ? "6. 若用户指定为全书终章，完成结局合同，不创建新主线；否则兑现当前 beat 的 mustDeliver 并留下阅读牵引，不能偷跑下一 beat。" : isBookFinale
-            ? "6. 全书终章必须完成结局合同中的主冲突、关系变化、核心回报与主题落点，不得留下必须续写的新主线。"
-            : "6. 最后一章必须完成当前 beat 的 mustDeliver，同时留下进入下一 beat 的阅读牵引，但不得提前兑现下一 beat 的核心事件。",
+          withSchedule
+            ? pick("6. 若用户指定为全书终章，完成结局合同，不创建新主线；否则兑现当前 beat 的 mustDeliver 并留下阅读牵引，不能偷跑下一 beat。",
+              `6. 若用户指定为全书终章，完成结局合同，不创建新主线；否则${LIST_RULES.beatEnding.replace(/^6\.\s*/, "")}`)
+            : isBookFinale
+              ? "6. 全书终章必须完成结局合同中的主冲突、关系变化、核心回报与主题落点，不得留下必须续写的新主线。"
+              : pick("6. 最后一章必须完成当前 beat 的 mustDeliver，同时留下进入下一 beat 的阅读牵引，但不得提前兑现下一 beat 的核心事件。", LIST_RULES.beatEnding),
           "",
           "五、章节推进质量要求",
-          "1. 每章 summary 都要体现核心视角角色的选择、试探、反击、隐忍、交换、布局、揭穿、妥协或承担代价，避免角色只是旁观外部事件。",
-          "2. 每章 summary 应包含至少一种有效推进：新情报、风险升级、关系变化、资源得失、误判修正、对手后手、阶段兑现。",
+          pick("1. 每章 summary 都要体现核心视角角色的选择、试探、反击、隐忍、交换、布局、揭穿、妥协或承担代价，避免角色只是旁观外部事件。", LIST_RULES.agency),
+          pick("2. 每章 summary 应包含至少一种有效推进：新情报、风险升级、关系变化、资源得失、误判修正、对手后手、阶段兑现。", LIST_RULES.progress),
           "3. 不要把章节写成“发现问题—意识到危险—继续调查”的重复链条。",
           "4. 可以制造或利用信息差、误判、反常发现、表面胜利下的暗中代价，但不要把完整因果句塞进标题。",
-          "5. 每章结尾应隐含新的问题、威胁、机会、误判或选择压力，使下一章有继续阅读的理由。",
+          pick("5. 每章结尾应隐含新的问题、威胁、机会、误判或选择压力，使下一章有继续阅读的理由。", LIST_RULES.chapterEnding),
           "6. 当前 beat 内不能所有章节都只做铺垫；必须有实际推进、局面变化或阶段兑现。",
           "",
           "六、标题要求",
-          "1. 每章 title 必须像真实章名，优先体现事件锚点、地点、冲突、异常发现、局面变化、阶段兑现、关系异动或问题钩子。",
+          pick("1. 每章 title 必须像真实章名，优先体现事件锚点、地点、冲突、异常发现、局面变化、阶段兑现、关系异动或问题钩子。", LIST_RULES.titleAnchor),
           "2. 标题默认使用客观表达，不使用“我 / 我的 / 我却 / 我用 / 替我 / 追杀我”等第一人称自述。",
           "3. 在开始写 chapters 之前，先在脑内完成一次“标题句法配比规划”，再按配比输出，不要边想边重复套模板。",
-          "4. 同一批标题必须主动混用动作推进型、冲突压迫型、异常发现型、结果兑现型、决断转向型、问题钩子型、关系异动型等不同句法。",
+          pick("4. 同一批标题必须主动混用动作推进型、冲突压迫型、异常发现型、结果兑现型、决断转向型、问题钩子型、关系异动型等不同句法。", LIST_RULES.titleMix),
           "5. 标题核心字数不超过 16 个，推荐 4-12 个字；不要写成长句、完整因果句或剧情梗概。",
           "6. 标题可以有反差，但要短促，例如“密令失真”“断魂钉现”“阵眼裂缝”；不要写成“某人做了某事，所以某结果发生”。",
           "7. 避免只有抽象词：风暴、暗流、危机、真相、抉择、变局等，除非标题里同时有具体对象、动作或反差。",
           "8. 若当前节奏段有 6 章及以上：任何单一表层骨架都不要超过一半；不能大量重复“X的Y / X中的Y / 在X中Y”这类骨架，最多只占约三成。",
           "9. 明确避免让大部分标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
           "10. 相邻章节标题不要连续 3 章以上套用同一语法骨架。",
-          "11. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化、口号化或模板味过重。",
+          pick("11. 标题要有推进感与可读性，避免空泛文学化、抽象抒情化、口号化或模板味过重。", LIST_RULES.titleLiterary),
           "12. 主角主动性、选择和代价主要写在 summary 中，不要为了体现主角行动把标题写成第一人称爽点句。",
           "13. 生成前先自检一遍：是否出现第一人称标题、标题过长、过多“的字结构”、过多逗号并列结构、或连续多章同骨架；若出现，先改再输出。",
           "",
           "七、摘要要求",
           "1. 每章 summary 必须写清本章具体推进了什么，以及它在当前目标 beat 中承担什么作用。",
           "2. summary 必须体现新增信息、局面变化、冲突推进、关系变化、代价上升、风险转向或阶段兑现中的至少一种。",
-          "3. summary 必须体现本章造成的不可逆变化：人物判断改变、资源状态改变、敌我关系改变、风险等级改变、计划方向改变或读者认知改变。",
+          pick("3. summary 必须体现本章造成的不可逆变化：人物判断改变、资源状态改变、敌我关系改变、风险等级改变、计划方向改变或读者认知改变。", LIST_RULES.irreversible),
           "4. 不要把 summary 写成空泛口号，也不要写成详细剧情复述。",
           "5. 相邻章节 summary 不能只是同义重复。",
           "6. 不要大量使用“进一步推动剧情”“局势更加复杂”“为后续埋下伏笔”等低信息密度表达。",
@@ -442,15 +468,15 @@ export function createVolumeChapterListPrompt(
           "八、beat 承接要求",
           "1. 本次只覆盖当前目标 beat，不得为相邻 beats 生成章节。",
           "2. 开头章节要承接前序已生成章节状态，不能把已经发生的推进重新起一遍。",
-          "3. 中段章节要围绕当前 beat 的核心矛盾持续加压、试探、转折或兑现。",
+          pick("3. 中段章节要围绕当前 beat 的核心矛盾持续加压、试探、转折或兑现。", LIST_RULES.middle),
           withSchedule ? "4. 全书终章完成结局合同，其余节奏段留下阅读牵引但不得偷跑下一 beat。" : isBookFinale
             ? "4. 全书终章必须完成结局合同，不再要求下一阶段牵引。"
             : "4. 结尾章节要把当前 beat 的 mustDeliver 落到位，但不要提前偷跑下一 beat 的核心兑现。",
           "",
           "九、质量自检要求",
           "1. 输出前在脑内检查：章节数量是否精确、beatKey 是否一致、是否越界、是否有重复功能章。",
-          "2. 输出前在脑内检查：标题是否过度同构，summary 是否有真实推进，结尾章是否有阶段兑现或阅读牵引。",
-          "3. 若发现章节只是换说法、无新增推进、无主角行动、无局面变化，必须先改再输出。",
+          pick("2. 输出前在脑内检查：标题是否过度同构，summary 是否有真实推进，结尾章是否有阶段兑现或阅读牵引。", LIST_RULES.selfCheck),
+          pick("3. 若发现章节只是换说法、无新增推进、无主角行动、无局面变化，必须先改再输出。", LIST_RULES.selfCheckAgency),
           "",
           buildRetryDirective(promptInput.retryReason),
         ]
@@ -472,16 +498,17 @@ export function createVolumeChapterListPrompt(
           ...(withSchedule ? [`- 本次${isBookFinale ? "是" : "不是"}全书终章`] : []),
           "- 不得生成任何相邻 beat 的章节",
           "- 先在脑内规划章节功能分配与标题骨架配比，再输出完整章节块",
-          "- 优先保证章节推进感、节奏承接、标题结构分散、摘要中的角色主动性与结尾牵引",
+          pick("- 优先保证章节推进感、节奏承接、标题结构分散、摘要中的角色主动性与结尾牵引", LIST_RULES.humanPriority),
           "- 标题必须短促客观，不使用第一人称，不写成长句或剧情梗概",
           "",
           "当前卷拆章上下文：",
           renderSelectedContextBlocks(context),
         ].join("\n"),
       ),
-    ],
+      ];
+    },
 
-    postValidate: (output) => {
+    postValidate: (output, promptInput) => {
       if (output.beatKey !== targetBeatKey) {
         throw new Error(`beatKey 必须严格等于 ${targetBeatKey}。`);
       }
@@ -526,6 +553,7 @@ export function createVolumeChapterListPrompt(
 
       const chapterFunctionQualityIssue = getChapterFunctionQualityIssue(
         output.chapters,
+        { webSerialChecks: keepsWebSerialPromptDefaults(promptInput?.novel?.creativeGuidance) },
       );
 
       if (chapterFunctionQualityIssue) {

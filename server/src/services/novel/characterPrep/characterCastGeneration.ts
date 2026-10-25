@@ -186,6 +186,7 @@ async function loadCastGenerationContext(
     storyInput: storyInput || "暂无直接故事输入，请结合书级约束补齐真实可入戏角色。",
     genreName: novel.genre?.name ?? null,
     storyModeBlock,
+    creativeProfileJson: novel.creativeProfileJson,
     styleTone: novel.styleTone ?? null,
     narrativePov: novel.narrativePov ?? null,
     pacePreference: novel.pacePreference ?? null,

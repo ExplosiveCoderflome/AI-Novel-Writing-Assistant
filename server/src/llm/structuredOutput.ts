@@ -12,6 +12,7 @@ export type StructuredOutputErrorCategory =
   | "incomplete_json"
   | "malformed_json"
   | "schema_mismatch"
+  | "input_budget_exceeded"
   | "transport_error";
 
 export interface StructuredOutputProfile {
@@ -32,6 +33,7 @@ export interface StructuredOutputDiagnostics {
   fallbackAvailable: boolean;
   fallbackUsed: boolean;
   errorCategory: StructuredOutputErrorCategory | null;
+  response?: import("./structured").ResponseDiagnostics;
 }
 
 const QWEN_FAMILY_PATTERN = /(?:^|[/:_-])qwen(?:\d+(?:\.\d+)?)?/i;
@@ -162,6 +164,9 @@ export function resolveStructuredOutputProfile(input: {
   const isDashScopeQwen = usesOfficialEndpoint("qwen", DASHSCOPE_HOST_PATTERN);
   const isModelScopeQwen = MODELSCOPE_HOST_PATTERN.test(host) || provider.includes("modelscope");
 
+  if (input.requestProtocol === "gemini" || input.requestProtocol === "openai_responses") return buildProfile({family:input.requestProtocol,nativeJsonSchema:true,nativeJsonObject:true,preferredStructuredStrategy:"json_schema"});
+  if (input.requestProtocol === "deepseek") return buildProfile({family:"deepseek",nativeJsonObject:true,preferredStructuredStrategy:"json_object"});
+  if (input.requestProtocol === "llama_cpp") return buildProfile({family:"llama_cpp",nativeJsonObject:true,preferredStructuredStrategy:"json_object"});
   if (input.requestProtocol === "anthropic") {
     return buildProfile({
       family: "anthropic",
@@ -359,10 +364,18 @@ export function classifyStructuredOutputFailure(input: {
     : typeof input.error === "string"
       ? input.error
       : String(input.error ?? "");
+  if (typeof input.error === "object" && input.error !== null && "code" in input.error) {
+    if ((input.error as {status?:number}).status === 413 || input.error.code === "context_length_exceeded") return "input_budget_exceeded";
+    if (input.error.code === "LLM_INPUT_BUDGET_EXCEEDED") return "input_budget_exceeded";
+    if (input.error.code === "LLM_RESPONSE_TERMINATED" && "category" in input.error) {
+      return input.error.category === "incomplete_json" ? "incomplete_json" : "transport_error";
+    }
+  }
   const rawContent = input.rawContent ?? "";
   const lowerMessage = message.toLowerCase();
   const trimmedRawContent = rawContent.trim().toLowerCase();
-  const haystack = `${message}\n${rawContent}`.toLowerCase();
+  const haystack = message.toLowerCase();
+  if(["prompt is too long","prompt too long","input too long","maximum context length","context_length_exceeded"].some(text=>haystack.includes(text))) return "input_budget_exceeded";
 
   if (
     haystack.includes("response_format")
@@ -439,11 +452,13 @@ export function extractStructuredOutputErrorCategory(message?: string | null): S
     "incomplete_json",
     "malformed_json",
     "schema_mismatch",
+    "input_budget_exceeded",
     "transport_error",
   ].includes(category) ? category : null;
 }
 
 export class StructuredOutputError extends Error {
+  readonly retryable: boolean;
   readonly category: StructuredOutputErrorCategory;
 
   readonly diagnostics: StructuredOutputDiagnostics;
@@ -455,12 +470,14 @@ export class StructuredOutputError extends Error {
     category: StructuredOutputErrorCategory;
     diagnostics: StructuredOutputDiagnostics;
     retryWithNextStrategy?: boolean;
+    retryable?: boolean;
   }) {
     super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`);
     this.name = "StructuredOutputError";
     this.category = input.category;
     this.diagnostics = input.diagnostics;
     this.retryWithNextStrategy = input.retryWithNextStrategy ?? false;
+    this.retryable = input.retryable ?? true;
   }
 }
 

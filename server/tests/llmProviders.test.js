@@ -313,7 +313,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(modelscope.reasoningEnabled, false);
     assert.equal(modelscope.reasoningForcedOff, true);
     assert.equal(modelscope.modelKwargs?.enable_thinking, false);
-    assert.equal(modelscope.maxTokens, 8192);
+    assert.equal(modelscope.maxTokens, 20000);
     assert.equal(modelscope.requestProtocol, "openai_compatible");
 
     const qwen = await resolveLLMClientOptions("qwen", {
@@ -328,7 +328,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.reasoningEnabled, false);
     assert.equal(qwen.reasoningForcedOff, true);
     assert.equal(qwen.modelKwargs?.enable_thinking, false);
-    assert.equal(qwen.maxTokens, undefined);
+    assert.equal(qwen.maxTokens, 20000);
     assert.equal(qwen.requestProtocol, "openai_compatible");
 
     const glm = await resolveLLMClientOptions("glm", {
@@ -364,7 +364,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.reasoningEnabled, true);
     assert.equal(qwenThinking.reasoningForcedOff, false);
     assert.equal(qwenThinking.modelKwargs?.enable_thinking, undefined);
-    assert.equal(qwenThinking.maxTokens, 8192);
+    assert.equal(qwenThinking.maxTokens, 20000);
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
 
     const deepseekFlash = await resolveLLMClientOptions("deepseek", {
@@ -374,11 +374,11 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
       maxTokens: 5000,
     });
     assert.equal(deepseekFlash.structuredProfile?.family, "deepseek");
-    assert.equal(deepseekFlash.reasoningEnabled, false);
-    assert.equal(deepseekFlash.reasoningForcedOff, true);
-    assert.deepEqual(deepseekFlash.modelKwargs?.thinking, { type: "disabled" });
-    assert.equal(deepseekFlash.modelKwargs?.reasoning_effort, undefined);
-    assert.equal(deepseekFlash.reasoningEffort, null);
+    assert.equal(deepseekFlash.reasoningEnabled, true);
+    assert.equal(deepseekFlash.reasoningForcedOff, false);
+    assert.deepEqual(deepseekFlash.modelKwargs?.thinking, { type: "enabled" });
+    assert.equal(deepseekFlash.modelKwargs?.reasoning_effort, "high");
+    assert.equal(deepseekFlash.reasoningEffort, "high");
     assert.equal(deepseekFlash.modelKwargs?.enable_thinking, undefined);
 
     const deepseekMax = await resolveLLMClientOptions("deepseek", {

@@ -284,6 +284,7 @@ export function buildDirectorTakeoverInput(input: {
     sourceKnowledgeDocumentId: input.novel.sourceKnowledgeDocumentId ?? undefined,
     continuationBookAnalysisId: input.novel.continuationBookAnalysisId ?? undefined,
     continuationBookAnalysisSections: input.novel.continuationBookAnalysisSections ?? undefined,
+    creativeProfile: input.novel.creativeProfile,
     idea: buildTakeoverIdea(input.novel),
     candidate: buildTakeoverCandidate({
       novel: input.novel,

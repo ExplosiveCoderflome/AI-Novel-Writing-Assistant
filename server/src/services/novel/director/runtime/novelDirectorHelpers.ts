@@ -276,6 +276,7 @@ export async function enhanceCandidateTitles(
       selectionMode: "primary",
       brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
       genreId: context.request.genreId ?? null,
+      creativeProfile: context.request.creativeProfile,
       count: 4,
       provider: context.options.provider,
       model: context.options.model,
@@ -556,6 +557,8 @@ export function buildWorkflowSeedPayload(
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
     postGenerationStyleReviewEnabled: basicForm.postGenerationStyleReviewEnabled,
+    // 只保存用户明确选择的取向；未选择时不写默认值，恢复任务时仍走旧的网文默认。
+    ...(input.creativeProfile !== undefined ? { creativeProfile: input.creativeProfile } : {}),
     provider: input.provider ?? null,
     model: input.model?.trim() || null,
     temperature: typeof input.temperature === "number" ? input.temperature : null,

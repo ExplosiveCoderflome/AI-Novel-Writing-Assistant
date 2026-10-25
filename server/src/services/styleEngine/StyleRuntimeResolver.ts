@@ -40,6 +40,7 @@ export class StyleRuntimeResolver {
 
       const matchedBindings = [buildDirectTaskBinding(profile)];
       const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+      novelId: input.novelId,
         matchedBindings,
         effectiveStyleProfileId: profile.id,
       });
@@ -111,6 +112,7 @@ export class StyleRuntimeResolver {
     });
     const primaryProfile = context.matchedBindings[0]?.styleProfile ?? null;
     const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+      novelId: input.novelId,
       matchedBindings: context.matchedBindings,
       effectiveStyleProfileId: context.effectiveStyleProfileId,
     });

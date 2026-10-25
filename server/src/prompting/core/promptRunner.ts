@@ -1,3 +1,5 @@
+import { captureStreamOutput } from "../../llm/structured";
+import { estimatePromptTokens } from "../../platform/llm/execution";
 import {registerPromptCacheBoundary} from "./cache";
 import { currentModelRequestBudget } from "../../platform/llm/retries";
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
@@ -293,6 +295,7 @@ export function preparePromptExecution<I, O, R = O>(input: {
   const renderedMessages = input.asset.render(input.promptInput, context);
   const messages = appendStructuredOutputHintMessages({asset:input.asset,promptInput:input.promptInput,context,messages:renderedMessages});
   registerPromptCacheBoundary(input.asset as PromptAsset<unknown,unknown>,renderedMessages,messages);
+  context.estimatedInputTokens = messages.reduce((sum, message) => sum + estimatePromptTokens(toText(message.content)) + 4, 0);
   return {
     messages,
     context,
@@ -434,59 +437,6 @@ function recordPromptFailure(input: {
   });
 }
 
-function captureStreamOutput(
-  rawStream: AsyncIterable<BaseMessageChunk>,
-  onChunk?: (content: string) => void,
-  onReasoning?: (content: string) => void,
-): {
-  stream: AsyncIterable<BaseMessageChunk>;
-  completedText: Promise<string>;
-  completedUsage: Promise<LlmTokenUsageSnapshot | null>;
-} {
-  let resolveText!: (value: string) => void;
-  let rejectText!: (reason?: unknown) => void;
-  let resolveUsage!: (value: LlmTokenUsageSnapshot | null) => void;
-  let rejectUsage!: (reason?: unknown) => void;
-  const completedText = new Promise<string>((resolve, reject) => {
-    resolveText = resolve;
-    rejectText = reject;
-  });
-  const completedUsage = new Promise<LlmTokenUsageSnapshot | null>((resolve, reject) => {
-    resolveUsage = resolve;
-    rejectUsage = reject;
-  });
-
-  const stream = {
-    async *[Symbol.asyncIterator]() {
-      const chunks: string[] = [];
-      let usage: LlmTokenUsageSnapshot | null = null;
-      const reasoningCollector = new ReasoningStreamCollector();
-      try {
-        for await (const chunk of rawStream) {
-          const content = toText(chunk.content);
-          chunks.push(content);
-          onChunk?.(content);
-          onReasoning?.(reasoningCollector.push(chunk, content));
-          usage = mergeStreamTokenUsage(usage, extractLlmTokenUsage(chunk));
-          yield chunk;
-        }
-        onReasoning?.(reasoningCollector.flush());
-        resolveText(chunks.join(""));
-        resolveUsage(usage);
-      } catch (error) {
-        rejectText(error);
-        rejectUsage(error);
-        throw error;
-      }
-    },
-  };
-
-  return {
-    stream,
-    completedText,
-    completedUsage,
-  };
-}
 
 function buildPromptRunResult<T>(input: {
   asset: PromptAsset<unknown, unknown, unknown>;
@@ -677,6 +627,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         model: input.options?.model,
         temperature: input.options?.temperature,
         maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
         timeoutMs: input.options?.timeoutMs,
         signal: input.options?.signal,
         taskType: input.asset.taskType,
@@ -780,6 +731,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       model: input.options?.model,
       temperature: input.options?.temperature,
       maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       signal: input.options?.signal,
       taskType: input.asset.taskType,
@@ -904,6 +856,7 @@ export async function runTextPrompt<I>(input: {
       temperature: input.options?.temperature,
       reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1013,6 +966,7 @@ export async function streamTextPrompt<I>(input: {
       temperature: input.options?.temperature,
       reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1133,6 +1087,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       model: input.options?.model,
       temperature: input.options?.temperature,
       maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1189,11 +1144,13 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       const parsed = rawContent.trim()
         ? await parseStructuredLlmRawContentDetailed({
           rawContent,
+          response: await captured.completedResponse,
           schema: outputSchema,
           provider: input.options?.provider,
           model: input.options?.model,
           temperature: input.options?.temperature,
           maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
           timeoutMs: input.options?.timeoutMs,
           signal: input.options?.signal,
           taskType: input.asset.taskType,
@@ -1217,6 +1174,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           model: input.options?.model,
           temperature: input.options?.temperature,
           maxTokens: input.options?.maxTokens,
+      defaultMaxTokens: input.options?.defaultMaxTokens,
           timeoutMs: input.options?.timeoutMs,
           signal: input.options?.signal,
           taskType: input.asset.taskType,

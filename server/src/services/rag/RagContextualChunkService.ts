@@ -127,7 +127,7 @@ export class RagContextualChunkService {
         },
         options: {
           timeoutMs: ragConfig.contextualRetrievalTimeoutMs,
-          maxTokens: 220,
+          defaultMaxTokens: 220,
           temperature: 0.1,
           entrypoint: "rag_contextual_chunk",
           scope: input.document.ownerType,

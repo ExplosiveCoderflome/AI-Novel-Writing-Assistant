@@ -2,6 +2,7 @@ import type {
   ChapterWriteContext,
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
+import { creativePromptGuidanceFromStored } from "../../modules/novel/creative-profile";
 import {
   buildBookContractContext,
   buildChapterWriteContext,
@@ -38,6 +39,7 @@ function buildPreviewStyleContract(input: {
   chapter: PreviewChapterRow;
 }): NonNullable<ChapterWriteContext["styleContract"]> {
   const { chapter, novel } = input;
+  const creative = creativePromptGuidanceFromStored(novel, "drafting");
   const narrative = buildPreviewStyleSection("narrative", "叙事约束", [
     novel.narrativePov ? `叙事视角：${novel.narrativePov}` : "使用清晰稳定的叙事视角，不随意跳出本章场景。",
     novel.description ? `故事底盘：${novel.description}` : "",
@@ -47,7 +49,7 @@ function buildPreviewStyleContract(input: {
     chapter.expectation ? `人物行为围绕章节任务展开：${chapter.expectation}` : "",
   ]);
   const language = buildPreviewStyleSection("language", "语言", [
-    "使用简体中文，语言自然流畅，适合网文阅读节奏。",
+    creative ? "语言节奏服从本书取向、文风与场景功能。" : "使用简体中文，语言自然流畅，适合网文阅读节奏。",
     novel.styleTone ? `书级语气：${novel.styleTone}` : "",
   ]);
   const rhythm = buildPreviewStyleSection("rhythm", "节奏", [
@@ -58,7 +60,7 @@ function buildPreviewStyleContract(input: {
     "控制无效修饰，避免总结腔、模板化转折和重复回顾。",
   ]);
   const selfCheck = buildPreviewStyleSection("selfCheck", "自检", [
-    "输出前检查本章任务、角色硬事实、边界和章末钩子是否被落实。",
+    creative ? "检查本章任务、角色硬事实、连续性边界与所选收尾方式。" : "输出前检查本章任务、角色硬事实、边界和章末钩子是否被落实。",
   ]);
 
   return {
@@ -133,6 +135,7 @@ function buildCharacterHardFacts(
 }
 
 function buildPreviewPlan(input: {
+  novel: PreviewNovelRow;
   chapter: PreviewChapterRow;
   characters: GenerationContextPackage["characterRoster"];
 }): NonNullable<GenerationContextPackage["plan"]> {
@@ -166,7 +169,7 @@ function buildPreviewPlan(input: {
     mustPreserve,
     sourceIssueIds: [],
     replannedFromPlanId: null,
-    hookTarget: compactPreviewText(chapter.hook, "保留新的章末压力或悬念。"),
+    hookTarget: compactPreviewText(chapter.hook, creativePromptGuidanceFromStored(input.novel, "drafting") ? "按本书允许的方式收束，服从所选取向与章末方式。" : "保留新的章末压力或悬念。"),
     rawPlanJson: null,
     scenes: scenes.map((scene, index) => ({
       id: `workbench-preview-scene:${chapter.id}:${index + 1}`,
@@ -221,7 +224,7 @@ function buildPreviewGenerationContextPackage(input: {
   const characters = buildRuntimeCharacters(Array.isArray(novel.characters) ? novel.characters : []);
   const characterHardFacts = buildCharacterHardFacts(characters);
   const styleContract = buildPreviewStyleContract({ novel, chapter });
-  const plan = buildPreviewPlan({ chapter, characters });
+  const plan = buildPreviewPlan({ novel, chapter, characters });
 
   return {
     chapter: {
@@ -335,6 +338,7 @@ export function buildPreviewChapterWriteContext(input: {
   const { chapter, novel } = input;
   const contextPackage = buildPreviewGenerationContextPackage({ novel, chapter });
   const bookContract = buildBookContractContext({
+    creativeProfileJson: novel.creativeProfileJson,
     title: novel.title,
     targetAudience: novel.targetAudience,
     sellingPoint: novel.bookSellingPoint,

@@ -363,6 +363,7 @@ model Novel {
   referenceBookAnalysisSections String?
   creativeCarryoverContractJson String?
   creativeCarryoverContractSchemaVersion Int?
+  creativeProfileJson String?
   outline           String?
   structuredOutline String?
   storyWorldSliceJson String?

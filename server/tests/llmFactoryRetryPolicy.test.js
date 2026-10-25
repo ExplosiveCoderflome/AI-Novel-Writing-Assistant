@@ -3,14 +3,14 @@ const assert = require("node:assert/strict");
 
 const { createLLMFromResolvedOptions, resolveLLMClientOptions, setProviderSecretCache } = require("../dist/llm/factory.js");
 
-test("Ollama saved thinking-off reaches SDK request parameters in text and structured modes", async (t) => {
+test("unknown Ollama-compatible endpoint does not inherit template extensions from model name", async (t) => {
   setProviderSecretCache("ollama", { model: "qwen3.5:9b", baseURL: "http://127.0.0.1:11434/v1", reasoningEnabled: false });
   t.after(() => setProviderSecretCache("ollama", null));
   for (const executionMode of ["plain", "structured"]) {
     const resolved = await resolveLLMClientOptions("ollama", { model: "qwen3.5:9b", executionMode, maxTokens: 3200 });
     const llm = createLLMFromResolvedOptions(resolved);
     const body = llm.invocationParams({});
-    assert.equal(body.reasoning_effort, "none");
+    assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.max_tokens, 3200);
     assert.equal(body.think, undefined);
     assert.equal(body.enable_thinking, undefined);

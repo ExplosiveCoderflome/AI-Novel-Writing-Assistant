@@ -67,3 +67,8 @@ export async function generateBaseCharacter(payload: {
   return data;
 }
 
+
+export async function generateCharacterNameCandidates(payload: import("@ai-novel/shared/types/characterNaming").CharacterNamingRequestInput & { provider?: LLMProvider; model?: string }) {
+  const { data } = await apiClient.post<ApiResponse<import("@ai-novel/shared/types/characterNaming").CharacterNamingCandidatesOutput>>("/base-characters/naming-candidates", payload);
+  return data;
+}
