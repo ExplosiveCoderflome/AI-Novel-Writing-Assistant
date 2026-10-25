@@ -135,6 +135,7 @@ export default function NovelCreateTitleQuickFill({
         throw new Error("请先填写一句标题简报，或补一个参考标题后再生成。");
       }
       const response = await generateTitleIdeas({
+        creativeProfile: basicForm.creativeProfile,
         mode: generationMode,
         brief: resolvedBrief || undefined,
         referenceTitle: referenceTitle.trim() || undefined,
@@ -148,7 +149,7 @@ export default function NovelCreateTitleQuickFill({
       return response.data?.titles ?? [];
     },
     onSuccess: (rows) => {
-      const next = sortSuggestions(rows);
+      const next = basicForm.creativeProfile && basicForm.creativeProfile.orientation !== "web_serial" ? rows : sortSuggestions(rows);
       setSuggestions(next);
       toast.success(`已生成 ${next.length} 个标题候选。`);
     },
@@ -294,6 +295,7 @@ export default function NovelCreateTitleQuickFill({
                 ) : null}
               </div>
 
+              {basicForm.creativeProfile && basicForm.creativeProfile.orientation !== "web_serial" && <p className="text-xs text-muted-foreground">数值是模型对作品贴合度的估计，不代表实际点击率或文学质量；可结合理由自行选择。</p>}
               <TitleSuggestionList
                 suggestions={suggestions}
                 selectedTitle={basicForm.title}

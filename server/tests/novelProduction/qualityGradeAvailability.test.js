@@ -6,6 +6,7 @@ test('historical estimated grades stay hidden after unavailable review, while a 
     '../../prompting/core/promptRunner','../../prompting/prompts/novel/review.prompts','../rag','../audit/AuditService',
     '../payoff/PayoffLedgerSyncService','../planner/PlannerService','../state/StateService','./quality/ChapterQualityLoopService',
     './director/runtime/DirectorAutomationLedgerEventService','./runtime/repair/chapterAuditContext',
+    '../../modules/novel/creative-profile/loader',
   ].map(id=>[id,{}]));
   const date=new Date('2026-10-17T10:00:00Z');
   const fields={coherence:83,repetition:83,pacing:83,voice:83,engagement:83,overall:83};

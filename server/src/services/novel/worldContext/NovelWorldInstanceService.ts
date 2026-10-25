@@ -509,7 +509,7 @@ export class NovelWorldInstanceService {
         provider: input.provider,
         model: input.model,
         temperature: input.temperature ?? 0.5,
-        maxTokens: NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS,
+        defaultMaxTokens: NOVEL_THEME_WORLD_GENERATION_MAX_TOKENS,
         timeoutMs,
         entrypoint: "novel-world-generate",
       },

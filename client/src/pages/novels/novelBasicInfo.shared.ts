@@ -1,9 +1,12 @@
+import type { CreativeProfile, CreativeProfileIssue } from "@ai-novel/shared/types/creativeProfile";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { formatCommercialTagsInput, normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type { WritingPlatformPreference } from "@ai-novel/shared/types/writingPlatform";
 import type { PowerSystemPreference } from "@ai-novel/shared/types/novelResourceRecommendation";
 
 export interface NovelBasicFormState {
+  creativeProfile?: CreativeProfile | null;
+  creativeProfileIssue?: CreativeProfileIssue | null;
   title: string;
   description: string;
   targetAudience: string;
@@ -248,7 +251,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   targetAudience: "说明这本书最主要写给谁看。不会写专业人群画像也没关系，按直觉描述即可。",
   bookSellingPoint: "写清楚这本书最抓人的点，例如关系拉扯、逆袭爽点、悬念推进或设定新鲜感。",
   competingFeel: "写成读者会联想到的阅读感，不是要求你模仿具体作品。",
-  first30ChapterPromise: "写清楚前 30 章一定要让读者看到什么、爽到什么、相信什么。",
+  first30ChapterPromise: "说明阶段内读者会看到或理解什么，可以是人物、关系、主题、悬念或阶段回报。",
   commercialTagsText: "用逗号分隔 3-6 个标签即可，例如逆袭、强冲突、悬念拉满、职场博弈。",
   projectMode: "决定你和 AI 的协作方式。会影响后续哪些步骤自动推进、哪些步骤更依赖人工确认。",
   readerChannelPreference: "帮助 AI 判断默认爽点、情绪重心和关系线权重。不确定时保持 AI 判断。",
@@ -261,9 +264,9 @@ export const BASIC_INFO_FIELD_HINTS = {
   defaultChapterLength: "这是章节规划和生成时的参考字数，不是硬限制。常见推荐值是 2500 到 3500。",
   estimatedChapterCount: "这是项目预估的总章节数，会作为结构化大纲、剧情拍点和流水线默认范围的参考，不是硬限制。",
   resourceReadyScore: "用于标记设定、角色、主线资料是否充分。数值越高，越适合进入自动化生产阶段。",
-  styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。它会影响生成的语言风格。",
+  styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。可描述叙事距离、句式节奏、意象与对白。",
   genreId: "题材基底回答“这是什么书”，例如修仙、都市、历史架空。它会影响规划、标题和整体卖点倾向，建议尽量尽早确定。",
-  primaryStoryModeId: "主推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。后续规划和生成会优先服从它。",
+  primaryStoryModeId: "主推进模式回答“这本书靠什么持续推进和兑现”，例如人物驱动、主题递进、悬疑调查或经营成长。后续规划和生成会优先服从它。",
   secondaryStoryModeId: "副推进模式只负责补充风味，例如在治愈日常中叠加小店经营感，在无敌流中叠加马甲感，不能覆盖主模式的边界。",
   worldId: "这里只记录一个参考样本，方便初始化本书世界。小说生成会优先读取页面上方“本书世界”卡片中的内容。",
   status: "只是作品生命周期标记，不影响基础创作能力，但会影响列表和项目管理状态。",
@@ -273,6 +276,7 @@ export const BASIC_INFO_FIELD_HINTS = {
 
 export function createDefaultNovelBasicFormState(): NovelBasicFormState {
   return {
+    creativeProfile: null,
     title: "",
     description: "",
     targetAudience: "",
@@ -377,6 +381,7 @@ export function patchNovelBasicForm(
 export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
+    ...(basicForm.creativeProfile !== undefined ? { creativeProfile: basicForm.creativeProfile } : {}),
     title: basicForm.title.trim(),
     description: basicForm.description.trim() || undefined,
     targetAudience: basicForm.targetAudience.trim() || undefined,
@@ -436,6 +441,7 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
 export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
+    ...(basicForm.creativeProfile !== undefined ? { creativeProfile: basicForm.creativeProfile } : {}),
     title: basicForm.title,
     description: basicForm.description,
     targetAudience: basicForm.targetAudience.trim() || null,

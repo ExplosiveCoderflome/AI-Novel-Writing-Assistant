@@ -1,3 +1,4 @@
+import { CharacterNamingChooser } from "./CharacterNamingChooser";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listBookAnalyses } from "@/api/bookAnalysis";
@@ -109,6 +110,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
               <CardTitle>手动创建角色</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 md:grid-cols-2">
+              <CharacterNamingChooser currentName={form.name} role={form.role} background={form.background} onSelect={(name) => setForm((previous) => ({ ...previous, name }))} />
               <input
                 className="rounded-md border p-2 text-sm"
                 placeholder="角色名称"

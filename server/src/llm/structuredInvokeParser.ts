@@ -2,7 +2,6 @@ import { z, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import type { TaskType } from "./modelRouter";
-import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { repairWithLlm } from "./structuredInvokeRepair";
 import {
   classifyStructuredOutputFailure,
@@ -18,6 +17,7 @@ import {
 import { extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import type { LlmTokenUsageSnapshot } from "./usageTracking";
+import { ResponseTerminationError, StructuredRepairRefusalError, type ResponseDiagnostics } from "./structured";
 
 export interface StructuredInvokeResult<T> {
   data: T;
@@ -37,6 +37,7 @@ export interface StructuredInvokeRawParseInput<T> {
   baseURL?: string;
   temperature?: number;
   maxTokens?: number;
+  defaultMaxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   taskType?: TaskType;
@@ -52,59 +53,12 @@ export interface StructuredInvokeRawParseInput<T> {
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
   reasoningForcedOff?: boolean;
-}
-
-function tryFixTruncatedJson(raw: string): string {
-  const text = raw.trim();
-  if (!text) return text;
-
-  const count = (re: RegExp) => (text.match(re) ?? []).length;
-  const openBraces = count(/{/g);
-  const closeBraces = count(/}/g);
-  const openBrackets = count(/\[/g);
-  const closeBrackets = count(/]/g);
-
-  let fixed = text.replace(/,\s*$/g, "");
-  if (openBrackets > closeBrackets) {
-    fixed += "]".repeat(openBrackets - closeBrackets);
-  }
-  if (openBraces > closeBraces) {
-    fixed += "}".repeat(openBraces - closeBraces);
-  }
-  return fixed;
+  response?: ResponseDiagnostics;
 }
 
 function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { error: string } {
-  try {
-    return {
-      parsed: JSON.parse(extractJSONValue(source)) as unknown,
-    };
-  } catch (error) {
-    const fixed = tryFixTruncatedJson(source);
-    if (fixed === source) {
-      return {
-        error: [
-          "JSON 解析失败：",
-          error instanceof Error ? error.message : String(error),
-        ].join("\n"),
-      };
-    }
-
-    try {
-      return {
-        parsed: JSON.parse(extractJSONValue(fixed)) as unknown,
-      };
-    } catch (fixedError) {
-      return {
-        error: [
-          "JSON 解析失败：",
-          error instanceof Error ? error.message : String(error),
-          "截断修复后仍失败：",
-          fixedError instanceof Error ? fixedError.message : String(fixedError),
-        ].join("\n"),
-      };
-    }
-  }
+  try { return { parsed: JSON.parse(extractJSONValue(source)) as unknown }; }
+  catch (error) { return { error: error instanceof Error ? error.message : "JSON 解析失败。" }; }
 }
 
 function tryUnwrapSingletonArrayWrapper<T>(
@@ -134,99 +88,6 @@ function formatZodErrors(error: ZodError): string {
     .join("\n");
 }
 
-function formatIssuePath(path: Array<string | number>): string {
-  return path.length > 0 ? path.join(".") : "(root)";
-}
-
-function normalizeIssuePath(path: readonly PropertyKey[]): Array<string | number> {
-  return path.flatMap((segment) => {
-    if (typeof segment === "string" || typeof segment === "number") {
-      return [segment];
-    }
-    return [];
-  });
-}
-
-function cloneJsonValue<T>(value: T): T {
-  return value === undefined ? value : JSON.parse(JSON.stringify(value)) as T;
-}
-
-function getValueAtPath(root: unknown, path: Array<string | number>): unknown {
-  let current = root;
-  for (const segment of path) {
-    if (Array.isArray(current) && typeof segment === "number") {
-      current = current[segment];
-      continue;
-    }
-    if (current && typeof current === "object" && !Array.isArray(current)) {
-      current = (current as Record<string, unknown>)[String(segment)];
-      continue;
-    }
-    return undefined;
-  }
-  return current;
-}
-
-function setValueAtPath(root: unknown, path: Array<string | number>, nextValue: unknown): unknown {
-  if (path.length === 0) {
-    return nextValue;
-  }
-
-  const parentPath = path.slice(0, -1);
-  const leaf = path[path.length - 1]!;
-  const parent = getValueAtPath(root, parentPath);
-  if (Array.isArray(parent) && typeof leaf === "number") {
-    parent[leaf] = nextValue;
-  } else if (parent && typeof parent === "object" && !Array.isArray(parent)) {
-    (parent as Record<string, unknown>)[String(leaf)] = nextValue;
-  }
-  return root;
-}
-
-function normalizeOversizedArrays<T>(
-  parsed: unknown,
-  error: ZodError,
-  schema: ZodType<T>,
-): { data: T; trimmedPaths: string[] } | null {
-  let normalized = cloneJsonValue(parsed);
-  const trimmedPaths: string[] = [];
-
-  for (const issue of error.issues) {
-    if (issue.code !== "too_big" || !issue.message.toLowerCase().includes("array")) {
-      continue;
-    }
-    const maximum = typeof (issue as { maximum?: unknown }).maximum === "number"
-      ? (issue as { maximum: number }).maximum
-      : null;
-    if (!Number.isInteger(maximum) || maximum === null || maximum < 0) {
-      continue;
-    }
-
-    const issuePath = normalizeIssuePath(issue.path);
-    const currentValue = getValueAtPath(normalized, issuePath);
-    if (!Array.isArray(currentValue) || currentValue.length <= maximum) {
-      continue;
-    }
-
-    normalized = setValueAtPath(normalized, issuePath, currentValue.slice(0, maximum));
-    trimmedPaths.push(formatIssuePath(issuePath));
-  }
-
-  if (trimmedPaths.length === 0) {
-    return null;
-  }
-
-  const final = schema.safeParse(normalized);
-  if (!final.success) {
-    return null;
-  }
-
-  return {
-    data: final.data,
-    trimmedPaths,
-  };
-}
-
 function buildDiagnostics(input: {
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
@@ -234,6 +95,8 @@ function buildDiagnostics(input: {
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
   errorCategory?: StructuredOutputErrorCategory | null;
+  response?: ResponseDiagnostics;
+  repairFailure?: StructuredOutputDiagnostics["repairFailure"];
 }): StructuredOutputDiagnostics {
   return {
     strategy: input.strategy,
@@ -242,6 +105,8 @@ function buildDiagnostics(input: {
     fallbackAvailable: input.fallbackAvailable ?? false,
     fallbackUsed: input.fallbackUsed ?? false,
     errorCategory: input.errorCategory ?? null,
+    response: input.response,
+    repairFailure: input.repairFailure,
   };
 }
 
@@ -253,6 +118,8 @@ export function logStructuredInvokeEvent(input: {
   taskType?: TaskType;
   latencyMs?: number;
   rawChars?: number;
+  response?: ResponseDiagnostics;
+  schemaIssues?: Array<{ path: Array<string | number>; code: string }>;
   repairAttempt?: number;
   strategy?: StructuredOutputStrategy;
   errorCategory?: StructuredOutputErrorCategory | null;
@@ -272,6 +139,8 @@ export function logStructuredInvokeEvent(input: {
       typeof input.repairAttempt === "number" ? `repairAttempt=${input.repairAttempt}` : "",
       typeof input.latencyMs === "number" ? `latencyMs=${input.latencyMs}` : "",
       typeof input.rawChars === "number" ? `rawChars=${input.rawChars}` : "",
+      input.response ? `finishReason=${input.response.finishReason ?? "unknown"} outputTokens=${input.response.outputTokens ?? "unknown"} reasoningChars=${input.response.reasoningChars}` : "",
+      input.schemaIssues ? `schemaIssues=${JSON.stringify(input.schemaIssues)}` : "",
       input.fallbackUsed ? "fallbackUsed=true" : "",
       input.reasoningForcedOff ? "reasoningForcedOff=true" : "",
     ].filter(Boolean).join(" "),
@@ -284,6 +153,9 @@ export function buildStructuredError(input: {
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
   retryWithNextStrategy?: boolean;
+  retryable?: boolean;
+  response?: ResponseDiagnostics;
+  repairFailure?: StructuredOutputDiagnostics["repairFailure"];
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
@@ -292,6 +164,7 @@ export function buildStructuredError(input: {
     message: input.message,
     category: input.category,
     retryWithNextStrategy: input.retryWithNextStrategy,
+    retryable: input.retryable,
     diagnostics: buildDiagnostics({
       strategy: input.strategy,
       profile: input.profile,
@@ -299,6 +172,8 @@ export function buildStructuredError(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       errorCategory: input.category,
+      response: input.response,
+      repairFailure: input.repairFailure,
     }),
   });
 }
@@ -315,6 +190,10 @@ export function wrapStructuredInvokeError(input: {
 }): StructuredOutputError {
   if (input.error instanceof StructuredOutputError) {
     return input.error;
+  }
+  if (input.error instanceof ResponseTerminationError) {
+    return buildStructuredError({ ...input, message: input.error.message,
+      category: input.error.category, response: input.error.response, retryable: false });
   }
   const category = classifyStructuredOutputFailure({
     error: input.error,
@@ -333,6 +212,7 @@ export function wrapStructuredInvokeError(input: {
     reasoningForcedOff: input.reasoningForcedOff,
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
+    retryable: category !== "input_budget_exceeded" && ((input.error as {retryable?:boolean})?.retryable !== false || category === "unsupported_native_json"),
   });
 }
 
@@ -340,10 +220,18 @@ function getRepairHelpers<T>() {
   return {
     tryParseStructuredJsonValue,
     tryUnwrapSingletonArrayWrapper,
-    normalizeOversizedArrays,
     formatZodErrors,
     logStructuredInvokeEvent,
   };
+}
+
+function buildRepairRefusal<T>(input: StructuredInvokeRawParseInput<T>, error: StructuredRepairRefusalError,
+  attempt: number, category: StructuredOutputErrorCategory): StructuredOutputError {
+  logStructuredInvokeEvent({ ...input, event: "repair_refused", repairAttempt: attempt,
+    errorCategory: category, response: error.response });
+  return buildStructuredError({ ...input, message: `[${input.label}] ${error.message}`,
+    category, retryable: false,
+    repairFailure: { kind: "refused", attempt, originalCategory: category, response: error.response } });
 }
 
 export function shouldUseJsonObjectResponseFormat<T>(
@@ -364,13 +252,14 @@ export function shouldUseJsonObjectResponseFormat<T>(
 export async function parseStructuredLlmRawContentDetailed<T>(
   input: StructuredInvokeRawParseInput<T>,
 ): Promise<StructuredInvokeResult<T>> {
-  const runtimeSchema: ZodType<T> = relaxGeneratedContentSchema(input.schema);
+  const runtimeSchema: ZodType<T> = input.schema;
   const diagnostics = buildDiagnostics({
     strategy: input.strategy,
     profile: input.profile,
     reasoningForcedOff: input.reasoningForcedOff,
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
+    response: input.response,
   });
   if (!input.rawContent.trim()) {
     throw buildStructuredError({
@@ -403,6 +292,10 @@ export async function parseStructuredLlmRawContentDetailed<T>(
           tokenUsage: input.tokenUsage ?? null,
         };
       } catch (repairError) {
+        if (repairError instanceof ResponseTerminationError) throw wrapStructuredInvokeError({ ...input, error: repairError });
+        if (repairError instanceof StructuredRepairRefusalError) {
+          throw buildRepairRefusal(input, repairError, attempt, classifyStructuredOutputFailure({ error: parseErrorMessage }));
+        }
         if (attempt >= maxRepairAttempts) {
           throw buildStructuredError({
             message: `[${input.label}] JSON 解析失败且修复未成功。错误：${repairError instanceof Error ? repairError.message : String(repairError)}`,
@@ -421,6 +314,11 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     }
   }
 
+  if (parseErrorMessage) {
+    throw buildStructuredError({ message: `[${input.label}] ${parseErrorMessage}`,
+      category: classifyStructuredOutputFailure({ error: parseErrorMessage }),
+      strategy: input.strategy, profile: input.profile, response: input.response });
+  }
   const first = runtimeSchema.safeParse(parsed);
   if (first.success) {
     return {
@@ -453,28 +351,11 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     };
   }
 
-  const normalizedInitial = normalizeOversizedArrays(parsed, first.error, runtimeSchema);
-  if (normalizedInitial) {
-    logStructuredInvokeEvent({
-      event: "normalized",
-      label: input.label,
-      provider: input.provider,
-      model: input.model,
-      taskType: input.taskType,
-      strategy: input.strategy,
-      fallbackUsed: input.fallbackUsed,
-      reasoningForcedOff: input.reasoningForcedOff,
-    });
-    return {
-      data: normalizedInitial.data,
-      repairUsed: false,
-      repairAttempts: 0,
-      diagnostics,
-      tokenUsage: input.tokenUsage ?? null,
-    };
-  }
-
   let zodError: ZodError = first.error;
+  logStructuredInvokeEvent({ ...input, event: "schema_validation_failed", errorCategory: "schema_mismatch",
+    schemaIssues: first.error.issues.slice(0, 32).map(issue => ({ code: issue.code,
+      path: issue.path.map(part => typeof part === "number" ? part
+        : typeof part === "string" && /^[a-zA-Z0-9_]{1,64}$/.test(part) ? part : "(key)") })) });
   for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
     try {
       return {
@@ -488,6 +369,10 @@ export async function parseStructuredLlmRawContentDetailed<T>(
         tokenUsage: input.tokenUsage ?? null,
       };
     } catch (error) {
+      if (error instanceof ResponseTerminationError) throw wrapStructuredInvokeError({ ...input, error });
+      if (error instanceof StructuredRepairRefusalError) {
+        throw buildRepairRefusal(input, error, attempt, "schema_mismatch");
+      }
       if (attempt >= maxRepairAttempts) {
         throw buildStructuredError({
           message: `[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${error instanceof Error ? error.message : String(error)}`,

@@ -104,6 +104,8 @@ export function useNovelEditInitialization({
     }
 
     setBasicForm({
+      creativeProfile: detail.creativeProfileIssue ? undefined : detail.creativeProfile ?? null,
+      creativeProfileIssue: detail.creativeProfileIssue,
       title: detail.title,
       description: detail.description ?? "",
       targetAudience: detail.targetAudience ?? "",

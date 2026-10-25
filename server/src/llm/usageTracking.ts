@@ -21,7 +21,7 @@ export interface LlmUsageTrackingContext {
     directorNodeKey?: string | null;
 }
 export interface LlmUsageTrackingMeta {
-    requestProtocol?: "anthropic" | "openai_compatible" | "openai-compatible" | "auto";
+    requestProtocol?: import("@ai-novel/shared/types/novel").ModelRouteRequestProtocol | "openai-compatible";
     provider?: LLMProvider | string | null;
     model?: string | null;
     taskType?: string | null;

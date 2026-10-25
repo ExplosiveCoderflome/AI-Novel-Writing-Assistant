@@ -30,7 +30,8 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
       narrativePov:input.narrativePov,pacePreference:input.pacePreference,emotionIntensity:input.emotionIntensity,aiFreedom:input.aiFreedom,
       postGenerationStyleReviewEnabled:input.postGenerationStyleReviewEnabled,sourceNovelId:input.sourceNovelId,sourceKnowledgeDocumentId:input.sourceKnowledgeDocumentId,
       continuationBookAnalysisId:input.continuationBookAnalysisId,continuationBookAnalysisSections:input.continuationBookAnalysisSections,
-      referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections});
+      referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections,
+      creativeProfile:input.creativeProfile ?? null});
   if (!existing?.directorVersion) await prisma.novel.update({where: {id: novel.id}, data: {directorVersion: "v2"}});
   await new StyleBindingService().ensureNovelDefault(novel.id, input.styleProfileId);
   if (confirmation && !confirmation.novelId) await prisma.creationStudioConfirmation.update({where:{workflowTaskId:sourceTaskId},data:{novelId:novel.id}});

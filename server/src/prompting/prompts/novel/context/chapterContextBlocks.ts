@@ -3,6 +3,8 @@ import type {
   ChapterReviewContext,
   ChapterWriteContext,
 } from "@ai-novel/shared/types/chapterRuntime";
+import { creativePromptGuidanceFromStored } from "../../../../modules/novel/creative-profile";
+import { buildCreativeProfileContextBlock } from "../../creativeProfile/creativePromptGuidance";
 import { createContextBlock } from "../../../core/contextBudget";
 import type { PromptContextBlock } from "../../../core/promptTypes";
 import { buildWriterStyleContractText } from "../../../../services/styleEngine/styleContractText";
@@ -243,6 +245,7 @@ export function buildChapterWriterContextBlocks(
   const includeContinuationConstraints = mode === "full" && writeContext.continuationConstraints.length > 0;
   const wordRange = resolveTargetWordRange(writeContext.chapterMission.targetWordCount);
   const blocks: Array<PromptContextBlock | null> = [
+    buildCreativeProfileContextBlock(creativePromptGuidanceFromStored(writeContext.bookContract, mode === "review" ? "auditing" : mode === "repair" ? "repairing" : "drafting")),
     writeContext.productionFoundationPrompt
       ? createContextBlock({
         id: "production_foundation",

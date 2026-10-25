@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
+import { creativeProfileInputSchema } from "@ai-novel/shared/types/creativeProfile";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -33,6 +34,7 @@ const createTitleSchema = z.object({
 });
 
 const generateTitleSchema = z.object({
+  creativeProfile: creativeProfileInputSchema.nullish(),
   mode: z.enum(["brief", "adapt"]),
   brief: z.string().trim().max(2000).optional(),
   referenceTitle: z.string().trim().max(120).optional(),
@@ -41,7 +43,7 @@ const generateTitleSchema = z.object({
   provider: providerSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(256).max(32768).optional(),
+  maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 }).superRefine((value, context) => {
   if (value.mode === "brief" && !(value.brief ?? "").trim()) {
     context.addIssue({

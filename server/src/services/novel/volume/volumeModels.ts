@@ -18,6 +18,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import type { CreativePromptGuidance } from "../../../prompting/prompts/creativeProfile/creativePromptGuidance";
 
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
 export type VolumeGenerationPhase = "load_context" | "prompt";
@@ -64,6 +65,8 @@ export interface VolumeGenerationNovel {
   pacePreference: string | null;
   emotionIntensity: string | null;
   storyModePromptBlock?: string | null;
+  /** 规划阶段的创作取向指导；未设置取向时为 null，分卷各提示词保持旧文案。 */
+  creativeGuidance?: CreativePromptGuidance | null;
   genre: {
     name: string;
   } | null;

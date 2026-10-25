@@ -77,13 +77,14 @@ for (const maxRetries of [0, 1, 3, 5]) {
 test('semantic correction and candidate verification share the same chapter allowance', async t => {
   const calls = models(t, () => '{"value":"wrong"}');
   const budget = createTransientChapterReviewRetryBudget({ maxRetries: 2, onExhausted: 'pause_for_manual' });
-  const asset = { id: 'novel.chapter.acceptance_assessment', version: 'v24', taskType: 'review', mode: 'structured',
+  const asset = { id: 'novel.chapter.acceptance_assessment', version: 'v25', taskType: 'review', mode: 'structured',
     contextPolicy: { maxTokensBudget: 100 }, outputSchema: z.object({ value: z.string() }),
     render: () => [new HumanMessage('offline evidence fixture')], semanticRetryPolicy: { maxAttempts: 1, sharedCorrectionBudget: 1 },
     postValidate: () => { throw new Error('evidence is not from the candidate'); } };
   const options = { provider: 'deepseek', model: 'offline-model' };
-  await assert.rejects(budget.runCheck('initial', () => runStructuredPrompt({ asset, promptInput: {}, options })));
-  assert.equal(calls.length, 3);
+  const failure = await budget.runCheck('initial', () => runStructuredPrompt({ asset, promptInput: {}, options })).then(() => null, error => error);
+  assert.ok(failure, 'semantic validation must reject the fixture');
+  assert.equal(calls.length, 3, failure.stack);
   assert.equal(budget.summary().used, 2);
   // A repaired candidate has one normal first verification, but no new correction allowance.
   await assert.rejects(budget.runCheck('candidate', () => runStructuredPrompt({ asset, promptInput: {}, options })));

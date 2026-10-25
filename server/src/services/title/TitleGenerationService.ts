@@ -1,5 +1,8 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
+import type { CreativeProfile } from "@ai-novel/shared/types/creativeProfile";
+import { creativePromptGuidanceFromProfile, creativePromptGuidanceFromStored } from "../../modules/novel/creative-profile";
+import type { CreativePromptGuidance } from "../../prompting/prompts/creativeProfile/creativePromptGuidance";
 import { prisma } from "../../db/prisma";
 import { resolveLLMClientOptions } from "../../llm/factory";
 import { selectStructuredOutputStrategy } from "../../llm/structuredOutput";
@@ -30,6 +33,8 @@ export interface GenerateTitleIdeasInput extends TitleGenerationLLMOptions {
   referenceTitle?: string;
   genreId?: string | null;
   count?: number;
+  /** 开书入口用户明确选择的取向；文学取向下按取向选标题标准。 */
+  creativeProfile?: CreativeProfile | null;
 }
 
 export interface GenerateNovelTitlesInput extends TitleGenerationLLMOptions {
@@ -149,7 +154,7 @@ export class TitleGenerationService {
       model: input.model,
       temperature: input.temperature,
       maxTokens: input.maxTokens,
-    });
+    }, [], creativePromptGuidanceFromProfile(input.creativeProfile, "positioning"));
   }
 
   async generateNovelTitles(
@@ -162,6 +167,7 @@ export class TitleGenerationService {
         id: true,
         title: true,
         description: true,
+        creativeProfileJson: true,
         genre: {
           select: {
             id: true,
@@ -188,24 +194,26 @@ export class TitleGenerationService {
       currentTitle: novel.title,
       genreName: novel.genre?.name ?? "",
       genreDescription: novel.genre?.description ?? "",
-    }, input, novel.title ? [novel.title] : []);
+    }, input, novel.title ? [novel.title] : [], creativePromptGuidanceFromStored(novel, "positioning"));
   }
 
   private async runGeneration(
     promptContext: TitlePromptContext,
     llmOptions: TitleGenerationLLMOptions,
     blockedTitles: string[] = [],
+    creativeGuidance: CreativePromptGuidance | null = null,
   ): Promise<{ titles: TitleFactorySuggestion[] }> {
     const provider = llmOptions.provider ?? "deepseek";
     const forceJson = await shouldForceTitleJsonOutput(llmOptions);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
     const primarySelection = promptContext.selectionMode === "primary";
+    const literary = Boolean(creativeGuidance && !creativeGuidance.keepWebSerialDefaults);
 
     let lastError: unknown;
     let bestEffortTitles: TitleFactorySuggestion[] = [];
     let retryReason: string | null = null;
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (let attempt = 0; attempt < (literary ? 1 : 3); attempt += 1) {
       try {
         const payload = await runStructuredPrompt({
           asset: titleGenerationPrompt,
@@ -216,6 +224,7 @@ export class TitleGenerationService {
             },
             forceJson,
             retryReason,
+            ...(creativeGuidance ? { creativeGuidance } : {}),
           },
           options: {
             provider,
@@ -227,15 +236,16 @@ export class TitleGenerationService {
 
         const rawTitles = extractRawTitlesFromPayload(payload.output);
         const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles, {
-          preserveOrder: primarySelection,
-          enforceFrameDiversity: !primarySelection,
+          preserveOrder: primarySelection || literary,
+          enforceFrameDiversity: !primarySelection && !literary,
+          literary,
         });
 
         if (isBetterBatch(bestEffortTitles, titles)) {
           bestEffortTitles = titles;
         }
 
-        if (primarySelection) {
+        if (primarySelection || literary) {
           if (titles.length < count) {
             throw new Error(`标题数量不足，目标 ${count} 个，实际仅有 ${titles.length} 个可用标题。`);
           }
@@ -252,8 +262,8 @@ export class TitleGenerationService {
     const minimumAcceptableCount = Math.max(5, Math.floor(count * 0.8));
     if (
       bestEffortTitles.length >= minimumAcceptableCount
-      && hasEnoughStyleVariety(bestEffortTitles, bestEffortTitles.length)
-      && hasEnoughStructuralVariety(bestEffortTitles, bestEffortTitles.length)
+      && (literary || (hasEnoughStyleVariety(bestEffortTitles, bestEffortTitles.length)
+      && hasEnoughStructuralVariety(bestEffortTitles, bestEffortTitles.length)))
     ) {
       return { titles: bestEffortTitles };
     }

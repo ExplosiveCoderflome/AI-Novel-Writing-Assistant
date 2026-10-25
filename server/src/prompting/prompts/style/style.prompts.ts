@@ -47,6 +47,8 @@ export interface StyleRewritePromptInput {
 }
 
 export interface StyleProfileExtractionPromptInput {
+  segment?: { index: number; count: number };
+  featureBudget?: number;
   name: string;
   category?: string;
   sourceText: string;
@@ -461,7 +463,8 @@ export const styleProfileExtractionPrompt: PromptAsset<
       "",
       "features 规则：",
       "1. features 是本次输出的核心，必须尽量完整覆盖 narrative、language、dialogue、rhythm、fingerprint 五类特征。",
-      "2. 不要为了保守而过度删减，能稳定抽出的都要保留。",
+      `2. 本次最多提取 ${input.featureBudget ?? 8} 个有证据的特征，按来源实际内容完整覆盖，不要凑数量。每项 description、evidence 不超过 80 个汉字，规则补丁保持简洁。不要扩写原文。`,
+      input.segment ? `本次仅分析第 ${input.segment.index}/${input.segment.count} 个来源片段；不得推测未提供的片段。各片段结果会完整合并。` : "",
       "3. 每个 feature 都必须提供 keepRulePatch；如果该特征适合在迁移时做弱化，再提供 weakenRulePatch。",
       "4. 每个 feature 都必须具体、可执行，不能写成“文笔较好”“节奏不错”“人物鲜明”这类空话。",
       "5. feature 应优先描述“怎么写出来”，而不是只描述“读起来像什么”。",

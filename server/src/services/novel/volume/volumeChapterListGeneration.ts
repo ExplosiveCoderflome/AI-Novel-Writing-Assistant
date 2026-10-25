@@ -1,3 +1,5 @@
+import { resolveLLMClientOptions } from "../../../llm/factory";
+import { generateChapterBatches } from "./generation/ChapterBatching";
 import type {
   VolumeBeat,
   VolumeBeatSheet,
@@ -222,7 +224,7 @@ function isMergedVolumeChapterListComplete(params: {
   });
 }
 
-async function generateBeatChapterBlock(params: {
+async function generateBeatChapterBatch(params: {
   document: VolumePlanDocument;
   workspace: VolumeWorkspace;
   novel: VolumeGenerationNovel;
@@ -236,6 +238,7 @@ async function generateBeatChapterBlock(params: {
   previousBeatChapterSummary?: string | null;
   preservedBeatChapterSummary?: string | null;
   chapterBudgets: number[];
+  reservedBatchTitles?: string[];
 }): Promise<GeneratedVolumeChapterBlock> {
   const targetIndex = params.document.volumes.findIndex((volume) => volume.id === params.targetVolume.id);
   const promptInput = {
@@ -274,7 +277,7 @@ async function generateBeatChapterBlock(params: {
       }),
       reservedChapterTitles: params.targetVolume.chapters
         .filter((chapter) => chapter.beatKey !== params.beatPlan.beat.key)
-        .map((chapter) => chapter.title),
+        .map((chapter) => chapter.title).concat(params.reservedBatchTitles ?? []),
       characterIds: params.options.entrypoint === "director_next" ? params.novel.characters.map(character => {
         if (!character.id) throw new Error("角色出场初排缺少角色 ID。");
         return character.id;
@@ -286,7 +289,7 @@ async function generateBeatChapterBlock(params: {
       provider: params.options.provider,
       model: params.options.model,
       temperature: params.options.temperature ?? 0.35,
-      maxTokens: Math.min(params.options.entrypoint === "director_next" ? 6_400 : 4_800,
+      defaultMaxTokens: Math.min(params.options.entrypoint === "director_next" ? 6_400 : 4_800,
         900 + params.beatPlan.chapterCount * (params.options.entrypoint === "director_next" ? 380 : 260)),
       novelId: params.document.novelId,
       volumeId: params.targetVolume.id,
@@ -300,6 +303,32 @@ async function generateBeatChapterBlock(params: {
   });
 
   return generated.output;
+}
+
+async function generateBeatChapterBlock(params: Parameters<typeof generateBeatChapterBatch>[0]): Promise<GeneratedVolumeChapterBlock> {
+  const configured=await resolveLLMClientOptions(params.options.provider ?? "deepseek", {model:params.options.model,taskType:"planner",requireApiKey:false});
+  const batchSize = configured.maxTokens !== undefined ? Math.max(1, Math.floor((configured.maxTokens - 900) / (params.options.entrypoint === "director_next" ? 380 : 260))) : 8;
+  const chapters = await generateChapterBatches<GeneratedVolumeChapterBlock["chapters"][number]>(params.beatPlan.chapterCount, async (offset, count, previous) => {
+    const batch = await generateBeatChapterBatch({ ...params,
+      reservedBatchTitles: previous.map((c) => c.title),
+      previousBeatChapterSummary: [params.previousBeatChapterSummary,
+        previous.map((c, i) => `第 ${params.beatPlan.chapterStartOrder + i} 章 ${c.title}：${c.summary}`).join("\n")].filter(Boolean).join("\n"),
+      beatPlan: { ...params.beatPlan, chapterCount: count,
+        chapterStartOrder: params.beatPlan.chapterStartOrder + offset,
+        chapterEndOrder: params.beatPlan.chapterStartOrder + offset + count - 1 },
+    });
+    if (batch.beatKey !== params.beatPlan.beat.key || batch.chapterCount !== count || batch.chapters.some((c) => c.beatKey !== batch.beatKey)) {
+      throw new Error("章节分批结果与目标节奏段或章数不一致。");
+    }
+    const titles = new Set(previous.map((c) => c.title.trim()));
+    for (const chapter of batch.chapters) {
+      if (titles.has(chapter.title.trim())) throw new Error("章节分批结果包含重复标题。");
+      titles.add(chapter.title.trim());
+    }
+    return batch.chapters;
+  }, batchSize);
+  return { beatKey: params.beatPlan.beat.key, beatLabel: params.beatPlan.beat.label,
+    chapterCount: params.beatPlan.chapterCount, chapters };
 }
 
 export async function generateBeatChunkedChapterList(params: {

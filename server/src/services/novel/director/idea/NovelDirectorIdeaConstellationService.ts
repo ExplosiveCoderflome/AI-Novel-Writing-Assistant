@@ -36,7 +36,7 @@ async function runOptionsPrompt(input: DirectorIdeaConstellationOptionsRequest, 
       provider: input.provider,
       model: input.model,
       temperature,
-      maxTokens: CONSTELLATION_OPTIONS_MAX_TOKENS,
+      defaultMaxTokens: CONSTELLATION_OPTIONS_MAX_TOKENS,
     },
   });
 }
@@ -55,7 +55,7 @@ async function runComposePrompt(input: DirectorIdeaConstellationComposeRequest, 
       provider: input.provider,
       model: input.model,
       temperature,
-      maxTokens: CONSTELLATION_COMPOSE_MAX_TOKENS,
+      defaultMaxTokens: CONSTELLATION_COMPOSE_MAX_TOKENS,
     },
   });
 }

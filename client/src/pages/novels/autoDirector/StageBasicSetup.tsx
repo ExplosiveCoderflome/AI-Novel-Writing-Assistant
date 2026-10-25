@@ -1,3 +1,4 @@
+import { CreativeProfileSection } from "../components/basicInfoForm/CreativeProfileSection";
 import { useState } from "react";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
@@ -65,9 +66,10 @@ export default function StageBasicSetup({
         </div>
       </div>
 
+      <CreativeProfileSection value={basicForm.creativeProfile} onChange={(creativeProfile) => onBasicFormChange({ creativeProfile })} />
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-platform" hint="决定规划、正文、审校和修复采用哪类平台读感。">目标平台</FieldLabel>
+          <FieldLabel htmlFor="director-basic-platform" hint="选择发布场景；创作取向与叙事策略决定本书的写法。">目标平台</FieldLabel>
           <SelectControl
             id="director-basic-platform"
             className={controlClassName}

@@ -449,7 +449,7 @@ export const hookGenerateSchema = llmGenerateSchema.extend({
 
 export const titleGenerateSchema = llmGenerateSchema.extend({
   count: z.number().int().min(3).max(24).optional(),
-  maxTokens: z.number().int().min(256).max(32768).optional(),
+  maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 });
 
 export const draftOptimizeSchema = llmGenerateSchema.extend({

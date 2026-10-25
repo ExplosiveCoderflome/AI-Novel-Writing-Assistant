@@ -1,7 +1,9 @@
+import { convertToOpenAITool } from "@langchain/core/utils/function_calling";
 import type { ChatOpenAI } from "@langchain/openai";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { TaskType } from "./modelRouter";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import { assertPromptBudget } from "../platform/llm/execution";
 
 const LLM_REQUEST_GUARD_PATCHED = Symbol("LLM_REQUEST_GUARD_PATCHED");
 
@@ -10,6 +12,9 @@ interface LLMRequestGuardMeta {
   model: string;
   taskType?: TaskType;
   promptMeta?: Partial<PromptInvocationMeta>;
+  maxTokens?: number;
+  tools?: unknown[];
+  tokenSettings?: import("../services/settings/modelTokens").ModelTokenSettings;
 }
 
 type LLMRequestMethod = "invoke" | "stream" | "batch";
@@ -55,12 +60,13 @@ function extractInputText(input: unknown): string {
 
   const candidate = input as {
     content?: unknown;
+    tool_calls?: unknown;
     messages?: unknown;
     toChatMessages?: unknown;
     toString?: unknown;
   };
   if ("content" in candidate) {
-    return stringifyContent(candidate.content);
+    return stringifyContent(candidate.content) + (candidate.tool_calls ? JSON.stringify(candidate.tool_calls) : "");
   }
   if (Array.isArray(candidate.messages)) {
     return extractInputText(candidate.messages);
@@ -101,25 +107,27 @@ function formatEmptyRequestMessage(method: LLMRequestMethod, meta: LLMRequestGua
   return chunks.join(" ");
 }
 
-function assertSingleInput(method: LLMRequestMethod, input: unknown, meta: LLMRequestGuardMeta, batchIndex?: number): void {
+function assertSingleInput(method: LLMRequestMethod, input: unknown, meta: LLMRequestGuardMeta, batchIndex?: number, schemaText = ""): void {
   const text = extractInputText(input);
   if (!text.trim()) {
     throw new Error(formatEmptyRequestMessage(method, meta, batchIndex));
   }
+  const estimatedInputTokens = assertPromptBudget(text, meta.maxTokens, schemaText, meta.tokenSettings);
+  if (meta.promptMeta) meta.promptMeta.estimatedInputTokens = estimatedInputTokens;
 }
 
-export function assertNonEmptyLLMInput(method: LLMRequestMethod, input: unknown, meta: LLMRequestGuardMeta): void {
+export function assertNonEmptyLLMInput(method: LLMRequestMethod, input: unknown, meta: LLMRequestGuardMeta, schemaText = ""): void {
   if (method === "batch") {
     if (!Array.isArray(input) || input.length === 0) {
       throw new Error(formatEmptyRequestMessage(method, meta));
     }
-    input.forEach((entry, index) => assertSingleInput(method, entry, meta, index));
+    input.forEach((entry, index) => assertSingleInput(method, entry, meta, index, schemaText));
     return;
   }
   if (Array.isArray(input) && input.length === 0) {
     throw new Error(formatEmptyRequestMessage(method, meta));
   }
-  assertSingleInput(method, input, meta);
+  assertSingleInput(method, input, meta, undefined, schemaText);
 }
 
 export function attachLLMRequestGuard(llm: ChatOpenAI, meta: LLMRequestGuardMeta): ChatOpenAI {
@@ -133,12 +141,12 @@ export function attachLLMRequestGuard(llm: ChatOpenAI, meta: LLMRequestGuardMeta
   const originalBatch = llm.batch.bind(llm);
 
   patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
-    assertNonEmptyLLMInput("invoke", args[0], meta);
+    assertNonEmptyLLMInput("invoke", args[0], meta, JSON.stringify({response_format:args[1]?.response_format,tools:(args[1]?.tools ?? meta.tools)?.map(tool=>convertToOpenAITool(tool as Parameters<typeof convertToOpenAITool>[0]))}));
     return originalInvoke(...args);
   }) as ChatOpenAI["invoke"];
 
   patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
-    assertNonEmptyLLMInput("stream", args[0], meta);
+    assertNonEmptyLLMInput("stream", args[0], meta, JSON.stringify({response_format:args[1]?.response_format,tools:(args[1]?.tools ?? meta.tools)?.map(tool=>convertToOpenAITool(tool as Parameters<typeof convertToOpenAITool>[0]))}));
     return originalStream(...args);
   }) as ChatOpenAI["stream"];
 

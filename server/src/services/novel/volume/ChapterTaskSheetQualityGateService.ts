@@ -11,6 +11,7 @@ import {
 } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import type { CreativePromptGuidance } from "../../../prompting/prompts/creativeProfile/creativePromptGuidance";
 import {
   chapterTaskSheetQualityPrompt,
 } from "../../../prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts";
@@ -24,6 +25,8 @@ export interface ChapterTaskSheetQualityGateOptions {
   taskId?: string;
   entrypoint?: string;
   signal?: AbortSignal;
+  /** 与生成合同时一致的规划阶段取向指导；未设置取向时为 null。 */
+  creativeGuidance?: CreativePromptGuidance | null;
 }
 
 export type ChapterTaskSheetSemanticAssessor = (input: {
@@ -96,6 +99,7 @@ export class ChapterTaskSheetQualityGateService {
       promptInput: {
         candidate,
         mode,
+        ...(options.creativeGuidance ? { creativeGuidance: options.creativeGuidance } : {}),
       },
       options: {
         provider: options.provider,

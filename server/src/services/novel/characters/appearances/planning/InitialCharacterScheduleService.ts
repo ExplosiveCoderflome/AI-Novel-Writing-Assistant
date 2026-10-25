@@ -49,7 +49,7 @@ export class InitialCharacterScheduleService {
       neighbors:all.filter(chapter=>chapter.plannedCharacterIds!==undefined
         && chapter.chapterOrder>=targets[0].chapterOrder-3 && chapter.chapterOrder<=targets[targets.length-1].chapterOrder+3)
         .map(chapter=>({chapterOrder:chapter.chapterOrder,plannedCharacterIds:chapter.plannedCharacterIds!})),
-    },options:{...input,temperature:0.25,maxTokens:Math.min(4800,600+targets.length*170),
+    },options:{...input,temperature:0.25,defaultMaxTokens:Math.min(4800,600+targets.length*170),
       novelId,taskId:run?.id,stage:"character_initial_schedule",scope:"character_initial_schedule",
       itemKey:"character_initial_schedule",entrypoint:"director_next"}});
     const requested=new Set(targets.map(chapter=>chapter.id));

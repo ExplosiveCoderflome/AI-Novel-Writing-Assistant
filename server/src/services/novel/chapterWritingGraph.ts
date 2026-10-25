@@ -16,6 +16,7 @@ import {
 import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError";
+import { creativePromptGuidanceFromStored } from "../../modules/novel/creative-profile";
 import { prisma } from "../../db/prisma";
 import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
 import { toText } from "./novelP0Utils";
@@ -24,10 +25,13 @@ import { buildContinuationBudget, type ContinuationBudget } from "./runtime/writ
 async function loadWritingPlatformBlock(novelId: string) {
   const novel = await prisma.novel.findUnique({
     where: { id: novelId },
-    select: { writingPlatformSnapshotJson: true },
+    select: { writingPlatformSnapshotJson: true, creativeProfileJson: true },
   });
   let content = "沿用通用中文商业网文写法，保持情节推进、人物主动、因果清晰和章节回报。";
-  if (novel?.writingPlatformSnapshotJson) {
+  const guidance = creativePromptGuidanceFromStored(novel, "drafting");
+  if (guidance && !guidance.keepWebSerialDefaults) {
+    content = "发布呈现：按所选平台的篇幅和段落要求呈现；创作方式服从本书创作取向，不附加升级、爽点或章末钩子要求。";
+  } else if (novel?.writingPlatformSnapshotJson) {
     try {
       const snapshot = JSON.parse(novel.writingPlatformSnapshotJson) as WritingPlatformSnapshot;
       content = `${snapshot.label}（配置版本 ${snapshot.profileVersion}）：${snapshot.guidance.drafting}`;
@@ -245,7 +249,7 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         reasoningEnabled: false,
-        maxTokens: continuationBudget.maxOutputTokens,
+        defaultMaxTokens: continuationBudget.maxOutputTokens,
         novelId: input.novelId,
         chapterId: input.chapter.id,
         stage: "writer_extend",
@@ -349,7 +353,7 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         reasoningEnabled: false,
-        maxTokens: 6000,
+        defaultMaxTokens: 6000,
         novelId: input.novelId,
         chapterId: input.chapter.id,
         stage: "writer_draft",

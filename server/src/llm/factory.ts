@@ -1,3 +1,8 @@
+import { protocolBoundFetch } from "./protocols/OpenAIStreamTransport";
+import { createGeminiLLM } from "./protocols/GeminiClient";
+import { normalizeApiBaseURL, originBoundFetch } from "./protocols/transport";
+import { resolveProtocol, buildThinkingParameters } from "./protocols/ProtocolPolicy";
+import { getModelTokenSettings, validateOutputTokens, type ModelTokenSettings } from "../services/settings/modelTokens";
 import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
 import {attachExecutionSignal} from "../platform/llm/execution";
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
@@ -29,6 +34,8 @@ import {
 } from "./providers";
 
 interface LLMOptions {
+  requireApiKey?: boolean; // false only for read-only budget inspection, never starts a client request
+  defaultMaxTokens?: number;
   model?: string;
   temperature?: number;
   apiKey?: string;
@@ -62,6 +69,8 @@ export interface ProviderSecret {
 }
 
 export interface ResolvedLLMClientOptions {
+  tools?: any[];
+  tokenSettings?: ModelTokenSettings;
   provider: LLMProvider;
   providerName: string;
   model: string;
@@ -222,7 +231,7 @@ export async function resolveLLMClientOptions(
   let resolvedProvider = provider ?? options.fallbackProvider ?? "deepseek";
   let resolvedModel = normalizeOptionalText(options.model);
   let resolvedTemperature: number | undefined = options.temperature;
-  let resolvedMaxTokens: number | undefined = options.maxTokens;
+  let resolvedMaxTokens: number | undefined = validateOutputTokens(options.maxTokens);
   let resolvedModelRoute: string | undefined;
   let resolvedRouteDegraded = false;
 
@@ -269,7 +278,7 @@ export async function resolveLLMClientOptions(
     ?? dbSecret?.key
     ?? getProviderEnvApiKey(resolvedProvider);
 
-  if (!apiKey && providerRequiresApiKey(resolvedProvider)) {
+  if (!apiKey && providerRequiresApiKey(resolvedProvider) && options.requireApiKey !== false) {
     throw new Error(`未配置 ${providerName} 的 API Key。`);
   }
 
@@ -281,21 +290,30 @@ export async function resolveLLMClientOptions(
     throw new Error(`未配置 ${providerName} 的默认模型。`);
   }
 
-  const baseURL = resolveProviderBaseUrl(
+  const rawBaseURL = resolveProviderBaseUrl(
     resolvedProvider,
     options.baseURL ?? dbSecret?.baseURL,
     dbSecret?.baseURL,
   );
-  if (!baseURL) {
+  if (!rawBaseURL) {
     throw new Error(`未配置 ${providerName} 的 API URL。`);
   }
+  if (options.baseURL && !options.apiKey && dbSecret?.key) {
+    const savedBase = resolveProviderBaseUrl(resolvedProvider, dbSecret.baseURL, dbSecret.baseURL);
+    if (savedBase && new URL(options.baseURL).origin !== new URL(savedBase).origin) throw new Error("API 域名与保存的凭据不一致；请在该服务配置中提供对应凭据。");
+  }
+  const tokenSettings = await getModelTokenSettings(resolvedProvider, model);
+  const requestProtocol = resolveProtocol(options.requestProtocol, tokenSettings.requestProtocol, rawBaseURL);
+  if(requestProtocol !== "openai_compatible" && tokenSettings.outputTokenParameter !== "auto") {
+    const error=new Error("所选接口由协议固定输出字段，请将 Chat 输出字段设为自动后重试。") as Error & {retryable:boolean};error.retryable=false;throw error;
+  }
+  const baseURL = normalizeApiBaseURL(rawBaseURL, requestProtocol);
   const authMode = normalizeProviderAuthMode(options.authMode ?? dbSecret?.authMode);
 
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
   const concurrencyLimit = normalizeLimitValue(dbSecret?.concurrencyLimit);
   const requestIntervalMs = normalizeLimitValue(dbSecret?.requestIntervalMs);
-  const requestProtocol = options.requestProtocol === "anthropic" ? "anthropic" : "openai_compatible";
   const structuredStrategy = options.structuredStrategy;
   const executionMode = options.executionMode ?? "plain";
   const structuredProfile = executionMode === "structured"
@@ -308,24 +326,17 @@ export async function resolveLLMClientOptions(
     })
     : null;
   const usesNativeStructured = structuredStrategy != null && structuredStrategy !== "prompt_json";
-  const requestedReasoningEnabled = options.reasoningEnabled ?? dbSecret?.reasoningEnabled ?? true;
+  const explicitThinking = tokenSettings.thinkingMode !== "default" || tokenSettings.thinkingEffort !== "default" || tokenSettings.thinkingBudgetTokens != null;
+  const requestedReasoningEnabled = explicitThinking ? tokenSettings.thinkingMode !== "disabled" && tokenSettings.thinkingEffort !== "none" : options.reasoningEnabled ?? dbSecret?.reasoningEnabled ?? true;
+  if(explicitThinking && requestedReasoningEnabled && usesNativeStructured && structuredProfile?.requiresNonThinkingForStructured) throw new Error("此服务的原生结构格式不支持所选思考模式，请改用提示词 JSON 或调整思考设置。");
   const requestedReasoningEffort = options.reasoningEffort ?? dbSecret?.reasoningEffort ?? "high";
   const shouldForceDisableReasoning = Boolean(
-    structuredProfile
+    !explicitThinking && structuredProfile
       && structuredProfile.requiresNonThinkingForStructured
       && structuredProfile.supportsReasoningToggle,
   );
   const reasoningEnabled = shouldForceDisableReasoning ? false : requestedReasoningEnabled;
-  let effectiveMaxTokens = resolvedMaxTokens;
-  if (structuredProfile && usesNativeStructured && structuredProfile.omitMaxTokensForNativeStructured) {
-    effectiveMaxTokens = undefined;
-  } else if (
-    structuredProfile
-    && typeof structuredProfile.safeStructuredMaxTokens === "number"
-    && typeof effectiveMaxTokens === "number"
-  ) {
-    effectiveMaxTokens = Math.min(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens);
-  }
+  const effectiveMaxTokens = resolvedMaxTokens ?? tokenSettings.maxOutputTokens ?? options.defaultMaxTokens;
   const usesEnableThinkingFlag = Boolean(
     shouldForceDisableReasoning
       && structuredProfile?.family.includes("qwen"),
@@ -334,16 +345,19 @@ export async function resolveLLMClientOptions(
     ...(options.modelKwargs ?? {}),
     ...(usesEnableThinkingFlag ? { enable_thinking: false } : {}),
   };
-  const reasoningBehavior = resolveProviderReasoningBehavior({
+  const knownHost = /^(api\.openai\.com|api\.deepseek\.com|open\.bigmodel\.cn|dashscope\.aliyuncs\.com)$/.test(new URL(baseURL).hostname);
+  const reasoningBehavior = knownHost ? resolveProviderReasoningBehavior({
     provider: resolvedProvider,
     baseURL,
     model,
     reasoningEnabled,
     reasoningEffort: requestedReasoningEffort,
-  });
+  }) : {reasoningEnabled, reasoningEffort: null, modelKwargs: {}, includeRawResponse: true};
+  const thinkingParameters = buildThinkingParameters(requestProtocol, tokenSettings, effectiveMaxTokens);
   const modelKwargs = {
     ...(reasoningBehavior.modelKwargs ?? {}),
     ...baseModelKwargs,
+    ...thinkingParameters,
   };
 
   return {
@@ -355,6 +369,7 @@ export async function resolveLLMClientOptions(
     baseURL,
     authMode,
     maxTokens: effectiveMaxTokens,
+    tokenSettings,
     timeoutMs,
     concurrencyLimit,
     requestIntervalMs,
@@ -387,6 +402,17 @@ export function buildOpenAICompatibleDefaultHeaders(
   };
 }
 
+function openAIModelKwargs(resolved: ResolvedLLMClientOptions): Record<string, unknown> | undefined {
+  const kwargs = {...resolved.modelKwargs};
+  if (resolved.requestProtocol === "openai_responses") { delete kwargs.reasoning_effort; return Object.keys(kwargs).length ? kwargs : undefined; }
+  const parameter = resolved.tokenSettings?.outputTokenParameter ?? "auto";
+  const officialReasoning = new URL(resolved.baseURL).hostname === "api.openai.com" && /^(gpt-[56]|o[1-9])/.test(resolved.model);
+  if (resolved.maxTokens != null && (parameter === "max_completion_tokens" || (parameter === "auto" && officialReasoning))) {
+    kwargs.max_tokens = undefined; kwargs.max_completion_tokens = resolved.maxTokens;
+  }
+  return Object.keys(kwargs).length ? kwargs : undefined;
+}
+
 export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions): ChatOpenAI {
   const llm = resolved.requestProtocol === "anthropic"
     ? createAnthropicLLM({
@@ -396,23 +422,38 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
       timeoutMs: resolved.timeoutMs,
-    }) as ChatOpenAI
+      modelKwargs: resolved.modelKwargs,
+      tools: resolved.tools,
+    }) as unknown as ChatOpenAI
+    : resolved.requestProtocol === "gemini" ? createGeminiLLM({
+      apiKey: resolved.apiKey, model: resolved.model, baseURL: resolved.baseURL,
+      temperature: resolved.temperature, maxTokens: resolved.maxTokens, timeoutMs: resolved.timeoutMs,
+      tools: resolved.tools,
+      thinking: resolved.modelKwargs?.thinkingConfig as Record<string, unknown> | undefined,
+    }) as unknown as ChatOpenAI
     : new ChatOpenAI({
       apiKey: resolved.apiKey ?? "ollama",
       model: resolved.model,
       modelName: resolved.model,
       temperature: resolved.temperature,
+      useResponsesApi: resolved.requestProtocol === "openai_responses",
       maxTokens: resolved.maxTokens,
+      ...(resolved.requestProtocol === "openai_responses" && resolved.modelKwargs?.reasoning ? {reasoning:resolved.modelKwargs.reasoning as any} : {}),
       timeout: resolved.timeoutMs,
       maxRetries: 0,
-      modelKwargs: resolved.modelKwargs,
-      __includeRawResponse: resolved.includeRawResponse,
+      modelKwargs: openAIModelKwargs(resolved),
+      __includeRawResponse: true,
       configuration: {
         baseURL: resolved.baseURL,
+        fetch: protocolBoundFetch(resolved.baseURL,resolved.requestProtocol, resolved.tokenSettings?.outputTokenParameter === "max_completion_tokens" || (resolved.tokenSettings?.outputTokenParameter !== "max_tokens" && new URL(resolved.baseURL).hostname === "api.openai.com" && /^(gpt-[56]|o[1-9])/.test(resolved.model)) ? "max_completion_tokens" : "max_tokens"),
         defaultHeaders: buildOpenAICompatibleDefaultHeaders(resolved.authMode, resolved.apiKey),
       },
     });
+  if(resolved.requestProtocol === "anthropic" || resolved.requestProtocol === "gemini") {
+    llm.bindTools = ((tools:any[])=>createLLMFromResolvedOptions({...resolved,tools})) as ChatOpenAI["bindTools"];
+  }
   const meta = {
+    tools:resolved.tools,
     provider: resolved.provider,
     model: resolved.model,
     temperature: resolved.temperature,
@@ -424,6 +465,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     baseURL: resolved.baseURL,
     requestProtocol: resolved.requestProtocol,
     promptMeta: resolved.promptMeta,
+    tokenSettings: resolved.tokenSettings,
   };
   const cacheAware=attachLLMCacheRequestPolicy(llm,resolveCacheCapability({model:resolved.model,baseURL:resolved.baseURL,protocol:resolved.requestProtocol==="anthropic"?"anthropic":"openai-compatible"}));
   const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(cacheAware, meta), meta), meta);

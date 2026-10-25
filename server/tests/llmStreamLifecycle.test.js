@@ -18,7 +18,7 @@ function loadSource(name) {
     applyCacheRequestPolicy: (request) => request,
     getPromptCacheBoundary: () => null,
     resolveCacheCapability: () => ({}),
-  } : originalRequire(id);
+  } : id === "./protocols/transport" ? require("../dist/llm/protocols/transport") : originalRequire(id);
   loaded._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     fileName: filename,

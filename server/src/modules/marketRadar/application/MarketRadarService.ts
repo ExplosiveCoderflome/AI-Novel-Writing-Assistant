@@ -489,7 +489,7 @@ export class MarketRadarService {
         influenceMode: input.influenceMode,
         selectedSignalsText: selectedSignals.map((signal) => `${signal.kind}｜${signal.label}｜${signal.summary}`).join("\n"),
       },
-      options: { temperature: 0.25, maxTokens: 2_800, stage: "market_radar", itemKey: "creative_brief", entrypoint: "market_radar" },
+      options: { temperature: 0.25, defaultMaxTokens: 2_800, stage: "market_radar", itemKey: "creative_brief", entrypoint: "market_radar" },
     });
     const runtimePromptBlock = buildMarketBriefRuntimePromptBlock(
       result.output.promptBlock,
@@ -629,7 +629,7 @@ export class MarketRadarService {
       const result = await runStructuredPrompt({
         asset: marketPlatformDigestPrompt,
         promptInput: { platformLabel: platformLabel(platform), rankingText: formatRankingItems(items) },
-        options: { temperature: 0.2, maxTokens: 3_000, taskId: runId, stage: "market_radar", itemKey: `digest_${platform}`, entrypoint: "market_radar" },
+        options: { temperature: 0.2, defaultMaxTokens: 3_000, taskId: runId, stage: "market_radar", itemKey: `digest_${platform}`, entrypoint: "market_radar" },
       });
       return { platform, ...result.output };
     }));
@@ -654,7 +654,7 @@ export class MarketRadarService {
         allowedStoryModeIds: storyModeCatalog.map((item) => item.id),
         hasComparableHistory: history.hasComparableHistory,
       },
-      options: { temperature: 0.2, maxTokens: 6_000, taskId: runId, stage: "market_radar", itemKey: "cross_platform_synthesis", entrypoint: "market_radar" },
+      options: { temperature: 0.2, defaultMaxTokens: 6_000, taskId: runId, stage: "market_radar", itemKey: "cross_platform_synthesis", entrypoint: "market_radar" },
     });
     const { productionFoundation: productionFoundationDraft, ...reportOutput } = synthesis.output;
     await prisma.marketTrendReport.create({

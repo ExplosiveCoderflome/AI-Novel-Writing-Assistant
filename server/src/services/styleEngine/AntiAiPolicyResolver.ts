@@ -1,3 +1,4 @@
+import { applyCreativeBaselinePolicy, usesNonWebCreativePolicy, readStoredCreativeProfile } from "../../modules/novel/creative-profile";
 import type {
   AntiAiEffectiveRuleItem,
   AntiAiEffectiveRulesResult,
@@ -56,10 +57,13 @@ export class AntiAiPolicyResolver {
   }
 
   async resolveFromBindings(input: {
+    novelId?: string;
     matchedBindings: StyleBinding[];
     effectiveStyleProfileId?: string | null;
   }): Promise<AntiAiEffectiveRulesResult> {
-    const baselineRules = await this.listGlobalBaselineRules();
+    const creativeRead = readStoredCreativeProfile(input.novelId ? await prisma.novel.findUnique({ where: { id: input.novelId }, select: { creativeProfileJson: true } }) : null);
+    const nonWeb = usesNonWebCreativePolicy(creativeRead);
+    const baselineRules = applyCreativeBaselinePolicy(await this.listGlobalBaselineRules(), creativeRead);
     const globalBaselineRules = baselineRules.map((rule): AntiAiEffectiveRuleItem => ({
       rule,
       source: "global_baseline",
@@ -97,8 +101,7 @@ export class AntiAiPolicyResolver {
 
     const styleSpecificRules = Array.from(styleRulesById.values());
     const effectiveRules = dedupeEffectiveRules([
-      ...globalBaselineRules,
-      ...styleSpecificRules,
+      ...(nonWeb ? [...styleSpecificRules, ...globalBaselineRules] : [...globalBaselineRules, ...styleSpecificRules]),
     ]);
 
     return {
@@ -121,6 +124,7 @@ export class AntiAiPolicyResolver {
     if (input.styleProfileId?.trim()) {
       const profile = await this.getStyleProfile(input.styleProfileId.trim());
       return this.resolveFromBindings({
+      novelId: input.novelId,
         matchedBindings: profile ? [this.buildTaskBinding(profile, input.styleProfileId.trim())] : [],
         effectiveStyleProfileId: profile?.id ?? null,
       });
@@ -142,6 +146,7 @@ export class AntiAiPolicyResolver {
 
     const effectiveBinding = sortEffectiveBindings(matchedBindings)[0] ?? null;
     return this.resolveFromBindings({
+      novelId: input.novelId,
       matchedBindings,
       effectiveStyleProfileId: effectiveBinding?.styleProfileId ?? null,
     });

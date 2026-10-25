@@ -149,7 +149,7 @@ const promptTestRunBodySchema = previewBodySchema.and(z.object({
     provider: z.string().trim().min(1).optional(),
     model: z.string().trim().min(1).optional(),
     temperature: z.number().min(0).max(2).optional(),
-    maxTokens: z.number().int().min(256).max(32768).optional(),
+    maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
     timeoutMs: z.number().int().min(1000).max(10 * 60 * 1000).optional(),
   }).optional(),
 }));

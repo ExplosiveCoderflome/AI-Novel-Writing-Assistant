@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   searchPlaceholder?: string;
   emptyText?: string;
   disabled?: boolean;
+  allowCustomValue?: boolean;
   className?: string;
   triggerClassName?: string;
   contentClassName?: string;
@@ -35,6 +36,7 @@ export default function SearchableSelect({
   searchPlaceholder = "搜索",
   emptyText = "没有可选项",
   disabled = false,
+  allowCustomValue = false,
   className,
   triggerClassName,
   contentClassName,
@@ -143,6 +145,9 @@ export default function SearchableSelect({
                 onKeyDown={(event) => {
                   event.stopPropagation();
                   if (event.key === "Enter") {
+                    if(allowCustomValue && query.trim() && !filteredOptions.some(option=>option.value===query.trim())) {
+                      onValueChange(query.trim());setOpen(false);return;
+                    }
                     const firstAvailable = filteredOptions.find((option) => !option.disabled);
                     if (firstAvailable) {
                       onValueChange(firstAvailable.value);
@@ -155,6 +160,8 @@ export default function SearchableSelect({
           </div>
 
           <div className="max-h-64 overflow-y-auto p-1.5">
+            {allowCustomValue && query.trim() && !options.some(option=>option.value===query.trim()) ?
+              <button type="button" className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-accent" onClick={()=>{onValueChange(query.trim());setOpen(false);}}>使用手动模型 ID：{query.trim()}</button> : null}
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => {
                 const isSelected = option.value === value;

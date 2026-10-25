@@ -48,7 +48,7 @@ const generateGenreSchema = z.object({
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
-  maxTokens: z.number().int().min(256).max(32768).optional(),
+  maxTokens: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
 });
 
 router.use(authMiddleware);

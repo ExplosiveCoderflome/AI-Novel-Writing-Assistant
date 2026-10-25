@@ -5,6 +5,7 @@ import {
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { novelFramingSuggestionPrompt } from "../../prompting/prompts/novel/framing.prompts";
 import { novelReferenceService } from "./NovelReferenceService";
+import { creativePromptGuidanceFromProfile } from "../../modules/novel/creative-profile";
 
 function buildInputSummary(input: BookFramingSuggestionInput): string {
   return [
@@ -47,6 +48,7 @@ export class NovelFramingSuggestionService {
         inputSummary,
         analysisContext: analysisContext.trim() || undefined,
         referenceIntent,
+        creativeGuidance: creativePromptGuidanceFromProfile(input.creativeProfile, "positioning"),
       },
       options: {
         provider: input.provider,

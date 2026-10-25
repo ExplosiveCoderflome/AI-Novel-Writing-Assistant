@@ -8,6 +8,7 @@ import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-no
 import { z } from "zod";
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
 import { parsePersistedDirectorRiskAssessment } from "@ai-novel/shared/types/directorRisk";
+import { creativeProfileInputSchema, creativeProfileUpdateSchema } from "@ai-novel/shared/types/creativeProfile";
 import { prisma } from "../../../../db/prisma";
 import {directorV2Available, readNovelDirectorIdentity} from "../../director-routing";
 import {AppError} from "../../../../middleware/errorHandler";
@@ -93,6 +94,7 @@ const createNovelSchema = z.object({
   storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   resourceReadyScore: z.number().int().min(0).max(100).optional(),
+  creativeProfile: creativeProfileInputSchema.nullish(),
 });
 
 const updateNovelSchema = z.object({
@@ -130,6 +132,8 @@ const updateNovelSchema = z.object({
   storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).nullable().optional(),
   outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).nullable().optional(),
   resourceReadyScore: z.number().int().min(0).max(100).nullable().optional(),
+  /** null = 明确清除；省略 = 不修改。 */
+  creativeProfile: creativeProfileUpdateSchema,
 });
 
 const knowledgeBindingsSchema = z.object({

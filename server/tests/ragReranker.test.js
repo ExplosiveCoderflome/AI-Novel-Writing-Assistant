@@ -95,6 +95,7 @@ test("RagRerankerService.rerank fail-opens on endpoint errors", () => withRagCon
 
 test("HybridRetrievalService runs vector/RRF before reranker and returns reranked topK", () => withRagConfig({
   enabled: true,
+  retrievalTraceSampleRate: 0,
   rerankerEnabled: true,
   rerankerCandidateLimit: 3,
 }, async () => {

@@ -21,7 +21,7 @@ function output(overrides = {}) {
     assetSyncRecommendation: { priority: 'normal', reason: '同步', requiresFullPayoffReconcile: false },
     styleReview: { riskScore: 0, summary: '写法规则已检查', issueCodes: [] }, ...overrides };
 }
-function service(result) {
+function service(result, proseFindings = []) {
   const requests = [];
   const { ChapterAcceptanceAssessmentService } = loadRuntimeSource('ChapterAcceptanceAssessmentService.ts', {
     '@ai-novel/shared/types/directorIssue': require('../../../shared/dist/types/directorIssue'),
@@ -34,7 +34,8 @@ function service(result) {
     '../../../prompting/prompts/novel/chapterAcceptance.prompts': prompt,
     '../../state/OpenConflictService': { openConflictService: {} },
     '../novelP0Utils': { normalizeScore: score => score, ruleScore: () => output().score },
-    './proseQuality/ProseQualityDetector': { detectProseQuality: () => ({ findings: [] }) },
+    './proseQuality/ProseQualityDetector': { detectProseQuality: () => ({ findings: proseFindings }) },
+    './proseQuality/creativeProsePolicy': require('../../dist/services/novel/runtime/proseQuality/creativeProsePolicy'),
     './acceptance': acceptance,
   });
   return { instance: new ChapterAcceptanceAssessmentService(), requests };
@@ -43,6 +44,22 @@ function input(pkg) {
   return { novelId: 'n', chapterId: 'c', novelTitle: '书', chapterTitle: '章', chapterOrder: 1,
     content: '人物经历了风雨，终于懂得生活的真谛。', contextPackage: pkg, persist: false };
 }
+
+test('literary surface signals record risk without creating repair work; leaks still require repair', async () => {
+  const literary = { ...context(false), bookContract: { creativeProfileJson: JSON.stringify({ schemaVersion: 1, orientation: 'modern_literary' }) } };
+  const finding = { code: 'prose_dash_or_ellipsis', severity: 'high', line: 1, excerpt: '合成停顿——', fixSuggestion: '调整停顿' };
+  const h = service(output(), [finding]);
+  const result = await h.instance.assess(input(literary));
+  assert.equal(result.assessment.status, 'accepted');
+  assert.equal(result.assessment.continuePolicy, 'continue');
+  assert.equal(result.assessment.blockingIssues.length, 0);
+  assert.ok(result.assessment.riskTags.includes(finding.code));
+  assert.equal(h.requests.length, 1);
+  const legacy = await service(output(), [finding]).instance.assess(input(context(false)));
+  assert.equal(legacy.assessment.status, 'repairable');
+  const leak = await service(output(), [{ ...finding, code: 'prose_placeholder_leak' }]).instance.assess(input(literary));
+  assert.equal(leak.assessment.status, 'repairable');
+});
 test('enabled style review reuses one acceptance call and returns a report from its voice evidence', async () => {
   const h = service(output({ status: 'repairable', blockingIssues: [{ code: 'theme_summary', category: 'voice', severity: 'high',
     layer: 'surface', canAutoRewrite: true, evidence: '终于懂得生活的真谛', fixSuggestion: '落回具体行动' }],

@@ -5,6 +5,7 @@ import type { NovelStoryMode } from "./storyMode";
 import type { TaskStatus, TaskTokenUsageSummary } from "./task";
 import type { NarrativeForm } from "./creationStudio";
 import type { WritingPlatform } from "./writingPlatform";
+import type { CreativeProfile, CreativeProfileIssue } from "./creativeProfile";
 import type { DirectorRiskHistoryItem } from "./directorRisk";
 import type { ChapterQualityDebtDetails } from "./chapterQualityLoop";
 export type {
@@ -263,6 +264,9 @@ export interface Novel {
   referenceBookAnalysisSections?: BookAnalysisSectionKey[] | null;
   creativeCarryoverContractJson?: string | null;
   creativeCarryoverContractSchemaVersion?: number | null;
+  /** 读取投影：null 表示未设置或无法读取；无法读取时 creativeProfileIssue 非空，界面需提示重新选择。 */
+  creativeProfile?: CreativeProfile | null;
+  creativeProfileIssue?: CreativeProfileIssue | null;
   outline?: string | null;
   structuredOutline?: string | null;
   volumes?: VolumePlan[];
@@ -1179,7 +1183,11 @@ export interface ModelRouteConfig {
 export const MODEL_ROUTE_REQUEST_PROTOCOLS = [
   "auto",
   "openai_compatible",
+  "openai_responses",
+  "deepseek",
   "anthropic",
+  "gemini",
+  "llama_cpp",
 ] as const;
 
 export type ModelRouteRequestProtocol = typeof MODEL_ROUTE_REQUEST_PROTOCOLS[number];

@@ -38,6 +38,7 @@ import {
   BOOK_FRAMING_MAX_COMMERCIAL_TAGS,
 } from "@ai-novel/shared/types/novelFraming";
 import { DIRECTOR_AUTO_APPROVAL_POINTS } from "@ai-novel/shared/types/autoDirectorApproval";
+import { creativeProfileInputSchema } from "@ai-novel/shared/types/creativeProfile";
 import { validate } from "../../../../middleware/validate";
 import { AppError } from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
@@ -147,6 +148,7 @@ const projectContextSchema = z.object({
     "style_technique",
     "market_highlights",
   ])).min(1).max(8).optional(),
+  creativeProfile: creativeProfileInputSchema.nullish(),
 });
 
 const candidatesSchema = projectContextSchema.extend({

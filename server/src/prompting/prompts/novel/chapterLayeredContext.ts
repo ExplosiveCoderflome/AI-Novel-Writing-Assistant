@@ -1,3 +1,4 @@
+import { creativePromptGuidanceFromStored } from "../../../modules/novel/creative-profile";
 import type {
   BookContractContext,
   ChapterMissionContext,
@@ -85,6 +86,7 @@ type RuntimeVolumeSeed = {
 };
 
 export function buildBookContractContext(input: {
+  creativeProfileJson?: string | null;
   title: string;
   genre?: string | null;
   targetAudience?: string | null;
@@ -110,6 +112,7 @@ export function buildBookContractContext(input: {
   endingRequiredBy?: number | null;
 }): BookContractContext {
   return {
+    ...(input.creativeProfileJson != null ? { creativeProfileJson: input.creativeProfileJson } : {}),
     title: compactText(input.title),
     genre: compactText(input.genre, "unknown"),
     targetAudience: compactText(input.targetAudience, "unknown"),
@@ -240,7 +243,7 @@ export function buildChapterMissionContext(
     targetWordCount: resolveLengthBudgetContract(contextPackage.chapter.targetWordCount)?.targetWordCount
       ?? scenePlan?.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
-    hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
+    hookTarget: compactText(contextPackage.plan?.hookTarget, creativePromptGuidanceFromStored(contextPackage.bookContract, "drafting") ? "按本书允许的方式收束，具体服从所选取向与章末方式。" : "Leave a fresh tension point at the ending."),
     mustAdvance: sanitizeCreativeMustAdvanceItems(takeUnique([
       ...(stateGoal?.targetConflicts ?? []),
       ...(contextPackage.plan?.mustAdvance ?? []),
@@ -337,7 +340,7 @@ export function buildChapterWriteContext(input: {
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
     targetWordCount: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount)?.targetWordCount,
   });
-  const chapterMission = buildChapterMissionContext(input.contextPackage, scenePlan);
+  const chapterMission = buildChapterMissionContext({ ...input.contextPackage, bookContract: input.bookContract }, scenePlan);
   const chapterBoundary = buildChapterBoundaryContract(input.contextPackage, scenePlan);
   const openConflictSummaries = summarizeOpenConflicts(input.contextPackage);
   const readerExperience = buildCompatibleReaderExperienceContract({
@@ -522,7 +525,7 @@ export function buildChapterRepairContext(input: {
       ...(writeContext.characterResourceContext?.highRiskCommittedItems ?? []).map((item) => `Do not create a new irreversible resource fact from high-risk committed item: ${item.name}.`),
       ...(writeContext.characterResourceContext?.pendingProposalItems ?? []).map((item) => `Pending proposal is not committed yet; do not write it as fact: ${item.summary}.`),
       writeContext.chapterMission.hookTarget
-        ? `Preserve or strengthen the ending tension: ${writeContext.chapterMission.hookTarget}`
+        ? `${creativePromptGuidanceFromStored(writeContext.bookContract, "repairing")?.keepWebSerialDefaults === false ? "Preserve the selected ending form" : "Preserve or strengthen the ending tension"}: ${writeContext.chapterMission.hookTarget}`
         : "",
       ...writeContext.characterBehaviorGuides
         .filter((guide) => guide.shouldPreferAppearance || guide.isCoreInVolume)

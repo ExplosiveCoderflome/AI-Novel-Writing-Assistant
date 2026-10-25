@@ -23,6 +23,7 @@ import {
   SelectionCard,
   findOptionSummary,
 } from "./basicInfoForm/BasicInfoFormPrimitives";
+import { CreativeProfileSection } from "./basicInfoForm/CreativeProfileSection";
 import BookPositioningStudio from "./basicInfoForm/BookPositioningStudio";
 import CollapsibleSummary from "./CollapsibleSummary";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
@@ -120,6 +121,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
   return (
     <div className="space-y-4">
       <section className="space-y-5">
+        <CreativeProfileSection value={basicForm.creativeProfile} issue={basicForm.creativeProfileIssue} onChange={(creativeProfile) => onFormChange({ creativeProfile, creativeProfileIssue: null })} />
         <BookPositioningStudio
           basicForm={basicForm}
           onFormChange={onFormChange}

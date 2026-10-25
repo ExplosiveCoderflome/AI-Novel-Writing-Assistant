@@ -122,6 +122,7 @@ export interface PromptRunTrace {
 }
 
 export interface PromptExecutionOptions {
+  defaultMaxTokens?: number;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
@@ -198,6 +199,8 @@ export interface PromptPostValidateFailureRecoveryInput<I, R> {
 export type PromptStructuredOutputExampleBuilder<I, R> = (input: I, context: PromptRenderContext) => unknown;
 
 export interface PromptStructuredOutputHint<I, R> {
+  /** Mandatory JSON Schema contract, also appended after advanced template resolution. */
+  contract?: unknown;
   placement?: "stable_prefix" | "tail";
   mode?: "auto" | "off";
   /** Keep all example fields while omitting indentation in high-volume production calls. */

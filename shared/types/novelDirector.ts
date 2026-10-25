@@ -15,6 +15,7 @@ import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { CreativeCarryoverContract } from "./creativeCarryoverContract";
 import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
 import type { WritingPlatformPreference } from "./writingPlatform";
+import type { CreativeProfile } from "./creativeProfile";
 import type {
   NovelCreateResourceRecommendation,
   PowerSystemPreference,
@@ -658,6 +659,8 @@ export interface DirectorProjectContextInput {
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
   referenceBookAnalysisId?: string;
   referenceBookAnalysisSections?: BookAnalysisSectionKey[];
+  /** 用户在开书入口明确选择的创作取向；省略时保持旧的网文默认，不由平台或 AI 推导。 */
+  creativeProfile?: CreativeProfile | null;
 }
 
 export type DirectorWorldSetupMode = NonNullable<DirectorProjectContextInput["worldSetupMode"]>;

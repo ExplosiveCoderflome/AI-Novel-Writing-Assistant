@@ -29,3 +29,11 @@ test("splitRagChunks keeps long chinese chunks under the embedding token budget"
   assert.equal(chunks.length > 1, true);
   assert.equal(chunks.every((chunk) => estimateTokenCount(chunk) <= maxTokens), true);
 });
+
+test("multi-million-character input has no silent truncation or fixed chunk-count cap", () => {
+  const source = "长篇资料".repeat(800_000);
+  const chunks = splitRagChunks(source, 200, 0);
+  assert.equal(chunks.length, 16_000);
+  assert.equal(chunks.join(""), source);
+  assert.ok(chunks.every((chunk) => chunk.length <= 200));
+});

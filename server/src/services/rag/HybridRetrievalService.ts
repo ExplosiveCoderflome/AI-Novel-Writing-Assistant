@@ -9,6 +9,7 @@ import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFa
 import { RagRetrievalTracer } from "./RagRetrievalTracer";
 import { RagRerankerService, resolveRerankerCandidateLimit } from "./RagRerankerService";
 import { filterCurrentArtifactChunks } from "./facts";
+import { publishedGeneration } from "./indexing";
 
 const RRF_K = 60;
 const NON_KNOWLEDGE_OWNER_TYPES = RAG_OWNER_TYPES.filter((item) => item !== "knowledge_document");
@@ -184,6 +185,14 @@ export class HybridRetrievalService {
 
   private async vectorSearch(query: string, options: SearchScopeOptions): Promise<RetrievedChunk[]> {
     try {
+      const knowledgeScope = options.ownerTypes?.includes("knowledge_document");
+      const published = knowledgeScope ? await prisma.knowledgeChunk.findMany({
+        where: { tenantId: options.tenantId, ownerType: "knowledge_document",
+          ...(options.ownerIds ? { ownerId: { in: options.ownerIds } } : {}) },
+        select: { ownerId: true, metadataJson: true }, distinct: ["ownerId"],
+        orderBy: [{ indexedAt: "desc" }, { chunkOrder: "asc" }],
+      }) : undefined;
+      if (published?.length === 0) return [];
       const embedding = await this.embeddingService.embedTexts([query]);
       const queryVector = embedding.vectors[0];
       if (!queryVector || queryVector.length === 0) {
@@ -197,8 +206,13 @@ export class HybridRetrievalService {
         ownerTypes: toOwnerTypes(options.ownerTypes),
         ownerIds: toOwnerIds(options.ownerIds),
         facets: options.facets,
+        knowledgeGenerations: published?.map((row) => ({ ownerId: row.ownerId, generation: publishedGeneration(row.metadataJson) })),
       });
-      return searchRows.map((row) => ({
+      const committedIds = knowledgeScope ? new Set((await prisma.knowledgeChunk.findMany({
+        where: { tenantId: options.tenantId, ownerType: "knowledge_document", id: { in: searchRows.map((row) => row.id) } },
+        select: { id: true },
+      })).map((row) => row.id)) : undefined;
+      return searchRows.filter((row) => !committedIds || committedIds.has(row.id)).map((row) => ({
         id: row.id,
         ownerType: row.payload.ownerType,
         ownerId: row.payload.ownerId,

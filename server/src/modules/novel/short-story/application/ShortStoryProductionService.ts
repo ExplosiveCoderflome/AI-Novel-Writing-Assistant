@@ -275,7 +275,7 @@ export class ShortStoryProductionService {
             itemKey: `segment:${row.order}`,
             entrypoint: "creation_studio",
             temperature: 0.78,
-            maxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
+            defaultMaxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
           },
         });
         const saved = await prisma.shortStorySegment.updateMany({
@@ -344,7 +344,7 @@ export class ShortStoryProductionService {
         itemKey: "full_audit",
         entrypoint: "creation_studio",
         temperature: 0.25,
-        maxTokens: 5000,
+        defaultMaxTokens: 5000,
       },
     });
     await prisma.shortStoryPlan.update({
@@ -421,7 +421,7 @@ export class ShortStoryProductionService {
         itemKey: "single_patch",
         entrypoint: "creation_studio",
         temperature: 0.45,
-        maxTokens: 12000,
+        defaultMaxTokens: 12000,
       },
     });
     for (const patch of repaired.output.patches) {

@@ -79,7 +79,7 @@ test("prompt workbench catalog exposes registered prompts without override execu
   assert.ok(planner.lockedFields.includes("approvalBoundary"));
 
   const chapterWriter = service.listCatalog({ keyword: "novel.chapter.writer" })
-    .find((item) => item.key === "novel.chapter.writer@v10");
+    .find((item) => item.key === "novel.chapter.writer@v11");
   assert.ok(chapterWriter);
   assert.equal(chapterWriter.slotSupported, true);
   assert.equal(chapterWriter.managementStatus, "complete");
@@ -203,7 +203,7 @@ test("prompt preview reports missing required context for manager diagnosis", as
 test("prompt preview renders audit prompts with complete workbench sample input", async () => {
   const service = new PromptWorkbenchService();
   const preview = await service.preview({
-    promptKey: "audit.chapter.full@v2",
+    promptKey: "audit.chapter.full@v3",
     promptInput: {
       novelTitle: "示例小说",
       chapterTitle: "示例章节",
@@ -224,7 +224,7 @@ test("prompt preview renders audit prompts with complete workbench sample input"
     maxContextTokens: 2000,
   });
 
-  assert.equal(preview.prompt.key, "audit.chapter.full@v2");
+  assert.equal(preview.prompt.key, "audit.chapter.full@v3");
   assert.ok(preview.messages.some((message) => message.content.includes("审校范围：plot, character, continuity")));
   assert.deepEqual(preview.diagnostics.missingRequiredGroups, []);
   assert.ok(preview.context.selectedBlockIds.includes("chapter_boundary"));
@@ -270,7 +270,7 @@ test("prompt preview prefers selected novel chapter context over audit sample co
   });
 
   const preview = await service.preview({
-    promptKey: "audit.chapter.full@v2",
+    promptKey: "audit.chapter.full@v3",
     promptInput: {
       novelTitle: "当代码开始杀人",
       chapterTitle: "第 3 章 异常提交",
@@ -377,7 +377,7 @@ test("prompt preview assembles selected novel chapter write context for chapter 
   });
 
   const preview = await service.preview({
-    promptKey: "novel.chapter.writer@v10",
+    promptKey: "novel.chapter.writer@v11",
     promptInput: {
       novelTitle: "当代码开始杀人",
       chapterOrder: 3,
@@ -501,7 +501,7 @@ test("prompt preview renders unsaved advanced template draft without reading act
 
   try {
     const preview = await service.preview({
-      promptKey: "novel.chapter.writer@v10",
+      promptKey: "novel.chapter.writer@v11",
       promptInput: {
         novelTitle: "模板测试书",
         chapterOrder: 2,

@@ -1,5 +1,5 @@
 ﻿import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { z } from "zod";
+import { toJSONSchema, z } from "zod";
 import type {
   StoryDecomposition,
   StoryExpansion,
@@ -10,10 +10,19 @@ import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { STORY_MACRO_RESPONSE_SCHEMA } from "../../../services/novel/storyMacro/storyMacroPlanSchema";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+  type CreativePromptGuidance,
+} from "../creativeProfile/creativePromptGuidance";
+
+const STORY_MACRO_OUTPUT_CONTRACT = toJSONSchema(STORY_MACRO_RESPONSE_SCHEMA);
 
 export interface StoryMacroDecompositionPromptInput {
   storyInput: string;
   projectContext: string;
+  /** 取向未设置时保留原创作原则；结构输出合同独立于取向。 */
+  creativeGuidance?: CreativePromptGuidance | null;
 }
 
 export interface StoryMacroFieldRegenerationPromptInput {
@@ -24,21 +33,42 @@ export interface StoryMacroFieldRegenerationPromptInput {
   constraints: string[];
   lockedFields: StoryMacroLocks;
   projectContext: string;
+  creativeGuidance?: CreativePromptGuidance | null;
 }
+
+/** 非网文取向下替换"持续升级 / 固定循环 / 爆点"要求的条件化文本；字段与 schema 不变。 */
+const ORIENTATION_MACRO_RULES = {
+  goalConflict: "1. 建立能长期支撑叙事的张力，张力形态服从用户选择的取向与叙事策略（外部冲突、关系、家庭、内心或主题追问都可以），不要平铺直叙地补全设定。",
+  goalFocus: "3. 优先处理人物处境、认知变化、处境加深、关系压力、关键场面与叙事气质。",
+  buildConflict: "2. 构建一个能长期存在、随故事加深或变形的核心矛盾；不要求按等级或危机不断升级。",
+  buildMystery: "3. mystery_box 写读者持续在意、暂时无法完全回答的核心问题：可以是事实谜团，也可以是人物关系或主题上的悬而未决。",
+  buildSetpieces: "4. 设计 2-3 个具有画面感、能改变人物处境或关系的关键场面种子；张力可以是安静的。",
+  conflictEngine: "5. conflict_engine 回答：故事为何能持续往前走——按叙事策略，可以是人物的选择与代价、关系的变化、主题的反复检验或类型疑问的推进。",
+  progressionLoop: "7. progression_loop 写清本书实际采用的推进方式，服从叙事策略；不要求套用“发现 -> 介入 -> 升级 -> 反噬/反转 -> 再发现”的循环。",
+  jsonConflictEngine: '    "conflict_engine": "驱动故事持续推进的核心机制",',
+  jsonProgressionLoop: '    "progression_loop": "故事主要靠什么往前走",',
+  jsonMajorPayoffs: '    "major_payoffs": ["关键转折或兑现1", "关键转折或兑现2"],',
+  fieldConflictEngine: "3. 如果目标字段是 conflict_engine：必须体现故事为何可以持续推进，推进方式服从用户选择的取向与叙事策略。",
+  fieldProgressionLoop: "12. 如果目标字段是 progression_loop：写清本书实际采用的推进方式，服从叙事策略，不要求固定循环。",
+  fieldMajorPayoffs: "14. 如果目标字段是 major_payoffs：写真正值得兑现的关键转折、揭示或认识变化，不要写普通剧情节点。",
+} as const;
 
 function buildExpansionAndDecompositionPrompt(
   storyInput: string,
   projectContext = "",
+  creativeGuidance: CreativePromptGuidance | null = null,
 ): { system: string; user: string } {
+  const webDefaults = keepsWebSerialPromptDefaults(creativeGuidance);
   return {
     system: [
       "你是资深小说作者 + 剧情策划编辑。",
       "你的任务不是润色用户想法，而是将其重构为一个具备持续叙事能力、可用于后续约束生成的「故事引擎原型」。",
+      ...renderCreativeGuidanceSection(creativeGuidance),
       "",
       "任务目标：",
-      "1. 强化戏剧冲突，而不是平铺直叙地补全设定。",
+      webDefaults ? "1. 强化戏剧冲突，而不是平铺直叙地补全设定。" : ORIENTATION_MACRO_RULES.goalConflict,
       "2. 构建故事能够长期推进的驱动力，而不是只做短篇式前提包装。",
-      "3. 优先处理人物处境、认知冲突、危机升级、关系压力、关键场面与叙事气质。",
+      webDefaults ? "3. 优先处理人物处境、认知冲突、危机升级、关系压力、关键场面与叙事气质。" : ORIENTATION_MACRO_RULES.goalFocus,
       "4. 控制信息密度，避免无依据地扩展大量世界观设定。",
       "5. 输出内容将作为后续创作流程的硬约束，必须稳定、明确、可执行。",
       "",
@@ -50,9 +80,9 @@ function buildExpansionAndDecompositionPrompt(
       "",
       "你必须完成以下构建：",
       "1. 把主角困住，形成明确且无法轻易退出的处境。",
-      "2. 构建一个可以持续升级、反复变形、长期压迫主角的核心矛盾。",
-      "3. 设置一个能够持续牵引读者阅读的 mystery box，即：最关键但暂时无法完整知道的未知。",
-      "4. 设计 2-3 个具有画面感、冲突性和后续可扩展性的高张力场面种子。",
+      webDefaults ? "2. 构建一个可以持续升级、反复变形、长期压迫主角的核心矛盾。" : ORIENTATION_MACRO_RULES.buildConflict,
+      webDefaults ? "3. 设置一个能够持续牵引读者阅读的 mystery box，即：最关键但暂时无法完整知道的未知。" : ORIENTATION_MACRO_RULES.buildMystery,
+      webDefaults ? "4. 设计 2-3 个具有画面感、冲突性和后续可扩展性的高张力场面种子。" : ORIENTATION_MACRO_RULES.buildSetpieces,
       "5. 明确叙事气质，让后续写作知道这本书应该怎么写，而不是只知道写什么。",
       "",
       "题材适配要求：",
@@ -70,9 +100,9 @@ function buildExpansionAndDecompositionPrompt(
       "2. 所有字段都应服务于‘这本书为什么能一直写下去’。",
       "3. expanded_premise 不是简介润色，而是强化后的故事前提。",
       "4. protagonist_core 不是人物介绍，而是主角被困结构 + 内在裂缝 + 可变化空间。",
-      "5. conflict_engine 必须回答：剧情为何能不断升级、变形、反转、继续推进。",
+      webDefaults ? "5. conflict_engine 必须回答：剧情为何能不断升级、变形、反转、继续推进。" : ORIENTATION_MACRO_RULES.conflictEngine,
       "6. mystery_box 必须足够关键，且不能是无意义卖关子。",
-      "7. progression_loop 必须清晰体现：发现 -> 介入 -> 升级 -> 反噬/反转 -> 再发现 的循环逻辑。",
+      webDefaults ? "7. progression_loop 必须清晰体现：发现 -> 介入 -> 升级 -> 反噬/反转 -> 再发现 的循环逻辑。" : ORIENTATION_MACRO_RULES.progressionLoop,
       "8. constraints 必须是后续生成阶段可直接遵守的叙事规则，而不是空泛建议。",
       "",
       "缺失与冲突处理：",
@@ -91,7 +121,7 @@ function buildExpansionAndDecompositionPrompt(
       '  "expansion": {',
       '    "expanded_premise": "强化冲突后的故事前提",',
       '    "protagonist_core": "主角被困的处境 + 内在裂缝 + 可变化空间",',
-      '    "conflict_engine": "驱动剧情持续推进并不断升级的核心机制",',
+      webDefaults ? '    "conflict_engine": "驱动剧情持续推进并不断升级的核心机制",' : ORIENTATION_MACRO_RULES.jsonConflictEngine,
       '    "conflict_layers": {',
       '      "external": "外部压迫/威胁",',
       '      "internal": "内在崩塌/欲望/恐惧",',
@@ -106,9 +136,9 @@ function buildExpansionAndDecompositionPrompt(
       '    "selling_point": "一句话卖点",',
       '    "core_conflict": "长期不可调和的对立",',
       '    "main_hook": "带未知的主线问题",',
-      '    "progression_loop": "故事如何发现 -> 升级 -> 反转地循环推进",',
+      webDefaults ? '    "progression_loop": "故事如何发现 -> 升级 -> 反转地循环推进",' : ORIENTATION_MACRO_RULES.jsonProgressionLoop,
       '    "growth_path": "主角认知或状态如何阶段性变化",',
-      '    "major_payoffs": ["爆点1", "爆点2"],',
+      webDefaults ? '    "major_payoffs": ["爆点1", "爆点2"],' : ORIENTATION_MACRO_RULES.jsonMajorPayoffs,
       '    "ending_flavor": "结局风格"',
       "  },",
       '  "constraints": ["必须遵守的叙事规则1", "必须遵守的叙事规则2"],',
@@ -130,7 +160,9 @@ function buildFieldRegenerationPrompt(input: {
   constraints: string[];
   lockedFields: StoryMacroLocks;
   projectContext?: string;
+  creativeGuidance?: CreativePromptGuidance | null;
 }): { system: string; user: string } {
+  const webDefaults = keepsWebSerialPromptDefaults(input.creativeGuidance);
   const fieldFormat = input.field === "conflict_layers"
     ? "{\"value\":{\"external\":\"...\",\"internal\":\"...\",\"relational\":\"...\"}}"
     : (input.field === "major_payoffs" || input.field === "setpiece_seeds" || input.field === "constraints")
@@ -141,6 +173,7 @@ function buildFieldRegenerationPrompt(input: {
     system: [
       "你是小说故事引擎字段重写助手。",
       "你的任务是：仅重写一个指定字段，使其与现有故事引擎原型保持一致，并直接可替换原字段使用。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "",
       "硬性要求：",
       "1. 你只能重写目标字段，不能修改、补写、影射改动其他字段。",
@@ -161,7 +194,7 @@ function buildFieldRegenerationPrompt(input: {
       "字段专项要求：",
       "1. 如果目标字段是 expanded_premise：应强化故事前提与戏剧冲突，不要写成简介口吻。",
       "2. 如果目标字段是 protagonist_core：应写清主角被困结构、内在裂缝与可变化空间，不要写成人设卡。",
-      "3. 如果目标字段是 conflict_engine：必须体现剧情为何可以持续推进、升级、反转、反噬。",
+      webDefaults ? "3. 如果目标字段是 conflict_engine：必须体现剧情为何可以持续推进、升级、反转、反噬。" : ORIENTATION_MACRO_RULES.fieldConflictEngine,
       "4. 如果目标字段是 conflict_layers：external / internal / relational 必须彼此区分明确，但又共同服务同一核心矛盾。",
       "5. 如果目标字段是 mystery_box：必须是关键未知，而不是空泛卖关子。",
       "6. 如果目标字段是 emotional_line：必须体现情绪如何逐步加压、变形、失衡或反转。",
@@ -170,9 +203,9 @@ function buildFieldRegenerationPrompt(input: {
       "9. 如果目标字段是 selling_point：必须足够凝练，能够体现区别性与吸引力。",
       "10. 如果目标字段是 core_conflict：必须是长期不可调和的对立，而不是一次性事件。",
       "11. 如果目标字段是 main_hook：必须体现主线未知与持续牵引力。",
-      "12. 如果目标字段是 progression_loop：必须明确体现“发现 -> 介入 -> 升级 -> 反噬/反转 -> 再发现”的循环机制。",
+      webDefaults ? "12. 如果目标字段是 progression_loop：必须明确体现“发现 -> 介入 -> 升级 -> 反噬/反转 -> 再发现”的循环机制。" : ORIENTATION_MACRO_RULES.fieldProgressionLoop,
       "13. 如果目标字段是 growth_path：必须体现主角认知或状态的阶段性变化与代价。",
-      "14. 如果目标字段是 major_payoffs：必须是真正值得兑现的爆点，不要写普通剧情节点。",
+      webDefaults ? "14. 如果目标字段是 major_payoffs：必须是真正值得兑现的爆点，不要写普通剧情节点。" : ORIENTATION_MACRO_RULES.fieldMajorPayoffs,
       "15. 如果目标字段是 ending_flavor：应体现结局气质与最终余味，而不是具体结局细纲。",
       "16. 如果目标字段是 constraints：必须写成后续生成可以直接遵守的叙事规则，禁止空话。",
       "",
@@ -200,7 +233,7 @@ export const storyMacroDecompositionPrompt: PromptAsset<
   typeof STORY_MACRO_RESPONSE_SCHEMA._output
 > = {
   id: "novel.story_macro.decomposition",
-  version: "v1",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -210,8 +243,9 @@ export const storyMacroDecompositionPrompt: PromptAsset<
     preferredGroups: ["project_context"],
   },
   outputSchema: STORY_MACRO_RESPONSE_SCHEMA,
+  structuredOutputHint: { contract: STORY_MACRO_OUTPUT_CONTRACT },
   render: (input, context) => {
-    const prompt = buildExpansionAndDecompositionPrompt(input.storyInput, input.projectContext);
+    const prompt = buildExpansionAndDecompositionPrompt(input.storyInput, input.projectContext, input.creativeGuidance ?? null);
     return [
       new SystemMessage(prompt.system),
       new HumanMessage(renderSelectedContextBlocks(context)),
@@ -228,7 +262,7 @@ export const storyMacroFieldRegenerationPrompt: PromptAsset<
   typeof storyMacroFieldRegenerationSchema._output
 > = {
   id: "novel.story_macro.field_regeneration",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -247,6 +281,7 @@ export const storyMacroFieldRegenerationPrompt: PromptAsset<
       constraints: input.constraints,
       lockedFields: input.lockedFields,
       projectContext: input.projectContext,
+      creativeGuidance: input.creativeGuidance,
     });
     return [
       new SystemMessage(prompt.system),

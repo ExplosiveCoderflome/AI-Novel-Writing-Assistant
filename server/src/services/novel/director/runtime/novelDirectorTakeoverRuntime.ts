@@ -408,6 +408,7 @@ export async function loadDirectorTakeoverState(input: {
         sourceKnowledgeDocumentId: true,
         continuationBookAnalysisId: true,
         continuationBookAnalysisSections: true,
+        creativeProfileJson: true,
         bookContract: true,
       },
     }),

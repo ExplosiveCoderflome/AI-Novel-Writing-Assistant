@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import ModelRouteFields from "./ModelRouteFields";
+import ModelTokenSettingsEditor from "./ModelTokenSettingsEditor";
 import { MODEL_ROUTE_LABELS } from "./modelRouteLabels";
 import {
   buildRouteSavePayload,
@@ -160,6 +161,15 @@ export default function ModelRoutesPage() {
   );
   const isSavingRoutes = saveModelRouteMutation.isPending || saveAllModelRoutesMutation.isPending;
 
+  function saveRouteSafely(taskType: ModelRouteTaskType) {
+    try { saveModelRouteMutation.mutate(buildRouteSavePayload(taskType,getRouteDraft(taskType))); }
+    catch(error) { setActionResult(error instanceof Error ? error.message : "请检查模型输出设置。"); }
+  }
+  function saveAllRoutesSafely() {
+    try { saveAllModelRoutesMutation.mutate(dirtyTaskTypes.map(taskType=>buildRouteSavePayload(taskType,getRouteDraft(taskType)))); }
+    catch(error) { setActionResult(error instanceof Error ? error.message : "请检查模型输出设置。"); }
+  }
+
   function getRouteDraft(taskType: ModelRouteTaskType): RouteDraft {
     const existing = routeDrafts[taskType];
     if (existing) {
@@ -254,6 +264,7 @@ export default function ModelRoutesPage() {
 
   return (
     <div className="space-y-4">
+      <ModelTokenSettingsEditor providers={providerConfigs} />
       <Card>
         <CardHeader>
           <CardTitle>模型路由管理</CardTitle>
@@ -366,9 +377,7 @@ export default function ModelRoutesPage() {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => saveAllModelRoutesMutation.mutate(
-                  dirtyTaskTypes.map((taskType) => buildRouteSavePayload(taskType, getRouteDraft(taskType))),
-                )}
+                onClick={saveAllRoutesSafely}
                 disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
               >
                 <Save className="h-4 w-4" />
@@ -528,7 +537,7 @@ export default function ModelRoutesPage() {
                 </div>
                 <Button
                   size="sm"
-                  onClick={() => saveModelRouteMutation.mutate(buildRouteSavePayload(taskType, draft))}
+                  onClick={() => saveRouteSafely(taskType)}
                   disabled={isSavingRoutes || !draft.provider.trim() || !draft.model.trim()}
                 >
                   <Save className="h-4 w-4" />

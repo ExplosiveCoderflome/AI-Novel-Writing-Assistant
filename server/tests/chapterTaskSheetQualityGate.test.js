@@ -455,6 +455,6 @@ test("chapter task sheet quality service passes usable semantic assessments", as
 });
 
 test("chapter task sheet quality prompt is registered as a product prompt asset", () => {
-  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v5");
+  const registered = getRegisteredPromptAsset("novel.volume.chapter_task_sheet_quality", "v6");
   assert.equal(registered, chapterTaskSheetQualityPrompt);
 });

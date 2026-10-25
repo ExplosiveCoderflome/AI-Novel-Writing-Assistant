@@ -63,10 +63,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 function getProtocolCandidates(preferred?: ModelRouteRequestProtocol): ModelRouteRequestProtocol[] {
-  if (preferred === "openai_compatible" || preferred === "anthropic") {
-    return [preferred, preferred === "anthropic" ? "openai_compatible" : "anthropic"];
-  }
-  return ["openai_compatible", "anthropic"];
+  return [preferred ?? "auto"];
 }
 
 function getStructuredFormatCandidates(input: {

@@ -1,3 +1,4 @@
+import { creativeGuidanceFromContext, keepsWebSerialPromptDefaults, renderCreativeGuidanceSection, type CreativePromptGuidance } from "../creativeProfile/creativePromptGuidance";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -5,7 +6,7 @@ import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { chapterSummaryOutputSchema } from "../../../services/novel/chapterSummarySchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
-import { CHAPTER_PROSE_QUALITY_RULES } from "@ai-novel/shared/types/chapterProseContract";
+import { creativeProseRules } from "../creativeProfile/creativeProseRules";
 
 export interface ChapterSummaryPromptInput {
   novelTitle: string;
@@ -15,6 +16,7 @@ export interface ChapterSummaryPromptInput {
 }
 
 export interface ChapterReviewPromptInput {
+  creativeGuidance?: CreativePromptGuidance | null;
   novelTitle: string;
   chapterTitle: string;
   content: string;
@@ -22,6 +24,7 @@ export interface ChapterReviewPromptInput {
 }
 
 export interface ChapterRepairPromptInput {
+  creativeGuidance?: CreativePromptGuidance | null;
   novelTitle: string;
   bibleContent: string;
   chapterTitle: string;
@@ -95,13 +98,14 @@ export const chapterReviewPrompt: PromptAsset<
   z.infer<typeof fullAuditOutputSchema>
 > = {
   id: "novel.review.chapter",
-  version: "v3",
+  version: "v4",
   taskType: "critical_review",
   mode: "structured",
   language: "zh",
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterReview,
     preferredGroups: [
+      "creative_profile",
       "chapter_mission",
       "reader_experience",
       "structure_obligations",
@@ -116,7 +120,8 @@ export const chapterReviewPrompt: PromptAsset<
   render: (input, context) => [
     new SystemMessage([
       "repetition scoring: 0 means heavily repetitive, 100 means repetition is well controlled; higher is better.",
-      "你是资深网络小说章节审校编辑。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "你是资深网络小说章节审校编辑。" : "你是小说章节审校编辑，按作品明确选择的取向评估。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "你的任务不是重写章节，而是基于正文与给定上下文，对当前章节做结构化质量评估，并输出可供后续修文使用的审查结果。",
       "",
       "【任务边界】",
@@ -133,7 +138,7 @@ export const chapterReviewPrompt: PromptAsset<
       "2. repetition：是否存在信息重复、表达重复、动作重复或功能重复。",
       "3. pacing：节奏是否松散、失衡、过快跳跃或关键处压缩不足。",
       "4. voice：文风、叙述口吻、人物表达是否稳定且适配当前内容。",
-      "5. engagement：是否具有持续阅读动力，结尾钩子、冲突推进与信息揭示是否有效。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "5. engagement：是否具有持续阅读动力，结尾钩子、冲突推进与信息揭示是否有效。" : "5. engagement：按本书取向判断人物理解、情感、主题或类型张力是否成立；不因没有爽点、升级或章末悬念扣分。",
       "6. overall：综合质量判断，应反映本章是否达到可发布或需重点修整的水平。",
       "",
       "【issues 要求】",
@@ -148,7 +153,7 @@ export const chapterReviewPrompt: PromptAsset<
       "3. 若某项上下文不足，允许保守判断，但不要凭空制造问题。",
       "",
       "【质量要求】",
-      "1. 重点关注：是否完成本章任务、是否有新推进、是否存在明显冗余、是否留下有效钩子。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "1. 重点关注：是否完成本章任务、是否有新推进、是否存在明显冗余、是否留下有效钩子。" : "1. 检查叙事功能与视角、距离、节奏、意象、对白一致性；认可人物、关系或主题推进以及余韵收尾。",
       "2. 同类问题不要拆成多条近义 issue。",
       "3. 审查结果应服务后续修文，既要指出问题，也要保留本章已经有效的部分。",
     ].join("\n")),
@@ -172,13 +177,14 @@ export const chapterReviewPrompt: PromptAsset<
 
 export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, string> = {
   id: "novel.review.repair",
-  version: "v4",
+  version: "v5",
   taskType: "repair",
   mode: "text",
   language: "zh",
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterRepair,
     preferredGroups: [
+      "creative_profile",
       "repair_issues",
       "chapter_boundary",
       "chapter_mission",
@@ -206,7 +212,8 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
   ],
   render: (input, context) => [
     new SystemMessage([
-      "你是资深网络小说修文编辑。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "你是资深网络小说修文编辑。" : "你是小说修文编辑，保持作品明确选择的取向与文风。",
+      ...renderCreativeGuidanceSection(input.creativeGuidance),
       "你的任务是根据问题清单与分层上下文，对当前章节进行最小必要修复，使其更符合任务要求、结构要求与阅读体验。",
       "",
       "【任务边界】",
@@ -217,7 +224,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "【修复原则】",
       "1. 优先修复 issuesJson 中明确指出的关键问题。",
       "2. 优先保证 chapter_mission、repair_boundaries、world_rules 的约束被满足。",
-      "2a. 同时保留 reader_experience 中已经兑现的读者价值，并定向补齐 promisedReward、主角主动性、关键转折、净变化或旧钩子承接缺口。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "2a. 同时保留 reader_experience 中已经兑现的读者价值，并定向补齐 promisedReward、主角主动性、关键转折、净变化或旧钩子承接缺口。" : "2a. 保留已经成立的人物、关系或主题表达；只修复实际偏离本书章节任务与叙事策略的缺口，不机械补主动行动或反转。",
       "3. 保留原章已经有效的推进、情绪、细节与角色状态，不要把有用内容一起洗掉。",
       "4. 若多个问题冲突，优先修复影响主线推进、逻辑连贯和阅读节奏的问题。",
       "",
@@ -226,14 +233,14 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "2. 必须尽量保留本章原有核心事件顺序，除非问题清单明确指出结构需要调整。",
       "3. 若存在重复、空转、失速问题，应通过压缩、合并、替换无效段落来修，不要只做表面润色。",
       "4. 若存在逻辑、动机、衔接问题，应补足必要过桥与因果，而不是额外发明大设定。",
-      "5. 若存在钩子不足、结尾无力问题，应在不违背既有走向的前提下加强章末压力、悬念或决策点。",
+      keepsWebSerialPromptDefaults(input.creativeGuidance ?? creativeGuidanceFromContext(context)) ? "5. 若存在钩子不足、结尾无力问题，应在不违背既有走向的前提下加强章末压力、悬念或决策点。" : "5. 只按本书允许的收尾方式修复结尾，不因缺少钩子而强加压力或悬念，保留有功能的心理、景物与议论。",
       input.modeHint ? `6. 本次修复重点：${input.modeHint}` : "",
       "",
       "【风格要求】",
       "1. 保持与原章相近的叙述视角、语言风格与人物说话方式。",
       "2. 不要把修文写成另一种风格的新章。",
       "3. 控制 AI 味、总结味和说明味，优先用具体动作、对话、细节与局面变化完成修复。",
-      ...CHAPTER_PROSE_QUALITY_RULES,
+      ...creativeProseRules(input.creativeGuidance ?? creativeGuidanceFromContext(context)),
       "",
       "【禁止事项】",
       "禁止加入问题清单未要求的大幅扩写。",

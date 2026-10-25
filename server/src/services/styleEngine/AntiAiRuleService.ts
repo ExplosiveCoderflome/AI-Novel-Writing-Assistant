@@ -151,7 +151,7 @@ export class AntiAiRuleService {
         provider: input.provider ?? "deepseek",
         model: input.model,
         temperature: input.temperature ?? (input.mode === "create" ? 0.5 : 0.35),
-        maxTokens: 900,
+        defaultMaxTokens: 900,
         timeoutMs: input.timeoutMs,
         signal: input.signal,
       },

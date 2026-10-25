@@ -42,3 +42,7 @@ server/prisma-diff-migrations-to-schema.sql
 
 # Generated public copies of self-contained architecture artifacts
 site/public/architecture/
+server/rag-embedding-checkpoints/
+
+# Local offline verification artifacts
+.test-runtime/

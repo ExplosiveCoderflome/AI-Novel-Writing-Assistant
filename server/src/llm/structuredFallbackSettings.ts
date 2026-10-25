@@ -58,14 +58,8 @@ function normalizeMaxTokens(value: number | string | undefined | null): number |
     return null;
   }
   const numeric = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    return DEFAULT_STRUCTURED_FALLBACK_SETTINGS.maxTokens;
-  }
-  const normalized = Math.floor(numeric);
-  if (normalized < 64) {
-    return 64;
-  }
-  return Math.min(32768, normalized);
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) throw new Error("最大输出必须是正整数，留空使用原默认值。");
+  return numeric;
 }
 
 function normalizeRetryCount(value: number | string | undefined | null): number {

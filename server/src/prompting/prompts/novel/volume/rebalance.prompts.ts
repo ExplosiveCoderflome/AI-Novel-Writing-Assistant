@@ -1,3 +1,5 @@
+import { keepsWebSerialPromptDefaults, renderCreativeGuidanceSection } from "../../creativeProfile/creativePromptGuidance";
+import { VOLUME_ORIENTATION_FIELD_MEANING } from "../../creativeProfile/orientationPromptRules";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
@@ -11,7 +13,7 @@ export const volumeRebalancePrompt: PromptAsset<
   ReturnType<typeof createVolumeRebalanceSchema>["_output"]
 > = {
   id: "novel.volume.rebalance.adjacent",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -22,9 +24,11 @@ export const volumeRebalancePrompt: PromptAsset<
     dropOrder: ["volume_window"],
   },
   outputSchema: createVolumeRebalanceSchema(),
-  render: (_input, context) => [
+  render: (input, context) => [
     new SystemMessage([
-      "你是网文连载结构调度助手。",
+        ...renderCreativeGuidanceSection(input.novel?.creativeGuidance),
+        ...(!keepsWebSerialPromptDefaults(input.novel?.creativeGuidance) ? [VOLUME_ORIENTATION_FIELD_MEANING] : []),
+      keepsWebSerialPromptDefaults(input.novel?.creativeGuidance) ? "你是网文连载结构调度助手。" : "你是小说结构调度助手，按明确的创作取向维护各卷的功能和承接。",
       "你的任务不是重写分卷大纲，而是在当前 anchor volume 发生变化后，判断相邻卷是否需要做结构再平衡，并输出最小但必要的调度决策。",
       "",
       "【任务边界】",
@@ -51,7 +55,7 @@ export const volumeRebalancePrompt: PromptAsset<
       "hold：相邻卷暂时不需要结构调整，但仍必须说明为什么可以保持不动。",
       "",
       "【判断原则】",
-      "1. 再平衡的核心目标是维持卷与卷之间的承诺边界、递进关系、兑现顺序和连载节奏。",
+      keepsWebSerialPromptDefaults(input.novel?.creativeGuidance) ? "1. 再平衡的核心目标是维持卷与卷之间的承诺边界、递进关系、兑现顺序和连载节奏。" : "1. 再平衡维护卷间叙事边界、人物/主题的展开和阅读节奏，不强制追读与升级结构。",
       "2. 只有在当前卷变化已经影响相邻卷的功能完整性、节奏承接或卖点分布时，才输出实质调整；否则输出 hold。",
       "3. 优先做最小必要调整，不要为了‘更完整’而过度重排相邻卷。",
       "4. 不要让相邻卷失去自己独立成立的理由，也不要让 anchor volume 透支后续卷的关键兑现。",
@@ -60,7 +64,7 @@ export const volumeRebalancePrompt: PromptAsset<
       "1. 当前卷是否提前吃掉了相邻卷的关键钩子、核心卖点、主要压力源或阶段性兑现。",
       "2. 当前卷是否把应后移的解释、铺垫、转折或高潮性内容塞得过早，导致后卷失压。",
       "3. 当前卷变化后，相邻卷是否出现承接断裂、开局过空、冲突不足、高潮偏弱或功能重复。",
-      "4. 当前卷与相邻卷之间的 openPayoff、next hook、阶段目标和升级节奏是否仍然顺滑衔接。",
+      keepsWebSerialPromptDefaults(input.novel?.creativeGuidance) ? "4. 当前卷与相邻卷之间的 openPayoff、next hook、阶段目标和升级节奏是否仍然顺滑衔接。" : "4. 检查各卷未决问题、允许的收尾、人物关系和主题展开是否顺畅承接。",
       "",
       "【summary 要求】",
       "summary 必须说明：为什么需要这条决策，受影响卷的问题是什么，若不调整会造成什么结构后果。",

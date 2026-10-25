@@ -59,7 +59,7 @@ export const storyModeTreePrompt: PromptAsset<
   z.infer<typeof storyModeDraftNodeSchema>
 > = {
   id: "storyMode.tree.generate",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -69,6 +69,7 @@ export const storyModeTreePrompt: PromptAsset<
   outputSchema: storyModeDraftNodeSchema,
   render: (input) => [
     new SystemMessage([
+      "区分题材、创作取向、叙事形式和文风：现代文学不等于现代年代；允许人物、关系、家庭、社会、心理与主题推进，不把所有类型都归入升级、爽点或章末钩子。",
       "你是资深网络小说流派模式策划专家。",
       "你的任务是根据用户给出的创作方向，生成一棵可用于创作规划、模式约束和产品配置的“两级流派模式树”。",
       "这棵树不是简单列标签，而是要输出可区分、可执行、可复用的流派模式结构。",
@@ -84,7 +85,7 @@ export const storyModeTreePrompt: PromptAsset<
       "",
       "节点要求：",
       "1. name：名称必须简洁、稳定、可直接作为系统标签或模式名使用，不要写成长句或宣传语。",
-      "2. description：说明该模式的核心叙事特征、主要爽点来源、冲突组织方式或读者预期，避免“很好看”“很有代入感”这类空话。",
+      "2. description：说明该模式的核心叙事特征、主要阅读吸引力来源、冲突组织方式或读者预期，避免“很好看”“很有代入感”这类空话。",
       "3. template：写该模式最典型的剧情推进模板或叙事骨架，必须具体到创作层面，不能只写抽象概念。",
       "4. profile：必须承担真正的控制逻辑，不允许把关键规则偷藏在 name 或 description 里。",
       "",
@@ -133,7 +134,7 @@ export const storyModeChildPrompt: PromptAsset<
   z.infer<typeof storyModeChildDraftListSchema>
 > = {
   id: "storyMode.child.generate",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -146,6 +147,7 @@ export const storyModeChildPrompt: PromptAsset<
   outputSchema: storyModeChildDraftListSchema,
   render: (input) => [
     new SystemMessage([
+      "区分题材、创作取向、叙事形式和文风：现代文学不等于现代年代；允许人物、关系、家庭、社会、心理与主题推进，不把所有类型都归入升级、爽点或章末钩子。",
       "你是资深网络小说流派模式策划专家。",
       "你的任务不是生成整棵树，而是基于给定父类，补出一组可以直接挂载到该父类下的子类流派模式节点。",
       "这些子类节点必须可区分、可执行、可直接进入后续创作系统使用。",
@@ -170,7 +172,7 @@ export const storyModeChildPrompt: PromptAsset<
       "",
       "节点要求：",
       "1. name：名称必须简洁、稳定、可直接作为系统标签使用，不要写宣传语、口号或解释式长名称。",
-      "2. description：说明该子类的核心叙事特征、爽点来源、冲突组织方式或读者预期，必须具体，避免空话。",
+      "2. description：说明该子类的核心叙事特征、阅读吸引力来源、冲突组织方式或读者预期，必须具体，避免空话。",
       "3. template：写该子类最典型的剧情推进模板或叙事骨架，必须具体到创作层面，不能只写抽象概念。",
       "4. profile：必须承担真正的控制逻辑，不允许把关键规则偷藏在 name 或 description 里。",
       "",
@@ -256,7 +258,7 @@ export const storyModeExpansionPrompt: PromptAsset<
   z.infer<typeof storyModeExpansionDraftListSchema>
 > = {
   id: "storyMode.expansion.recommend",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -265,6 +267,7 @@ export const storyModeExpansionPrompt: PromptAsset<
   outputSchema: storyModeExpansionDraftListSchema,
   render: (input) => [
     new SystemMessage([
+      "区分题材、创作取向、叙事形式和文风：现代文学不等于现代年代；允许人物、关系、家庭、社会、心理与主题推进，不把所有类型都归入升级、爽点或章末钩子。",
       "你是资深网络小说推进模式架构师。",
       "你的任务是基于现有推进模式库，设计一组真正不同的新模式，帮助作者扩展玩法覆盖，而不是给已有模式换名称。",
       input.parentName.trim()

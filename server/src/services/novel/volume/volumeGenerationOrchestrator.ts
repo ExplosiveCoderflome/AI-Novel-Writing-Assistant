@@ -24,6 +24,7 @@ import {
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
 import { resolveVolumeStrategyOutputTokenBudget } from "../../../prompting/prompts/novel/promptBudgetProfiles";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
+import { creativePromptGuidanceFromStored } from "../../../modules/novel/creative-profile";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   inferRequiredChapterCountFromBeatSheet,
@@ -115,6 +116,7 @@ async function loadGenerationContext(params: {
         narrativePov: true,
         pacePreference: true,
         emotionIntensity: true,
+        creativeProfileJson: true,
         primaryStoryMode: {
           select: {
             id: true,
@@ -164,6 +166,7 @@ async function loadGenerationContext(params: {
 
   const novel: VolumeGenerationNovel = {
     ...rawNovel,
+    creativeGuidance: creativePromptGuidanceFromStored(rawNovel, "planning"),
     completionProfile: buildDirectorCompletionProfile(rawNovel.estimatedChapterCount ?? 80),
     storyModePromptBlock: buildStoryModePromptBlock({
       primary: rawNovel.primaryStoryMode ? normalizeStoryModeOutput(rawNovel.primaryStoryMode) : null,
@@ -348,7 +351,7 @@ async function generateSkeleton(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.35,
-      maxTokens: Math.min(6_000, 800 + targetVolumeCount * 520),
+      defaultMaxTokens: Math.min(6_000, 800 + targetVolumeCount * 520),
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",

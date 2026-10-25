@@ -74,7 +74,8 @@ function parseMaxTokens(value: string): number | null {
     return null;
   }
   const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? Math.floor(parsed) : null;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) throw new Error("最大输出必须是正整数，留空使用原默认值。");
+  return parsed;
 }
 
 export function parseStructuredRetryCount(value: string, fallback = 1): number {
@@ -101,12 +102,12 @@ export function isSameRouteDraft(draft: RouteDraft, route: SavedModelRoute | und
   if (!route) {
     return false;
   }
-  return draft.provider === route.provider
+  try { return draft.provider === route.provider
     && draft.model.trim() === route.model
     && parseTemperature(draft.temperature, 0.7) === route.temperature
     && parseMaxTokens(draft.maxTokens) === route.maxTokens
     && draft.requestProtocol === route.requestProtocol
-    && draft.structuredResponseFormat === route.structuredResponseFormat;
+    && draft.structuredResponseFormat === route.structuredResponseFormat; } catch { return false; }
 }
 
 export function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {

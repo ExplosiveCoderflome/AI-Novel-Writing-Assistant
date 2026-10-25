@@ -48,6 +48,8 @@ import {
   toEditablePlan,
 } from "./storyMacroPlanService.shared";
 import { WorldContextGateway } from "../worldContext/WorldContextGateway";
+import { creativePromptGuidanceFromStored } from "../../../modules/novel/creative-profile";
+import type { CreativePromptGuidance } from "../../../prompting/prompts/creativeProfile/creativePromptGuidance";
 
 interface LLMOptions {
   provider?: LLMProvider;
@@ -75,6 +77,7 @@ export class StoryMacroPlanService {
         pacePreference: true,
         emotionIntensity: true,
         estimatedChapterCount: true,
+        creativeProfileJson: true,
         genre: {
           select: {
             name: true,
@@ -183,12 +186,14 @@ export class StoryMacroPlanService {
     storyInput: string,
     projectContext: string,
     options: LLMOptions,
+    creativeGuidance: CreativePromptGuidance | null,
   ): Promise<{ plan: StoryMacroEditablePlan; issues: StoryMacroIssue[] }> {
     const parsed = await runStructuredPrompt({
       asset: storyMacroDecompositionPrompt,
       promptInput: {
         storyInput,
         projectContext,
+        creativeGuidance,
       },
       contextBlocks: buildStoryMacroDecompositionContextBlocks({
         storyInput,
@@ -221,6 +226,7 @@ export class StoryMacroPlanService {
     lockedFields: StoryMacroLocks,
     options: LLMOptions,
     projectContext: string,
+    creativeGuidance: CreativePromptGuidance | null,
   ): Promise<StoryMacroFieldValue> {
     const parsed = await runStructuredPrompt({
       asset: storyMacroFieldRegenerationPrompt,
@@ -232,6 +238,7 @@ export class StoryMacroPlanService {
         constraints: plan.constraints,
         lockedFields,
         projectContext,
+        creativeGuidance,
       },
       contextBlocks: buildStoryMacroFieldRegenerationContextBlocks({
         field,
@@ -293,6 +300,7 @@ export class StoryMacroPlanService {
       normalizedInput,
       projectContext,
       options,
+      creativePromptGuidanceFromStored(novel, "planning"),
     );
     const locks = previousPlan?.lockedFields ?? {};
     const merged = mergeLockedFields(generated.plan, previousPlan ? toEditablePlan(previousPlan) : null, locks);
@@ -329,6 +337,7 @@ export class StoryMacroPlanService {
       plan.lockedFields,
       options,
       formatProjectContext(novel, worldContext),
+      creativePromptGuidanceFromStored(novel, "planning"),
     );
     const nextPlan = setEditablePlanFieldValue(editablePlan, field, nextFieldValue);
     const constraintEngine = isDecompositionComplete(nextPlan.decomposition)

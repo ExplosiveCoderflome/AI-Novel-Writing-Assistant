@@ -280,7 +280,7 @@ export function isNearDuplicateTitle(left: string, right: string): boolean {
   return titleSimilarity(leftKey, rightKey) >= 0.78;
 }
 
-function sanitizeSuggestion(value: unknown): NormalizedTitleSuggestion | null {
+function sanitizeSuggestion(value: unknown, minLength = 4): NormalizedTitleSuggestion | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
@@ -298,7 +298,7 @@ function sanitizeSuggestion(value: unknown): NormalizedTitleSuggestion | null {
 
   const title = normalizeTitle(toTrimmedString(record.title));
   const normalizedLength = titleLength(title);
-  if (!title || normalizedLength < 4 || normalizedLength > 26) {
+  if (!title || normalizedLength < minLength || normalizedLength > 26) {
     return null;
   }
 
@@ -341,7 +341,7 @@ export function collectUniqueSuggestions(
   values: unknown[],
   count: number,
   blockedTitles: string[] = [],
-  options: { preserveOrder?: boolean; enforceFrameDiversity?: boolean } = {},
+  options: { preserveOrder?: boolean; enforceFrameDiversity?: boolean; literary?: boolean } = {},
 ): TitleFactorySuggestion[] {
   const blocked = blockedTitles.map((item) => normalizeTitle(item)).filter(Boolean);
   const suggestions: NormalizedTitleSuggestion[] = [];
@@ -349,14 +349,17 @@ export function collectUniqueSuggestions(
   const maxPerFrame = maximumFrameClusterSize(count);
 
   for (const item of values) {
-    const normalized = sanitizeSuggestion(item);
+    const normalized = sanitizeSuggestion(item, options.literary ? 1 : 4);
     if (!normalized) {
       continue;
     }
-    if (blocked.some((blockedTitle) => isNearDuplicateTitle(blockedTitle, normalized.title))) {
+    const duplicates = options.literary
+      ? (left: string, right: string) => normalizeCompareKey(left) === normalizeCompareKey(right)
+      : isNearDuplicateTitle;
+    if (blocked.some((blockedTitle) => duplicates(blockedTitle, normalized.title))) {
       continue;
     }
-    if (suggestions.some((existing) => isNearDuplicateTitle(existing.title, normalized.title))) {
+    if (suggestions.some((existing) => duplicates(existing.title, normalized.title))) {
       continue;
     }
 

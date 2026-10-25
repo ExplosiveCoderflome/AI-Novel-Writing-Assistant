@@ -5,12 +5,27 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { normalizeCommercialTags, type BookFramingSuggestion } from "@ai-novel/shared/types/novelFraming";
 import type { PromptAsset } from "../../core/promptTypes";
+import {
+  keepsWebSerialPromptDefaults,
+  renderCreativeGuidanceSection,
+  type CreativePromptGuidance,
+} from "../creativeProfile/creativePromptGuidance";
 
 export interface NovelFramingSuggestionPromptInput {
   inputSummary: string;
   analysisContext?: string;
   referenceIntent?: "continuation" | "adaptation";
+  creativeGuidance?: CreativePromptGuidance | null;
 }
+
+/** 非网文取向下的字段解释；字段与 schema 不变，只是不再要求爽点与连载式兑现。 */
+const ORIENTATION_FIELD_RULES = [
+  "1. targetAudience：写清这本书主要是给谁看的，体现读者的阅读动机，例如想理解某种处境、关系或时代，不要只写“所有人都能看”。",
+  "2. commercialTags：给 3-6 个短标签，每个标签不超过 20 个字符，优先写题材、主题、人物关系、叙述特点，不要写空泛大词。",
+  "3. competingFeel：写成读者实际会感受到的阅读感，例如节奏、情绪基调、关系张力或叙述距离；不要直接模仿或点名具体作品。",
+  "4. bookSellingPoint：说清这本书最不可替代的东西，可以是人物、关系、题材视角或叙述方式。",
+  "5. first30ChapterPromise：写清前30章要让读者确实得到的东西，例如人物处境被看清、核心关系建立、主题问题被提出、类型疑问落地；不要写成抽象口号。",
+] as const;
 
 export const novelFramingSuggestionSchema = z.object({
   targetAudience: z.string().trim().min(1),
@@ -42,7 +57,7 @@ export const novelFramingSuggestionPrompt: PromptAsset<
   z.infer<typeof novelFramingSuggestionSchema>
 > = {
   id: "novel.framing.suggest",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -57,10 +72,14 @@ export const novelFramingSuggestionPrompt: PromptAsset<
     const hasAnalysis = Boolean(input.analysisContext?.trim());
     const isContinuation = input.referenceIntent === "continuation";
     const isAdaptation = input.referenceIntent === "adaptation";
+    const webDefaults = keepsWebSerialPromptDefaults(input.creativeGuidance);
     return [
       new SystemMessage([
-        "你是小说项目立项助手，服务对象是不懂策划、不会拆卖点、也不熟悉网文结构的小白作者。",
+        webDefaults
+          ? "你是小说项目立项助手，服务对象是不懂策划、不会拆卖点、也不熟悉网文结构的小白作者。"
+          : "你是小说项目立项助手，服务对象是不懂策划的新手作者。本书的创作取向由用户明确选择，立项建议必须服从它。",
         "你的任务是根据用户已填写的书名、故事概述和少量上下文，补全这本书的“书级 framing”，让用户可以直接回填表单继续往下走。",
+        ...renderCreativeGuidanceSection(input.creativeGuidance),
         "",
         "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
         "固定输出字段必须且只能是：",
@@ -84,11 +103,13 @@ export const novelFramingSuggestionPrompt: PromptAsset<
           : "",
         "",
         "字段要求：",
-        "1. targetAudience：必须写清这本书主要是给谁看的，尽量体现读者偏好、阅读动机或爽点需求，不要只写“所有人都能看”。",
-        "2. commercialTags：给 3-6 个短标签，每个标签不超过 20 个字符。标签要能直接用于定位和展示，优先写题材、卖点、冲突类型、阅读体验，不要写空泛大词。",
-        "3. competingFeel：必须写成“读者实际会感受到的阅读感”，例如节奏、情绪、关系牵引、压迫感、爽感来源；不要直接模仿或点名具体作品。",
-        "4. bookSellingPoint：必须说清这本书最抓人的核心点是什么，优先回答“读者为什么愿意点开并继续看”。",
-        "5. first30ChapterPromise：必须明确前30章一定要兑现给读者的内容，例如关系建立、主线启动、反击兑现、设定亮相、核心悬念落地等；不要写成抽象口号。",
+        ...(webDefaults ? [
+          "1. targetAudience：必须写清这本书主要是给谁看的，尽量体现读者偏好、阅读动机或爽点需求，不要只写“所有人都能看”。",
+          "2. commercialTags：给 3-6 个短标签，每个标签不超过 20 个字符。标签要能直接用于定位和展示，优先写题材、卖点、冲突类型、阅读体验，不要写空泛大词。",
+          "3. competingFeel：必须写成“读者实际会感受到的阅读感”，例如节奏、情绪、关系牵引、压迫感、爽感来源；不要直接模仿或点名具体作品。",
+          "4. bookSellingPoint：必须说清这本书最抓人的核心点是什么，优先回答“读者为什么愿意点开并继续看”。",
+          "5. first30ChapterPromise：必须明确前30章一定要兑现给读者的内容，例如关系建立、主线启动、反击兑现、设定亮相、核心悬念落地等；不要写成抽象口号。",
+        ] : ORIENTATION_FIELD_RULES),
         "",
         "质量要求：",
         "1. 不要写“人物鲜明”“剧情精彩”“节奏紧凑”这类空泛结论。",

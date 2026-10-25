@@ -94,12 +94,13 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">最大输出长度</div>
+        <div className="text-xs text-muted-foreground">此任务最大输出（tokens）</div>
         <Input
           value={draft.maxTokens}
           placeholder={maxTokensPlaceholder}
           onChange={(event) => onPatch({ maxTokens: event.target.value })}
         />
+        <p className="text-xs text-muted-foreground">留空使用模型设置或原任务默认。此值是请求生成上限，接口可能将思考计入其中。</p>
       </div>
 
       {showProtocolFields ? (
@@ -122,7 +123,11 @@ export default function ModelRouteFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="auto">自动选择</SelectItem>
-              <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
+              <SelectItem value="openai_compatible">OpenAI 兼容 Chat Completions</SelectItem>
+              <SelectItem value="openai_responses">OpenAI Responses</SelectItem>
+              <SelectItem value="deepseek">DeepSeek Chat</SelectItem>
+              <SelectItem value="gemini">Gemini 原生</SelectItem>
+              <SelectItem value="llama_cpp">llama.cpp Chat</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
             </SelectContent>
           </Select>

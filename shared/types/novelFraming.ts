@@ -1,5 +1,6 @@
 import type { LLMProvider } from "./llm";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
+import type { CreativeProfile } from "./creativeProfile";
 
 export const BOOK_FRAMING_MAX_COMMERCIAL_TAGS = 6;
 export const BOOK_FRAMING_COMMERCIAL_TAG_MAX_LENGTH = 20;
@@ -23,6 +24,8 @@ export interface BookFramingSuggestionInput {
   bookAnalysisId?: string;
   referenceIntent?: BookFramingReferenceIntent;
   bookAnalysisSections?: BookAnalysisSectionKey[];
+  /** 用户明确选择的创作取向；未选择时沿用网文立项口径。 */
+  creativeProfile?: CreativeProfile | null;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

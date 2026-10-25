@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
 const { resolveModel } = require("../dist/llm/modelRouter.js");
 
-test("resolveModel clamps DeepSeek route maxTokens to the provider limit", async () => {
+test("resolveModel preserves explicitly configured route output", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => ({
@@ -21,13 +21,13 @@ test("resolveModel clamps DeepSeek route maxTokens to the provider limit", async
     assert.equal(resolved.provider, "deepseek");
     assert.equal(resolved.model, "deepseek-chat");
     assert.equal(resolved.temperature, 0.3);
-    assert.equal(resolved.maxTokens, 8192);
+    assert.equal(resolved.maxTokens, 32768);
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
 });
 
-test("resolveModel clamps explicit DeepSeek overrides as well", async () => {
+test("resolveModel preserves explicit DeepSeek output overrides", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => null;
@@ -40,7 +40,7 @@ test("resolveModel clamps explicit DeepSeek overrides as well", async () => {
     });
     assert.equal(resolved.provider, "deepseek");
     assert.equal(resolved.model, "deepseek-chat");
-    assert.equal(resolved.maxTokens, 8192);
+    assert.equal(resolved.maxTokens, 12000);
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }

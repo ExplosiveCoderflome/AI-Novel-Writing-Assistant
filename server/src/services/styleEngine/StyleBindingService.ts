@@ -218,6 +218,7 @@ export class StyleBindingService {
     const sourceTargets = Array.from(new Set(ordered.map((binding) => binding.targetType)));
     const sourceLabels = sourceTargets.map((targetType) => targetType.toUpperCase());
     const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+      novelId: input.novelId,
       matchedBindings,
       effectiveStyleProfileId: effectiveBinding?.styleProfileId ?? null,
     });

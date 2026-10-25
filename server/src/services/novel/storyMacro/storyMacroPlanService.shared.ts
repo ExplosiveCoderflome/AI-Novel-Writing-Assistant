@@ -28,6 +28,8 @@ export interface StoryMacroNovelContext {
   genre: { name: string } | null;
   primaryStoryMode: NovelStoryMode | null;
   secondaryStoryMode: NovelStoryMode | null;
+  /** 只用于编译创作取向指导，不进入 formatProjectContext。 */
+  creativeProfileJson?: string | null;
 }
 
 export function formatProjectContext(novel: StoryMacroNovelContext, worldSliceContext = ""): string {

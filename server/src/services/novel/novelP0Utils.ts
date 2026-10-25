@@ -1,3 +1,4 @@
+import { extractCompleteJsonValue, stripOuterJsonFence } from "../../llm/structured/JsonValue";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 
 export interface ExtractedFact {
@@ -23,61 +24,9 @@ export function toText(content: unknown): string {
   return JSON.stringify(content ?? "");
 }
 
-export function cleanJsonText(source: string): string {
-  return source.replace(/```json|```/gi, "").trim();
-}
+export function cleanJsonText(source: string): string { return stripOuterJsonFence(source); }
 
-export function extractJSONValue(source: string): string {
-  const text = cleanJsonText(source);
-  const objectStart = text.indexOf("{");
-  const arrayStart = text.indexOf("[");
-  const start = objectStart < 0
-    ? arrayStart
-    : arrayStart < 0
-      ? objectStart
-      : Math.min(objectStart, arrayStart);
-
-  if (start < 0) {
-    throw new Error("未检测到有效 JSON 值。");
-  }
-
-  const opener = text[start];
-  const closer = opener === "{" ? "}" : "]";
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-
-  for (let index = start; index < text.length; index += 1) {
-    const char = text[index];
-    if (escaped) {
-      escaped = false;
-      continue;
-    }
-    if (char === "\\") {
-      escaped = true;
-      continue;
-    }
-    if (char === "\"") {
-      inString = !inString;
-      continue;
-    }
-    if (inString) {
-      continue;
-    }
-    if (char === opener) {
-      depth += 1;
-      continue;
-    }
-    if (char === closer) {
-      depth -= 1;
-      if (depth === 0) {
-        return text.slice(start, index + 1);
-      }
-    }
-  }
-
-  throw new Error("未检测到完整 JSON 值。");
-}
+export function extractJSONValue(source: string): string { return extractCompleteJsonValue(source); }
 
 export function extractJSONObject(source: string): string {
   const extracted = extractJSONValue(source);

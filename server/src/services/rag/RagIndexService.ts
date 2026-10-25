@@ -17,7 +17,8 @@ import {
   type RagChunkFacets,
   type RagPreChunk,
 } from "./chunkFacets";
-import { runWithConcurrency } from "./utils";
+import { embedCheckpointedBatches, chunkMetadata, RagJobLease, KnowledgeIndexReplacement,
+  parseIndexPayload, type IndexReplacementManifest } from "./indexing";
 import { loadVersionedChapterSummaryDocuments, buildChapterArtifactContentHash } from "./facts";
 
 type ReindexScope = "novel" | "world" | "all";
@@ -177,45 +178,9 @@ export class RagIndexService {
     };
   }
 
-  private async embedTextsInBatches(
-    texts: string[],
-    onProgress?: (payload: { processed: number; total: number }) => Promise<void>,
-  ): Promise<{ vectors: number[][]; provider: string; model: string }> {
-    if (texts.length === 0) {
-      return { vectors: [], provider: ragConfig.embeddingProvider, model: ragConfig.embeddingModel };
-    }
-    const batchSize = ragConfig.embeddingBatchSize;
-    const concurrency = ragConfig.embeddingConcurrency;
-    const vectors: number[][] = new Array(texts.length);
-    let provider = ragConfig.embeddingProvider;
-    let model = ragConfig.embeddingModel;
-    let processed = 0;
-    let lastReportPercent = 0;
-
-    const batches: { start: number; texts: string[] }[] = [];
-    for (let cursor = 0; cursor < texts.length; cursor += batchSize) {
-      batches.push({ start: cursor, texts: texts.slice(cursor, cursor + batchSize) });
-    }
-
-    await runWithConcurrency(batches, concurrency, async (batch) => {
-      const result = await this.embeddingService.embedTexts(batch.texts);
-      provider = result.provider;
-      model = result.model;
-      for (let i = 0; i < result.vectors.length; i += 1) {
-        vectors[batch.start + i] = result.vectors[i];
-      }
-      processed += batch.texts.length;
-
-      if (onProgress) {
-        const percent = texts.length > 0 ? processed / texts.length : 1;
-        if (percent - lastReportPercent >= 0.03 || processed >= texts.length) {
-          lastReportPercent = percent;
-          await onProgress({ processed: Math.min(processed, texts.length), total: texts.length });
-        }
-      }
-    });
-
-    return { vectors, provider, model };
+  private async embedTextsInBatches(texts: string[], checkpointScope: string, assertActive: () => Promise<void>,
+    onProgress?: (payload: { processed: number; total: number }) => Promise<void>) {
+    return embedCheckpointedBatches(this.embeddingService, texts, checkpointScope, assertActive, onProgress);
   }
 
   private normalizePreChunks(raw: unknown): RagPreChunk[] {
@@ -545,6 +510,7 @@ export class RagIndexService {
   ): RagChunkCandidate[] {
     const candidateNames = options?.knownCharacterNames ?? [];
     const candidates: RagChunkCandidate[] = [];
+    const ownerChunkCounts = new Map<string, number>();
     for (const document of documents) {
       const isKnowledgeDoc = document.ownerType === "knowledge_document";
       const sourcePieces: SourcePiece[] = document.preChunks?.length
@@ -584,8 +550,8 @@ export class RagIndexService {
         });
       for (const piece of sourcePieces) {
         const chunkText = piece.chunkText;
-        const chunkOrder = candidates.filter((item) =>
-          item.ownerType === document.ownerType && item.ownerId === document.ownerId).length;
+        const ownerKey = `${document.ownerType}:${document.ownerId}`;
+        const chunkOrder = ownerChunkCounts.get(ownerKey) ?? 0;
         const metadata = {
           ...(document.metadata ?? {}),
           ...(piece.metadata ?? {}),
@@ -620,6 +586,7 @@ export class RagIndexService {
           novelId: document.novelId,
           worldId: document.worldId,
         });
+        ownerChunkCounts.set(ownerKey, chunkOrder + 1);
       }
     }
     return candidates;
@@ -680,9 +647,14 @@ export class RagIndexService {
     ownerId: string,
     tenantId: string,
     jobId: string,
+    lease?: RagJobLease,
   ): Promise<{ chunks: number }> {
-    await this.assertJobNotCancelled(jobId);
-    await this.updateJobProgress(jobId, {
+    let sourceVersionId: string | undefined;
+    const assertActive = () => lease ? lease.assertVersion(sourceVersionId) : this.assertJobNotCancelled(jobId);
+    const report = (progress: Omit<RagJobProgressSnapshot, "updatedAt">) => lease
+      ? lease.progress(progress) : this.updateJobProgress(jobId, progress);
+    await assertActive();
+    await report({
       stage: "loading_source",
       label: "读取文档",
       detail: "正在读取知识库文档内容。",
@@ -695,9 +667,14 @@ export class RagIndexService {
       select: { payloadJson: true },
     }))?.payloadJson ?? null);
     const docs = await this.loadSourceDocuments(ownerType, ownerId, tenantId, jobPayload);
-    await this.assertJobNotCancelled(jobId);
+    sourceVersionId = typeof docs[0]?.metadata?.activeVersionId === "string" ? docs[0].metadata.activeVersionId : undefined;
+    if (lease && (!sourceVersionId || docs.length === 0)) throw new Error("Knowledge document source is unavailable; existing index retained.");
+    if (lease && typeof jobPayload.sourceVersionId === "string" && jobPayload.sourceVersionId !== sourceVersionId) {
+      throw new Error("Knowledge source changed before indexing; submit a new rebuild request.");
+    }
+    await assertActive();
     if (docs.length === 0) {
-      await this.updateJobProgress(jobId, {
+      await report({
         stage: "deleting_existing",
         label: "清理旧索引",
         detail: "当前没有可索引内容，正在清理旧索引。",
@@ -706,7 +683,7 @@ export class RagIndexService {
         percent: 0.3,
       });
       await this.deleteOwnerChunks(ownerType, ownerId, tenantId, jobId);
-      await this.updateJobProgress(jobId, {
+      await report({
         stage: "completed",
         label: "索引完成",
         detail: "没有可索引内容，旧索引已清理。",
@@ -739,7 +716,7 @@ export class RagIndexService {
       maxTokens: embeddingTokenBudget,
       knownCharacterNames,
     });
-    await this.updateJobProgress(jobId, {
+    await report({
       stage: "chunking",
       label: "切分分块",
       detail: `已读取 ${docs.length} 份文档，生成 ${candidates.length} 个分块。`,
@@ -754,9 +731,10 @@ export class RagIndexService {
       documentsByOwner: this.buildContextualDocumentMap(docs),
     });
     const splitTexts = candidates.map((item) => item.searchText ?? item.chunkText);
-    await this.assertJobNotCancelled(jobId);
-    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
-      await this.updateJobProgress(jobId, {
+    await assertActive();
+    const embedding = await this.embedTextsInBatches(splitTexts,
+      JSON.stringify([tenantId, ownerType, ownerId]), assertActive, async ({ processed, total }) => {
+      await report({
         stage: "embedding",
         label: "生成向量",
         detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
@@ -767,13 +745,14 @@ export class RagIndexService {
         percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
       });
     });
-    await this.assertJobNotCancelled(jobId);
+    await assertActive();
     for (const candidate of candidates) {
       candidate.embedProvider = embedding.provider;
       candidate.embedModel = embedding.model;
     }
     if (candidates.length === 0) {
-      await this.updateJobProgress(jobId, {
+      if (lease) throw new Error("Knowledge document contains no indexable chunks; existing index retained.");
+      await report({
         stage: "deleting_existing",
         label: "清理旧索引",
         detail: "切分后没有可写入的分块，正在清理旧索引。",
@@ -782,7 +761,7 @@ export class RagIndexService {
         percent: 0.3,
       });
       await this.deleteOwnerChunks(ownerType, ownerId, tenantId, jobId);
-      await this.updateJobProgress(jobId, {
+      await report({
         stage: "completed",
         label: "索引完成",
         detail: "切分后没有可写入的分块。",
@@ -796,8 +775,15 @@ export class RagIndexService {
       throw new Error("RAG embedding 数量与 chunk 数量不一致。");
     }
 
+    if (lease) {
+      return new KnowledgeIndexReplacement(lease, this.vectorStoreService).replace({
+        candidates, vectors: embedding.vectors, versionId: sourceVersionId!,
+        publish: (manifest, rows) => this.commitKnowledgeReplacement(lease, manifest, rows),
+      });
+    }
+
     const vectorSize = embedding.vectors[0]?.length ?? 0;
-    await this.updateJobProgress(jobId, {
+    await report({
       stage: "ensuring_collection",
       label: "校验集合",
       detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
@@ -807,7 +793,7 @@ export class RagIndexService {
       chunks: candidates.length,
       percent: 0.7,
     });
-    await this.assertJobNotCancelled(jobId);
+    await assertActive();
     await this.vectorStoreService.ensureCollection(vectorSize);
 
     // 读取旧 chunk id，但先不删除 — 保持旧数据可检索直到新数据写入完成
@@ -816,9 +802,9 @@ export class RagIndexService {
       select: { id: true },
     });
     const oldIds = oldChunks.map((item) => item.id);
-    await this.assertJobNotCancelled(jobId);
+    await assertActive();
 
-    await this.updateJobProgress(jobId, {
+    await report({
       stage: "upserting_vectors",
       label: "写入向量库",
       detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
@@ -828,7 +814,7 @@ export class RagIndexService {
       chunks: candidates.length,
       percent: 0.8,
     });
-    await this.assertJobNotCancelled(jobId);
+    await assertActive();
 
     // Phase 3.1: 先写新分块到 Qdrant + DB，成功后再删旧分块，消除可见性空窗
     const newPoints = candidates.map((item, index) => ({
@@ -865,7 +851,7 @@ export class RagIndexService {
 
     // 2. DB 写入新分块元数据
     try {
-      await this.updateJobProgress(jobId, {
+      await report({
         stage: "writing_metadata",
         label: "写入索引元数据",
         detail: `正在写入 ${candidates.length} 条本地索引记录。`,
@@ -876,27 +862,7 @@ export class RagIndexService {
         percent: 0.92,
       });
       await prisma.knowledgeChunk.createMany({
-        data: candidates.map((item) => ({
-          id: item.id,
-          tenantId: item.tenantId,
-          ownerType: item.ownerType,
-          ownerId: item.ownerId,
-          novelId: item.novelId ?? null,
-          worldId: item.worldId ?? null,
-          title: item.title ?? null,
-          chunkText: item.chunkText,
-          chunkHash: item.chunkHash,
-          chunkOrder: item.chunkOrder,
-          tokenEstimate: item.tokenEstimate,
-          language: item.language,
-          metadataJson: item.metadataJson ?? null,
-          facetKeys: item.facetKeys ?? null,
-          chapterAnchor: item.chapterAnchor ?? null,
-          embedProvider: item.embedProvider,
-          embedModel: item.embedModel,
-          embedVersion: item.embedVersion,
-          indexedAt: new Date(),
-        })),
+        data: chunkMetadata(candidates),
       });
     } catch (error) {
       // DB 写入失败，回滚：删除刚写的新 Qdrant 分块
@@ -906,7 +872,7 @@ export class RagIndexService {
 
     // 3. 新分块全部就位，安全删除旧分块
     if (oldIds.length > 0) {
-      await this.updateJobProgress(jobId, {
+      await report({
         stage: "deleting_existing",
         label: "清理旧索引",
         detail: `正在删除 ${oldIds.length} 条旧分块。`,
@@ -920,7 +886,7 @@ export class RagIndexService {
       await prisma.knowledgeChunk.deleteMany({ where: { id: { in: oldIds } } }).catch(() => {});
     }
 
-    await this.updateJobProgress(jobId, {
+    await report({
       stage: "completed",
       label: "索引完成",
       detail: `索引已完成，共 ${candidates.length} 个分块。`,
@@ -931,6 +897,36 @@ export class RagIndexService {
       percent: 1,
     });
     return { chunks: candidates.length };
+  }
+
+  private async commitKnowledgeReplacement(lease: RagJobLease, manifest: IndexReplacementManifest, candidates: RagChunkCandidate[]): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await lease.lock(tx);
+      const job = await tx.ragIndexJob.findUniqueOrThrow({ where: { id: lease.job.id } });
+      const payload = parseIndexPayload(job.payloadJson);
+      if (payload.replacement?.state === "committed" && payload.replacement.generation === manifest.generation) return;
+      const document = await tx.knowledgeDocument.updateMany({ where: { id: job.ownerId,
+        activeVersionId: manifest.versionId, status: manifest.retired ? "archived" : { not: "archived" } }, data: {
+        latestIndexStatus: manifest.retired ? "idle" : "succeeded", ...(manifest.retired ? {} : { lastIndexedAt: new Date() }),
+      } });
+      if (document.count !== 1) throw new Error("Knowledge source version changed; replacement cancelled.");
+      // Exact captured IDs, tenant and document scope. Never delete all owner rows.
+      await tx.knowledgeChunk.deleteMany({ where: { tenantId: job.tenantId, ownerType: "knowledge_document",
+        ownerId: job.ownerId, id: { in: manifest.oldIds } } });
+      if (candidates.length) await tx.knowledgeChunk.createMany({ data: chunkMetadata(candidates) });
+      payload.replacement = manifest;
+      payload.progress = { stage: "deleting_existing", label: "保存完成，清理旧索引", current: candidates.length,
+        total: candidates.length, documents: 1, chunks: candidates.length, percent: 0.97, updatedAt: new Date().toISOString() };
+      await lease.assertActive(tx);
+      await tx.ragIndexJob.update({ where: { id: job.id }, data: { payloadJson: JSON.stringify(payload) } });
+    });
+  }
+
+  async claimJob(job: RagIndexJob) { return RagJobLease.claim(job); }
+  async renewJob(job: RagIndexJob) { return new RagJobLease(job).renew(); }
+  async recoverJob(job: RagIndexJob) { return RagJobLease.recover(job); }
+  async listInterruptedJobs() {
+    return prisma.ragIndexJob.findMany({ where: { status: "running", runAfter: { lte: new Date() } }, take: 500 });
   }
 
   async enqueueOwnerJob(
@@ -945,7 +941,15 @@ export class RagIndexService {
     },
   ) {
     const tenantId = options?.tenantId ?? ragConfig.defaultTenantId;
-    const existing = await prisma.ragIndexJob.findFirst({
+    let activeVersionId: string | null | undefined;
+    if (ownerType === "knowledge_document") {
+      activeVersionId = (await prisma.knowledgeDocument.findUnique({ where: { id: ownerId }, select: { activeVersionId: true } }))?.activeVersionId;
+      options = { ...options, payload: { ...(options?.payload ?? {}), sourceVersionId: activeVersionId ?? null } };
+      await prisma.ragIndexJob.updateMany({ where: { tenantId, ownerType, ownerId,
+        OR: [{ status: "running" }, { status: "queued", jobType: { not: jobType } }] },
+        data: { status: "cancelled", lastError: "Superseded by a newer knowledge-document request." } });
+    }
+    let existing = await prisma.ragIndexJob.findFirst({
       where: {
         tenantId,
         jobType,
@@ -955,6 +959,15 @@ export class RagIndexService {
       },
       orderBy: { createdAt: "desc" },
     });
+    if (existing && ownerType === "knowledge_document") {
+      const payload = this.parseJobPayload(existing.payloadJson);
+      const sourceVersion = payload.sourceVersionId ?? parseIndexPayload(existing.payloadJson).replacement?.versionId;
+      if ((sourceVersion && sourceVersion !== activeVersionId) || (!sourceVersion && payload.preChunks)) {
+        await prisma.ragIndexJob.updateMany({ where: { id: existing.id, status: "queued", payloadJson: existing.payloadJson },
+          data: { status: "cancelled", lastError: "Knowledge source version changed; a new job was queued." } });
+        existing = null;
+      }
+    }
     if (existing) {
       if (options?.payload && existing.status === "queued") {
         const currentPayload = this.parseJobPayload(existing.payloadJson);
@@ -1100,7 +1113,8 @@ export class RagIndexService {
     attempts?: number;
     runAfter?: Date;
     lastError?: string | null;
-  }) {
+  }, expectedJob?: RagIndexJob) {
+    if (expectedJob) return new RagJobLease(expectedJob).finish(payload);
     const current = await prisma.ragIndexJob.findUnique({
       where: { id: jobId },
       select: { status: true, payloadJson: true },
@@ -1157,11 +1171,16 @@ export class RagIndexService {
         percent: progress?.percent ?? 0,
       });
     } else if (payload.status === "failed") {
+      const progress = this.parseJobPayload(current.payloadJson).progress;
       await this.updateJobProgress(job.id, {
         stage: "failed",
         label: "索引失败",
         detail: payload.lastError ?? "索引任务失败。",
-        percent: 1,
+        current: progress?.current,
+        total: progress?.total,
+        documents: progress?.documents,
+        chunks: progress?.chunks,
+        percent: progress?.percent ?? 0,
       });
     }
     await this.syncKnowledgeDocumentIndexStatus(
@@ -1192,6 +1211,19 @@ export class RagIndexService {
     const tenantId = job.tenantId || ragConfig.defaultTenantId;
     const ownerType = job.ownerType as RagOwnerType;
     const jobType = job.jobType as RagJobType;
+    const lease = ownerType === "knowledge_document" ? new RagJobLease(job) : undefined;
+    if (lease) {
+      await lease.assertActive();
+      const replacement = new KnowledgeIndexReplacement(lease, this.vectorStoreService);
+      const resumed = await replacement.resume();
+      if (resumed) return resumed;
+      if (jobType === "delete") {
+        const document = await prisma.knowledgeDocument.findUnique({ where: { id: job.ownerId } });
+        if (!document?.activeVersionId || document.status !== "archived") throw new Error("Knowledge archive changed; cleanup cancelled.");
+        return replacement.replace({ candidates: [], vectors: [], versionId: document.activeVersionId, retired: true,
+          publish: (manifest, rows) => this.commitKnowledgeReplacement(lease, manifest, rows) });
+      }
+    }
     if (jobType === "delete") {
       await this.updateJobProgress(job.id, {
         stage: "deleting_existing",
@@ -1211,7 +1243,7 @@ export class RagIndexService {
       });
       return { chunks: 0 };
     }
-    return this.upsertOwnerChunks(ownerType, job.ownerId, tenantId, job.id);
+    return this.upsertOwnerChunks(ownerType, job.ownerId, tenantId, job.id, lease);
   }
 
   private async syncKnowledgeDocumentIndexStatus(

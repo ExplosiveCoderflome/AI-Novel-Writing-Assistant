@@ -5,6 +5,25 @@ const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const {
   generateBeatChunkedChapterList,
 } = require("../dist/services/novel/volume/volumeChapterListGeneration.js");
+
+test('a 45-chapter beat reaches the real prompt runner in bounded batches with exact final count',async()=>{
+  const document=createDocument();document.volumes[0].chapters=[];
+  document.beatSheets[0].beats=[{key:'open_hook',label:'开卷抓手',summary:'完成整个节奏段',chapterSpanHint:'1-45章',mustDeliver:['推进']}];
+  const original=promptRunner.runStructuredPrompt;const counts=[];
+  promptRunner.runStructuredPrompt=async({asset,promptInput})=>{
+    const count=promptInput.targetBeatChapterCount;counts.push(count);
+    return {output:asset.outputSchema.parse({beatKey:'open_hook',beatLabel:'开卷抓手',chapterCount:count,
+      chapters:Array.from({length:count},(_,i)=>({beatKey:'open_hook',title:`验证${promptInput.targetChapterStartOrder+i}`,
+        summary:'主角主动选择追查线索并承担代价，冲突推动局势转向。',plannedCharacterIds:[]}))})};
+  };
+  try{
+    const result=await generateBeatChunkedChapterList({document,novel:{title:'offline',estimatedChapterCount:45,characters:[]},
+      workspace:{...document,workspaceVersion:'v2',readiness:{}},storyMacroPlan:null,
+      options:{targetVolumeId:'volume-1',entrypoint:'director_next'},notifyPhase:async()=>{}});
+    assert.deepEqual(counts,[8,8,8,8,8,5]);assert.equal(result.mergedDocument.volumes[0].chapters.length,45);
+    assert.equal(document.volumes[0].chapters.length,0,'source snapshot is not mutated');
+  }finally{promptRunner.runStructuredPrompt=original;}
+});
 const {
   mergeChapterList,
 } = require("../dist/services/novel/volume/volumeGenerationHelpers.js");
@@ -271,7 +290,7 @@ test('V2 saves initial cast schedules in the existing beat calls without a separ
   let calls=0;
   promptRunner.runStructuredPrompt=async({asset,promptInput})=>{
     calls++;
-    assert.equal(asset.version,'v10');
+    assert.equal(asset.version,'v11');
     return {output:asset.outputSchema.parse({beatKey:promptInput.targetBeat.key,beatLabel:promptInput.targetBeat.label,
       chapterCount:promptInput.targetBeatChapterCount,chapters:Array.from({length:promptInput.targetBeatChapterCount},(_,i)=>({
         title:(promptInput.targetBeat.key==='open_hook'?'药铺开门':'医馆封门')+i,summary:'青禾主动选择救治伤者，打破官差追捕的僵局并承担药方暴露的代价。',
@@ -973,4 +992,17 @@ test("generateBeatChunkedChapterList emits a resumable intermediate document aft
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
+});
+
+test('a large manual model output budget can keep a 45-chapter beat in one validated batch',async()=>{
+  const {prisma}=require('../dist/db/prisma');const find=prisma.appSetting.findUnique,run=promptRunner.runStructuredPrompt;
+  const {setProviderSecretCache}=require('../dist/llm/factory');setProviderSecretCache('offline',{model:'large-fixture',baseURL:'http://127.0.0.1:1/v1'});
+  const counts=[];const document=createDocument();document.volumes[0].chapters=[];
+  document.beatSheets[0].beats=[{key:'open_hook',label:'开卷抓手',summary:'完成整个节奏段',chapterSpanHint:'1-45章',mustDeliver:['推进']}];
+  prisma.appSetting.findUnique=async query=>String(query.where.key).includes('large-fixture')?{value:JSON.stringify({maxOutputTokens:131072})}:find(query);
+  promptRunner.runStructuredPrompt=async({asset,promptInput})=>{const count=promptInput.targetBeatChapterCount;counts.push(count);return {output:asset.outputSchema.parse({beatKey:'open_hook',beatLabel:'开卷抓手',chapterCount:count,chapters:Array.from({length:count},(_,i)=>({beatKey:'open_hook',title:`大额度验证${promptInput.targetChapterStartOrder+i}`,summary:'主角主动选择追查线索并承担代价，冲突推动局势转向。',plannedCharacterIds:[]}))})};};
+  try {
+    const result=await generateBeatChunkedChapterList({document,novel:{title:'offline',estimatedChapterCount:45,characters:[]},workspace:{...document,workspaceVersion:'v2',readiness:{}},storyMacroPlan:null,options:{provider:'offline',model:'large-fixture',targetVolumeId:'volume-1',entrypoint:'director_next'},notifyPhase:async()=>{}});
+    assert.deepEqual(counts,[45]);assert.equal(result.mergedDocument.volumes[0].chapters.length,45);
+  }finally{prisma.appSetting.findUnique=find;promptRunner.runStructuredPrompt=run;setProviderSecretCache('offline',null);}
 });

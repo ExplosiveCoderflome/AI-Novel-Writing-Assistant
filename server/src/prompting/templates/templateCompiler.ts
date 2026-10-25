@@ -1,3 +1,4 @@
+import { creativeGuidanceFromContext, keepsWebSerialPromptDefaults, pickCreativeAwareSlotText } from "../prompts/creativeProfile/creativePromptGuidance";
 import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import type { PromptRenderContext } from "../core/promptTypes";
 import { formatContextGroupLabel } from "../context/contextGroupLabels";
@@ -297,9 +298,14 @@ export function compilePromptTemplate(input: {
   const contextByGroup = groupContextBlocks(input.context);
   const allowedContextGroups = new Set(input.allowedContextGroups);
   const slotKeys = new Set(input.slotDefs.map((slot) => slot.key));
-  const requiredGroups = input.requiredContextGroups?.length
+  const baseRequiredGroups = input.requiredContextGroups?.length
     ? input.requiredContextGroups
     : [...WRITER_REQUIRED_CONTEXT_GROUPS];
+  const activeCreative = input.context.blocks.some((block) => block.group === "creative_profile");
+  const requiredGroups = [...new Set([...baseRequiredGroups, ...(activeCreative ? ["creative_profile"] : [])])];
+  if (activeCreative && !input.template.messages.some((message) => message.role === "system" && String(message.content).includes("{{context.creative_profile}}"))) {
+    diagnostics.invalidMessages.push("已选择创作取向；高级模板的系统消息须包含 {{context.creative_profile}}，可从官方模板恢复后保留自己的补充要求。");
+  }
   const referencedContextGroups = new Set<string>();
   for (const token of collectMalformedTokens(input.template)) {
     appendDiagnostic(diagnostics, "unknownTokens", token);
@@ -319,7 +325,7 @@ export function compilePromptTemplate(input: {
         return "";
       }
       const content = contextByGroup.get(parsed.key);
-      if (!content) {
+      if (!content && !(parsed.key === "creative_profile" && !activeCreative)) {
         appendDiagnostic(diagnostics, "missingReferencedContextGroups", parsed.key);
         if (requiredGroups.includes(parsed.key)) {
           appendDiagnostic(diagnostics, "missingRequiredGroups", parsed.key);
@@ -341,7 +347,16 @@ export function compilePromptTemplate(input: {
         appendDiagnostic(diagnostics, "unknownTokens", `slot.${parsed.key}`);
         return "";
       }
-      return resolveSlotValue(parsed.key, input.slotDefs, input.slots) ?? "";
+      const value = resolveSlotValue(parsed.key, input.slotDefs, input.slots) ?? "";
+      const alternatives: Record<string, string> = {
+        "writer.tonePreference": "语言服从本书文风、节奏与叙事距离。",
+        "writer.endingHookPreference": "按本书取向及用户允许的章末方式收束；未指定方式时服从取向指导。",
+        "writer.pov": "按本书人称与聚焦方式叙述，保持视角切换有据。",
+      };
+      const definition = input.slotDefs.find((slot) => slot.key === parsed.key);
+      const original = definition?.kind === "choice" ? definition.options.find((option) => option.value === definition.default)?.copy : definition?.default;
+      return alternatives[parsed.key] && typeof original === "string"
+        ? pickCreativeAwareSlotText({ value, officialDefault: original, orientationDefault: alternatives[parsed.key], guidance: creativeGuidanceFromContext(input.context) }) : value;
     }
     appendDiagnostic(diagnostics, "unknownTokens", raw);
     return "";

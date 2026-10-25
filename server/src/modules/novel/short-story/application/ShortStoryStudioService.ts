@@ -406,7 +406,7 @@ export class ShortStoryStudioService {
         itemKey: "revision_apply",
         entrypoint: "short_story_studio",
         temperature: 0.5,
-        maxTokens: 12000,
+        defaultMaxTokens: 12000,
       },
     });
     for (const patch of repaired.output.patches) {
@@ -508,7 +508,7 @@ export class ShortStoryStudioService {
           itemKey: `revision_segment:${segment.order}`,
           entrypoint: "short_story_studio",
           temperature: 0.75,
-          maxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
+          defaultMaxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
         },
       });
       await prisma.shortStorySegment.update({

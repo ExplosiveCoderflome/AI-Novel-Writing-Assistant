@@ -48,7 +48,7 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
     },
     {
       label: "核心卖点",
-      value: createPreview(basicForm.bookSellingPoint, "明确最抓人的爽点或悬念"),
+      value: createPreview(basicForm.bookSellingPoint, "明确人物、关系、主题或类型张力的吸引力"),
       description: hasText(basicForm.bookSellingPoint) ? "已就绪" : "待补充",
       tone: hasText(basicForm.bookSellingPoint) ? "success" as const : "neutral" as const,
     },
