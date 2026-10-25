@@ -1,4 +1,4 @@
-import { collectLlmResponse } from "./structured";
+import { collectLlmResponse, isRepairRefusal, StructuredRepairRefusalError } from "./structured";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { toJSONSchema, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -288,6 +288,9 @@ export async function repairWithLlm<T>(
 
     const final = input.schema.safeParse(repairParse.parsed);
     if (!final.success) {
+      if (isRepairRefusal(repairParse.parsed)) {
+        throw new StructuredRepairRefusalError(validationError, collected.response);
+      }
       const unwrapped = helpers.tryUnwrapSingletonArrayWrapper(repairParse.parsed, input.schema);
       if (unwrapped) {
         helpers.logStructuredInvokeEvent({

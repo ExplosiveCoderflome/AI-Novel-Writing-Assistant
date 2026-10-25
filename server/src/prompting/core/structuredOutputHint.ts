@@ -408,11 +408,15 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
   if (input.asset.mode !== "structured" || !input.asset.outputSchema) {
     return input.messages;
   }
+  const contract = input.asset.structuredOutputHint?.contract;
+  const messages = contract === undefined ? input.messages : [...input.messages, new HumanMessage(
+    `输出合同（字段类型、字符长度和数组数量必须同时满足；生成前控制摘要长度，不得事后删掉有效条目）：\n${JSON.stringify(contract)}`,
+  )];
   if (input.asset.structuredOutputHint?.mode === "off") {
-    return input.messages;
+    return messages;
   }
-  if (hasManualStructuredExample(input.messages)) {
-    return input.messages;
+  if (hasManualStructuredExample(messages)) {
+    return messages;
   }
 
   const example = resolveStructuredOutputExample(input.asset, input.promptInput, input.context);
@@ -420,6 +424,6 @@ export function appendStructuredOutputHintMessages<I, O, R>(input: {
 
   const hint=new HumanMessage(buildStructuredOutputHintText(example,note,input.asset.structuredOutputHint?.compact===true));
   const declared=input.asset.structuredOutputHint;
-  return placeStructuredHint(input.messages,hint,!input.preserveMessageLayout && declared?.placement==="stable_prefix"
+  return placeStructuredHint(messages,hint,!input.preserveMessageLayout && declared?.placement==="stable_prefix"
     && typeof declared.example!=="function" && typeof declared.note!=="function");
 }

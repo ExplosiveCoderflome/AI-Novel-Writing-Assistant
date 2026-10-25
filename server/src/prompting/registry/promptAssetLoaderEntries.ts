@@ -258,7 +258,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/directorStateProposalResolution.prompts").directorStateProposalResolutionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.story_macro.decomposition@v2",
+    key: "novel.story_macro.decomposition@v3",
     load: () => require("../prompts/novel/storyMacro.prompts").storyMacroDecompositionPrompt as UnknownPromptAsset,
   },
   {

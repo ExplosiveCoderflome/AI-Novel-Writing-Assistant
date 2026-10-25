@@ -34,6 +34,12 @@ export interface StructuredOutputDiagnostics {
   fallbackUsed: boolean;
   errorCategory: StructuredOutputErrorCategory | null;
   response?: import("./structured").ResponseDiagnostics;
+  repairFailure?: {
+    kind: "refused";
+    attempt: number;
+    originalCategory: StructuredOutputErrorCategory;
+    response: import("./structured").ResponseDiagnostics;
+  };
 }
 
 const QWEN_FAMILY_PATTERN = /(?:^|[/:_-])qwen(?:\d+(?:\.\d+)?)?/i;

@@ -17,7 +17,7 @@ import {
 import { extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 import type { LlmTokenUsageSnapshot } from "./usageTracking";
-import { ResponseTerminationError, type ResponseDiagnostics } from "./structured";
+import { ResponseTerminationError, StructuredRepairRefusalError, type ResponseDiagnostics } from "./structured";
 
 export interface StructuredInvokeResult<T> {
   data: T;
@@ -96,6 +96,7 @@ function buildDiagnostics(input: {
   fallbackUsed?: boolean;
   errorCategory?: StructuredOutputErrorCategory | null;
   response?: ResponseDiagnostics;
+  repairFailure?: StructuredOutputDiagnostics["repairFailure"];
 }): StructuredOutputDiagnostics {
   return {
     strategy: input.strategy,
@@ -105,6 +106,7 @@ function buildDiagnostics(input: {
     fallbackUsed: input.fallbackUsed ?? false,
     errorCategory: input.errorCategory ?? null,
     response: input.response,
+    repairFailure: input.repairFailure,
   };
 }
 
@@ -117,6 +119,7 @@ export function logStructuredInvokeEvent(input: {
   latencyMs?: number;
   rawChars?: number;
   response?: ResponseDiagnostics;
+  schemaIssues?: Array<{ path: Array<string | number>; code: string }>;
   repairAttempt?: number;
   strategy?: StructuredOutputStrategy;
   errorCategory?: StructuredOutputErrorCategory | null;
@@ -137,6 +140,7 @@ export function logStructuredInvokeEvent(input: {
       typeof input.latencyMs === "number" ? `latencyMs=${input.latencyMs}` : "",
       typeof input.rawChars === "number" ? `rawChars=${input.rawChars}` : "",
       input.response ? `finishReason=${input.response.finishReason ?? "unknown"} outputTokens=${input.response.outputTokens ?? "unknown"} reasoningChars=${input.response.reasoningChars}` : "",
+      input.schemaIssues ? `schemaIssues=${JSON.stringify(input.schemaIssues)}` : "",
       input.fallbackUsed ? "fallbackUsed=true" : "",
       input.reasoningForcedOff ? "reasoningForcedOff=true" : "",
     ].filter(Boolean).join(" "),
@@ -151,6 +155,7 @@ export function buildStructuredError(input: {
   retryWithNextStrategy?: boolean;
   retryable?: boolean;
   response?: ResponseDiagnostics;
+  repairFailure?: StructuredOutputDiagnostics["repairFailure"];
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
@@ -168,6 +173,7 @@ export function buildStructuredError(input: {
       fallbackUsed: input.fallbackUsed,
       errorCategory: input.category,
       response: input.response,
+      repairFailure: input.repairFailure,
     }),
   });
 }
@@ -217,6 +223,15 @@ function getRepairHelpers<T>() {
     formatZodErrors,
     logStructuredInvokeEvent,
   };
+}
+
+function buildRepairRefusal<T>(input: StructuredInvokeRawParseInput<T>, error: StructuredRepairRefusalError,
+  attempt: number, category: StructuredOutputErrorCategory): StructuredOutputError {
+  logStructuredInvokeEvent({ ...input, event: "repair_refused", repairAttempt: attempt,
+    errorCategory: category, response: error.response });
+  return buildStructuredError({ ...input, message: `[${input.label}] ${error.message}`,
+    category, retryable: false,
+    repairFailure: { kind: "refused", attempt, originalCategory: category, response: error.response } });
 }
 
 export function shouldUseJsonObjectResponseFormat<T>(
@@ -278,6 +293,9 @@ export async function parseStructuredLlmRawContentDetailed<T>(
         };
       } catch (repairError) {
         if (repairError instanceof ResponseTerminationError) throw wrapStructuredInvokeError({ ...input, error: repairError });
+        if (repairError instanceof StructuredRepairRefusalError) {
+          throw buildRepairRefusal(input, repairError, attempt, classifyStructuredOutputFailure({ error: parseErrorMessage }));
+        }
         if (attempt >= maxRepairAttempts) {
           throw buildStructuredError({
             message: `[${input.label}] JSON 解析失败且修复未成功。错误：${repairError instanceof Error ? repairError.message : String(repairError)}`,
@@ -334,6 +352,10 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   }
 
   let zodError: ZodError = first.error;
+  logStructuredInvokeEvent({ ...input, event: "schema_validation_failed", errorCategory: "schema_mismatch",
+    schemaIssues: first.error.issues.slice(0, 32).map(issue => ({ code: issue.code,
+      path: issue.path.map(part => typeof part === "number" ? part
+        : typeof part === "string" && /^[a-zA-Z0-9_]{1,64}$/.test(part) ? part : "(key)") })) });
   for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
     try {
       return {
@@ -348,6 +370,9 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       };
     } catch (error) {
       if (error instanceof ResponseTerminationError) throw wrapStructuredInvokeError({ ...input, error });
+      if (error instanceof StructuredRepairRefusalError) {
+        throw buildRepairRefusal(input, error, attempt, "schema_mismatch");
+      }
       if (attempt >= maxRepairAttempts) {
         throw buildStructuredError({
           message: `[${input.label}] LLM 输出经修复后仍未通过 Schema 校验。错误：${error instanceof Error ? error.message : String(error)}`,

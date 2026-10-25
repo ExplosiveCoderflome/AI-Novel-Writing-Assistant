@@ -132,6 +132,7 @@ const tests = [
   "tests/structuredInvoke.test.js",
   "tests/structuredNormalization.test.js",
   "tests/structuredOutputHint.test.js",
+  "tests/storyMacroResponse.test.js",
   "tests/styleEngine/promptContract.test.js",
   "tests/titleGeneration.test.js",
   "tests/volumeBeatSheetPromptValidation.test.js",

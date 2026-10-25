@@ -1,5 +1,5 @@
 ﻿import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { z } from "zod";
+import { toJSONSchema, z } from "zod";
 import type {
   StoryDecomposition,
   StoryExpansion,
@@ -16,10 +16,12 @@ import {
   type CreativePromptGuidance,
 } from "../creativeProfile/creativePromptGuidance";
 
+const STORY_MACRO_OUTPUT_CONTRACT = toJSONSchema(STORY_MACRO_RESPONSE_SCHEMA);
+
 export interface StoryMacroDecompositionPromptInput {
   storyInput: string;
   projectContext: string;
-  /** 规划阶段的取向指导；未设置时提示词与 v1 一致。 */
+  /** 取向未设置时保留原创作原则；结构输出合同独立于取向。 */
   creativeGuidance?: CreativePromptGuidance | null;
 }
 
@@ -231,7 +233,7 @@ export const storyMacroDecompositionPrompt: PromptAsset<
   typeof STORY_MACRO_RESPONSE_SCHEMA._output
 > = {
   id: "novel.story_macro.decomposition",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -241,6 +243,7 @@ export const storyMacroDecompositionPrompt: PromptAsset<
     preferredGroups: ["project_context"],
   },
   outputSchema: STORY_MACRO_RESPONSE_SCHEMA,
+  structuredOutputHint: { contract: STORY_MACRO_OUTPUT_CONTRACT },
   render: (input, context) => {
     const prompt = buildExpansionAndDecompositionPrompt(input.storyInput, input.projectContext, input.creativeGuidance ?? null);
     return [
