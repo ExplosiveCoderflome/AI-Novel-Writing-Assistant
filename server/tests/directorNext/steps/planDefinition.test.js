@@ -20,7 +20,14 @@ test("the production plan matches the inventoried planning and chapter batch gra
       overwrites: cells[7] === "无" ? [] : cells[7].split("、"),
     }));
   assert.equal(declared.length, 10);
-  assert.deepEqual(directorProductionPlan.steps, declared);
+  // The historical inventory predates ranged preservation metadata. Check its fields and the added guard separately.
+  assert.deepEqual(directorProductionPlan.steps.map(({ preservesInChapterRange, ...step }) => step), declared);
+  assert.deepEqual(directorProductionPlan.steps.filter(step => step.preservesInChapterRange).map(step => ({
+    id: step.id, preservesInChapterRange: step.preservesInChapterRange,
+  })), [
+    { id: 'volume_beat_sheet', preservesInChapterRange: ['volume_beat_sheet', 'chapter_task_sheet'] },
+    { id: 'volume_chapter_list', preservesInChapterRange: ['volume_chapter_list', 'chapter_task_sheet'] },
+  ]);
   // The chapter pipeline owns draft production; the director only observes batch closure.
   assert.deepEqual(directorProductionPlan.externalArtifacts, ["novel_seed", "chapter_draft"]);
 });

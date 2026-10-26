@@ -73,6 +73,13 @@ function createHarness({ orchestrator = createPlanOrchestrator(), crashOnStepFin
   return { executor, executed, artifacts, debts, events, runRepository, getControl: () => control };
 }
 
+test('step business ports receive the acquired lease rather than reading a replacement worker identity', async () => {
+  let received;
+  const harness = createHarness({resultFactory: (_step, context) => {received = context.execution; return {};}});
+  await harness.executor.runOnce('run-1', {leaseOwner: 'worker:attempt-1'});
+  assert.deepEqual(received, {leaseOwner: 'worker:attempt-1'});
+});
+
 test('repeated interruption of an unfinished step consumes the saved recovery budget',async()=>{
  for(const maxAutomaticRetries of [0,1]) {
   const harness=createHarness({contractOverrides:{issuePolicy:{mode:'completion_first',version:'frozen',pipelinePolicy:{maxAutomaticRetries,issueActions:{}}}},resultFactory:()=>{throw Error('process stopped before saving');}});

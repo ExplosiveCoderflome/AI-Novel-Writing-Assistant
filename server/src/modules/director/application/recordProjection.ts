@@ -1,6 +1,7 @@
 import {FactIntegrityError, type RunStatus} from "../domain";
 import {UnknownPlanVersionError, type ProjectionService} from "./projectionService";
 import type {RunRepository} from "./ports";
+import {DirectorProjectionUnavailableError} from "./diagnostics/errors";
 
 export interface DirectorReadOnlyRecord {
   runId: string;
@@ -34,7 +35,8 @@ export class RecordProjection {
         sourceRoute: view.sourceRoute, directorRoute: `/lab/director/${encodeURIComponent(view.novelId)}`,
       };
     } catch (error) {
-      if (!(error instanceof FactIntegrityError) && !(error instanceof UnknownPlanVersionError)) throw error;
+      if (!(error instanceof FactIntegrityError) && !(error instanceof UnknownPlanVersionError)
+        && !(error instanceof DirectorProjectionUnavailableError)) throw error;
       const [contract, control] = await Promise.all([
         this.deps.runRepository.getContract(runId), this.deps.runRepository.getControl(runId),
       ]);
@@ -44,7 +46,8 @@ export class RecordProjection {
       return {
         runId, novelId: contract.novelId, statusLabel: STATUS_LABELS[control.status],
         headline: "创作结果需要检查",
-        detail: control.pause?.reason ?? "请从本书创作页查看并处理保存结果。",
+        detail: error instanceof DirectorProjectionUnavailableError ? error.message
+          : control.pause?.reason ?? "请从本书创作页查看并处理保存结果。",
         progressLabel: "创作进度暂时无法读取", sourceRoute, directorRoute: sourceRoute,
       };
     }

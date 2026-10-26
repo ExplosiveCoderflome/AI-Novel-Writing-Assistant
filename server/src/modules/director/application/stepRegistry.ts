@@ -1,6 +1,8 @@
 import type { FactsSnapshot, RunContract, RunControl, StepDefinition, StopSignal } from "../domain";
 
 export interface StepContext {
+  /** Captured by the worker that acquired the lease; never infer this from a later control read. */
+  execution?: {leaseOwner: string};
   regeneration?: {guidance?: string};
   runId: string;
   contract: RunContract;

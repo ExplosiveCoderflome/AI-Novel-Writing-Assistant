@@ -1,3 +1,4 @@
+import {loadGenerationContext,prepareChapterDetailPrompt} from "./generation";
 import type {
   VolumeCountGuidance,
   VolumeGenerationScope,
@@ -23,7 +24,6 @@ import {
   volumeStrategyCritiquePrompt,
 } from "../../../prompting/prompts/novel/volume/strategy.prompts";
 import { resolveVolumeStrategyOutputTokenBudget } from "../../../prompting/prompts/novel/promptBudgetProfiles";
-import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import {
   inferRequiredChapterCountFromBeatSheet,
@@ -62,7 +62,6 @@ import {
   MAX_VOLUME_COUNT,
   buildVolumeCountGuidance,
 } from "@ai-novel/shared/types/volumePlanning";
-import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
 
@@ -91,91 +90,6 @@ async function notifyVolumeGenerationPhase(input: {
   });
 }
 
-async function loadGenerationContext(params: {
-  novelId: string;
-  workspace: VolumeWorkspace;
-  storyMacroPlanService: Pick<StoryMacroPlanService, "getPlan">;
-}): Promise<{
-  novel: VolumeGenerationNovel;
-  storyMacroPlan: StoryMacroPlanResult;
-}> {
-  const { novelId, storyMacroPlanService } = params;
-  const [rawNovel, storyMacroPlan] = await Promise.all([
-    prisma.novel.findUnique({
-      where: { id: novelId },
-      select: {
-        title: true,
-        description: true,
-        targetAudience: true,
-        bookSellingPoint: true,
-        competingFeel: true,
-        first30ChapterPromise: true,
-        commercialTagsJson: true,
-        estimatedChapterCount: true,
-        narrativePov: true,
-        pacePreference: true,
-        emotionIntensity: true,
-        primaryStoryMode: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            template: true,
-            parentId: true,
-            profileJson: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-        secondaryStoryMode: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            template: true,
-            parentId: true,
-            profileJson: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-        genre: {
-          select: { name: true },
-        },
-        characters: {
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            name: true,
-            role: true,
-            castRole: true,
-            currentGoal: true,
-            currentState: true,
-          },
-        },
-      },
-    }),
-    storyMacroPlanService.getPlan(novelId).catch(() => null),
-  ]);
-
-  if (!rawNovel) {
-    throw new Error("小说不存在。");
-  }
-
-  const novel: VolumeGenerationNovel = {
-    ...rawNovel,
-    completionProfile: buildDirectorCompletionProfile(rawNovel.estimatedChapterCount ?? 80),
-    storyModePromptBlock: buildStoryModePromptBlock({
-      primary: rawNovel.primaryStoryMode ? normalizeStoryModeOutput(rawNovel.primaryStoryMode) : null,
-      secondary: rawNovel.secondaryStoryMode ? normalizeStoryModeOutput(rawNovel.secondaryStoryMode) : null,
-    }),
-  };
-
-  return {
-    novel,
-    storyMacroPlan,
-  };
-}
 
 async function generateStrategy(params: {
   document: VolumePlanDocument;
@@ -499,29 +413,8 @@ async function generateChapterDetail(params: {
     throw new Error("生成章节细化时必须指定 detailMode。");
   }
 
-  const previous = detailMode === "task_sheet" && targetChapter.chapterOrder > 1 ? await prisma.chapter.findFirst({
-    where: {novelId: document.novelId, order: {lt: targetChapter.chapterOrder}, content: {not: null}},
-    orderBy: {order: "desc"}, select: {id: true, order: true, title: true, content: true},
-  }) : null;
-  const previousSummary = previous?.content?.trim() ? await prisma.chapterSummary.findFirst({
-    where: {novelId: document.novelId, chapterId: previous.id}, orderBy: {updatedAt: "desc"}, select: {summary: true},
-  }) : null;
-  const previousChapterResult = previous?.content?.trim() ? {
-    chapterOrder: previous.order, title: previous.title, summary: previousSummary?.summary ?? "",
-    tail: previous.content.slice(-800), content: previous.content,
-  } : null;
-  const promptInput = {
-    novel,
-    workspace,
-    storyMacroPlan,
-    strategyPlan: document.strategyPlan,
-    targetVolume,
-    targetBeatSheet: getBeatSheet(document, targetVolume.id),
-    targetChapter,
-    previousChapterResult,
-    guidance: options.guidance,
-    detailMode,
-  };
+  const promptInput=await prepareChapterDetailPrompt({document,novel,workspace,storyMacroPlan,options,targetVolume,targetChapter,detailMode,db:prisma});
+  const {previousChapterResult}=promptInput;
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "chapter_detail",

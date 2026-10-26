@@ -158,3 +158,23 @@ test('new book progresses from queued to a saved stage after a transient polling
     assert.equal(await prisma.directorNextArtifact.count({where:{novelId,type:'story_macro'}}),1);
   } finally {services.worker.stop();await loop;}
 });
+
+test('production execution boundary forwards the acquired Worker lease into its step', async () => {
+  const {createDirectorNextServices} = require('../../../dist/modules/director');
+  const {StepRegistry} = require('../../../dist/modules/director/application');
+  const novelId = randomUUID();await prisma.novel.create({data:{id:novelId,title:'生产入口租约验收',directorVersion:'v2'}});
+  const registry = new StepRegistry();let captured, acquired, checked = 0;
+  registry.register('story_macro',async context=>{
+    captured=context.execution?.leaseOwner;
+    acquired=(await prisma.directorNextRunControl.findUniqueOrThrow({where:{runId:context.runId}})).leaseOwner;
+    return {artifact:{scope:'book',status:'draft',protectedUserContent:false,contentRef:'saved-plan',contentHash:'saved'}};
+  });
+  const services=createDirectorNextServices({plan,stepRegistry:registry,
+    executionBoundary:{beforeOpen:async()=>0,assertRun:async()=>{checked++;},canRun:async()=>true},
+    contractFactory:input=>contract({...input,planVersion:plan.version}),
+    prepareOpen:async()=>[{type:'novel_seed',scope:'book',status:'confirmed',protectedUserContent:true,contentRef:'seed',contentHash:'seed'}]});
+  await services.http.commandService.execute({type:'open_run',novelId,driver:'auto',stepIdsInScope:['story_macro'],idempotencyKey:randomUUID()});
+  assert.equal(await services.worker.tick(),true);
+  assert.equal(checked,1);assert.ok(acquired);
+  assert.equal(captured,acquired);
+});

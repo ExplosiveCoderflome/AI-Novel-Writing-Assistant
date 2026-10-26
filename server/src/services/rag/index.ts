@@ -7,6 +7,7 @@ import { RagRerankerService } from "./RagRerankerService";
 import { RagJobCleanupService } from "./RagJobCleanupService";
 import { RagRetrievalTraceRetention } from "./RagRetrievalTraceRetention";
 import { RagWorker } from "./RagWorker";
+export type {RagSearchOptions} from "./types";
 
 const embeddingService = new EmbeddingService();
 const vectorStoreService = new VectorStoreService();

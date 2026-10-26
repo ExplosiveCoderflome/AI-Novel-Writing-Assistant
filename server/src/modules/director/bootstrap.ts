@@ -121,9 +121,9 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const worker = new DirectorWorker({
     executionScope: withDirectorExecution,
     runRepository,
-    executor: options.executionBoundary ? {runOnce: async runId => {
+    executor: options.executionBoundary ? {runOnce: async (runId, execution) => {
       await options.executionBoundary!.assertRun(runId);
-      return executor.runOnce(runId);
+      return executor.runOnce(runId, execution);
     }} : executor,
     canExecute: options.executionBoundary?.canRun,
     runtime,

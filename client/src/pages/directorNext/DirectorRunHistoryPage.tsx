@@ -5,10 +5,11 @@ import { Link } from "react-router-dom";
 import { listDirectorRuns, listLegacyDirectorRuns } from "@/api/directorNext";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
+import {directorPollInterval} from "./polling";
 
 export default function DirectorRunHistoryPage() {
   const [needsAttention, setNeedsAttention] = useState(false);
-  const query = useQuery({ queryKey: queryKeys.directorNext.runs(needsAttention), queryFn: () => listDirectorRuns({ needsAttention, limit: 50 }), retry: false, refetchInterval: 4000 });
+  const query = useQuery({ queryKey: queryKeys.directorNext.runs(needsAttention), queryFn: () => listDirectorRuns({ needsAttention, limit: 50 }), retry: false, refetchInterval: state => directorPollInterval(state.state.error,state.state.errorUpdateCount) });
   const legacy = useQuery({queryKey:["legacyDirectorHistory"],queryFn:listLegacyDirectorRuns,retry:false});
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -20,6 +21,7 @@ export default function DirectorRunHistoryPage() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={needsAttention} onChange={(event) => setNeedsAttention(event.target.checked)} />只看需要处理</label>
         <Button variant="ghost" disabled={query.isFetching} onClick={() => void query.refetch()}>刷新记录</Button>
       </div>
+      {query.data?.warnings?.length ? <p role="status" className="text-sm text-muted-foreground">有 {query.data.warnings.length} 条创作记录暂时无法读取，其他记录仍可查看。</p> : null}
       {query.isLoading ? <p className="text-sm text-muted-foreground">正在读取运行记录…</p> : query.isError ? <p role="alert" className="text-sm text-destructive">{query.error instanceof Error ? query.error.message : "读取失败，请重新读取。"}</p> : !query.data?.data?.length ? <p className="py-8 text-sm text-muted-foreground">没有符合条件的创作记录。</p> : (
         <ul className="divide-y divide-border/60">{query.data.data.map((record) => <li key={record.runId} className="flex flex-wrap items-start justify-between gap-4 py-5"><div className="min-w-0 flex-1"><p className="text-xs text-muted-foreground">{record.statusLabel} · {record.progressLabel}</p><p className="mt-1 text-sm font-medium">{record.headline}</p>{record.detail ? <p className="mt-2 text-sm text-muted-foreground">{record.detail}</p> : null}<InvocationUsageList runId={record.runId}/></div><Button asChild variant="ghost" size="sm"><Link to={record.directorRoute}>打开小说导演台</Link></Button></li>)}</ul>
       )}

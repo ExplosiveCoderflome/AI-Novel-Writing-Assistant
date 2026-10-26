@@ -36,6 +36,7 @@ function createPipelineHarness({
   artifactSyncStatus = "completed",
   completedArtifacts,
   reviewRetrySummary,
+  evaluate,
 } = {}) {
   const events = [];
   const committedContents = [];
@@ -93,7 +94,7 @@ function createPipelineHarness({
       events.push("acceptance");
       if (stopAt === "recheck" && reviewIndex > 0) throw new Error("recheck");
       const score = scores[Math.min(reviewIndex++, scores.length - 1)];
-      return {
+      const evaluation = {
         finalContent: value,
         runtimePackage: {
           novelId: "n", chapterId: "c",
@@ -105,6 +106,7 @@ function createPipelineHarness({
         needsRepair: score < 80,
         ...(acceptanceAssessment ? { acceptanceResult: { assessment: reviewIndex > 1 && recheckAssessment ? recheckAssessment : acceptanceAssessment } } : {}),
       };
+      return evaluate ? evaluate(evaluation, { content: value, index: reviewIndex - 1 }) : evaluation;
     },
     commitFinalizedChapterContent: async ({ evaluation }) => {
       events.push("terminal_commit");

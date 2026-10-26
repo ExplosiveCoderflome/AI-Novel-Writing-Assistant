@@ -1,0 +1,307 @@
+{
+  "result": {
+    "novelId": "novel-1",
+    "volumeId": "volume-1",
+    "chapterId": "chapter-1",
+    "chapterOrder": 1,
+    "title": "第二章 资源危机",
+    "summary": "主角开始调查资源危机。",
+    "purpose": "推进主角主动试探。",
+    "exclusiveEvent": "首次确认危机来自内部。",
+    "endingState": "拿到第一份证据。",
+    "nextChapterEntryState": "带着证据继续试探。",
+    "conflictLevel": 45,
+    "revealLevel": 35,
+    "targetWordCount": 3000,
+    "mustAvoid": "不得提前揭示幕后人。",
+    "payoffRefs": [
+      "资源危机"
+    ],
+    "taskSheet": "调查资源危机，核实证据来源，结尾保留下一步调查入口。\n补充执行指导。",
+    "sceneCards": "{\"targetWordCount\":3000,\"lengthBudget\":{\"targetWordCount\":3000,\"softMinWordCount\":2550,\"softMaxWordCount\":3450,\"hardMaxWordCount\":3750},\"scenes\":[{\"key\":\"scene-1\",\"title\":\"线索推进1\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"},{\"key\":\"scene-2\",\"title\":\"线索推进2\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"},{\"key\":\"scene-3\",\"title\":\"线索推进3\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"}],\"readerExperience\":{\"readerQuestion\":\"\",\"promisedReward\":\"\",\"rewardLevel\":\"setup\",\"protagonistWant\":\"\",\"primaryResistance\":\"\",\"keyTurn\":\"\",\"emotionalShift\":\"\",\"informationReveal\":\"\",\"netChange\":\"\",\"inheritedHookResponsibilities\":[],\"endingHook\":\"\"}}",
+    "id": "chapter-1",
+    "order": 1,
+    "content": "",
+    "expectation": "核实证据",
+    "chapterStatus": "unplanned",
+    "generationState": null,
+    "repairHistory": null,
+    "qualityScore": null,
+    "continuityScore": null,
+    "characterScore": null,
+    "pacingScore": null,
+    "riskFlags": null,
+    "hook": "新的疑问",
+    "createdAt": "2026-10-23T00:00:00.000Z",
+    "updatedAt": "2026-10-23T00:00:00.000Z",
+    "styleContract": null
+  },
+  "captures": {
+    "generation": {
+      "novelId": "novel-1",
+      "workspace": {
+        "novelId": "novel-1",
+        "workspaceVersion": "v2",
+        "volumes": [
+          {
+            "id": "volume-1",
+            "novelId": "novel-1",
+            "sortOrder": 1,
+            "title": "第一卷",
+            "summary": null,
+            "openingHook": null,
+            "mainPromise": null,
+            "primaryPressureSource": null,
+            "coreSellingPoint": null,
+            "escalationMode": null,
+            "protagonistChange": null,
+            "midVolumeRisk": null,
+            "climax": null,
+            "payoffType": null,
+            "nextVolumeHook": null,
+            "resetPoint": null,
+            "openPayoffs": [],
+            "status": "active",
+            "sourceVersionId": null,
+            "chapters": [
+              {
+                "id": "volume-chapter-1",
+                "volumeId": "volume-1",
+                "chapterId": "chapter-1",
+                "chapterOrder": 1,
+                "beatKey": null,
+                "title": "第二章 资源危机",
+                "summary": "主角开始调查资源危机。",
+                "purpose": "推进主角主动试探。",
+                "exclusiveEvent": "首次确认危机来自内部。",
+                "endingState": "拿到第一份证据。",
+                "nextChapterEntryState": "带着证据继续试探。",
+                "conflictLevel": 45,
+                "revealLevel": 35,
+                "targetWordCount": 3000,
+                "mustAvoid": "不得提前揭示幕后人。",
+                "taskSheet": "调查资源危机，核实证据来源，结尾保留下一步调查入口。",
+                "sceneCards": "{\"targetWordCount\":3000,\"scenes\":[{\"key\":\"scene-1\",\"title\":\"线索推进1\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-2\",\"title\":\"线索推进2\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-3\",\"title\":\"线索推进3\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000}]}",
+                "styleContract": null,
+                "payoffRefs": [
+                  "资源危机"
+                ],
+                "createdAt": "1970-01-01T00:00:00.000Z",
+                "updatedAt": "1970-01-01T00:00:00.000Z"
+              }
+            ],
+            "createdAt": "1970-01-01T00:00:00.000Z",
+            "updatedAt": "1970-01-01T00:00:00.000Z"
+          }
+        ],
+        "strategyPlan": null,
+        "critiqueReport": null,
+        "beatSheets": [],
+        "rebalanceDecisions": [],
+        "readiness": {
+          "canGenerateStrategy": true,
+          "canGenerateSkeleton": false,
+          "canGenerateBeatSheet": false,
+          "canGenerateChapterList": false,
+          "blockingReasons": [
+            "请先生成卷战略建议，再确认卷骨架。",
+            "当前卷还没有节奏板，默认不能直接拆章节列表。"
+          ]
+        },
+        "derivedOutline": "【第1卷】第一卷\n章节范围：1-1",
+        "derivedStructuredOutline": "{\n  \"volumes\": [\n    {\n      \"volumeTitle\": \"第一卷\",\n      \"openPayoffs\": [],\n      \"chapters\": [\n        {\n          \"chapter_id\": \"chapter-1\",\n          \"order\": 1,\n          \"title\": \"第二章 资源危机\",\n          \"summary\": \"主角开始调查资源危机。\",\n          \"purpose\": \"推进主角主动试探。\",\n          \"exclusive_event\": \"首次确认危机来自内部。\",\n          \"ending_state\": \"拿到第一份证据。\",\n          \"next_chapter_entry_state\": \"带着证据继续试探。\",\n          \"conflict_level\": 45,\n          \"reveal_level\": 35,\n          \"target_word_count\": 3000,\n          \"must_avoid\": \"不得提前揭示幕后人。\",\n          \"task_sheet\": \"调查资源危机，核实证据来源，结尾保留下一步调查入口。\",\n          \"scene_cards\": \"{\\\"targetWordCount\\\":3000,\\\"scenes\\\":[{\\\"key\\\":\\\"scene-1\\\",\\\"title\\\":\\\"线索推进1\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-2\\\",\\\"title\\\":\\\"线索推进2\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-3\\\",\\\"title\\\":\\\"线索推进3\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000}]}\",\n          \"payoff_refs\": [\n            \"资源危机\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+        "source": "volume",
+        "activeVersionId": "version-1"
+      },
+      "options": {
+        "scope": "chapter_detail",
+        "detailMode": "task_sheet",
+        "targetVolumeId": "volume-1",
+        "targetChapterId": "volume-chapter-1",
+        "chapterTaskSheetQualityMode": "ai_copilot"
+      },
+      "storyMacroPlanService": {}
+    },
+    "version": [
+      "novel-1",
+      {
+        "novelId": "novel-1",
+        "workspaceVersion": "v2",
+        "volumes": [
+          {
+            "id": "volume-1",
+            "novelId": "novel-1",
+            "sortOrder": 1,
+            "title": "第一卷",
+            "summary": null,
+            "openingHook": null,
+            "mainPromise": null,
+            "primaryPressureSource": null,
+            "coreSellingPoint": null,
+            "escalationMode": null,
+            "protagonistChange": null,
+            "midVolumeRisk": null,
+            "climax": null,
+            "payoffType": null,
+            "nextVolumeHook": null,
+            "resetPoint": null,
+            "openPayoffs": [],
+            "status": "active",
+            "sourceVersionId": null,
+            "chapters": [
+              {
+                "id": "volume-chapter-1",
+                "volumeId": "volume-1",
+                "chapterId": "chapter-1",
+                "chapterOrder": 1,
+                "beatKey": null,
+                "title": "第二章 资源危机",
+                "summary": "主角开始调查资源危机。",
+                "purpose": "推进主角主动试探。",
+                "exclusiveEvent": "首次确认危机来自内部。",
+                "endingState": "拿到第一份证据。",
+                "nextChapterEntryState": "带着证据继续试探。",
+                "conflictLevel": 45,
+                "revealLevel": 35,
+                "targetWordCount": 3000,
+                "mustAvoid": "不得提前揭示幕后人。",
+                "taskSheet": "调查资源危机，核实证据来源，结尾保留下一步调查入口。\n补充执行指导。",
+                "sceneCards": "{\"targetWordCount\":3000,\"scenes\":[{\"key\":\"scene-1\",\"title\":\"线索推进1\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-2\",\"title\":\"线索推进2\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-3\",\"title\":\"线索推进3\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000}]}",
+                "styleContract": null,
+                "payoffRefs": [
+                  "资源危机"
+                ],
+                "createdAt": "1970-01-01T00:00:00.000Z",
+                "updatedAt": "1970-01-01T00:00:00.000Z"
+              }
+            ],
+            "createdAt": "1970-01-01T00:00:00.000Z",
+            "updatedAt": "1970-01-01T00:00:00.000Z"
+          }
+        ],
+        "strategyPlan": null,
+        "critiqueReport": null,
+        "beatSheets": [],
+        "rebalanceDecisions": [],
+        "readiness": {
+          "canGenerateStrategy": true,
+          "canGenerateSkeleton": false,
+          "canGenerateBeatSheet": false,
+          "canGenerateChapterList": false,
+          "blockingReasons": [
+            "请先生成卷战略建议，再确认卷骨架。",
+            "当前卷还没有节奏板，默认不能直接拆章节列表。"
+          ]
+        },
+        "derivedOutline": "【第1卷】第一卷\n章节范围：1-1",
+        "derivedStructuredOutline": "{\n  \"volumes\": [\n    {\n      \"volumeTitle\": \"第一卷\",\n      \"openPayoffs\": [],\n      \"chapters\": [\n        {\n          \"chapter_id\": \"chapter-1\",\n          \"order\": 1,\n          \"title\": \"第二章 资源危机\",\n          \"summary\": \"主角开始调查资源危机。\",\n          \"purpose\": \"推进主角主动试探。\",\n          \"exclusive_event\": \"首次确认危机来自内部。\",\n          \"ending_state\": \"拿到第一份证据。\",\n          \"next_chapter_entry_state\": \"带着证据继续试探。\",\n          \"conflict_level\": 45,\n          \"reveal_level\": 35,\n          \"target_word_count\": 3000,\n          \"must_avoid\": \"不得提前揭示幕后人。\",\n          \"task_sheet\": \"调查资源危机，核实证据来源，结尾保留下一步调查入口。\",\n          \"scene_cards\": \"{\\\"targetWordCount\\\":3000,\\\"scenes\\\":[{\\\"key\\\":\\\"scene-1\\\",\\\"title\\\":\\\"线索推进1\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-2\\\",\\\"title\\\":\\\"线索推进2\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-3\\\",\\\"title\\\":\\\"线索推进3\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000}]}\",\n          \"payoff_refs\": [\n            \"资源危机\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+        "source": "volume",
+        "activeVersionId": "version-1"
+      },
+      "刷新第1章执行合同。"
+    ],
+    "versionUpdate": {
+      "where": {
+        "id": "version-1"
+      },
+      "data": {
+        "contentJson": "{\"novelId\":\"novel-1\",\"workspaceVersion\":\"v2\",\"volumes\":[{\"id\":\"volume-1\",\"novelId\":\"novel-1\",\"sortOrder\":1,\"title\":\"第一卷\",\"summary\":null,\"openingHook\":null,\"mainPromise\":null,\"primaryPressureSource\":null,\"coreSellingPoint\":null,\"escalationMode\":null,\"protagonistChange\":null,\"midVolumeRisk\":null,\"climax\":null,\"payoffType\":null,\"nextVolumeHook\":null,\"resetPoint\":null,\"openPayoffs\":[],\"status\":\"active\",\"sourceVersionId\":null,\"chapters\":[{\"id\":\"volume-chapter-1\",\"volumeId\":\"volume-1\",\"chapterId\":\"chapter-1\",\"chapterOrder\":1,\"beatKey\":null,\"title\":\"第二章 资源危机\",\"summary\":\"主角开始调查资源危机。\",\"purpose\":\"推进主角主动试探。\",\"exclusiveEvent\":\"首次确认危机来自内部。\",\"endingState\":\"拿到第一份证据。\",\"nextChapterEntryState\":\"带着证据继续试探。\",\"conflictLevel\":45,\"revealLevel\":35,\"targetWordCount\":3000,\"mustAvoid\":\"不得提前揭示幕后人。\",\"taskSheet\":\"调查资源危机，核实证据来源，结尾保留下一步调查入口。\\n补充执行指导。\",\"sceneCards\":\"{\\\"targetWordCount\\\":3000,\\\"scenes\\\":[{\\\"key\\\":\\\"scene-1\\\",\\\"title\\\":\\\"线索推进1\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-2\\\",\\\"title\\\":\\\"线索推进2\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-3\\\",\\\"title\\\":\\\"线索推进3\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000}]}\",\"styleContract\":null,\"payoffRefs\":[\"资源危机\"],\"createdAt\":\"1970-01-01T00:00:00.000Z\",\"updatedAt\":\"1970-01-01T00:00:00.000Z\"}],\"createdAt\":\"1970-01-01T00:00:00.000Z\",\"updatedAt\":\"1970-01-01T00:00:00.000Z\"}],\"strategyPlan\":null,\"critiqueReport\":null,\"beatSheets\":[],\"rebalanceDecisions\":[],\"readiness\":{\"canGenerateStrategy\":true,\"canGenerateSkeleton\":false,\"canGenerateBeatSheet\":false,\"canGenerateChapterList\":false,\"blockingReasons\":[\"请先生成卷战略建议，再确认卷骨架。\",\"当前卷还没有节奏板，默认不能直接拆章节列表。\"]},\"derivedOutline\":\"【第1卷】第一卷\\n章节范围：1-1\",\"derivedStructuredOutline\":\"{\\n  \\\"volumes\\\": [\\n    {\\n      \\\"volumeTitle\\\": \\\"第一卷\\\",\\n      \\\"openPayoffs\\\": [],\\n      \\\"chapters\\\": [\\n        {\\n          \\\"chapter_id\\\": \\\"chapter-1\\\",\\n          \\\"order\\\": 1,\\n          \\\"title\\\": \\\"第二章 资源危机\\\",\\n          \\\"summary\\\": \\\"主角开始调查资源危机。\\\",\\n          \\\"purpose\\\": \\\"推进主角主动试探。\\\",\\n          \\\"exclusive_event\\\": \\\"首次确认危机来自内部。\\\",\\n          \\\"ending_state\\\": \\\"拿到第一份证据。\\\",\\n          \\\"next_chapter_entry_state\\\": \\\"带着证据继续试探。\\\",\\n          \\\"conflict_level\\\": 45,\\n          \\\"reveal_level\\\": 35,\\n          \\\"target_word_count\\\": 3000,\\n          \\\"must_avoid\\\": \\\"不得提前揭示幕后人。\\\",\\n          \\\"task_sheet\\\": \\\"调查资源危机，核实证据来源，结尾保留下一步调查入口。\\\",\\n          \\\"scene_cards\\\": \\\"{\\\\\\\"targetWordCount\\\\\\\":3000,\\\\\\\"scenes\\\\\\\":[{\\\\\\\"key\\\\\\\":\\\\\\\"scene-1\\\\\\\",\\\\\\\"title\\\\\\\":\\\\\\\"线索推进1\\\\\\\",\\\\\\\"purpose\\\\\\\":\\\\\\\"确认资源危机来源并推进调查。\\\\\\\",\\\\\\\"mustAdvance\\\\\\\":[\\\\\\\"获得可验证证据\\\\\\\"],\\\\\\\"mustPreserve\\\\\\\":[\\\\\\\"保留前文纸条来源\\\\\\\"],\\\\\\\"entryState\\\\\\\":\\\\\\\"主角带着纸条进入调查。\\\\\\\",\\\\\\\"exitState\\\\\\\":\\\\\\\"证据指向新的调查入口。\\\\\\\",\\\\\\\"forbiddenExpansion\\\\\\\":[\\\\\\\"不得提前解决下一章事件\\\\\\\"],\\\\\\\"targetWordCount\\\\\\\":1000},{\\\\\\\"key\\\\\\\":\\\\\\\"scene-2\\\\\\\",\\\\\\\"title\\\\\\\":\\\\\\\"线索推进2\\\\\\\",\\\\\\\"purpose\\\\\\\":\\\\\\\"确认资源危机来源并推进调查。\\\\\\\",\\\\\\\"mustAdvance\\\\\\\":[\\\\\\\"获得可验证证据\\\\\\\"],\\\\\\\"mustPreserve\\\\\\\":[\\\\\\\"保留前文纸条来源\\\\\\\"],\\\\\\\"entryState\\\\\\\":\\\\\\\"主角带着纸条进入调查。\\\\\\\",\\\\\\\"exitState\\\\\\\":\\\\\\\"证据指向新的调查入口。\\\\\\\",\\\\\\\"forbiddenExpansion\\\\\\\":[\\\\\\\"不得提前解决下一章事件\\\\\\\"],\\\\\\\"targetWordCount\\\\\\\":1000},{\\\\\\\"key\\\\\\\":\\\\\\\"scene-3\\\\\\\",\\\\\\\"title\\\\\\\":\\\\\\\"线索推进3\\\\\\\",\\\\\\\"purpose\\\\\\\":\\\\\\\"确认资源危机来源并推进调查。\\\\\\\",\\\\\\\"mustAdvance\\\\\\\":[\\\\\\\"获得可验证证据\\\\\\\"],\\\\\\\"mustPreserve\\\\\\\":[\\\\\\\"保留前文纸条来源\\\\\\\"],\\\\\\\"entryState\\\\\\\":\\\\\\\"主角带着纸条进入调查。\\\\\\\",\\\\\\\"exitState\\\\\\\":\\\\\\\"证据指向新的调查入口。\\\\\\\",\\\\\\\"forbiddenExpansion\\\\\\\":[\\\\\\\"不得提前解决下一章事件\\\\\\\"],\\\\\\\"targetWordCount\\\\\\\":1000}]}\\\",\\n          \\\"payoff_refs\\\": [\\n            \\\"资源危机\\\"\\n          ]\\n        }\\n      ]\\n    }\\n  ]\\n}\",\"source\":\"volume\",\"activeVersionId\":\"version-1\"}"
+      }
+    },
+    "workspace": [
+      "novel-1",
+      {
+        "novelId": "novel-1",
+        "workspaceVersion": "v2",
+        "volumes": [
+          {
+            "id": "volume-1",
+            "novelId": "novel-1",
+            "sortOrder": 1,
+            "title": "第一卷",
+            "summary": null,
+            "openingHook": null,
+            "mainPromise": null,
+            "primaryPressureSource": null,
+            "coreSellingPoint": null,
+            "escalationMode": null,
+            "protagonistChange": null,
+            "midVolumeRisk": null,
+            "climax": null,
+            "payoffType": null,
+            "nextVolumeHook": null,
+            "resetPoint": null,
+            "openPayoffs": [],
+            "status": "active",
+            "sourceVersionId": null,
+            "chapters": [
+              {
+                "id": "volume-chapter-1",
+                "volumeId": "volume-1",
+                "chapterId": "chapter-1",
+                "chapterOrder": 1,
+                "beatKey": null,
+                "title": "第二章 资源危机",
+                "summary": "主角开始调查资源危机。",
+                "purpose": "推进主角主动试探。",
+                "exclusiveEvent": "首次确认危机来自内部。",
+                "endingState": "拿到第一份证据。",
+                "nextChapterEntryState": "带着证据继续试探。",
+                "conflictLevel": 45,
+                "revealLevel": 35,
+                "targetWordCount": 3000,
+                "mustAvoid": "不得提前揭示幕后人。",
+                "taskSheet": "调查资源危机，核实证据来源，结尾保留下一步调查入口。\n补充执行指导。",
+                "sceneCards": "{\"targetWordCount\":3000,\"scenes\":[{\"key\":\"scene-1\",\"title\":\"线索推进1\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-2\",\"title\":\"线索推进2\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000},{\"key\":\"scene-3\",\"title\":\"线索推进3\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000}]}",
+                "styleContract": null,
+                "payoffRefs": [
+                  "资源危机"
+                ],
+                "createdAt": "1970-01-01T00:00:00.000Z",
+                "updatedAt": "1970-01-01T00:00:00.000Z"
+              }
+            ],
+            "createdAt": "1970-01-01T00:00:00.000Z",
+            "updatedAt": "1970-01-01T00:00:00.000Z"
+          }
+        ],
+        "strategyPlan": null,
+        "critiqueReport": null,
+        "beatSheets": [],
+        "rebalanceDecisions": [],
+        "readiness": {
+          "canGenerateStrategy": true,
+          "canGenerateSkeleton": false,
+          "canGenerateBeatSheet": false,
+          "canGenerateChapterList": false,
+          "blockingReasons": [
+            "请先生成卷战略建议，再确认卷骨架。",
+            "当前卷还没有节奏板，默认不能直接拆章节列表。"
+          ]
+        },
+        "derivedOutline": "【第1卷】第一卷\n章节范围：1-1",
+        "derivedStructuredOutline": "{\n  \"volumes\": [\n    {\n      \"volumeTitle\": \"第一卷\",\n      \"openPayoffs\": [],\n      \"chapters\": [\n        {\n          \"chapter_id\": \"chapter-1\",\n          \"order\": 1,\n          \"title\": \"第二章 资源危机\",\n          \"summary\": \"主角开始调查资源危机。\",\n          \"purpose\": \"推进主角主动试探。\",\n          \"exclusive_event\": \"首次确认危机来自内部。\",\n          \"ending_state\": \"拿到第一份证据。\",\n          \"next_chapter_entry_state\": \"带着证据继续试探。\",\n          \"conflict_level\": 45,\n          \"reveal_level\": 35,\n          \"target_word_count\": 3000,\n          \"must_avoid\": \"不得提前揭示幕后人。\",\n          \"task_sheet\": \"调查资源危机，核实证据来源，结尾保留下一步调查入口。\",\n          \"scene_cards\": \"{\\\"targetWordCount\\\":3000,\\\"scenes\\\":[{\\\"key\\\":\\\"scene-1\\\",\\\"title\\\":\\\"线索推进1\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-2\\\",\\\"title\\\":\\\"线索推进2\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000},{\\\"key\\\":\\\"scene-3\\\",\\\"title\\\":\\\"线索推进3\\\",\\\"purpose\\\":\\\"确认资源危机来源并推进调查。\\\",\\\"mustAdvance\\\":[\\\"获得可验证证据\\\"],\\\"mustPreserve\\\":[\\\"保留前文纸条来源\\\"],\\\"entryState\\\":\\\"主角带着纸条进入调查。\\\",\\\"exitState\\\":\\\"证据指向新的调查入口。\\\",\\\"forbiddenExpansion\\\":[\\\"不得提前解决下一章事件\\\"],\\\"targetWordCount\\\":1000}]}\",\n          \"payoff_refs\": [\n            \"资源危机\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+        "source": "volume",
+        "activeVersionId": "version-1"
+      },
+      "version-1"
+    ],
+    "chapter": {
+      "where": {
+        "id": "chapter-1"
+      },
+      "data": {
+        "targetWordCount": 3000,
+        "conflictLevel": 45,
+        "revealLevel": 35,
+        "mustAvoid": "不得提前揭示幕后人。",
+        "taskSheet": "调查资源危机，核实证据来源，结尾保留下一步调查入口。\n补充执行指导。",
+        "sceneCards": "{\"targetWordCount\":3000,\"lengthBudget\":{\"targetWordCount\":3000,\"softMinWordCount\":2550,\"softMaxWordCount\":3450,\"hardMaxWordCount\":3750},\"scenes\":[{\"key\":\"scene-1\",\"title\":\"线索推进1\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"},{\"key\":\"scene-2\",\"title\":\"线索推进2\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"},{\"key\":\"scene-3\",\"title\":\"线索推进3\",\"purpose\":\"确认资源危机来源并推进调查。\",\"mustAdvance\":[\"获得可验证证据\"],\"mustPreserve\":[\"保留前文纸条来源\"],\"entryState\":\"主角带着纸条进入调查。\",\"exitState\":\"证据指向新的调查入口。\",\"forbiddenExpansion\":[\"不得提前解决下一章事件\"],\"targetWordCount\":1000,\"resistance\":\"\",\"turn\":\"\",\"emotionalShift\":\"\",\"readerValue\":\"\"}],\"readerExperience\":{\"readerQuestion\":\"\",\"promisedReward\":\"\",\"rewardLevel\":\"setup\",\"protagonistWant\":\"\",\"primaryResistance\":\"\",\"keyTurn\":\"\",\"emotionalShift\":\"\",\"informationReveal\":\"\",\"netChange\":\"\",\"inheritedHookResponsibilities\":[],\"endingHook\":\"\"}}"
+      }
+    },
+    "event": [
+      "novel-1",
+      "chapter_execution_contract_refined"
+    ]
+  }
+}

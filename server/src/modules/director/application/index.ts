@@ -9,3 +9,4 @@ export * from "./runtime";
 export * from "./worker";
 export * from "./gateService";
 export * from "./assetInference";
+export * from "./diagnostics";

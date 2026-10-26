@@ -6,17 +6,31 @@ import { resolveLLMClientOptions } from "../../../../../llm/factory";
 import { chapterTaskSheetQualityPrompt } from "../../../../../prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts";
 import { preparePromptExecution } from "../../../../../prompting/core/promptRunner";
 import { resolveAdvancedPromptMessages } from "../../../../../prompting/templates/templateRuntime";
-import { ChapterTaskSheetQualityGateService, type ChapterTaskSheetQualityGateOptions } from "../../ChapterTaskSheetQualityGateService";
+import { ChapterTaskSheetQualityGateService, type ChapterTaskSheetQualityGateOptions, type ChapterTaskSheetSemanticAssessor } from "../../ChapterTaskSheetQualityGateService";
 
 /** Shape-compatible plans still need one semantic check against the actual preceding prose. */
 export async function reviewChapterExecutionContinuity(
   candidate: ChapterExecutionContractQualityCandidate,
   options: ChapterTaskSheetQualityGateOptions,
+  ports?: { semanticAssessor: ChapterTaskSheetSemanticAssessor },
 ) {
   const previous = candidate.previousChapterResult;
   if (!previous?.content?.trim()) return null;
   options.signal?.throwIfAborted();
   const mode = options.mode ?? "ai_copilot";
+  if (ports) {
+    // The owning caller persists its request/result; never write the legacy global cache.
+    let assessment: AiChapterTaskSheetQualityAssessment | undefined;
+    const result = await new ChapterTaskSheetQualityGateService(ports.semanticAssessor).evaluate(candidate, {
+      ...options, mode, onEvaluated: async event => {
+        assessment = event.assessment;
+        await options.onEvaluated?.(event);
+      },
+    });
+    if (!assessment) throw new Error("本章规划未完成与前文的核对，请保留规划后重试。");
+    options.signal?.throwIfAborted();
+    return { assessment, result };
+  }
   // Default routing may change independently; without an explicit model identity, evaluate without reuse.
   const canCache = Boolean(options.provider && options.model);
   const resolved = canCache ? await resolveLLMClientOptions(options.provider, { model: options.model,

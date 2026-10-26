@@ -30,6 +30,7 @@ import {AppError} from "../../middleware/errorHandler";
 import {directorIssuePolicyService} from "../../services/novel/director/issues/DirectorIssuePolicyService";
 import {getDirectorChapterBudgetSettings} from "../../services/settings/chapterBudget";
 import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
+import { createKernelProductionStep, createNativeKernelRuntime, assertKernelOpenReadiness } from "./productionKernel";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -88,7 +89,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {workspace, executionRange: executionWindow(context, workspace).executionRange};
     }, contentHash}),
-    chapter_batch: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
+    chapter_batch: createKernelProductionStep({db: prisma, runtime: context => createNativeKernelRuntime(prisma, context),
+      legacy: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
       const input = requireLaunch(context.contract), range = context.contract.chapterRange;
       if (!range) throw new Error("正文生成缺少章节授权范围。");
       const binding = (await events.list(context.runId)).some(event => event.type === "chapter_batch_job");
@@ -109,7 +111,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       const payload = event.payload as {jobId?: unknown};if (typeof payload?.jobId !== "string" || !payload.jobId) throw new Error("正文作业绑定损坏。");return payload.jobId;
     }, save: async (runId, jobId) => events.append({runId, type: "chapter_batch_job", payload: {jobId}})},
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
-      isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash}),
+      isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash})}),
   }));
   return {prepareGate: prepareEditedChapterGate, plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     executionBoundary: {
@@ -151,6 +153,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     requireLaunch(contract);return contract;
   }, prepareOpen: async contract => {
     await assertNovelDirectorVersion(contract.novelId, "v2");
+    await assertKernelOpenReadiness(prisma, contract);
     const launch = requireLaunch(contract);
     launch.chapterTokenLimit ??= (await getDirectorChapterBudgetSettings()).tokenLimit;
     const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;

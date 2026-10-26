@@ -2,9 +2,10 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import {chapterPlanEditSchema} from "@ai-novel/shared/types/director/revision";
 import {directorChapterBudgetGrantSchema, directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
-import { DirectorRunNotFoundError, RecordProjection, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
+import { DirectorRunNotFoundError, RecordProjection, readDirectorRuntimeStatus, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";
 import type {LegacyRunProjection} from "../legacy";
 import type {ResolveDirectorCharacterCandidates} from "@ai-novel/shared/types/director/characterCandidates";
+import {DirectorProjectionUnavailableError} from "../application/diagnostics";
 
 export interface DirectorNextHttpDeps {
   commandService: Pick<CommandService, "execute">;
@@ -86,6 +87,10 @@ function sendValidationError(res: Response, error: z.ZodError): void {
 }
 
 function sendKnownError(res: Response, error: unknown): boolean {
+  if (error instanceof DirectorProjectionUnavailableError) {
+    res.status(503).json({success: false, error: error.message, code: error.code});
+    return true;
+  }
   if (error instanceof DirectorRunNotFoundError) {
     res.status(404).json({ success: false, error: "找不到对应的创作记录。" });
     return true;
@@ -227,6 +232,18 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     }
   }));
 
+  router.get("/novels/:novelId/runtime-status", asyncRoute(async (req, res) => {
+    const novelId = nonEmpty.safeParse(req.params.novelId);
+    if (!novelId.success) {sendValidationError(res, novelId.error); return;}
+    const current = deps.readCurrentRunId ? await deps.readCurrentRunId(novelId.data)
+      : await deps.runRepository.findActiveRunIdByNovel(novelId.data);
+    const runId = deps.readCurrentRunId ? current
+      : current ?? (await deps.runRepository.listRunIds({novelId: novelId.data, limit: 1}))[0];
+    if (!runId) {res.status(404).json({success: false, error: "这本小说没有创作记录。"}); return;}
+    try {res.json({success: true, data: await readDirectorRuntimeStatus(deps, runId, novelId.data)});}
+    catch (error) {if (!sendKnownError(res, error)) throw error;}
+  }));
+
   router.get("/novels/:novelId/usage", asyncRoute(async (req, res) => {
     const id = nonEmpty.safeParse(req.params.novelId);
     const filter = z.string().trim().min(1).max(250).optional();
@@ -291,8 +308,13 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     const parsed = querySchema.safeParse(req.query);
     if (!parsed.success) { sendValidationError(res, parsed.error); return; }
     const runIds = await deps.runRepository.listRunIds(parsed.data);
-    const data = await Promise.all(runIds.map(runId => records.get(runId)));
-    res.json({ success: true, data });
+    const results = await Promise.allSettled(runIds.map(runId => records.get(runId)));
+    const data = results.flatMap(result => result.status === "fulfilled" ? [result.value] : []);
+    const warnings = results.flatMap((result, index) => result.status === "rejected" ? [{
+      runId: runIds[index], code: "director_projection_unavailable", message: "此条创作记录暂时无法读取。",
+    }] : []);
+    res.status(runIds.length > 0 && data.length === 0 ? 503 : 200).json({success: data.length > 0 || runIds.length === 0,
+      data, warnings, ...(runIds.length > 0 && data.length === 0 ? {code: "director_projection_unavailable", error: "创作记录暂时无法读取。"} : {})});
   }));
 
   return router;

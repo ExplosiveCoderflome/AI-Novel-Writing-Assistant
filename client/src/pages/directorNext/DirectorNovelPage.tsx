@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { getDirectorDetail, getDirectorSummary, getDirectorWorkspace, type DirectorDriver } from "@/api/directorNext";
+import { getDirectorRunDetail, getDirectorRuntimeStatus, getDirectorSummary, getDirectorWorkspace, type DirectorDriver } from "@/api/directorNext";
+import {directorPollInterval} from "./polling";
 import { getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,12 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
     if (!preview && type && [...params.keys()].some(key=>key!=="review")) setParams({review:type},{replace:true});
   },[params,preview,setParams]);
   const [directorOpen, setDirectorOpen] = useState(true);
-  const summaryQuery = useQuery({ queryKey: queryKeys.directorNext.summary(novelId), queryFn: () => getDirectorSummary(novelId), enabled: !preview && !!novelId, retry: false, refetchInterval: 4000 });
-  const detailQuery = useQuery({ queryKey: queryKeys.directorNext.detail(novelId), queryFn: () => getDirectorDetail(novelId), enabled: !preview && !!novelId, retry: false, refetchInterval: 4000 });
-  const bookQuery = useQuery({ queryKey: ["directorBookWorkspace",novelId], queryFn: () => getDirectorWorkspace(novelId), enabled: !preview && !!novelId, retry: false, refetchInterval: 10000 });
+  const poll = (query: {state: {error: unknown; errorUpdateCount: number}}) => directorPollInterval(query.state.error, query.state.errorUpdateCount);
+  const summaryQuery = useQuery({ queryKey: queryKeys.directorNext.summary(novelId), queryFn: () => getDirectorSummary(novelId), enabled: !preview && !!novelId, retry: false, refetchInterval: poll });
+  const runId = summaryQuery.data?.data?.runId;
+  const detailQuery = useQuery({ queryKey: [...queryKeys.directorNext.detail(novelId),runId], queryFn: () => getDirectorRunDetail(runId!), enabled: !preview && !!runId && !summaryQuery.isError, retry: false, refetchInterval: poll });
+  const diagnosticQuery = useQuery({queryKey: ["directorRuntimeStatus",novelId], queryFn: () => getDirectorRuntimeStatus(novelId), enabled: !preview && !!novelId && (summaryQuery.isError || detailQuery.isError), retry: false, refetchInterval: false});
+  const bookQuery = useQuery({ queryKey: ["directorBookWorkspace",novelId], queryFn: () => getDirectorWorkspace(novelId), enabled: !preview && !!novelId, retry: false, refetchInterval: query => query.state.error ? directorPollInterval(query.state.error,query.state.errorUpdateCount) : 10000 });
   const book = preview ? previewBook : bookQuery.data?.data;
   const savedReview=book ? resolveSavedReview(book,params) : null;
   const detail = detailQuery.data?.data;
@@ -42,6 +46,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const view = preview ? previewView(params.get("state") ?? "running") : detail?.view ?? summaryQuery.data?.data;
   useWorkspaceActivity(novelId, preview, view?.workspaceActivity, detail ? detailQuery.dataUpdatedAt : summaryQuery.dataUpdatedAt);
   const error = detailQuery.error ?? summaryQuery.error;
+  const diagnostic = diagnosticQuery.data?.data;
   const metadata = novelQuery.data?.data;
   useEffect(() => {
     if (!preview && metadata?.directorVersion === "v1") navigate(`/novels/${encodeURIComponent(novelId)}/edit`, {replace: true});
@@ -74,7 +79,9 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!preview && bookQuery.isError ? <div role="alert" className="mb-4 space-y-2 rounded-md bg-destructive/5 p-4"><p className="text-sm text-destructive">本书内容读取失败。{book ? "你仍可查看上次读取的内容。" : ""}</p><Button variant="outline" size="sm" onClick={() => void bookQuery.refetch()}>重新读取本书</Button></div> : null}
           {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} followGeneration={follow.enabled && !editingChapterId} generation={follow.snapshot} activity={view?.workspaceActivity} onEditChapter={preview ? undefined : setEditingChapterId} editedChapter={editedChapter} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
         </div>} right={directorOpen ? <aside aria-label="导演台" className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain">
-          {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p><Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), detailQuery.refetch()])}>重新读取</Button></div>
+          {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p>
+            {diagnostic ? <div className="space-y-2 text-sm"><p>保存的运行状态：{diagnostic.status} · 版本 {diagnostic.controlVersion}</p>{diagnostic.lastFailure ? <p>最近中断原因：{diagnostic.lastFailure.message}</p> : null}<p className="text-muted-foreground">正文进度暂不可读取，请处理原因后重新读取。</p></div> : diagnosticQuery.isError ? <p className="text-sm">运行诊断也暂时无法读取。</p> : null}
+            <Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), ...(runId ? [detailQuery.refetch()] : []), diagnosticQuery.refetch()])}>重新读取</Button></div>
             : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}
                 renderPlanEditor={!preview && !bookQuery.isError && savedReview?.ready && savedReview.type==="chapter_task_sheet" && savedReview.plan ? input=><DirectorChapterPlanEditor novelId={novelId} plan={savedReview.plan!} {...input}/> : undefined}/>
               : <p className="py-4 text-sm text-muted-foreground">{summaryQuery.isLoading || detailQuery.isLoading ? "正在读取导演信息…" : "选择创作范围，让 AI 从本书内容继续。"}</p>}

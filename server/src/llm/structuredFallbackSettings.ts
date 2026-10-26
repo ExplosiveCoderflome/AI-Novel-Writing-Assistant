@@ -1,5 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../db/prisma";
+import { currentStructuredFallbackSnapshot } from "../platform/llm/execution";
 
 const STRUCTURED_FALLBACK_ENABLED_KEY = "structuredFallback.enabled";
 const STRUCTURED_FALLBACK_PROVIDER_KEY = "structuredFallback.provider";
@@ -62,10 +63,7 @@ function normalizeMaxTokens(value: number | string | undefined | null): number |
     return DEFAULT_STRUCTURED_FALLBACK_SETTINGS.maxTokens;
   }
   const normalized = Math.floor(numeric);
-  if (normalized < 64) {
-    return 64;
-  }
-  return Math.min(32768, normalized);
+  return Number.isSafeInteger(normalized) && normalized > 0 ? normalized : DEFAULT_STRUCTURED_FALLBACK_SETTINGS.maxTokens;
 }
 
 function normalizeRetryCount(value: number | string | undefined | null): number {
@@ -88,6 +86,8 @@ function buildSettingsFromEntries(entries: Map<string, string>): StructuredFallb
 }
 
 export async function getStructuredFallbackSettings(forceRefresh = false): Promise<StructuredFallbackSettings> {
+  const snapshot = currentStructuredFallbackSnapshot();
+  if (snapshot) return snapshot;
   if (!forceRefresh && cachedSettings) {
     return cachedSettings;
   }

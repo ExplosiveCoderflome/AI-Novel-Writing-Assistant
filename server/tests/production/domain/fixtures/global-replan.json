@@ -1,0 +1,32 @@
+{
+  "progress": {
+    "unit": {
+      "novelId": "book",
+      "chapterId": "chapter",
+      "order": 1
+    },
+    "completed": [
+      "prepare",
+      "draft",
+      "accept"
+    ],
+    "repairAttemptsUsed": 0,
+    "original": {
+      "contentHash": "original",
+      "verdict": {
+        "contentHash": "original",
+        "gateAvailable": true,
+        "issues": [],
+        "missingObligations": [],
+        "replan": "global_book"
+      }
+    }
+  },
+  "results": [],
+  "expected": [
+    {
+      "kind": "stop_for_replan",
+      "scope": "global_book"
+    }
+  ]
+}

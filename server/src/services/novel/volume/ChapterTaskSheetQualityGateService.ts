@@ -32,6 +32,30 @@ export type ChapterTaskSheetSemanticAssessor = (input: {
   options: ChapterTaskSheetQualityGateOptions;
 }) => Promise<AiChapterTaskSheetQualityAssessment>;
 
+/** The same request is exposed for callers that own durable request preparation. */
+export function buildChapterTaskSheetQualityPromptRequest(input: Parameters<ChapterTaskSheetSemanticAssessor>[0]) {
+  const { candidate, mode, options } = input;
+  return {
+    asset: chapterTaskSheetQualityPrompt,
+    promptInput: { candidate, mode },
+    options: {
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature ?? 0.1,
+      taskId: options.taskId,
+      entrypoint: options.entrypoint,
+      novelId: candidate.novelId,
+      volumeId: candidate.volumeId ?? undefined,
+      chapterId: candidate.chapterId,
+      stage: "chapter_task_sheet_quality",
+      itemKey: "chapter_detail_bundle",
+      scope: "chapter_detail",
+      triggerReason: "chapter_task_sheet_quality_gate",
+      signal: options.signal,
+    },
+  };
+}
+
 function normalizeQualityMode(mode?: ChapterTaskSheetQualityMode): ChapterTaskSheetQualityMode {
   return mode ?? "ai_copilot";
 }
@@ -91,28 +115,7 @@ export class ChapterTaskSheetQualityGateService {
     mode: ChapterTaskSheetQualityMode,
     options: ChapterTaskSheetQualityGateOptions,
   ): Promise<AiChapterTaskSheetQualityAssessment> {
-    const generated = await runStructuredPrompt({
-      asset: chapterTaskSheetQualityPrompt,
-      promptInput: {
-        candidate,
-        mode,
-      },
-      options: {
-        provider: options.provider,
-        model: options.model,
-        temperature: options.temperature ?? 0.1,
-        taskId: options.taskId,
-        entrypoint: options.entrypoint,
-        novelId: candidate.novelId,
-        volumeId: candidate.volumeId ?? undefined,
-        chapterId: candidate.chapterId,
-        stage: "chapter_task_sheet_quality",
-        itemKey: "chapter_detail_bundle",
-        scope: "chapter_detail",
-        triggerReason: "chapter_task_sheet_quality_gate",
-        signal: options.signal,
-      },
-    });
+    const generated = await runStructuredPrompt(buildChapterTaskSheetQualityPromptRequest({ candidate, mode, options }));
     return generated.output;
   }
 }

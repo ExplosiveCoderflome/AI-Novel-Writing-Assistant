@@ -119,7 +119,7 @@ export async function generateChapterTaskSheetDetail(params: {
   let lastError: Error | null = null;
   let qualityFeedback: string | null = null;
   let usable: {value: ContractResult; report: QualityEvent} | null = null;
-  const qualityGate = new ChapterTaskSheetQualityGateService();
+  const qualityGate = new ChapterTaskSheetQualityGateService(params.options.chapterContractPorts?.semanticAssessor);
   const publish = async (saved: NonNullable<typeof usable>) => {
     await params.options.onChapterTaskSheetQuality?.(saved.report);
     return saved.value;
@@ -136,7 +136,7 @@ export async function generateChapterTaskSheetDetail(params: {
           ].filter(Boolean).join("\n"),
         }
         : params.promptInput;
-      const generated = await runStructuredPrompt({
+      const generated = await (params.options.chapterContractPorts?.invokePrompt ?? runStructuredPrompt)({
         asset: volumeChapterExecutionContractPrompt,
         promptInput,
         contextBlocks: buildVolumeChapterDetailContextBlocks(promptInput),

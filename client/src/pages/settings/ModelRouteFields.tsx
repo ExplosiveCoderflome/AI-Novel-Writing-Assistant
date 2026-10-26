@@ -1,4 +1,5 @@
 import type { APIKeyStatus } from "@/api/settings";
+import {DEFAULT_MODEL_OUTPUT_TOKENS} from "@ai-novel/shared/types/llm";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -97,9 +98,14 @@ export default function ModelRouteFields({
         <div className="text-xs text-muted-foreground">最大输出长度</div>
         <Input
           value={draft.maxTokens}
+          type="number"
+          min={1}
+          step={1}
+          aria-label="单次最大输出 Tokens"
           placeholder={maxTokensPlaceholder}
           onChange={(event) => onPatch({ maxTokens: event.target.value })}
         />
+        <p className="text-xs text-muted-foreground">默认 {DEFAULT_MODEL_OUTPUT_TOKENS}，可自行调整。</p>
       </div>
 
       {showProtocolFields ? (

@@ -323,6 +323,7 @@ enum CharacterGender {
 
 model Novel {
   id                String      @id @default(cuid())
+  productionUnitRuns ProductionUnitRun[]
   directorVersion   String?
   directorEpoch     Int         @default(0)
   title             String
@@ -668,6 +669,7 @@ model NovelSnapshot {
 
 model Chapter {
   id              String                 @id @default(cuid())
+  productionUnitRuns ProductionUnitRun[]
   title           String
   content         String?                @default("")
   order           Int
@@ -4311,4 +4313,26 @@ model LlmInvocationUsageRecord {
   @@index([runId, startedAt, id])
   @@index([generationJobId, startedAt, id])
   @@index([novelId, chapterId, startedAt, id])
+}
+
+model ProductionUnitRun {
+  id                     String   @id @default(cuid())
+  ownerKey               String
+  novelId                String
+  chapterId              String
+  profileSnapshotJson    String
+  policySnapshotJson     String
+  modelSnapshotJson      String
+  progressJson           String
+  stageArtifactsJson     String
+  activeStage            String?
+  activeRequestKey       String?
+  version                Int      @default(1)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  novel                  Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter                Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerKey, chapterId])
+  @@index([novelId, chapterId])
 }

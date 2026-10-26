@@ -153,19 +153,21 @@ decideNext(input: {
   unit: UnitProgress;              // 已完成的阶段、已用修复次数、原稿评估、候选评估
   lastVerdict?: AcceptanceVerdict;
 }): UnitAction
-// UnitAction = run_stage | record_debt | pause_for_manual | stop_for_replan | fail | done
+// UnitAction = run_stage | select_final | record_debt | pause_for_manual | stop_for_replan | fail | done
 ```
 
 `runPipelineChapterWithRuntime` 中散落的判断，全部变成决策器里的具名规则，每条规则配测试。例如：
 
 - 修复最多一次；技术失败不升级为整章重写。
 - 只有"审校系统不可用"这一类风险时，不进入修复。
-- 候选稿新增高或严重问题、新增未兑现义务、事实核对未通过时，保留原稿。
+- 候选稿新增高或严重问题、新增未兑现义务、事实核对未通过时，保留原稿。义务按结构化 kind + summary 识别，不能只比较类别或总数量。
 - 正文可用时，局部质量问题记为质量债并继续。只有以下情况可以停止：结构化的 `stop_for_replan` 或 `replan_required`、问题策略明确要求暂停、没有可用正文、数据完整性失败。
 
 ### 5.2 执行器
 
 执行器只做三件事：调用 `decideNext`；执行对应阶段的适配器；把阶段结果写回单元进度。
+
+无修复路径通过显式 `select_final` 动作和纯状态转换保存最终选稿、正文哈希与原因；候选路径通过 `select` 阶段结果保存。选稿进度必须先持久化，之后才执行 `commit`。修复额度只限制下一次修复，不能跳过已有候选稿的 `verify → select`，也不能覆盖已保存的选稿。
 
 崩溃恢复就是重新调用 `decideNext`。已完成阶段的结果按正文哈希复用，不会重复调用模型。执行器内不写业务判断。
 

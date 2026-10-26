@@ -16,6 +16,16 @@ const abortedModel = () => attachExecutionSignal({invoke: async (_input, {signal
   signal.addEventListener('abort', () => reject(signal.reason), {once: true});
 }), stream: async () => {throw Error('unexpected stream');}});
 
+test('the step executor receives the exact acquired lease identity for transactional writes', async () => {
+  let leaseOwner, execution;
+  const worker = new DirectorWorker({runtime: {...runtime, nextId: () => 'attempt-1'},
+    runRepository: repo({acquireLease: async (_id, owner) => {leaseOwner = owner; return true;}}),
+    executor: {runOnce: async (_id, value) => {execution = value;}}});
+  await worker.tick();
+  assert.deepEqual(execution, {leaseOwner: 'worker:attempt-1'});
+  assert.equal(execution.leaseOwner, leaseOwner);
+});
+
 test('polling survives an infrastructure error and duplicate starts share one loop', {timeout: 2000}, async () => {
   let polls = 0, errors = 0, runs = 0;
   const worker = new DirectorWorker({runtime, pollMs: 1, onError: () => errors++,

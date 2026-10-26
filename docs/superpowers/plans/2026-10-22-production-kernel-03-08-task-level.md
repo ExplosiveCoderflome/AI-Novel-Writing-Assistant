@@ -19,13 +19,13 @@
 | `modules/production/infrastructure/storyState/*.ts` | 故事状态端口的适配器，按计划 01 Task 5 的结论实现 |
 | `modules/production/infrastructure/progressStore.ts` | 单元进度表的仓储 |
 | `modules/production/profiles/longChapter.ts` | 长篇默认配置，另附快速和严格两个变体，参数来自计划 01 |
-| Prisma：`ProductionUnitRun` | 每章一行，记录阶段进度、所选稿件、内容哈希和版本号。两套 schema 与两个迁移目录同步修改；每个迁移只建一张表 |
+| Prisma：`ProductionUnitRun` | 按调用方 ownerKey + chapterId 唯一区分每次作业的章节进度，记录所选稿件、内容哈希和版本号。两套 schema 与两个迁移目录同步修改；每个迁移只建一张表。新增表提案已获用户批准 |
 
 **关键规则：**
 
-- 适配器调用旧服务时显式传参，不得走进旧代码中的 V2 分支（以计划 01 Task 3 的清单为准）。
+- 适配器调用旧服务时显式传参，不进入旧 V2 生产调度。用户已批准 `03-reconcile-boundary.md`：抽取与回填编排移入新内核，允许复用已盘点为保留的共享持久写入保护；旧目录不修改。
 - 适配器不得修改旧服务。旧服务不满足需要时，按停止条件 G1 停下，由我决定是否把实现复制进内核。
-- `commit` 阶段经由 `ChapterLifecycleService` 写入；写入前先调用 `fence()`，再校验正文版本。
+- `commit` 阶段经由生命周期入口写入；原服务不支持事务版本检查，用户已批准 `03-lifecycle-exception.md` 的最小隔离方案，由新内核的 `ProductionChapterLifecycleService` 在同一事务保存正文与回执，旧服务保持冻结。
 - 凡是调用模型的阶段，执行前先查同一内容哈希下是否已有结果，有就复用，不再调用模型。
 - 新表需要用户批准；只生成迁移文件并在临时库上验证，不对开发库执行迁移。
 
