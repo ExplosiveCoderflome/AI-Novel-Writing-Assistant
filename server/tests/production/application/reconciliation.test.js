@@ -170,6 +170,48 @@ test('a physical pre-dispatch refusal releases the extraction claim but a dispat
   assert.equal([...f.cache.values()][0].status,error instanceof ProductionBudgetNotDispatchedError?'ready':'running');
  }
 });
+for (const category of ['malformed_json','schema_mismatch','incomplete_json','thinking_pollution','unsupported_native_json']) {
+  test(`a known ${category} extraction failure releases the claim and can be retried`, async () => {
+    let first = true;
+    const f = await fixture({ extract: async () => { if (first) { first = false; const error = new Error(`unusable model output: ${category}`); error.category = category; throw error; } } });
+    const reconcile = api();
+    assert.equal((await reconcile(f.context, f.ports)).status, 'pending');
+    assert.equal([...f.cache.values()][0].status, 'ready');
+    assert.equal((await reconcile(f.context, f.ports)).status, 'completed');
+    assert.equal(f.calls.filter(x => x === 'extract').length, 2);
+  });
+}
+test('a released extraction claim reports pending on recovery and finishes on explicit execution', async () => {
+  let first = true;
+  const f = await fixture({ extract: async () => { if (first) { first = false; const error = new Error('bad json'); error.category = 'malformed_json'; throw error; } } });
+  const reconcile = api();
+  assert.equal((await reconcile(f.context, f.ports)).status, 'pending');
+  assert.equal((await reconcile(f.context, f.ports, { recoverOnly: true })).status, 'pending');
+  assert.equal((await reconcile(f.context, f.ports)).status, 'completed');
+  assert.equal(f.calls.filter(x => x === 'extract').length, 2);
+});
+test('a transport failure stays unknown and is never retried', async () => {
+  for (const error of [Object.assign(new Error('connection reset'), { category: 'transport_error' }), new Error('response lost')]) {
+    const f = await fixture({ extract: async () => { throw error; } });
+    const reconcile = api();
+    assert.equal((await reconcile(f.context, f.ports)).status, 'unknown');
+    assert.equal([...f.cache.values()][0].status, 'running');
+    assert.equal((await reconcile(f.context, f.ports)).status, 'unknown');
+    assert.equal(f.calls.filter(x => x === 'extract').length, 1);
+  }
+});
+test('a real StructuredOutputError with a known category is retried', async () => {
+  const { StructuredOutputError } = require('../../../dist/llm/structuredOutput');
+  const profile = { nativeJsonSchema: false, nativeJsonObject: false, requiresNonThinkingForStructured: false,
+    supportsReasoningToggle: false, omitMaxTokensForNativeStructured: false, preferredStructuredStrategy: 'prompt_json', family: 'fixture' };
+  const diagnostics = { strategy: 'prompt_json', profile, reasoningForcedOff: false, fallbackAvailable: false, fallbackUsed: false, errorCategory: 'malformed_json' };
+  let first = true;
+  const f = await fixture({ extract: async () => { if (first) { first = false; throw new StructuredOutputError({ message: 'bad json', category: 'malformed_json', diagnostics }); } } });
+  const reconcile = api();
+  assert.equal((await reconcile(f.context, f.ports)).status, 'pending');
+  assert.equal((await reconcile(f.context, f.ports)).status, 'completed');
+  assert.equal(f.calls.filter(x => x === 'extract').length, 2);
+});
 test('a crash before extraction permits a new execution only after recovery persists an unstarted pending boundary',async()=>{
  const f=await fixture(),p=harness(),req=request();req.profile.capabilities=['character_state'];
  p.stages.reconcile=stageApi()({ports:f.ports,executionToken:()=> 'lease-1'});

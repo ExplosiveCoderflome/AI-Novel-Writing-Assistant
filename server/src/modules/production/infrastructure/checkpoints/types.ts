@@ -20,6 +20,11 @@ export interface ArtifactCheckpointPort {
   claim(identity: ArtifactStepIdentity, options?: { existingOnly?: boolean }): Promise<ArtifactClaimResult>;
   succeed(claim: ArtifactClaim, value: ProductionJson): Promise<void>;
   fail(claim: ArtifactClaim): Promise<void>;
-  /** Only for a request known not to have been dispatched. */
+  /**
+   * Only for a request known to have produced no durable effect: either it was
+   * never dispatched (a pre-dispatch budget refusal), or it was dispatched but
+   * answered with unusable output and the port wrote nothing (a retryable
+   * structured-output failure). Any other outcome stays claimed.
+   */
   release(claim: ArtifactClaim): Promise<void>;
 }

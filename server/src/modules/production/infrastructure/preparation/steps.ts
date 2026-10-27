@@ -1,4 +1,4 @@
-import { canonicalProductionJson, cloneProductionData, ProductionBudgetNotDispatchedError, type ProductionJson } from "../../common";
+import { canonicalProductionJson, cloneProductionData, isKnownPromptQualityFailure, isRetryableModelOutputError, ProductionBudgetNotDispatchedError, type ProductionJson } from "../../common";
 import { hashProductionContent, InvalidProductionRequestError, ProductionSnapshotConflictError, type UnitRun } from "../../application";
 import type { ArtifactStepIdentity } from "../checkpoints";
 import type { ChapterBaseline } from "../stages";
@@ -39,8 +39,17 @@ export function createPreparationSteps(deps: KernelPreparationStageDependencies,
       const saved = await steps.read(`request:${key}`, async () => candidate as unknown as ProductionJson) as unknown as PreparedPreparationRequest;
       if (canonicalProductionJson(saved) !== canonicalProductionJson(candidate)) throw new ProductionSnapshotConflictError();
       const id = identity(`model:${key}`, "model");
-      const claim = await deps.checkpoints.claim(id, { existingOnly: recoverOnly });
+      let claim = await deps.checkpoints.claim(id, { existingOnly: recoverOnly });
       if (claim.status === "cached") return cloneProductionData(claim.value);
+      if (claim.status === "not_started" && recoverOnly) {
+        // Recovery may start work that is known never to have been dispatched:
+        // no row yet (a rebuilt request legitimately carries a new key), or a
+        // row released after a known-safe failure. A running row still reports
+        // unknown and blocks below, so an outcome that may have executed is
+        // never re-dispatched.
+        const fresh = await deps.checkpoints.claim(id);
+        if (fresh.status === "claimed") claim = fresh;
+      }
       if (claim.status !== "claimed") throw new PreparationRequestUnresolvedError();
       try {
         await deps.fence(run);
@@ -50,6 +59,11 @@ export function createPreparationSteps(deps: KernelPreparationStageDependencies,
         return value;
       } catch (error) {
         if (error instanceof ProductionBudgetNotDispatchedError) {
+          await deps.fence(run); await deps.checkpoints.release(claim.claim);
+        } else if (isRetryableModelOutputError(error) || isKnownPromptQualityFailure(error)) {
+          // The model answered but its output could not be used, and the port
+          // wrote nothing for this call. Release the claim so a fresh execution
+          // can run the step again instead of finding it claimed forever.
           await deps.fence(run); await deps.checkpoints.release(claim.claim);
         }
         // Every other model failure may have been dispatched. Its claim stays durable.

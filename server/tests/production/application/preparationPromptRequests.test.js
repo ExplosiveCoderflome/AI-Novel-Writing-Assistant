@@ -55,4 +55,27 @@ test('preparation uses actual native prompts, physical reservations and saved na
  assert.equal(state.descriptions[0].input.promptInput.candidate.previousChapterResult.content,candidate.previousChapterResult.content);
  assert.deepEqual(await api.createKernelPreparationPromptInvoker(deps,run,steps)(input),result);
  assert.equal(state.models,1);assert.equal(state.reserved.length,1);
+ // A resumed evaluation whose attempt carries new round feedback must not alias
+ // the saved no-feedback attempt: same asset and ordinal, different guidance.
+ const guided={...input,promptInput:{...input.promptInput,guidance:'上一章实际正文与本章规划需要协调'}};
+ const guidedResult=await api.createKernelPreparationPromptInvoker(deps,run,steps)(guided);
+ assert.deepEqual(guidedResult.output,result.output);
+ assert.equal(state.models,2);assert.equal(state.reserved.length,2);
+ assert.deepEqual(await api.createKernelPreparationPromptInvoker(deps,run,steps)(input),result);
+ assert.equal(state.models,2);assert.equal(state.reserved.length,2);
+ // A resumed evaluation whose previous-chapter context block was rebuilt in a
+ // different shape must not alias the saved attempt either: same asset,
+ // ordinal and guidance, only the previous_chapter_result block differs.
+ const prevBlock=(content)=>({id:'previous_chapter_result',group:'previous_chapter_result',priority:100,required:true,content});
+ const blocked={...input,contextBlocks:[prevBlock('上一章已保存的实际结果：\n{"chapterOrder":1,"title":"前章","summary":"纸条来自钟内","tail":"结束","content":"完整前文。"}')]};
+ const blockedResult=await api.createKernelPreparationPromptInvoker(deps,run,steps)(blocked);
+ assert.deepEqual(blockedResult.output,result.output);
+ assert.equal(state.models,3);assert.equal(state.reserved.length,3);
+ const reblocked={...input,contextBlocks:[prevBlock('上一章已保存的实际结果：\n{"chapterOrder":1,"content":"完整前文。"}')]};
+ const reblockedResult=await api.createKernelPreparationPromptInvoker(deps,run,steps)(reblocked);
+ assert.deepEqual(reblockedResult.output,result.output);
+ assert.equal(state.models,4);assert.equal(state.reserved.length,4);
+ assert.deepEqual(await api.createKernelPreparationPromptInvoker(deps,run,steps)(blocked),blockedResult);
+ assert.deepEqual(await api.createKernelPreparationPromptInvoker(deps,run,steps)(input),result);
+ assert.equal(state.models,4);assert.equal(state.reserved.length,4);
 });

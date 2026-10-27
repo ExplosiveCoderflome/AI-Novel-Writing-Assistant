@@ -9,6 +9,8 @@ async function setup(t,fault){
    execute:async(run,input,steps)=>{
     const result=await steps.model('contract',{identity:state.requestVersion,input:{full:'model input'},outputTokens:3200},async()=>{
       if(state.fault==='budget'){state.fault=null;throw new (require('../../dist/modules/production/common').ProductionBudgetNotDispatchedError)();}
+      if(state.fault==='known_output'){state.fault=null;state.models++;const error=new Error('malformed model output');error.category='malformed_json';throw error;}
+      if(state.fault==='quality'){state.fault=null;state.models++;const error=new Error('contract duplicates the previous chapter');error.promptQualityFailureKind='post_validate_failed';throw error;}
       state.models++;if(state.fault==='unknown')throw Error('connection lost after dispatch');return{taskSheet:'核对前文后推进证据'};
     });
     if(state.fault==='after_model'){state.fault=null;throw Error('exit after durable model result');}
@@ -29,17 +31,29 @@ test('unknown preparation request remains claimed and recovery never dispatches 
  const f=await setup(t,'unknown');await assert.rejects(()=>f.execute(),/connection lost/);
  assert.equal(await f.stage.recover(f.run,'prepare-request'),undefined);assert.equal(f.state.models,1);assert.equal(f.state.commits,0);
 });
-test('a proven unsent budget rejection preserves the prepared request for explicit execution',async t=>{
+test('a proven unsent budget rejection releases the claim so recovery can dispatch it',async t=>{
  const f=await setup(t,'budget');await assert.rejects(()=>f.execute(),/budget|dispatch/i);assert.equal(f.state.models,0);
- assert.equal(await f.stage.recover(f.run,'prepare-request'),undefined);assert.equal(f.state.models,0);
- assert.equal((await f.execute()).result.stage,'prepare');assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
+ const reply=await f.stage.recover(f.run,'prepare-request');assert.equal(reply.result.stage,'prepare');
+ assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
+ assert.deepEqual(await f.stage.recover(f.run,'prepare-request'),reply);assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
+});
+test('a known structured-output failure releases the preparation claim for recovery',async t=>{
+ const f=await setup(t,'known_output');await assert.rejects(()=>f.execute(),/malformed/);assert.equal(f.state.models,1);
+ const reply=await f.stage.recover(f.run,'prepare-request');assert.equal(reply.result.stage,'prepare');
+ assert.equal(f.state.models,2);assert.equal(f.state.commits,1);
+});
+test('a semantic rejection releases the preparation claim for recovery',async t=>{
+ const f=await setup(t,'quality');await assert.rejects(()=>f.execute(),/duplicates/);assert.equal(f.state.models,1);
+ const reply=await f.stage.recover(f.run,'prepare-request');assert.equal(reply.result.stage,'prepare');
+ assert.equal(f.state.models,2);assert.equal(f.state.commits,1);
 });
 test('changed native configuration cannot replace a previously saved preparation request',async t=>{
  const f=await setup(t,'after_model');await assert.rejects(()=>f.execute());f.state.requestVersion='changed-v2';
  await assert.rejects(()=>f.execute(),/snapshot|prepared|request/i);assert.equal(f.state.models,1);assert.equal(f.state.commits,0);
 });
-test('recovery before the first model request only reads checkpoints until explicit execution',async t=>{
+test('recovery dispatches a never-attempted model request instead of stalling on it',async t=>{
  const f=await setup(t,null);
- assert.equal(await f.stage.recover(f.run,'prepare-request'),undefined);assert.equal(f.state.models,0);assert.equal(f.state.commits,0);
- assert.equal((await f.execute()).result.stage,'prepare');assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
+ const reply=await f.stage.recover(f.run,'prepare-request');assert.equal(reply.result.stage,'prepare');
+ assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
+ assert.deepEqual(await f.stage.recover(f.run,'prepare-request'),reply);assert.equal(f.state.models,1);assert.equal(f.state.commits,1);
 });

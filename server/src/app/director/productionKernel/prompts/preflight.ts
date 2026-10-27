@@ -76,6 +76,16 @@ export function createKernelPromptPreparer(deps: KernelPromptPreparerDependencie
             temperature:index === 0 ? target.temperature : Math.min(target.temperature,0.2),maxTokens:target.maxTokens,timeoutMs:options.timeoutMs,
             taskType:request.asset.taskType,executionMode:"structured",structuredStrategy:strategy,requestProtocol:target.requestProtocol});
           await add(actual);
+          // Structured retries reuse the last strategy past the end of the
+          // sequence with the subsequent-attempt temperature (min(base, 0.2)),
+          // and a preferred strategy can reorder any entry past index 0. A
+          // single-strategy profile therefore reaches an unregistered
+          // temperature on its first retry, and the fence turns a retryable
+          // output failure into an unknown outcome. Register that pair for
+          // every strategy so the retry can run.
+          await add(await resolve(target.provider,{fallbackProvider:"deepseek",model:target.model,baseURL:target.baseURL,authMode:target.authMode,
+            temperature:Math.min(target.temperature,0.2),maxTokens:target.maxTokens,timeoutMs:options.timeoutMs,
+            taskType:request.asset.taskType,executionMode:"structured",structuredStrategy:strategy,requestProtocol:target.requestProtocol}));
           // JSON correction uses the actual attempt's output cap and its own native temperature.
           await add(await resolve(target.provider,{fallbackProvider:"deepseek",model:target.model,baseURL:target.baseURL,
             temperature:0.15,maxTokens:actual.maxTokens,timeoutMs:options.timeoutMs,taskType:request.asset.taskType,
@@ -92,7 +102,7 @@ export function createKernelPromptPreparer(deps: KernelPromptPreparerDependencie
       configurations:rows.map(([key,row])=>({key,window:row.window})),fallback,renderedHash:hashProductionContent(renderedInput)}),
       promptVersion:request.asset.version,provider:primary.provider,model:primary.model,outputTokens,requestOutputTokens:primary.maxTokens!,contextWindow,renderedInput};
     const assertConfiguration=(configuration:ResolvedLLMClientOptions)=>{
-      const row=configurations.get(configurationKey(configuration));if(!row)throw new Error("Kernel model configuration snapshot changed");return row;
+      const row=configurations.get(configurationKey(configuration));if(!row){throw new Error("Kernel model configuration snapshot changed");}return row;
     };
     const reserveTokens=(physical:PhysicalModelRequest|undefined):number=>{
       if(!physical?.configuration)throw new Error("Actual model request configuration is unavailable");

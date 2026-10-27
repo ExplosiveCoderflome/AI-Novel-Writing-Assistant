@@ -22,6 +22,16 @@ test('preflight fingerprints complete registered messages and sanitizes configur
  assert.equal(d.outputTokens,4200);assert.equal(d.contextWindow,1000000);assert.match(d.identity,/^[a-f0-9]{64}$/);
  assert.equal(JSON.stringify(d).includes('very-sensitive-api-key'),false);assert.equal(JSON.stringify(d).includes('https://models.invalid'),false);
 });
+test('a single-strategy profile registers the subsequent-attempt temperature for its retry',async t=>{
+ const f=fixture(t),prepared=await f.preparer.prepare(f.request);
+ // Structured retries reuse the last strategy past the end of the sequence
+ // with min(base temperature, 0.2). The fixture profile has only
+ // prompt_json, so without that registration the first retry is fenced off
+ // as a configuration snapshot change instead of running.
+ const configuration=await f.resolveModel('openai',{model:'fixture-model',temperature:0.2,maxTokens:4200,taskType:f.request.asset.taskType,executionMode:'structured',structuredStrategy:'prompt_json'});
+ const tokens=prepared.reserveTokens({configuration,input:[{role:'user',content:'正文'}],options:{}});
+ assert.ok(tokens>4200);
+});
 test('unknown and insufficient windows reject before any model execution',async t=>{
  const f=fixture(t);
  for(const window of [null,100]){f.state.window=window;await assert.rejects(()=>f.preparer.prepare(f.request),/上下文|context|window/i);}

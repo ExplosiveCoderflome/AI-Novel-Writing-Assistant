@@ -1,4 +1,4 @@
-import { canonicalProductionJson, cloneProductionData, ProductionBudgetNotDispatchedError, type ProductionJson } from "../../common";
+import { canonicalProductionJson, cloneProductionData, isRetryableModelOutputError, ProductionBudgetNotDispatchedError, type ProductionJson } from "../../common";
 import { hashProductionContent, InvalidProductionRequestError } from "../../application";
 import { ARTIFACT_CONSUMERS, type ArtifactContext, type ArtifactExtractionPort, type ArtifactReconciliationPorts, type ArtifactStepIdentity } from "./consumerPorts";
 import { prepareArtifactRequest } from "./preparedRequest";
@@ -39,6 +39,14 @@ async function modelStep(context: ArtifactContext, ports: ArtifactReconciliation
       await ports.fence(context);
       await ports.checkpoints.release(claimed.claim);
       return { status: "budget_exhausted", reason: `${step}_budget_denied` };
+    }
+    if (isRetryableModelOutputError(error)) {
+      // The model answered but its output could not be used, and the extraction
+      // port wrote nothing for this call. Release the claim so the step can run
+      // again instead of staying claimed forever; anything else stays unknown.
+      await ports.fence(context);
+      await ports.checkpoints.release(claimed.claim);
+      return { status: "pending", reason: `${step}_output_unusable` };
     }
     return { status: "unknown", reason: `${step}_outcome_unknown` };
   }
