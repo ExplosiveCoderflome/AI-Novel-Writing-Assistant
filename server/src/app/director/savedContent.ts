@@ -11,6 +11,7 @@ import {revalidateSavedPlanning} from "./recovery/missingPlanning";
 import {saveChapterPlanEdit} from "./revisions/chapterPlan";
 import {authorizeChapterBudget, readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../services/novel/production/usage";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
+import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProduction,cancelKernelProduction} from "./productionKernel";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
@@ -53,7 +54,10 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
         artifactSyncCheckpoints: {where: {OR: [{artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"}, {artifactType: MANUAL_CHAPTER_SYNC_TYPE}]},
           select: {contentHash: true, metadataJson: true, artifactType: true}, orderBy: {updatedAt: "desc"}}}});
       if (chapters.length !== range.to-range.from+1 || chapters.some(chapter => !chapter.content?.trim())) throw new Error("请先保存本批次的章节正文。");
-      if (chapters.some(chapter => !isCurrentChapterProductionCompleted(chapter))) throw new AppError("正文修改尚未完成状态同步，请在章节页面完成收尾后再确认。", 400);
+      const kernel = await readProductionBatchImplementation(tx,input.contract) === "kernel";
+      const closed = kernel ? (await Promise.all(chapters.map(chapter=>readKernelUnitOutcome(tx,input.contract,{...chapter,novelId}))))
+        .every(outcome=>outcome?.status === "completed") : chapters.every(isCurrentChapterProductionCompleted);
+      if (!closed) throw new AppError("正文修改尚未完成状态同步，请在章节页面完成收尾后再确认。", 400);
       for (const chapter of chapters) {
         const locked = await tx.chapter.updateMany({where: {id: chapter.id, novelId, content: chapter.content}, data: {updatedAt: chapter.updatedAt}});
         if (!locked.count) throw new AppError("正文在确认期间发生变化，请检查修订后再继续。", 409);
@@ -69,6 +73,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
 }
 
 export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient, chapterBudget?: DirectorChapterBudgetGrant) {
+  if (await readProductionBatchImplementation(tx,contract) === "kernel") return resumeKernelProduction(contract,tx,chapterBudget);
   const event = await tx.directorNextEvent.findFirst({where: {runId: contract.runId, type: "chapter_batch_job"}, orderBy: {seq: "desc"}});
   if (!event) {
     if (chapterBudget) throw new AppError("本次创作没有可调整的章节预算。",400);
@@ -116,6 +121,7 @@ export async function resumeBusiness(contract: RunContract, tx: Prisma.Transacti
 }
 
 export async function cancelBusiness(contract: RunContract, tx: Prisma.TransactionClient) {
+  if (await readProductionBatchImplementation(tx,contract) === "kernel") return cancelKernelProduction(contract,tx);
   const jobs = await tx.generationJob.findMany({where: {novelId: contract.novelId, status: {in: ["queued","running"]}}});
   for (const job of jobs) {
     if (parsePipelinePayload(job.payload).directorNext?.runId !== contract.runId) continue;

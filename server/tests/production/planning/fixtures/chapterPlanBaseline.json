@@ -1,0 +1,311 @@
+{
+  "request": {
+    "assetId": "planner.chapter.plan",
+    "assetVersion": "v3",
+    "promptInput": {
+      "scopeLabel": "章节规划：第1章《城门》"
+    },
+    "contextBlocks": [
+      {
+        "reuseScope": "book",
+        "id": "story_mode",
+        "group": "story_mode",
+        "priority": 95,
+        "required": false,
+        "content": "故事模式：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "reuseScope": "book",
+        "id": "novel_overview",
+        "group": "novel_overview",
+        "priority": 100,
+        "required": true,
+        "content": "小说：城门约定\n简介：阿青守住承诺",
+        "estimatedTokens": 5,
+        "allowSummary": true
+      },
+      {
+        "reuseScope": "book",
+        "id": "book_framing",
+        "group": "book_framing",
+        "priority": 99,
+        "required": false,
+        "content": "题材基底：悬疑\n目标读者：大众\n核心卖点：承诺与秘密\n竞品/对标感受：无\n前30章承诺：无\n叙事视角：third_person\n节奏偏好：moderate\n情绪强度：medium\n语气护栏：克制",
+        "estimatedTokens": 25,
+        "allowSummary": true
+      },
+      {
+        "id": "chapter_target",
+        "group": "chapter_target",
+        "priority": 100,
+        "required": true,
+        "content": "章节目标草稿：交出钥匙并约定返回\n章节目标字数：2400 字\n任务单：交出钥匙\n状态驱动决策：recommended_next_action=write_chapter\npending_state_review=0\nopen_audit_issues=0\n默认结构职责建议：planRole=setup | phase=开篇铺垫\nmustAdvance=交出钥匙并约定返回\nmustPreserve=保持主角目标连续；不要跳过关键因果",
+        "estimatedTokens": 55,
+        "allowSummary": true
+      },
+      {
+        "reuseScope": "book",
+        "id": "book_bible",
+        "group": "book_bible",
+        "priority": 92,
+        "required": false,
+        "content": "作品圣经：钥匙只能交出一次",
+        "estimatedTokens": 4,
+        "allowSummary": true
+      },
+      {
+        "id": "style_engine",
+        "group": "style_engine",
+        "priority": 91,
+        "required": false,
+        "content": "写法引擎约束：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "current_volume_window",
+        "group": "current_volume_window",
+        "priority": 97,
+        "required": false,
+        "content": "当前卷窗口：当前尚未建立卷级窗口，请先确认卷工作台。",
+        "estimatedTokens": 7,
+        "allowSummary": true
+      },
+      {
+        "id": "story_macro",
+        "group": "story_macro",
+        "priority": 96,
+        "required": false,
+        "content": "故事宏观约束：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "payoff_ledger",
+        "group": "payoff_ledger",
+        "priority": 95,
+        "required": false,
+        "content": "伏笔账本：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "volume_summary",
+        "group": "volume_summary",
+        "priority": 95,
+        "required": false,
+        "content": "卷级工作台摘要：无",
+        "estimatedTokens": 3,
+        "freshness": 0,
+        "allowSummary": true
+      },
+      {
+        "id": "legacy_outline_source",
+        "group": "legacy_outline_source",
+        "priority": 58,
+        "required": false,
+        "content": "兼容性旧主线大纲（仅作迁移参考）：送还钥匙\n兼容性旧结构化大纲（仅作迁移参考）：无",
+        "estimatedTokens": 11,
+        "allowSummary": true
+      },
+      {
+        "id": "book_plan",
+        "group": "book_plan",
+        "priority": 88,
+        "required": false,
+        "content": "全书规划：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "arc_plans",
+        "group": "arc_plans",
+        "priority": 82,
+        "required": false,
+        "content": "阶段规划：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "character_digest",
+        "group": "character_digest",
+        "priority": 80,
+        "required": false,
+        "content": "角色：hero|阿青|主角|goal=送还钥匙|state=城门前",
+        "estimatedTokens": 9,
+        "allowSummary": true
+      },
+      {
+        "id": "recent_summaries",
+        "group": "recent_summaries",
+        "priority": 72,
+        "required": false,
+        "content": "最近章节摘要：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "plot_beats",
+        "group": "plot_beats",
+        "priority": 68,
+        "required": false,
+        "content": "剧情拍点：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "state_driven_goal",
+        "group": "state_driven_goal",
+        "priority": 98,
+        "required": true,
+        "content": "状态驱动目标：章节状态目标：无\n应推进冲突：无\n应推进关系：无\n应触碰 payoff：无\n禁止提前泄露：真实身份\n最近关键事件：无",
+        "estimatedTokens": 17,
+        "allowSummary": true
+      },
+      {
+        "id": "state_snapshot",
+        "group": "state_snapshot",
+        "priority": 98,
+        "required": true,
+        "content": "输入状态快照：State snapshot summary: 交出钥匙\n\nKnowledge:\n- reader:钥匙尚未归还\n\nSuspense:\n- 何时返回(tracked)",
+        "estimatedTokens": 22,
+        "allowSummary": true
+      },
+      {
+        "id": "open_audit_issues",
+        "group": "open_audit_issues",
+        "priority": 86,
+        "required": false,
+        "content": "最近未解决审计问题：无",
+        "estimatedTokens": 3,
+        "allowSummary": true
+      },
+      {
+        "id": "recent_decisions",
+        "group": "recent_decisions",
+        "priority": 64,
+        "required": false,
+        "content": "最近创作决策：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "character_dynamics_summary",
+        "group": "character_dynamics",
+        "priority": 89,
+        "required": false,
+        "content": "动态角色系统总览：无",
+        "estimatedTokens": 3,
+        "allowSummary": true
+      },
+      {
+        "id": "character_volume_assignments",
+        "group": "character_dynamics",
+        "priority": 88,
+        "required": false,
+        "content": "当前卷角色职责与缺席风险：无",
+        "estimatedTokens": 4,
+        "allowSummary": true
+      },
+      {
+        "id": "character_relation_stages",
+        "group": "character_dynamics",
+        "priority": 87,
+        "required": false,
+        "content": "当前关系阶段：无",
+        "estimatedTokens": 2,
+        "allowSummary": true
+      },
+      {
+        "id": "character_candidate_guards",
+        "group": "character_dynamics",
+        "priority": 85,
+        "required": false,
+        "content": "待确认候选角色保护：无",
+        "estimatedTokens": 3,
+        "allowSummary": true
+      },
+      {
+        "id": "replan_context",
+        "group": "replan_context",
+        "priority": 84,
+        "required": false,
+        "content": "重规划输入：无\n重规划紧张度锚定：无",
+        "estimatedTokens": 5,
+        "allowSummary": true
+      }
+    ],
+    "options": {
+      "novelId": "novel-1",
+      "chapterId": "chapter-1",
+      "provider": "openai",
+      "model": "fixture-model",
+      "temperature": 0.3
+    }
+  },
+  "persist": {
+    "novelId": "novel-1",
+    "chapterId": "chapter-1",
+    "sourceStateSnapshotId": null,
+    "level": "chapter",
+    "title": "城门交接",
+    "objective": "完成钥匙交接",
+    "targetWordCount": 2400,
+    "participants": [
+      "阿青"
+    ],
+    "reveals": [
+      "守卫认识钥匙"
+    ],
+    "riskNotes": [
+      "保留身份秘密",
+      "禁止提前泄露：真实身份"
+    ],
+    "hookTarget": "何时返回",
+    "baseExecutionContract": {
+      "expectation": "交出钥匙并约定返回",
+      "targetWordCount": 2400,
+      "conflictLevel": 3,
+      "revealLevel": 2,
+      "mustAvoid": "不提前揭晓身份",
+      "taskSheet": "交出钥匙",
+      "sceneCards": null,
+      "hook": "返回前的疑问"
+    },
+    "scenes": [
+      {
+        "title": "抵达",
+        "objective": "出示钥匙",
+        "conflict": "守卫盘问",
+        "reveal": "守卫认出钥匙",
+        "emotionBeat": "紧张"
+      },
+      {
+        "title": "交接",
+        "objective": "交出钥匙",
+        "conflict": "要求承诺",
+        "reveal": "约定返回",
+        "emotionBeat": "克制"
+      },
+      {
+        "title": "离开",
+        "objective": "留下约定",
+        "conflict": "不说明身份",
+        "reveal": "守卫等待",
+        "emotionBeat": "悬疑"
+      }
+    ],
+    "planRole": "progress",
+    "phaseLabel": "开篇",
+    "mustAdvance": [
+      "交出钥匙"
+    ],
+    "mustPreserve": [
+      "身份保密"
+    ],
+    "sourceIssueIds": [],
+    "replannedFromPlanId": null
+  }
+}

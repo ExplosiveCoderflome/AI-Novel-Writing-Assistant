@@ -64,6 +64,8 @@ function estimateJsonBytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), "utf8");
 }
 
+import {protectRagRead, ragReadOnlyExecution, RagIndexUnavailableError} from "./execution";
+
 export class VectorStoreService {
   private ensuredDimension = 0;
   private readonly upsertWrapperBytes = estimateJsonBytes({ points: [] });
@@ -234,6 +236,7 @@ export class VectorStoreService {
   }
 
   async ensureCollection(dimension: number): Promise<void> {
+    if (ragReadOnlyExecution()) return this.assertReadOnlyCollection(dimension);
     if (dimension <= 0) {
       throw new Error("向量维度无效。");
     }
@@ -285,6 +288,23 @@ export class VectorStoreService {
     // 已有集合也确保 payload index 存在（幂等操作）
     await this.ensurePayloadIndexes();
     this.ensuredDimension = dimension;
+  }
+
+  /** Generation validates an existing index; explicit indexing remains responsible for creating it. */
+  async assertReadOnlyCollection(dimension?: number): Promise<void> {
+    return protectRagRead(async () => {
+      try {
+      const response = await this.fetchWithTimeout(toCollectionUrl(""), {headers: buildHeaders()});
+      if (!response.ok) throw new RagIndexUnavailableError();
+      const value = await response.json() as {result?: {config?: {params?: {vectors?: {size?: number}}};
+        payload_schema?: Record<string, {data_type?: string}>}};
+      const actual = value.result?.config?.params?.vectors?.size;
+      if (!Number.isSafeInteger(actual) || actual! < 1 || dimension !== undefined && dimension !== actual
+        || this.PAYLOAD_INDEX_FIELDS.some(field => value.result?.payload_schema?.[field]?.data_type !== "keyword")) {
+        throw new RagIndexUnavailableError();
+      }
+      } catch (error) {throw error instanceof RagIndexUnavailableError ? error : new RagIndexUnavailableError(error);}
+    });
   }
 
   async upsertPoints(points: QdrantPoint[]): Promise<void> {

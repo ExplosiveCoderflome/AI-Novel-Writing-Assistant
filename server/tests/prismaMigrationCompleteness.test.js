@@ -129,3 +129,32 @@ test("visual asset schema repair migrations exist for SQLite and PostgreSQL", ()
     );
   }
 });
+
+test('the kernel migration preserves historical prose and refuses ambiguous existing objects',()=>{
+ const migration='20261022151000_production_unit_run';
+ const sql=fs.readFileSync(path.join(sqliteMigrationsDir,migration,'migration.sql'),'utf8');
+ assert.equal(fs.existsSync(path.join(postgresMigrationsDir,migration,'migration.sql')),true);
+ for(const scenario of ['historical','existing','missing-index','partial']){
+  const db=new Database(':memory:');
+  try{
+   db.pragma('foreign_keys = ON');
+   db.exec('CREATE TABLE "Novel" ("id" TEXT PRIMARY KEY); CREATE TABLE "Chapter" ("id" TEXT PRIMARY KEY,"novelId" TEXT,"content" TEXT)');
+   db.prepare('INSERT INTO "Novel" VALUES (?)').run('book');
+   db.prepare('INSERT INTO "Chapter" VALUES (?,?,?)').run('chapter','book','历史合成正文必须保留');
+   const before=db.prepare('SELECT * FROM "Chapter"').all();
+   if(scenario==='partial')db.exec('CREATE TABLE "ProductionUnitRun" ("id" TEXT PRIMARY KEY)');
+   else db.exec(sql);
+   if(scenario==='historical'){
+    assert.equal(indexExists(db,'ProductionUnitRun_ownerKey_chapterId_key'),true);
+    assert.equal(indexExists(db,'ProductionUnitRun_novelId_chapterId_idx'),true);
+    assert.equal(db.pragma('foreign_key_list("ProductionUnitRun")').length,2);
+   }else{
+    if(scenario==='missing-index')db.exec('DROP INDEX "ProductionUnitRun_ownerKey_chapterId_key"');
+    assert.throws(()=>db.exec(sql),/already exists/,'deployment must stop for manual baseline/structure reconciliation');
+    if(scenario==='missing-index')assert.equal(indexExists(db,'ProductionUnitRun_ownerKey_chapterId_key'),false);
+   }
+   assert.deepEqual(db.prepare('SELECT * FROM "Chapter"').all(),before);
+   assert.equal(db.pragma('integrity_check',{simple:true}),'ok');assert.deepEqual(db.pragma('foreign_key_check'),[]);
+  }finally{db.close();}
+ }
+});

@@ -79,10 +79,16 @@ test("the director module only imports files inside itself", () => {
           && chapterBudgetContractConsumers.has(relative.replace(/\\/g, "/"));
         const allowedWorkerContract = specifier === "@ai-novel/shared/types/director/worker"
           && relative.replace(/\\/g, "/") === "domain/projection.ts";
+        // Read-only transport facts carry no services, storage or policy into the application.
+        const allowedRuntimeStatusContract = specifier === "@ai-novel/shared/types/director/runtimeStatus"
+          && relative.replace(/\\/g, "/") === "application/diagnostics/runStatus.ts";
+        if (allowedRuntimeStatusContract) {
+          assert.match(source, /import\s+type\s*\{DirectorRuntimeStatus\}\s*from/);
+        }
         if (allowedChapterBudgetContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorChapterBudgetView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/chapterBudget["']/);
         }
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedWorkerContract) {
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedWorkerContract && !allowedRuntimeStatusContract) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;

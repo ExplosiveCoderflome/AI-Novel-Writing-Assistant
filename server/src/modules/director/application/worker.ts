@@ -102,7 +102,7 @@ export class DirectorWorker {
               }
             }
             session.signal.throwIfAborted();
-            await this.deps.executor.runOnce(runId);
+            await this.deps.executor.runOnce(runId, {leaseOwner: owner});
             session.signal.throwIfAborted();
           });
         } catch (error) {

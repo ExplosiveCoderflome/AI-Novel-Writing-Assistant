@@ -1,5 +1,5 @@
 import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
-import {attachExecutionSignal} from "../platform/llm/execution";
+import {attachExecutionSignal,assertLlmExecutionConfiguration,attachLlmExecutionPolicy,resolveScopedTaskOutputTokens} from "../platform/llm/execution";
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { ChatOpenAI } from "@langchain/openai";
@@ -316,7 +316,7 @@ export async function resolveLLMClientOptions(
       && structuredProfile.supportsReasoningToggle,
   );
   const reasoningEnabled = shouldForceDisableReasoning ? false : requestedReasoningEnabled;
-  let effectiveMaxTokens = resolvedMaxTokens;
+  let effectiveMaxTokens = resolveScopedTaskOutputTokens(resolvedProvider, model, resolvedModelRoute ?? options.taskType, resolvedMaxTokens);
   if (structuredProfile && usesNativeStructured && structuredProfile.omitMaxTokensForNativeStructured) {
     effectiveMaxTokens = undefined;
   } else if (
@@ -388,6 +388,7 @@ export function buildOpenAICompatibleDefaultHeaders(
 }
 
 export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions): ChatOpenAI {
+  assertLlmExecutionConfiguration(resolved);
   const llm = resolved.requestProtocol === "anthropic"
     ? createAnthropicLLM({
       apiKey: resolved.apiKey,
@@ -434,7 +435,7 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     requestIntervalMs: resolved.requestIntervalMs,
   });
   (limited as ChatOpenAIWithResolvedOptions)[RESOLVED_LLM_OPTIONS] = resolved;
-  return attachExecutionSignal(limited);
+  return attachLlmExecutionPolicy(attachExecutionSignal(limited),resolved);
 }
 
 export async function getLLM(provider?: LLMProvider, options: LLMOptions = {}): Promise<ChatOpenAI> {

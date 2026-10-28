@@ -10,6 +10,7 @@ import {
 } from "../../llm/providers";
 import { normalizeRagText } from "./utils";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
+import {ragConfigurationKey, scopedRagFetch, type RagTargetDescription} from "./execution";
 
 interface EmbeddingResult {
   vectors: number[][];
@@ -173,17 +174,15 @@ export class EmbeddingService {
   private async requestEmbeddingBatch(texts: string[], target: EmbeddingRuntimeTarget): Promise<number[][]> {
     for (let attempt = 0; attempt <= ragConfig.embeddingMaxRetries; attempt += 1) {
       try {
-        const response = await this.fetchWithTimeout(`${target.baseUrl}/embeddings`, {
+        const input = {model: target.model, input: texts};
+        const response = await scopedRagFetch({...this.describeResolvedTarget(target), input, attempt}, () => this.fetchWithTimeout(`${target.baseUrl}/embeddings`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(target.apiKey ? { Authorization: `Bearer ${target.apiKey}` } : {}),
           },
-          body: JSON.stringify({
-            model: target.model,
-            input: texts,
-          }),
-        });
+          body: JSON.stringify(input),
+        }));
 
         if (!response.ok) {
           const errorText = truncateErrorText(await response.text());
@@ -269,6 +268,20 @@ export class EmbeddingService {
       model: target.model,
       provider: target.provider,
     };
+  }
+
+  private describeResolvedTarget(target: Omit<EmbeddingRuntimeTarget, "apiKey">): RagTargetDescription {
+    return {kind: "embedding", provider: target.provider, model: target.model,
+      configurationKey: ragConfigurationKey({provider: target.provider, model: target.model,
+        endpoint: ragConfigurationKey(target.baseUrl), timeoutMs: ragConfig.embeddingTimeoutMs,
+        retries: ragConfig.embeddingMaxRetries, retryBaseMs: ragConfig.embeddingRetryBaseMs})};
+  }
+
+  /** Reads metadata only. Credentials are resolved exclusively by embedTexts at execution time. */
+  async describeTarget(): Promise<RagTargetDescription> {
+    const settings = await this.resolveRuntimeSettings();
+    return this.describeResolvedTarget({provider: settings.provider, model: this.resolveModel(settings.provider, settings.model),
+      baseUrl: await this.resolveBaseUrl(settings.provider)});
   }
 
   async healthCheck(): Promise<{ ok: boolean; provider: string; model: string; detail?: string }> {

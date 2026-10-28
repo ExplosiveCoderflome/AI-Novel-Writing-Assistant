@@ -1,0 +1,112 @@
+{
+  "progress": {
+    "unit": {
+      "novelId": "book",
+      "chapterId": "chapter",
+      "order": 1
+    },
+    "completed": [
+      "prepare",
+      "draft",
+      "accept"
+    ],
+    "repairAttemptsUsed": 0,
+    "original": {
+      "contentHash": "original",
+      "verdict": {
+        "contentHash": "original",
+        "gateAvailable": true,
+        "issues": [
+          {
+            "code": "continuity",
+            "severity": "high",
+            "patchable": true
+          }
+        ],
+        "missingObligations": [],
+        "replan": "none"
+      }
+    }
+  },
+  "results": [
+    {
+      "stage": "repair",
+      "outcome": "candidate",
+      "contentHash": "candidate"
+    },
+    {
+      "stage": "verify",
+      "verdict": {
+        "contentHash": "candidate",
+        "gateAvailable": true,
+        "issues": [
+          {
+            "code": "new",
+            "severity": "critical",
+            "patchable": true
+          }
+        ],
+        "missingObligations": [],
+        "replan": "none",
+        "factPreservation": "preserved"
+      }
+    },
+    {
+      "stage": "select",
+      "selection": {
+        "selected": "original",
+        "contentHash": "original",
+        "reasonCode": "original_retained_new_severe_issue"
+      }
+    },
+    {
+      "stage": "commit",
+      "contentHash": "original"
+    },
+    {
+      "stage": "reconcile",
+      "status": "degraded"
+    }
+  ],
+  "expected": [
+    {
+      "kind": "run_stage",
+      "stage": "repair"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "verify"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "select"
+    },
+    {
+      "kind": "record_debt",
+      "debts": [
+        {
+          "code": "continuity",
+          "severity": "high",
+          "source": "accept",
+          "issue": {
+            "code": "continuity",
+            "severity": "high",
+            "patchable": true
+          }
+        }
+      ],
+      "then": "commit"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "commit"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "reconcile"
+    },
+    {
+      "kind": "done"
+    }
+  ]
+}

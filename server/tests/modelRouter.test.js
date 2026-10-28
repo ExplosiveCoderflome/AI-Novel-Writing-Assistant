@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
 const { resolveModel } = require("../dist/llm/modelRouter.js");
 
-test("resolveModel clamps DeepSeek route maxTokens to the provider limit", async () => {
+test("resolveModel preserves the user configured output allowance instead of a provider default ceiling", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => ({
@@ -21,13 +21,13 @@ test("resolveModel clamps DeepSeek route maxTokens to the provider limit", async
     assert.equal(resolved.provider, "deepseek");
     assert.equal(resolved.model, "deepseek-chat");
     assert.equal(resolved.temperature, 0.3);
-    assert.equal(resolved.maxTokens, 8192);
+    assert.equal(resolved.maxTokens, 32768);
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
 });
 
-test("resolveModel clamps explicit DeepSeek overrides as well", async () => {
+test("resolveModel honors an explicit per-request output allowance", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => null;
@@ -40,13 +40,13 @@ test("resolveModel clamps explicit DeepSeek overrides as well", async () => {
     });
     assert.equal(resolved.provider, "deepseek");
     assert.equal(resolved.model, "deepseek-chat");
-    assert.equal(resolved.maxTokens, 8192);
+    assert.equal(resolved.maxTokens, 12000);
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
 });
 
-test("resolveModel treats legacy 4096 maxTokens as unset", async () => {
+test("resolveModel treats a saved 4096 value as the user's chosen allowance", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => ({
@@ -64,10 +64,22 @@ test("resolveModel treats legacy 4096 maxTokens as unset", async () => {
     assert.equal(resolved.provider, "deepseek");
     assert.equal(resolved.model, "deepseek-chat");
     assert.equal(resolved.temperature, 0.3);
-    assert.equal(resolved.maxTokens, undefined);
+    assert.equal(resolved.maxTokens, 4096);
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }
+});
+
+test('empty output allowance has an editable 8192 default in execution and settings without writing',async()=>{
+ const router=require('../dist/llm/modelRouter.js');
+ const original={one:prisma.modelRouteConfig.findUnique,many:prisma.modelRouteConfig.findMany};
+ const row={taskType:'writer',provider:'deepseek',model:'deepseek-flash',temperature:.7,maxTokens:null};
+ prisma.modelRouteConfig.findUnique=async()=>row;prisma.modelRouteConfig.findMany=async()=>[row];
+ try{
+  assert.equal((await resolveModel('writer')).maxTokens,8192);
+  assert.equal((await router.listModelRouteConfigs())[0].maxTokens,8192);
+  prisma.modelRouteConfig.findUnique=async()=>null;assert.equal((await resolveModel('writer')).maxTokens,8192);
+ }finally{prisma.modelRouteConfig.findUnique=original.one;prisma.modelRouteConfig.findMany=original.many;}
 });
 
 test("resolveModel preserves route protocol and structured response format preferences", async () => {

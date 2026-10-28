@@ -14,6 +14,8 @@ export const LLM_PROVIDERS = [
 
 export type BuiltinLLMProvider = typeof LLM_PROVIDERS[number];
 export type LLMProvider = BuiltinLLMProvider | (string & {});
+/** Initial per-request output allowance. Saved task settings and explicit request values take precedence. */
+export const DEFAULT_MODEL_OUTPUT_TOKENS = 8192;
 
 export const REASONING_EFFORTS = ["low", "high", "max"] as const;
 export type ReasoningEffort = typeof REASONING_EFFORTS[number];

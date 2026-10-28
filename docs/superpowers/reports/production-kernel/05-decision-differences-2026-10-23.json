@@ -1,0 +1,321 @@
+{
+  "observedAt": "2026-10-23T04:09:14.688Z",
+  "timezone": "Asia/Shanghai",
+  "approval": "2026-10-23 用户已确认下列四项差异，批准继续默认关闭开关下的接线与验证。",
+  "compatibilityRestorations": {
+    "evidence": "server/tests/production/application/stageAdapters.test.js",
+    "existingProse": "保留原文并进入审校，writer 调用为 0。",
+    "emptyDraft": "writer 调用为 1，失败后不额外重试。",
+    "scope": "独立阶段回归，不列作十组同夹具对照中的额外样本。"
+  },
+  "sources": [
+    {
+      "file": "server/src/services/novel/runtime/chapterRuntimePipeline.ts",
+      "sha256": "4acd40b6a8b96fa45d4a925913cd4f742b2e815feb63f3752a4a8d3b358447df"
+    },
+    {
+      "file": "server/src/services/novel/runtime/selection/ChapterRepairCandidateSelection.ts",
+      "sha256": "34e601f5dd16c50ebd68bb62adcc9693bf93d470bae196ef6a02cfcb774fea6b"
+    },
+    {
+      "file": "server/src/modules/production/domain/decideNext.ts",
+      "sha256": "421e324bb0b6f4d3a91eb33fa0ed16bd54a38f24301f3629ff359f0127cf7df3"
+    },
+    {
+      "file": "server/src/modules/production/infrastructure/stages/acceptanceProjection.ts",
+      "sha256": "08a07e46af77090d3d3e715764d9dcc277edb62ec54a22dee5f16e3897370a5e"
+    },
+    {
+      "file": "server/src/modules/production/application/unitExecutor.ts",
+      "sha256": "f829da34c5dc7e1179fed9aa035aff59310aff73f0377988cdc83e0bbe458e17"
+    },
+    {
+      "file": "server/src/modules/production/infrastructure/stages/draft.ts",
+      "sha256": "a63cfa36c9e7aa15512d642183402b542e0bb6ca5c45fddd58fc7e249e0a9515"
+    },
+    {
+      "file": "server/tests/production/application/stageAdapters.test.js",
+      "sha256": "e9d2974f7b0386f32a34bc56b9574963f31fee16e6a0dfb2a25ddffe891092fc"
+    },
+    {
+      "file": "server/tests/production/compatibility/fixtures.cjs",
+      "sha256": "91d2ac884b4d23b4c0ccc2228e0b30a0726dbf088a1dd4eaef5473d2c7bbad02"
+    },
+    {
+      "file": "server/tests/production/compatibility/compare.cjs",
+      "sha256": "4259bc63f7c6b5825f0f928c9015237fc193b804107571eb69b3e7748fb8b60c"
+    },
+    {
+      "file": "server/tests/novelProduction/sourceHarness.cjs",
+      "sha256": "c18783ffa21f4fee5b711f12615d52b18298aa5bbc9cca88a924bd5be87d7b20"
+    }
+  ],
+  "results": [
+    {
+      "id": "accepted",
+      "title": "结构化审校通过",
+      "old": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": true
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_accepted"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "score_only",
+      "title": "仅旧总分未达阈值，无结构化问题",
+      "old": {
+        "selected": "candidate",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 2,
+        "commits": 1,
+        "pass": true
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_accepted"
+      },
+      "differences": [
+        "selected",
+        "repairs",
+        "reviews",
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "facts_preserved",
+      "title": "修复消除问题且事实保留",
+      "old": {
+        "selected": "candidate",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 2,
+        "commits": 1,
+        "pass": true
+      },
+      "kernel": {
+        "selected": "candidate",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "candidate_improved"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "facts_unknown",
+      "title": "候选消除问题但未核对事实",
+      "old": {
+        "selected": "candidate",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 2,
+        "commits": 1,
+        "pass": true
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained_unverified_review"
+      },
+      "differences": [
+        "selected",
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "facts_changed",
+      "title": "候选消除问题但改变事实",
+      "old": {
+        "selected": "candidate",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 2,
+        "commits": 1,
+        "pass": true
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained_unverified_review"
+      },
+      "differences": [
+        "selected",
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "new_severe",
+      "title": "候选新增严重问题",
+      "old": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": false
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained_new_severe_issue"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "new_obligation",
+      "title": "同类义务更换为另一项",
+      "old": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": false
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 1,
+        "reviews": 2,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained_obligation_regression"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "partial_review",
+      "title": "表达检查不可用",
+      "old": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": false
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "zero_allowance",
+      "title": "修复额度为零",
+      "old": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": false
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "completed",
+        "reason": "original_retained"
+      },
+      "differences": [
+        "earlyWrites"
+      ]
+    },
+    {
+      "id": "quality_pause",
+      "title": "质量优先保存后人工暂停",
+      "old": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": true,
+        "earlyWrites": 1,
+        "commits": 1,
+        "pass": false
+      },
+      "kernel": {
+        "selected": "original",
+        "repairs": 0,
+        "reviews": 1,
+        "synced": false,
+        "earlyWrites": 0,
+        "commits": 1,
+        "status": "paused",
+        "reason": "original_retained"
+      },
+      "differences": [
+        "synced",
+        "earlyWrites"
+      ]
+    }
+  ]
+}

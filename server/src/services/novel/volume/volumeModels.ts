@@ -18,6 +18,8 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import type { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import type { ChapterTaskSheetSemanticAssessor } from "./ChapterTaskSheetQualityGateService";
 
 export type ChapterDetailMode = "purpose" | "boundary" | "task_sheet";
 export type VolumeGenerationPhase = "load_context" | "prompt";
@@ -78,6 +80,11 @@ export interface VolumeGenerationNovel {
 }
 
 export interface VolumeGenerateOptions {
+  /** Chapter-detail callers can own request accounting and persistence without replacing planning rules. */
+  chapterContractPorts?: {
+    invokePrompt?: typeof runStructuredPrompt;
+    semanticAssessor?: ChapterTaskSheetSemanticAssessor;
+  };
   /** Explicit author revision; automatic recovery can still reuse saved contracts. */
   forceRegenerate?: boolean;
   onChapterTaskSheetQuality?: (event: {

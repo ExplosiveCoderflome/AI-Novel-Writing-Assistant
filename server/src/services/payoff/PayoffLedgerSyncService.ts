@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {payoffLedgerReadOnly} from "./readScope";
 import type { AuditReport, OpenConflict, PayoffLedgerResponse } from "@ai-novel/shared/types/novel";
 import type { PayoffLedgerItem } from "@ai-novel/shared/types/payoffLedger";
 import { prisma } from "../../db/prisma";
@@ -356,7 +357,7 @@ export class PayoffLedgerSyncService {
 
   async getPayoffLedger(novelId: string, options: PayoffLedgerReadOptions = {}): Promise<PayoffLedgerResponse> {
     let rows = await this.loadLedgerRows(novelId);
-    if (rows.length === 0 && options.syncIfMissing !== false) {
+    if (rows.length === 0 && options.syncIfMissing !== false && !payoffLedgerReadOnly()) {
       try {
         const synced = await this.syncLedger(novelId, options);
         return synced;

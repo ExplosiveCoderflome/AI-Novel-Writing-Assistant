@@ -1,11 +1,11 @@
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import {DEFAULT_MODEL_OUTPUT_TOKENS, type LLMProvider} from "@ai-novel/shared/types/llm";
 import type {
   ModelRouteRequestProtocol,
   ModelRouteStructuredResponseFormat,
   ModelRouteTaskType,
 } from "@ai-novel/shared/types/novel";
 import { prisma } from "../db/prisma";
-import { isBuiltInProvider, PROVIDERS } from "./providers";
+import { PROVIDERS } from "./providers";
 import type { StructuredOutputStrategy } from "./structuredOutput";
 
 export type TaskType =
@@ -153,21 +153,13 @@ function normalizeProviderId(value: string | null | undefined): LLMProvider {
   return trimmed || "deepseek";
 }
 
-function normalizeMaxTokens(provider: LLMProvider, maxTokens?: number): number | undefined {
+function normalizeMaxTokens(maxTokens?: number): number | undefined {
   if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
     return undefined;
   }
   const normalized = Math.floor(maxTokens);
-  if (normalized < 1) {
+  if (!Number.isSafeInteger(normalized) || normalized < 1) {
     return undefined;
-  }
-  // Historical UI defaults persisted 4096 as a placeholder for "use provider defaults".
-  if (normalized === 4096) {
-    return undefined;
-  }
-  const providerLimit = isBuiltInProvider(provider) ? PROVIDERS[provider].maxTokens : undefined;
-  if (typeof providerLimit === "number") {
-    return Math.min(normalized, providerLimit);
   }
   return normalized;
 }
@@ -238,7 +230,7 @@ function applyOverrides(
   return {
     ...merged,
     ...routePreferences,
-    maxTokens: normalizeMaxTokens(merged.provider, merged.maxTokens),
+    maxTokens: normalizeMaxTokens(merged.maxTokens) ?? DEFAULT_MODEL_OUTPUT_TOKENS,
     routeKey: merged.routeKey,
     routeDegraded: merged.routeDegraded,
   };
@@ -286,7 +278,7 @@ export async function resolveModel(
         provider,
         model: row.model,
         temperature: row.temperature,
-        maxTokens: normalizeMaxTokens(provider, row.maxTokens ?? undefined),
+        maxTokens: normalizeMaxTokens(row.maxTokens ?? undefined),
         ...routePreferences,
         routeKey: normalizedTaskType,
         routeDegraded: false,
@@ -329,7 +321,7 @@ export async function listModelRouteConfigs(): Promise<Array<{
         taskType: r.taskType,
         model: r.model,
         temperature: r.temperature,
-        maxTokens: normalizeMaxTokens(provider, r.maxTokens ?? undefined) ?? null,
+        maxTokens: normalizeMaxTokens(r.maxTokens ?? undefined) ?? DEFAULT_MODEL_OUTPUT_TOKENS,
         ...routePreferences,
       };
     });
@@ -351,7 +343,7 @@ export async function upsertModelRouteConfig(
 ): Promise<void> {
   const normalizedTaskType = normalizeTaskType(taskType as TaskType);
   const provider = normalizeProviderId(data.provider);
-  const normalizedMaxTokens = normalizeMaxTokens(provider, data.maxTokens ?? undefined) ?? null;
+  const normalizedMaxTokens = normalizeMaxTokens(data.maxTokens ?? undefined) ?? null;
   const {
     requestProtocol,
     structuredResponseFormat,

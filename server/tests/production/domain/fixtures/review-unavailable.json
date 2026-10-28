@@ -1,0 +1,65 @@
+{
+  "progress": {
+    "unit": {
+      "novelId": "book",
+      "chapterId": "chapter",
+      "order": 1
+    },
+    "completed": [
+      "prepare",
+      "draft",
+      "accept"
+    ],
+    "repairAttemptsUsed": 0,
+    "original": {
+      "contentHash": "original",
+      "verdict": {
+        "contentHash": "original",
+        "gateAvailable": false,
+        "issues": [],
+        "missingObligations": [],
+        "replan": "none"
+      }
+    }
+  },
+  "results": [
+    {
+      "stage": "commit",
+      "contentHash": "original"
+    },
+    {
+      "stage": "reconcile",
+      "status": "degraded"
+    }
+  ],
+  "expected": [
+    {
+      "kind": "select_final",
+      "selected": "original",
+      "contentHash": "original",
+      "reasonCode": "original_retained"
+    },
+    {
+      "kind": "record_debt",
+      "debts": [
+        {
+          "code": "review_unavailable",
+          "severity": "medium",
+          "source": "accept"
+        }
+      ],
+      "then": "commit"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "commit"
+    },
+    {
+      "kind": "run_stage",
+      "stage": "reconcile"
+    },
+    {
+      "kind": "done"
+    }
+  ]
+}

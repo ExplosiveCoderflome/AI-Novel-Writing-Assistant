@@ -1,5 +1,6 @@
 import { ragConfig } from "../../config/rag";
 import type { RetrievedChunk } from "./types";
+import {ragConfigurationKey, scopedRagFetch, type RagTargetDescription} from "./execution";
 
 export interface RagRerankerDocument {
   id: string;
@@ -91,6 +92,11 @@ export function resolveRerankerCandidateLimit(finalTopK: number, override?: numb
 }
 
 export class RagRerankerService {
+  describeTarget(): RagTargetDescription {
+    return {kind: "reranker", provider: "rag-reranker", model: ragConfig.rerankerModel,
+      configurationKey: ragConfigurationKey({endpoint: ragConfigurationKey(ragConfig.rerankerEndpoint),
+        timeoutMs: ragConfig.rerankerTimeoutMs, model: ragConfig.rerankerModel})};
+  }
   async rerank(input: RagRerankerInput): Promise<RagRerankerOutput> {
     if (!ragConfig.rerankerEnabled || !ragConfig.rerankerEndpoint || input.documents.length === 0) {
       return { used: false, results: [] };
@@ -99,24 +105,15 @@ export class RagRerankerService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ragConfig.rerankerTimeoutMs);
     try {
-      const response = await fetch(ragConfig.rerankerEndpoint, {
+      const inputBody = {query: input.query, documents: input.documents.map((document, index) => ({
+        id: document.id, index, text: document.text, title: document.title, ownerType: document.ownerType, ownerId: document.ownerId,
+      })), topK: input.topK, model: input.model ?? ragConfig.rerankerModel};
+      const response = await scopedRagFetch({...this.describeTarget(), model: inputBody.model, input: inputBody, attempt: 0}, () => fetch(ragConfig.rerankerEndpoint, {
         method: "POST",
         headers: buildHeaders(),
         signal: controller.signal,
-        body: JSON.stringify({
-          query: input.query,
-          documents: input.documents.map((document, index) => ({
-            id: document.id,
-            index,
-            text: document.text,
-            title: document.title,
-            ownerType: document.ownerType,
-            ownerId: document.ownerId,
-          })),
-          topK: input.topK,
-          model: input.model ?? ragConfig.rerankerModel,
-        }),
-      });
+        body: JSON.stringify(inputBody),
+      }));
       if (!response.ok) {
         const detail = await response.text().catch(() => "");
         return {

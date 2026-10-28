@@ -77,6 +77,7 @@ test('ledger reminders stay review context without becoming repair obligations o
   assert.deepEqual(repair.historicalIssues, ['medium/plot: 真实正文证据']);
   const ledgerBlock = buildChapterReviewContextBlocks(review).find(block => block.id === 'payoff_ledger');
   assert.ok(ledgerBlock.content.includes('未来承诺'));
-  assert.equal(ledgerBlock.required, true);
+  // Ledger windows are optional reminders; the chapter contract owns mandatory obligations.
+  assert.equal(ledgerBlock.required, false);
   assert.equal(ledgerBlock.allowSummary, false);
 });

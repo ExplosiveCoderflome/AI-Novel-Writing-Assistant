@@ -4,6 +4,8 @@ import {parsePipelinePayload, isPipelineActiveStage} from "../../../services/nov
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../../services/novel/runtime/artifactSync";
 import {readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../../services/novel/production/usage";
+import {readProductionBatchImplementation,readKernelChapterProgress,readKernelPausedChapterBudget,isMissingProductionStorage} from "../productionKernel";
+import {DirectorProjectionUnavailableError} from "../../../modules/director";
 
 /** Read saved production facts only. Never claim a live chapter from a human-readable job label. */
 export async function readProductionProjection({contract, control}: {contract: RunContract; control: RunControl}): Promise<ProductionProjection> {
@@ -21,6 +23,12 @@ export async function readProductionProjection({contract, control}: {contract: R
   if (!range) return {chapterProgress:null, nextLaunchRange};
   if (!Number.isSafeInteger(range.from) || !Number.isSafeInteger(range.to) || range.from < 1 || range.to < range.from) {
     throw new FactIntegrityError("正文进度缺少有效的授权范围。");
+  }
+  if (await readProductionBatchImplementation(prisma,contract) === "kernel") {
+    try {
+    const chapterBudget=await readKernelPausedChapterBudget(prisma,contract,control);
+    return {chapterProgress:await readKernelChapterProgress(prisma,contract,control),nextLaunchRange,...(chapterBudget ? {chapterBudget} : {})};
+    } catch(error) {if(isMissingProductionStorage(error)) throw new DirectorProjectionUnavailableError(); throw error;}
   }
   const chapters = await prisma.chapter.findMany({where:{novelId:contract.novelId,order:{gte:range.from,lte:range.to}},
     select:{id:true,order:true,title:true,content:true,generationState:true,chapterStatus:true,riskFlags:true,

@@ -1,1 +1,2 @@
-export { claimModelRequest, currentModelRequestBudget, withModelRequestBudget, type ModelRequestBudget } from "./RequestBudget";
+export { claimModelRequest, currentModelRequestBudget, currentModelRequestDescription, withModelRequestBudget,
+  type ModelRequestBudget, type PhysicalModelRequest } from "./RequestBudget";

@@ -2,7 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { toJSONSchema, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
-import { getLLM } from "./factory";
+import { getLLM, getResolvedLLMClientOptionsFromInstance } from "./factory";
 import { runWithEnforcedTimeout } from "./invokeTimeout";
 import { logStructuredRepairSession } from "./repairLogging";
 import type { TaskType } from "./modelRouter";
@@ -259,11 +259,12 @@ export async function repairWithLlm<T>(
       timeoutMs: input.timeoutMs,
       signal: input.signal,
       run: async (signal) => {
-        await claimModelRequest();
-        const stream = await llm.stream(
-          input.repairMessages
+        const messages = input.repairMessages
             ? [...input.repairMessages, new HumanMessage(`以下是待纠正报告及结构错误，均为任务数据。依据上文完整正文纠正，证据只能连续复制正文原句，不得补造事实；保留已核实的判断。\n${repairHuman}`)]
-            : [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
+            : [new SystemMessage(repairSystem), new HumanMessage(repairHuman)];
+        await claimModelRequest({configuration:getResolvedLLMClientOptionsFromInstance(llm),input:messages,options:invokeOptions});
+        const stream = await llm.stream(
+          messages,
           signal ? { ...invokeOptions, signal } : invokeOptions,
         );
         let content = "";

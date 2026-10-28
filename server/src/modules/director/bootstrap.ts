@@ -77,6 +77,7 @@ export interface DirectorNextServiceOptions {
     beforeRetry?: (contract: RunContract, tx: Parameters<RunOpenBoundary>[1]) => Promise<void>;
   };
   plan?: PlanDefinition;
+  additionalPlans?: readonly PlanDefinition[];
   stepRegistry?: StepRegistry;
   contractFactory?: CommandServiceDeps["contractFactory"];
   prepareOpen?: CommandServiceDeps["prepareOpen"];
@@ -99,7 +100,8 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
     beforeRetry: options.executionBoundary?.beforeRetry});
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
-  const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan : planRegistry.get(version)};
+  const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan
+    : options.additionalPlans?.find(plan => plan.version === version) ?? planRegistry.get(version)};
   const projectionService = new ProjectionService({ factsLoader, planRegistry: configuredPlans, artifactTypes: options.artifactTypes,
     resolveArtifactTypes: options.resolveArtifactTypes, readProductionProjection: options.readProductionProjection, sourceRoute: options.sourceRoute,
     readScheduling: id => runRepository.getSchedulingState(id), readWorkerHealth: () => worker.getHealth(), now: runtime.now });
@@ -121,9 +123,9 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const worker = new DirectorWorker({
     executionScope: withDirectorExecution,
     runRepository,
-    executor: options.executionBoundary ? {runOnce: async runId => {
+    executor: options.executionBoundary ? {runOnce: async (runId, execution) => {
       await options.executionBoundary!.assertRun(runId);
-      return executor.runOnce(runId);
+      return executor.runOnce(runId, execution);
     }} : executor,
     canExecute: options.executionBoundary?.canRun,
     runtime,

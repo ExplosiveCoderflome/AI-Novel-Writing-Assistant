@@ -276,7 +276,7 @@ async function invokeStructuredAttempt<T>(input: {
       timeoutMs: input.baseInput.timeoutMs,
       signal: input.baseInput.signal,
       run: async (signal) => {
-        await claimModelRequest();
+        await claimModelRequest({configuration:resolved,input:messages,options:invokeOptions});
         const stream = await llm.stream(
           messages,
           signal ? { ...invokeOptions, signal } : invokeOptions,

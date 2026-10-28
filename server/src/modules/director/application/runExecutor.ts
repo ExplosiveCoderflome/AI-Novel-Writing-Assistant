@@ -1,7 +1,7 @@
 import { checkAction, createPlanOrchestrator, type Action, type Orchestrator, type PlanDefinition } from "../domain";
 import type { RunRepository, ArtifactLedger, EventLog, QualityDebtRepository, PlanRegistry } from "./ports";
 import type { FactsLoader, LoadedRunFacts } from "./factsLoader";
-import { StepRegistry, type StepResult } from "./stepRegistry";
+import { StepRegistry, type StepContext, type StepResult } from "./stepRegistry";
 import { actionRejectionsSinceProgress, automaticRecoveryBudget, executionRecoveryFailures } from "./runtime";
 import {regenerationForStep} from "./revision/regeneration";
 
@@ -38,7 +38,7 @@ function eventTotal(events: Awaited<ReturnType<EventLog["list"]>>, type: string,
 export class RunExecutor {
   constructor(private readonly deps: RunExecutorDeps) {}
 
-  async runOnce(runId: string): Promise<RunExecutionResult> {
+  async runOnce(runId: string, execution?: StepContext["execution"]): Promise<RunExecutionResult> {
     const loaded = await this.deps.factsLoader.load(runId);
     if (loaded.control.status !== "running") return { kind: "idle" };
     const plan = this.deps.planRegistry.get(loaded.contract.planVersion);
@@ -66,7 +66,7 @@ export class RunExecutor {
         rejections,
       );
     }
-    return this.executeAction(runId, loaded, plan, action);
+    return this.executeAction(runId, loaded, plan, action, execution);
   }
 
   private async reject(
@@ -99,10 +99,11 @@ export class RunExecutor {
     loaded: LoadedRunFacts,
     plan: PlanDefinition,
     action: Action,
+    execution?: StepContext["execution"],
   ): Promise<RunExecutionResult> {
     switch (action.kind) {
       case "run_step":
-        return this.executeStep(runId, loaded, plan, action.stepId);
+        return this.executeStep(runId, loaded, plan, action.stepId, execution);
       case "record_debt":
         await this.deps.qualityDebtRepository.record({ runId, novelId: loaded.contract.novelId, ...action, action: "continue" });
         await this.deps.eventLog.append({ runId, type: "quality_debt_recorded", payload: action });
@@ -130,7 +131,8 @@ export class RunExecutor {
     }
   }
 
-  private async executeStep(runId: string, loaded: LoadedRunFacts, plan: PlanDefinition, stepId: string): Promise<RunExecutionResult> {
+  private async executeStep(runId: string, loaded: LoadedRunFacts, plan: PlanDefinition, stepId: string,
+    execution?: StepContext["execution"]): Promise<RunExecutionResult> {
     const step = plan.steps.find((candidate) => candidate.id === stepId);
     if (!step) throw new Error(`director step not found in plan: ${stepId}`);
     if (loaded.control.cursorStepId === stepId) {
@@ -152,6 +154,7 @@ export class RunExecutor {
     const started = await this.deps.runRepository.transition(runId, { type: "step_started", stepId }, loaded.control.version);
     const result = await this.deps.stepRegistry.get(stepId)({
       regeneration: regenerationForStep(await this.deps.eventLog.list(runId), loaded.contract.scope, step.produces, stepId),
+      execution,
       runId,
       contract: loaded.contract,
       control: started,
@@ -171,7 +174,7 @@ export class RunExecutor {
     await this.recordStepResult(runId, loaded, step.produces, result);
     await this.deps.eventLog.append({ runId, type: "step_finished", payload: { stepId, tokensUsed: result.tokensUsed ?? 0 } });
     await this.deps.runRepository.transition(runId, { type: "step_finished" }, started.version);
-    if (result.stopSignal) return this.runOnce(runId);
+    if (result.stopSignal) return this.runOnce(runId, execution);
     return { kind: "executed" };
   }
 

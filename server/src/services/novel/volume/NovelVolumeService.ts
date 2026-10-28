@@ -709,6 +709,11 @@ export class NovelVolumeService {
       taskStyleProfileId?: string;
     } = {},
   ) {
+    return this.createChapterExecutionContractService().ensureChapterExecutionContract(novelId, chapterId, options);
+  }
+
+  /** Exposes the same native contract dependencies to caller-owned preparation/commit ports. */
+  createChapterExecutionContractService(): ChapterExecutionContractService {
     return new ChapterExecutionContractService({
       storyMacroPlanService: this.storyMacroPlanService,
       styleBindingService: this.styleBindingService,
@@ -718,7 +723,7 @@ export class NovelVolumeService {
         this.ensureActiveVersionRecord(tx, targetNovelId, document, diffSummary)
       ),
       emitVolumeUpdated: (targetNovelId, reason) => this.emitVolumeUpdated(targetNovelId, reason),
-    }).ensureChapterExecutionContract(novelId, chapterId, options);
+    });
   }
 
   async migrateLegacyVolumes(novelId: string): Promise<VolumePlanDocument> {

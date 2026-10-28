@@ -298,3 +298,65 @@ test("record diagnostics cannot invent a missing identity or hide unrelated fail
     assert.equal(reads, expectedReads);
   }
 });
+
+test('runtime status reads saved control and failures without the broken production projection',async()=>{
+ const saved={contract:{runId:'run-1',novelId:'novel-1'},control:{status:'paused',version:8,
+  pause:{kind:'manual_recovery',reason:'execution_retry_budget_exhausted'}}};
+ const before=JSON.stringify(saved);let projections=0,writes=0;
+ await withServer(deps({projectionService:{get:async()=>{projections++;throw Error('production table missing');}},
+  commandService:{execute:async()=>{writes++;}},runRepository:{findActiveRunIdByNovel:async()=> 'run-1',
+   listRunIds:async()=>['run-1'],getContract:async()=>saved.contract,getControl:async()=>saved.control},
+  eventLog:{list:async()=>[{seq:4,type:'execution_failure',payload:{stepId:'chapter_batch',message:'模型缺少明确的上下文窗口配置。'},createdAt:new Date('2026-10-26T01:29:15Z')}]}}),async base=>{
+  const response=await fetch(base+'/api/director-next/novels/novel-1/runtime-status');
+  assert.equal(response.status,200);const data=(await response.json()).data;
+  assert.equal(data.runId,'run-1');assert.equal(data.status,'paused');assert.equal(data.controlVersion,8);
+  assert.equal(data.pause.kind,'manual_recovery');assert.equal(data.lastFailure.stepId,'chapter_batch');
+  assert.match(data.lastFailure.message,/上下文/);assert.equal(data.sourceRoute,'/lab/director/novel-1');
+  assert.equal(Object.hasOwn(data,'availableActions'),false);assert.equal(Object.hasOwn(data,'contract'),false);
+  assert.equal((await fetch(base+'/api/director-next/novels/novel-1/runtime-status',{method:'POST'})).status,404);
+ });
+ assert.equal(projections,0);assert.equal(writes,0);assert.equal(JSON.stringify(saved),before);
+});
+
+test('runtime status rejects a mismatched identity and hides unknown raw failure text',async()=>{
+ const repository={findActiveRunIdByNovel:async()=> 'run-1',listRunIds:async()=>['run-1'],
+  getContract:async()=>({runId:'run-1',novelId:'another'}),getControl:async()=>({status:'paused',version:1,pause:null})};
+ await withServer(deps({runRepository:repository}),async base=>{
+  assert.equal((await fetch(base+'/api/director-next/novels/novel-1/runtime-status')).status,404);
+ });
+ await withServer(deps({runRepository:{...repository,getContract:async()=>({runId:'run-1',novelId:'novel-1'})},
+  eventLog:{list:async()=>[{seq:1,type:'execution_failure',payload:{message:'Invalid SQL C:/private/run.js api-key=secret'},createdAt:new Date()}]}}),async base=>{
+  const response=await fetch(base+'/api/director-next/novels/novel-1/runtime-status');assert.equal(response.status,200);
+  const text=JSON.stringify(await response.json());for(const part of ['Invalid SQL','C:/private','api-key=secret'])assert.ok(!text.includes(part));
+ });
+});
+
+test('one failed record is explicit without blocking healthy records or inventing its identity',async()=>{
+ const normal=deps().projectionService;
+ await withServer(deps({runRepository:{listRunIds:async()=>['broken','run-1']},
+  projectionService:{get:async id=>{if(id==='broken')throw Error('unavailable private SQL');return normal.get(id);}}}),async base=>{
+  const response=await fetch(base+'/api/director-next/records');assert.equal(response.status,200);
+  const body=await response.json();assert.equal(body.data.length,1);assert.equal(body.data[0].runId,'run-1');
+  assert.equal(body.warnings.length,1);assert.equal(body.warnings[0].runId,'broken');
+  assert.equal(Object.hasOwn(body.warnings[0],'novelId'),false);assert.ok(!JSON.stringify(body).includes('private SQL'));
+ });
+});
+
+test('a known production projection outage is typed and keeps saved identity available in history',async()=>{
+ const {DirectorProjectionUnavailableError}=require('../../../dist/modules/director/application');
+ await withServer(deps({projectionService:{get:async()=>{throw new DirectorProjectionUnavailableError();}},
+  runRepository:{listRunIds:async()=>['run-1'],findActiveRunIdByNovel:async()=> 'run-1',
+   getContract:async()=>({runId:'run-1',novelId:'novel-1'}),getControl:async()=>({status:'paused'})}}),async base=>{
+  const current=await fetch(base+'/api/director-next/novels/novel-1/current');assert.equal(current.status,503);
+  assert.equal((await current.json()).code,'director_projection_unavailable');
+  const records=await fetch(base+'/api/director-next/records');assert.equal(records.status,200);
+  assert.equal((await records.json()).data[0].novelId,'novel-1');
+ });
+});
+test('a completely unreadable history is explicit and never represented as an empty successful list',async()=>{
+ await withServer(deps({projectionService:{get:async()=>{throw Error('private SQL');}}}),async base=>{
+  const response=await fetch(base+'/api/director-next/records');assert.equal(response.status,503);
+  const body=await response.json();assert.equal(body.success,false);assert.equal(body.warnings.length,1);
+  assert.equal(body.code,'director_projection_unavailable');assert.ok(!JSON.stringify(body).includes('private SQL'));
+ });
+});

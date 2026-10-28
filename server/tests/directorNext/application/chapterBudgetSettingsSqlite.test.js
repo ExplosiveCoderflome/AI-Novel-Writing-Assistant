@@ -58,7 +58,10 @@ async function prepare(runId,chapterTokenLimit,novelId='book') {
   assert.equal(input.directorNext.chapterTokenLimit,200000);throw Error('snapshot-boundary-verified');
  };
  try {
-  await assert.rejects(()=>options.stepRegistry.get('chapter_batch')({runId:saved.runId,contract:saved,facts:{artifacts:[],debts:[],stopSignal:null}}),/snapshot-boundary-verified/);
+  const control=await prisma.directorNextRunControl.update({where:{runId:saved.runId},data:{status:'running',cursorStepId:'chapter_batch',
+    leaseOwner:'snapshot-worker',leaseExpiresAt:new Date(Date.now()+60000)}});
+  await assert.rejects(()=>options.stepRegistry.get('chapter_batch')({runId:saved.runId,contract:saved,control,
+    execution:{leaseOwner:'snapshot-worker'},step:{id:'chapter_batch'},facts:{artifacts:[],debts:[],stopSignal:null}}),/snapshot-boundary-verified/);
  } finally {pipeline.NovelCorePipelineService.prototype.startPipelineJob=original;}
  await prisma.$disconnect();
 })().catch(async error=>{console.error(error);await prisma.$disconnect();process.exitCode=1;});

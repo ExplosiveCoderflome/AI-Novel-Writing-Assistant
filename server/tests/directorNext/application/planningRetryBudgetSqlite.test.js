@@ -52,6 +52,11 @@ const services = createDirectorNextServices({plan, stepRegistry: registry,
     for (let index = 0; index < 4; index += 1) assert.equal(await services.worker.tick(), true);
     assert.deepEqual(readCalls(), {story_macro: 1, book_contract: 1, world_setup: 2});
     assert.equal((await prisma.directorNextRunControl.findUniqueOrThrow({where: {runId: opened.runId}})).status, 'running');
+    // A completed tick releases its lease. Explicitly seed the live foreign owner this recovery scenario exercises.
+    assert.equal((await prisma.directorNextRunControl.findUniqueOrThrow({where: {runId: opened.runId}})).leaseOwner, null);
+    await prisma.directorNextRunControl.update({where: {runId: opened.runId}, data: {
+      leaseOwner: 'fixture-live-foreign-worker', leaseExpiresAt: new Date(Date.now() + 120000),
+    }});
   } else {
     const {runId} = JSON.parse(fs.readFileSync(path.join(fixture, 'run.json'), 'utf8'));
     assert.equal(await services.worker.tick(), false, 'a live foreign lease remains protected');
