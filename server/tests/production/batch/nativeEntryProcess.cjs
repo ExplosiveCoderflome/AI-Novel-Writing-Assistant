@@ -15,8 +15,7 @@ global.fetch=async(url,options={})=>{
  if(path.endsWith('/points/search')&&method==='POST')return Response.json({result:[]});
  throw Error(`Unexpected indexing write or HTTP route: ${method} ${path}`);
 };
-async function main(){
- if(!process.env.KERNEL_TEST_REPLAY){
+async function prepareNativeFixture(){
  const native=require('../planning/contractServiceFixture.cjs').fixture();
  const document=native.workspace,target=document.volumes[0].chapters[0];
  document.beatSheets=[{volumeId:document.volumes[0].id,volumeSortOrder:1,status:'generated',beats:[{
@@ -30,7 +29,8 @@ async function main(){
   rawPlanJson:JSON.stringify({executionContractHash:hash}),scenes:{create:{sortOrder:1,title:'城门',objective:'交出钥匙'}}}});
  await db.character.create({data:{id:'hero',novelId:'novel-1',name:'主角',role:'主角',personality:'',background:'',development:''}});
  if(process.env.KERNEL_TEST_CASE!=='rag')await db.payoffLedgerItem.create({data:{novelId:'novel-1',ledgerKey:'planned-return',title:'返回约定',summary:'计划中的约定',scopeType:'book',currentStatus:'setup'}});
- }
+}
+function installNativeTransport(respond){
  const factory=require('../../../dist/llm/factory'),route=require('../../../dist/llm/modelRouter');
  const execution=require('../../../dist/platform/llm/execution'),usage=require('../../../dist/llm/usageTracking');
  const clients=new WeakMap(),calls=[];
@@ -50,7 +50,10 @@ async function main(){
     else if(configuration.taskType==='review')output={...require('../application/assessmentFixture.cjs').assessmentResult(process.env.KERNEL_TEST_CASE==='quality'?{
       status:'needs_manual_review',repairability:'rewrite_needed',continuePolicy:'pause',blockingIssues:[{code:'plot-unresolved',category:'plot',severity:'high',evidence:'约定尚待核对',fixSuggestion:'人工核对约定'}]}:{}).assessment,
       styleReview:{riskScore:0,summary:'已核对写法',observations:[],perspectiveCheck:{observed:'third_person',evidence:'主角在城门交出钥匙'}}};
+    else if(configuration.taskType==='planner'&&respond)output=require('../planning/chapterFixture.cjs').fixture().output;
+    else if(configuration.taskType==='repair'&&respond)output={};
     else throw Error(`Unexpected native request ${configuration.taskType}: ${text.slice(0,200)}`);
+    if(respond)output=await respond(configuration,text,output);
     yield{content:typeof output==='string'?output:JSON.stringify(output),usage_metadata:{input_tokens:10,output_tokens:10,total_tokens:20}};
    }},configuration),configuration);clients.set(client,configuration);return client;
  };
@@ -58,6 +61,11 @@ async function main(){
  factory.getResolvedLLMClientOptionsFromInstance=client=>clients.get(client);
  if(process.env.KERNEL_TEST_CASE==='rag')require('../../../dist/services/payoff/PayoffLedgerSyncService').payoffLedgerSyncService.syncLedger=async()=>{throw Error('Unprotected empty-ledger synchronization');};
  require('../../../dist/services/novel/novelCorePipelineService').NovelCorePipelineService.prototype.startPipelineJob=async()=>{throw Error('legacy-entry-was-used');};
+ return{calls,http};
+}
+async function main(){
+ if(!process.env.KERNEL_TEST_REPLAY)await prepareNativeFixture();
+ const{calls}=installNativeTransport();
  const {createDirectorProductionOptions}=require('../../../dist/app/director/productionComposition');
  const options=createDirectorProductionOptions();
  const contract=options.contractFactory({runId:'live-entry',novelId:'novel-1',driver:'auto',stepIdsInScope:['chapter_batch'],launchInput:{
@@ -97,4 +105,5 @@ async function main(){
   chapters:await db.chapter.findMany({where:{novelId:'novel-1'},select:{content:true,generationState:true,chapterStatus:true}}),jobs:await db.generationJob.count(),
   reports:await db.auditReport.count(),events:await db.directorNextEvent.findMany({where:{runId:contract.runId},select:{type:true}})}));
 }
-main().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>db.$disconnect());
+if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>db.$disconnect());
+module.exports={db,prepareNativeFixture,installNativeTransport};

@@ -3,6 +3,7 @@ import type { RunContract } from "../../../../modules/director";
 import { hashProductionContent, type UnitArtifacts, type UnitOutcome, type UnitProgress } from "../../../../modules/production";
 import { productionBatchOwnerKey } from "../execution/ownership";
 import type { KernelBatchChapter } from "../batch/handler";
+import {readManualChapterRequest} from "../manual/contract";
 
 type Reader = Pick<Prisma.TransactionClient,"chapter" | "productionUnitRun">;
 /** Reads durable closure only. Never starts/resumes a unit, clears a pause or manufactures legacy receipts. */
@@ -18,7 +19,7 @@ export async function readKernelUnitOutcome(db: Reader, contract: RunContract, c
   const reference = flags?.productionKernel as {runId?: string; contentHash?: string} | undefined;
   let row = await db.productionUnitRun.findUnique({where:{ownerKey_chapterId:{ownerKey:productionBatchOwnerKey(contract.runId),chapterId:chapter.id}}});
   // A new batch may reuse a prior closed chapter, but only the unit named by that chapter's terminal receipt.
-  if (!row && reference?.runId) row = await db.productionUnitRun.findUnique({where:{id:reference.runId}});
+  if (!row && reference?.runId && !readManualChapterRequest(contract)) row = await db.productionUnitRun.findUnique({where:{id:reference.runId}});
   if (!row) return undefined;
   const progress = JSON.parse(row.progressJson) as UnitProgress, artifacts = JSON.parse(row.stageArtifactsJson) as UnitArtifacts;
   if (row.novelId !== contract.novelId || row.chapterId !== chapter.id || progress.unit?.novelId !== contract.novelId

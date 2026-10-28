@@ -6,6 +6,8 @@ const serverRoot = path.resolve(__dirname, "..");
 const testsRoot = path.join(serverRoot, "tests");
 
 const integrationTests = new Set([
+  "shortStoryReviewSqlite.test.js",
+  "manualKernelSqlite.test.js",
   "productionKernelProgressSqlite.test.js",
   "productionKernelConsumersSqlite.test.js",
   "productionKernelBatchBindingSqlite.test.js",

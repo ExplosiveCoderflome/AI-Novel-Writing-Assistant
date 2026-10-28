@@ -12,6 +12,7 @@ import { nativeWriterContext } from "./contexts";
 import { nativePreparation, nativeRuntimeRequest } from "./preparation";
 import { nativeReconcile } from "./reconciliation";
 import type { NativeStageDependencies } from "./types";
+import {readManualChapterRequest} from "../manual/contract";
 
 export function createNativeKernelStages(deps: NativeStageDependencies): UnitPorts["stages"] {
   const planner = new PlannerService(), review = createKernelReviewBudget(deps.db, deps.context);
@@ -31,7 +32,7 @@ export function createNativeKernelStages(deps: NativeStageDependencies): UnitPor
   const adapters = createChapterModelAdapters({ writer: { invoke: native.write }, assessment: new ChapterAcceptanceAssessmentService(),
     patches: new ChapterPatchRepairService(), withReviewBudget: (run, _call, operation) => review(run, operation),
     repairRuntime: native.repairRuntime, isKnownPatchFailure: error => error instanceof ChapterPatchRepairFailedError });
-  return { ...createChapterStagePorts({ purpose: "automatic", readBaseline: deps.readBaseline,
+  return { ...createChapterStagePorts({ purpose: readManualChapterRequest(deps.context.contract) ? "user_requested" : "automatic", readBaseline: deps.readBaseline,
     prepare: async () => { throw new Error("Native checkpointed preparation must be installed"); },
     describe: native.describe, scoped: native.scoped, ...adapters }, { reconcile: nativeReconcile(deps) }), prepare: nativePreparation(deps) };
 }

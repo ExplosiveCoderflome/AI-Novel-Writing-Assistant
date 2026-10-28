@@ -22,9 +22,15 @@ import {withRagExecutionScope} from "../../../../services/rag/execution";
 import {PrismaInvocationUsageRepository} from "../../../../platform/llm/usage";
 import {readKernelRagConfiguration, assertKernelRagIndex, readKernelRagSources, withKernelRagContext, type KernelRagConfiguration} from "../rag";
 import type {ProductionJson} from "../../../../modules/production/common";
+import {readManualChapterRequest} from "../manual/contract";
 
 export function nativeRuntimeRequest(deps: NativeStageDependencies, run: UnitRun): ChapterRuntimeRequestInput {
   const { contract, runId } = deps.context, range = contract.chapterRange!;
+  const manual = readManualChapterRequest(contract);
+  if (manual) return {...manual.options, provider: run.snapshots.model.provider as LLMProvider, model: run.snapshots.model.model,
+    temperature: contract.launchInput?.temperature, workflowTaskId: runId, artifactSyncMode: run.snapshots.profile.reconcile,
+    controlPolicy: {kickoffMode: "manual_start", advanceMode: "manual", reviewCheckpoints: [],
+      autoExecutionRange: {mode: "chapter_range", start: range.from, end: range.to}}};
   return { provider: run.snapshots.model.provider as LLMProvider, model: run.snapshots.model.model,
     temperature: contract.launchInput?.temperature, workflowTaskId: runId, artifactSyncMode: run.snapshots.profile.reconcile,
     controlPolicy: { kickoffMode: "director_start", advanceMode: range.to === contract.launchInput?.estimatedChapterCount ? "full_book_autopilot" : "auto_to_execution",
@@ -78,6 +84,6 @@ export function nativePreparation(deps: NativeStageDependencies) {
   }
   return createKernelPreparationStage({ ...planning, readInput: run => guarded(() => planning.readInput(run)),
     execute: (run, input, steps) => guarded(() => planning.execute(run, input, steps)),
-    purpose: "automatic", checkpoints: new PrismaPreparationCheckpointStore(db, deps.ownership),
+    purpose: readManualChapterRequest(context.contract) ? "user_requested" : "automatic", checkpoints: new PrismaPreparationCheckpointStore(db, deps.ownership),
     executionToken: () => context.execution!.leaseOwner, readBaseline: deps.readBaseline, fence: deps.fence });
 }

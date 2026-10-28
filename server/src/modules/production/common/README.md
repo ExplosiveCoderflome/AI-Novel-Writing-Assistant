@@ -8,6 +8,6 @@
 - 保存：`saveWithFence` 的回调必须在同一事务里验证正文版本、人工编辑基线和持久所有权，并完成更新。函数外的前置查询不能代替原子 CAS。保存后 fence 失败表示所有权变化，不能推断此前保存没有发生。
 - 输入预算：传入完整渲染消息（含系统消息和工具描述），预留输出与安全余量。默认一 UTF-8 字节估一个 token，是偏保守的安全估算；可传入准确 tokenizer 计数。未知窗口返回明确失败，不能视为无限。
 - 用量：`invokeWithBudget` 要求持久预约先于请求，预约以 requestKey 幂等；请求失败也保留预约。此工具不提供模型结果缓存，重复调用去重由阶段回执仓储负责。`recordProductionUsage` 接收真实观测，未知数字保留 null，计量 sink 按 invocationId 去重；取消或失权不抹掉已发生用量。
-- 已知失败：结构化输出分类为 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json` 时，模型已返回但输出不可用、端口无持久写入，可释放认领重试；`transport_error` 与其他错误仍属未知结果，认领保持。
+- 已知失败：结构化输出分类为 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json`，或语义校验拒绝 `post_validate_failed` 时，模型已返回但输出不可用、端口无持久写入，可释放认领重试；`transport_error`、`llm_error` 与其他错误仍属未知结果，认领保持。
 
 当前只新增能力。长篇/短篇旧调用方的替换分别属于计划 05/06；临时库中的原子保存验收归属于内核仓储和生命周期实现。

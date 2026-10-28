@@ -12,6 +12,7 @@ import {
   shortStoryPlanPrompt,
   shortStorySegmentWritePrompt,
 } from "../../../../prompting/prompts/shortStory/shortStory.prompts";
+import { ProductionVersionConflictError } from "../../../production/common";
 import { NovelWorkflowService } from "../../../../services/novel/workflow/NovelWorkflowService";
 import {
   buildShortStoryWriterContextBlocks,
@@ -19,6 +20,14 @@ import {
   shortStoryProductionFoundationText,
   shortStoryPlatformText,
 } from "./shortStoryPromptContext";
+import {
+  contextWindowForConfiguredModel,
+  postRepairKeepsManuscript,
+  qualityDebtFromAudit,
+  ShortStoryAuditBudgetError,
+  shortStoryOnV2Enabled,
+  withShortStoryAuditBudget,
+} from "./shortStoryAuditPolicy";
 
 interface ActiveIntent {
   originalIdea: string;
@@ -42,6 +51,16 @@ function countWords(content: string): number {
 export class ShortStoryProductionService {
   private readonly running = new Set<string>();
   private readonly workflowService = new NovelWorkflowService();
+  private readonly v2Enabled: () => boolean;
+  private readonly readAuditContextWindow: (provider: string, model: string) => Promise<number | null>;
+
+  constructor(deps: {
+    v2Enabled?: () => boolean;
+    readAuditContextWindow?: (provider: string, model: string) => Promise<number | null>;
+  } = {}) {
+    this.v2Enabled = deps.v2Enabled ?? (() => shortStoryOnV2Enabled());
+    this.readAuditContextWindow = deps.readAuditContextWindow ?? (async (provider, model) => contextWindowForConfiguredModel(provider, model));
+  }
 
   schedule(taskId: string): void {
     setImmediate(() => {
@@ -326,27 +345,8 @@ export class ShortStoryProductionService {
       itemLabel: "正在检查完整成稿",
       progress: 0.9,
     });
-    const audited = await runStructuredPrompt({
-      asset: shortStoryFullAuditPrompt,
-      promptInput: {
-        originalIdea: context.intent.originalIdea,
-        understanding: context.intent.understanding,
-        direction: context.intent.direction,
-        plan: plan.contract,
-        content,
-        writingPlatform: shortStoryPlatformText(context.platform, "auditing"),
-        productionFoundation: context.productionFoundation,
-      },
-      options: {
-        taskId: context.task.id,
-        novelId: context.novel.id,
-        stage: "short_story_review",
-        itemKey: "full_audit",
-        entrypoint: "creation_studio",
-        temperature: 0.25,
-        maxTokens: 5000,
-      },
-    });
+    const audited = await this.auditManuscript(context, plan, content, "full_audit");
+    if (!audited) return;
     await prisma.shortStoryPlan.update({
       where: { id: plan.row.id },
       data: { auditResultJson: JSON.stringify(audited.output) },
@@ -364,7 +364,33 @@ export class ShortStoryProductionService {
 
     let qualityDebt: string[] = [];
     if (audited.output.decision === "patchable") {
-      qualityDebt = await this.applySingleRepair(context, plan, segments, audited.output, content);
+      if (this.v2Enabled()) {
+        const repaired = await this.generateSingleRepair(context, plan, segments, audited.output, content);
+        const candidate = segments.map(segment => ({ ...segment,
+          content: segment.userEditedAt ? segment.content : repaired.patches.find(patch => patch.segmentOrder === segment.order)?.content.trim() ?? segment.content,
+        }));
+        const reviewed = await this.auditManuscript(context, plan, candidate.map(segment => segment.content.trim()).join("\n\n"), "repair_review");
+        if (!reviewed) return;
+        if (postRepairKeepsManuscript(reviewed.output.decision)) {
+          await prisma.$transaction(async tx => {
+            const current = await tx.shortStorySegment.findMany({ where: { planId: plan.row.id } });
+            if (current.length !== segments.length || segments.some(before => !current.some(row => row.id === before.id && row.version === before.version))) {
+              throw new ProductionVersionConflictError();
+            }
+            for (const segment of candidate) {
+              if (segment.content === segments.find(row => row.id === segment.id)!.content) continue;
+              const saved = await tx.shortStorySegment.updateMany({ where: { id: segment.id, version: segment.version, userEditedAt: null },
+                data: { content: segment.content, version: { increment: 1 }, generatedAt: new Date(), qualityResultJson: JSON.stringify({ repairedFromAudit: true }) } });
+              if (saved.count !== 1) throw new ProductionVersionConflictError();
+            }
+            await tx.shortStoryPlan.update({ where: { id: plan.row.id }, data: { auditResultJson: JSON.stringify(reviewed.output) } });
+          });
+        } else {
+          qualityDebt = qualityDebtFromAudit(audited.output);
+        }
+      } else {
+        qualityDebt = await this.applySingleRepair(context, plan, segments, audited.output, content);
+      }
     }
     await prisma.shortStoryPlan.update({
       where: { id: plan.row.id },
@@ -384,6 +410,47 @@ export class ShortStoryProductionService {
     });
   }
 
+  private async auditManuscript(
+    context: Awaited<ReturnType<ShortStoryProductionService["loadContext"]>>,
+    plan: Awaited<ReturnType<ShortStoryProductionService["ensurePlan"]>>,
+    content: string,
+    itemKey: "full_audit" | "repair_review",
+  ) {
+    const request = {
+      asset: shortStoryFullAuditPrompt,
+      promptInput: {
+        originalIdea: context.intent.originalIdea,
+        understanding: context.intent.understanding,
+        direction: context.intent.direction,
+        plan: plan.contract,
+        content,
+        writingPlatform: shortStoryPlatformText(context.platform, "auditing"),
+        productionFoundation: context.productionFoundation,
+      },
+      options: {
+        taskId: context.task.id,
+        novelId: context.novel.id,
+        stage: "short_story_review",
+        itemKey,
+        entrypoint: "creation_studio",
+        temperature: 0.25,
+        maxTokens: this.v2Enabled() ? undefined : 5000,
+      },
+    };
+    try {
+      return await (this.v2Enabled()
+        ? withShortStoryAuditBudget(this.readAuditContextWindow, () => runStructuredPrompt(request))
+        : runStructuredPrompt(request));
+    } catch (error) {
+      if (!(error instanceof ShortStoryAuditBudgetError)) throw error;
+      await this.workflowService.recordCheckpoint(context.task.id, {
+        stage: "short_story_review", checkpointType: "step_review_required", checkpointSummary: error.message,
+        itemLabel: "请检查模型的上下文范围", progress: 0.9,
+      });
+      return null;
+    }
+  }
+
   private async applySingleRepair(
     context: Awaited<ReturnType<ShortStoryProductionService["loadContext"]>>,
     plan: Awaited<ReturnType<ShortStoryProductionService["ensurePlan"]>>,
@@ -391,6 +458,25 @@ export class ShortStoryProductionService {
     audit: ShortStoryQualityResult,
     content: string,
   ): Promise<string[]> {
+    const repaired = await this.generateSingleRepair(context, plan, segments, audit, content);
+    for (const patch of repaired.patches) {
+      const target = segments.find((segment) => segment.order === patch.segmentOrder);
+      if (!target || target.userEditedAt) continue;
+      await prisma.shortStorySegment.updateMany({
+        where: { id: target.id, version: target.version, userEditedAt: null },
+        data: { content: patch.content.trim(), version: { increment: 1 }, generatedAt: new Date(), qualityResultJson: JSON.stringify({ repairedFromAudit: true }) },
+      });
+    }
+    return repaired.residualQualityDebt;
+  }
+
+  private async generateSingleRepair(
+    context: Awaited<ReturnType<ShortStoryProductionService["loadContext"]>>,
+    plan: Awaited<ReturnType<ShortStoryProductionService["ensurePlan"]>>,
+    segments: Awaited<ReturnType<ShortStoryProductionService["writePendingSegments"]>>,
+    audit: ShortStoryQualityResult,
+    content: string,
+  ) {
     await this.workflowService.markTaskRunning(context.task.id, {
       stage: "short_story_review",
       itemKey: "single_patch",
@@ -424,20 +510,7 @@ export class ShortStoryProductionService {
         maxTokens: 12000,
       },
     });
-    for (const patch of repaired.output.patches) {
-      const target = segments.find((segment) => segment.order === patch.segmentOrder);
-      if (!target || target.userEditedAt) continue;
-      await prisma.shortStorySegment.updateMany({
-        where: { id: target.id, version: target.version, userEditedAt: null },
-        data: {
-          content: patch.content.trim(),
-          version: { increment: 1 },
-          generatedAt: new Date(),
-          qualityResultJson: JSON.stringify({ repairedFromAudit: true }),
-        },
-      });
-    }
-    return repaired.output.residualQualityDebt;
+    return repaired.output;
   }
 
   private async assertRunnable(taskId: string): Promise<void> {
@@ -451,7 +524,7 @@ export class ShortStoryProductionService {
   }
 
   private resolveFailureStage(itemKey: string | null | undefined) {
-    if (itemKey === "full_audit" || itemKey === "single_patch") return "short_story_review" as const;
+    if (itemKey === "full_audit" || itemKey === "repair_review" || itemKey === "single_patch") return "short_story_review" as const;
     if (itemKey?.startsWith("segment:")) return "short_story_draft" as const;
     return "short_story_plan" as const;
   }

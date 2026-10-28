@@ -145,6 +145,12 @@ export function createApp() {
   const directorNextEnabled = parseEnvFlag(process.env.DIRECTOR_NEXT_ENABLED, true);
   const {createDirectorVersionRouter} = require("./modules/novel/director-routing") as typeof import("./modules/novel/director-routing");
   app.use("/api/novels", createDirectorVersionRouter());
+  if (directorNextEnabled) {
+    const {createManualChapterEntry, createManualChapterRouter} = require("./app/director/productionKernel") as typeof import("./app/director/productionKernel");
+    const {getDirectorProductionServices} = require("./app/director/services") as typeof import("./app/director/services");
+    app.use("/api/novels", createManualChapterRouter(createManualChapterEntry({db: prisma,
+      commands: () => getDirectorProductionServices().http.commandService, wake: () => getDirectorProductionServices().worker.wake()})));
+  }
   app.use("/api/novels", (_req, res, next) => {
     res.locals.directorNextEnabled = directorNextEnabled;
     next();

@@ -18,11 +18,11 @@ function fixture(t){
  return{state,run,prepared,runtime,stages};
 }
 test('initial and candidate review descriptors retain complete native input, baselines and different output caps',async t=>{
- const f=fixture(t),content='首段。'+'完整正文。'.repeat(1000)+'尾段。',baseline=assessmentResult().assessment;
+ const f=fixture(t),content='首段。'+'完整正文。'.repeat(1000)+'尾段。',baseline=assessmentResult();
  const first=await f.stages.describe('accept',f.run,{prepared:f.prepared,content});
  const candidate=await f.stages.describe('verify',f.run,{prepared:f.prepared,content,baseline,repair:{styleRewriteBaseline:{sourceContentHash:'original',allowedCorrectionIssueIds:[],changes:[]}}});
  assert.equal(first.outputTokens,4096);assert.equal(candidate.outputTokens,6144);assert.notEqual(first.inputFingerprint,candidate.inputFingerprint);
- assert.equal(candidate.input.nativePrompt.promptInput.content,content);assert.deepEqual(candidate.input.nativePrompt.promptInput.repairReviewBaseline,baseline);
+ assert.equal(candidate.input.nativePrompt.promptInput.content,content);assert.deepEqual(candidate.input.nativePrompt.promptInput.repairReviewBaseline,baseline.assessment);
  assert.ok(candidate.input.nativePrompt.promptInput.styleRewriteBaseline);assert.equal(f.state.reservations,0);
 });
 test('repair describes once and executes with the exact saved native runtime and patch permissions',async t=>{

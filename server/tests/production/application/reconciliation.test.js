@@ -181,6 +181,35 @@ for (const category of ['malformed_json','schema_mismatch','incomplete_json','th
     assert.equal(f.calls.filter(x => x === 'extract').length, 2);
   });
 }
+test('a semantic rejection releases the extraction claim and a later explicit execution finishes it', async () => {
+  let first = true;
+  const f = await fixture({ extract: async () => {
+    if (first) {
+      first = false;
+      const error = new Error('资源变化缺少证据');
+      error.promptQualityFailureKind = 'post_validate_failed';
+      throw error;
+    }
+  } });
+  const reconcile = api();
+  assert.equal((await reconcile(f.context, f.ports)).status, 'pending');
+  assert.equal([...f.cache.values()][0].status, 'ready');
+  assert.equal((await reconcile(f.context, f.ports, { recoverOnly: true })).status, 'pending');
+  assert.equal(f.calls.filter(x => x === 'extract').length, 1);
+  assert.equal((await reconcile(f.context, f.ports)).status, 'completed');
+  assert.equal(f.calls.filter(x => x === 'extract').length, 2);
+});
+test('a prompt transport marker stays claimed and is never retried', async () => {
+  const f = await fixture({ extract: async () => {
+    const error = new Error('socket hang up');
+    error.promptQualityFailureKind = 'llm_error';
+    throw error;
+  } });
+  assert.equal((await api()(f.context, f.ports)).status, 'unknown');
+  assert.equal([...f.cache.values()][0].status, 'running');
+  assert.equal((await api()(f.context, f.ports)).status, 'unknown');
+  assert.equal(f.calls.filter(x => x === 'extract').length, 1);
+});
 test('a released extraction claim reports pending on recovery and finishes on explicit execution', async () => {
   let first = true;
   const f = await fixture({ extract: async () => { if (first) { first = false; const error = new Error('bad json'); error.category = 'malformed_json'; throw error; } } });

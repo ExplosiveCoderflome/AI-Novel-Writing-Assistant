@@ -6,7 +6,7 @@ import { buildKernelAcceptancePromptRequest, buildKernelPatchPromptRequest, crea
   type AcceptancePromptContextResolver, type ChapterModelAdapterDependencies, type ChapterStageServices,
   type PreparedStageCall, type RegisteredChapterWriterDependencies, type UnitRun } from "../../../../modules/production";
 import { canonicalProductionJson, cloneProductionData, type ProductionJson } from "../../../../modules/production/common";
-import { chapterAcceptanceAssessmentPrompt, type ChapterAcceptanceAssessmentOutput } from "../../../../prompting/prompts/novel/chapterAcceptance.prompts";
+import { chapterAcceptanceAssessmentPrompt } from "../../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { chapterPatchRepairPrompt } from "../../../../prompting/prompts/novel/chapterPatchRepair.prompts";
 import { chapterWriterPrompt } from "../../../../prompting/prompts/novel/chapterWriter.prompts";
 import type { PromptExecutionOptions, PromptContextBlock, PromptAsset } from "../../../../prompting/core/promptTypes";
@@ -58,7 +58,7 @@ export function createKernelNativeStagePrompts(deps: KernelNativeStagePromptDepe
       if(!["draft","accept","verify","repair"].includes(stage))return {callsModel:false,input,
         inputFingerprint:hash(input),promptVersion:`kernel_${stage}@1`,configVersion:run.snapshots.model.configVersion};
       const value=input as unknown as {prepared:Parameters<ChapterStageServices["write"]>[1];content:string;
-        assessment:RepairInput["assessment"];baseline?:ChapterAcceptanceAssessmentOutput;repair?:{styleRewriteBaseline?:StyleRewriteBaseline}};
+        assessment:RepairInput["assessment"];baseline?:RepairInput["assessment"];repair?:{styleRewriteBaseline?:StyleRewriteBaseline}};
       let native: NativePrompt,call:PreparedStageCall|undefined,runtime:ChapterRuntimePackage|undefined;
       if(stage === "draft") {
         call=await writer.describe(run,value.prepared);
@@ -73,7 +73,7 @@ export function createKernelNativeStagePrompts(deps: KernelNativeStagePromptDepe
         novelTitle:value.prepared.novelTitle,chapterTitle:value.prepared.chapterTitle,chapterOrder:run.progress.unit.order,content:value.content,
         contextPackage:value.prepared.contextPackage,targetWordCount:value.prepared.contextPackage.chapterWriteContext?.chapterMission.targetWordCount
           ?? value.prepared.contextPackage.chapter.targetWordCount ?? null,provider:run.snapshots.model.provider as LLMProvider,model:run.snapshots.model.model,
-        repairReviewBaseline:stage === "verify" ? value.baseline : undefined,
+        repairReviewBaseline:stage === "verify" ? value.baseline?.assessment : undefined,
         styleRewriteBaseline:stage === "verify" ? value.repair?.styleRewriteBaseline : undefined,persist:false},deps.resolveAcceptanceContext);
       const prepared=await deps.preflight.prepare({...native,asset:assetFor(stage)}),description=prepared.description;
       if(description.outputTokens > (run.snapshots.profile.outputBudgets[stage] ?? 0))throw new InvalidProductionRequestError("Native output exceeds the frozen stage allowance");

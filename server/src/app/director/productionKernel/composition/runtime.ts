@@ -16,6 +16,7 @@ import { createNativeKernelStages } from "./stages";
 import {resolveLLMClientOptions} from "../../../../llm/factory";
 import {withoutLlmTaskOutputBudgets, resolveScopedTaskOutputTokens} from "../../../../platform/llm/execution";
 import {captureKernelTaskOutputBudgets, createConfiguredKernelProfile, withKernelTaskOutputStages} from "../modelPolicy/outputBudgets";
+import {configureManualChapterProfile, readManualChapterRequest} from "../manual/contract";
 
 export interface NativeKernelRuntimeOptions { modelSources?: KernelModelPolicySources }
 
@@ -24,13 +25,14 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
   options: NativeKernelRuntimeOptions = {}): Promise<KernelBatchRuntime> {
   context = { ...context, contract: structuredClone(context.contract), control: structuredClone(context.control),
     execution: context.execution ? { ...context.execution } : undefined, step: { ...context.step } };
-  const contract = context.contract, ownership = createKernelOwnership(context);
+  const contract = context.contract, ownership = createKernelOwnership(context), manual = readManualChapterRequest(contract);
   const policySource = directorIssuePolicySchema.parse(contract.issuePolicy.pipelinePolicy);
   const capture = () => withoutLlmTaskOutputBudgets(() => captureKernelModelPolicy(contract, options.modelSources));
   const modelPolicy = await bindKernelModelPolicy(db, context, capture);
   const frozen = createKernelFrozenModelPolicy(modelPolicy, capture);
   const outputBudgets = await captureKernelTaskOutputBudgets(modelPolicy, options.modelSources);
-  const profile = createConfiguredKernelProfile(outputBudgets);
+  const profile = configureManualChapterProfile(createConfiguredKernelProfile(outputBudgets), manual?.operation);
+  if (manual?.options.artifactSyncMode) profile.reconcile = manual.options.artifactSyncMode;
   const existingProfiles = new Map((await db.productionUnitRun.findMany({where: {ownerKey: productionBatchOwnerKey(contract.runId), novelId: contract.novelId},
     select: {chapterId: true, profileSnapshotJson: true}})).map(row => [row.chapterId, JSON.parse(row.profileSnapshotJson) as ProductionProfile]));
   const preflight = createKernelPromptPreparer({ ...frozen, resolveModel: async (...args) => {
@@ -66,10 +68,12 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
     await frozen.assertCurrent();
   }
   const readBaseline: Parameters<typeof createNativeKernelStages>[0]["readBaseline"] = async unit => {
+    if (manual && unit.chapterId !== manual.chapterId) throw new ProductionVersionConflictError();
     await db.$transaction(tx => ownership(tx, { unit }));
     const chapter = await db.chapter.findFirstOrThrow({ where: { id: unit.chapterId, novelId: unit.novelId, order: unit.order },
       select: { content: true, updatedAt: true, artifactSyncCheckpoints: { where: { artifactType: MANUAL_CHAPTER_SYNC_TYPE },
         select: { contentHash: true } } } });
+    if (manual && chapter.content !== manual.baseline.content) throw new ProductionVersionConflictError();
     return { content: chapter.content, updatedAt: chapter.updatedAt.toISOString(),
       protectedUserContent: chapter.artifactSyncCheckpoints.some(row => row.contentHash === buildChapterArtifactContentHash(chapter.content ?? "")) };
   };

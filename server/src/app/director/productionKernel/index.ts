@@ -31,3 +31,5 @@ export type { KernelModelPolicy } from "./modelPolicy/types";
 export { createNativeKernelRuntime } from "./composition/runtime";
 export type { NativeKernelRuntimeOptions } from "./composition/runtime";
 export * from "./readiness";
+export {createManualChapterEntry} from "./manual/entry";
+export {createManualChapterRouter} from "./manual/http";

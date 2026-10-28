@@ -7,6 +7,7 @@ import { chooseProductionBatchImplementation } from "./binding";
 import { createKernelChapterBatchHandler } from "./handler";
 import { createProductionBatchRouter, productionKernelV2ChaptersEnabled } from "./router";
 import {assertKernelStartReadiness} from "../readiness";
+import {readManualChapterRequest} from "../manual/contract";
 
 export interface KernelBatchRuntime {
   request(unit: UnitRef): UnitRequest;
@@ -17,7 +18,7 @@ export interface KernelBatchRuntime {
 export function createKernelProductionStep(input: {db: PrismaClient; legacy: StepHandler;
   runtime(context: StepContext): Promise<KernelBatchRuntime>; enabled?: ()=>boolean}): StepHandler {
   return createProductionBatchRouter({enabled:input.enabled ?? productionKernelV2ChaptersEnabled,
-    choose:(context,enabled)=>chooseProductionBatchImplementation(input.db,context,enabled),legacy:input.legacy,
+    choose:(context,enabled)=>chooseProductionBatchImplementation(input.db,context,Boolean(readManualChapterRequest(context.contract)) || enabled),legacy:input.legacy,
     kernel:async context=>{
       await assertKernelOwnership(input.db,context);
       await assertKernelStartReadiness(input.db,context.contract);

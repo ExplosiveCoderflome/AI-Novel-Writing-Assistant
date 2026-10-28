@@ -8,8 +8,8 @@
 
 区分“已知失败”和“未知结果”：
 
-- 已知失败：模型已经返回，但输出无法使用（结构化输出分类为 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json`）。模型侧端口在这类调用里没有任何持久写入，重试是安全的。
-- 未知结果：传输失败（`transport_error`）、进程崩溃、租约失效等，无法确认模型是否执行、是否写入。必须保持认领状态，绝不重试。
+- 已知失败：模型已经返回，但输出无法使用。包括结构化输出分类 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json`，以及语义校验拒绝 `post_validate_failed`（输出已完整收到，业务校验拒绝，例如资源变化缺少证据）。模型侧端口在这类调用里没有任何持久写入，重试是安全的。
+- 未知结果：传输失败（`transport_error`）、`llm_error`、进程崩溃、租约失效等，无法确认模型是否执行、是否写入。必须保持认领状态，绝不重试。
 
 ## 当前规则
 
@@ -22,6 +22,7 @@
 ## 失败模式
 
 - 抽取一次返回不可解析内容后章节永久卡死（旧行为）：`malformed_json` 被当成未知结果，认领永久停在 `running`，恢复恒为 `unknown`。
+- 抽取的语义校验拒绝同样卡死（旧行为）：`post_validate_failed` 只在准备阶段释放认领，抽取阶段仍返回 `unknown`。
 - 准备阶段恢复时请求身份冲突（旧行为）：恢复后 ordinal 从 0 重启，带新反馈的重建请求与缓存的 ordinal-0 请求逐字节比对不一致，冲突永真。
 - 把 `transport_error` 当成已知失败重试：可能重复执行一次已经执行过的模型调用，消耗额度且结果不一致。
 - 把已知失败的认领标记为 `failed` 而不是释放：`failed` 行在 `recoverOnly` 下仍返回 `unknown`，恢复依旧走不通；必须回到 `ready` 才能被显式执行重新认领。

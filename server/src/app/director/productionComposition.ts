@@ -31,6 +31,8 @@ import {directorIssuePolicyService} from "../../services/novel/director/issues/D
 import {getDirectorChapterBudgetSettings} from "../../services/settings/chapterBudget";
 import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
 import { createKernelProductionStep, createNativeKernelRuntime, assertKernelOpenReadiness } from "./productionKernel";
+import {MANUAL_CHAPTER_PLAN_VERSION, readManualChapterRequest, type ManualChapterLaunchInput} from "./productionKernel/manual/contract";
+import {assertKernelStartReadiness} from "./productionKernel";
 
 /** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
@@ -113,7 +115,9 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash})}),
   }));
-  return {prepareGate: prepareEditedChapterGate, plan: directorProductionPlan, stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
+  const manualPlan = {version: MANUAL_CHAPTER_PLAN_VERSION, externalArtifacts: ["novel_seed"],
+    steps: [{...directorProductionPlan.steps.find(step => step.id === "chapter_batch")!, requires: ["novel_seed"], overwrites: [], gateable: false}]};
+  return {prepareGate: prepareEditedChapterGate, plan: directorProductionPlan, additionalPlans: [manualPlan], stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     executionBoundary: {
       beforeOpen: async (novelId, tx) => {
         await tx.novel.update({where: {id: novelId}, data: {directorEpoch: {increment: 0}}});
@@ -144,22 +148,26 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const requestedSteps = input.stepIdsInScope ?? (launch.executionRange ? null : directorProductionPlan.steps.filter(step => !["chapter_detail_bundle", "execution_contract_sync", "chapter_batch"].includes(step.id)).map(step => step.id));
     if (requestedSteps?.some(id => !directorProductionPlan.steps.some(step => step.id === id))) throw new Error("创作步骤范围无效。");
     if (!launch.executionRange && requestedSteps?.some(id => ["chapter_detail_bundle", "execution_contract_sync", "chapter_batch"].includes(id))) throw new Error("正文准备与生成需要明确授权范围。");
-    const scope = launch.executionRange ? `chapters:${launch.executionRange.from}-${launch.executionRange.to}${launch.targetVolumeId ? `:volume:${launch.targetVolumeId}` : ""}` : launch.targetVolumeId ? `volume:${launch.targetVolumeId}` : "book";
-    const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: directorProductionPlan.version, scope,
+    const manual = (launch as ManualChapterLaunchInput).manualChapter;
+    const scope = manual ? `manual:chapter:${manual.chapterId}:${manual.operation}:${input.runId}` : launch.executionRange ? `chapters:${launch.executionRange.from}-${launch.executionRange.to}${launch.targetVolumeId ? `:volume:${launch.targetVolumeId}` : ""}` : launch.targetVolumeId ? `volume:${launch.targetVolumeId}` : "book";
+    const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: manual ? MANUAL_CHAPTER_PLAN_VERSION : directorProductionPlan.version, scope,
       stepIdsInScope: requestedSteps, chapterRange: launch.executionRange ?? null,
       issuePolicy: {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
       modelConfig: {route: launch.provider ?? "default", model: launch.model ?? "default", version: "director-next-model-v1"},
       launchInput: launch, tokenBudget: null, rejectionBudget: 3};
-    requireLaunch(contract);return contract;
+    requireLaunch(contract);readManualChapterRequest(contract);return contract;
   }, prepareOpen: async contract => {
-    await assertNovelDirectorVersion(contract.novelId, "v2");
-    await assertKernelOpenReadiness(prisma, contract);
+    const identity = await assertNovelDirectorVersion(contract.novelId, "v2");
+    const manual = readManualChapterRequest(contract);
+    if (manual) contract.executionEpoch = identity.epoch;
+    if (manual) await assertKernelStartReadiness(prisma, contract);
+    else await assertKernelOpenReadiness(prisma, contract);
     const launch = requireLaunch(contract);
     launch.chapterTokenLimit ??= (await getDirectorChapterBudgetSettings()).tokenLimit;
     const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;
     if (configured && contract.issuePolicy.pipelinePolicy) contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...configured};
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
     return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
-      ...await inferExistingAssets(contract, {read: readExistingAssets, contentHash})];
+      ...(manual ? [] : await inferExistingAssets(contract, {read: readExistingAssets, contentHash}))];
   }};
 }
