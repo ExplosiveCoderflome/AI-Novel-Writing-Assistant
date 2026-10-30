@@ -314,7 +314,6 @@ export class ShortStoryProductionService {
             itemKey: `segment:${row.order}`,
             entrypoint: "creation_studio",
             temperature: 0.78,
-            maxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
           },
         });
         const saved = await prisma.shortStorySegment.updateMany({

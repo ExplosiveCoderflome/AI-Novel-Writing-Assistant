@@ -221,7 +221,6 @@ export class ShortStoryRevisionService {
               options: {
                 novelId: job.novelId, taskId: task.id, stage: "short_story_draft",
                 itemKey: `revision_segment:${segment.order}`, entrypoint: "short_story_studio", temperature: 0.75,
-                maxTokens: Math.min(12000, Math.max(2500, segmentPlan.targetWordCount * 2)),
               },
             });
             await this.assertRunnable(jobId, token);

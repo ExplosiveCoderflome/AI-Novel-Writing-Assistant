@@ -413,6 +413,34 @@ test("HTTP requires explicit replan confirmation and rejects ordinary retry and 
   } finally { await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
 });
 
+for (const [mode, configured] of [["initial", 6144], ["replan", 4096]]) {
+  test(`${mode} short-story writing preserves the configured writer output cap at the SDK boundary`, async (t) => {
+    const factory = require("../dist/llm/factory");
+    const router = require("../dist/llm/modelRouter");
+    const previous = router.resolveModel;
+    router.resolveModel = async (taskType, options) => ({ provider: "custom", model: "fixture", temperature: 0.2,
+      maxTokens: options.maxTokens ?? configured, requestProtocol: "openai_compatible", structuredResponseFormat: "prompt_json",
+      routeKey: taskType, routeDegraded: false });
+    factory.setProviderSecretCache("custom", { key: "fixture-key", baseURL: "https://models.invalid/v1", model: "fixture", reasoningEnabled: false });
+    t.after(() => { router.resolveModel = previous; factory.setProviderSecretCache("custom", null); });
+    const f = await fixture(mode === "initial" ? { status: "queued", checkpointType: null } : {}, mode !== "initial");
+    const physicalCaps = [];
+    const h = harness(async (input) => {
+      if (input.asset.id === "shortStorySegmentWritePrompt") {
+        const configuration = await factory.resolveLLMClientOptions("custom", { model: "fixture", taskType: "writer", maxTokens: input.options.maxTokens });
+        physicalCaps.push(factory.createLLMFromResolvedOptions(configuration).invocationParams({}).max_tokens);
+      }
+      return output(input, mode === "replan" ? "full_replan" : "local_patch");
+    });
+    if (mode === "replan") {
+      const preview = await h.studio.previewRevision(f.novel.id, "重新安排整篇");
+      await h.studio.applyRevision(f.novel.id, preview.intentVersionId);
+    }
+    await h.production.run(f.task.id);
+    assert.deepEqual(physicalCaps, [configured, configured, configured]);
+  });
+}
+
 test("first production still plans, writes and audits a new short story", async () => {
   const f = await fixture({ status: "queued", checkpointType: null }, false);
   const h = harness(output);
