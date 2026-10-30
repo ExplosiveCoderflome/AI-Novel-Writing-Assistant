@@ -1,3 +1,6 @@
+import type { ShortStoryReferenceSelection, ShortStoryReferenceSnapshot } from "@ai-novel/shared/types/shortStoryReference";
+import { shortStoryReferenceService, referenceContract } from "../reference";
+import { latestStructuredDiagnostic, canRetryStructuredTask } from "../../../../platform/llm/diagnostics/StructuredDiagnosticStore";
 import { Prisma } from "@prisma/client";
 import type {
   CreationDirection,
@@ -22,6 +25,8 @@ import { shortStoryProductionService } from "../../short-story/application/Short
 import { supportsWritingPlatformForm, writingPlatformProfileService } from "../../writing-platform";
 
 interface CreationStudioSeed {
+  referenceSelection?: ShortStoryReferenceSelection;
+  referenceSnapshot?: ShortStoryReferenceSnapshot;
   idea: string;
   derivedFromNovelId?: string;
   currentIntentVersionId?: string;
@@ -79,19 +84,21 @@ export class CreationStudioService {
     if (!idea) {
       throw new AppError("请先写下你想创作的内容。", 400);
     }
+    if (input.reference && input.preferredNarrativeForm !== "short_story") throw new AppError("参考短篇请从短篇创作入口开始。", 400);
     const task = await this.workflowService.bootstrapTask({
       lane: "creation_studio",
       title: "把想法写成作品",
       forceNew: true,
-      seedPayload: { idea },
+      seedPayload: { idea, referenceSelection: input.reference },
     });
-    return this.runInterpretation(task.id, {
+    try { return await this.runInterpretation(task.id, {
       idea,
+      referenceSelection: input.reference,
       preferredNarrativeForm: input.preferredNarrativeForm,
       targetWordCount: input.targetWordCount,
       writingPlatformPreference: input.writingPlatformPreference,
       source: "initial",
-    });
+    }); } catch { return this.getProjection(task.id); }
   }
 
   async createDerivedLongForm(sourceNovelId: string): Promise<CreationStudioTaskProjection> {
@@ -135,6 +142,7 @@ export class CreationStudioService {
 
   async regenerate(taskId: string, input: CreationStudioRegenerateRequest): Promise<CreationStudioTaskProjection> {
     const task = await this.requireCreationTask(taskId);
+    if (!await canRetryStructuredTask(taskId)) throw new AppError("模型服务要求稍后再试，请等待后继续。", 429);
     const seed = parseSeedPayload<CreationStudioSeed>(task.seedPayloadJson);
     if (!seed?.idea) {
       throw new AppError("当前创作任务缺少原始想法，请重新开始。", 409);
@@ -144,6 +152,7 @@ export class CreationStudioService {
     }
     return this.runInterpretation(task.id, {
       idea: seed.idea,
+      referenceSelection: input.reference ?? seed.referenceSelection,
       preferredNarrativeForm: input.narrativeForm,
       targetWordCount: input.targetWordCount,
       feedback: input.feedback,
@@ -173,6 +182,8 @@ export class CreationStudioService {
       : resumeTargetToRoute(resumeTarget);
     return {
       taskId: task.id,
+      referenceSelection: seed.referenceSelection,
+      reference: await shortStoryReferenceService.view(seed.referenceSnapshot ?? null),
       status: task.status,
       progress: task.progress,
       currentAction: task.currentItemLabel,
@@ -183,6 +194,7 @@ export class CreationStudioService {
       productionTaskId: confirmation?.productionTaskId ?? seed.productionTaskId ?? null,
       resumeRoute,
       error: task.lastError,
+      diagnostic: task.status === "failed" ? await latestStructuredDiagnostic(task.id, true) : null,
     };
   }
 
@@ -210,6 +222,7 @@ export class CreationStudioService {
     const intent = seed?.currentIntentVersionId
       ? await prisma.novelIntentVersion.findUnique({ where: { id: seed.currentIntentVersionId } })
       : null;
+    if (task.status !== "waiting_approval") throw new AppError("请先完成方向整理后再确认创作。", 409);
     if (!seed?.idea || !intent) {
       throw new AppError("请先完成想法理解并选择一个方向。", 409);
     }
@@ -217,6 +230,10 @@ export class CreationStudioService {
     const direction = interpretation.directions.find((item) => item.id === input.directionId);
     if (!direction) {
       throw new AppError("所选方向已失效，请重新选择。", 400);
+    }
+    if (seed.referenceSnapshot) {
+      if (input.narrativeForm !== "short_story") throw new AppError("参考短篇请保持短篇规模；长篇参考请从参考小说入口开始。", 400);
+      await shortStoryReferenceService.validate(seed.referenceSnapshot);
     }
     this.assertTarget(input.narrativeForm, input.targetWordCount);
     if (!supportsWritingPlatformForm(input.writingPlatform, input.narrativeForm)) {
@@ -253,6 +270,7 @@ export class CreationStudioService {
     feedback?: string;
     writingPlatformPreference?: WritingPlatformPreference;
     source: "initial" | "regenerated" | "derived";
+    referenceSelection?: ShortStoryReferenceSelection;
   }): Promise<CreationStudioTaskProjection> {
     if (input.targetWordCount !== undefined) {
       const inferredForm = input.preferredNarrativeForm
@@ -264,11 +282,14 @@ export class CreationStudioService {
       itemKey: "interpret",
       itemLabel: "正在理解你的想法",
       progress: 0.04,
+      seedPayload: { idea: input.idea, referenceSelection: input.referenceSelection },
     });
     try {
+      const referenceSnapshot = input.referenceSelection
+        ? await shortStoryReferenceService.create(input.referenceSelection, input.idea, taskId) : undefined;
       const generated = await runStructuredPrompt({
         asset: creationIntentInterpretPrompt,
-        promptInput: input,
+        promptInput: { ...input, reference: referenceContract(referenceSnapshot ?? null) },
         options: {
           taskId,
           stage: "creation_intent",
@@ -277,6 +298,7 @@ export class CreationStudioService {
           temperature: 0.7,
         },
       });
+      if (referenceSnapshot && generated.output.recommendedNarrativeForm !== "short_story") throw new AppError("参考方向未适配短篇规模，请重新生成。", 502);
       const productionFoundation = await novelCreateResourceRecommendationService.resolveRequired({
         title: generated.output.directions[0].title,
         description: [
@@ -314,6 +336,7 @@ export class CreationStudioService {
             source: input.source,
             originalExpression: input.idea,
             structuredIntentJson: JSON.stringify(interpretedOutput),
+            impactScopeJson: JSON.stringify({referenceSnapshot}),
           },
         });
       });
@@ -324,6 +347,8 @@ export class CreationStudioService {
         progress: 0.12,
         seedPayload: {
           idea: input.idea,
+          referenceSelection: input.referenceSelection,
+          referenceSnapshot,
           currentIntentVersionId: created.id,
           writingPlatformPreference: input.writingPlatformPreference,
         },
@@ -371,6 +396,8 @@ export class CreationStudioService {
           description: direction.premise,
           bookSellingPoint: direction.coreExperience,
           narrativeForm: "short_story",
+          shortStoryReferenceJson: seed.referenceSnapshot ? JSON.stringify(seed.referenceSnapshot) : null,
+          referenceBookAnalysisId: seed.referenceSnapshot?.analysisId,
           targetWordCount: input.targetWordCount,
           creationExperience: "professional",
           writingMode: "original",

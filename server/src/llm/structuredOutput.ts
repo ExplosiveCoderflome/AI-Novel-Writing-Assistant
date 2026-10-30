@@ -1,3 +1,4 @@
+import type { StructuredResponseEvidence } from "@ai-novel/shared/types/structuredDiagnostics";
 import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
@@ -26,6 +27,8 @@ export interface StructuredOutputProfile {
 }
 
 export interface StructuredOutputDiagnostics {
+  response?: StructuredResponseEvidence;
+  attemptId?: string | null;
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
   reasoningForcedOff: boolean;
@@ -455,8 +458,9 @@ export class StructuredOutputError extends Error {
     category: StructuredOutputErrorCategory;
     diagnostics: StructuredOutputDiagnostics;
     retryWithNextStrategy?: boolean;
+    cause?: unknown;
   }) {
-    super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`);
+    super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`, { cause: input.cause });
     this.name = "StructuredOutputError";
     this.category = input.category;
     this.diagnostics = input.diagnostics;

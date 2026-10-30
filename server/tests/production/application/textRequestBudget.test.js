@@ -7,6 +7,7 @@ function fixture() {
   const events = [];
   const noop = () => {};
   const exports = loadRuntimeSource('../../../prompting/core/promptRunner.ts', {
+    '../../platform/llm/diagnostics/StructuredDiagnosticStore': { recordStructuredBusinessFailure: async () => {} },
     './cache': { registerPromptCacheBoundary: noop },
     '../../platform/llm/retries': budget,
     '@langchain/core/messages': { HumanMessage: class { constructor(content) { this.content = content; } } },

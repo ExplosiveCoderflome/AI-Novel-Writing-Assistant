@@ -22,6 +22,7 @@ export default function ReferenceNovelStartDialog({
   onOpenChange,
 }: ReferenceNovelStartDialogProps) {
   const navigate = useNavigate();
+  const [targetForm, setTargetForm] = useState<"long_novel" | "short_story">("long_novel");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(fixedAnalysis?.id ?? "");
   const analysesQuery = useQuery({
     queryKey: queryKeys.bookAnalysis.list("reference-novel-start-succeeded"),
@@ -41,7 +42,7 @@ export default function ReferenceNovelStartDialog({
   }, [analyses, open, selectedAnalysisId]);
 
   const startCreation = (mode: ReferenceNovelCreateMode) => {
-    if (!selectedAnalysis) {
+    if (!selectedAnalysis || (targetForm === "short_story" && mode === "continuation")) {
       return;
     }
     const params = new URLSearchParams({
@@ -51,7 +52,8 @@ export default function ReferenceNovelStartDialog({
       referenceTitle: selectedAnalysis.documentTitle,
     });
     onOpenChange(false);
-    navigate(`/novels/auto-director?${params.toString()}`);
+    if (targetForm === "short_story") params.set("form", "short_story");
+    navigate(`${targetForm === "short_story" ? "/create" : "/novels/auto-director"}?${params.toString()}`);
   };
 
   return (
@@ -104,18 +106,25 @@ export default function ReferenceNovelStartDialog({
           </div>
         )}
 
+        <section className="mt-5" aria-label="作品规模">
+          <div className="text-sm font-medium">选择作品规模</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant={targetForm === "long_novel" ? "default" : "outline"} aria-pressed={targetForm === "long_novel"} onClick={() => setTargetForm("long_novel")}>长篇小说</Button>
+            <Button type="button" variant={targetForm === "short_story" ? "default" : "outline"} aria-pressed={targetForm === "short_story"} onClick={() => setTargetForm("short_story")}>短篇 · 3,000—30,000 字</Button>
+          </div>
+        </section>
         <section className="mt-5">
           <div className="text-sm font-medium text-foreground">选择创作方式</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               className="rounded-xl bg-muted/55 p-5 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!selectedAnalysis}
+              disabled={!selectedAnalysis || targetForm === "short_story"}
               onClick={() => startCreation("continuation")}
             >
               <BookOpen className="h-5 w-5" aria-hidden="true" />
               <div className="mt-4 font-semibold text-foreground">续写原作</div>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">保留角色、世界规则、时间线与未完线索，从原作结尾继续写。</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{targetForm === "short_story" ? "续写原作请选长篇；短篇支持借鉴方法、创作新故事。" : "保留角色、世界规则、时间线与未完线索，从原作结尾继续写。"}</p>
             </button>
             <button
               type="button"
@@ -124,7 +133,7 @@ export default function ReferenceNovelStartDialog({
               onClick={() => startCreation("adaptation")}
             >
               <GitBranch className="h-5 w-5" aria-hidden="true" />
-              <div className="mt-4 font-semibold text-foreground">参考创作新书</div>
+              <div className="mt-4 font-semibold text-foreground">{targetForm === "short_story" ? "参考创作新短篇" : "参考创作新书"}</div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">参考结构、节奏和写法，重新生成角色、世界与剧情。</p>
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { recordStructuredBusinessFailure } from "../../platform/llm/diagnostics/StructuredDiagnosticStore";
 import {registerPromptCacheBoundary} from "./cache";
 import { claimModelRequest, currentModelRequestBudget } from "../../platform/llm/retries";
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
@@ -588,6 +589,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         postValidateFailureRecovered: false,
       };
     } catch (error) {
+      await recordStructuredBusinessFailure(currentResult.diagnostics?.attemptId);
       if (semanticRetryAttempts >= maxSemanticRetryAttempts || requestBudget?.remaining() === 0 || (sharedCorrectionBudget !== undefined
         && totalRepairAttempts + semanticRetryAttempts >= sharedCorrectionBudget)) {
         if (input.asset.postValidateFailureRecovery) {

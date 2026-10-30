@@ -52,12 +52,13 @@ test("creation studio resume routes preserve pre-creation tasks and short story 
 test("all creation and short story prompts are registered structured assets", () => {
   const assets = new Map(listRegisteredPromptAssets().map((asset) => [`${asset.id}@${asset.version}`, asset]));
   const keys = [
-    "creation.intent.interpret@v2",
-    "novel.short_story.plan@v2",
-    "novel.short_story.segment.write@v2",
-    "novel.short_story.full.audit@v2",
-    "novel.short_story.patch.repair@v2",
-    "novel.short_story.revision.impact@v2",
+    "creation.intent.interpret@v3",
+    "creation.short_story.reference.extract@v1",
+    "novel.short_story.plan@v3",
+    "novel.short_story.segment.write@v3",
+    "novel.short_story.full.audit@v3",
+    "novel.short_story.patch.repair@v3",
+    "novel.short_story.revision.impact@v3",
   ];
 
   for (const key of keys) {
@@ -66,7 +67,7 @@ test("all creation and short story prompts are registered structured assets", ()
     assert.equal(asset.mode, "structured");
     assert.ok(asset.outputSchema, `${key} must declare outputSchema`);
   }
-  const writer = assets.get("novel.short_story.segment.write@v2");
+  const writer = assets.get("novel.short_story.segment.write@v3");
   assert.equal(writer.management?.proseGeneration, true);
   assert.ok(writer.management?.editModes.includes("advanced_template"));
   assert.ok(writer.slots?.length >= 7);
@@ -109,7 +110,10 @@ test("short story planning, prose, audit and repair share the resolved productio
   assert.match(contextSource, /"short-story:production-foundation", "production_foundation"/);
   assert.match(contextSource, /required: true/);
   assert.match(productionSource, /productionFoundation: context\.productionFoundation/);
-  assert.match(studioSource, /productionFoundation: context\.productionFoundation/);
+  const revisionSource = fs.readFileSync(path.join(SERVER_ROOT, "src/modules/novel/short-story/application/ShortStoryRevisionService.ts"), "utf8");
+  const previewSource = fs.readFileSync(path.join(SERVER_ROOT, "src/modules/novel/short-story/application/ShortStoryRevisionPreviewService.ts"), "utf8");
+  assert.match(revisionSource, /productionFoundation: context\.productionFoundation/);
+  assert.match(previewSource, /productionFoundation: context\.productionFoundation/);
 });
 
 test("short story audit cannot accept a draft with critical causal contradictions", () => {
@@ -145,6 +149,11 @@ test("PostgreSQL and SQLite keep the short story persistence contract aligned", 
     assert.match(schema, /model NovelIntentVersion/);
     assert.match(schema, /model ShortStoryPlan/);
     assert.match(schema, /model ShortStorySegment/);
+    assert.match(schema, /model ShortStoryRevisionJob/);
+    assert.match(schema, /model ShortStoryRevisionCandidate/);
+    assert.match(schema, /shortStoryOperationId\s+String\?/);
+    assert.match(schema, /shortStoryReferenceJson\s+String\?/);
+    assert.match(schema, /model StructuredInvocationDiagnostic/);
     assert.match(schema, /model CreationStudioConfirmation/);
   }
 });
@@ -153,6 +162,8 @@ test("short story migrations exist for both database providers", () => {
   const migrationNames = [
     "20260730120000_creation_studio_short_story",
     "20260730121000_creation_studio_confirmation",
+    "20261021090000_short_story_revision_recovery",
+    "20261021130000_short_story_reference_diagnostics",
   ];
   for (const migrationName of migrationNames) {
     assert.ok(fs.existsSync(path.join(PRISMA_ROOT, "migrations", migrationName, "migration.sql")));

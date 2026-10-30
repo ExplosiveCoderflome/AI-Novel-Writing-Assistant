@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { beginStructuredDiagnostic, finishStructuredDiagnostic, type StructuredDiagnosticContext } from "../platform/llm/diagnostics/StructuredDiagnosticStore";
+import { emptyResponseEvidence, observeStructuredChunk, classifyResponseEvidence, terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
 import type { ZodType } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
@@ -46,6 +49,7 @@ export {
 } from "./structuredInvokeParser";
 
 export interface StructuredInvokeInput<T> {
+  diagnosticContext?: StructuredDiagnosticContext;
   systemPrompt?: string;
   userPrompt?: string;
   messages?: BaseMessage[];
@@ -93,11 +97,11 @@ function normalizeTransportRetryCount(value: number | undefined): number {
   return Math.min(MAX_TRANSPORT_RETRY_COUNT, Math.max(0, Math.floor(value!)));
 }
 
-function waitForTransportRetry(signal: AbortSignal | undefined, retryAttempt: number): Promise<void> {
+function waitForTransportRetry(signal: AbortSignal | undefined, retryAttempt: number, retryAfterMs?: number | null): Promise<void> {
   if (signal?.aborted) {
     return Promise.reject(signal.reason ?? new Error("请求已取消。"));
   }
-  const delayMs = Math.min(2_000, 500 * 2 ** (retryAttempt - 1));
+  const delayMs = retryAfterMs ?? Math.min(2_000, 500 * 2 ** (retryAttempt - 1));
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       signal?.removeEventListener("abort", onAbort);
@@ -269,8 +273,13 @@ async function invokeStructuredAttempt<T>(input: {
     model: resolved.model,
     promptText: formatLivePrompt(messages),
   });
+  const evidence = emptyResponseEvidence(resolved.maxTokens);
+  let diagnosticId: string | null = null;
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");
+    diagnosticId = await beginStructuredDiagnostic({ meta: input.baseInput.promptMeta, context: input.baseInput.diagnosticContext,
+      provider: resolved.provider, model: resolved.model, requestProtocol: resolved.requestProtocol,
+      strategy: input.strategy, response: evidence });
     const collected = await runWithEnforcedTimeout({
       label: input.baseInput.label,
       timeoutMs: input.baseInput.timeoutMs,
@@ -286,16 +295,28 @@ async function invokeStructuredAttempt<T>(input: {
         const reasoningCollector = new ReasoningStreamCollector();
         for await (const chunk of stream) {
           const content = toText(chunk.content);
-          liveSession.reasoning(reasoningCollector.push(chunk, content));
+          observeStructuredChunk(evidence, chunk);
+          const reasoning = reasoningCollector.push(chunk, content);
+          evidence.reasoningChars += reasoning.length;
+          liveSession.reasoning(reasoning);
           rawContent += content;
+          evidence.contentChars = rawContent.trim().length;
           liveSession.delta(content);
           tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
         }
-        liveSession.reasoning(reasoningCollector.flush());
+        const tail = reasoningCollector.flush();
+        evidence.reasoningChars += tail.length;
+        liveSession.reasoning(tail);
         return { rawContent, tokenUsage };
       },
     });
     const rawContent = collected.rawContent;
+    evidence.failureReason = classifyResponseEvidence(evidence);
+    if (terminalResponseReason(evidence.failureReason)) throw buildStructuredError({
+      message: "模型未返回完整可用的结构化结果。", category: "transport_error", strategy: input.strategy,
+      retryWithNextStrategy: evidence.failureReason === "empty_response" && input.strategy !== "prompt_json",
+      profile: resolved.structuredProfile ?? input.target.profile,
+    });
     logStructuredInvokeEvent({
       event: "invoke_done",
       label: input.baseInput.label,
@@ -312,6 +333,7 @@ async function invokeStructuredAttempt<T>(input: {
     let repairStarted = false;
     const parsed = await liveSession.observe(() => parseStructuredLlmRawContentDetailed({
       rawContent,
+      diagnosticContext: input.baseInput.diagnosticContext,
       schema: input.baseInput.schema,
       tokenUsage: collected.tokenUsage,
       provider: resolved.provider,
@@ -346,6 +368,11 @@ async function invokeStructuredAttempt<T>(input: {
       ...parsed.tokenUsage,
       reasoningTokens: parsed.tokenUsage.reasoningTokens ?? null,
     } : null);
+    evidence.durationMs = Date.now() - startedAt;
+    evidence.failureReason = null;
+    parsed.diagnostics.response = evidence;
+    parsed.diagnostics.attemptId = diagnosticId;
+    await finishStructuredDiagnostic(diagnosticId, "succeeded", evidence);
     liveSession.complete();
     return parsed;
   } catch (error) {
@@ -365,7 +392,7 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
-    throw wrapStructuredInvokeError({
+    const wrapped = wrapStructuredInvokeError({
       label: input.baseInput.label,
       error,
       strategy: input.strategy,
@@ -374,6 +401,19 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
     });
+    const child = wrapped.diagnostics.response;
+    if (child && child !== evidence) {
+      evidence.failureReason ??= child.failureReason;
+      evidence.httpStatus ??= child.httpStatus;
+      evidence.providerCode ??= child.providerCode;
+      evidence.retryAfterMs ??= child.retryAfterMs;
+    }
+    evidence.failureReason ??= classifyResponseEvidence(evidence, error, wrapped.category, input.baseInput.signal?.aborted);
+    evidence.durationMs = Date.now() - startedAt;
+    wrapped.diagnostics.response = evidence;
+    wrapped.diagnostics.attemptId = diagnosticId;
+    await finishStructuredDiagnostic(diagnosticId, "failed", evidence);
+    throw wrapped;
   }
 }
 
@@ -414,6 +454,8 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
+      if (terminalResponseReason(lastError.diagnostics.response?.failureReason)
+        && !(lastError.diagnostics.response?.failureReason === "empty_response" && lastError.retryWithNextStrategy)) break;
       if (currentModelRequestBudget()?.remaining() === 0) break;
       if (budget && index >= preferredSequence.length - 1 && budget.remaining() === remainingBefore) break;
       if (lastError.category === "transport_error" && !lastError.retryWithNextStrategy) {
@@ -454,6 +496,10 @@ async function tryStructuredStrategiesWithTransportRetries<T>(input: {
       const structuredError = error instanceof StructuredOutputError ? error : null;
       if (
         structuredError?.category !== "transport_error"
+        || terminalResponseReason(structuredError.diagnostics.response?.failureReason)
+        || (structuredError.diagnostics.response?.retryAfterMs ?? 0) > 60_000
+        || Boolean(structuredError.diagnostics.response?.httpStatus && structuredError.diagnostics.response.httpStatus < 500
+          && ![408,429].includes(structuredError.diagnostics.response.httpStatus))
         || retryAttempt >= input.retryCount
         || input.baseInput.signal?.aborted
         || currentModelRequestBudget()?.remaining() === 0
@@ -470,12 +516,13 @@ async function tryStructuredStrategiesWithTransportRetries<T>(input: {
         errorCategory: structuredError.category,
         fallbackUsed: input.fallbackUsed,
       });
-      await waitForTransportRetry(input.baseInput.signal, retryAttempt);
+      await waitForTransportRetry(input.baseInput.signal, retryAttempt, structuredError.diagnostics.response?.retryAfterMs);
     }
   }
 }
 
 export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
+  input = { ...input, diagnosticContext: input.diagnosticContext ?? { invocationId: randomUUID(), nextAttempt: 0 } };
   const primaryTarget = await resolveAttemptTarget({
     provider: input.provider,
     model: input.model,
@@ -508,7 +555,9 @@ export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInpu
       retryCount: transportRetryCount,
     });
   } catch (primaryError) {
-    if (!fallbackEnabled || !fallbackSettings || currentModelRequestBudget()?.remaining() === 0) {
+    const reason = primaryError instanceof StructuredOutputError ? primaryError.diagnostics.response?.failureReason : null;
+    if ((reason === "rate_limited" && primaryError instanceof StructuredOutputError && (primaryError.diagnostics.response?.retryAfterMs ?? 0) > 0
+      && fallbackSettings?.provider === primaryTarget.provider) || reason === "blocked" || reason === "cancelled" || !fallbackEnabled || !fallbackSettings || currentModelRequestBudget()?.remaining() === 0) {
       throw primaryError;
     }
 

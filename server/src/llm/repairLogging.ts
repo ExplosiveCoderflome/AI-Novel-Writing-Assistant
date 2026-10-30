@@ -49,6 +49,19 @@ function buildPromptMeta(promptMeta?: PromptInvocationMeta): Record<string, unkn
 }
 
 export function logStructuredRepairSession(input: StructuredRepairLogInput): void {
+  const scopedDiagnostic = input.promptMeta?.promptId?.startsWith("novel.short_story.")
+    || input.promptMeta?.promptId?.startsWith("creation.short_story.")
+    || input.promptMeta?.promptId === "creation.intent.interpret";
+  if (scopedDiagnostic) {
+    appendLlmRepairSessionLog({
+      timestamp: new Date().toISOString(), event: input.event, label: input.label,
+      repairAttempt: input.repairAttempt, provider: input.provider ?? "default", model: input.model ?? "default",
+      taskType: input.taskType ?? "planner", latencyMs: input.latencyMs ?? null,
+      promptMeta: buildPromptMeta(input.promptMeta), taskId: input.promptMeta?.taskId ?? null,
+      novelId: input.promptMeta?.novelId ?? null, contentRedacted: true,
+    });
+    return;
+  }
   appendLlmRepairSessionLog({
     timestamp: new Date().toISOString(),
     event: input.event,

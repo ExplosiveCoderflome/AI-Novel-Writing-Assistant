@@ -28,6 +28,8 @@ const integrationTests = new Set([
   "productionKernelPreparationRecoverySqlite.test.js",
   "productionKernelPreparationNativeSqlite.test.js",
   "productionKernelBatchExecutionSqlite.test.js",
+  "shortStoryRevisionRecovery.test.js",
+  "shortStoryStructuredDiagnostics.test.js",
   "manualChapterSaveSqlite.test.js",
   "directorTaskFactInspection.test.js",
   "directorCurrentTask.test.js",

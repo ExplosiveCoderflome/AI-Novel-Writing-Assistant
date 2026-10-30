@@ -71,6 +71,13 @@ export function registerShortStoryRoutes(router: Router): void {
     }
   });
 
+  router.post("/:id/short-story/replan-preview", validate({ params: novelParams }), async (req, res, next) => {
+    try {
+      const data = await shortStoryStudioService.previewRevision(String(req.params.id), "", "replan");
+      res.json({ success: true, data } satisfies ApiResponse<ShortStoryRevisionImpact>);
+    } catch (error) { next(error); }
+  });
+
   router.post("/:id/short-story/retry", validate({ params: novelParams }), async (req, res, next) => {
     try {
       const data = await shortStoryStudioService.retryProduction(String(req.params.id));
