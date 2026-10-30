@@ -32,14 +32,25 @@ export async function resolveAdvancedPromptMessages<I, O, R = O>(input: {
   if (!activeTemplate) {
     return input.officialMessages;
   }
+  const dynamicRequiredGroups = input.context.blocks
+    .filter((block) => block.required && (
+      input.asset.id === "novel.short_story.segment.write" || block.group === "creation_reference"
+    ))
+    .map((block) => block.group);
   const compiled = compilePromptTemplate({
     template: activeTemplate.template,
     promptInput: input.promptInput,
     context: input.context,
     slotDefs: input.asset.slots ?? [],
     slots: input.context.slots,
-    allowedContextGroups: getAllowedTemplateContextGroups(input.asset as PromptAsset<unknown, unknown, unknown>),
-    requiredContextGroups: getRequiredTemplateContextGroups(input.asset.id),
+    allowedContextGroups: [...new Set([
+      ...getAllowedTemplateContextGroups(input.asset as PromptAsset<unknown, unknown, unknown>),
+      ...dynamicRequiredGroups,
+    ])],
+    requiredContextGroups: [...new Set([
+      ...getRequiredTemplateContextGroups(input.asset.id),
+      ...dynamicRequiredGroups,
+    ])],
   });
   if (hasBlockingPromptTemplateDiagnostics(compiled.diagnostics)) {
     const details = [

@@ -1,6 +1,8 @@
 const CONTEXT_GROUP_LABELS: Record<string, string> = {
   writing_platform: "目标平台写法",
   creation_intent: "创作意图",
+  creation_reference: "参考创作约定",
+  production_foundation: "创作底座",
   short_story_plan: "短篇计划",
   short_story_continuity: "短篇连续性",
   book_style: "本书写法",

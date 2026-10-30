@@ -322,6 +322,9 @@ enum CharacterGender {
 }
 
 model Novel {
+  shortStoryReferenceJson String?
+  structuredDiagnostics StructuredInvocationDiagnostic[]
+  shortStoryRevisionJobs ShortStoryRevisionJob[]
   id                String      @id @default(cuid())
   directorVersion   String?
   directorEpoch     Int         @default(0)
@@ -460,6 +463,7 @@ model Novel {
 }
 
 model NovelIntentVersion {
+  shortStoryRevisionJob ShortStoryRevisionJob?
   id                    String   @id @default(cuid())
   novelId               String?
   workflowTaskId        String
@@ -2209,6 +2213,9 @@ model BookContract {
 }
 
 model NovelWorkflowTask {
+  structuredDiagnostics StructuredInvocationDiagnostic[]
+  shortStoryOperationId String?
+  shortStoryRevisionJobs ShortStoryRevisionJob[]
   id                 String                  @id @default(cuid())
   directorVersion    String?
   directorEpoch      Int?
@@ -4311,4 +4318,68 @@ model LlmInvocationUsageRecord {
   @@index([runId, startedAt, id])
   @@index([generationJobId, startedAt, id])
   @@index([novelId, chapterId, startedAt, id])
+}
+
+
+model ShortStoryRevisionJob {
+  id                    String   @id @default(cuid())
+  workflowTaskId        String
+  novelId               String
+  intentVersionId       String   @unique
+  strategy              String
+  status                String   @default("queued")
+  baselineJson          String
+  candidatePlanJson     String?
+  qualityDebtJson       String?
+  lastError             String?
+  leaseToken            String?
+  leaseExpiresAt        DateTime?
+  workflowTask          NovelWorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
+  novel                 Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  intentVersion         NovelIntentVersion @relation(fields: [intentVersionId], references: [id], onDelete: Restrict)
+  candidates            ShortStoryRevisionCandidate[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([workflowTaskId, status])
+  @@index([novelId, createdAt])
+}
+
+model ShortStoryRevisionCandidate {
+  id                    String   @id @default(cuid())
+  jobId                 String
+  segmentId             String
+  order                 Int
+  content               String
+  targetWordCount       Int
+  continuitySummary     String?
+  job                   ShortStoryRevisionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt             DateTime @default(now())
+
+  @@unique([jobId, segmentId])
+  @@unique([jobId, order])
+}
+
+model StructuredInvocationDiagnostic {
+  id              String @id @default(cuid())
+  invocationId    String
+  attempt         Int
+  taskId          String?
+  novelId         String?
+  promptId        String
+  stage           String?
+  kind            String
+  provider        String?
+  model           String?
+  requestProtocol String?
+  strategy        String
+  status          String @default("running")
+  detailsJson     String
+  task            NovelWorkflowTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  novel           Novel? @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+  @@index([invocationId, attempt])
 }

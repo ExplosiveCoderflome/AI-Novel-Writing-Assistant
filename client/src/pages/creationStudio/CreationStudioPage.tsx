@@ -1,3 +1,6 @@
+import { getBookAnalysis } from "@/api/bookAnalysis";
+import { ShortStoryReferenceSummary } from "@/components/creation/ShortStoryReferenceSummary";
+import { BOOK_ANALYSIS_SECTIONS, type BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpRight, Check, Loader2, RefreshCw, Sparkles } from "lucide-react";
@@ -32,6 +35,8 @@ export default function CreationStudioPage() {
   const taskId = searchParams.get("taskId")?.trim() ?? "";
   const shortStoryEntry = searchParams.get("form") === "short_story";
   const longNovelEntry = searchParams.get("form") === "long_novel";
+  const [referenceGoal, setReferenceGoal] = useState("借鉴结构、节奏与写法，创作新的完整短篇");
+  const [referenceSections, setReferenceSections] = useState<BookAnalysisSectionKey[]>([]);
   const [idea, setIdea] = useState("");
   const [selectedDirectionId, setSelectedDirectionId] = useState("");
   const [narrativeForm, setNarrativeForm] = useState<NarrativeForm>("short_story");
@@ -51,7 +56,29 @@ export default function CreationStudioPage() {
     retry: false,
   });
   const task = taskQuery.data?.data ?? null;
+  const [retryClock, setRetryClock] = useState(Date.now);
+  const retryAt = task?.diagnostic?.retryAt;
+  const retryWaiting = Boolean(retryAt && Date.parse(retryAt) > retryClock);
+  useEffect(() => {
+    if (!retryWaiting) return;
+    const timer = window.setTimeout(() => setRetryClock(Date.now()), 1000);
+    return () => window.clearTimeout(timer);
+  }, [retryWaiting, retryClock]);
   const interpretation = task?.interpretation ?? null;
+  const referenceAnalysisId = searchParams.get("bookAnalysisId") ?? task?.referenceSelection?.analysisId ?? "";
+  const referenceDocumentId = searchParams.get("sourceDocumentId") ?? task?.referenceSelection?.documentId ?? "";
+  const referenceRequested = Boolean(referenceAnalysisId || referenceDocumentId || task?.reference);
+  const referenceQuery = useQuery({ queryKey: ["short-story-reference", referenceAnalysisId],
+    queryFn: () => getBookAnalysis(referenceAnalysisId), enabled: Boolean(referenceAnalysisId && !interpretation), retry: false });
+  const sourceAnalysis = referenceQuery.data?.data;
+  const referenceUnavailable = referenceRequested && !interpretation && (!sourceAnalysis || sourceAnalysis.documentId !== referenceDocumentId || sourceAnalysis.status !== "succeeded");
+  useEffect(() => {
+    if (!sourceAnalysis) return;
+    setReferenceSections(task?.referenceSelection?.sectionKeys ?? sourceAnalysis.sections.filter((section) => section.status === "succeeded" || section.frozen).map((section) => section.sectionKey));
+  }, [sourceAnalysis]);
+  useEffect(() => {
+    if (task?.referenceSelection) setReferenceGoal(task.referenceSelection.goal);
+  }, [task?.taskId, task?.referenceSelection?.goal]);
 
   useEffect(() => {
     if (!task) return;
@@ -72,7 +99,12 @@ export default function CreationStudioPage() {
   );
 
   const interpretMutation = useMutation({
-    mutationFn: () => interpretCreationIdea({
+    mutationFn: () => taskId && task?.status === "failed" ? regenerateCreationDirections(taskId, {
+      ...(referenceRequested ? {reference:{analysisId:referenceAnalysisId,documentId:referenceDocumentId,sectionKeys:referenceSections,goal:referenceGoal.trim()}} : {}),
+      narrativeForm: referenceRequested || shortStoryEntry ? "short_story" : narrativeForm,
+      targetWordCount, writingPlatformPreference: initialPlatformPreference,
+    }) : interpretCreationIdea({
+      ...(referenceRequested ? {reference:{analysisId:referenceAnalysisId,documentId:referenceDocumentId,sectionKeys:referenceSections,goal:referenceGoal.trim()}} : {}),
       idea: idea.trim(),
       preferredNarrativeForm: shortStoryEntry ? "short_story" : undefined,
       ...(longNovelEntry ? {preferredNarrativeForm: "long_novel" as const} : {}),
@@ -81,7 +113,8 @@ export default function CreationStudioPage() {
     onSuccess: (response) => {
       const created = response.data;
       if (!created) return;
-      setSearchParams({ taskId: created.taskId }, { replace: true });
+      setSearchParams({ taskId: created.taskId, ...(referenceRequested ? {form:"short_story"} : {}) }, { replace: true });
+      if (created.status === "failed") { toast.error(created.diagnostic?.message ?? created.error ?? "创作方向未完成，请查看失败信息后继续。"); return; }
       toast.success("AI 已整理好两个可选方向。");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "暂时无法理解这个想法，请重试。"),
@@ -100,7 +133,7 @@ export default function CreationStudioPage() {
       await queryClient.invalidateQueries({ queryKey: ["creation-studio", taskId] });
       toast.success("方向已按新的作品规模更新。");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "更新方向失败。"),
+    onError: async (error) => { await queryClient.invalidateQueries({queryKey:["creation-studio",taskId]}); toast.error(error instanceof Error ? error.message : "更新方向失败。"); },
   });
 
   const confirmMutation = useMutation({
@@ -152,6 +185,23 @@ export default function CreationStudioPage() {
         </p>
       </section>
 
+      {task?.status === "failed" ? <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm" role="status">
+        <p>{task.diagnostic?.message ?? task.error ?? "方向生成未完成，可以从本页继续。"}</p>
+        {task.diagnostic ? <p className="mt-2 text-xs text-muted-foreground">诊断标识：{task.diagnostic.id} · 本次尝试 {task.diagnostic.attempts} 次 · {task.diagnostic.model ?? "模型未知"}</p> : null}
+        {retryWaiting && retryAt ? <p className="mt-2 text-xs text-muted-foreground">可在 {new Date(retryAt).toLocaleTimeString()} 后继续。</p> : null}
+        {interpretation ? <Button className="mt-3" variant="outline" onClick={() => regenerateMutation.mutate()} disabled={regenerateMutation.isPending || retryWaiting}>重新整理方向</Button> : null}
+      </div> : null}
+      {task?.reference ? <div className="space-y-3"><ShortStoryReferenceSummary reference={task.reference} confirmed={Boolean(task.novelId)} />
+        {task.reference.sourceState !== "available" && !task.novelId ? <Button variant="outline" onClick={() => regenerateMutation.mutate()} disabled={regenerateMutation.isPending || retryWaiting}>重新读取参考并生成方向</Button> : null}
+      </div> : referenceRequested ? <section className="space-y-3 rounded-xl bg-muted/30 p-4" aria-label="参考创作设置">
+        <p className="text-sm font-medium">参考小说：{sourceAnalysis?.documentTitle ?? "正在读取参考来源…"}</p>
+        {referenceUnavailable && !referenceQuery.isLoading ? <p className="text-sm text-destructive">参考来源不可用或尚未完成分析，请返回参考小说入口重新选择。</p> : null}
+        <label className="block text-sm">希望借鉴什么<Input className="mt-2" value={referenceGoal} maxLength={4000} onChange={(event) => setReferenceGoal(event.target.value)} /></label>
+        <div className="flex flex-wrap gap-4 text-sm" aria-label="选择拆书结论">{sourceAnalysis?.sections.filter((section) => section.status === "succeeded" || section.frozen).map((section) => <label className="flex items-center gap-2" key={section.sectionKey}>
+          <input type="checkbox" checked={referenceSections.includes(section.sectionKey)} onChange={(event) => setReferenceSections((keys) => event.target.checked ? [...keys,section.sectionKey] : keys.filter((key) => key !== section.sectionKey))} />
+          {BOOK_ANALYSIS_SECTIONS.find((item) => item.key === section.sectionKey)?.title ?? section.title}
+        </label>)}</div>
+      </section> : null}
       {!interpretation ? (
         <section
           aria-labelledby="creation-idea-heading"
@@ -172,6 +222,7 @@ export default function CreationStudioPage() {
           </div>
           <textarea
             value={idea}
+            readOnly={Boolean(taskId)}
             onChange={(event) => setIdea(event.target.value)}
             placeholder="例如：一个总能听见谎言的女孩，遇见了唯一无法判断真假的人……"
             aria-label={shortStoryEntry ? "写下短篇故事想法" : "写下故事想法"}
@@ -204,7 +255,7 @@ export default function CreationStudioPage() {
                 size="lg"
                 className="h-11 rounded-full px-6 shadow-none"
                 onClick={() => interpretMutation.mutate()}
-                disabled={!idea.trim() || interpretMutation.isPending}
+                disabled={!idea.trim() || interpretMutation.isPending || retryWaiting || referenceUnavailable || (referenceRequested && (!referenceGoal.trim() || !referenceSections.length))}
               >
                 {interpretMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 生成创作方向
@@ -239,6 +290,7 @@ export default function CreationStudioPage() {
                 ) : null}
               </div>
               <ScaleControls
+                shortOnly={referenceRequested}
                 narrativeForm={narrativeForm}
                 targetWordCount={targetWordCount}
                 onFormChange={(form) => {
@@ -288,7 +340,7 @@ export default function CreationStudioPage() {
             <Button
               size="lg"
               onClick={() => confirmMutation.mutate()}
-              disabled={!selectedDirection || scaleNeedsRefresh || confirmMutation.isPending}
+              disabled={!selectedDirection || scaleNeedsRefresh || confirmMutation.isPending || task?.status === "failed" || Boolean(task?.reference && task.reference.sourceState !== "available")}
             >
               {confirmMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               确认这个方向并开始
@@ -350,6 +402,7 @@ function DirectionFact(props: { label: string; value: string }) {
 }
 
 function ScaleControls(props: {
+  shortOnly?: boolean;
   narrativeForm: NarrativeForm;
   targetWordCount: number;
   onFormChange: (value: NarrativeForm) => void;
@@ -373,6 +426,7 @@ function ScaleControls(props: {
           type="button"
           size="sm"
           variant={props.narrativeForm === "long_novel" ? "default" : "outline"}
+          disabled={props.shortOnly}
           onClick={() => props.onFormChange("long_novel")}
         >
           长篇

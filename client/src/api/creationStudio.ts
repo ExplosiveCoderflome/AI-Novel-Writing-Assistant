@@ -85,6 +85,13 @@ export async function previewShortStoryRevision(
   return data;
 }
 
+export async function previewShortStoryReplan(novelId: string) {
+  const { data } = await apiClient.post<ApiResponse<ShortStoryRevisionImpact>>(
+    `/novels/${novelId}/short-story/replan-preview`, {},
+  );
+  return data;
+}
+
 export async function applyShortStoryRevision(novelId: string, intentVersionId: string) {
   const { data } = await apiClient.post<ApiResponse<{ taskId: string }>>(
     `/novels/${novelId}/short-story/revisions/${intentVersionId}/apply`,

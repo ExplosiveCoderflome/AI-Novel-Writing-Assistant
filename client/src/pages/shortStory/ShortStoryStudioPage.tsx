@@ -1,3 +1,4 @@
+import { ShortStoryReferenceSummary } from "@/components/creation/ShortStoryReferenceSummary";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +20,7 @@ import {
   deriveShortStoryLongForm,
   getShortStory,
   previewShortStoryRevision,
+  previewShortStoryReplan,
   retryShortStoryProduction,
   updateShortStorySegment,
 } from "@/api/creationStudio";
@@ -53,7 +55,9 @@ export default function ShortStoryStudioPage() {
     queryFn: () => getShortStory(novelId),
     enabled: Boolean(novelId),
     refetchInterval: (query) => {
-      const status = query.state.data?.data?.production.status;
+      const production = query.state.data?.data?.production;
+      if (production?.diagnostic?.retryAt && Date.parse(production.diagnostic.retryAt) > Date.now()) return 1000;
+      const status = production?.status;
       return status === "queued" || status === "running" ? 1800 : false;
     },
   });
@@ -83,6 +87,7 @@ export default function ShortStoryStudioPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["short-story", novelId] });
       setEditing(false);
+      setRevisionImpact(null);
       toast.success("正文已保存，并保留了修改前快照。");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "保存失败，请刷新后重试。"),
@@ -93,7 +98,13 @@ export default function ShortStoryStudioPage() {
     onSuccess: (response) => {
       setRevisionImpact(response.data ?? null);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "暂时无法理解这次修改。"),
+    onError: async (error) => { await queryClient.invalidateQueries({queryKey:["short-story",novelId]}); toast.error(error instanceof Error ? error.message : "暂时无法理解这次修改。"); },
+  });
+
+  const replanPreviewMutation = useMutation({
+    mutationFn: () => previewShortStoryReplan(novelId),
+    onSuccess: (response) => setRevisionImpact(response.data ?? null),
+    onError: async (error) => { await queryClient.invalidateQueries({queryKey:["short-story",novelId]}); toast.error(error instanceof Error ? error.message : "暂时无法生成调整方案。"); },
   });
 
   const revisionApplyMutation = useMutation({
@@ -107,7 +118,11 @@ export default function ShortStoryStudioPage() {
       await queryClient.invalidateQueries({ queryKey: ["short-story", novelId] });
       toast.success("已开始按确认的范围修改作品。");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "应用修改失败。"),
+    onError: async (error) => {
+      setRevisionImpact(null);
+      await queryClient.invalidateQueries({ queryKey: ["short-story", novelId] });
+      toast.error(error instanceof Error ? error.message : "应用修改失败。");
+    },
   });
 
   const exportMutation = useMutation({
@@ -133,7 +148,10 @@ export default function ShortStoryStudioPage() {
       await queryClient.invalidateQueries({ queryKey: ["short-story", novelId] });
       toast.success("已从中断的位置继续生成。");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "继续生成失败。"),
+    onError: async (error) => {
+      await queryClient.invalidateQueries({ queryKey: ["short-story", novelId] });
+      toast.error(error instanceof Error ? error.message : "继续生成失败。");
+    },
   });
 
   if (storyQuery.isLoading) {
@@ -186,6 +204,7 @@ export default function ShortStoryStudioPage() {
         </div>
       </header>
 
+      {story.reference ? <div className="mb-4"><ShortStoryReferenceSummary reference={story.reference} /></div> : null}
       <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <main className="min-w-0 space-y-4">
           {isProducing ? (
@@ -212,16 +231,49 @@ export default function ShortStoryStudioPage() {
             </Card>
           ) : null}
 
-          {story.production.status === "failed" ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-destructive">生成暂时中断</div>
-                <p className="mt-1 break-words text-muted-foreground">{story.production.error ?? "可以从已保存的内容继续。"}</p>
+          {story.production.recoveryAction ? (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm" role="status">
+              <div className="font-medium text-destructive">
+                {story.production.recoveryAction === "preview_replan" ? "需要确认新的故事方向"
+                  : story.production.recoveryAction === "preview_revision" ? "请重新核对修改范围"
+                  : story.production.recoveryAction === "retry_revision" ? "修改暂时中断" : "生成暂时中断"}
               </div>
-              <Button variant="outline" size="sm" onClick={() => retryMutation.mutate()} disabled={retryMutation.isPending}>
-                {retryMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                继续生成
-              </Button>
+              <p className="mt-1 break-words text-muted-foreground">
+                {story.production.checkpointSummary ?? story.production.diagnostic?.message ?? story.production.error ?? "可以从已保存的内容继续。"}
+              </p>
+              {story.production.recoveryAction === "preview_replan" ? (
+                <Button className="mt-3" size="sm" onClick={() => { setRevisionImpact(null); replanPreviewMutation.mutate(); }}
+                  disabled={replanPreviewMutation.isPending || revisionApplyMutation.isPending || editing}>
+                  {replanPreviewMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {replanPreviewMutation.isPending ? "正在准备调整方案…" : "查看调整方案"}
+                </Button>
+              ) : story.production.recoveryAction === "preview_revision" ? (
+                <p className="mt-2 text-muted-foreground">已保存的正文和修改前快照会保留。请在“用一句话修改作品”中说明要求，再预览并确认。</p>
+              ) : (
+                <Button className="mt-3" variant="outline" size="sm" onClick={() => retryMutation.mutate()}
+                  disabled={retryMutation.isPending || editing || revisionPreviewMutation.isPending || Boolean(story.production.diagnostic?.retryAt && Date.parse(story.production.diagnostic.retryAt) > Date.now())}>
+                  {retryMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {story.production.recoveryAction === "retry_revision" ? "继续修改" : "继续生成"}
+                </Button>
+              )}
+              {story.production.diagnostic ? (
+                <details className="mt-3 text-xs leading-6 text-muted-foreground">
+                  <summary className="cursor-pointer">查看失败信息</summary>
+                  <p>{story.production.diagnostic.message}</p>
+                  <p>诊断标识：{story.production.diagnostic.id} · 本次尝试 {story.production.diagnostic.attempts} 次</p>
+                  <p>模型：{story.production.diagnostic.provider ?? "未知"} / {story.production.diagnostic.model ?? "未知"}</p>
+                  <p>结束原因：{story.production.diagnostic.response.finishReason ?? "未知"} · HTTP：{story.production.diagnostic.response.httpStatus ?? "未知"}</p>
+                  {story.production.diagnostic.retryAt ? <p>可重试时间：{new Date(story.production.diagnostic.retryAt).toLocaleString()}</p> : null}
+                </details>
+              ) : null}
+              {revisionImpact?.mode === "replan" ? (
+                <RevisionPreview
+                  impact={revisionImpact}
+                  applying={revisionApplyMutation.isPending || editing || isProducing || replanPreviewMutation.isPending}
+                  onCancel={() => setRevisionImpact(null)}
+                  onConfirm={() => revisionApplyMutation.mutate()}
+                />
+              ) : null}
             </div>
           ) : null}
 
@@ -258,7 +310,7 @@ export default function ShortStoryStudioPage() {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={isProducing || story.segments.length === 0}>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={isProducing || revisionApplyMutation.isPending || revisionPreviewMutation.isPending || replanPreviewMutation.isPending || story.segments.length === 0}>
                     <PencilLine className="mr-2 h-4 w-4" />直接编辑
                   </Button>
                 )}
@@ -310,21 +362,25 @@ export default function ShortStoryStudioPage() {
                 }}
                 placeholder="例如：让结尾更温暖，但保留主角最后的选择。"
                 className="min-h-32 w-full resize-y rounded-lg border border-input bg-background px-3.5 py-3 text-sm leading-6 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                disabled={isProducing}
+                disabled={isProducing || story.production.recoveryAction === "preview_replan"}
               />
               <Button
                 className="w-full"
                 onClick={() => revisionPreviewMutation.mutate()}
-                disabled={!revisionInstruction.trim() || revisionPreviewMutation.isPending || isProducing}
+                disabled={!revisionInstruction.trim() || revisionPreviewMutation.isPending || replanPreviewMutation.isPending || revisionApplyMutation.isPending || editing || isProducing || story.production.recoveryAction === "preview_replan"}
               >
                 {revisionPreviewMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 预览修改范围
               </Button>
 
-              {revisionImpact ? (
+              {story.production.diagnostic && !story.production.recoveryAction && !revisionPreviewMutation.isPending ? <div className="rounded-lg bg-destructive/5 p-3 text-sm leading-6" role="status">
+                <p>{story.production.diagnostic.message}</p>
+                <p className="mt-1 text-xs text-muted-foreground">诊断标识：{story.production.diagnostic.id} · 本次尝试 {story.production.diagnostic.attempts} 次</p>
+              </div> : null}
+              {revisionImpact && revisionImpact.mode !== "replan" ? (
                 <RevisionPreview
                   impact={revisionImpact}
-                  applying={revisionApplyMutation.isPending}
+                  applying={revisionApplyMutation.isPending || editing || isProducing || replanPreviewMutation.isPending || revisionPreviewMutation.isPending}
                   onCancel={() => setRevisionImpact(null)}
                   onConfirm={() => revisionApplyMutation.mutate()}
                 />
@@ -370,8 +426,8 @@ function RevisionPreview(props: {
       ? "从影响处向后调整"
       : "重新规划整篇";
   return (
-    <div className="rounded-xl border border-primary/25 bg-primary/[0.03] p-4">
-      <div className="font-medium">AI 对修改的理解</div>
+    <div className={impact.mode === "replan" ? "mt-4 rounded-lg bg-background/80 p-4" : "rounded-xl border border-primary/25 bg-primary/[0.03] p-4"}>
+      <div className="font-medium">{impact.mode === "replan" ? "故事调整方案" : "AI 对修改的理解"}</div>
       <p className="mt-2 text-sm leading-6">{impact.understoodGoal}</p>
       <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <PreviewFact label="建议方式" value={strategyLabel} />
@@ -380,11 +436,16 @@ function RevisionPreview(props: {
         <PreviewFact label="核心意图" value={impact.changesCoreIntent ? "会改变" : "保持"} />
       </div>
       <p className="mt-4 text-sm leading-6 text-muted-foreground">{impact.summary}</p>
+      {impact.direction ? <div className="mt-4 text-sm leading-6"><strong>{impact.direction.title}</strong><p>{impact.direction.premise}</p></div> : null}
+      {impact.endingPromise ? <p className="mt-3 text-sm leading-6"><strong>结尾安排：</strong>{impact.endingPromise}</p> : null}
+      {impact.preservedFacts?.length ? <div className="mt-3 text-sm leading-6"><strong>保留的故事事实</strong><ul className="list-disc pl-5">{impact.preservedFacts.map((fact) => <li key={fact}>{fact}</li>)}</ul></div> : null}
+      {impact.segmentPurposes?.length ? <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm leading-6">{impact.segmentPurposes.map((segment) => <li key={segment.order}>{segment.purpose}</li>)}</ol> : null}
+      <p className="mt-3 text-xs leading-5 text-muted-foreground">确认后会生成调整内容，全部完成后更新正文；关闭预览会保留当前正文。</p>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={props.onCancel} disabled={props.applying}>先不修改</Button>
         <Button onClick={props.onConfirm} disabled={props.applying}>
           {props.applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          确认并应用
+          {impact.mode === "replan" ? "确认并继续" : "确认并应用"}
         </Button>
       </div>
     </div>

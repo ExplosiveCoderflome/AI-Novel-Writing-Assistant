@@ -1,3 +1,4 @@
+import { referenceContract, parseShortStoryReference } from "../../creation-studio/reference";
 import type {
   CreationDirection,
   CreationIntentInterpretation,
@@ -39,6 +40,9 @@ function countWords(content: string): number {
   return content.replace(/\s+/g, "").length;
 }
 
+import { shortStoryRevisionService } from "./ShortStoryRevisionService";
+import { isLegacyRevision } from "../domain/revisionState";
+
 export class ShortStoryProductionService {
   private readonly running = new Set<string>();
   private readonly workflowService = new NovelWorkflowService();
@@ -57,6 +61,8 @@ export class ShortStoryProductionService {
         lane: "creation_studio",
         novelId: { not: null },
         status: { in: ["queued", "running"] },
+        pendingManualRecovery: false,
+        novel: { narrativeForm: "short_story" },
       },
       select: { id: true },
       orderBy: { updatedAt: "asc" },
@@ -71,13 +77,26 @@ export class ShortStoryProductionService {
     if (this.running.has(taskId)) return;
     this.running.add(taskId);
     try {
+      const taskState = await prisma.novelWorkflowTask.findUnique({ where: { id: taskId } });
+      if (!taskState || taskState.checkpointType === "replan_required" || taskState.pendingManualRecovery
+        || taskState.cancelRequestedAt || (taskState.status !== "queued" && taskState.status !== "running")) return;
+      if (taskState.shortStoryOperationId) {
+        await shortStoryRevisionService.run(taskState.shortStoryOperationId);
+        return;
+      }
       const context = await this.loadContext(taskId);
+      if (isLegacyRevision(context.task, context.intentRow.source)) {
+        await this.workflowService.markTaskFailed(taskId, "请重新预览并确认修改，已保存的正文和快照会保留。", {
+          stage: "short_story_review", itemKey: "revision_apply", itemLabel: "请重新预览修改范围",
+        });
+        return;
+      }
       const plan = await this.ensurePlan(context);
       const completedSegments = await this.writePendingSegments(context, plan);
       await this.auditAndRepair(context, plan, completedSegments);
     } catch (error) {
       const task = await prisma.novelWorkflowTask.findUnique({ where: { id: taskId } });
-      if (task?.checkpointType !== "replan_required" && task?.status !== "cancelled") {
+      if (!task?.shortStoryOperationId && task?.checkpointType !== "replan_required" && task?.status !== "cancelled") {
         const message = error instanceof Error ? error.message : "短篇生成未完成。";
         await this.workflowService.markTaskFailed(taskId, message, {
           stage: this.resolveFailureStage(task?.currentItemKey),
@@ -133,6 +152,7 @@ export class ShortStoryProductionService {
       targetWordCount: task.novel.targetWordCount ?? interpretation.recommendedTargetWordCount,
       platform: parseWritingPlatformSnapshot(task.novel.writingPlatformSnapshotJson),
       productionFoundation: shortStoryProductionFoundationText(task.novel),
+      reference: referenceContract(parseShortStoryReference(task.novel.shortStoryReferenceJson, Boolean(task.novel.referenceBookAnalysisId))),
     };
   }
 
@@ -167,7 +187,7 @@ export class ShortStoryProductionService {
         direction: context.intent.direction,
         targetWordCount: context.targetWordCount,
         writingPlatform: shortStoryPlatformText(context.platform, "planning"),
-        productionFoundation: context.productionFoundation,
+        productionFoundation: context.productionFoundation, reference: context.reference,
       },
       options: {
         taskId: context.task.id,
@@ -262,7 +282,7 @@ export class ShortStoryProductionService {
           previousContentTail,
           writingPlatform: shortStoryPlatformText(context.platform, "drafting"),
           bookStyle: context.novel.styleTone ?? context.intent.direction.styleKeywords.join("、"),
-          productionFoundation: context.productionFoundation,
+          productionFoundation: context.productionFoundation, reference: context.reference,
         };
         const generated = await runStructuredPrompt({
           asset: shortStorySegmentWritePrompt,
@@ -335,7 +355,7 @@ export class ShortStoryProductionService {
         plan: plan.contract,
         content,
         writingPlatform: shortStoryPlatformText(context.platform, "auditing"),
-        productionFoundation: context.productionFoundation,
+        productionFoundation: context.productionFoundation, reference: context.reference,
       },
       options: {
         taskId: context.task.id,
@@ -412,7 +432,7 @@ export class ShortStoryProductionService {
           humanEdited: Boolean(segment.userEditedAt),
         })),
         writingPlatform: shortStoryPlatformText(context.platform, "repairing"),
-        productionFoundation: context.productionFoundation,
+        productionFoundation: context.productionFoundation, reference: context.reference,
       },
       options: {
         taskId: context.task.id,

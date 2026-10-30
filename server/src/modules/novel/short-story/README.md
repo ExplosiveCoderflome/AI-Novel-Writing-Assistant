@@ -8,10 +8,10 @@
 
 - `application/`：生产编排、恢复、编辑和修订用例。
 - `http/`：面向客户端的短篇 API 映射与输入校验。
-- `domain/`：后续新增的纯业务规则与状态转换。
+- `domain/`：修订基础版本、影响范围及快照规则。
 - `infrastructure/`：后续新增的模块专属外部适配器。
 
-当前没有独立 `domain/` 或 `infrastructure/` 文件，是因为持久化由 Prisma、AI 调用由 Prompt Registry 的稳定门面承担；不要为了目录完整而添加无所有权的空壳或通用 helper。
+持久化由 Prisma、AI 调用由 Prompt Registry 的稳定门面承担。修订预览、上下文读取和候选执行分别归属 application 服务，不通过首次生产跳过已完成片段的逻辑恢复。
 
 ## 依赖方向
 
@@ -36,7 +36,7 @@
 
 ## 数据与迁移
 
-持久化事实源是 `NovelIntentVersion`、`ShortStoryPlan`、`ShortStorySegment` 和 `NovelWorkflowTask`。PostgreSQL 与 SQLite schema、增量迁移必须同步维护。
+持久化事实源是 `NovelIntentVersion`、`ShortStoryPlan`、`ShortStorySegment` 、`NovelWorkflowTask`、`ShortStoryRevisionJob` 和 `ShortStoryRevisionCandidate`。PostgreSQL 与 SQLite schema、增量迁移必须同步维护。
 
 涉及这些表的迁移属于数据风险操作。执行前必须先完成数据库备份、记录具体备份路径并验证备份文件存在且大小合理；未满足条件时只能生成和校验迁移文件，不能执行迁移。
 
@@ -47,3 +47,20 @@
 - `server/src/services/novel/workflow/`
 - `server/src/modules/export/`
 - `client/src/pages/shortStory/`
+
+## 修订与恢复边界
+
+- 预览只保存待确认意图与完整基础版本，完整重规划的候选计划在此阶段生成；正式意图和正文在候选提交时统一切换。
+- ShortStoryRevisionPreviewService 解释要求并生成预览；ShortStoryRevisionService 负责确认、租约、候选保存、恢复、版本校验和原子发布；ShortStoryContext 提供本模块上下文和基础版本。
+- 首次生产没有修订指针，继续使用计划与片段游标；有 shortStoryOperationId 的任务只能恢复对应修订作业。不能从修订失败回到首次生产并跳过旧正文。
+- 同一作业的候选按片段唯一保存，带令牌租约防止并发执行；完整候选通过基础版本检查后，在 Serializable 短事务中提交正文、快照、计划、意图、作业和任务结果。
+- replan_required 的普通重试被拒绝，必须在短篇源页面预览并显式确认。取消、旧预览和人工编辑均受保护；旧版不明修订要求重新预览。
+- 详细状态与验证约定见 [短篇工作流](../../../../../docs/wiki/workflows/creation-studio-short-story.md)。
+
+## 参考与诊断边界
+
+- 参考服务归创作工作室 `reference/index.ts` 门面所有。本模块只读取作品确认时保存的快照，不能重新抽取来源或在恢复时换用最新拆书。
+- `ShortStoryContext` 和生产上下文将精炼参考合同传给计划、正文、审校、修复、改写与重规划；完整分析结论不重复进入每次写作。
+- `creation_reference` 与 `production_foundation` 在短篇正文自定义模板中仍属必需上下文，模板遗漏时由运行时保底补入。
+- 脱敏尝试记录归 `platform/llm/diagnostics/`，本模块只投影原因和标识、检查限流等待。诊断不能替代持久修订作业、解除人工暂停或改变质量债政策。
+- 诊断读法及真实模型验证边界见 [定位指南](../../../../../docs/wiki/debugging/short-story-structured-failures.md)。

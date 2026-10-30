@@ -26,27 +26,31 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/writingPlatformRecommendation.prompts").writingPlatformRecommendationPrompt as UnknownPromptAsset,
   },
   {
-    key: "creation.intent.interpret@v2",
+    key: "creation.intent.interpret@v3",
     load: () => require("../prompts/creation/creationIntent.prompts").creationIntentInterpretPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.plan@v2",
+    key: "creation.short_story.reference.extract@v1",
+    load: () => require("../prompts/creation/shortStoryReference.prompts").shortStoryReferenceExtractPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.short_story.plan@v3",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPlanPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.segment.write@v2",
+    key: "novel.short_story.segment.write@v3",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStorySegmentWritePrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.full.audit@v2",
+    key: "novel.short_story.full.audit@v3",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryFullAuditPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.patch.repair@v2",
+    key: "novel.short_story.patch.repair@v3",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPatchRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.revision.impact@v2",
+    key: "novel.short_story.revision.impact@v3",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryRevisionImpactPrompt as UnknownPromptAsset,
   },
   {

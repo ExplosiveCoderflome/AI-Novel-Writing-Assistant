@@ -1,3 +1,4 @@
+import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { Router } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -17,13 +18,20 @@ router.use(authMiddleware);
 const taskParamsSchema = z.object({ taskId: z.string().trim().min(1) });
 const writingPlatformSchema = z.enum(["fanqie_free", "qidian_male", "jinjiang_female", "zhihu_story"]);
 const writingPlatformPreferenceSchema = z.union([z.literal("ai_recommend"), writingPlatformSchema]);
+const referenceSchema = z.object({
+  analysisId: z.string().trim().min(1), documentId: z.string().trim().min(1),
+  sectionKeys: z.array(z.enum(BOOK_ANALYSIS_SECTIONS.map((section) => section.key))).min(1).max(8).optional(),
+  goal: z.string().trim().min(1).max(4000),
+}).strict();
 const interpretSchema = z.object({
+  reference: referenceSchema.optional(),
   idea: z.string().trim().min(1).max(12000),
   preferredNarrativeForm: z.enum(["short_story", "long_novel"]).optional(),
   targetWordCount: z.number().int().min(3000).max(3_000_000).optional(),
   writingPlatformPreference: writingPlatformPreferenceSchema.optional(),
 });
 const regenerateSchema = z.object({
+  reference: referenceSchema.optional(),
   narrativeForm: z.enum(["short_story", "long_novel"]),
   targetWordCount: z.number().int().min(3000).max(3_000_000),
   feedback: z.string().trim().max(4000).optional(),
