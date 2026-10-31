@@ -1,5 +1,6 @@
 import { isArtifactSatisfied, latestArtifact } from "./plan";
 import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
+import type {DirectorUnknownClaimsView} from "@ai-novel/shared/types/director/unknownClaims";
 import type {DirectorWorkerStatus} from "@ai-novel/shared/types/director/worker";
 import type {
   ArtifactType,
@@ -42,6 +43,7 @@ export interface DashboardView {
   chapterProgress: ChapterProgress | null;
   nextLaunchRange: ChapterRange | null;
   chapterBudget?: DirectorChapterBudgetView;
+  unknownClaims?: DirectorUnknownClaimsView;
   workspaceActivity: WorkspaceActivity;
   progress: { done: number; total: number; source: "artifact_ledger" };
   debts: { count: number; chapterOrders: number[] };
@@ -91,6 +93,7 @@ export interface ProductionProjection {
   chapterProgress: ChapterProgress | null;
   nextLaunchRange: ChapterRange | null;
   chapterBudget?: DirectorChapterBudgetView;
+  unknownClaims?: DirectorUnknownClaimsView;
 }
 
 export interface ProjectionInput {
@@ -218,6 +221,12 @@ export function project(input: ProjectionInput): DashboardView {
         },
         CANCEL_ACTION,
       ];
+      if (input.production?.unknownClaims && pauseKind === "manual_recovery") {
+        headline = `第 ${input.production.unknownClaims.chapterOrder} 章有一步结果待确认`;
+        nextActionGuidance = "从左侧目录打开本章检查正文，确认无误后在下方重新执行待确认的步骤；已有正文会保留。";
+        availableActions = [{id: "unknown_claims", label: "查看待确认步骤", kind: "navigate", primary: true,
+          target: `${sourceRoute}#director-unknown-claims`}, CANCEL_ACTION];
+      }
       if (input.production?.chapterBudget && pauseKind === "manual_recovery") {
         headline = `第 ${input.production.chapterBudget.chapterOrder} 章需要追加额度后继续`;
         nextActionGuidance = "查看下方用量，选择是否增加预算后继续；可仅调整本章，或同时应用于本任务后续章节。";
@@ -285,6 +294,7 @@ export function project(input: ProjectionInput): DashboardView {
     chapterProgress,
     nextLaunchRange,
     ...(control.status === "paused" && input.production?.chapterBudget ? {chapterBudget: input.production.chapterBudget} : {}),
+    ...(control.status === "paused" && input.production?.unknownClaims ? {unknownClaims: input.production.unknownClaims} : {}),
     workspaceActivity: projectWorkspaceActivity(input),
     progress: { done, total: inScope.length, source: "artifact_ledger" },
     debts: { count: facts.debts.length, chapterOrders },

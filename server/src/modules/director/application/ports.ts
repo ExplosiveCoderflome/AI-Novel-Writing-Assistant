@@ -44,9 +44,7 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 }
 
 /** Explicit source-page confirmation that a chapter's interrupted model steps may be re-dispatched. */
-export interface UnknownClaimResolution {
-  chapterId: string;
-}
+export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution;
 
 export interface GateResolution {
   guidance?: string;

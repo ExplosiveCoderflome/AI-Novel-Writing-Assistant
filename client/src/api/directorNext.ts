@@ -59,6 +59,7 @@ export interface DashboardView {
   chapterProgress: {from:number;to:number;done:number;total:number;current:{order:number;title:string;phase:"generating_chapters"|"reviewing"|"repairing"|"finalizing"}|null}|null;
   nextLaunchRange: {from:number;to:number}|null;
   chapterBudget?: import("@ai-novel/shared/types/director/chapterBudget").DirectorChapterBudgetView;
+  unknownClaims?: import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimsView;
   workspaceActivity?: import("@ai-novel/shared/types/director/generation").DirectorWorkspaceActivity;
   progress: { done: number; total: number; source: "artifact_ledger" };
   debts: { count: number; chapterOrders: number[] };
@@ -103,7 +104,7 @@ export type DirectorCommand =
     executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
   } }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
-  | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: import("@ai-novel/shared/types/director/chapterBudget").DirectorChapterBudgetGrant }
+  | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: import("@ai-novel/shared/types/director/chapterBudget").DirectorChapterBudgetGrant; resolveUnknownClaims?: import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: DirectorDriver; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
 

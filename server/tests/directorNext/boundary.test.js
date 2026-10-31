@@ -62,6 +62,11 @@ test("the director module only imports files inside itself", () => {
     "application/commandService.ts", "application/ports.ts", "http/routes.ts",
     "infrastructure/commands/resumeRun.ts", "domain/projection.ts",
   ]);
+  // The unknown-claim DTO carries one explicit user confirmation, never a service or policy.
+  const unknownClaimContractConsumers = new Set([
+    "application/commandService.ts", "application/ports.ts", "http/routes.ts",
+    "domain/projection.ts",
+  ]);
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
     const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);
@@ -77,6 +82,8 @@ test("the director module only imports files inside itself", () => {
           && revisionContractConsumers.has(relative.replace(/\\/g, "/"));
         const allowedChapterBudgetContract = specifier === "@ai-novel/shared/types/director/chapterBudget"
           && chapterBudgetContractConsumers.has(relative.replace(/\\/g, "/"));
+        const allowedUnknownClaimContract = specifier === "@ai-novel/shared/types/director/unknownClaims"
+          && unknownClaimContractConsumers.has(relative.replace(/\\/g, "/"));
         const allowedWorkerContract = specifier === "@ai-novel/shared/types/director/worker"
           && relative.replace(/\\/g, "/") === "domain/projection.ts";
         // Read-only transport facts carry no services, storage or policy into the application.
@@ -88,7 +95,10 @@ test("the director module only imports files inside itself", () => {
         if (allowedChapterBudgetContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorChapterBudgetView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/chapterBudget["']/);
         }
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedWorkerContract && !allowedRuntimeStatusContract) {
+        if (allowedUnknownClaimContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
+          assert.match(source, /import\s+type\s*\{\s*DirectorUnknownClaimsView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/unknownClaims["']/);
+        }
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedUnknownClaimContract && !allowedWorkerContract && !allowedRuntimeStatusContract) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;

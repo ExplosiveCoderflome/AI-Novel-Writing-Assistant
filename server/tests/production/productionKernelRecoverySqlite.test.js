@@ -209,3 +209,13 @@ test('the confirmation is refused when the manuscript changed or no claim is wai
  await g.db.chapterArtifactSyncCheckpoint.update({where:{id:g.claim.id},data:{status:'ready'}});
  await assert.rejects(g.repo.transition(g.command({resolveUnknownClaims:{chapterId:'chapter-1'}})),/没有待确认的未决步骤/);
 });
+
+test('the paused read model surfaces a chapter whose model step outcome is unconfirmed',async t=>{
+ const f=await unknownClaimFixture(t);
+ const api=require('../../dist/app/director/productionKernel');
+ const control={status:'paused',pause:{kind:'manual_recovery',reason:'saved structured pause'}};
+ assert.deepEqual(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),{chapterId:'chapter-1',chapterOrder:1});
+ await f.db.chapterArtifactSyncCheckpoint.update({where:{id:f.claim.id},data:{status:'ready'}});
+ assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),null);
+ assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,{status:'running',pause:null}),null);
+});

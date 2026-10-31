@@ -5,6 +5,7 @@ import { canonicalProductionJson } from "../../../../modules/production/common";
 import { directorChapterBudgetGrantSchema, directorChapterTokenLimitSchema, type DirectorChapterBudgetGrant } from "@ai-novel/shared/types/director/chapterBudget";
 import { AppError } from "../../../../middleware/errorHandler";
 import { readKernelPausedChapterBudget } from "../readModel/budget";
+import { UNKNOWN_MODEL_CLAIM_FILTER } from "../readModel/unknownClaims";
 import { BLOCKED, kernelBudgetMode } from "../execution/budgetReader";
 import { productionBatchOwnerKey } from "../execution/ownership";
 import { resetReplannedUnit } from "./replan";
@@ -75,8 +76,7 @@ export async function resumeKernelProduction(contract: RunContract, tx: Prisma.T
     }
     const released = await tx.chapterArtifactSyncCheckpoint.updateMany({
       where:{novelId:contract.novelId,chapterId:unit.chapterId,status:"running",sourceType:"production_kernel",
-        OR:[{artifactType:{in:["production_kernel@1:extraction","production_kernel@1:timeline_extraction","production_kernel@1:payoff_full_reconcile"]}},
-          {artifactType:{startsWith:"production_kernel@1:prepare:model:"}}]},
+        ...UNKNOWN_MODEL_CLAIM_FILTER},
       data:{status:"ready"}});
     if (!released.count) throw new AppError("本章没有待确认的未决步骤。",400);
     if (target.activeStage) {

@@ -9,6 +9,7 @@ import type {
 } from "./ports";
 import type {GateService} from "./gateService";
 import {directorChapterBudgetGrantSchema, type DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
+import {directorUnknownClaimResolutionSchema} from "@ai-novel/shared/types/director/unknownClaims";
 
 export type DirectorCommand =
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
@@ -182,7 +183,7 @@ export class CommandService {
     if (command.chapterBudget && (!directorChapterBudgetGrantSchema.safeParse(command.chapterBudget).success || control.pause?.kind !== "manual_recovery")) {
       throw new InvalidDirectorCommandError("只能为预算暂停中的章节追加有效额度。");
     }
-    if (command.resolveUnknownClaims && (!command.resolveUnknownClaims.chapterId || control.pause?.kind !== "manual_recovery")) {
+    if (command.resolveUnknownClaims && (!directorUnknownClaimResolutionSchema.safeParse(command.resolveUnknownClaims).success || control.pause?.kind !== "manual_recovery")) {
       throw new InvalidDirectorCommandError("只能为人工恢复暂停中的章节确认未决步骤。");
     }
     return this.transition(command, { type: "resume" });

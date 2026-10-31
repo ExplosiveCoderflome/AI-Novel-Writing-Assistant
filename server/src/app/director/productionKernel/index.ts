@@ -11,6 +11,7 @@ export { createProductionBatchRouter, productionKernelV2ChaptersEnabled } from "
 export { readKernelUnitOutcome } from "./readModel/completion";
 export { readKernelChapterProgress } from "./readModel/progress";
 export { readKernelPausedChapterBudget } from "./readModel/budget";
+export { readKernelPausedUnknownClaims } from "./readModel/unknownClaims";
 export { resumeKernelProduction, cancelKernelProduction } from "./recovery/commands";
 export { createKernelChapterBudget } from "./execution/chapterBudget";
 export { runKernelRequestScope, markKernelRequestNotDispatched } from "./execution/requestScope";
