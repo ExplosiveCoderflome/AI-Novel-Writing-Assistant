@@ -72,8 +72,9 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
   return {contentRef: input.contentRef, contentHash: artifactContentHash(content), protectedUserContent};
 }
 
-export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient, chapterBudget?: DirectorChapterBudgetGrant) {
-  if (await readProductionBatchImplementation(tx,contract) === "kernel") return resumeKernelProduction(contract,tx,chapterBudget);
+export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient, chapterBudget?: DirectorChapterBudgetGrant, resolveUnknownClaims?: {chapterId: string}) {
+  if (await readProductionBatchImplementation(tx,contract) === "kernel") return resumeKernelProduction(contract,tx,chapterBudget,resolveUnknownClaims);
+  if (resolveUnknownClaims) throw new AppError("本次创作没有可确认的未决步骤。",400);
   const event = await tx.directorNextEvent.findFirst({where: {runId: contract.runId, type: "chapter_batch_job"}, orderBy: {seq: "desc"}});
   if (!event) {
     if (chapterBudget) throw new AppError("本次创作没有可调整的章节预算。",400);

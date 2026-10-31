@@ -40,6 +40,12 @@ export interface CommandTransitionInput extends CommandExecutionInput {
   expectedVersion: number;
   gateResolution?: GateResolution;
   chapterBudget?: DirectorChapterBudgetGrant;
+  resolveUnknownClaims?: UnknownClaimResolution;
+}
+
+/** Explicit source-page confirmation that a chapter's interrupted model steps may be re-dispatched. */
+export interface UnknownClaimResolution {
+  chapterId: string;
 }
 
 export interface GateResolution {

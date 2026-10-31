@@ -14,7 +14,7 @@ export type DirectorCommand =
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
-  | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant }
+  | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant; resolveUnknownClaims?: import("./ports").UnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
 
@@ -86,6 +86,14 @@ function replayResult(record: { result: unknown }): DirectorCommandResult {
 export function assertChapterBudgetReplay(savedPayload: unknown, inputPayload: unknown): void {
   const saved = savedPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
   const input = inputPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
+  const resolution = input?.resolveUnknownClaims, previousResolution = saved?.resolveUnknownClaims;
+  if (resolution || previousResolution) {
+    if (input?.type !== "resume" || saved?.type !== "resume" || saved.runId !== input.runId
+      || saved.expectedVersion !== input.expectedVersion || !resolution || !previousResolution
+      || resolution.chapterId !== previousResolution.chapterId) {
+      throw new InvalidDirectorCommandError("同一未决步骤确认不能修改章节，请刷新后重试。");
+    }
+  }
   const grant = input?.chapterBudget, previous = saved?.chapterBudget;
   if (!grant && !previous) return;
   if (input?.type !== "resume" || saved?.type !== "resume" || saved.runId !== input.runId
@@ -174,6 +182,9 @@ export class CommandService {
     if (command.chapterBudget && (!directorChapterBudgetGrantSchema.safeParse(command.chapterBudget).success || control.pause?.kind !== "manual_recovery")) {
       throw new InvalidDirectorCommandError("只能为预算暂停中的章节追加有效额度。");
     }
+    if (command.resolveUnknownClaims && (!command.resolveUnknownClaims.chapterId || control.pause?.kind !== "manual_recovery")) {
+      throw new InvalidDirectorCommandError("只能为人工恢复暂停中的章节确认未决步骤。");
+    }
     return this.transition(command, { type: "resume" });
   }
 
@@ -207,6 +218,7 @@ export class CommandService {
       expectedVersion: command.expectedVersion,
       ...(gateResolution ? {gateResolution} : {}),
       ...(command.type === "resume" && command.chapterBudget ? {chapterBudget: command.chapterBudget} : {}),
+      ...(command.type === "resume" && command.resolveUnknownClaims ? {resolveUnknownClaims: command.resolveUnknownClaims} : {}),
       ...(command.type === "retry_start" ? {retryAt: this.deps.runtime.now?.() ?? new Date()} : {}),
     });
     return {

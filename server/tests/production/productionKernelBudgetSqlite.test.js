@@ -36,9 +36,23 @@ test('already incurred usage remains recordable after lease replacement but cann
  await assert.rejects(()=>f.budget.reserve(f.unit,'physical-2',10),/lease|ownership/i);
  assert.deepEqual(await f.db.directorNextRunControl.findFirst(),before);
 });
-test('budget requests cannot borrow a different chapter scope or change a reserved amount',async t=>{
+test('budget requests cannot borrow a different chapter scope',async t=>{
  const f=await fixture(t);await assert.rejects(()=>f.budget.reserve({...f.unit,order:4},'physical-1',60),/scope|identity/i);
- await f.budget.reserve(f.unit,'physical-1',60);await assert.rejects(()=>f.budget.reserve(f.unit,'physical-1',70),/identity|reservation/i);
+});
+test('a re-estimated reservation for the same request converges to the larger hold instead of bricking',async t=>{
+ const f=await fixture(t);await f.budget.reserve(f.unit,'physical-1',60);
+ // The stage layer and a later physical attempt of the same request estimate its
+ // cost differently; the hold must converge, never throw an identity conflict.
+ assert.equal(await f.budget.reserve(f.unit,'physical-1',70),true);
+ assert.equal((await f.budget.read(f.unit)).used,70);
+ assert.equal(await f.budget.reserve(f.unit,'physical-1',65),true);
+ assert.equal((await f.budget.read(f.unit)).used,70);
+ await f.budget.observe(f.unit,'physical-1',f.usage('invocation-1',20));
+ assert.equal((await f.budget.read(f.unit)).used,20);
+});
+test('a reservation top-up still respects the chapter allowance',async t=>{
+ const f=await fixture(t);await f.budget.reserve(f.unit,'physical-1',60);
+ assert.equal(await f.budget.reserve(f.unit,'physical-1',101),false);
  assert.equal((await f.budget.read(f.unit)).used,60);
 });
 test('a proven unsent reservation is reusable but a dispatched invocation can never be released',async t=>{

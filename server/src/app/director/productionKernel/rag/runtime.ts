@@ -28,7 +28,13 @@ export async function withKernelRagContext<T>(deps: KernelRagContextDependencies
   const configuration = structuredClone(deps.configuration);
   if (configuration.version !== 1) throw new InvalidProductionRequestError("Unknown retrieval configuration");
   const assertConfiguration = async () => {
-    if (canonical(await deps.readConfiguration()) !== canonical(configuration)) throw new ProductionSnapshotConflictError();
+    // A disabled retrieval configuration cannot influence execution: the index
+    // assertion is skipped and every retrieve() short-circuits to the native
+    // path. Comparing it anyway would freeze volatile process-environment
+    // tuning (candidate counts, final top-K, tenant) into the run's identity,
+    // so a paused run could never resume on a server whose environment differs
+    // from the one that froze it — even though retrieval never runs.
+    if (configuration.enabled && canonical(await deps.readConfiguration()) !== canonical(configuration)) throw new ProductionSnapshotConflictError();
     await deps.fence();
   };
   await assertConfiguration();

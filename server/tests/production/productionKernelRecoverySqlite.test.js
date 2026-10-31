@@ -171,3 +171,41 @@ test('explicit global replan resumes only a newer saved route and archives the o
  assert.equal(await f.db.directorNextEvent.count({where:{type:'production_kernel_replan_reset'}}),1);
  assert.equal((await f.db.chapter.findUniqueOrThrow({where:{id:chapter.id}})).content,chapter.content);
 });
+
+async function unknownClaimFixture(t) {
+ const f=await fixture(t,'unknown');
+ const progress={...f.run.progress,completed:['prepare','draft','accept','commit'],
+  selectedContentHash:hash('saved'),committedContentHash:hash('saved')};
+ await f.db.productionUnitRun.update({where:{id:f.run.id},data:{progressJson:JSON.stringify(progress),
+  activeStage:'reconcile',activeRequestKey:'interrupted-request'}});
+ await f.db.chapter.update({where:{id:'chapter-1'},data:{content:'saved'}});
+ const claim=await f.db.chapterArtifactSyncCheckpoint.create({data:{novelId:'novel-1',chapterId:'chapter-1',
+  contentHash:hash('saved'),artifactType:'production_kernel@1:extraction',syncMode:'interrupted-step',status:'running',
+  sourceType:'production_kernel',sourceStage:'reconcile',
+  metadataJson:JSON.stringify({schemaVersion:1,token:'dead-claim',executionToken:'dead-runtime:1',attempt:1})}});
+ return {...f,claim};
+}
+test('a plain resume never releases an unknown model claim',async t=>{
+ const f=await unknownClaimFixture(t);
+ await f.repo.transition(f.command());
+ assert.equal((await f.db.chapterArtifactSyncCheckpoint.findUniqueOrThrow({where:{id:f.claim.id}})).status,'running');
+ assert.equal((await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}})).activeStage,'reconcile');
+});
+test('an explicit per-chapter confirmation releases the unknown claim and reopens its stage',async t=>{
+ const f=await unknownClaimFixture(t);
+ await f.repo.transition(f.command({resolveUnknownClaims:{chapterId:'chapter-1'}}));
+ assert.equal((await f.db.chapterArtifactSyncCheckpoint.findUniqueOrThrow({where:{id:f.claim.id}})).status,'ready');
+ const unit=await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}});
+ assert.equal(unit.activeStage,null);assert.equal(unit.activeRequestKey,null);
+ const event=await f.db.directorNextEvent.findFirstOrThrow({where:{type:'unknown_claims_resolved'}});
+ assert.equal(JSON.parse(event.payloadJson).chapterId,'chapter-1');
+});
+test('the confirmation is refused when the manuscript changed or no claim is waiting',async t=>{
+ const f=await unknownClaimFixture(t);
+ await f.db.chapter.update({where:{id:'chapter-1'},data:{content:'edited after the pause'}});
+ await assert.rejects(f.repo.transition(f.command({resolveUnknownClaims:{chapterId:'chapter-1'}})),/正文已被修改/);
+ assert.equal((await f.db.chapterArtifactSyncCheckpoint.findUniqueOrThrow({where:{id:f.claim.id}})).status,'running');
+ const g=await unknownClaimFixture(t);
+ await g.db.chapterArtifactSyncCheckpoint.update({where:{id:g.claim.id},data:{status:'ready'}});
+ await assert.rejects(g.repo.transition(g.command({resolveUnknownClaims:{chapterId:'chapter-1'}})),/没有待确认的未决步骤/);
+});

@@ -4,6 +4,27 @@ import type { UnitRun } from "../../application";
 import { InvalidProductionRequestError } from "../../application";
 
 const normalize = (value: string) => value.replace(/\s+/g," ").trim();
+const blank = (value: unknown) => typeof value !== "string" || value.trim() === "";
+/** Parse an assessment the pipeline itself produced and saved. A repair
+ * verification only means something while it is bound to the exact candidate
+ * and source hashes it reviewed; a block whose binding hashes are blank
+ * identifies no content (the acceptance projection already treats it as
+ * "unknown"), so lifecycle readers treat it as absent instead of rejecting
+ * the whole assessment — and with it the chapter — at publish time. */
+export function parseSelectedAssessment(saved: unknown) {
+  let candidate = saved;
+  if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+    const verification = (candidate as {repairVerification?: unknown}).repairVerification;
+    if (verification && typeof verification === "object" && !Array.isArray(verification)) {
+      const block = verification as {contentHash?: unknown; factPreservation?: {sourceContentHash?: unknown} | null};
+      if (blank(block.contentHash) || (block.factPreservation != null && blank(block.factPreservation.sourceContentHash))) {
+        const {repairVerification: _unbound, ...rest} = candidate as {repairVerification?: unknown};
+        candidate = rest;
+      }
+    }
+  }
+  return chapterAcceptanceAssessmentSchema.safeParse(candidate);
+}
 /** Publish only the retained manuscript's structured assessment. Caller owns the chapter/lease locks and transaction. */
 export async function publishSelectedAssessment(tx: Prisma.TransactionClient, run: UnitRun): Promise<boolean> {
   const stage = run.progress.selected === "candidate" ? "verify" : "accept";
@@ -12,7 +33,7 @@ export async function publishSelectedAssessment(tx: Prisma.TransactionClient, ru
     if (run.snapshots.profile.stages.includes("accept")) throw new InvalidProductionRequestError("Selected assessment is missing");
     return false;
   }
-  const result = chapterAcceptanceAssessmentSchema.safeParse(saved.assessment);
+  const result = parseSelectedAssessment(saved.assessment);
   if (!result.success) throw new InvalidProductionRequestError("Selected assessment is invalid");
   const assessment = result.data;
   const available = !assessment.riskTags.includes("acceptance_gate_unavailable");

@@ -50,11 +50,24 @@ export function createKernelChapterBudget(db: PrismaClient, context: StepContext
         const existing = await tx.chapterArtifactSyncCheckpoint.findUnique({where:{novelId_chapterId_contentHash_artifactType_syncMode:identity},select:{metadataJson:true,status:true}});
         const metadata: Reserved = {version:1,runId,requestKey,tokens};
         if (existing) {
-          if (existing.metadataJson !== JSON.stringify(metadata)) throw new Error("Kernel reservation identity changed");
-          if (existing.status === "succeeded") return true;
+          // Identity is the request itself (run + requestKey). The token amount is an
+          // estimate, not identity: the stage layer and each physical attempt of the
+          // same logical request legitimately estimate it differently (repairs can
+          // raise the output allowance), so the hold converges to the largest
+          // estimate instead of bricking the request on any drift.
+          const saved = JSON.parse(existing.metadataJson ?? "null") as Reserved | null;
+          if (!saved || saved.version !== 1 || saved.runId !== runId || saved.requestKey !== requestKey
+            || !Number.isSafeInteger(saved.tokens) || saved.tokens < 1) throw new Error("Kernel reservation identity changed");
+          if (existing.status === "succeeded") {
+            if (tokens <= saved.tokens) return true;
+            if ((await read(tx,unit)).remaining < tokens - saved.tokens) return block(tx,unit,requestKey,tokens);
+            const topped = await tx.chapterArtifactSyncCheckpoint.updateMany({where:{...identity,status:"succeeded",metadataJson:existing.metadataJson},data:{metadataJson:JSON.stringify(metadata)}});
+            if (topped.count !== 1) throw new Error("Kernel reservation changed while topping up");
+            return true;
+          }
           if (existing.status !== "not_dispatched") throw new Error("Invalid kernel reservation status");
           if ((await read(tx,unit)).remaining < tokens) return block(tx,unit,requestKey,tokens);
-          const resumed = await tx.chapterArtifactSyncCheckpoint.updateMany({where:{...identity,status:"not_dispatched"},data:{status:"succeeded"}});
+          const resumed = await tx.chapterArtifactSyncCheckpoint.updateMany({where:{...identity,status:"not_dispatched"},data:{status:"succeeded",metadataJson:JSON.stringify(metadata)}});
           if (resumed.count !== 1) throw new Error("Kernel reservation changed while resuming");
           return true;
         }

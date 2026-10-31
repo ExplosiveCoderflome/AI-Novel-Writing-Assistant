@@ -1,12 +1,12 @@
-import {chapterAcceptanceAssessmentSchema} from "../../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import {InvalidProductionRequestError, type UnitRun} from "../../application";
+import {parseSelectedAssessment} from "./selectedAssessment";
 
 /** Compatibility view of this retained manuscript, consumed by every existing chapter debt reader. */
 export function projectSelectedQualityLoop(run: UnitRun, evaluatedAt: string): Record<string, unknown> | undefined {
   const selected = run.progress.selected === "candidate" ? "verify" : "accept";
   const saved = run.artifacts.stageData?.[selected] as {assessment?: unknown} | undefined;
   if (!saved?.assessment && !run.snapshots.profile.stages.includes("accept")) return undefined;
-  const parsed = chapterAcceptanceAssessmentSchema.safeParse(saved?.assessment);
+  const parsed = parseSelectedAssessment(saved?.assessment);
   if (!parsed.success) throw new InvalidProductionRequestError("Selected assessment is invalid");
   const assessment = parsed.data, debts = run.progress.debts ?? [];
   const codes = [...new Set([...debts.map(debt => debt.code), ...assessment.blockingIssues.map(issue => issue.code),

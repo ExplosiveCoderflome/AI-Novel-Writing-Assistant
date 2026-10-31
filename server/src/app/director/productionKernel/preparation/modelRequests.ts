@@ -20,27 +20,38 @@ const wire = (value: unknown): ProductionJson => JSON.parse(JSON.stringify(value
  * Round-varying inputs are part of the request, not of its frozen identity: the
  * same asset ordinal can legitimately carry different guidance on a resumed
  * evaluation (the continuity review may assess differently between executions),
- * and the previous-chapter context block is rebuilt from live chapter state on
+ * the previous-chapter context block is rebuilt from live chapter state on
  * each invocation, so its rendered shape can drift between attempts even when
  * the chapter itself did not change (the stored request keeps the shape built
  * at first invocation, a rebuild may carry the reduced shape the prompt
- * pipeline produces). Keying only on asset+ordinal would alias those distinct
+ * pipeline produces), and a downstream request can embed an upstream artifact
+ * that was itself regenerated under a new key on resume (a quality request
+ * whose candidate contract changed). Keying only on asset+ordinal — or on a
+ * digest of just the guidance/feedback fields — would alias those distinct
  * requests onto one saved snapshot and either false-conflict or replay a stale
- * cached result. The round digest keeps identical requests on the same key
- * (cache reuse still works) while giving each distinct round its own key.
- * Everything else (asset version, provider/model, base prompt) still goes
- * through the strict snapshot comparison in steps.model.
+ * cached result. The round digest therefore covers the full prompt input and
+ * context blocks: it keeps identical requests on the same key (cache reuse
+ * still works) while giving each distinct round its own key. Everything else
+ * (asset version, provider/model, base prompt) still goes through the strict
+ * snapshot comparison in steps.model.
  */
 function feedbackDigest(request: { promptInput: unknown; contextBlocks?: PromptContextBlock[] }): string {
-  const promptInput = (request.promptInput ?? {}) as { guidance?: unknown };
-  const guidance = typeof promptInput.guidance === "string" ? promptInput.guidance : null;
-  const guidanceBlocks = (request.contextBlocks ?? [])
-    .filter((block) => block?.id === "guidance")
-    .map((block) => block.content ?? "");
-  const previousChapterBlock = (request.contextBlocks ?? [])
-    .filter((block) => block?.id === "previous_chapter_result")
-    .map((block) => block.content ?? "");
-  return hashProductionContent(canonicalProductionJson({ guidance, guidanceBlocks, previousChapterBlock })).slice(0, 12);
+  // Prompt inputs and context blocks are live request objects: they may hold
+  // class instances or shared references that the strict production JSON
+  // clone rejects. Round-trip through a cycle-safe JSON serialization first
+  // so the digest sees the same plain data the prompt pipeline renders.
+  const ancestors: object[] = [];
+  const text = JSON.stringify({ promptInput: request.promptInput ?? null, contextBlocks: request.contextBlocks ?? [] },
+    function (key: string, item: unknown) {
+      if (typeof item === "bigint") return item.toString();
+      if (item && typeof item === "object") {
+        while (ancestors.length && ancestors[ancestors.length - 1] !== this) ancestors.pop();
+        if (ancestors.includes(item)) return "[circular]";
+        ancestors.push(item);
+      }
+      return item;
+    });
+  return hashProductionContent(canonicalProductionJson(JSON.parse(text ?? "null"))).slice(0, 12);
 }
 
 /** Each native semantic/contract/planner request has a stable ordinal within its frozen parent input. */
