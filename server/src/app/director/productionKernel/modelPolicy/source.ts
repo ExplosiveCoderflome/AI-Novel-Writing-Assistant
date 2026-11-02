@@ -26,7 +26,7 @@ export async function captureKernelModelPolicy(contract: RunContract, sources: K
   const windows:KernelModelPolicy["windows"]=[],targets:KernelModelPolicy["targets"]=[];
   for(const target of models){
     const contextWindow=await windowFor(target.provider,target.model);
-    if(contextWindow===null)throw new Error("模型缺少明确的上下文窗口配置。");
+    if(contextWindow===null)throw new Error(`模型缺少明确的上下文窗口配置（${target.provider}/${target.model}）。`);
     windows.push({...target,contextWindow});
   }
   for(const target of models)for(const taskType of KERNEL_MODEL_TASKS){
