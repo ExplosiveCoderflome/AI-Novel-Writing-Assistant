@@ -89,10 +89,10 @@ async function withRouteBudget(limit, verify) {
   }
 }
 
-test('chapter memory extraction and native JSON repair inherit the route limit within the compatibility safety cap', async () => {
+test('chapter memory extraction and native JSON repair inherit the route limit for structured extract and repair', async () => {
   await withRouteBudget(16384, async (service, calls) => {
     const result = await service.extractChapterArtifacts({novelId: 'novel-test', chapterId: 'chapter-test', content: '青禾说"按旧约"，收好铜钥匙。'});
-    assert.deepEqual(calls.map(call => [call.kind, call.limit]), [['extract', 8192], ['repair', 8192]]);
+    assert.deepEqual(calls.map(call => [call.kind, call.limit]), [['extract', 16384], ['repair', 16384]]);
     assert.ok(calls.every(call => call.model === 'qwen3.8-flash-next-iq3_s'));
     assert.deepEqual(result.output, memory);
     assert.equal(result.output.concreteFacts.at(-1).text, '第299号药箱的封条完整。');

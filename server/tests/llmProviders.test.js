@@ -313,7 +313,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(modelscope.reasoningEnabled, false);
     assert.equal(modelscope.reasoningForcedOff, true);
     assert.equal(modelscope.modelKwargs?.enable_thinking, false);
-    assert.equal(modelscope.maxTokens, 8192);
+    assert.equal(modelscope.maxTokens, 20000);
     assert.equal(modelscope.requestProtocol, "openai_compatible");
 
     const qwen = await resolveLLMClientOptions("qwen", {
@@ -364,7 +364,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.reasoningEnabled, true);
     assert.equal(qwenThinking.reasoningForcedOff, false);
     assert.equal(qwenThinking.modelKwargs?.enable_thinking, undefined);
-    assert.equal(qwenThinking.maxTokens, 8192);
+    assert.equal(qwenThinking.maxTokens, 20000);
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
 
     const deepseekFlash = await resolveLLMClientOptions("deepseek", {
