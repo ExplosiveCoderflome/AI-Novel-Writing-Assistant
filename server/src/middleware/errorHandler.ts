@@ -19,6 +19,19 @@ function joinErrorParts(parts: Array<string | undefined>): string {
   return parts.map((part) => part?.trim() ?? "").filter(Boolean).join(" | ");
 }
 
+const RESERVED_ERROR_KEYS = new Set(["success", "error", "message", "code", "requestId"]);
+/** Only workflow-recovery fields already consumed by the client may join the public envelope. */
+const PUBLIC_ERROR_DETAIL_KEYS = new Set(["runId", "pauseKind", "pause", "unknownClaims", "sourceRoute", "sourceActionLabel"]);
+
+/** Only explicit structured details from an AppError may join the public envelope. */
+function structuredErrorDetails(details: unknown): Record<string, unknown> {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return {};
+  }
+  return Object.fromEntries(Object.entries(details)
+    .filter(([key, value]) => PUBLIC_ERROR_DETAIL_KEYS.has(key) && !RESERVED_ERROR_KEYS.has(key) && value !== undefined));
+}
+
 const VALIDATION_FIELD_LABELS: Record<string, string> = {
   id: "项目 ID",
   field: "字段",
@@ -246,6 +259,7 @@ export function errorHandler(
       error: error.message,
       message: detail,
       ...("code" in error && typeof error.code === "string" ? {code: error.code} : {}),
+      ...structuredErrorDetails(error.details),
       requestId,
     });
     return;

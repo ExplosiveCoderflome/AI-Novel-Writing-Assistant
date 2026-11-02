@@ -17,6 +17,7 @@ import {openConflictService} from "../../../../services/state/OpenConflictServic
 import {PlannerService} from "../../../../services/planner/PlannerService";
 import {productionBatchOwnerKey} from "../execution/ownership";
 import {productionKernelV2ChaptersEnabled} from "../batch/router";
+import {readKernelPausedUnknownClaims} from "../readModel/unknownClaims";
 import type {ManualChapterOperation, ManualChapterLaunchInput} from "./contract";
 import {readManualChapterRequest} from "./contract";
 
@@ -28,6 +29,8 @@ interface ManualChapterEntryDependencies {
   readTokenLimit?: () => Promise<number>;
   resolveModel?: typeof resolveLLMClientOptions;
 }
+
+type SavedPause = {kind: "manual_recovery" | "replan" | "safety"; reason: string};
 
 export function createManualChapterEntry(deps: ManualChapterEntryDependencies) {
   const source = (novelId: string) => `/lab/director/${encodeURIComponent(novelId)}`;
@@ -96,11 +99,27 @@ export function createManualChapterEntry(deps: ManualChapterEntryDependencies) {
       const control = await deps.db.directorNextRunControl.findUniqueOrThrow({where: {runId}});
       if (control.status === "completed") return result(novelId, chapterId, runId);
       if (!["queued", "running"].includes(control.status)) {
-        const pause = control.pauseJson ? JSON.parse(control.pauseJson) as {reason?: string} : null;
-        throw new AppError(pause?.reason ?? control.failureReason ?? "本章创作需要处理，请返回本书工作台查看。", 409,
-          {runId, sourceRoute: source(novelId)});
+        const pause = control.pauseJson ? JSON.parse(control.pauseJson) as SavedPause : null;
+        const unknownClaims = pause?.kind === "manual_recovery" ? await readUnknownClaims(runId, novelId, pause) : null;
+        const message = unknownClaims
+          ? `第 ${unknownClaims.chapterOrder} 章有一步结果待确认，请到导演台按章确认后继续。`
+          : pause?.reason ?? control.failureReason ?? "本章创作需要处理，请返回本书工作台查看。";
+        throw new AppError(message, 409, {
+          runId, pauseKind: pause?.kind ?? null, pause, unknownClaims,
+          sourceRoute: source(novelId), sourceActionLabel: unknownClaims ? "去导演台按章确认" : "打开本书导演台"});
       }
       await wait(1000, undefined, {signal});
+    }
+  }
+  async function readUnknownClaims(runId: string, novelId: string, pause: SavedPause) {
+    try {
+      const saved = await deps.db.directorNextRun.findUniqueOrThrow({where: {id: runId}, select: {contractJson: true}});
+      const contract = JSON.parse(saved.contractJson) as RunContract;
+      if (contract.novelId !== novelId) return null;
+      return await readKernelPausedUnknownClaims(deps.db, contract, {status: "paused", pause});
+    } catch {
+      // The pause reason stays actionable even when saved progress cannot be projected.
+      return null;
     }
   }
   return {handles, start, result, waitForResult};
