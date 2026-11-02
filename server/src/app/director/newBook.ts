@@ -1,4 +1,5 @@
 import type {DirectorConfirmRequest} from "@ai-novel/shared/types/novelDirector";
+import {CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION, serializeCreativeCarryoverContract} from "@ai-novel/shared/types/creativeCarryoverContract";
 import {prisma} from "../../db/prisma";
 import {NovelCoreService} from "../../services/novel/NovelCoreService";
 import {getLLMSelectionSettings} from "../../services/settings/LLMSelectionSettingsService";
@@ -22,6 +23,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
   // the v2 run contract requires a concrete count. Normalize through the same
   // shared fallback the legacy pipeline uses (default 80, clamped to range).
   const chapterCount = normalizeDirectorTargetChapterCount(input.estimatedChapterCount ?? input.candidate.targetChapterCount);
+  const adoptedCarryover = input.creativeCarryoverContract?.adopted === true ? input.creativeCarryoverContract : null;
   const novel = existing ?? await new NovelCoreService().createNovel({id:reservedNovelId,title:input.title ?? input.candidate.workingTitle,description:input.description ?? input.candidate.logline,
       bookSellingPoint:input.bookSellingPoint,styleTone:input.styleTone,estimatedChapterCount:chapterCount,
       defaultChapterLength:input.defaultChapterLength,projectMode:input.projectMode,writingMode:input.writingMode,
@@ -30,7 +32,9 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
       narrativePov:input.narrativePov,pacePreference:input.pacePreference,emotionIntensity:input.emotionIntensity,aiFreedom:input.aiFreedom,
       postGenerationStyleReviewEnabled:input.postGenerationStyleReviewEnabled,sourceNovelId:input.sourceNovelId,sourceKnowledgeDocumentId:input.sourceKnowledgeDocumentId,
       continuationBookAnalysisId:input.continuationBookAnalysisId,continuationBookAnalysisSections:input.continuationBookAnalysisSections,
-      referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections});
+      referenceBookAnalysisId:input.referenceBookAnalysisId,referenceBookAnalysisSections:input.referenceBookAnalysisSections,
+      creativeCarryoverContractJson:adoptedCarryover ? serializeCreativeCarryoverContract(adoptedCarryover) : null,
+      creativeCarryoverContractSchemaVersion:adoptedCarryover ? CREATIVE_CARRYOVER_CONTRACT_SCHEMA_VERSION : null});
   if (!existing?.directorVersion) await prisma.novel.update({where: {id: novel.id}, data: {directorVersion: "v2"}});
   await new StyleBindingService().ensureNovelDefault(novel.id, input.styleProfileId);
   if (confirmation && !confirmation.novelId) await prisma.creationStudioConfirmation.update({where:{workflowTaskId:sourceTaskId},data:{novelId:novel.id}});

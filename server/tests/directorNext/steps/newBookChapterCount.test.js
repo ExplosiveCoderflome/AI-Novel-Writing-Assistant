@@ -39,6 +39,7 @@ for (const scenario of [
       "../../services/styleEngine/StyleBindingService": { StyleBindingService: class { async ensureNovelDefault() {} } },
       "../../modules/novel/director-routing": {},
       "../../services/novel/director/runtime/novelDirectorHelpers": chapterCountHelpers,
+      "@ai-novel/shared/types/creativeCarryoverContract": require("@ai-novel/shared/types/creativeCarryoverContract"),
     });
     await launchNewDirectorBook({
       candidate: { workingTitle: "测试", logline: "故事", targetChapterCount: scenario.candidateCount },
