@@ -23,6 +23,8 @@
 - RAG 配置的冻结快照比对只在检索启用时执行：禁用时检索根本不运行，冻结配置中由环境派生的调优参数与当前环境不一致不构成冲突；启用时配置漂移仍必须拒绝（租约 fence 始终保留）。
 - 发布与质量债务投影对已选验收评估做二次校验时，口径必须与流水线内部一致：复核块的绑定哈希为空表示「未绑定」，按未知处理并剔除，不得用更严的口径把整章判死。
 - 未知结果的人工解除只有一条路径：普通恢复（resume）永不解除认领；只有当恢复命令携带按章的显式确认（`resolveUnknownClaims`，表示用户已在章节页面核对正文），且该章当前正文与已提交内容哈希一致时，才在命令事务内释放该章停在 `running` 的模型步认领（reconcile 的抽取/时间线/全量同步与 prepare 的模型请求），并清掉该单元的中断阶段标记，事件 `unknown_claims_resolved` 留痕。正文被改过、或该章没有待确认认领时拒绝执行。
+- 写作/审校阶段（draft/accept/repair/verify）没有 `recover` 端口，也不写模型检查点：中断后唯一留下的证据是该单元的 `activeStage`/`activeRequestKey`。因此暂停读模型在这四个阶段有 activeStage 时同样产出 `unknownClaims`；prepare 只有在整章没有任何 prepare/reconcile 检查点（没有可复用的已存步骤）时才算同类孤儿；已有可恢复检查点时仍走普通恢复，不弹确认。显式确认在「没有匹配 checkpoint、但该章仍有上述 activeStage」时清空 activeStage/activeRequestKey。确认只清认领，不重新派发模型：确认后的下一次运行按正常决策重新 describe/execute。
+- 普通 resume 仍不解除任何 activeStage，也不会自动重新派发 draft/accept/repair/verify；没有显式确认时读模型会持续把该章标为待确认，避免「静静砖死但界面无入口」。
 
 ## 失败模式
 
@@ -34,6 +36,7 @@
 - 反馈摘要覆盖不全导致合法重生成被别名（2026-10-31 实测）：合同步因前章块漂移合法重生成新合同时，审校步摘要没算内嵌的合同候选，新候选被别名到旧合同的请求快照上，恢复时严格比对必抛冲突；触发条件是审校判合同修订又恰逢外部失败暂停（如余额不足），平时不出现。
 - 预算估算漂移砖死重执行（2026-10-31 实测）：同一抽取步的输出估算两次执行相差 2 个 token（4563 → 4565），预留层按金额全等比对抛 `Kernel reservation identity changed`，且异常发生在调用内部、认领被按未知结果留下，形成二次砖死。
 - 进程在模型步执行中退出：认领成为孤儿，暂停文案提示「返回章节页面检查后继续」，但普通继续不解除任何认领——解除只能走显式确认路径（见当前规则）；没有这条路径时该章永久卡死。
+- 写作/审校阶段未知结果砖死（2026-11 修复前实测）：draft/accept/repair/verify 在 `execute` 抛传输错误或进程退出时，`unitExecutor` 保留 `activeStage` 并返回 `unknown`，映射为 `manual_recovery` 暂停。修前读模型只认 prepare/reconcile 的 checkpoint、显式确认又要求至少释放一条 checkpoint，于是暂停界面没有待确认入口、普通 resume 永久 `unknown`，该章永久卡死。修后上述阶段也进入 `unknownClaims`，显式确认可清空该单元的 activeStage/activeRequestKey，下一次运行重新决策。
 
 ## 相关模块
 

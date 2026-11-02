@@ -219,3 +219,87 @@ test('the paused read model surfaces a chapter whose model step outcome is uncon
  assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),null);
  assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,{status:'running',pause:null}),null);
 });
+
+test('a draft whose transport outcome is unknown can be confirmed and re-entered from scratch',async t=>{
+ // Contrast with the checkpoint fixture above: writing/review stages save no
+ // durable model checkpoint, so the pending unit claim is the only signal.
+ const f=await fixture(t,'unknown');
+ const {PrismaUnitProgressStore}=require('../../dist/modules/production');
+ const {runUnit}=require('../../dist/modules/production/application');
+ const {harness,request}=require('./application/harness.cjs');
+ const store=new PrismaUnitProgressStore(f.db,{assertOwnership:f.api.createKernelOwnership(f.context)});
+ const req=request({ownerKey:f.api.productionBatchOwnerKey(f.contract.runId)});
+ await f.db.directorNextRunControl.update({where:{runId:f.contract.runId},data:{status:'running',
+  cursorStepId:'chapter_batch',leaseOwner:'worker:1',leaseExpiresAt:new Date(Date.now()+60000)}});
+ const ports=harness({execute:async stage=>{if(stage==='draft')throw new Error('transport closed after dispatch');}});
+ ports.store=store;
+ const outcome=await runUnit(req,ports);
+ assert.equal(outcome.status,'unknown');
+ const claimed=await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}});
+ assert.equal(claimed.activeStage,'draft');
+ assert.equal(await f.db.chapterArtifactSyncCheckpoint.count({where:{status:'running',sourceType:'production_kernel'}}),0);
+ await f.db.directorNextRunControl.update({where:{runId:f.contract.runId},data:{status:'paused',cursorStepId:null,
+  pauseJson:JSON.stringify({kind:'manual_recovery',reason:'chapter outcome unknown'})}});
+ const api=require('../../dist/app/director/productionKernel');
+ const control={status:'paused',pause:{kind:'manual_recovery'}};
+ assert.deepEqual(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),{chapterId:'chapter-1',chapterOrder:1});
+ // Plain resume never clears the claim or re-dispatches the draft model call.
+ await f.repo.transition(f.command());
+ assert.equal((await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}})).activeStage,'draft');
+ assert.equal(ports.calls.filter(x=>x==='draft').length,1);
+ // The retried run reports the same unknown outcome, so the source page pauses again.
+ await f.db.directorNextRunControl.update({where:{runId:f.contract.runId},data:{status:'paused',
+  pauseJson:JSON.stringify({kind:'manual_recovery',reason:'chapter outcome unknown'})}});
+ await f.repo.transition(f.command({id:'resolve',idempotencyKey:'resolve-once',expectedVersion:3,
+  resolveUnknownClaims:{chapterId:'chapter-1'}}));
+ const cleared=await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}});
+ assert.equal(cleared.activeStage,null);assert.equal(cleared.activeRequestKey,null);
+ const event=await f.db.directorNextEvent.findFirstOrThrow({where:{type:'unknown_claims_resolved'}});
+ assert.equal(JSON.parse(event.payloadJson).chapterId,'chapter-1');
+ assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,{status:'running',pause:null}),null);
+ // A later run is a fresh decision: the confirmed stage describes and executes again.
+ const resumed=await f.db.directorNextRunControl.update({where:{runId:f.contract.runId},data:{status:'running',
+  cursorStepId:'chapter_batch',leaseOwner:'worker:1',leaseExpiresAt:new Date(Date.now()+60000)}});
+ const fresh={...f.context,control:{...f.context.control,version:resumed.version,status:'running',cursorStepId:'chapter_batch'}};
+ const retry=harness(),retryStore=new PrismaUnitProgressStore(f.db,{assertOwnership:f.api.createKernelOwnership(fresh)});
+ retry.store=retryStore;
+ assert.equal((await runUnit(req,retry)).status,'completed');
+ assert.equal(retry.calls.filter(x=>x==='draft').length,1);
+});
+
+test('a prepare claim with no saved checkpoint is surfaced but plain resume still keeps it',async t=>{
+ const f=await fixture(t,'unknown');
+ await f.db.productionUnitRun.update({where:{id:f.run.id},data:{activeStage:'prepare',activeRequestKey:'orphan-prepare'}});
+ const api=require('../../dist/app/director/productionKernel');
+ const control={status:'paused',pause:{kind:'manual_recovery'}};
+ assert.equal(await f.db.chapterArtifactSyncCheckpoint.count({where:{status:'running',sourceType:'production_kernel'}}),0);
+ assert.deepEqual(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),{chapterId:'chapter-1',chapterOrder:1});
+ const before=await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}});
+ await f.repo.transition(f.command());
+ assert.deepEqual(await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}}),before);
+ await f.db.directorNextRunControl.update({where:{runId:f.contract.runId},data:{status:'paused',cursorStepId:null,
+  pauseJson:JSON.stringify({kind:'manual_recovery',reason:'prepare outcome unknown'})}});
+ await f.repo.transition(f.command({id:'resolve',idempotencyKey:'resolve-once',expectedVersion:3,
+  resolveUnknownClaims:{chapterId:'chapter-1'}}));
+ const cleared=await f.db.productionUnitRun.findUniqueOrThrow({where:{id:f.run.id}});
+ assert.equal(cleared.activeStage,null);assert.equal(cleared.activeRequestKey,null);
+ assert.equal(await f.db.directorNextEvent.count({where:{type:'unknown_claims_resolved'}}),1);
+});
+
+test('a prepare claim with saved checkpoints is left to normal recovery, not surfaced as unknown',async t=>{
+ const f=await fixture(t,'unknown');
+ await f.db.productionUnitRun.update({where:{id:f.run.id},data:{activeStage:'prepare',activeRequestKey:'resumable-prepare'}});
+ await f.db.chapterArtifactSyncCheckpoint.create({data:{novelId:'novel-1',chapterId:'chapter-1',contentHash:hash('saved'),
+  artifactType:'production_kernel@1:prepare:model:contract',syncMode:'saved-step',status:'succeeded',
+  sourceType:'production_kernel',sourceStage:'prepare',metadataJson:JSON.stringify({schemaVersion:1,token:'done',
+    executionToken:'lease-1',attempt:1,value:{ok:true}})}});
+ const api=require('../../dist/app/director/productionKernel');
+ const control={status:'paused',pause:{kind:'manual_recovery'}};
+ assert.equal(await api.readKernelPausedUnknownClaims(f.db,f.contract,control),null);
+ await assert.rejects(f.repo.transition(f.command({resolveUnknownClaims:{chapterId:'chapter-1'}})),/没有待确认的未决步骤/);
+});
+
+test('an explicit confirmation without any pending claim is still refused',async t=>{
+ const f=await fixture(t,'unknown');
+ await assert.rejects(f.repo.transition(f.command({resolveUnknownClaims:{chapterId:'chapter-1'}})),/没有待确认的未决步骤/);
+});

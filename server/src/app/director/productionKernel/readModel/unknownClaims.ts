@@ -1,6 +1,6 @@
 import type { RunContract, RunControl } from "../../../../modules/director";
 import type { DirectorUnknownClaimsView } from "@ai-novel/shared/types/director/unknownClaims";
-import { parseProductionUnitRun } from "../../../../modules/production";
+import { parseProductionUnitRun, type StageId } from "../../../../modules/production";
 import type { KernelBudgetReader } from "../execution/budgetReader";
 import { productionBatchOwnerKey } from "../execution/ownership";
 
@@ -15,7 +15,25 @@ export const UNKNOWN_MODEL_CLAIM_FILTER: import("@prisma/client").Prisma.Chapter
   ],
 };
 
-/** The first paused chapter (in book order) that still holds an unconfirmed model step. */
+/** Writing and review stages call the model but expose no recover port, so an
+ *  interrupted execute keeps its unit claim with no durable checkpoint to read.
+ *  Only an explicit per-chapter confirmation may clear these claims. */
+export const UNCONFIRMED_ACTIVE_STAGES: ReadonlySet<StageId> = new Set(["draft", "accept", "repair", "verify"]);
+
+export function isUnconfirmedActiveStage(stage: StageId | null | undefined): boolean {
+  return Boolean(stage && UNCONFIRMED_ACTIVE_STAGES.has(stage));
+}
+
+/** A prepare claim is an orphan only when the chapter has no prepare/reconcile
+ *  checkpoint: recovery then has nothing durable to replay. A saved step means the
+ *  normal recover can continue without asking the user to confirm anything. */
+export async function isOrphanPrepareClaim(db: KernelBudgetReader, novelId: string, chapterId: string): Promise<boolean> {
+  const saved = await db.chapterArtifactSyncCheckpoint.count({ where: {
+    novelId, chapterId, sourceType: "production_kernel", ...UNKNOWN_MODEL_CLAIM_FILTER } });
+  return saved === 0;
+}
+
+/** The first paused chapter (in book order) that still holds an unconfirmed step. */
 export async function readKernelPausedUnknownClaims(db: KernelBudgetReader, contract: RunContract,
   control: Pick<RunControl, "status" | "pause">): Promise<DirectorUnknownClaimsView | null> {
   if (control.status !== "paused" || control.pause?.kind !== "manual_recovery") return null;
@@ -27,6 +45,10 @@ export async function readKernelPausedUnknownClaims(db: KernelBudgetReader, cont
       novelId: contract.novelId, chapterId: unit.chapterId, status: "running", sourceType: "production_kernel",
       ...UNKNOWN_MODEL_CLAIM_FILTER } });
     if (claims > 0) return { chapterId: unit.chapterId, chapterOrder: unit.order };
+    if (isUnconfirmedActiveStage(run.activeStage)
+      || run.activeStage === "prepare" && await isOrphanPrepareClaim(db, contract.novelId, unit.chapterId)) {
+      return { chapterId: unit.chapterId, chapterOrder: unit.order };
+    }
   }
   return null;
 }
