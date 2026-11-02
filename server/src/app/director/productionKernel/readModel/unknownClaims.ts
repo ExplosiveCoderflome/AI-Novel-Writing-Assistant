@@ -17,8 +17,11 @@ export const UNKNOWN_MODEL_CLAIM_FILTER: import("@prisma/client").Prisma.Chapter
 
 /** Writing and review stages call the model but expose no recover port, so an
  *  interrupted execute keeps its unit claim with no durable checkpoint to read.
- *  Only an explicit per-chapter confirmation may clear these claims. */
-export const UNCONFIRMED_ACTIVE_STAGES: ReadonlySet<StageId> = new Set(["draft", "accept", "repair", "verify"]);
+ *  Commit is included because an installed post-generation review port may call a
+ *  model there; its chapter write still shares the CAS, so a lost result leaves
+ *  no half-saved manuscript. Only an explicit per-chapter confirmation may clear
+ *  these claims. */
+export const UNCONFIRMED_ACTIVE_STAGES: ReadonlySet<StageId> = new Set(["draft", "accept", "repair", "verify", "commit"]);
 
 export function isUnconfirmedActiveStage(stage: StageId | null | undefined): boolean {
   return Boolean(stage && UNCONFIRMED_ACTIVE_STAGES.has(stage));

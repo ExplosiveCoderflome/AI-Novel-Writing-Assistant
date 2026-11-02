@@ -13,9 +13,13 @@ async function fixture(t,kind='budget') {
  const descriptor={callsModel:true,outputTokens:40,inputFingerprint:'saved-input',promptVersion:'v1',configVersion:'v1'};
  const progress=kind==='quality'?{...run.progress,completed:['prepare','draft','accept','commit'],original:{contentHash:hash('saved')},
   selected:'original',selectedContentHash:hash('saved'),committedContentHash:hash('saved'),
-  qualityPause:{contentHash:hash('saved'),reason:'blocking_quality_policy',acknowledged:false}}:run.progress;
+  qualityPause:{contentHash:hash('saved'),reason:'blocking_quality_policy',acknowledged:false}}
+  :kind==='style'?{...run.progress,completed:['prepare','draft','accept'],original:{contentHash:hash('saved')},
+   selected:'original',selectedContentHash:hash('saved'),
+   styleReviewPause:{contentHash:hash('saved'),code:'continuation_imitation',reason:'复刻原作开头',acknowledged:false}}:run.progress;
  await f.db.productionUnitRun.update({where:{id:run.id},data:{progressJson:JSON.stringify(progress),
-  stageArtifactsJson:JSON.stringify({...run.artifacts,...(kind==='budget'?{deferredDescriptor:{stage:'draft',descriptor}}:{})})}});
+  stageArtifactsJson:JSON.stringify({...run.artifacts,...(kind==='budget'?{deferredDescriptor:{stage:'draft',descriptor}}:{}),
+   ...(kind==='style'?{original:'saved'}:{})})}});
  if(kind==='quality')await f.db.chapter.update({where:{id:'chapter-1'},data:{content:'saved'}});
  const budget=f.api.createKernelChapterBudget(f.db,f.context),unit=req.unit;
  if(kind==='budget'){
@@ -87,6 +91,21 @@ test('quality pause acknowledgment shares the explicit resume transaction and re
  const saved=await f.db.productionUnitRun.findUnique({where:{id:f.run.id}});
  assert.equal(JSON.parse(saved.progressJson).qualityPause.acknowledged,true);assert.equal(saved.version,before.version+1);
  assert.equal(saved.stageArtifactsJson,before.stageArtifactsJson);assert.equal(saved.policySnapshotJson,before.policySnapshotJson);
+});
+test('a rejected post-generation review pause is persisted and only the explicit resume acknowledges it',async t=>{
+ const f=await fixture(t,'style');
+ const before=await f.db.productionUnitRun.findUnique({where:{id:f.run.id}});
+ assert.equal(JSON.parse(before.progressJson).styleReviewPause.acknowledged,false);
+ await f.api.readKernelChapterProgress(f.db,f.contract,{status:'paused'});
+ assert.deepEqual(await f.db.productionUnitRun.findUnique({where:{id:f.run.id}}),before);
+ const rollback=f.makeRepo({resumeBusiness:async(...args)=>{await f.resumeBusiness(...args);throw Error('rollback style acknowledgment');}});
+ await assert.rejects(rollback.transition(f.command()),/rollback style acknowledgment/);
+ assert.deepEqual(await f.db.productionUnitRun.findUnique({where:{id:f.run.id}}),before);
+ await f.repo.transition(f.command());
+ const saved=await f.db.productionUnitRun.findUnique({where:{id:f.run.id}});
+ assert.equal(JSON.parse(saved.progressJson).styleReviewPause.acknowledged,true);
+ assert.equal(JSON.parse(saved.progressJson).committedContentHash,undefined);
+ assert.equal(saved.version,before.version+1);assert.equal(saved.stageArtifactsJson,before.stageArtifactsJson);
 });
 test('kernel cancellation preserves saved progress and unknown claims while revoking old writes',async t=>{
  const f=await fixture(t,'unknown');

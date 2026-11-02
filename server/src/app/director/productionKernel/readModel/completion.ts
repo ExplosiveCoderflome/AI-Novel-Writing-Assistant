@@ -36,6 +36,7 @@ export async function readKernelUnitOutcome(db: Reader, contract: RunContract, c
     || !["completed","degraded"].includes(progress.reconcileStatus ?? "")
     || !["approved","reviewed"].includes(current.generationState) || current.chapterStatus !== "completed"
     || reference?.runId !== row.id || reference.contentHash !== progress.selectedContentHash
-    || (progress.qualityPause && !progress.qualityPause.acknowledged)) return failed();
+    || (progress.qualityPause && !progress.qualityPause.acknowledged)
+    || (progress.styleReviewPause && !progress.styleReviewPause.acknowledged)) return failed();
   return {status:"completed",progress};
 }

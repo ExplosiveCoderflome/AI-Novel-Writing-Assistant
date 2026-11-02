@@ -88,6 +88,16 @@ test('missing or stale assessment identity fails closed',()=>{
   assert.deepEqual(next(progress({original:{contentHash:'original'}})),{kind:'fail',reason:'data_integrity'});
   assert.deepEqual(next(progress({original:{contentHash:'original',verdict:verdict('old')}})),{kind:'fail',reason:'data_integrity'});
 });
+test('a rejected post-generation review pauses before commit and only acknowledgement releases it',()=>{
+  const p=progress({selected:'original',selectedContentHash:'original',
+    styleReviewPause:{contentHash:'original',code:'continuation_imitation',reason:'复刻原作开头',acknowledged:false}});
+  assert.deepEqual(next(p),{kind:'pause_for_manual',reason:'style_review_rejected'});
+  const acknowledged=call('applyUnitAction',p,{kind:'acknowledge_style_review_pause',contentHash:'original'});
+  assert.deepEqual(next(acknowledged),{kind:'run_stage',stage:'commit'});
+  assert.deepEqual(next(progress({selected:'original',selectedContentHash:'original',
+    styleReviewPause:{contentHash:'stale',code:'continuation_imitation',reason:'复刻',acknowledged:false}})),
+    {kind:'fail',reason:'data_integrity'});
+});
 test('identical snapshots yield identical decisions',()=>{
   const p=accepted();assert.deepEqual(next(p),next(JSON.parse(JSON.stringify(p))));
 });

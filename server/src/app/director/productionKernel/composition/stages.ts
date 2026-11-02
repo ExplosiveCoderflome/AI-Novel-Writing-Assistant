@@ -29,9 +29,11 @@ export function createNativeKernelStages(deps: NativeStageDependencies): UnitPor
         autoRewritten: false, originalContent: null, finalContent: input.content },
       acceptance: input.assessment.assessment, runId: deps.context.runId, plannerService: planner }),
   });
-  const adapters = createChapterModelAdapters({ writer: { invoke: native.write }, assessment: new ChapterAcceptanceAssessmentService(),
+  const adapterServices = createChapterModelAdapters({ writer: { invoke: native.write }, assessment: new ChapterAcceptanceAssessmentService(),
     patches: new ChapterPatchRepairService(), withReviewBudget: (run, _call, operation) => review(run, operation),
     repairRuntime: native.repairRuntime, isKnownPatchFailure: error => error instanceof ChapterPatchRepairFailedError });
+  const adapters = deps.postGenerationStyleReview
+    ? { ...adapterServices, postGenerationStyleReview: deps.postGenerationStyleReview } : adapterServices;
   return { ...createChapterStagePorts({ purpose: readManualChapterRequest(deps.context.contract) ? "user_requested" : "automatic", readBaseline: deps.readBaseline,
     prepare: async () => { throw new Error("Native checkpointed preparation must be installed"); },
     describe: native.describe, scoped: native.scoped, ...adapters }, { reconcile: nativeReconcile(deps) }), prepare: nativePreparation(deps) };

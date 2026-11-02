@@ -23,7 +23,7 @@
 - RAG 配置的冻结快照比对只在检索启用时执行：禁用时检索根本不运行，冻结配置中由环境派生的调优参数与当前环境不一致不构成冲突；启用时配置漂移仍必须拒绝（租约 fence 始终保留）。
 - 发布与质量债务投影对已选验收评估做二次校验时，口径必须与流水线内部一致：复核块的绑定哈希为空表示「未绑定」，按未知处理并剔除，不得用更严的口径把整章判死。
 - 未知结果的人工解除只有一条路径：普通恢复（resume）永不解除认领；只有当恢复命令携带按章的显式确认（`resolveUnknownClaims`，表示用户已在章节页面核对正文），且该章当前正文与已提交内容哈希一致时，才在命令事务内释放该章停在 `running` 的模型步认领（reconcile 的抽取/时间线/全量同步与 prepare 的模型请求），并清掉该单元的中断阶段标记，事件 `unknown_claims_resolved` 留痕。正文被改过、或该章没有待确认认领时拒绝执行。
-- 写作/审校阶段（draft/accept/repair/verify）没有 `recover` 端口，也不写模型检查点：中断后唯一留下的证据是该单元的 `activeStage`/`activeRequestKey`。因此暂停读模型在这四个阶段有 activeStage 时同样产出 `unknownClaims`；prepare 只有在整章没有任何 prepare/reconcile 检查点（没有可复用的已存步骤）时才算同类孤儿；已有可恢复检查点时仍走普通恢复，不弹确认。显式确认在「没有匹配 checkpoint、但该章仍有上述 activeStage」时清空 activeStage/activeRequestKey。确认只清认领，不重新派发模型：确认后的下一次运行按正常决策重新 describe/execute。
+- 写作/审校阶段（draft/accept/repair/verify）没有 `recover` 端口，也不写模型检查点（commit 在安装了可选正文后写法复核端口时也会调用模型，因此同样按未确认阶段处理）：中断后唯一留下的证据是该单元的 `activeStage`/`activeRequestKey`。因此暂停读模型在这四个阶段有 activeStage 时同样产出 `unknownClaims`；prepare 只有在整章没有任何 prepare/reconcile 检查点（没有可复用的已存步骤）时才算同类孤儿；已有可恢复检查点时仍走普通恢复，不弹确认。显式确认在「没有匹配 checkpoint、但该章仍有上述 activeStage」时清空 activeStage/activeRequestKey。确认只清认领，不重新派发模型：确认后的下一次运行按正常决策重新 describe/execute。
 - 普通 resume 仍不解除任何 activeStage，也不会自动重新派发 draft/accept/repair/verify；没有显式确认时读模型会持续把该章标为待确认，避免「静静砖死但界面无入口」。
 
 ## 失败模式

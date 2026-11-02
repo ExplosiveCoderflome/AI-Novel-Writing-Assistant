@@ -313,6 +313,18 @@ AI 返回紧凑的 `styleReview` 风险结论，程序从同次 `voice` 问题�
 
 `PostGenerationStyleReviewRunner` 保留了旧独立检测与整章改写实现，但当前生产链不执行它。`ChapterContentFinalizationService` 从唯一接收闸门取得写法报告；V2 的 `chapter_batch` 只读取底层章节闭合结果。增强表达诊断应进入现有验收和局部修文，不能因旧类仍存在而重新接入第二次检测或自动整章去味。
 
+### 生产内核的可选正文后写法复核端口
+
+生成后写法复核（防复刻）在产品语义上是书级开关 `postGenerationStyleReviewEnabled`，但生产内核只把它当作可选端口，而不是默认执行链：
+
+- 端口契约为 `PostGenerationStyleReviewPort`：输入包含开关快照、正文、续写约束与当前模型身份，输出只有 `pass` 或 `fail + code/reason`。运行时装配默认不安装端口，因此默认关闭与“书级开关单独不能触发复核”同时成立。
+- 调用点在 `commit` 阶段、选稿之后、写回正文之前；只有端口已安装且上下文快照明确 `postGenerationStyleReviewEnabled === true` 时才调用。关闭时不做任何额外请求。
+- `fail` 不是未知结果：`unitExecutor` 会把它记录成 `progress.styleReviewPause`、清空 `activeStage`/`activeRequestKey` 并返回 `paused`，映射为 `manual_recovery` 的 runtime 暂停。绝不允许静默提交被拒绝的正文，也不把它伪装成已完成。
+- 暂停只能由来源页的显式继续命令解除（与质量暂停相同的恢复边界）；后台轮询与 worker 恢复不会清除它。解除后同一份正文才会真正进入 commit；已提交的正文与暂停哈希不一致时按数据完整性问题失败。
+- 当前仓库尚未安装真实 Runner 适配器：适配器必须复用内核预算、租约 fence 与 CAS 语义，再评估是否把自动改写纳入选稿规则。真实接入前保留 stub 契约与本篇边界说明。
+
+旧 `ChapterContentFinalizationService` 路径仍只在统一接收闸门内完成写法检测，不调用新端口。
+
 确定性表达检查、风格语义判断与执行许可是不同边界。统计词项、句长或重复只能给 AI 提供证据，不能直接判断作者来源、机械加风险分或在零命中时宣布风格通过。已存在的严重表达安全预检仍由 `proseQuality/` 拥有；普通风格候选不得借用严重缺陷通道变成全局停止条件。
 
 规则允许自动修文不等于当前实例可安全修改。执行许可必须同时尊重 AI 的具体判断、事实与章节义务、用户授权和冻结的问题策略。叙事建议若需要改变事件或人物动机，应回到有上下文的来源页由 AI 辅助作者决定，不能由表达层自行改剧情。独立手动修订服务同样不能把客户端提交的规则名或建议当作可信许可。
