@@ -38,6 +38,24 @@ export function applyUnitAction(progress: UnitProgress, action: UnitAction): Uni
     }
     return {...progress,qualityPause:{contentHash:action.contentHash,reason:action.reason,acknowledged:false}};
   }
+  if (action.kind === "record_style_review_pause" || action.kind === "acknowledge_style_review_pause") {
+    assertSelection(progress);
+    requireState(!progress.completed.includes("commit") && !progress.userEditedSinceStart
+      && action.contentHash === progress.selectedContentHash,
+    "Style review recovery requires the unchanged selected manuscript.");
+    if (action.kind === "acknowledge_style_review_pause") {
+      requireState(progress.styleReviewPause?.contentHash === action.contentHash,
+        "Only an existing style review pause can be acknowledged.");
+      return {...progress,styleReviewPause:{...progress.styleReviewPause!,acknowledged:true}};
+    }
+    if (progress.styleReviewPause) {
+      requireState(progress.styleReviewPause.contentHash === action.contentHash
+        && progress.styleReviewPause.code === action.code
+        && progress.styleReviewPause.reason === action.reason, "Conflicting style review pause.");
+      return progress;
+    }
+    return {...progress,styleReviewPause:{contentHash:action.contentHash,code:action.code,reason:action.reason,acknowledged:false}};
+  }
   if (action.kind === "select_final") {
     requireState(progress.completed.includes("prepare") && !progress.userEditedSinceStart, "Selection cannot precede preparation or override edits.");
     requireState(action.selected === "original" && !progress.candidate, "Candidates require verified selection stage.");

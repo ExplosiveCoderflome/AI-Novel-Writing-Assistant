@@ -13,3 +13,12 @@ test('explicit application errors retain their public message and machine-readab
  const error=new AppError('请补齐模型上下文配置。',503);error.code='production_model_capability_missing';
  const result=handle(error);assert.equal(result.status,503);assert.equal(result.body.error,error.message);assert.equal(result.body.code,error.code);
 });
+test('explicit structured details pass through but cannot overwrite the error envelope',()=>{
+ const error=new AppError('第 2 章有一步结果待确认。',409,{pauseKind:'manual_recovery',unknownClaims:{chapterId:'chapter-2',chapterOrder:2},
+  success:true,error:'forged',requestId:'forged'});
+ const result=handle(error);
+ assert.equal(result.status,409);assert.equal(result.body.error,error.message);
+ assert.equal(result.body.pauseKind,'manual_recovery');assert.deepEqual(result.body.unknownClaims,{chapterId:'chapter-2',chapterOrder:2});
+ assert.equal(result.body.success,false);assert.notEqual(result.body.requestId,'forged');
+ assert.match(result.body.requestId,/^[0-9a-f-]{36}$/);
+});

@@ -5,7 +5,7 @@ import { canonicalProductionJson } from "../../../../modules/production/common";
 import { directorChapterBudgetGrantSchema, directorChapterTokenLimitSchema, type DirectorChapterBudgetGrant } from "@ai-novel/shared/types/director/chapterBudget";
 import { AppError } from "../../../../middleware/errorHandler";
 import { readKernelPausedChapterBudget } from "../readModel/budget";
-import { UNKNOWN_MODEL_CLAIM_FILTER } from "../readModel/unknownClaims";
+import { isOrphanPrepareClaim, isUnconfirmedActiveStage, UNKNOWN_MODEL_CLAIM_FILTER } from "../readModel/unknownClaims";
 import { BLOCKED, kernelBudgetMode } from "../execution/budgetReader";
 import { productionBatchOwnerKey } from "../execution/ownership";
 import { resetReplannedUnit } from "./replan";
@@ -48,6 +48,24 @@ export async function resumeKernelProduction(contract: RunContract, tx: Prisma.T
   const rows = await tx.productionUnitRun.findMany({where:{ownerKey:productionBatchOwnerKey(contract.runId)}});
   const runs=rows.map(parseProductionUnitRun);
   await resetReplannedUnit(tx,contract,control.updatedAt,runs);
+  const stylePaused = runs.filter(run=>run.progress.styleReviewPause && !run.progress.styleReviewPause.acknowledged);
+  if (stylePaused.length > 1) throw new AppError("写法复核暂停的章节不唯一，请检查运行记录。",409);
+  for (const run of stylePaused) {
+    const unit = run.progress.unit, range = contract.chapterRange;
+    const selected = run.progress.selected === "candidate" ? run.artifacts.candidate : run.artifacts.original;
+    if (!range || unit.novelId !== contract.novelId || unit.order < range.from || unit.order > range.to || run.activeStage
+      || run.progress.committedContentHash || !run.progress.selectedContentHash || !selected?.trim()
+      || hashProductionContent(selected) !== run.progress.selectedContentHash
+      || run.progress.styleReviewPause!.contentHash !== run.progress.selectedContentHash) {
+      throw new AppError("写法复核暂停的章节范围无效。",409);
+    }
+    // Explicit source-page recovery only: the user accepts this manuscript so the
+    // commit stage may run again. A rejected attempt never commits on its own.
+    const progress = applyUnitAction(run.progress,{kind:"acknowledge_style_review_pause",contentHash:run.progress.selectedContentHash});
+    const changed = await tx.productionUnitRun.updateMany({where:{id:run.id,ownerKey:run.ownerKey,novelId:unit.novelId,chapterId:unit.chapterId,
+      version:run.version,activeStage:null,activeRequestKey:null},data:{progressJson:canonicalProductionJson(progress),version:{increment:1}}});
+    if (changed.count !== 1) throw new AppError("写法复核暂停状态发生变化。",409);
+  }
   const paused = runs.filter(run=>run.progress.qualityPause && !run.progress.qualityPause.acknowledged);
   if (paused.length > 1) throw new AppError("质量暂停的章节不唯一，请检查运行记录。",409);
   for (const run of paused) {
@@ -78,7 +96,14 @@ export async function resumeKernelProduction(contract: RunContract, tx: Prisma.T
       where:{novelId:contract.novelId,chapterId:unit.chapterId,status:"running",sourceType:"production_kernel",
         ...UNKNOWN_MODEL_CLAIM_FILTER},
       data:{status:"ready"}});
-    if (!released.count) throw new AppError("本章没有待确认的未决步骤。",400);
+    // Writing/review stages keep only the unit's activeStage (no durable model
+    // checkpoint), so the chapter's own pending claim is the thing to confirm. A
+    // prepare claim qualifies only when it left no prepare/reconcile checkpoint.
+    const orphanPrepare = target.activeStage === "prepare" && released.count === 0
+      && await isOrphanPrepareClaim(tx, contract.novelId, unit.chapterId);
+    if (!released.count && !isUnconfirmedActiveStage(target.activeStage) && !orphanPrepare) {
+      throw new AppError("本章没有待确认的未决步骤。",400);
+    }
     if (target.activeStage) {
       // The interrupted stage is re-entered from scratch, so its stale claim on the
       // unit goes with the released model claims; the stage result was never saved.

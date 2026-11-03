@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import type { StepContext } from "../../../../modules/director";
 import { createLongChapterProfile, hashProductionContent, PrismaUnitProgressStore, ProductionChapterLifecycleService,
-  type UnitRun, type PreparedChapter, type UnitPorts, type ProductionProfile } from "../../../../modules/production";
+  type PostGenerationStyleReviewPort, type UnitRun, type PreparedChapter, type UnitPorts, type ProductionProfile } from "../../../../modules/production";
 import { canonicalProductionJson, ProductionVersionConflictError } from "../../../../modules/production/common";
 import { MANUAL_CHAPTER_SYNC_TYPE } from "../../../../services/novel/chapterEditor/synchronization/ManualChapterSyncStore";
 import { buildChapterArtifactContentHash } from "../../../../services/novel/runtime/artifactSync/ChapterArtifactContentVersion";
@@ -18,7 +18,12 @@ import {withoutLlmTaskOutputBudgets, resolveScopedTaskOutputTokens} from "../../
 import {captureKernelTaskOutputBudgets, createConfiguredKernelProfile, withKernelTaskOutputStages} from "../modelPolicy/outputBudgets";
 import {configureManualChapterProfile, readManualChapterRequest} from "../manual/contract";
 
-export interface NativeKernelRuntimeOptions { modelSources?: KernelModelPolicySources }
+export interface NativeKernelRuntimeOptions {
+  modelSources?: KernelModelPolicySources;
+  /** Optional post-generation style review port. Default off: runtime composition installs
+   *  none, so the book switch alone never triggers a review until a real adapter exists. */
+  postGenerationStyleReview?: PostGenerationStyleReviewPort;
+}
 
 /** Captures one batch contract and worker lease. Construction performs no model request. */
 export async function createNativeKernelRuntime(db: PrismaClient, context: StepContext,
@@ -86,7 +91,8 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
       unit = { ...unit };
       return { store, fence, budget: { reserve: async input => ({ reservationKey: input.requestKey,
         accepted: await budget.preflight(unit, input.requestKey, input.outputTokens) }) },
-        stages: withKernelTaskOutputStages(createNativeKernelStages({ db, context, ownership, preflight, budget, fence, readBaseline, unit }), outputBudgets) };
+        stages: withKernelTaskOutputStages(createNativeKernelStages({ db, context, ownership, preflight, budget, fence, readBaseline, unit,
+          ...(options.postGenerationStyleReview ? { postGenerationStyleReview: options.postGenerationStyleReview } : {}) }), outputBudgets) };
     },
   };
 }

@@ -3,7 +3,7 @@ import type { StyleRewriteBaseline } from "@ai-novel/shared/types/styleEngine";
 import type { ChapterAcceptanceAssessmentResult } from "../../../../services/novel/runtime/ChapterAcceptanceAssessmentService";
 import type { ChapterAcceptanceAssessmentOutput } from "../../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import type { AcceptanceVerdict, StageId, UnitRef } from "../../domain";
-import type { StageDescriptor, UnitRun } from "../../application";
+import type { PostGenerationStyleReviewPort, StageDescriptor, UnitRun } from "../../application";
 import type { ProductionJson } from "../../common";
 
 export interface ChapterBaseline { content: string | null; updatedAt: string; protectedUserContent: boolean }
@@ -33,5 +33,7 @@ export interface ChapterStageServices {
   }>;
   /** Only classify known, structured patch failures as recoverable; transport/guard failures propagate. */
   knownRepairFailure(error: unknown): string | null;
+  /** Optional post-generation style review. Absent means the port is off, regardless of the book setting. */
+  postGenerationStyleReview?: PostGenerationStyleReviewPort;
   replanScope?(assessment: ChapterAcceptanceAssessmentResult): AcceptanceVerdict["replan"];
 }

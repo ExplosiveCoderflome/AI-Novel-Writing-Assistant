@@ -39,7 +39,13 @@ export function decideNext(input: {profile: ProductionProfile; policy: IssuePoli
   if (unit[unit.selected]?.contentHash !== unit.selectedContentHash) return {kind:"fail",reason:"data_integrity"};
   const debts = collectQualityDebts(unit,verdict);
   if (debts.length && !unit.debtRecorded && !has("commit")) return {kind:"record_debt",debts,then:"commit"};
-  if (!has("commit")) return {kind:"run_stage",stage:"commit"};
+  if (!has("commit")) {
+    if (unit.styleReviewPause) {
+      if (unit.styleReviewPause.contentHash !== unit.selectedContentHash) return {kind:"fail",reason:"data_integrity"};
+      if (!unit.styleReviewPause.acknowledged) return {kind:"pause_for_manual",reason:"style_review_rejected"};
+    }
+    return {kind:"run_stage",stage:"commit"};
+  }
   if (unit.committedContentHash !== unit.selectedContentHash || unit.reconcileStatus === "failed") return {kind:"fail",reason:"data_integrity"};
   if (policy.blockingAction === "pause_for_manual" && verdict
     && (hasBlockingRisk(verdict) || !verdict.gateAvailable || verdict.reviewIncomplete) && !unit.qualityPause?.acknowledged) {

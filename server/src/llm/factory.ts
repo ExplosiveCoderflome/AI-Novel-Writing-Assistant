@@ -223,6 +223,9 @@ export async function resolveLLMClientOptions(
   let resolvedModel = normalizeOptionalText(options.model);
   let resolvedTemperature: number | undefined = options.temperature;
   let resolvedMaxTokens: number | undefined = options.maxTokens;
+  // Explicit task options OR model-route budgets are user intent (#209).
+  // safeStructuredMaxTokens only guards the unset/default path.
+  let respectConfiguredMaxTokens = options.maxTokens != null;
   let resolvedModelRoute: string | undefined;
   let resolvedRouteDegraded = false;
 
@@ -247,6 +250,9 @@ export async function resolveLLMClientOptions(
     }
     if (options.maxTokens == null) {
       resolvedMaxTokens = route.maxTokens;
+      if (route.maxTokens != null) {
+        respectConfiguredMaxTokens = true;
+      }
     }
     if (options.requestProtocol == null) {
       options.requestProtocol = route.requestProtocol;
@@ -323,6 +329,7 @@ export async function resolveLLMClientOptions(
     structuredProfile
     && typeof structuredProfile.safeStructuredMaxTokens === "number"
     && typeof effectiveMaxTokens === "number"
+    && !respectConfiguredMaxTokens
   ) {
     effectiveMaxTokens = Math.min(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens);
   }

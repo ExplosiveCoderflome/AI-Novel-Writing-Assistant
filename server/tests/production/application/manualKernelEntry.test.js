@@ -46,3 +46,52 @@ test('a stale or forged request cannot start a V2 task for a V1 book', async () 
   await assert.rejects(api.createManualChapterEntry(f.deps).start('book', 'chapter', 'write', {directorVersion: 'v2'}), /版本|V2/);
   assert.equal(f.commands.length, 0);
 });
+test('a paused manual run reports the pending unknown-claims chapter and directs the user to the director desk', async () => {
+  assert.equal(typeof api.createManualChapterEntry, 'function');
+  const contract = {runId: 'manual-run', novelId: 'book', chapterRange: {from: 2, to: 2},
+    stepIdsInScope: ['chapter_batch'], planVersion: 'production-kernel-manual@1'};
+  const deps = {db: {
+    novel: {findUnique: async () => null, findUniqueOrThrow: async () => null}, chapter: {findFirst: async () => null},
+    directorNextRunControl: {findUniqueOrThrow: async () => ({status: 'paused',
+      pauseJson: JSON.stringify({kind: 'manual_recovery', reason: '本章写作结果尚未确认'})})},
+    directorNextRun: {findUniqueOrThrow: async () => ({contractJson: JSON.stringify(contract)})},
+    productionUnitRun: {findMany: async () => [{id: 'unit-1', ownerKey: 'director_next:manual-run:chapter_batch', novelId: 'book',
+      chapterId: 'chapter', version: 1,
+      profileSnapshotJson: JSON.stringify({id: 'long_chapter@1', stages: ['prepare', 'draft', 'accept', 'repair', 'verify', 'select', 'commit', 'reconcile'],
+        repair: {maxAttempts: 1, mode: 'light_repair'}, context: 'chapter_context@1', reconcile: 'adaptive',
+        outputBudgets: {draft: 8000, accept: 4096, verify: 6144}, capabilities: []}),
+      modelSnapshotJson: JSON.stringify({provider: 'openai', model: 'test-model', promptVersion: 'v1', configVersion: 'v1', inputFingerprint: 'input-v1'}),
+      policySnapshotJson: JSON.stringify({policy: {blockingAction: 'continue_with_warning'}}),
+      progressJson: JSON.stringify({unit: {novelId: 'book', chapterId: 'chapter', order: 2},
+        completed: ['prepare', 'draft'], repairAttemptsUsed: 0}), stageArtifactsJson: '{"receipts":{}}',
+      activeStage: 'draft', activeRequestKey: 'interrupted-request'}]},
+    chapterArtifactSyncCheckpoint: {count: async () => 0},
+  }, enabled: () => true, commands: () => ({execute: async () => ({runId: 'manual-run'})}), wake: () => {}};
+  const entry = api.createManualChapterEntry(deps);
+  await assert.rejects(entry.waitForResult('book', 'chapter', 'manual-run'), error => {
+    assert.equal(error.statusCode, 409);
+    assert.equal(error.details.pauseKind, 'manual_recovery');
+    assert.deepEqual(error.details.unknownClaims, {chapterId: 'chapter', chapterOrder: 2});
+    assert.equal(error.details.sourceRoute, '/lab/director/book');
+    assert.equal(error.details.sourceActionLabel, '去导演台按章确认');
+    assert.match(error.message, /第 2 章.*待确认/);
+    return true;
+  });
+});
+
+test('a non-confirmation pause keeps the saved reason without inventing unknown claims', async () => {
+  assert.equal(typeof api.createManualChapterEntry, 'function');
+  const deps = {db: {
+    novel: {findUnique: async () => null, findUniqueOrThrow: async () => null}, chapter: {findFirst: async () => null},
+    directorNextRunControl: {findUniqueOrThrow: async () => ({status: 'paused',
+      pauseJson: JSON.stringify({kind: 'replan', reason: '需要调整后续规划'})})},
+  }, enabled: () => true, commands: () => ({execute: async () => ({runId: 'manual-run'})}), wake: () => {}};
+  const entry = api.createManualChapterEntry(deps);
+  await assert.rejects(entry.waitForResult('book', 'chapter', 'manual-run'), error => {
+    assert.equal(error.statusCode, 409);
+    assert.equal(error.details.pauseKind, 'replan');
+    assert.equal(error.details.unknownClaims, null);
+    assert.equal(error.message, '需要调整后续规划');
+    return true;
+  });
+});
