@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import type { StepContext } from "../../../../modules/director";
-import type { ChapterStageServices, UnitRun, UnitRef } from "../../../../modules/production";
+import type { ChapterStageServices, PostGenerationStyleReviewPort, UnitRun, UnitRef } from "../../../../modules/production";
 import type { createKernelOwnership } from "../execution/ownership";
 import type { createKernelChapterBudget } from "../execution/chapterBudget";
 import type { createKernelPromptPreparer } from "../prompts/preflight";
@@ -14,4 +14,7 @@ export interface NativeStageDependencies {
   budget: ReturnType<typeof createKernelChapterBudget>;
   fence(run: UnitRun): Promise<void>;
   readBaseline: ChapterStageServices["readBaseline"];
+  /** Optional post-generation style review. Never installed by default; the kernel only
+   *  calls it when the book switch is on and a port is explicitly provided. */
+  postGenerationStyleReview?: PostGenerationStyleReviewPort;
 }

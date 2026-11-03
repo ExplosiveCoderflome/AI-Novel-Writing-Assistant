@@ -12,6 +12,7 @@ import type {
   NarrativeForm,
 } from "@ai-novel/shared/types/creationStudio";
 import type { DirectorCandidate, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
+import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type { WritingPlatform, WritingPlatformPreference } from "@ai-novel/shared/types/writingPlatform";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
@@ -27,6 +28,7 @@ import { supportsWritingPlatformForm, writingPlatformProfileService } from "../.
 interface CreationStudioSeed {
   referenceSelection?: ShortStoryReferenceSelection;
   referenceSnapshot?: ShortStoryReferenceSnapshot;
+  creativeCarryoverContract?: CreativeCarryoverContract | null;
   idea: string;
   derivedFromNovelId?: string;
   currentIntentVersionId?: string;
@@ -486,6 +488,7 @@ export class CreationStudioService {
         genreId: foundation.genreId,
         primaryStoryModeId: foundation.primaryStoryModeId,
         secondaryStoryModeId: foundation.secondaryStoryModeId,
+        creativeCarryoverContract: seed.creativeCarryoverContract ?? null,
       };
       const result = this.longNovelLauncher ? await this.longNovelLauncher(confirmInput,taskId) : await this.directorService.confirmCandidate(confirmInput);
       const productionTaskId = result.workflowTaskId;

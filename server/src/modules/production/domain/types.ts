@@ -56,6 +56,7 @@ export interface UnitProgress {
   reconcileStatus?: "completed" | "degraded" | "pending" | "failed";
   stageResults?: Partial<Record<StageId, StageResult>>;
   qualityPause?: { contentHash: string; reason: "blocking_quality_policy"; acknowledged: boolean };
+  styleReviewPause?: { contentHash: string; code: string; reason: string; acknowledged: boolean };
 }
 export type UnitAction =
   | { kind: "run_stage"; stage: StageId }
@@ -63,6 +64,8 @@ export type UnitAction =
   | { kind: "record_debt"; debts: QualityDebt[]; then: "commit" }
   | { kind: "record_quality_pause"; contentHash: string; reason: "blocking_quality_policy" }
   | { kind: "acknowledge_quality_pause"; contentHash: string }
+  | { kind: "record_style_review_pause"; contentHash: string; code: string; reason: string }
+  | { kind: "acknowledge_style_review_pause"; contentHash: string }
   | { kind: "pause_for_manual"; reason: string }
   | { kind: "stop_for_replan"; scope: "local_window" | "global_book" }
   | { kind: "fail"; reason: "no_usable_content" | "data_integrity" }

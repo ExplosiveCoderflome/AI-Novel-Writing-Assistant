@@ -1,4 +1,5 @@
 import { canonicalProductionJson, cloneProductionData, ProductionBudgetNotDispatchedError } from "../common";
+import { PostGenerationStyleReviewRejectedError } from "./postGenerationStyleReview";
 import { applyUnitAction, decideNext, type StageId } from "../domain";
 import type { StageReply, UnitOutcome, UnitPorts, UnitRequest, UnitRun, UnitRunUpdate } from "./ports";
 import { assertRunMatches, createStageRequestKey, InvalidProductionRequestError, validateStageDescriptor, validateUnitRequest } from "./requestIdentity";
@@ -83,6 +84,16 @@ export async function runUnit(input: UnitRequest, ports: UnitPorts): Promise<Uni
     let reply: StageReply;
     try { reply = stage === "select" ? selectionReply(run) : await port!.execute(cloneProductionData(run), { ...descriptor, requestKey }); }
     catch (error) {
+      if (error instanceof PostGenerationStyleReviewRejectedError) {
+        // Known structured rejection: record the block durably and stop the claim so the
+        // user can confirm from the source page instead of leaving an unknown request or
+        // committing the rejected manuscript.
+        const progress = applyUnitAction(run.progress, {kind:"record_style_review_pause",
+          contentHash:error.contentHash,code:error.code,reason:error.reason});
+        const artifacts = {...run.artifacts}; delete artifacts.activeDescriptor;
+        const next = await save(ports, run, {progress, artifacts, activeStage: null, activeRequestKey: null});
+        return outcome(next ? "paused" : "busy", next ?? run, next ? "style_review_rejected" : "progress_version_changed");
+      }
       if (error instanceof ProductionBudgetNotDispatchedError) {
         const artifacts = {...run.artifacts,deferredDescriptor:{stage,descriptor}}; delete artifacts.activeDescriptor;
         const released = await save(ports, run, {progress:run.progress,artifacts,activeStage:null,activeRequestKey:null});

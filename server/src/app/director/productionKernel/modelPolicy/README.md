@@ -4,7 +4,19 @@
 
 `binding.ts` 在当前书 epoch、运行契约和 worker 租约下保存一次批次快照。来源读取在事务外完成，再次检查所有权后提交；恢复优先读已绑定快照，不重新采用实时设置。事件绑定完整契约哈希；并发捕获只能保留一份绑定。
 
-窗口使用明确的 provider/model 元数据。装配层可注入只读元数据源；默认读取后台环境变量 `PRODUCTION_KERNEL_MODEL_WINDOWS`，格式为 `[{"provider":"已配置提供方 ID","model":"准确模型 ID","contextWindow":正整数}]`。默认空数组，无隐含型号窗口；主模型及启用的备用模型任一缺失窗口均拒绝继续。此处不改写用户配置，不代表开关已启用。
+窗口使用明确的 provider/model 元数据。装配层可注入只读元数据源；默认读取后台环境变量 `PRODUCTION_KERNEL_MODEL_WINDOWS`，格式为 `[{"provider":"已配置提供方 ID","model":"准确模型 ID","contextWindow":正整数}]`。默认空数组，无隐含型号窗口；主模型及启用的备用模型任一缺失窗口均拒绝继续，错误会带上缺失的 `provider/model`。此处不改写用户配置，不代表开关已启用。
+
+脱敏样例（`example-*` 为示意名，`contextWindow` 数值仅为示例，必须替换为真实模型的准确能力值）：
+
+```json
+[
+  {"provider": "example-openai", "model": "example-gpt", "contextWindow": 200000},
+  {"provider": "example-anthropic", "model": "example-claude", "contextWindow": 200000},
+  {"provider": "example-openai", "model": "example-fallback", "contextWindow": 128000}
+]
+```
+
+只把主模型和实际启用的结构化备用模型写进这张表；不要按模型家族名推测窗口，也不要把示例值发布为生产默认配置。
 
 `createKernelFrozenModelPolicy` 提供冻结的 fallback/window 读取及 `assertCurrent`。完整装配必须把后者安装到每个物理请求围栏，Prompt 预检继续检查每次实际消息、协议纠错、输出上限和有效模型配置。凭据可以临时轮换，其余有效模型配置漂移需处理后再运行；不能在新章节中静默接受另一份配置。
 

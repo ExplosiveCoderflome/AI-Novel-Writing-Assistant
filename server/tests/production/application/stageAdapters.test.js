@@ -13,7 +13,7 @@ function fixture(options = {}) {
     purpose: 'automatic',
     readBaseline: async () => ({ content: options.afterPrepareContent && calls.includes('prepare') ? options.afterPrepareContent : options.content ?? '',
       updatedAt: new Date(options.metadataUpdated && calls.includes('prepare') ? 10 : 0).toISOString(), protectedUserContent: !!options.protected }),
-    prepare: async () => { calls.push('prepare'); return { novelTitle: '书', chapterTitle: '章', contextPackage: {} }; },
+    prepare: async () => { calls.push('prepare'); return { novelTitle: '书', chapterTitle: '章', contextPackage: options.contextPackage ?? {} }; },
     describe: async (stage, row, input) => ({ callsModel: ['draft', 'accept', 'repair', 'verify'].includes(stage),
       ...(row.snapshots.profile.outputBudgets[stage] ? { outputTokens: row.snapshots.profile.outputBudgets[stage] } : {}),
       inputFingerprint: hash(JSON.stringify(input)), promptVersion: 'v1', configVersion: 'v1', input }),
@@ -32,6 +32,7 @@ function fixture(options = {}) {
     },
     repair: async () => { calls.push('repair'); if (options.repairError) throw options.repairError; return { content: options.repaired ?? 'candidate' }; },
     knownRepairFailure: error => error?.message === 'known patch failure' ? 'patch_anchor_invalid' : null,
+    ...(options.styleReview ? { postGenerationStyleReview: options.styleReview } : {}),
   };
   p.stages = adapters.createChapterStagePorts(services, { reconcile: p.stages.reconcile });
   return { p, calls };
@@ -115,4 +116,61 @@ test('only known structured patch failures become debt; transport failures remai
   const unknown = fixture({ repair: true, repairError: new Error('transport failure') });
   assert.equal((await api('runUnit')(request(), unknown.p)).status, 'unknown');
   assert.equal(unknown.p.calls.includes('chapter-write'), false);
+});
+
+const domainApi = require('../../../dist/modules/production/domain');
+function recordingReview(verdict) {
+  const calls = [];
+  return { calls, port: { review: async input => { calls.push(input); return verdict; } } };
+}
+const styleOn = { postGenerationStyleReviewEnabled: true,
+  chapterWriteContext: { continuationConstraints: ['不要复刻原作第一章的开门描写'] } };
+
+test('the post-generation review is not called when the book switch is off', async () => {
+  const review = recordingReview({ status: 'pass' });
+  const { p } = fixture({ styleReview: review.port });
+  const result = await api('runUnit')(request(), p);
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(review.calls, []);
+});
+
+test('a book switch alone cannot call an uninstalled review port', async () => {
+  const { p } = fixture({ contextPackage: styleOn });
+  const result = await api('runUnit')(request(), p);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.progress.committedContentHash, hash('original'));
+});
+
+test('a failing review blocks commit, keeps no claim, and records a recoverable pause', async () => {
+  const review = recordingReview({ status: 'fail', code: 'continuation_imitation', reason: '复刻原作开头' });
+  const { p } = fixture({ styleReview: review.port, contextPackage: styleOn });
+  const result = await api('runUnit')(request(), p);
+  assert.equal(result.status, 'paused');
+  assert.equal(result.reason, 'style_review_rejected');
+  assert.equal(result.progress.styleReviewPause.code, 'continuation_imitation');
+  assert.equal(result.progress.styleReviewPause.acknowledged, false);
+  assert.equal(result.progress.committedContentHash, undefined);
+  assert.equal(p.calls.includes('chapter-write'), false);
+  const run = [...p.rows.values()][0];
+  assert.equal(run.activeStage, null);
+  assert.equal(run.activeRequestKey, null);
+  assert.equal(review.calls.length, 1);
+  assert.deepEqual(review.calls[0].continuationConstraints, ['不要复刻原作第一章的开门描写']);
+  assert.equal(review.calls[0].enabled, true);
+});
+
+test('an explicit acknowledgement lets the same manuscript commit without a silent retry', async () => {
+  const review = recordingReview({ status: 'fail', code: 'continuation_imitation', reason: '复刻原作开头' });
+  const { p } = fixture({ styleReview: review.port, contextPackage: styleOn });
+  assert.equal((await api('runUnit')(request(), p)).status, 'paused');
+  const run = [...p.rows.values()][0];
+  const progress = domainApi.applyUnitAction(run.progress, { kind: 'acknowledge_style_review_pause',
+    contentHash: run.progress.selectedContentHash });
+  assert.ok(await p.store.compareAndSwap(run, { progress, artifacts: run.artifacts,
+    activeStage: run.activeStage, activeRequestKey: run.activeRequestKey }));
+  const resumed = await api('runUnit')(request(), p);
+  assert.equal(resumed.status, 'completed');
+  assert.equal(resumed.progress.committedContentHash, hash('original'));
+  assert.equal(review.calls.length, 1);
+  assert.equal(p.calls.filter(x => x === 'chapter-write').length, 1);
 });

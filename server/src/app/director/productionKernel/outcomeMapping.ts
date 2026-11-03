@@ -25,6 +25,14 @@ export function mapProductionUnitOutcome(outcome: UnitOutcome): MappedProduction
     return { ...result, closed: true };
   }
   if (manual) {
+    if (progress.styleReviewPause && !progress.styleReviewPause.acknowledged) {
+      if (progress.committedContentHash || !progress.selectedContentHash
+        || progress.styleReviewPause.contentHash !== progress.selectedContentHash) return integrity();
+      // A book-level opt-in review rejection is a runtime gate: it must block commit in
+      // any issue policy, so it cannot rely on the quality_first-only pause signal.
+      return stop({ kind: "manual_recovery", action: "pause_for_manual", source: "runtime",
+        reason: "本章写法复核未通过，请从章节页面确认后继续创作。" });
+    }
     if (!saved || !progress.qualityPause || progress.qualityPause.acknowledged
       || progress.qualityPause.contentHash !== progress.committedContentHash) return integrity();
     return stop({ kind: "manual_recovery", action: "pause_for_manual", source: "quality", reason: "本章正文已保存，请从章节页面检查质量提醒后继续创作。" });
