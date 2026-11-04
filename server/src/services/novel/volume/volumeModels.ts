@@ -92,6 +92,16 @@ export interface VolumeGenerateOptions {
     result: ChapterTaskSheetQualityGateResult;
     assessment?: AiChapterTaskSheetQualityAssessment;
   }) => void | Promise<void>;
+  /**
+   * Fired when a finished chapter list is accepted with a marginal
+   * chapter-title concentration finding, so the caller can record it as
+   * quality debt instead of failing the whole generation.
+   */
+  onChapterTitleDiversityDebt?: (event: {
+    volumeId: string;
+    issue: string;
+    chapterOrder: number;
+  }) => void | Promise<void>;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

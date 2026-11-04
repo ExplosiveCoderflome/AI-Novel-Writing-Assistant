@@ -28,7 +28,7 @@ import {
   resolveVolumeChapterBeatKey,
   setVolumeChapterListPartialStatus,
 } from "./volumeGenerationHelpers";
-import { assertChapterTitleDiversity } from "./chapterTitleDiversity";
+import { assessChapterTitleDiversity } from "./chapterTitleDiversity";
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
@@ -291,6 +291,51 @@ function isMergedVolumeChapterListComplete(params: {
   });
 }
 
+/**
+ * Whole-volume chapter-title gate for merged chapter lists.
+ *
+ * Title quality findings split into three bands:
+ * - blocking (duplicate titles, first-person, overlong, synopsis-like titles)
+ *   fail at every phase, including intermediate merges;
+ * - severe concentration (a single surface frame covering half of the list or
+ *   more) fails at the final gate;
+ * - marginal concentration (over the frame allowance by at most one title and
+ *   still below half of the list) no longer fails generation: the finished
+ *   list is accepted and the finding is handed to the caller as quality debt.
+ *
+ * Concentration is judged only at the final gate because it is a whole-volume
+ * property: a partial merge can still be diluted by later beats.
+ */
+async function enforceMergedChapterTitleGate(params: {
+  volume: VolumePlan;
+  options: VolumeGenerateOptions;
+  phase: "intermediate" | "final";
+}): Promise<void> {
+  const sortedChapters = params.volume.chapters
+    .slice()
+    .sort((left, right) => left.chapterOrder - right.chapterOrder);
+  const assessment = assessChapterTitleDiversity(sortedChapters.map((chapter) => chapter.title));
+  if (!assessment) {
+    return;
+  }
+  if (assessment.severity === "blocking") {
+    throw new Error(assessment.issue);
+  }
+  if (params.phase === "intermediate") {
+    return;
+  }
+  if (assessment.severity === "severe") {
+    throw new Error(assessment.issue);
+  }
+  const offendingTitles = new Set(assessment.offendingTitles);
+  const firstOffendingChapter = sortedChapters.find((chapter) => offendingTitles.has(chapter.title));
+  await params.options.onChapterTitleDiversityDebt?.({
+    volumeId: params.volume.id,
+    issue: assessment.issue,
+    chapterOrder: firstOffendingChapter?.chapterOrder ?? sortedChapters[0]?.chapterOrder ?? 1,
+  });
+}
+
 async function generateBeatChapterBlock(params: {
   document: VolumePlanDocument;
   workspace: VolumeWorkspace;
@@ -548,7 +593,11 @@ export async function generateBeatChunkedChapterList(params: {
     if (!intermediateVolume) {
       throw new Error("当前卷章节列表已生成，但中间合并结果丢失了目标卷。");
     }
-    assertChapterTitleDiversity(intermediateVolume.chapters.map((chapter) => chapter.title));
+    await enforceMergedChapterTitleGate({
+      volume: intermediateVolume,
+      options,
+      phase: "intermediate",
+    });
     await params.notifyIntermediateDocument?.({
       scope: "chapter_list",
       document: intermediateDocument,
@@ -589,7 +638,11 @@ export async function generateBeatChunkedChapterList(params: {
   if (!rawMergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");
   }
-  assertChapterTitleDiversity(rawMergedVolume.chapters.map((chapter) => chapter.title));
+  await enforceMergedChapterTitleGate({
+    volume: rawMergedVolume,
+    options,
+    phase: "final",
+  });
   assertMergedVolumeChapterList({
     volume: rawMergedVolume,
     beatSheet: targetBeatSheet,

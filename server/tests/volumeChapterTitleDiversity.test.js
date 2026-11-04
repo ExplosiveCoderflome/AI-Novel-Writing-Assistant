@@ -2,11 +2,15 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  assessChapterTitleDiversity,
   assertChapterTitleDiversity,
   detectChapterTitleSurfaceFrame,
   getChapterTitleDiversityIssue,
   isBlockingChapterTitleQualityIssue,
 } = require("../dist/services/novel/volume/chapterTitleDiversity.js");
+const {
+  generateBeatChunkedChapterList,
+} = require("../dist/services/novel/volume/volumeChapterListGeneration.js");
 const {
   createVolumeChapterListPrompt,
 } = require("../dist/prompting/prompts/novel/volume/chapterList.prompts.js");
@@ -416,6 +420,249 @@ test("volume chapter list prompt blocks copied titles from earlier beats after s
       promptInput: createPromptInput(3),
     }), /章节标题出现重复：夜探旧温室/);
     assert.equal(calls.length, 3);
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+const MARGINAL_OF_PHRASE_TITLES = [
+  "雪面下的旧档案",
+  "夜探观测站",
+  "门前的分叉脚印",
+  "脚印绕站一周",
+  "他哥哥的笔记",
+  "极夜第一周",
+  "步态里的答案",
+  "雪原夜巡",
+  "冰原信号中断",
+  "风雪压境",
+];
+
+const SEVERE_OF_PHRASE_TITLES = [
+  "雪面下的旧档案",
+  "门前的分叉脚印",
+  "他哥哥的笔记",
+  "步态里的答案",
+  "许砚舟的沉默",
+  "站长室的灯光",
+  "冰层下的回声",
+  "旧照片里的队徽",
+  "夜探观测站",
+  "风雪压境",
+];
+
+test("chapter title diversity assessment marks 4 of 10 X的Y titles as marginal", () => {
+  const assessment = assessChapterTitleDiversity(MARGINAL_OF_PHRASE_TITLES);
+
+  assert.ok(assessment);
+  assert.equal(assessment.severity, "marginal");
+  assert.match(assessment.issue, /X的Y \/ X中的Y/);
+  assert.ok(assessment.offendingTitles.includes("雪面下的旧档案"));
+  // The plain message API keeps reporting the issue so existing notice and
+  // repair flows can still detect it on saved chapters.
+  assert.equal(getChapterTitleDiversityIssue(MARGINAL_OF_PHRASE_TITLES), assessment.issue);
+});
+
+test("chapter title diversity assessment keeps heavy X的Y concentration severe", () => {
+  const severe = assessChapterTitleDiversity(SEVERE_OF_PHRASE_TITLES);
+  assert.ok(severe);
+  assert.equal(severe.severity, "severe");
+
+  const half = assessChapterTitleDiversity([
+    ...SEVERE_OF_PHRASE_TITLES.slice(0, 5),
+    "夜探观测站",
+    "脚印绕站一周",
+    "极夜第一周",
+    "雪原夜巡",
+    "风雪压境",
+  ]);
+  assert.ok(half);
+  assert.equal(half.severity, "severe");
+});
+
+test("chapter title diversity assessment keeps basic quality failures blocking and clean lists clean", () => {
+  const blocking = assessChapterTitleDiversity([
+    "我亲手掐断了那句要命的话",
+    "断魂钉现",
+    "阵眼裂缝",
+  ]);
+  assert.ok(blocking);
+  assert.equal(blocking.severity, "blocking");
+
+  assert.equal(assessChapterTitleDiversity([
+    "夜探旧温室",
+    "掠夺者逼近",
+    "谁在回收种子？",
+    "防线第一次成形",
+    "第二道呼吸",
+    "林青，别回头",
+  ]), null);
+});
+
+function createChapterListGenerationFixtures() {
+  const volume = {
+    id: "volume-1",
+    novelId: "novel-1",
+    sortOrder: 1,
+    title: "第一卷",
+    summary: "卷摘要",
+    openingHook: "开卷抓手",
+    mainPromise: "主承诺",
+    primaryPressureSource: "压力源",
+    coreSellingPoint: "核心卖点",
+    escalationMode: "升级方式",
+    protagonistChange: "主角变化",
+    midVolumeRisk: "中段风险",
+    climax: "高潮",
+    payoffType: "兑现类型",
+    nextVolumeHook: "下卷钩子",
+    resetPoint: null,
+    openPayoffs: [],
+    status: "active",
+    sourceVersionId: null,
+    chapters: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  };
+  const beatSheet = {
+    volumeId: "volume-1",
+    volumeSortOrder: 1,
+    status: "generated",
+    beats: [
+      {
+        key: "open_hook",
+        label: "开卷抓手",
+        summary: "先把极夜脚印的异常钉死，再让队员内部出现分歧。",
+        chapterSpanHint: "1-10章",
+        mustDeliver: ["压迫感", "异常脚印"],
+      },
+    ],
+  };
+  const document = {
+    novelId: "novel-1",
+    volumes: [volume],
+    beatSheets: [beatSheet],
+    strategyPlan: null,
+    critiqueReport: null,
+    rebalanceDecisions: [],
+  };
+  const workspace = {
+    novelId: "novel-1",
+    workspaceVersion: "v2",
+    volumes: [volume],
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [beatSheet],
+    rebalanceDecisions: [],
+    readiness: {
+      canGenerateStrategy: true,
+      canGenerateSkeleton: true,
+      canGenerateBeatSheet: true,
+      canGenerateChapterList: true,
+      blockingReasons: [],
+    },
+    source: "volume",
+    activeVersionId: null,
+  };
+  const novel = {
+    title: "极夜脚印",
+    description: null,
+    targetAudience: null,
+    bookSellingPoint: null,
+    competingFeel: null,
+    first30ChapterPromise: null,
+    commercialTagsJson: "[]",
+    estimatedChapterCount: 10,
+    narrativePov: null,
+    pacePreference: null,
+    emotionIntensity: null,
+    storyModePromptBlock: null,
+    genre: null,
+    characters: [],
+  };
+  return { document, workspace, novel };
+}
+
+function mockChapterListInvoker(titles) {
+  setPromptRunnerStructuredInvokerForTests(async () => ({
+    data: {
+      beatKey: "open_hook",
+      beatLabel: "开卷抓手",
+      chapterCount: titles.length,
+      chapters: titles.map((title, index) => ({
+        beatKey: "open_hook",
+        title,
+        summary: `主角带队处理第 ${index + 1} 个异常局面，主动调整轮值与巡查路线，局面因此出现新的变化。`,
+        plannedCharacterIds: [],
+      })),
+    },
+    repairUsed: false,
+    repairAttempts: 0,
+  }));
+}
+
+test("chapter list generation accepts marginal title concentration as recorded debt", async () => {
+  const { document, workspace, novel } = createChapterListGenerationFixtures();
+  const debts = [];
+  mockChapterListInvoker(MARGINAL_OF_PHRASE_TITLES);
+
+  try {
+    const result = await generateBeatChunkedChapterList({
+      document,
+      workspace,
+      novel,
+      storyMacroPlan: null,
+      options: {
+        generationMode: "full_volume",
+        targetVolumeId: "volume-1",
+        entrypoint: "director_next",
+        taskId: "title-diversity-gate-test",
+        estimatedChapterCount: 10,
+        onChapterTitleDiversityDebt: (event) => {
+          debts.push(event);
+        },
+      },
+      notifyPhase: async () => {},
+    });
+
+    const mergedVolume = result.mergedDocument.volumes.find((item) => item.id === "volume-1");
+    assert.equal(mergedVolume.chapters.length, 10);
+    assert.equal(debts.length, 1);
+    assert.equal(debts[0].volumeId, "volume-1");
+    assert.match(debts[0].issue, /X的Y \/ X中的Y/);
+    assert.equal(debts[0].chapterOrder, 1);
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("chapter list generation still hard-fails on severe title concentration", async () => {
+  const { document, workspace, novel } = createChapterListGenerationFixtures();
+  const debts = [];
+  mockChapterListInvoker(SEVERE_OF_PHRASE_TITLES);
+
+  try {
+    await assert.rejects(
+      () => generateBeatChunkedChapterList({
+        document,
+        workspace,
+        novel,
+        storyMacroPlan: null,
+        options: {
+          generationMode: "full_volume",
+          targetVolumeId: "volume-1",
+          entrypoint: "director_next",
+          taskId: "title-diversity-gate-test",
+          estimatedChapterCount: 10,
+          onChapterTitleDiversityDebt: (event) => {
+            debts.push(event);
+          },
+        },
+        notifyPhase: async () => {},
+      }),
+      /章节标题结构过于集中/,
+    );
+    assert.equal(debts.length, 0);
   } finally {
     setPromptRunnerStructuredInvokerForTests();
   }
