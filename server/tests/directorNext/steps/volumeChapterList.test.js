@@ -7,7 +7,7 @@ const context = {runId:'run',contract:{novelId:'novel',scope:'volume:v1'}};
 const workspace = {novelId:'novel',volumes:[{id:'v1',status:'active',chapters:[]},{id:'v2',status:'active',chapters:[{id:'old'}]}],beatSheets:[{volumeId:'v1',beats:[{key:'opening'}]}]};
 const generated = {...workspace,volumes:[{id:'v1',status:'active',chapters:[{id:'plan',chapterOrder:1,beatKey:'opening',summary:'概要，无执行合同'}]},workspace.volumes[1]]};
 const saved = {...generated,activeVersionId:'saved'};
-const input = {workspace,targetVolumeId:'v1',provider:'openai',model:'saved-model',temperature:0.3,guidance:'沿用读者期待'};
+const input = {workspace,targetVolumeId:'v1',provider:'openai',model:'saved-model',temperature:0.3,guidance:'沿用读者期待',estimatedChapterCount:6};
 function setup({seed=input,draft=generated,result=saved,fail=null}={}) {
   const calls=[];
   const handler=createVolumeChapterListStepHandler({
@@ -22,7 +22,7 @@ function setup({seed=input,draft=generated,result=saved,fail=null}={}) {
 test('chapter-list adapter generates one full target volume, saves without execution sync and hashes persisted plans',async()=>{
   const {handler,calls}=setup();
   const result=await handler(context);
-  assert.deepEqual(calls[0],['generate','novel',{scope:'chapter_list',generationMode:'full_volume',targetVolumeId:'v1',draftWorkspace:workspace,provider:'openai',model:'saved-model',temperature:0.3,guidance:input.guidance,taskId:'run',entrypoint:'director_next',persistIntermediateDocuments:false}]);
+  assert.deepEqual(calls[0],['generate','novel',{scope:'chapter_list',generationMode:'full_volume',targetVolumeId:'v1',draftWorkspace:workspace,provider:'openai',model:'saved-model',temperature:0.3,guidance:input.guidance,estimatedChapterCount:6,taskId:'run',entrypoint:'director_next',persistIntermediateDocuments:false}]);
   assert.deepEqual(calls[1],['save','novel',generated,{emitEvent:false,syncPayoffLedger:false,syncToChapterExecution:false,memoryTelemetry:{taskId:'run',stage:'structured_outline',itemKey:'chapter_list',scope:'chapter_list',entrypoint:'director_next',volumeId:'v1'}}]);
   assert.deepEqual(calls[2],['hash',saved.volumes[0].chapters]);
   assert.deepEqual(result.artifact,{scope:'volume:v1',status:'draft',protectedUserContent:false,contentRef:'volume_chapter_list:novel:v1',contentHash:artifactContentHash(saved.volumes[0].chapters)});

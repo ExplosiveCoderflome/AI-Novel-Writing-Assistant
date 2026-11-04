@@ -12,13 +12,14 @@ export interface VolumeChapterListStepInput<Provider extends string, Document ex
   model?: string;
   temperature?: number;
   guidance?: string;
+  estimatedChapterCount?: number;
 }
 export interface VolumeChapterListStepDependencies<Provider extends string, Document extends ChapterListWorkspace> {
   inputProvider: (context: StepContext) => Promise<VolumeChapterListStepInput<Provider, Document>>;
   volumeService: {
     generateVolumes(novelId: string, options: {
       scope: "chapter_list"; generationMode: "full_volume"; targetVolumeId: string; draftWorkspace: Document;
-      provider?: Provider; model?: string; temperature?: number; guidance?: string;
+      provider?: Provider; model?: string; temperature?: number; guidance?: string; estimatedChapterCount?: number;
       taskId: string; entrypoint: "director_next"; persistIntermediateDocuments: false;
     }): Promise<Document>;
     updateVolumesWithOptions(novelId: string, document: Document, options: {
@@ -57,7 +58,7 @@ export function createVolumeChapterListStepHandler<Provider extends string, Docu
     const generated = await dependencies.volumeService.generateVolumes(novelId, {
       scope: "chapter_list", generationMode: "full_volume", targetVolumeId: input.targetVolumeId,
       draftWorkspace: input.workspace, provider: input.provider, model: input.model,
-      temperature: input.temperature, guidance: input.guidance,
+      temperature: input.temperature, guidance: input.guidance, estimatedChapterCount: input.estimatedChapterCount,
       taskId: context.runId, entrypoint: "director_next", persistIntermediateDocuments: false,
     });
     requireCompleteList(generated, novelId, input.targetVolumeId);

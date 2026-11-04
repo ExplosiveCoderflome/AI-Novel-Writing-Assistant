@@ -11,8 +11,11 @@ export function deriveChapterBudget(params: {
   options: VolumeGenerateOptions;
 }): number {
   const { novel, workspace, options } = params;
+  const explicitChapterCount = options.estimatedChapterCount;
+  if (typeof explicitChapterCount === "number" && Number.isFinite(explicitChapterCount) && explicitChapterCount > 0) {
+    return Math.max(1, Math.round(explicitChapterCount));
+  }
   return Math.max(
-    options.estimatedChapterCount ?? 0,
     novel.estimatedChapterCount ?? 0,
     workspace.volumes.flatMap((volume) => volume.chapters).length,
     12,

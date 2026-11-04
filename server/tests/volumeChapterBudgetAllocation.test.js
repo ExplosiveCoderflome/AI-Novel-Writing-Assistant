@@ -23,6 +23,15 @@ function makeVolumes(counts) {
   }));
 }
 
+test("deriveChapterBudget 优先使用显式预计章数，不被书级旧值或已有章节放大", () => {
+  const chapterBudget = deriveChapterBudget({
+    novel: { estimatedChapterCount: 420 },
+    workspace: { volumes: makeVolumes([52]) },
+    options: { estimatedChapterCount: 6 },
+  });
+  assert.equal(chapterBudget, 6);
+});
+
 test("resolveEvenShareChapterBudget 返回均分份额且不低于 3", () => {
   assert.equal(resolveEvenShareChapterBudget(446, 9), 50);
   assert.equal(resolveEvenShareChapterBudget(10, 9), 3);
