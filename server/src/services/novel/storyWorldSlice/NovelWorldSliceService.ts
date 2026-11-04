@@ -21,10 +21,14 @@ import {
   parseStoryWorldSliceOverrides,
   STORY_WORLD_SLICE_SCHEMA_VERSION,
 } from "./storyWorldSlicePersistence";
+import { shouldGenerateStoryWorldSlice } from "./readScope";
 
 interface EnsureStoryWorldSliceOptions {
   storyInput?: string;
   builderMode?: StoryWorldSliceBuilderMode;
+  provider?: LLMProvider;
+  model?: string;
+  temperature?: number;
 }
 
 interface RefreshStoryWorldSliceOptions extends EnsureStoryWorldSliceOptions {
@@ -314,12 +318,21 @@ export class NovelWorldSliceService {
     if (!stale) {
       return currentSlice;
     }
+    if (!shouldGenerateStoryWorldSlice(stale)) {
+      // Read-only scopes (production-kernel preparation) assemble context from
+      // saved artifacts only: regenerating here would issue a model request
+      // the kernel never registered, so the saved slice is reused as-is.
+      return currentSlice;
+    }
     const nextSlice = await this.invokeSliceModel({
       novel,
       activeWorld,
       storyInput,
       overrides,
       builderMode: options.builderMode ?? "runtime",
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
     });
     await this.persistSlice(novelId, nextSlice, overrides);
     return nextSlice;

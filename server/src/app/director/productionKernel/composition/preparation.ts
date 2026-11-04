@@ -8,6 +8,7 @@ import { StyleBindingService } from "../../../../services/styleEngine/StyleBindi
 import { buildWriterStyleContractText } from "../../../../services/styleEngine/styleContractText";
 import { payoffLedgerSyncService } from "../../../../services/payoff/PayoffLedgerSyncService";
 import {withPayoffLedgerReadScope} from "../../../../services/payoff/readScope";
+import {withStoryWorldSliceReadScope} from "../../../../services/novel/storyWorldSlice/readScope";
 import { characterDynamicsQueryService } from "../../../../services/novel/dynamics/CharacterDynamicsQueryService";
 import { contextAssemblyService } from "../../../../services/novel/production/ContextAssemblyService";
 import { GenerationContextAssembler } from "../../../../services/novel/runtime/GenerationContextAssembler";
@@ -78,7 +79,7 @@ export function nativePreparation(deps: NativeStageDependencies) {
     const unregistered = async (): Promise<never> => {throw new Error("正文准备包含未登记的检索请求。");};
     const result = await withRagExecutionScope({retrieve: unregistered, request: unregistered}, () => withModelRequestBudget({ remaining: () => 0, beforeRequest: async () => {
       rejected = true; throw new Error("正文准备包含未登记的模型请求。");
-    } }, () => withPayoffLedgerReadScope(operation)));
+    } }, () => withPayoffLedgerReadScope(() => withStoryWorldSliceReadScope(operation))));
     if (rejected) throw new Error("正文准备包含未登记的模型请求。");
     return result;
   }

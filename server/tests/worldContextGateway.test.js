@@ -174,10 +174,51 @@ test("gateway builds context through story slice service and persists slice to n
     options: {
       builderMode: "runtime",
       storyInput: "第一卷发生在北境。",
+      provider: undefined,
+      model: undefined,
+      temperature: undefined,
     },
   }, {
     type: "persistStorySlice",
     novelId: "novel-1",
     slice,
+  }]);
+});
+
+test("gateway forwards caller model selection to story slice ensure", async () => {
+  const calls = [];
+  const slice = buildSlice();
+  const gateway = new WorldContextGateway(
+    {
+      ensureStoryWorldSlice: async (novelId, options) => {
+        calls.push({ type: "ensureStoryWorldSlice", novelId, options });
+        return slice;
+      },
+    },
+    {
+      ensureFromLegacyNovel: async (novelId) => ({ id: "novel-world-1", novelId }),
+      persistStorySlice: async () => {},
+      getByNovelId: async (novelId) => ({ id: "novel-world-1", novelId }),
+    },
+  );
+
+  await gateway.getWorldContextBlock("novel-1", {
+    purpose: "chapter",
+    storyInput: "第一卷发生在北境。",
+    provider: "deepseek",
+    model: "deepseek-flash",
+    temperature: 0.25,
+  });
+
+  assert.deepEqual(calls, [{
+    type: "ensureStoryWorldSlice",
+    novelId: "novel-1",
+    options: {
+      builderMode: "runtime",
+      storyInput: "第一卷发生在北境。",
+      provider: "deepseek",
+      model: "deepseek-flash",
+      temperature: 0.25,
+    },
   }]);
 });

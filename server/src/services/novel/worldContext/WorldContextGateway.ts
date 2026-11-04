@@ -224,6 +224,9 @@ export class WorldContextGateway {
       : await this.worldSliceService.ensureStoryWorldSlice(novelId, {
         builderMode,
         storyInput: options.storyInput,
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
       });
 
     if (!slice) {
