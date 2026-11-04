@@ -770,34 +770,41 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             ? "xl:grid-cols-[320px_minmax(0,1fr)_44px]"
             : "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
 
+  const openQualityNotice = () => {
+    setLayoutMode("standard");
+    setPanelsCollapsed((current) => ({ ...current, left: false }));
+  };
+  const qualityNotice = qualityDebtDetails ? (
+    <section aria-label="本章质量提醒" className="space-y-3 rounded-xl bg-amber-50 px-3 py-3 text-sm text-amber-950">
+      <div className="flex items-center gap-2 font-medium">
+        <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+        正文可继续使用
+      </div>
+      <details className="text-xs leading-5 text-amber-900/80">
+        <summary className="cursor-pointer font-medium">质量待优化 · 查看详情</summary>
+        <div className="mt-2 space-y-1">
+          <p>{qualityDebtDetails.reason || "AI 审校发现了局部问题。"}</p>
+          <p>来源：{formatQualityDebtSource(qualityDebtDetails.source)}</p>
+          <p>自动修复：{formatQualityDebtAttempts(qualityDebtDetails)}</p>
+        </div>
+      </details>
+      {isDirty ? <p className="text-xs font-medium">请先保存正文，再让 AI 重新审校确认。</p> : null}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="w-full border-amber-300 bg-white/70 hover:bg-white"
+        disabled={isDirty || saveMutation.isPending || reviewMutation.isPending}
+        onClick={() => reviewMutation.mutate()}
+      >
+        {reviewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+        重新审校确认
+      </Button>
+    </section>
+  ) : null;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {qualityDebtDetails ? (
-        <div className="flex shrink-0 flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <div className="min-w-0 text-sm leading-6">
-              <div className="font-medium">本章正文可继续使用，但还有质量待优化项</div>
-              <div className="text-xs text-amber-900/80">
-                来源：{formatQualityDebtSource(qualityDebtDetails.source)} · {qualityDebtDetails.reason || "AI 审校发现了局部问题。"}
-                {` · 自动修复：${formatQualityDebtAttempts(qualityDebtDetails)}`}
-              </div>
-              {isDirty ? <div className="mt-1 text-xs font-medium">请先保存正文，再让 AI 重新审校确认。</div> : null}
-            </div>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="shrink-0 border-amber-300 bg-white/70 hover:bg-white"
-            disabled={isDirty || saveMutation.isPending || reviewMutation.isPending}
-            onClick={() => reviewMutation.mutate()}
-          >
-            {reviewMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            重新审校确认
-          </Button>
-        </div>
-      ) : null}
       {(restored || hasExternalChange || storageError) ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>{storageError ? "浏览器暂时无法保存本地草稿，请尽快保存到作品。" : hasExternalChange ? "本章已有新的保存版本，你的草稿仍保留。" : "已恢复未保存的正文草稿。"}</span>
@@ -814,6 +821,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             {saveMutation.isPending ? "保存中..." : "保存"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setIsVersionDrawerOpen(true)}>查看本章版本</Button>
+          {qualityDebtDetails ? (
+            <Button size="sm" variant="ghost" className="text-amber-700 hover:text-amber-800" onClick={openQualityNotice}>
+              <AlertTriangle className="mr-1 h-4 w-4" />质量待优化
+            </Button>
+          ) : null}
           {(workspace?.diagnosticCards.length ?? 0) > 0 ? (
             <Button size="sm" variant="ghost" onClick={() => setLayoutMode("standard")}>
               待处理问题 {workspace?.diagnosticCards.length} 项 · 回标准布局处理
@@ -828,6 +840,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
           <span className="text-xs text-muted-foreground" style={{ writingMode: "vertical-rl" }}>本章信息</span>
+          {qualityDebtDetails ? (
+            <Button size="icon" variant="ghost" className="h-8 w-8 text-amber-600 hover:text-amber-700" title="查看本章质量提醒" aria-label="查看本章质量提醒" onClick={openQualityNotice}>
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
         ) : effectiveLayout === "standard" ? (
         <div className="order-1 min-h-0 overflow-y-auto xl:order-none">
@@ -857,6 +874,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             isResolvingDiagnostic={resolveDiagnosticMutation.isPending}
             diagnosticsDisabled={isBusy || session.status !== "idle"}
             onCollapse={() => setPanelsCollapsed((current) => ({ ...current, left: true }))}
+            qualityNotice={qualityNotice}
           />
         </div>
         ) : null}

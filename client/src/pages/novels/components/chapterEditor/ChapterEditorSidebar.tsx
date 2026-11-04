@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Chapter, ChapterEditorDiagnosticCard, ChapterEditorWorkspaceResponse } from "@ai-novel/shared/types/novel";
 import { PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ interface ChapterEditorSidebarProps {
   isResolvingDiagnostic?: boolean;
   diagnosticsDisabled?: boolean;
   onCollapse?: () => void;
+  qualityNotice?: ReactNode;
 }
 
 function MetaChip({ label }: { label: string }) {
@@ -63,6 +65,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
           </Button> : null}
         </div>
       </section>
+      {props.qualityNotice}
       <details className="border-t border-border/50 pt-5">
         <summary className="cursor-pointer text-sm font-medium">
           本章目标与章节背景
