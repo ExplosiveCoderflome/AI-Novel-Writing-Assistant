@@ -1,5 +1,15 @@
 import type { PromptContextBlock } from "../../core/promptTypes";
 
+const CHARACTER_NAMING_GUIDANCE = [
+  "【人物命名原则】",
+  "1. 用户明确指定或故事已确认的姓名、化名和称谓应保持稳定，除非用户明确要求改名；以下原则用于新角色及确需修正的无效名字。",
+  "2. 依据已有的时代、地域文化、人物年龄和家庭出身命名，考虑取名者可能的习惯和审美，使名字像人物生活环境中实际会出现的称呼。",
+  "3. 姓名优先自然、顺口、易辨认，不以稀有姓氏、生僻字、诗意意象堆叠或强行取典来制造辨识度。",
+  "4. 不要仅根据角色职业、性格、善恶、能力或结局反推本名；绰号、化名、称号需要符合人物身份与经历。",
+  "5. 整组姓名应有字音、字形、长度与节奏上的自然差异，避免无缘由地反复使用相近字、读音或同一组意象；亲属同姓、家族辈字和有意呼应应按设定保留。",
+  "6. 尊重题材与文化的命名习惯，允许朴素、寻常与有具体来历的特殊名字并存，不把全员都起成文雅名，也不为追求生活感强行起土名。",
+];
+
 function toOptionalText(value: string | null | undefined): string | null {
   const normalized = value?.trim() ?? "";
   return normalized || null;
@@ -198,6 +208,7 @@ export function buildCharacterCastContextBlocks(input: CharacterCastContextBlock
         "storyFunction 才负责写叙事职责，name 不负责承载功能描述。",
         "每个角色都必须输出 gender；拿不准时填 unknown，不能省略。",
         "如果是历史 / 穿越 / 宫廷题材，阵容必须体现时代身份、制度压迫、权力链条和身份反差，不能退化成通用功能网络。",
+        ...CHARACTER_NAMING_GUIDANCE,
       ]),
     }),
   ];
@@ -312,6 +323,13 @@ export function buildSupplementalCharacterContextBlocks(
         "【命名边界】",
         `禁止复用的角色名：${(input.forbiddenNames ?? []).filter(Boolean).join("、") || "无"}`,
       ]),
+    }),
+    createBlock({
+      id: "supplemental_character_naming_policy",
+      group: "output_policy",
+      priority: 100,
+      required: true,
+      content: joinLines(CHARACTER_NAMING_GUIDANCE),
     }),
   ];
 
