@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   VolumeBeatSheet,
@@ -136,6 +137,7 @@ export function useVolumeGenerationMutation({
   setStructuredMessage,
 }: UseVolumeGenerationMutationArgs) {
   const queryClient = useQueryClient();
+  const [chapterListProgress, setChapterListProgress] = useState<VolumeChapterListProgress | null>(null);
 
   const applyWorkspaceDocument = (document: VolumePlanDocument) => {
     setVolumeDraft(document.volumes);
@@ -165,19 +167,22 @@ export function useVolumeGenerationMutation({
     syncSavedVolumeDocumentToCache(document);
   };
 
-  return useMutation<
+  const mutation = useMutation<
     GeneratedVolumeMutationResult,
     Error,
     VolumeGenerationPayload,
     VolumeGenerationMutationContext
   >({
-    onMutate: (): VolumeGenerationMutationContext => ({
-      persistedWorkspaceSnapshotBefore: serializeVolumeWorkspaceSnapshot(
-        queryClient.getQueryData<ApiResponse<VolumePlanDocument>>(queryKeys.novels.volumeWorkspace(novelId))?.data
-        ?? savedWorkspace
-        ?? null,
-      ),
-    }),
+    onMutate: (): VolumeGenerationMutationContext => {
+      setChapterListProgress(null);
+      return {
+        persistedWorkspaceSnapshotBefore: serializeVolumeWorkspaceSnapshot(
+          queryClient.getQueryData<ApiResponse<VolumePlanDocument>>(queryKeys.novels.volumeWorkspace(novelId))?.data
+          ?? savedWorkspace
+          ?? null,
+        ),
+      };
+    },
     mutationFn: async (payload: VolumeGenerationPayload): Promise<GeneratedVolumeMutationResult> => {
       const requestDraft = normalizeVolumeDraft(payload.draftVolumesOverride ?? normalizedVolumeDraft);
       const autoSyncedToChapterExecution = shouldAutoSyncGeneratedScope(payload.scope);
@@ -212,7 +217,7 @@ export function useVolumeGenerationMutation({
         userPreferredVolumeCount: userPreferredVolumeCount ?? undefined,
         respectExistingVolumeCount: !forceSystemRecommendedVolumeCount && requestDraft.length > 0,
         slimResponse: shouldRequestSlimVolumeGenerationResponse(payload.scope),
-      });
+      }, payload.scope === "chapter_list" || payload.scope === "volume" ? setChapterListProgress : undefined);
       let nextDocument = generatedResponse.data;
       if (!nextDocument) {
         throw new Error("AI 没有返回卷工作区结果。");
@@ -384,4 +389,5 @@ export function useVolumeGenerationMutation({
       setStructuredMessage(message);
     },
   });
+  return { ...mutation, chapterListProgress };
 }

@@ -1,3 +1,4 @@
+import { initSSE } from "../../../../llm/streaming";
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
@@ -159,31 +160,44 @@ export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput)
     "/:id/volumes/generate",
     validate({ params: idParamsSchema, body: volumeGenerateSchema }),
     async (req, res, next) => {
+      const streaming = req.get("accept") === "text/event-stream";
+      const disposeHeartbeat = streaming ? initSSE(res) : undefined;
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;
-        const data = await novelService.generateVolumes(id, req.body as any);
-        if (shouldUseSlimVolumeGenerationResponse(req.body)) {
-          const persistedData = shouldPersistBeforeSlimVolumeResponse(req.body)
-            ? await novelService.updateVolumes(id, {
-              ...data,
-              syncToChapterExecution: shouldSyncSlimVolumeResponseToChapterExecution(req.body),
-            })
-            : data;
-          const responseData = buildSlimVolumeGenerationResponse(persistedData);
-          res.status(200).json({
-            success: true,
-            data: responseData,
-            message: "Volume workspace generated.",
-          } satisfies ApiResponse<typeof responseData>);
-          return;
-        }
-        res.status(200).json({
+        const data = await novelService.generateVolumes(id, {
+          ...req.body,
+          ...(streaming ? { onPhaseStart: (event: unknown) => {
+            res.write(`data: ${JSON.stringify({ type: "progress", event })}\n\n`);
+          } } : {}),
+        });
+        const persistedData = shouldUseSlimVolumeGenerationResponse(req.body)
+          && shouldPersistBeforeSlimVolumeResponse(req.body)
+          ? await novelService.updateVolumes(id, {
+            ...data,
+            syncToChapterExecution: shouldSyncSlimVolumeResponseToChapterExecution(req.body),
+          })
+          : data;
+        const responseData = shouldUseSlimVolumeGenerationResponse(req.body)
+          ? buildSlimVolumeGenerationResponse(persistedData)
+          : data;
+        const response = {
           success: true,
-          data,
+          data: responseData,
           message: "Volume workspace generated.",
-        } satisfies ApiResponse<typeof data>);
+        } satisfies ApiResponse<typeof responseData>;
+        if (streaming) {
+          res.end(`data: ${JSON.stringify({ type: "done", response })}\n\n`);
+        } else {
+          res.status(200).json(response);
+        }
       } catch (error) {
-        next(error);
+        if (streaming) {
+          res.end(`data: ${JSON.stringify({ type: "error", error: error instanceof Error ? error.message : "章节列表生成失败。" })}\n\n`);
+        } else {
+          next(error);
+        }
+      } finally {
+        disposeHeartbeat?.();
       }
     },
   );

@@ -1,3 +1,6 @@
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
+import { API_BASE_URL, API_TIMEOUT_MS } from "@/lib/constants";
+import { consumeVolumeGenerationStream } from "./volumeGenerationStream";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
@@ -55,7 +58,17 @@ export async function generateNovelVolumes(
     draftWorkspace?: Partial<VolumePlanDocument>;
     slimResponse?: boolean;
   },
+  onProgress?: (progress: VolumeChapterListProgress) => void,
 ) {
+  if (onProgress) {
+    const response = await fetch(`${API_BASE_URL}/novels/${id}/volumes/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify(payload ?? {}),
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    });
+    return consumeVolumeGenerationStream(response, onProgress);
+  }
   const { data } = await apiClient.post<ApiResponse<VolumeGenerationResponse>>(`/novels/${id}/volumes/generate`, payload ?? {});
   return data;
 }

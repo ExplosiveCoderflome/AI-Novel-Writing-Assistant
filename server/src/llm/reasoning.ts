@@ -96,15 +96,14 @@ export function isMiniMaxCompatibleProvider(
 }
 
 function isDeepSeekThinkingToggleModel(model?: string): boolean {
-  const normalizedModel = normalizeOptionalText(model)?.toLowerCase();
+  const normalizedModel = normalizeOptionalText(model)?.toLowerCase().split("/").at(-1);
   if (!normalizedModel) {
     return false;
   }
   return normalizedModel === "deepseek-reasoner"
     || normalizedModel.startsWith("deepseek-flash")
     || normalizedModel.startsWith("deepseek-pro")
-    || normalizedModel.startsWith("deepseek-v4-flash")
-    || normalizedModel.startsWith("deepseek-v4-pro");
+    || /^deepseek-v4(?:\.\d+)?-(?:flash|pro)(?:$|[-_.:])/.test(normalizedModel);
 }
 
 export function isDeepSeekThinkingModeProvider(

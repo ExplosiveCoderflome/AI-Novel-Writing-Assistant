@@ -76,6 +76,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     isGeneratingBeatSheet,
     onGenerateBeatSheet,
     isGeneratingChapterList,
+    chapterListProgress,
     generatingChapterListVolumeId,
     generatingChapterListBeatKey,
     generatingChapterListMode,
@@ -488,6 +489,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 selectedVolumeRequiredChapterCount={selectedVolumeRequiredChapterCount}
                 selectedVolumeNeedsChapterExpansion={selectedVolumeNeedsChapterExpansion}
                 isGeneratingChapterList={isGeneratingChapterList}
+                chapterListProgress={chapterListProgress}
                 generatingChapterListVolumeId={generatingChapterListVolumeId}
                 generatingChapterListBeatKey={generatingChapterListBeatKey}
                 generatingChapterListMode={generatingChapterListMode}

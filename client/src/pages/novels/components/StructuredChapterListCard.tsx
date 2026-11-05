@@ -33,6 +33,7 @@ interface StructuredChapterListCardProps {
   selectedVolumeRequiredChapterCount: number;
   selectedVolumeNeedsChapterExpansion: boolean;
   isGeneratingChapterList: boolean;
+  chapterListProgress: StructuredTabViewProps["chapterListProgress"];
   generatingChapterListVolumeId: string;
   generatingChapterListBeatKey: string;
   generatingChapterListMode: StructuredTabViewProps["generatingChapterListMode"];
@@ -85,6 +86,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     selectedVolumeRequiredChapterCount,
     selectedVolumeNeedsChapterExpansion,
     isGeneratingChapterList,
+    chapterListProgress,
     generatingChapterListVolumeId,
     generatingChapterListBeatKey,
     generatingChapterListMode,
@@ -203,6 +205,25 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pt-0">
+        {isGeneratingCurrentVolume ? (
+          <div className="space-y-2 text-sm" role="status" aria-live="polite">
+            <div>{chapterListProgress?.label ?? "正在整理拆章上下文…"}</div>
+            {chapterListProgress ? (
+              <>
+                <progress
+                  className="h-2 w-full accent-primary"
+                  aria-label="章节拆分进度"
+                  value={chapterListProgress.completedChapters}
+                  max={chapterListProgress.totalChapters}
+                />
+                <div className="text-xs text-muted-foreground">
+                  已生成 {chapterListProgress.completedChapters}/{chapterListProgress.totalChapters} 章
+                  {chapterListProgress.completedChapters === chapterListProgress.totalChapters ? "，正在校验并保存章节列表…" : "，每完成一个节奏段更新进度。"}
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         {selectedVolumeNeedsChapterExpansion ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
             当前卷已生成 {selectedVolumeChapters.length}/{selectedVolumeRequiredChapterCount} 章，仍有节奏段待生成。已生成章节可以先细化和开写，后续段按需继续生成。

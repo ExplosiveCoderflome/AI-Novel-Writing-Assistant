@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { resolveApiBaseUrlForEnvironment } from "./constants.ts";
+import { assetUrl, resolveApiBaseUrlForEnvironment } from "./constants.ts";
 
 const productionEnv = { DEV: false };
 const developmentEnv = { DEV: true };
@@ -80,4 +80,11 @@ test("development loopback API base adapts to the page host for LAN testing", ()
     }),
     "http://192.168.1.88:3000/api",
   );
+});
+test("server assets use the desktop API origin and retain web relative paths", () => {
+  const path = "/api/comic/character-images/character-1/sheet";
+  assert.equal(assetUrl(path, "http://127.0.0.1:43123/api"), `http://127.0.0.1:43123${path}`);
+  assert.equal(assetUrl(path, "http://127.0.0.1:43123/api/"), `http://127.0.0.1:43123${path}`);
+  assert.equal(assetUrl(path, "/api"), path);
+  assert.equal(assetUrl(path, ""), path);
 });

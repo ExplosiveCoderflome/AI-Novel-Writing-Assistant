@@ -11,7 +11,7 @@ export const NOVEL_EXPORT_SCOPE_VALUES = [
 
 export type NovelExportScope = (typeof NOVEL_EXPORT_SCOPE_VALUES)[number];
 
-export const NOVEL_EXPORT_FORMAT_VALUES = ["txt", "markdown", "json"] as const;
+export const NOVEL_EXPORT_FORMAT_VALUES = ["txt", "markdown", "json", "zip"] as const;
 
 export type NovelExportFormat = (typeof NOVEL_EXPORT_FORMAT_VALUES)[number];
 

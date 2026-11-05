@@ -184,3 +184,10 @@ export function buildVolumeCountGuidance(params: {
     respectedExistingVolumeCount,
   };
 }
+
+export interface VolumeChapterListProgress {
+  volumeId: string;
+  completedChapters: number;
+  totalChapters: number;
+  label: string;
+}

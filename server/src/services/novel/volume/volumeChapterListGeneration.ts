@@ -1,3 +1,4 @@
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
 import type {
   VolumeBeat,
   VolumeBeatSheet,
@@ -422,7 +423,7 @@ export async function generateBeatChunkedChapterList(params: {
   workspace: VolumeWorkspace;
   storyMacroPlan: StoryMacroPlanResult;
   options: VolumeGenerateOptions;
-  notifyPhase: (label: string) => Promise<void>;
+  notifyPhase: (label: string, chapterProgress?: VolumeChapterListProgress) => Promise<void>;
   notifyIntermediateDocument?: (event: VolumeIntermediateDocumentEvent) => void | Promise<void>;
 }): Promise<{
   mergedDocument: VolumePlanDocument;
@@ -541,8 +542,17 @@ export async function generateBeatChunkedChapterList(params: {
     };
   }
 
+  const totalChapters = generationMode === "single_beat"
+    ? plansToRun[0].chapterCount
+    : beatPlans.reduce((sum, plan) => sum + plan.chapterCount, 0);
+  let completedChapters = generationMode === "single_beat"
+    ? 0
+    : (fullVolumeResumeState?.preservedBeatBlocks ?? []).reduce((sum, block) => sum + block.chapters.length, 0);
+  const notifyChapterProgress = async (label: string) => params.notifyPhase(label, {
+    volumeId: targetVolume.id, completedChapters, totalChapters, label,
+  });
   for (const beatPlan of plansToRun) {
-    await params.notifyPhase(
+    await notifyChapterProgress(
       generationMode === "single_beat"
         ? `正在重写第 ${targetVolume.sortOrder} 卷节奏段：${beatPlan.beat.label}`
         : `正在生成第 ${targetVolume.sortOrder} 卷节奏段：${beatPlan.beat.label}`,
@@ -598,6 +608,8 @@ export async function generateBeatChunkedChapterList(params: {
       options,
       phase: "intermediate",
     });
+    completedChapters += generatedBlock.chapters.length;
+    await notifyChapterProgress(`第 ${targetVolume.sortOrder} 卷拆章：${completedChapters}/${totalChapters} 章，已完成「${beatPlan.beat.label}」`);
     await params.notifyIntermediateDocument?.({
       scope: "chapter_list",
       document: intermediateDocument,

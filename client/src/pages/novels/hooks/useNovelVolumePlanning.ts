@@ -511,6 +511,7 @@ export function useNovelVolumePlanning({
     isGeneratingSkeleton: generateMutation.isPending && (generateMutation.variables?.scope === "skeleton" || generateMutation.variables?.scope === "book"),
     isGeneratingBeatSheet: generateMutation.isPending && generateMutation.variables?.scope === "beat_sheet",
     isGeneratingChapterList: generateMutation.isPending && (generateMutation.variables?.scope === "chapter_list" || generateMutation.variables?.scope === "volume"),
+    chapterListProgress: generateMutation.chapterListProgress,
     generatingChapterListVolumeId,
     generatingChapterListBeatKey,
     generatingChapterListMode,

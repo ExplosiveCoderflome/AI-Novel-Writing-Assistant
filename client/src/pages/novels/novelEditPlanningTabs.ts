@@ -129,6 +129,7 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingBeatSheet: boolean;
   onGenerateBeatSheet: (volumeId: string) => void;
   isGeneratingChapterList: boolean;
+  chapterListProgress: StructuredTabViewProps["chapterListProgress"];
   generatingChapterListVolumeId: string;
   generatingChapterListBeatKey: string;
   generatingChapterListMode: StructuredTabViewProps["generatingChapterListMode"];
@@ -269,6 +270,7 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingBeatSheet: input.isGeneratingBeatSheet,
     onGenerateBeatSheet: input.onGenerateBeatSheet,
     isGeneratingChapterList: input.isGeneratingChapterList,
+    chapterListProgress: input.chapterListProgress,
     generatingChapterListVolumeId: input.generatingChapterListVolumeId,
     generatingChapterListBeatKey: input.generatingChapterListBeatKey,
     generatingChapterListMode: input.generatingChapterListMode,

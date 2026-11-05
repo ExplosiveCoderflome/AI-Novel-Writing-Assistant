@@ -1,3 +1,4 @@
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
 import type {
   BaseCharacter,
   AuditReport,
@@ -256,6 +257,7 @@ export interface StructuredTabViewProps extends Omit<
   isGeneratingBeatSheet: boolean;
   onGenerateBeatSheet: (volumeId: string) => void;
   isGeneratingChapterList: boolean;
+  chapterListProgress?: VolumeChapterListProgress | null;
   generatingChapterListVolumeId: string;
   generatingChapterListBeatKey: string;
   generatingChapterListMode: VolumeChapterListGenerationMode | null;
@@ -657,6 +659,7 @@ export interface NovelEditViewProps {
     isExportingFullMarkdown: boolean;
     isExportingFullJson: boolean;
     isExportingFullTxt: boolean;
+    isExportingFullZip: boolean;
     onExportCurrent: (format: NovelExportDownloadFormat) => void;
     onExportFull: (format: NovelExportFormat) => void;
   };

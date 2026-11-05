@@ -16,6 +16,69 @@ function listen(server) {
   });
 }
 
+test("chapter-list SSE reports real progress before saving and returns the normal slim payload", async () => {
+  const originalGenerate = DefaultNovelApplicationServices.prototype.generateVolumes;
+  const originalUpdate = DefaultNovelApplicationServices.prototype.updateVolumes;
+  let releaseGeneration;
+  const generated = createWorkspace("stream-novel");
+  let saved = false;
+  DefaultNovelApplicationServices.prototype.generateVolumes = async (_id, options) => {
+    await options.onPhaseStart({ scope: "chapter_list", phase: "prompt", label: "拆章中", chapterProgress: {
+      volumeId: "volume-1", completedChapters: 2, totalChapters: 4, label: "已生成 2/4 章",
+    } });
+    await new Promise(resolve => { releaseGeneration = resolve; });
+    return generated;
+  };
+  DefaultNovelApplicationServices.prototype.updateVolumes = async () => { saved = true; return generated; };
+  const server = http.createServer(createApp());
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/stream-novel/volumes/generate`, {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ scope: "chapter_list", targetVolumeId: "volume-1", slimResponse: true }),
+    });
+    assert.match(response.headers.get("content-type"), /text\/event-stream/);
+    const reader = response.body.getReader();
+    const firstChunk = new TextDecoder().decode((await reader.read()).value);
+    assert.match(firstChunk, /"completedChapters":2/);
+    assert.equal(saved, false, "progress must be available while generation is still running");
+    releaseGeneration();
+    let tail = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      tail += new TextDecoder().decode(value);
+    }
+    const frame = JSON.parse(tail.trim().slice(5));
+    assert.equal(frame.type, "done");
+    assert.equal(frame.response.data.slimmed, true);
+    assert.equal(saved, true);
+  } finally {
+    releaseGeneration?.();
+    DefaultNovelApplicationServices.prototype.generateVolumes = originalGenerate;
+    DefaultNovelApplicationServices.prototype.updateVolumes = originalUpdate;
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test("chapter-list SSE exposes generation failure without emitting a completion frame", async () => {
+  const original = DefaultNovelApplicationServices.prototype.generateVolumes;
+  DefaultNovelApplicationServices.prototype.generateVolumes = async () => { throw new AppError("拆章生成失败", 500); };
+  const server = http.createServer(createApp());
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/stream-novel/volumes/generate`, {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ scope: "chapter_list", targetVolumeId: "volume-1" }),
+    });
+    const frame = JSON.parse((await response.text()).trim().slice(5));
+    assert.deepEqual(frame, { type: "error", error: "拆章生成失败" });
+  } finally {
+    DefaultNovelApplicationServices.prototype.generateVolumes = original;
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
 function createVolume() {
   return {
     id: "volume-1",

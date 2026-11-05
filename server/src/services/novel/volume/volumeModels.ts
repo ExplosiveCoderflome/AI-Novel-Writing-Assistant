@@ -1,3 +1,4 @@
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ChapterTaskSheetQualityMode, ChapterTaskSheetQualityGateResult, AiChapterTaskSheetQualityAssessment } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
@@ -27,6 +28,7 @@ export type VolumeGenerationPhase = "load_context" | "prompt";
 export interface VolumeGenerationPhaseEvent {
   scope: VolumeGenerationScope;
   phase: VolumeGenerationPhase;
+  chapterProgress?: VolumeChapterListProgress;
   label: string;
 }
 

@@ -608,6 +608,7 @@ export default function NovelEdit() {
     isGeneratingSkeleton,
     isGeneratingBeatSheet,
     isGeneratingChapterList,
+    chapterListProgress,
     generatingChapterListVolumeId,
     generatingChapterListBeatKey,
     generatingChapterListMode,
@@ -2492,6 +2493,7 @@ export default function NovelEdit() {
     isGeneratingBeatSheet,
     onGenerateBeatSheet: startBeatSheetGeneration,
     isGeneratingChapterList,
+    chapterListProgress,
     generatingChapterListVolumeId,
     generatingChapterListBeatKey,
     generatingChapterListMode,
@@ -2755,6 +2757,9 @@ export default function NovelEdit() {
         isExportingFullMarkdown,
         isExportingFullJson,
         isExportingFullTxt,
+        isExportingFullZip: exportNovelMutation.isPending
+          && exportVariables?.scope === "full"
+          && exportVariables?.format === "zip",
         onExportCurrent: (format) => {
           if (!currentExportScope) {
             return;

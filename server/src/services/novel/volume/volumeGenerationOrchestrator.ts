@@ -49,6 +49,7 @@ import {
 import type {
   VolumeGenerateOptions,
   VolumeGenerationPhase,
+  VolumeGenerationPhaseEvent,
   VolumeGenerationNovel,
   VolumeWorkspace,
 } from "./volumeModels";
@@ -77,6 +78,7 @@ async function notifyVolumeGenerationPhase(input: {
   novelId: string;
   scope: VolumeGenerationScope;
   phase: VolumeGenerationPhase;
+  chapterProgress?: VolumeGenerationPhaseEvent["chapterProgress"];
   label: string;
   options: VolumeGenerateOptions;
 }): Promise<void> {
@@ -87,6 +89,7 @@ async function notifyVolumeGenerationPhase(input: {
     scope: input.scope,
     phase: input.phase,
     label: input.label,
+    chapterProgress: input.chapterProgress,
   });
 }
 
@@ -350,10 +353,11 @@ async function generateChapterList(params: {
     workspace,
     storyMacroPlan,
     options,
-    notifyPhase: async (label) => notifyVolumeGenerationPhase({
+    notifyPhase: async (label, chapterProgress) => notifyVolumeGenerationPhase({
       novelId: document.novelId,
       scope: "chapter_list",
       phase: "prompt",
+      chapterProgress,
       label,
       options,
     }),

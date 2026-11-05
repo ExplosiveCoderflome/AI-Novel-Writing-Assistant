@@ -233,7 +233,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <DialogHeader>
                   <DialogTitle>导出项目内容</DialogTitle>
                   <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书可导出项目资产，或下载只含正文的 TXT 文件。
+                    当前步骤会按你正在查看的工作台导出；整本书可导出项目资产，或下载正文 TXT 与分章 ZIP 压缩包。
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -268,6 +268,13 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         disabled={exportControls.isExportingFullTxt}
                       >
                         {exportControls.isExportingFullTxt ? "导出中..." : "TXT 正文"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportFull("zip")}
+                        disabled={exportControls.isExportingFullZip}
+                      >
+                        {exportControls.isExportingFullZip ? "导出中..." : "分章 ZIP"}
                       </Button>
                       <Button
                         variant="outline"

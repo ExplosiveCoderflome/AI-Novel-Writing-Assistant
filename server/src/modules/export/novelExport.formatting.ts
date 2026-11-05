@@ -45,7 +45,7 @@ export interface NovelTxtRecord {
 export interface NovelExportResult {
   fileName: string;
   contentType: string;
-  content: string;
+  content: string | Buffer;
 }
 
 export function safeFileNamePart(input: string): string {

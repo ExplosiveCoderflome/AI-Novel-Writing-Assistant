@@ -1,6 +1,6 @@
 {
   "name": "@ai-novel/desktop",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": true,
   "license": "AGPL-3.0-only",
   "author": "Biz Studio",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-novel/server": "workspace:*",
+    "@ai-novel/shared": "workspace:*",
     "better-sqlite3": "^12.6.2",
     "electron-updater": "^6.6.2"
   },

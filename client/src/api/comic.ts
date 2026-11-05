@@ -1,4 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import { assetUrl } from "@/lib/constants";
 import { apiClient } from "./client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -238,15 +239,15 @@ export interface GenerateCharacterSheetOptions {
 }
 
 export function characterSheetImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/sheet`;
+  return assetUrl(`/api/comic/character-images/${charId}/sheet`);
 }
 
 export function characterExpressionImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/expressions`;
+  return assetUrl(`/api/comic/character-images/${charId}/expressions`);
 }
 
 export function characterFaceImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/face`;
+  return assetUrl(`/api/comic/character-images/${charId}/face`);
 }
 
 export async function generateCharacterSheet(
@@ -389,11 +390,11 @@ export async function generatePanelImage(
 }
 
 export function panelImageUrl(panelId: string): string {
-  return `/api/comic/panel-images/${panelId}/panel`;
+  return assetUrl(`/api/comic/panel-images/${panelId}/panel`);
 }
 
 export function panelLetteredImageUrl(panelId: string): string {
-  return `/api/comic/panel-images/${panelId}/lettered`;
+  return assetUrl(`/api/comic/panel-images/${panelId}/lettered`);
 }
 
 // ─── Bubble lettering ─────────────────────────────────────────────────────────
@@ -626,7 +627,7 @@ export async function uploadCharacterAssetImage(assetId: string, file: File): Pr
 }
 
 export function characterAssetImageUrl(assetId: string): string {
-  return `/api/comic/character-assets/${assetId}/image`;
+  return assetUrl(`/api/comic/character-assets/${assetId}/image`);
 }
 
 /** 更新角色性别（所有生图链路的 GENDER LOCK 来源） */
@@ -779,5 +780,5 @@ export async function uploadComicSceneImage(sceneId: string, file: File): Promis
 }
 
 export function comicSceneImageUrl(sceneId: string): string {
-  return `/api/comic/scenes/${sceneId}/image`;
+  return assetUrl(`/api/comic/scenes/${sceneId}/image`);
 }

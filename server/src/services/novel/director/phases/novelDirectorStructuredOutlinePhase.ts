@@ -114,7 +114,9 @@ function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
     return {
       itemKey: "chapter_list",
       itemLabel: event.label.trim() || (event.phase === "load_context" ? "正在整理拆章上下文" : "正在生成章节列表"),
-      progress: DIRECTOR_PROGRESS.chapterList,
+      progress: DIRECTOR_PROGRESS.chapterList + (event.chapterProgress && event.chapterProgress.totalChapters > 0
+        ? (event.chapterProgress.completedChapters / event.chapterProgress.totalChapters) * (0.8 - DIRECTOR_PROGRESS.chapterList)
+        : 0),
     };
   }
   if (event.scope === "rebalance") {

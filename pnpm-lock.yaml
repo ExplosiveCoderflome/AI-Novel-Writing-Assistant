@@ -199,6 +199,9 @@ importers:
       '@ai-novel/server':
         specifier: workspace:*
         version: link:../server
+      '@ai-novel/shared':
+        specifier: workspace:*
+        version: link:../shared
       better-sqlite3:
         specifier: ^12.6.2
         version: 12.6.2

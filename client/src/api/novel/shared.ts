@@ -177,7 +177,7 @@ export function buildNovelExportFallbackFileName(
   format: NovelExportFormat,
   scope: NovelExportScope = "full",
 ): string {
-  const extension = format === "markdown" ? "md" : format === "json" ? "json" : "txt";
+  const extension = format === "markdown" ? "md" : format === "zip" ? "zip" : format === "json" ? "json" : "txt";
   const scopeSuffix = scope === "full" ? "" : `-${scope}`;
   return `${sanitizeFileNamePart(title)}${scopeSuffix}-${buildExportTimestamp()}.${extension}`;
 }

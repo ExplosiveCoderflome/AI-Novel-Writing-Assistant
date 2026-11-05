@@ -282,54 +282,58 @@ export class NovelCoreCrudService {
 
   async deleteNovel(id: string) {
     await prisma.$transaction(async (transaction) => {
-      const [failedWorkflowTasks, failedAgentRuns, failedPipelineJobs, failedImageTasks] = await Promise.all([
+      // Remove Restrict dependents before intent versions cascade from tasks or the novel.
+      await transaction.shortStoryRevisionJob.deleteMany({ where: { novelId: id } });
+      await transaction.shortStoryPlan.deleteMany({ where: { novelId: id } });
+
+      const [workflowTasks, agentRuns, pipelineJobs, imageTasks] = await Promise.all([
         transaction.novelWorkflowTask.findMany({
-          where: { novelId: id, status: "failed" },
+          where: { novelId: id },
           select: { id: true },
         }),
         transaction.agentRun.findMany({
-          where: { novelId: id, status: "failed" },
+          where: { novelId: id },
           select: { id: true },
         }),
         transaction.generationJob.findMany({
-          where: { novelId: id, status: "failed" },
+          where: { novelId: id },
           select: { id: true },
         }),
         transaction.imageGenerationTask.findMany({
-          where: { novelId: id, status: "failed" },
+          where: { novelId: id },
           select: { id: true },
         }),
       ]);
-      const failedWorkflowTaskIds = failedWorkflowTasks.map((task) => task.id);
-      const failedAgentRunIds = failedAgentRuns.map((task) => task.id);
-      const failedPipelineJobIds = failedPipelineJobs.map((task) => task.id);
-      const failedImageTaskIds = failedImageTasks.map((task) => task.id);
+      const workflowTaskIds = workflowTasks.map((task) => task.id);
+      const agentRunIds = agentRuns.map((task) => task.id);
+      const pipelineJobIds = pipelineJobs.map((task) => task.id);
+      const imageTaskIds = imageTasks.map((task) => task.id);
 
       if (
-        failedWorkflowTaskIds.length > 0
-        || failedAgentRunIds.length > 0
-        || failedPipelineJobIds.length > 0
-        || failedImageTaskIds.length > 0
+        workflowTaskIds.length > 0
+        || agentRunIds.length > 0
+        || pipelineJobIds.length > 0
+        || imageTaskIds.length > 0
       ) {
         await transaction.taskCenterArchive.deleteMany({
           where: {
             OR: [
-              { taskKind: "novel_workflow", taskId: { in: failedWorkflowTaskIds } },
-              { taskKind: "agent_run", taskId: { in: failedAgentRunIds } },
-              { taskKind: "novel_pipeline", taskId: { in: failedPipelineJobIds } },
-              { taskKind: "image_generation", taskId: { in: failedImageTaskIds } },
+              { taskKind: "novel_workflow", taskId: { in: workflowTaskIds } },
+              { taskKind: "agent_run", taskId: { in: agentRunIds } },
+              { taskKind: "novel_pipeline", taskId: { in: pipelineJobIds } },
+              { taskKind: "image_generation", taskId: { in: imageTaskIds } },
             ],
           },
         });
       }
-      if (failedWorkflowTaskIds.length > 0) {
+      if (workflowTaskIds.length > 0) {
         await transaction.novelWorkflowTask.deleteMany({
-          where: { id: { in: failedWorkflowTaskIds } },
+          where: { id: { in: workflowTaskIds } },
         });
       }
-      if (failedAgentRunIds.length > 0) {
+      if (agentRunIds.length > 0) {
         await transaction.agentRun.deleteMany({
-          where: { id: { in: failedAgentRunIds } },
+          where: { id: { in: agentRunIds } },
         });
       }
 

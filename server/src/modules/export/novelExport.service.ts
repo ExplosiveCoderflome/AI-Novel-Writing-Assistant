@@ -1,4 +1,5 @@
 import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
+import { buildChapterArchive } from "./infrastructure/chapterArchive";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { KnowledgeService } from "../../services/knowledge/KnowledgeService";
@@ -27,7 +28,7 @@ export class NovelExportService {
   private readonly storyMacroPlanService = new StoryMacroPlanService();
   private readonly knowledgeService = new KnowledgeService();
 
-  private buildFileName(title: string, scope: NovelExportScope, format: Exclude<NovelExportFormat, "txt">): string {
+  private buildFileName(title: string, scope: NovelExportScope, format: Exclude<NovelExportFormat, "txt" | "zip">): string {
     const extension = format === "markdown" ? "md" : "json";
     const suffix = scope === "full" ? "" : `-${scope}`;
     return `${safeFileNamePart(title)}${suffix}-${buildExportTimestamp()}.${extension}`;
@@ -211,6 +212,17 @@ export class NovelExportService {
     format: NovelExportFormat,
     scope: NovelExportScope = "full",
   ): Promise<NovelExportResult> {
+    if (format === "zip") {
+      if (scope !== "full") {
+        throw new AppError("ZIP 导出仅支持整本书分章正文导出。", 400);
+      }
+      const novel = await this.getTxtNovelRecord(novelId);
+      return {
+        fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.zip`,
+        contentType: "application/zip",
+        content: buildChapterArchive(novel),
+      };
+    }
     if (format === "txt") {
       if (scope !== "full") {
         throw new AppError("TXT 导出仅支持整本书正文导出。", 400);

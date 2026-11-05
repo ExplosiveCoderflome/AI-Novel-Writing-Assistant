@@ -111,6 +111,11 @@ function resolveApiBaseUrl(): string {
 // 开发环境优先把 API 指向当前页面所在主机，避免局域网访问时仍被锁到 localhost。
 export const API_BASE_URL = resolveApiBaseUrl();
 
+/** Resolve server-owned assets for both web pages and the file:// desktop renderer. */
+export function assetUrl(path: string, apiBaseUrl: string = API_BASE_URL): string {
+  return `${apiBaseUrl.replace(/\/api\/?$/, "").replace(/\/$/, "")}${path}`;
+}
+
 const DEFAULT_API_TIMEOUT_MS = 10 * 60 * 1000;
 
 function parseApiTimeoutMs(rawValue: string | number | undefined): number {

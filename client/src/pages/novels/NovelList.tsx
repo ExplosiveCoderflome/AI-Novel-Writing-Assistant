@@ -1,3 +1,4 @@
+import type { NovelExportFormat } from "@ai-novel/shared/types/novelExport";
 import { useEffect, useMemo, useState } from "react";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -57,6 +58,7 @@ export default function NovelList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const [exportNovel, setExportNovel] = useState<{ novelId: string; novelTitle: string } | null>(null);
   const storedView = typeof window !== "undefined" ? window.localStorage.getItem("novel-list-view") : null;
   const initialView = searchParams.get("view") === "workbench" || searchParams.get("view") === "shelf"
     ? searchParams.get("view") as "shelf" | "workbench"
@@ -134,9 +136,9 @@ export default function NovelList() {
   });
 
   const downloadNovelMutation = useMutation({
-    mutationFn: (input: { novelId: string; novelTitle: string }) => downloadNovelExport(
+    mutationFn: (input: { novelId: string; novelTitle: string; format: NovelExportFormat }) => downloadNovelExport(
       input.novelId,
-      "txt",
+      input.format,
       "full",
       input.novelTitle,
     ),
@@ -340,7 +342,7 @@ export default function NovelList() {
                 <h2 className="text-lg font-semibold">我的作品</h2>
                 <div className="grid w-full grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-4">
                   {novels.filter((novel) => !continueNovels.some((item) => item.id === novel.id)).map((novel) => (
-                    <NovelShelfCard key={novel.id} novel={novel} onManageCover={setCoverNovelId} onDownload={downloadNovelMutation.mutate} onDelete={handleDelete} />
+                    <NovelShelfCard key={novel.id} novel={novel} onManageCover={setCoverNovelId} onDownload={setExportNovel} onDelete={handleDelete} />
                   ))}
                 </div>
               </section>
@@ -361,7 +363,7 @@ export default function NovelList() {
                   onOpenNovel={openNovelEditor}
                   onOpenCockpit={setCockpitNovelId}
                   onContinueWorkflow={continueWorkflowMutation.mutate}
-                  onDownload={downloadNovelMutation.mutate}
+                  onDownload={setExportNovel}
                   onDelete={handleDelete}
                 />
               ))}
@@ -375,6 +377,19 @@ export default function NovelList() {
           />
         </>
       )}
+
+      <Dialog open={Boolean(exportNovel)} onOpenChange={(open) => { if (!open) setExportNovel(null); }}>
+        <AppDialogContent title="导出作品" description={`选择《${exportNovel?.novelTitle ?? ""}》的下载格式。`} className="max-w-md">
+          <div className="flex flex-wrap gap-2">
+            {([ ["txt", "TXT 正文"], ["zip", "分章 ZIP"], ["markdown", "Markdown"], ["json", "JSON"] ] as const).map(([format, label]) => (
+              <Button key={format} variant="outline" disabled={downloadNovelMutation.isPending}
+                onClick={() => { if (exportNovel) downloadNovelMutation.mutate({ ...exportNovel, format }); }}>
+                {downloadNovelMutation.isPending && downloadNovelMutation.variables.format === format ? "导出中..." : label}
+              </Button>
+            ))}
+          </div>
+        </AppDialogContent>
+      </Dialog>
 
       {coverNovel && coverBasicForm ? (
         <NovelCoverDialog
