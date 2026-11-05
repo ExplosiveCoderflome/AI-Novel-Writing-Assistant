@@ -40,7 +40,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - 任何数据回填、同步、抽取或索引刷新，必须只消费章节的稳定快照；在章节仍可能继续修复、重写或回退时，不允许把这类动作挂在热路径里。
 - 任务快照、事实检查和恢复建议生成必须保持只读；`recover` 可以返回可恢复位置，但不能在轮询、预览或投影读取时写入 `run_resumed`、恢复提示或其他状态事件。需要记录恢复动作时，必须由显式执行/恢复流程来写入，而不是由读路径顺手写入。
 - `novelEventBus` 只允许承载轻量领域通知。角色动力学同步、流水线快照、RAG 重索引、状态重算等重副作用必须进入持久队列或已有专用队列；事件 handler 不得直接执行这些服务。
-- 小说导出属于独立业务模块：`server/src/modules/export/` 只负责读取现有小说生产数据、转换导出 DTO、生成 TXT/Markdown/JSON 内容和导出文件名。它不拥有小说、章节、角色、时间线或质量修复事实源，也不在导出过程中写回生产状态。
+- 小说导出属于独立业务模块：`server/src/modules/export/` 只负责读取现有小说生产数据、转换导出 DTO、生成 TXT/Markdown/JSON/分章 ZIP 内容和导出文件名。它不拥有小说、章节、角色、时间线或质量修复事实源，也不在导出过程中写回生产状态。ZIP 编码由模块的 infrastructure 适配器调用成熟归档库完成，等待输出结束后返回 Buffer，HTTP 层以 `application/zip` 原样发送；不要为了复用 ZIP 编码将桌面日志运行时与小说导出耦合，也不要在 shared 中维护自制 ZIP 格式实现。
 - 时间线约束层属于独立业务模块：`server/src/modules/timeline/` 只管理时间线事件、章节时间锚点、钩子、约束和检测报告。它不替代 `StoryStateSnapshot`、`ConsistencyFact` 或 `CharacterTimeline`，也不直接调用章节 writer 改正文。
 - 章节生成、Prompt Registry 和任务中心只能通过时间线模块 facade 获取时间线上下文或检测报告，不应在 writer、route 或 UI 中直接拼接 timeline 表查询规则。
 

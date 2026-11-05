@@ -220,7 +220,7 @@ export class NovelExportService {
       return {
         fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.zip`,
         contentType: "application/zip",
-        content: buildChapterArchive(novel),
+        content: await buildChapterArchive(novel),
       };
     }
     if (format === "txt") {
