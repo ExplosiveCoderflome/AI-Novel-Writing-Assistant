@@ -1,3 +1,4 @@
+import { probeIfEnabled } from "../../llm/compatibility/probing";
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
@@ -201,6 +202,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           concurrencyLimit: data.concurrencyLimit ?? 0,
           requestIntervalMs: data.requestIntervalMs ?? 0,
         } : null);
+        void probeIfEnabled({ provider, model: data.model ?? undefined, baseURL: data.baseURL ?? undefined }).catch(() => undefined);
         const imageModel = await saveProviderImageModel(provider, body.imageModel);
         const imageModels = Array.from(new Set([
           ...getImageModelOptions(provider),

@@ -172,7 +172,7 @@ export function normalizeRequestProtocol(value?: string | null): ModelRouteReque
 }
 
 export function normalizeStructuredResponseFormat(value?: string | null): ModelRouteStructuredResponseFormat {
-  if (value === "json_schema" || value === "json_object" || value === "prompt_json") {
+  if (value === "json_schema" || value === "json_object" || value === "tool_calling" || value === "prompt_json") {
     return value;
   }
   return "auto";

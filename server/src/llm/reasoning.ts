@@ -1,14 +1,9 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
 import { REASONING_EFFORTS, type LLMProvider, type ReasoningEffort } from "@ai-novel/shared/types/llm";
-import { isBuiltInProvider } from "./providers";
+import { resolveCapability, thinkingControlKwargs } from "./compatibility";
 
 const THINK_OPEN_TAG = "<think>";
 const THINK_CLOSE_TAG = "</think>";
-const DEEPSEEK_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?deepseek\.com(?:\/|$)/i;
-const GLM_HOST_PATTERN = /(?:^|:\/\/)open\.bigmodel\.cn(?:\/|$)/i;
-const MINIMAX_HOST_PATTERN = /(?:^|:\/\/)(?:api\.)?minimax(?:i)?\.(?:io|com)(?:\/|$)/i;
-const MINIMAX_MODEL_PATTERN = /^minimax-m2(?:[.-]|$)/i;
-
 export interface ProviderReasoningBehavior {
   reasoningEnabled: boolean;
   reasoningEffort: ReasoningEffort | null;
@@ -31,11 +26,6 @@ export interface StreamFilterResult {
 export interface MiniMaxStreamState {
   contentBuffer: string;
   reasoningBuffer: string;
-}
-
-function normalizeOptionalText(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
 }
 
 function collectTextArray(value: unknown): string[] {
@@ -79,146 +69,54 @@ function uniqueJoinedText(parts: string[]): string {
   return Array.from(new Set(parts.map((item) => item.trim()).filter(Boolean))).join("");
 }
 
-export function isMiniMaxCompatibleProvider(
-  provider: LLMProvider,
-  baseURL?: string,
-  model?: string,
-): boolean {
-  if (provider === "minimax") {
-    return true;
-  }
-  const normalizedBaseURL = normalizeOptionalText(baseURL);
-  if (normalizedBaseURL && MINIMAX_HOST_PATTERN.test(normalizedBaseURL)) {
-    return true;
-  }
-  const normalizedModel = normalizeOptionalText(model);
-  return Boolean(normalizedModel && MINIMAX_MODEL_PATTERN.test(normalizedModel));
+export function isMiniMaxCompatibleProvider(provider: LLMProvider, baseURL?: string, model?: string): boolean {
+  return resolveCapability({ provider, baseURL, model }).family === "minimax";
 }
-
-function isDeepSeekThinkingToggleModel(model?: string): boolean {
-  const normalizedModel = normalizeOptionalText(model)?.toLowerCase().split("/").at(-1);
-  if (!normalizedModel) {
-    return false;
-  }
-  return normalizedModel === "deepseek-reasoner"
-    || normalizedModel.startsWith("deepseek-flash")
-    || normalizedModel.startsWith("deepseek-pro")
-    || /^deepseek-v4(?:\.\d+)?-(?:flash|pro)(?:$|[-_.:])/.test(normalizedModel);
+export function isDeepSeekThinkingModeProvider(provider: LLMProvider, baseURL?: string, model?: string): boolean {
+  const profile = resolveCapability({ provider, baseURL, model });
+  return profile.family === "deepseek" && profile.thinkingToggle.supported;
 }
-
-export function isDeepSeekThinkingModeProvider(
-  provider: LLMProvider,
-  baseURL?: string,
-  model?: string,
-): boolean {
-  if (!isDeepSeekThinkingToggleModel(model)) {
-    return false;
-  }
-  if (provider === "deepseek") {
-    return true;
-  }
-  if (!isBuiltInProvider(provider)) {
-    return true;
-  }
-  const normalizedBaseURL = normalizeOptionalText(baseURL);
-  return Boolean(normalizedBaseURL && DEEPSEEK_HOST_PATTERN.test(normalizedBaseURL));
+export function isGlmThinkingModeProvider(provider: LLMProvider, baseURL?: string, model?: string): boolean {
+  const profile = resolveCapability({ provider, baseURL, model });
+  return profile.family === "glm" && profile.thinkingToggle.supported;
 }
-
-export function isGlmThinkingModeProvider(
-  provider: LLMProvider,
-  baseURL?: string,
-  model?: string,
-): boolean {
-  const normalizedModel = normalizeOptionalText(model)?.toLowerCase().split("/").at(-1);
-  const version = normalizedModel?.match(/^glm-(\d+)(?:\.(\d+))?/);
-  const major = Number(version?.[1] ?? 0);
-  const minor = Number(version?.[2] ?? 0);
-  if (major < 4 || (major === 4 && minor < 5)) {
-    return false;
-  }
-  if (provider === "glm") {
-    return true;
-  }
-  const normalizedBaseURL = normalizeOptionalText(baseURL);
-  return Boolean(normalizedBaseURL && GLM_HOST_PATTERN.test(normalizedBaseURL));
-}
-
 export function resolveProviderReasoningBehavior(input: {
-  provider: LLMProvider;
-  baseURL: string;
-  model: string;
-  reasoningEnabled: boolean;
-  reasoningEffort?: ReasoningEffort | null;
+  provider: LLMProvider; baseURL: string; model: string; reasoningEnabled: boolean; reasoningEffort?: ReasoningEffort | null;
 }): ProviderReasoningBehavior {
-  if (input.provider === "ollama") {
-    return {
-      reasoningEnabled: input.reasoningEnabled,
-      reasoningEffort: null,
-      // /v1/chat/completions uses reasoning_effort, not the native /api/chat think flag.
-      // Leave the enabled model default intact: not every local model supports thinking.
-      ...(!input.reasoningEnabled ? { modelKwargs: { reasoning_effort: "none" } } : {}),
-      includeRawResponse: false,
-      usesAccumulatedStreamDeltas: false,
-    };
-  }
-  if (isGlmThinkingModeProvider(input.provider, input.baseURL, input.model)) {
-    return {
-      reasoningEnabled: input.reasoningEnabled,
-      reasoningEffort: null,
-      modelKwargs: {
-        thinking: {
-          type: input.reasoningEnabled ? "enabled" : "disabled",
-        },
-      },
-      includeRawResponse: false,
-      usesAccumulatedStreamDeltas: false,
-    };
-  }
+  const profile = resolveCapability(input);
+  const toggle = profile.thinkingToggle;
+  const enabled = input.reasoningEnabled;
+  const effort = normalizeReasoningEffort(input.reasoningEffort);
+  let modelKwargs = profile.family === "ollama" && enabled ? undefined : thinkingControlKwargs(toggle, enabled, effort);
+  const miniMax = profile.family === "minimax";
+  if (miniMax) modelKwargs = { ...modelKwargs, reasoning_split: true };
+  return { reasoningEnabled: enabled, reasoningEffort: toggle.effort && enabled ? effort : null,
+    modelKwargs, includeRawResponse: miniMax || profile.reasoningField !== "none", usesAccumulatedStreamDeltas: miniMax };
+}
 
-  if (isDeepSeekThinkingModeProvider(input.provider, input.baseURL, input.model)) {
-    const reasoningEffort = normalizeReasoningEffort(input.reasoningEffort);
-    return {
-      reasoningEnabled: input.reasoningEnabled,
-      reasoningEffort: input.reasoningEnabled ? reasoningEffort : null,
-      modelKwargs: {
-        thinking: {
-          type: input.reasoningEnabled ? "enabled" : "disabled",
-        },
-        ...(input.reasoningEnabled ? { reasoning_effort: reasoningEffort } : {}),
-      },
-      includeRawResponse: false,
-      usesAccumulatedStreamDeltas: false,
-    };
-  }
+function reasoningSources(chunk: BaseMessageChunk): Record<string, unknown>[] {
+  const extra = (chunk.additional_kwargs ?? {}) as Record<string, unknown>;
+  const raw = extra.__raw_response as { choices?: Array<{ delta?: Record<string, unknown> }> } | undefined;
+  return [extra, raw?.choices?.[0]?.delta ?? {}];
+}
 
-  const isMiniMax = isMiniMaxCompatibleProvider(input.provider, input.baseURL, input.model);
-  if (isMiniMax) {
-    return {
-      reasoningEnabled: input.reasoningEnabled,
-      reasoningEffort: null,
-      modelKwargs: {
-        reasoning_split: true,
-      },
-      includeRawResponse: true,
-      usesAccumulatedStreamDeltas: true,
-    };
+export function detectReasoningField(chunk: BaseMessageChunk): "reasoning_content" | "reasoning" | "reasoning_details" | "think_tags" | undefined {
+  if (typeof chunk.content === "string" && chunk.content.includes("<think>")) return "think_tags";
+  for (const source of reasoningSources(chunk)) {
+    if (source.reasoning_content) return "reasoning_content";
+    if (source.reasoning) return "reasoning";
+    if (source.reasoning_details) return "reasoning_details";
   }
-
-  return {
-    reasoningEnabled: input.reasoningEnabled,
-    reasoningEffort: null,
-    includeRawResponse: false,
-    usesAccumulatedStreamDeltas: false,
-  };
+  return undefined;
 }
 
 export function extractReasoningTextFromChunk(chunk: BaseMessageChunk): string {
-  const additionalKwargs = (chunk.additional_kwargs ?? {}) as Record<string, unknown>;
-  const directReasoning = [
-    ...collectTextArray(additionalKwargs.reasoning_content),
-    ...collectTextArray(additionalKwargs.reasoning_details),
-    ...extractReasoningTextFromSummary(additionalKwargs.reasoning),
-  ];
+  const directReasoning = reasoningSources(chunk).flatMap((source) => [
+    ...collectTextArray(source.reasoning_content),
+    ...collectTextArray(source.reasoning_details),
+    ...collectTextArray(source.reasoning),
+    ...extractReasoningTextFromSummary(source.reasoning),
+  ]);
 
   const contentReasoning = Array.isArray(chunk.content)
     ? chunk.content.flatMap((item) => {

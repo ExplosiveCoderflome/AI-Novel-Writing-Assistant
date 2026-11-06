@@ -1,3 +1,4 @@
+require("./fixtures/compatibilitySettings.cjs");
 const test=require('node:test'),assert=require('node:assert/strict');
 const express=require('express');const {once}=require('node:events');
 const {prisma}=require('../dist/db/prisma');
