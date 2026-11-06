@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+require('../fixtures/compatibilitySettings.cjs');
 const { z } = require('zod');
 const { HumanMessage } = require('@langchain/core/messages');
 const factory = require('../../dist/llm/factory');
@@ -22,10 +23,10 @@ function models(t, response) {
     temperature: 0.1, requestProtocol: 'chat_completions',
     structuredProfile: resolveStructuredOutputProfile({ provider: 'deepseek', model: 'deepseek-chat', executionMode: 'structured' }) });
   const client = (kind, model) => ({ stream: async function* (messages, options) {
-    calls.push({ kind, model, messages, strategy: options?.response_format?.type || 'prompt_json' });
+    calls.push({ kind, model, messages, strategy: options?.tools ? 'tool_calling' : options?.response_format?.type || 'prompt_json' });
     const output = response(calls.at(-1), calls.length);
     if (output instanceof Error) throw output;
-    yield { content: output };
+    yield options?.tools ? { content: '', tool_call_chunks: [{ args: output }] } : { content: output };
   } });
   factory.createLLMFromResolvedOptions = options => client('main', options.model);
   factory.getLLM = async (_provider, options) => client('repair', options.model);
@@ -101,6 +102,11 @@ test('transport retries cannot bypass a zero retry allowance', async t => {
 
 test('a configured fallback model shares the primary allowance instead of renewing it', async t => {
   const calls = models(t, () => '{"value":0}');
+  // Two primary modes spend four requests; the fifth must belong to the fallback.
+  const compat = require('../../dist/llm/compatibility');
+  const identity = { provider: 'deepseek', model: 'offline-model', baseURL: 'https://api.deepseek.com/v1' };
+  await compat.saveCapability(identity, { ...compat.builtinCapability(identity),
+    structuredModes: ['json_object', 'prompt_only'], failedModes: [], source: 'user_override' });
   settings.getStructuredFallbackSettings = async () => ({ enabled: true, provider: 'deepseek', model: 'fallback', retryCount: 0 });
   const budget = createTransientChapterReviewRetryBudget({ maxRetries: 4, onExhausted: 'pause_for_manual' });
   await assert.rejects(budget.runCheck('initial', () => invoke({ disableFallbackModel: false, fallbackMaxRepairAttempts: 0 })));
