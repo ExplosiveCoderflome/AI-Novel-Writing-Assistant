@@ -17,7 +17,7 @@ import {
 } from "./factory";
 import { resolveModel, toStructuredOutputStrategy } from "./modelRouter";
 import {
-  buildStructuredResponseFormat,
+  buildStructuredCallOptions,
   structuredStrategySequence,
   classifyStructuredOutputFailure,
   extractStructuredOutputErrorCategory,
@@ -239,25 +239,18 @@ async function invokeStructuredAttempt<T>(input: {
     requestProtocol: input.target.requestProtocol,
   });
   const llm = createLLMFromResolvedOptions(resolved);
-  const invokeOptions: Record<string, unknown> = {};
-  const responseFormat = buildStructuredResponseFormat({
+  const invokeOptions = buildStructuredCallOptions({
     strategy: input.strategy,
     schema: input.baseInput.schema,
     label: input.baseInput.label,
   });
-  if (responseFormat) {
-    invokeOptions.response_format = responseFormat;
-  }
-  if (input.strategy === "tool_calling") {
-    invokeOptions.tools = [{ type: "function", function: { name: "structured_output", description: "Return the requested structured result", parameters: toJSONSchema(input.baseInput.schema, { unrepresentable: "any" }) } }];
-    invokeOptions.tool_choice = { type: "function", function: { name: "structured_output" } };
-  }
   if (input.baseInput.signal) {
     invokeOptions.signal = input.baseInput.signal;
   }
 
   const messages = buildInvokeMessages(input.baseInput);
-  if (input.strategy === "prompt_json" || input.strategy === "json_object") {
+  // Registry messages already include schema hints and may be frozen by production preflight.
+  if (!input.baseInput.promptMeta && (input.strategy === "prompt_json" || input.strategy === "json_object")) {
     messages.push(new HumanMessage(`Return only JSON matching this schema: ${JSON.stringify(toJSONSchema(input.baseInput.schema, { unrepresentable: "any" }))}`));
   }
   logStructuredInvokeEvent({

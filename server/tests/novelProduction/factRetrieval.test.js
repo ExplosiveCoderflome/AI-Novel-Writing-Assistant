@@ -102,6 +102,7 @@ test('retrieval filters outdated and future fact chunks before topK fusion, reta
     './utils':ragUtils,'./EmbeddingService':{},'./VectorStoreService':{},
     '../knowledge/common':{resolveKnowledgeDocumentIds:async()=>[]},
     './types':require('../../dist/services/rag/types'),'./chunkFacets':facets,
+    './execution':require('../../dist/services/rag/execution'),
     './RagRetrievalTracer':{RagRetrievalTracer:class{record(){} setScope(){} flushAsync(){}}},
     './RagRerankerService':{RagRerankerService:class{},resolveRerankerCandidateLimit:()=>2},'./facts':f.documents,
   });

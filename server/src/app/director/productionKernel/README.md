@@ -26,6 +26,8 @@ worker 将实际领取的 leaseOwner 显式传入步骤。`execution/ownership` 
 
 `prompts/preflight` 使用 Prompt 层的实际覆盖、上下文选择、模板及结构化提示。配置身份只保存白名单摘要，不保存凭据或原始端点。结构化主模型、备用模型、协议与 JSON 纠错的可执行配置均须预检；实际 SDK 调用与已保存配置不符时锁存拒绝，原生异常处理不能将其吞成有效结果。原生省略输出上限的协议不满足可执行预算合同，应在启用前配置或适配，不能猜测上限。
 
+注册 Prompt 的结构化消息已在 Prompt 层完成 schema 提示与冻结，兼容适配层不能再次追加消息。预检与物理调用共用 `structuredStrategySequence` 和 `buildStructuredCallOptions`，将能力档案允许的工具调用、JSON 模式及其完整参数纳入预检，避免可用模式被误判为快照漂移，或在工具 schema 未计入时低估输入预算。
+
 `prompts/modelWindows` 只读取调用方捕获的明确 provider/model 窗口元数据；没有条目就返回未知，不猜型号族。原生装配将明确元数据随批次模型策略一起冻结。
 
 `modelPolicy` 提供原生配置读取、明确窗口元数据及批次一次性绑定。六类任务的有效配置摘要、主备模型、fallback 和窗口随契约保存；端点、任务输出策略或元数据漂移拒绝继续，凭据只在运行中解析。createNativeKernelRuntime 已将冻结配置检查安装到阶段与物理请求围栏。

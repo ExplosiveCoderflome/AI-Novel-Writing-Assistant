@@ -1,4 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
+require('../../fixtures/compatibilitySettings.cjs');
 const api=require('../../../dist/app/director/productionKernel');
 const k=require('../../../dist/modules/production');
 const {patchInput}=require('../prompts/nativeFixture.cjs');
@@ -74,4 +75,27 @@ test('model windows require exact explicit provider/model metadata and remain de
  assert.equal(await api.createKernelModelWindowReader([])('openai','gpt-4'),null);
  for(const bad of [[{provider:'openai',model:'x',contextWindow:0}],[{provider:'openai',model:'x',contextWindow:1.5}],
   [{provider:'openai',model:'x',contextWindow:128000},{provider:'openai',model:'x',contextWindow:256000}]])assert.throws(()=>api.createKernelModelWindowReader(bad));
+});
+
+test('capability failure observations preserve the frozen executable configuration without widening it',async t=>{
+ const f=fixture(t),prepared=await f.preparer.prepare(f.request);
+ const configuration=await f.resolveModel('openai',{model:'fixture-model',temperature:0.15,
+  maxTokens:prepared.description.requestOutputTokens,taskType:f.request.asset.taskType,
+  executionMode:'structured',structuredStrategy:'prompt_json'});
+ const assertConfiguration=require('../../../dist/platform/llm/execution').assertLlmExecutionConfiguration;
+ await prepared.execute(async()=>assertConfiguration({...configuration,structuredProfile:{failedModes:['json_schema']}}));
+ await assert.rejects(()=>prepared.execute(async()=>assertConfiguration({...configuration,maxTokens:configuration.maxTokens+1})),/snapshot|configuration/i);
+});
+
+test('preflight registers tool-only capability and accounts for its complete tool contract',async t=>{
+ const f=fixture(t),compat=require('../../../dist/llm/compatibility');
+ const identity={provider:'openai',model:'fixture-model',baseURL:base.baseURL};
+ await compat.saveCapability(identity,{...compat.builtinCapability(identity),structuredModes:['tool_calling','prompt_only'],source:'user_override'});
+ const prepared=await f.preparer.prepare(f.request);
+ assert.ok(prepared.description.renderedInput.includes('"tool_choice"'));
+ assert.ok(prepared.description.renderedInput.includes('"parameters"'));
+ const configuration=await f.resolveModel('openai',{model:'fixture-model',temperature:0.2,
+  maxTokens:prepared.description.requestOutputTokens,taskType:f.request.asset.taskType,
+  executionMode:'structured',structuredStrategy:'tool_calling'});
+ await prepared.execute(async()=>require('../../../dist/platform/llm/execution').assertLlmExecutionConfiguration(configuration));
 });

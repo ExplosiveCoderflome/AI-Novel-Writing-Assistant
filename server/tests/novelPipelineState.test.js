@@ -327,8 +327,8 @@ test("executePipeline stops remaining chapters after a replan recommendation", a
     title: "测试小说",
   });
   prisma.chapter.findMany = async () => [
-    { id: "chapter-9", order: 9, title: "第九章", content: "", chapterStatus: "unplanned" },
-    { id: "chapter-10", order: 10, title: "第十章", content: "", chapterStatus: "unplanned" },
+    { id: "chapter-9", order: 9, title: "第九章", content: "", chapterStatus: "unplanned", artifactSyncCheckpoints: [] },
+    { id: "chapter-10", order: 10, title: "第十章", content: "", chapterStatus: "unplanned", artifactSyncCheckpoints: [] },
   ];
   reviewService.createQualityReport = async () => null;
   novelEventBus.emit = async () => null;
@@ -445,8 +445,8 @@ test("executePipeline records local patch recommendations as quality debt and co
     title: "测试小说",
   });
   prisma.chapter.findMany = async () => [
-    { id: "chapter-5", order: 5, title: "第五章", content: "", chapterStatus: "unplanned" },
-    { id: "chapter-6", order: 6, title: "第六章", content: "", chapterStatus: "unplanned" },
+    { id: "chapter-5", order: 5, title: "第五章", content: "", chapterStatus: "unplanned", artifactSyncCheckpoints: [] },
+    { id: "chapter-6", order: 6, title: "第六章", content: "", chapterStatus: "unplanned", artifactSyncCheckpoints: [] },
   ];
   reviewService.createQualityReport = async () => null;
   novelEventBus.emit = async () => null;
@@ -563,8 +563,8 @@ test("executePipeline preserves persisted quality alerts across resume", async (
     title: "测试小说",
   });
   prisma.chapter.findMany = async () => ([
-    { id: "chapter-1", order: 1, title: "第一章", content: "已生成内容" },
-    { id: "chapter-2", order: 2, title: "第二章", content: "" },
+    { id: "chapter-1", order: 1, title: "第一章", content: "已生成内容", artifactSyncCheckpoints: [] },
+    { id: "chapter-2", order: 2, title: "第二章", content: "", artifactSyncCheckpoints: [] },
   ]);
   reviewService.createQualityReport = async () => null;
   novelEventBus.emit = async () => null;
@@ -662,7 +662,7 @@ test("executePipeline records empty chapter output in failed job notice payload"
     title: "测试小说",
   });
   prisma.chapter.findMany = async () => ([
-    { id: "chapter-empty", order: 3, title: "第三章", content: "" },
+    { id: "chapter-empty", order: 3, title: "第三章", content: "", artifactSyncCheckpoints: [] },
   ]);
   novelEventBus.emit = async () => null;
 

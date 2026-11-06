@@ -3,8 +3,7 @@ import type { PromptAsset, PromptContextBlock, PromptExecutionOptions } from "..
 import { prepareEffectivePromptExecution } from "../../../../prompting/execution";
 import { resolveLLMClientOptions, type ResolvedLLMClientOptions } from "../../../../llm/factory";
 import { getStructuredFallbackSettings, type StructuredFallbackSettings } from "../../../../llm/structuredFallbackSettings";
-import { buildStructuredResponseFormat, resolveStructuredOutputProfile, selectStructuredOutputStrategy,
-  type StructuredOutputStrategy } from "../../../../llm/structuredOutput";
+import { buildStructuredCallOptions, resolveStructuredOutputProfile, structuredStrategySequence } from "../../../../llm/structuredOutput";
 import { withLlmExecutionPolicy } from "../../../../platform/llm/execution";
 import type { PhysicalModelRequest } from "../../../../platform/llm/retries";
 import { hashProductionContent, ProductionContextBudgetError, type ArtifactPromptDescription } from "../../../../modules/production";
@@ -24,7 +23,8 @@ export function configurationKey(value: ResolvedLLMClientOptions): string {
     temperature:value.temperature,maxTokens:value.maxTokens ?? null,timeoutMs:value.timeoutMs ?? null,
     reasoningEnabled:value.reasoningEnabled,reasoningEffort:value.reasoningEffort,reasoningForcedOff:value.reasoningForcedOff,
     modelKwargsHash:digest(value.modelKwargs),includeRawResponse:value.includeRawResponse,requestProtocol:value.requestProtocol,
-    executionMode:value.executionMode,structuredStrategy:value.structuredStrategy ?? null,profileHash:digest(value.structuredProfile),
+    // Capability observations may change after a rejected mode; effective request knobs stay frozen.
+    executionMode:value.executionMode,structuredStrategy:value.structuredStrategy ?? null,
     taskType:value.taskType ?? null,modelRoute:value.modelRoute ?? null,routeDegraded:value.routeDegraded ?? false});
 }
 function messages(input: unknown): unknown {
@@ -68,10 +68,9 @@ export function createKernelPromptPreparer(deps: KernelPromptPreparerDependencie
       }
       for(const target of targets){
         const profile=resolveStructuredOutputProfile({provider:target.provider,model:target.model,baseURL:target.baseURL,requestProtocol:target.requestProtocol,executionMode:"structured"});
-        const first=selectStructuredOutputStrategy(profile,request.asset.outputSchema!);
-        const strategies:StructuredOutputStrategy[]=[first,...(first === "json_schema" && profile.nativeJsonObject ? ["json_object" as const] : []),...(first !== "prompt_json" ? ["prompt_json" as const] : [])];
+        const strategies=structuredStrategySequence(profile,request.asset.outputSchema!);
         for(const [index,strategy]of strategies.entries()){
-          formats.push(buildStructuredResponseFormat({strategy,schema:request.asset.outputSchema!,label:`${request.asset.id}@${request.asset.version}`}));
+          formats.push(buildStructuredCallOptions({strategy,schema:request.asset.outputSchema!,label:`${request.asset.id}@${request.asset.version}`}));
           const actual=await resolve(target.provider,{fallbackProvider:"deepseek",model:target.model,baseURL:target.baseURL,authMode:target.authMode,
             temperature:index === 0 ? target.temperature : Math.min(target.temperature,0.2),maxTokens:target.maxTokens,timeoutMs:options.timeoutMs,
             taskType:request.asset.taskType,executionMode:"structured",structuredStrategy:strategy,requestProtocol:target.requestProtocol});

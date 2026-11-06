@@ -386,6 +386,22 @@ export function buildStructuredResponseFormat<T>(input: {
   return undefined;
 }
 
+/** The preflight and physical invocation must describe the same protocol payload. */
+export function buildStructuredCallOptions<T>(input: {
+  strategy: StructuredOutputStrategy;
+  schema: ZodType<T>;
+  label: string;
+}): Record<string, unknown> {
+  const responseFormat = buildStructuredResponseFormat(input);
+  if (responseFormat) return { response_format: responseFormat };
+  if (input.strategy === "tool_calling") return {
+    tools: [{ type: "function", function: { name: "structured_output", description: "Return the requested structured result",
+      parameters: toJSONSchema(input.schema, { unrepresentable: "any" }) } }],
+    tool_choice: { type: "function", function: { name: "structured_output" } },
+  };
+  return {};
+}
+
 export function classifyStructuredOutputFailure(input: {
   error?: unknown;
   rawContent?: string;

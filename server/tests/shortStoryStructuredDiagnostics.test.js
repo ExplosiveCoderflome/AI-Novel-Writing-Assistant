@@ -37,10 +37,12 @@ async function invoke(chunks, { fail, retries = 0, repair = 0, failOnce = false,
     temperature: 0.3, requestProtocol: "openai_compatible",
     structuredProfile: resolveStructuredOutputProfile({ provider: "deepseek", model: "offline-model", executionMode: "structured" }),
   });
-  factory.createLLMFromResolvedOptions = () => ({ stream: async function* () {
+  factory.createLLMFromResolvedOptions = (resolved) => ({ stream: async function* () {
     calls++;
     if (fail && (!failOnce || calls === 1)) throw fail;
-    for (const chunk of chunks) yield chunk;
+    for (const chunk of chunks) yield resolved.structuredStrategy === "tool_calling"
+      ? { ...chunk, content: "", tool_call_chunks: [{ args: chunk.content }] }
+      : chunk;
   } });
   if (repairChunks || repairError) factory.getLLM = async () => ({ stream: async function* () {
     if (repairError) throw repairError;
