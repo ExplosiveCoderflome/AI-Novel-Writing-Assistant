@@ -6,7 +6,7 @@ if (!process.argv.includes("--allow-network")) {
   process.exit(0);
 }
 (async () => {
-  const { secretStore } = require("../dist/services/settings/secretStore.js");
+  const { secretStore } = require("../dist/services/settings/secretStore");
   const { prisma } = require("../dist/db/prisma.js");
   const { probeModel } = require("../dist/llm/compatibility/probing.js");
   const { PROVIDERS, getProviderEnvApiKey, getProviderEnvModel, getProviderEnvBaseUrl } = require("../dist/llm/providers.js");
