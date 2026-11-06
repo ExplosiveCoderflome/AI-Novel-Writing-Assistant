@@ -1,0 +1,8 @@
+{
+  "ok": [{"content":"{\"ok\":true}","additional_kwargs":{}}],
+  "tool": [{"content":"","tool_call_chunks":[{"name":"structured_output","index":0,"id":"fixture-call","args":"{\"ok\":"}]},{"content":"","tool_call_chunks":[{"index":0,"args":"true}"}]}],
+  "thinking": [{"content":"{\"ok\":true}","additional_kwargs":{"reasoning_content":"Let me consider the answer."}}],
+  "invalid": [{"content":"{\"wrong\":false}"}],
+  "unsupported": {"message":"400 response_format json_schema unsupported","status":400},
+  "sparkTransport": {"message":"structured-output transport error: response_format rejected by MaaS","status":400}
+}

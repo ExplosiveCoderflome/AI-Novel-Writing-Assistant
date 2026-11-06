@@ -1,3 +1,4 @@
+import { loadCapability } from "./compatibility";
 import {attachLLMCacheRequestPolicy,resolveCacheCapability} from "../platform/llm/cache";
 import {attachExecutionSignal,assertLlmExecutionConfiguration,attachLlmExecutionPolicy,resolveScopedTaskOutputTokens} from "../platform/llm/execution";
 import type { LLMProvider, ProviderAuthMode, ReasoningEffort } from "@ai-novel/shared/types/llm";
@@ -297,6 +298,7 @@ export async function resolveLLMClientOptions(
   }
   const authMode = normalizeProviderAuthMode(options.authMode ?? dbSecret?.authMode);
 
+  await loadCapability({ provider: resolvedProvider, model, baseURL });
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
   const concurrencyLimit = normalizeLimitValue(dbSecret?.concurrencyLimit);
@@ -333,14 +335,7 @@ export async function resolveLLMClientOptions(
   ) {
     effectiveMaxTokens = Math.min(effectiveMaxTokens, structuredProfile.safeStructuredMaxTokens);
   }
-  const usesEnableThinkingFlag = Boolean(
-    shouldForceDisableReasoning
-      && structuredProfile?.family.includes("qwen"),
-  );
-  const baseModelKwargs: Record<string, unknown> = {
-    ...(options.modelKwargs ?? {}),
-    ...(usesEnableThinkingFlag ? { enable_thinking: false } : {}),
-  };
+  const baseModelKwargs = options.modelKwargs ?? {};
   const reasoningBehavior = resolveProviderReasoningBehavior({
     provider: resolvedProvider,
     baseURL,

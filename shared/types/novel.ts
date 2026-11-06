@@ -1188,6 +1188,7 @@ export const MODEL_ROUTE_STRUCTURED_RESPONSE_FORMATS = [
   "auto",
   "json_schema",
   "json_object",
+  "tool_calling",
   "prompt_json",
 ] as const;
 

@@ -1,3 +1,4 @@
+import ModelCompatibilitySection from "./ModelCompatibilitySection";
 import { useState } from "react";
 import { Bot, ChevronDown, Image, RefreshCw, RotateCcw, Trash2, WalletCards, X } from "lucide-react";
 import type { LLMProvider, ReasoningEffort } from "@ai-novel/shared/types/llm";
@@ -143,6 +144,8 @@ export default function ProviderStatusCard(props: {
           {item.isTesting ? "测试中..." : "测试连接"}
         </Button>
       </div>
+
+      <ModelCompatibilitySection provider={provider} />
 
       <div className="mt-3 border-t pt-3">
         <button

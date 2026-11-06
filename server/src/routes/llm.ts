@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { probeIfEnabled } from "../llm/compatibility/probing";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { PROVIDER_AUTH_MODES } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
@@ -162,7 +163,7 @@ const modelRouteUpsertSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.union([z.number().int().positive(), z.null()]).optional(),
   requestProtocol: z.enum(["auto", "openai_compatible", "anthropic"]).optional(),
-  structuredResponseFormat: z.enum(["auto", "json_schema", "json_object", "prompt_json"]).optional(),
+  structuredResponseFormat: z.enum(["auto", "json_schema", "json_object", "tool_calling", "prompt_json"]).optional(),
 });
 
 router.put(
@@ -179,6 +180,7 @@ router.put(
         requestProtocol: body.requestProtocol,
         structuredResponseFormat: body.structuredResponseFormat,
       });
+      void probeIfEnabled({ provider: body.provider, model: body.model, requestProtocol: body.requestProtocol }).catch(() => undefined);
       res.status(200).json({
         success: true,
         message: "模型路由已更新。",

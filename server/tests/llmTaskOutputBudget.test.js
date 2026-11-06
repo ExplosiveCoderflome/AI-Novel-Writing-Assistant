@@ -1,3 +1,4 @@
+require("./fixtures/compatibilitySettings.cjs");
 const test=require('node:test'),assert=require('node:assert/strict');
 const factory=require('../dist/llm/factory');
 const execution=require('../dist/platform/llm/execution');

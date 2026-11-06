@@ -1,4 +1,5 @@
 import type { Router } from "express";
+import { probeIfEnabled } from "../../llm/compatibility/probing";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { llmProviderSchema } from "../../llm/providerSchema";
@@ -36,6 +37,7 @@ export function registerLLMSelectionRoutes(router: Router): void {
     async (req, res, next) => {
       try {
         const data = await saveLLMSelectionSettings(req.body as z.infer<typeof llmSelectionSchema>);
+        void probeIfEnabled({ provider: data.provider, model: data.model }).catch(() => undefined);
         res.status(200).json({
           success: true,
           data,

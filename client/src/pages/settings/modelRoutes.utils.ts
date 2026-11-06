@@ -60,7 +60,7 @@ export function getStructuredResponseFormatOptions(
 ): ModelRouteStructuredResponseFormat[] {
   return requestProtocol === "anthropic"
     ? ["prompt_json"]
-    : ["auto", "json_schema", "json_object", "prompt_json"];
+    : ["auto", "json_schema", "json_object", "tool_calling", "prompt_json"];
 }
 
 function parseTemperature(value: string, fallback: number): number {

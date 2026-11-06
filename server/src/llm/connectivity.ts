@@ -17,6 +17,7 @@ import { invokeStructuredLlmDetailed, summarizeStructuredOutputFailure } from ".
 import {
   resolveStructuredOutputProfile,
   selectStructuredOutputStrategy,
+  structuredStrategySequence,
   type StructuredOutputStrategy,
 } from "./structuredOutput";
 
@@ -87,14 +88,9 @@ function getStructuredFormatCandidates(input: {
     requestProtocol: input.requestProtocol,
     executionMode: "structured",
   });
-  const profileFirst = selectStructuredOutputStrategy(profile, STRUCTURED_PROBE_SCHEMA);
-  const fallbackOrder: StructuredOutputStrategy[] = profileFirst === "json_schema"
-    ? ["json_schema", "json_object", "prompt_json"]
-    : profileFirst === "json_object"
-      ? ["json_object", "prompt_json", "json_schema"]
-      : ["prompt_json", "json_object", "json_schema"];
+  const fallbackOrder = structuredStrategySequence(profile, STRUCTURED_PROBE_SCHEMA);
   const preferred = input.preferred;
-  if (preferred === "json_schema" || preferred === "json_object" || preferred === "prompt_json") {
+  if (preferred === "json_schema" || preferred === "json_object" || preferred === "tool_calling" || preferred === "prompt_json") {
     return [preferred, ...fallbackOrder].filter((value, index, array) => array.indexOf(value) === index);
   }
   return fallbackOrder;

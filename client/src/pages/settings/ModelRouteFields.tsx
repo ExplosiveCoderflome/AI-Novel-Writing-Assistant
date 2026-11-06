@@ -150,7 +150,7 @@ export default function ModelRouteFields({
             <SelectContent>
               {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
                 <SelectItem key={format} value={format}>
-                  {format === "auto" ? "自动选择" : format}
+                  {format === "auto" ? "自动选择" : format === "tool_calling" ? "工具调用" : format}
                 </SelectItem>
               ))}
             </SelectContent>
