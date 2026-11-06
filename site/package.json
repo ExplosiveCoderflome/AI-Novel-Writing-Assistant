@@ -5,9 +5,9 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/sync-architecture-assets.cjs",
+    "predev": "node scripts/generate-manuscript.mjs && node scripts/sync-architecture-assets.cjs",
     "dev": "vite --host 0.0.0.0",
-    "prebuild": "node scripts/sync-architecture-assets.cjs && node scripts/generate-sitemap.cjs",
+    "prebuild": "node scripts/generate-manuscript.mjs && node scripts/sync-architecture-assets.cjs && node scripts/generate-sitemap.cjs",
     "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/prerender.cjs",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -18,7 +18,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "roughjs": "^4.6.6"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

@@ -203,11 +203,11 @@ function HomePage() {
               <Download size={18} />
               下载桌面版
             </a>
-            <a className="hero-link" href={repoUrl}>
+            <a className="button secondary" href={repoUrl}>
               <Github size={18} />
               GitHub
             </a>
-            <a className="hero-link" href={docsPath()}>
+            <a className="button secondary" href={docsPath()}>
               <FileText size={18} />
               阅读文档
             </a>
