@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+import { buildWeComMarkdownCallbackParams, signWeComMarkdownCallback } from "./wecomMarkdownCallback";
 import type {
   AutoDirectorAction,
   AutoDirectorChannelAction,
@@ -57,6 +59,13 @@ function buildLinkAction(input: {
   };
 }
 
+export function signDingTalkWebhook(webhookUrl: string, secret: string, timestamp = Date.now()): string {
+  const url = new URL(webhookUrl);
+  url.searchParams.set("timestamp", String(timestamp));
+  url.searchParams.set("sign", createHmac("sha256", secret).update(`${timestamp}\n${secret}`).digest("base64"));
+  return url.toString();
+}
+
 export class DingTalkNotifier {
   isEnabled(config?: AutoDirectorChannelConfig | null): boolean {
     return Boolean(config?.webhookUrl.trim());
@@ -100,7 +109,21 @@ export class DingTalkNotifier {
         }))
       : [];
 
+    const callbackButtons = callbackActions.map(action => {
+      const params = {callbackId: action.callback!.callbackId, eventId: input.event.eventId, taskId: input.taskId, actionCode: action.actionCode as "continue_auto_execution" | "retry_with_task_model"};
+      const query = buildWeComMarkdownCallbackParams(params);
+      query.set("signature", signWeComMarkdownCallback(params, input.channelConfig!.callbackToken));
+      return {title: action.label, actionURL: `${baseUrl}/api/auto-director/channel-callbacks/dingtalk/execute?${query}`};
+    });
+    const title = input.cardTitle?.trim() || "自动导演跟进提醒";
     return {
+      msgtype: "actionCard",
+      actionCard: {
+        title,
+        text: [`### ${title}`, `小说：${input.novelTitle}`, input.event.summary, input.reasonLabel, input.stage, input.checkpointSummary].filter(Boolean).join("\n\n"),
+        btnOrientation: "0",
+        btns: [...callbackButtons, {title: "查看详情", actionURL: detailUrl}, {title: "打开跟进中心", actionURL: followUpCenterUrl}],
+      },
       channelType: "dingtalk",
       event: input.event,
       card: {
@@ -150,17 +173,20 @@ export class DingTalkNotifier {
         body: null,
       };
     }
-    const response = await fetch(target, {
+    const webhookUrl = config?.secret?.trim() ? signDingTalkWebhook(target, config.secret.trim()) : target;
+    const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({msgtype: payload.msgtype, actionCard: payload.actionCard}),
     });
+    const body = await response.text();
+    const result = JSON.parse(body) as {errcode?: number};
     return {
       target,
-      status: response.status,
-      body: await response.text().catch(() => null),
+      status: result.errcode ? 502 : response.status,
+      body,
     };
   }
 }

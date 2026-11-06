@@ -1,3 +1,4 @@
+import {executeV2ChannelAction} from "./application/v2ChannelAction";
 import type {
   AutoDirectorActionExecutionResult,
   AutoDirectorActionRequest,
@@ -9,7 +10,7 @@ import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDir
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
-import {assertLegacyTaskExecution} from "../../../modules/novel/director-routing";
+import {assertLegacyTaskExecution, canExecuteLegacyTask} from "../../../modules/novel/director-routing";
 import { resolveModel, type TaskType } from "../../../llm/modelRouter";
 import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
 import { AutoDirectorValidationService } from "../../novel/director/runtime/autoDirectorValidationService";
@@ -190,6 +191,12 @@ export class AutoDirectorFollowUpActionExecutor {
   readonly validationService = new AutoDirectorValidationService();
 
   async execute(input: AutoDirectorActionRequest): Promise<AutoDirectorActionExecutionResult> {
+    if (!await canExecuteLegacyTask(input.taskId)
+      && await prisma.directorNextRun.findUnique({where: {id: input.taskId}, select: {id: true}})) {
+      const result = await executeV2ChannelAction(input);
+      await this.recordActionLog(input, result);
+      return result;
+    }
     await assertLegacyTaskExecution(input.taskId);
     const executedCacheKey = buildExecutedCacheKey(input);
     const cached = EXECUTED_ACTION_CACHE.get(executedCacheKey);

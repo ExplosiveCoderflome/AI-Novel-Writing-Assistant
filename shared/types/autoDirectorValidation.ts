@@ -17,7 +17,8 @@ export type AutoDirectorValidationSource =
   | "channel_callback"
   | "web"
   | "dingtalk"
-  | "wecom";
+  | "wecom"
+  | "feishu";
 
 export type AutoDirectorAffectedScope =
   | {

@@ -309,7 +309,7 @@ test("auto director follow-up service lists actionable items with filters, count
       recoveredToday: 0,
       completedToday: 0,
     });
-    assert.deepEqual(response.availableFilters.channelTypes, ["dingtalk", "wecom"]);
+    assert.deepEqual(response.availableFilters.channelTypes, ["dingtalk", "wecom", "feishu"]);
     assert.equal(response.pagination.total, 1);
     assert.equal(response.pagination.page, 1);
     assert.equal(response.pagination.pageSize, 10);

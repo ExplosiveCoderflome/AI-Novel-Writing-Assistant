@@ -281,6 +281,7 @@ function getRuntimeChannelCapabilities(channelSettings?: Awaited<ReturnType<type
   return {
     dingtalk: Boolean(channelSettings?.dingtalk.webhookUrl?.trim()),
     wecom: Boolean(channelSettings?.wecom.webhookUrl?.trim()),
+    feishu: Boolean(channelSettings?.feishu?.enabled && channelSettings.feishu.appId && channelSettings.feishu.appSecret && channelSettings.feishu.receiveId),
   };
 }
 
@@ -341,6 +342,7 @@ export function projectFollowUpItem(
     channelCapabilities: {
       dingtalk: resolved.channelCapabilities.dingtalk && getRuntimeChannelCapabilities(channelSettings).dingtalk,
       wecom: resolved.channelCapabilities.wecom && getRuntimeChannelCapabilities(channelSettings).wecom,
+      ...(getRuntimeChannelCapabilities(channelSettings).feishu ? {feishu: resolved.channelCapabilities.feishu} : {}),
     },
     pendingManualRecovery: row.pendingManualRecovery,
     lastMilestoneAt: getLatestMilestoneAt(row.milestonesJson),

@@ -105,21 +105,22 @@ test("auto director follow-up notification service delivers approval-required ev
     assert.equal(fetchCalls.length, 1);
     assert.equal(fetchCalls[0].url, "https://relay.example.test/dingtalk");
     assert.equal(fetchCalls[0].method, "POST");
-    assert.equal(fetchCalls[0].body.channelType, "dingtalk");
-    assert.equal(fetchCalls[0].body.event.eventType, "auto_director.approval_required");
-    assert.equal(fetchCalls[0].body.event.reason, "chapter_batch_execution_pending");
-    assert.equal(fetchCalls[0].body.card.actions[0].kind, "callback");
-    assert.equal(fetchCalls[0].body.card.actions[0].actionCode, "continue_auto_execution");
+    assert.deepEqual(Object.keys(fetchCalls[0].body).sort(), ["actionCard", "msgtype"]);
+    assert.equal(fetchCalls[0].body.msgtype, "actionCard");
+    assert.equal(JSON.parse(notifications[0].requestPayload).event.eventType, "auto_director.approval_required");
+    assert.equal(JSON.parse(notifications[0].requestPayload).event.reason, "chapter_batch_execution_pending");
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.actions[0].kind, "callback");
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.actions[0].actionCode, "continue_auto_execution");
     assert.equal(
-      fetchCalls[0].body.card.actions[0].callback.endpoint,
+      JSON.parse(notifications[0].requestPayload).card.actions[0].callback.endpoint,
       "https://writer.example.test/api/auto-director/channel-callbacks/dingtalk",
     );
     assert.equal(
-      fetchCalls[0].body.card.actions[0].callback.token,
+      JSON.parse(notifications[0].requestPayload).card.actions[0].callback.token,
       "ding-callback-token",
     );
     assert.equal(
-      fetchCalls[0].body.card.actions.at(-1).url,
+      JSON.parse(notifications[0].requestPayload).card.actions.at(-1).url,
       "https://writer.example.test/auto-director/follow-ups?novelId=novel_1",
     );
 
@@ -250,8 +251,9 @@ test("auto director follow-up notification service degrades dingtalk actions to 
     appSettingFindMany: prisma.appSetting.findMany,
   };
   const fetchCalls = [];
+  const notifications = [];
 
-  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => data;
+  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => {notifications.push(data); return data;};
   prisma.appSetting.findMany = async () => [];
   global.fetch = async (url, init) => {
     fetchCalls.push({
@@ -303,9 +305,10 @@ test("auto director follow-up notification service degrades dingtalk actions to 
     });
 
     assert.equal(fetchCalls.length, 1);
-    assert.equal(fetchCalls[0].body.channelType, "dingtalk");
+    assert.deepEqual(Object.keys(fetchCalls[0].body).sort(), ["actionCard", "msgtype"]);
+    assert.equal(fetchCalls[0].body.msgtype, "actionCard");
     assert.deepEqual(
-      fetchCalls[0].body.card.actions.map((item) => ({ kind: item.kind, actionCode: item.actionCode })),
+      JSON.parse(notifications[0].requestPayload).card.actions.map((item) => ({ kind: item.kind, actionCode: item.actionCode })),
       [
         { kind: "link", actionCode: "open_detail" },
         { kind: "link", actionCode: "open_follow_up_center" },
@@ -410,7 +413,7 @@ test("auto director follow-up notification service skips progress_changed by def
     });
 
     assert.equal(fetchCalls.length, 1);
-    assert.equal(fetchCalls[0].body.event.eventType, "auto_director.progress_changed");
+    assert.equal(JSON.parse(notifications[0].requestPayload).event.eventType, "auto_director.progress_changed");
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0].eventType, "auto_director.progress_changed");
   } finally {
@@ -435,8 +438,9 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
     appSettingFindMany: prisma.appSetting.findMany,
   };
   const fetchCalls = [];
+  const notifications = [];
 
-  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => data;
+  prisma.autoDirectorFollowUpNotificationLog.create = async ({ data }) => {notifications.push(data); return data;};
   prisma.appSetting.findMany = async () => ([
     {
       key: "autoDirector.baseUrl",
@@ -515,11 +519,11 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
     assert.equal(fetchCalls.length, 1);
     assert.equal(fetchCalls[0].url, "https://relay.example.test/dingtalk");
     assert.equal(
-      fetchCalls[0].body.card.actions.at(-1).url,
+      JSON.parse(notifications[0].requestPayload).card.actions.at(-1).url,
       "https://book.example.test/auto-director/follow-ups?novelId=novel_1",
     );
     assert.equal(
-      fetchCalls[0].body.card.actions[0].callback.endpoint,
+      JSON.parse(notifications[0].requestPayload).card.actions[0].callback.endpoint,
       "https://book.example.test/api/auto-director/channel-callbacks/dingtalk",
     );
   } finally {
@@ -607,13 +611,13 @@ test("auto director follow-up notification service delivers auto-approved events
     });
 
     assert.equal(fetchCalls.length, 2);
-    assert.equal(fetchCalls[0].body.event.eventType, "auto_director.auto_approved");
-    assert.equal(fetchCalls[0].body.event.reason, "auto_approval_completed");
-    assert.deepEqual(fetchCalls[0].body.event.actionCandidates, []);
-    assert.equal(fetchCalls[0].body.card.title, "AI 已自动通过并继续推进");
-    assert.equal(fetchCalls[0].body.card.reasonLabel, "最近自动通过");
+    assert.equal(JSON.parse(notifications[0].requestPayload).event.eventType, "auto_director.auto_approved");
+    assert.equal(JSON.parse(notifications[0].requestPayload).event.reason, "auto_approval_completed");
+    assert.deepEqual(JSON.parse(notifications[0].requestPayload).event.actionCandidates, []);
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.title, "AI 已自动通过并继续推进");
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.reasonLabel, "最近自动通过");
     assert.deepEqual(
-      fetchCalls[0].body.card.actions.map((item) => ({ kind: item.kind, actionCode: item.actionCode })),
+      JSON.parse(notifications[0].requestPayload).card.actions.map((item) => ({ kind: item.kind, actionCode: item.actionCode })),
       [
         { kind: "link", actionCode: "open_detail" },
         { kind: "link", actionCode: "open_follow_up_center" },
@@ -712,8 +716,8 @@ test("auto director follow-up notification service labels replan reminders witho
     });
 
     assert.equal(fetchCalls.length, 2);
-    assert.equal(fetchCalls[0].body.card.title, "AI 已记录重规划提醒并继续推进");
-    assert.equal(fetchCalls[0].body.card.reasonLabel, "重规划提醒已记录");
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.title, "AI 已记录重规划提醒并继续推进");
+    assert.equal(JSON.parse(notifications[0].requestPayload).card.reasonLabel, "重规划提醒已记录");
     assert.match(fetchCalls[1].body.markdown.content, /AI 已记录重规划提醒并继续推进/);
     assert.match(fetchCalls[1].body.markdown.content, /AI 已记录重规划提醒，并继续推进。/);
     assert.doesNotMatch(fetchCalls[1].body.markdown.content, /AI 已自动通过并继续推进/);

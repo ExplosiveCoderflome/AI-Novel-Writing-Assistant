@@ -200,8 +200,20 @@ export interface StructuredFallbackSettings {
 }
 
 export interface AutoDirectorChannelConfig {
+  secret?: string;
   webhookUrl: string;
   callbackToken: string;
+  operatorMapJson: string;
+  eventTypes: string[];
+}
+
+export interface FeishuChannelConfig {
+  enabled: boolean;
+  appId: string;
+  appSecret: string;
+  receiveId: string;
+  receiveIdType: "chat_id" | "open_id" | "user_id";
+  domain: "feishu" | "lark";
   operatorMapJson: string;
   eventTypes: string[];
 }
@@ -210,6 +222,7 @@ export interface AutoDirectorChannelSettings {
   baseUrl: string;
   dingtalk: AutoDirectorChannelConfig;
   wecom: AutoDirectorChannelConfig;
+  feishu: FeishuChannelConfig;
 }
 
 export interface PendingReviewAutoPromotionSettings {

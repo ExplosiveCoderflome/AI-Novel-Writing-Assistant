@@ -168,12 +168,14 @@ export class WeComNotifier {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({msgtype: payload.msgtype, markdown: payload.markdown}),
     });
+    const body = await response.text();
+    const result = JSON.parse(body) as {errcode?: number};
     return {
       target,
-      status: response.status,
-      body: await response.text().catch(() => null),
+      status: result.errcode ? 502 : response.status,
+      body,
     };
   }
 }

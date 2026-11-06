@@ -1,3 +1,4 @@
+import {prisma} from "../../db/prisma";
 import {Router} from "express";
 import {canExecuteLegacyTask, readNovelDirectorIdentity, canRecoverLegacyPipelineJob} from "../../modules/novel/director-routing";
 
@@ -75,9 +76,11 @@ export function createFrozenTaskEntry(options: TaskLookup & {findPipelineOwner?:
   return router;
 }
 
-/** Notification actions cannot restart a frozen workflow behind the user's source page. */
-export function createFrozenFollowUpEntry(options: Partial<EntryOwnership> = {}) {
+/** Follow-up actions accept native V2 run IDs; historical workflows retain ownership checks. */
+export function createFrozenFollowUpEntry(options: Partial<EntryOwnership> & {isV2Run?: (taskId: string) => Promise<boolean>} = {}) {
   const {canExecuteLegacyTask} = {...ownership, ...options};
+  const isV2Run = options.isV2Run ?? (async taskId => Boolean(await prisma.directorNextRun.findUnique({where: {id: taskId}, select: {id: true}})));
+  const canExecute = async (id: string) => await canExecuteLegacyTask(id) || await isV2Run(id);
   const router=Router();
   const reject: import("express").RequestHandler=async(req,res,next)=>{
     try {
@@ -91,11 +94,11 @@ export function createFrozenFollowUpEntry(options: Partial<EntryOwnership> = {})
         return;
       }
       const taskId = req.body?.taskId ?? req.query.taskId ?? /^\/([^/]+)\/actions$/.exec(req.path)?.[1];
-      if (typeof taskId === "string" && await canExecuteLegacyTask(taskId)) {next(); return;}
+      if (typeof taskId === "string" && await canExecute(taskId)) {next(); return;}
       res.status(409).json({success:false,error:"请从小说对应的导演工作台查看创作范围并继续。",sourceRoute:"/lab/director"});
     } catch(error) {next(error);}
   };
-  router.get("/wecom/execute",reject);
+  router.get(["/wecom/execute", "/dingtalk/execute"],reject);
   router.use((req,res,next)=>{if(req.method === "POST") {reject(req,res,next);return;}next();});
   return router;
 }

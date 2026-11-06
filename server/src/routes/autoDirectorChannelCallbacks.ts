@@ -65,6 +65,9 @@ function verifyWeComMarkdownSignature(input: {
   signature: string;
   callbackToken: string;
 }): void {
+  if (!input.callbackToken) {
+    throw new AppError("Channel callback token is not configured.", 403);
+  }
   const expected = signWeComMarkdownCallback({
     callbackId: input.callbackId,
     eventId: input.eventId,
@@ -172,50 +175,52 @@ router.post("/wecom", validate({ body: wecomCallbackBodySchema }), async (req, r
   }
 });
 
-router.get("/wecom/execute", validate({ query: wecomMarkdownQuerySchema }), async (req, res, next) => {
-  try {
-    const settings = await getAutoDirectorChannelSettings();
-    const query = req.query as z.infer<typeof wecomMarkdownQuerySchema>;
-    verifyWeComMarkdownSignature({
-      callbackId: query.callbackId,
-      eventId: query.eventId,
-      taskId: query.taskId,
-      actionCode: query.actionCode,
-      signature: query.signature,
-      callbackToken: settings.wecom.callbackToken,
-    });
-
-    const actionResult = await actionExecutor.execute({
-      taskId: query.taskId,
-      actionCode: query.actionCode,
-      source: "wecom",
-      operatorId: "wecom_markdown_link",
-      idempotencyKey: `wecom:${query.callbackId}`,
-      metadata: {
+for (const channelType of ["wecom", "dingtalk"] as const) {
+  router.get(`/${channelType}/execute`, validate({ query: wecomMarkdownQuerySchema }), async (req, res, next) => {
+    try {
+      const settings = await getAutoDirectorChannelSettings();
+      const query = req.query as z.infer<typeof wecomMarkdownQuerySchema>;
+      verifyWeComMarkdownSignature({
         callbackId: query.callbackId,
         eventId: query.eventId,
-        trigger: "markdown_link",
-      },
-    });
+        taskId: query.taskId,
+        actionCode: query.actionCode,
+        signature: query.signature,
+        callbackToken: settings[channelType].callbackToken,
+      });
 
-    res.status(200).json({
-      success: true,
-      data: {
-        channelType: "wecom",
-        ...actionResult,
-      },
-      message: actionResult.message,
-    } satisfies ApiResponse<{
-      channelType: "wecom";
-      taskId: string;
-      actionCode: string;
-      code: string;
-      message: string;
-      task?: unknown;
-    }>);
-  } catch (error) {
-    next(error);
-  }
-});
+      const actionResult = await actionExecutor.execute({
+        taskId: query.taskId,
+        actionCode: query.actionCode,
+        source: channelType,
+        operatorId: `${channelType}_markdown_link`,
+        idempotencyKey: `${channelType}:${query.callbackId}`,
+        metadata: {
+          callbackId: query.callbackId,
+          eventId: query.eventId,
+          trigger: "markdown_link",
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          channelType,
+          ...actionResult,
+        },
+        message: actionResult.message,
+      } satisfies ApiResponse<{
+        channelType: typeof channelType;
+        taskId: string;
+        actionCode: string;
+        code: string;
+        message: string;
+        task?: unknown;
+      }>);
+    } catch (error) {
+      next(error);
+    }
+  });
+}
 
 export default router;

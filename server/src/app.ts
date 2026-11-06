@@ -1,3 +1,4 @@
+import { feishuChannel } from "./services/task/autoDirectorFollowUps/channels/feishu";
 import "dotenv/config";
 import { prisma } from "./db/prisma";
 import {configureDirectorAgentEntry} from "./app/director/entry/agentTools";
@@ -318,6 +319,7 @@ function scheduleLogRetentionCleanup(): void {
 }
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
+  void feishuChannel.start().catch(() => console.warn("[feishu] channel settings could not be loaded."));
   void marketRadarService.recoverInterruptedRuns().catch((error) => {
     console.warn("[market-radar] failed to mark interrupted scans.", error);
   });
@@ -372,6 +374,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
 
   return {
     stop: async () => {
+      feishuChannel.stop();
       directorWorker.stop();
       directorNextWorker?.stop();
       novelSideEffectWorker.stop();

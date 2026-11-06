@@ -17,7 +17,7 @@ const reasonSchema = z.enum(AUTO_DIRECTOR_FOLLOW_UP_REASONS);
 
 const statusSchema = z.enum(["queued", "running", "waiting_approval", "succeeded", "failed", "cancelled"]);
 
-const channelTypeSchema = z.enum(["dingtalk", "wecom"]);
+const channelTypeSchema = z.enum(["dingtalk", "wecom", "feishu"]);
 
 const sectionSchema = z.enum(["pending", "auto_progress", "exception", "replaced", "needs_validation"]);
 

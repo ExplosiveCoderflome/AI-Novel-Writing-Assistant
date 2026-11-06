@@ -21,6 +21,7 @@ import { directorIssuePolicyService } from "../services/novel/director/issues";
 const router = Router();
 
 const autoDirectorChannelSchema = z.object({
+  secret: z.string().trim().optional(),
   webhookUrl: z.string().trim().optional(),
   callbackToken: z.string().trim().optional(),
   operatorMapJson: z.string().trim().optional(),
@@ -31,6 +32,16 @@ const autoDirectorChannelSettingsSchema = z.object({
   baseUrl: z.union([z.string().trim().url("Base URL is invalid."), z.literal("")]).optional(),
   dingtalk: autoDirectorChannelSchema.optional(),
   wecom: autoDirectorChannelSchema.optional(),
+  feishu: z.object({
+    enabled: z.boolean().optional(),
+    appId: z.string().trim().optional(),
+    appSecret: z.string().trim().optional(),
+    receiveId: z.string().trim().optional(),
+    receiveIdType: z.enum(["chat_id", "open_id", "user_id"]).optional(),
+    domain: z.enum(["feishu", "lark"]).optional(),
+    operatorMapJson: z.string().trim().optional(),
+    eventTypes: z.array(z.string().trim().min(1)).optional(),
+  }).optional(),
 });
 
 const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code) as [string, ...string[]];

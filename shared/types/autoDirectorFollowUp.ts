@@ -57,6 +57,7 @@ export interface AutoDirectorAction {
 export interface AutoDirectorChannelCapabilities {
   dingtalk: boolean;
   wecom: boolean;
+  feishu?: boolean;
 }
 
 export interface AutoDirectorFollowUpResolverInput {
@@ -78,7 +79,7 @@ export interface AutoDirectorResolvedFollowUpReason {
   channelCapabilities: AutoDirectorChannelCapabilities;
 }
 
-export const AUTO_DIRECTOR_CHANNEL_TYPES = ["dingtalk", "wecom"] as const;
+export const AUTO_DIRECTOR_CHANNEL_TYPES = ["dingtalk", "wecom", "feishu"] as const;
 
 export type AutoDirectorChannelType = (typeof AUTO_DIRECTOR_CHANNEL_TYPES)[number];
 
@@ -203,7 +204,7 @@ export interface AutoDirectorActionRequest {
   /** @deprecated Use directorTaskId when the caller is auto-director-specific. */
   taskId: string;
   actionCode: AutoDirectorMutationActionCode;
-  source: "web" | "dingtalk" | "wecom";
+  source: "web" | "dingtalk" | "wecom" | "feishu";
   operatorId: string;
   idempotencyKey: string;
   metadata?: Record<string, unknown>;
@@ -232,7 +233,7 @@ export interface AutoDirectorActionExecutionResult {
 export interface AutoDirectorBatchActionRequest {
   actionCode: AutoDirectorMutationActionCode;
   taskIds: string[];
-  source: "web" | "dingtalk" | "wecom";
+  source: "web" | "dingtalk" | "wecom" | "feishu";
   operatorId: string;
   batchRequestKey: string;
   metadata?: Record<string, unknown>;
@@ -318,7 +319,8 @@ export interface AutoDirectorChannelNotificationPayload {
     followUpCenterUrl: string;
     detailUrl: string;
   };
-  msgtype?: "markdown";
+  msgtype?: "markdown" | "actionCard";
+  actionCard?: {title: string; text: string; btnOrientation: "0" | "1"; btns: {title: string; actionURL: string}[]};
   markdown?: {
     content: string;
   };

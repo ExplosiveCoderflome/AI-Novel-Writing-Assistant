@@ -105,8 +105,8 @@ export default function AutoDirectorSettingsSection(props: {
   });
 
   const patchChannelDraft = (
-    channelType: "dingtalk" | "wecom",
-    patch: Partial<(typeof channelDraft)["dingtalk"]>,
+    channelType: "dingtalk" | "wecom" | "feishu",
+    patch: Partial<(typeof channelDraft)["dingtalk"] & (typeof channelDraft)["feishu"]>,
   ) => {
     setAutoDirectorChannelDraft((prev) => {
       const current = prev ?? channelDraft;
@@ -168,7 +168,8 @@ export default function AutoDirectorSettingsSection(props: {
         onPatchChannelDraft={patchChannelDraft}
         onSave={() => saveAutoDirectorChannelsMutation.mutate({
           baseUrl: channelDraft.baseUrl.trim(),
-          dingtalk: { webhookUrl: channelDraft.dingtalk.webhookUrl.trim(), callbackToken: channelDraft.dingtalk.callbackToken.trim(), operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(), eventTypes: channelDraft.dingtalk.eventTypes },
+          feishu: channelDraft.feishu,
+          dingtalk: { secret: channelDraft.dingtalk.secret.trim(), webhookUrl: channelDraft.dingtalk.webhookUrl.trim(), callbackToken: channelDraft.dingtalk.callbackToken.trim(), operatorMapJson: channelDraft.dingtalk.operatorMapJson.trim(), eventTypes: channelDraft.dingtalk.eventTypes },
           wecom: { webhookUrl: channelDraft.wecom.webhookUrl.trim(), callbackToken: channelDraft.wecom.callbackToken.trim(), operatorMapJson: channelDraft.wecom.operatorMapJson.trim(), eventTypes: channelDraft.wecom.eventTypes },
         })}
         isSaving={saveAutoDirectorChannelsMutation.isPending}

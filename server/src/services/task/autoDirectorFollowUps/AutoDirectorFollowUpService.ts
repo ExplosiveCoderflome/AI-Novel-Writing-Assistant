@@ -208,7 +208,7 @@ export class AutoDirectorFollowUpService {
         }
       }
       return Array.from(latestByChannel.values()).map((row) => ({
-        channelType: row.channelType === "wecom" ? "wecom" : "dingtalk",
+        channelType: row.channelType === "feishu" ? "feishu" : row.channelType === "wecom" ? "wecom" : "dingtalk",
         status: row.status === "delivered" ? "delivered" : (row.status === "pending" ? "pending" : "failed"),
         deliveredAt: row.deliveredAt?.toISOString() ?? null,
         responseStatus: row.responseStatus ?? null,
