@@ -1,4 +1,3 @@
-import { isBuiltInProvider } from "../providers";
 import { modelHost, modelId, type ModelIdentity, type ModelCapabilityProfile, type StructuredMode } from "./profile";
 
 // Transport facts only: these rules never classify creative intent or route business tasks.
@@ -12,9 +11,9 @@ export function builtinCapability(input: ModelIdentity): ModelCapabilityProfile 
   let effort = false;
   let reasoningField: ModelCapabilityProfile["reasoningField"] = "reasoning_content";
   if (input.provider === "ollama") { family = "ollama"; control = "reasoning_effort"; }
-  else if (input.provider === "deepseek" || /deepseek\.com$/.test(host) || (!isBuiltInProvider(input.provider) && model.startsWith("deepseek"))) {
+  else if (input.provider === "deepseek" && direct("deepseek", /(?:^|\.)api\.deepseek\.com$/)) {
     family = "deepseek";
-    if (direct("deepseek", /(?:^|\.)api\.deepseek\.com$/)) structuredModes = ["json_object", "tool_calling", "prompt_only"];
+    structuredModes = ["json_object", "tool_calling", "prompt_only"];
     if (model === "deepseek-reasoner" || /^deepseek-(?:flash|pro)(?:$|[-_.:])/.test(model) || /^deepseek-v4(?:\.\d+)?-(?:flash|pro)(?:$|[-_.:])/.test(model)) { control = "thinking"; effort = true; }
   } else if (input.provider === "glm" || /open\.bigmodel\.cn$/.test(host)) {
     family = "glm";

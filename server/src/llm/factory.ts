@@ -320,8 +320,7 @@ export async function resolveLLMClientOptions(
   const requestedReasoningEffort = options.reasoningEffort ?? dbSecret?.reasoningEffort ?? "high";
   const shouldForceDisableReasoning = Boolean(
     structuredProfile
-      && structuredProfile.requiresNonThinkingForStructured
-      && structuredProfile.supportsReasoningToggle,
+      && structuredProfile.requiresNonThinkingForStructured,
   );
   const reasoningEnabled = shouldForceDisableReasoning ? false : requestedReasoningEnabled;
   let effectiveMaxTokens = resolveScopedTaskOutputTokens(resolvedProvider, model, resolvedModelRoute ?? options.taskType, resolvedMaxTokens);
