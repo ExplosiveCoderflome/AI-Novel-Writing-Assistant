@@ -12,6 +12,7 @@ async function fixture(t) {
   const file = path.join(dir, 'fixture.db');
   const db = new Database(file);
   db.exec(fs.readFileSync(path.join(__dirname, '../src/prisma/migrations.sqlite/20261005010000_llm_invocation_usage/migration.sql'), 'utf8'));
+  require("./fixtures/usageObservability.cjs")(db);
   db.close();
   const prisma = new PrismaClient({adapter: new PrismaBetterSqlite3({url: 'file:' + file})});
   t.after(async () => { await prisma.$disconnect(); fs.rmSync(dir, {recursive: true, force: true}); });
@@ -106,6 +107,7 @@ test('details use bounded database pagination, not an unbounded raw journal read
   const calls = [], original = f.prisma.llmInvocationUsageRecord.findMany;
   f.prisma.llmInvocationUsageRecord.findMany = async args => { calls.push(args); return original.call(f.prisma.llmInvocationUsageRecord, args); };
   await f.service.getNovelUsage('book', {limit: 1});
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].take, 1);
   assert.equal(calls[0].take, 2);
 });

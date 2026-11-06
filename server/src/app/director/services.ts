@@ -1,4 +1,4 @@
-import {decodeUsageCursor, InvocationUsageQueryService, NovelInvocationUsageQueryService} from "../../platform/llm/usage";
+import {invocationPayloadStore, decodeUsageCursor, InvocationUsageQueryService, NovelInvocationUsageQueryService} from "../../platform/llm/usage";
 import {prisma} from "../../db/prisma";
 import {characterAppearanceService,initialCharacterScheduleService} from "../../services/novel/characters/appearances";
 import {createDirectorNextServices, type DirectorNextServices} from "../../modules/director";
@@ -25,7 +25,7 @@ export function getDirectorProductionServices(): DirectorNextServices {
     services.http.validateUsageCursor = (runId, cursor) => {
       if (decodeUsageCursor(cursor).runId !== runId) throw Object.assign(new Error("分页位置不属于本次创作。"), {statusCode: 400});
     };
-    services.http.readNovelUsage = (novelId, query) => new NovelInvocationUsageQueryService(prisma.llmInvocationUsageRecord, async id => {
+    const novelUsage = new NovelInvocationUsageQueryService(prisma.llmInvocationUsageRecord, async id => {
       const novel = await prisma.novel.findUnique({where: {id}, select: {id: true, title: true}});
       if (!novel) return null;
       const [chapters, workflows, jobs] = await Promise.all([
@@ -34,7 +34,9 @@ export function getDirectorProductionServices(): DirectorNextServices {
         prisma.generationJob.findMany({where: {novelId: id}, select: {id: true}}),
       ]);
       return {novel, chapters, workflowTaskIds: workflows.map(row => row.id), generationJobIds: jobs.map(row => row.id)};
-    }).getNovelUsage(novelId, query);
+    }, invocationPayloadStore);
+    services.http.readNovelUsage = (novelId, query) => novelUsage.getNovelUsage(novelId, query);
+    services.http.readNovelInvocation = (novelId, invocationId) => novelUsage.getInvocation(novelId, invocationId);
     services.http.readWorkspace = readDirectorWorkspace;
     services.http.readCharacterAppearances = (novelId, characterId) => characterAppearanceService.read(novelId, characterId);
     services.http.readNovelCharacterAppearances = novelId => characterAppearanceService.readNovel(novelId);

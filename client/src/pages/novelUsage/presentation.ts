@@ -45,3 +45,10 @@ export function usageStatusLabel(status: string): string {
 export function usageTime(value: string | null): string {
   return value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString() : "未记录";
 }
+
+export function formatUsageDuration(ms: number | null | undefined): string {
+  return ms == null ? "未提供" : ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} 秒`;
+}
+export function usageTokensPerSecond(tokens: number | null, durationMs: number | null): string {
+  return tokens !== null && durationMs !== null && durationMs > 0 ? (tokens * 1000 / durationMs).toFixed(1) : "未提供";
+}

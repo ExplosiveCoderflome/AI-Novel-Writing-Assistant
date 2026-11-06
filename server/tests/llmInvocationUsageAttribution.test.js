@@ -1,3 +1,4 @@
+require("./fixtures/compatibilitySettings.cjs");
 const test=require('node:test'),assert=require('node:assert/strict');
 const {withStepUsage}=require('../dist/app/director/usage');
 const {attachLLMUsageTracking}=require('../dist/llm/usageTracking');

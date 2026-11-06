@@ -1,4 +1,4 @@
-import { implicatesStructuredMode, recordFailedMode } from "./compatibility";
+import { implicatesStructuredMode, recordFailedMode, runWithInvocationChain, observeInvocationParse } from "./compatibility";
 import { declarePromptCacheBoundary, getPromptCacheBoundary } from "../platform/llm/cache";
 import { toJSONSchema } from "zod";
 import { randomUUID } from "node:crypto";
@@ -450,14 +450,14 @@ async function tryStructuredStrategies<T>(input: {
     const strategy = preferredSequence[index] ?? preferredSequence.at(-1)!;
     const remainingBefore = budget?.remaining();
     try {
-      return await invokeStructuredAttempt({
+      return await observeInvocationParse(() => invokeStructuredAttempt({
         baseInput: input.baseInput,
         target: input.target,
         strategy,
         strategyIndex: index,
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
-      });
+      }), value => value.data);
     } catch (error) {
       lastError = wrapStructuredInvokeError({
         label: input.baseInput.label,
@@ -543,7 +543,11 @@ async function tryStructuredStrategiesWithTransportRetries<T>(input: {
   }
 }
 
-export async function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
+export function invokeStructuredLlmDetailed<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
+  return runWithInvocationChain(() => invokeStructuredLlmInChain(input));
+}
+
+async function invokeStructuredLlmInChain<T>(input: StructuredInvokeInput<T>): Promise<StructuredInvokeResult<T>> {
   input = { ...input, diagnosticContext: input.diagnosticContext ?? { invocationId: randomUUID(), nextAttempt: 0 } };
   const primaryTarget = await resolveAttemptTarget({
     provider: input.provider,

@@ -8,3 +8,5 @@ export { NovelInvocationUsageQueryService } from "./application/NovelInvocationU
 export type { NovelUsageScope } from "./application/NovelInvocationUsageQueryService";
 export {runWithInvocationUsageObserver, captureInvocationUsageObserver} from "./application/InvocationUsageObserver";
 export type {InvocationUsageRecord,InvocationUsageListener} from "./application/InvocationUsageObserver";
+
+export { InvocationPayloadStore, invocationPayloadStore, encodeInvocationPayload, decodeInvocationPayload, redactInvocationPayload, getInvocationHistorySettings, saveInvocationHistorySettings, invocationHistorySettingsSchema, startInvocationPayloadRetention } from "./infrastructure/InvocationPayloadStore";

@@ -1,3 +1,4 @@
+require("./fixtures/compatibilitySettings.cjs");
 const test=require('node:test'); const assert=require('node:assert/strict');
 const {attachLLMUsageTracking,runWithLlmUsageTracking}=require('../dist/llm/usageTracking');
 const {runWithInvocationUsageObserver}=require('../dist/platform/llm/usage/application/InvocationUsageObserver');

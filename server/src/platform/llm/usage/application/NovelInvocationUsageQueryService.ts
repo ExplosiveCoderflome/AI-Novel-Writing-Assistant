@@ -1,6 +1,8 @@
+import { projectInvocation } from "../domain/invocationProjection";
+import type { InvocationPayloadStore } from "../infrastructure/InvocationPayloadStore";
 import { createHash } from "node:crypto";
 import type { PrismaClient, Prisma } from "@prisma/client";
-import type { NovelUsageChapter, NovelUsagePage, NovelUsageQuery } from "@ai-novel/shared/types/llmUsage";
+import type { LlmInvocationDetail, NovelUsageChapter, NovelUsagePage, NovelUsageQuery } from "@ai-novel/shared/types/llmUsage";
 import { projectNovelUsage } from "../domain/novelUsageProjection";
 
 export interface NovelUsageScope {
@@ -18,6 +20,7 @@ export class NovelInvocationUsageQueryService {
   constructor(
     private readonly rows: Pick<PrismaClient["llmInvocationUsageRecord"], "groupBy" | "findMany">,
     private readonly loadScope: (novelId: string) => Promise<NovelUsageScope | null>,
+    private readonly payloads?: Pick<InvocationPayloadStore, "read">,
   ) {}
 
   async getNovelUsage(novelId: string, query: NovelUsageQuery): Promise<NovelUsagePage> {
@@ -40,18 +43,12 @@ export class NovelInvocationUsageQueryService {
         cursor = decoded;
       } catch { throw badPaging(); }
     }
-    // Pre-book opening requests may lack a novelId but retain a saved task/job identity.
-    // An explicit conflicting novelId always wins; it must never leak across books.
-    const linked: Prisma.LlmInvocationUsageRecordWhereInput[] = [];
-    if (scope.workflowTaskIds.length) linked.push({ workflowTaskId: { in: scope.workflowTaskIds } });
-    if (scope.generationJobIds.length) linked.push({ generationJobId: { in: scope.generationJobIds } });
-    const bookWhere: Prisma.LlmInvocationUsageRecordWhereInput = linked.length
-      ? { OR: [{ novelId }, { novelId: null, OR: linked }] } : { novelId };
+    const bookWhere = this.bookWhere(novelId, scope);
     const where: Prisma.LlmInvocationUsageRecordWhereInput = { AND: [bookWhere, filters, ...(cursor ? [{ OR: [
       { startedAt: { lt: new Date(cursor.at) } },
       { startedAt: new Date(cursor.at), id: { lt: cursor.id } },
     ] }] : [])] };
-    const [groups, records] = await Promise.all([
+    const [groups, records, timingGroups, slowest] = await Promise.all([
       this.rows.groupBy({
         by: ["chapterId", "stage", "provider", "model", "status", "cacheUsageStatus"], where: bookWhere,
         _sum: { promptTokens: true, completionTokens: true, totalTokens: true, cacheHitTokens: true, cacheMissTokens: true },
@@ -59,24 +56,25 @@ export class NovelInvocationUsageQueryService {
         _min: { startedAt: true },
       }),
       this.rows.findMany({ where, orderBy: [{ startedAt: "desc" }, { id: "desc" }], take: limit + 1 }),
+      this.rows.groupBy({ by: ["chapterId", "stage"], where: { AND: [bookWhere, filters] }, _sum: { durationMs: true }, _count: { durationMs: true } }),
+      this.rows.findMany({ where: { AND: [bookWhere, filters, { durationMs: { not: null } }] }, orderBy: [{ durationMs: "desc" }, { id: "desc" }], take: 1 }),
     ]);
     const chapterMap = new Map(scope.chapters.map(chapter => [chapter.id, chapter]));
     const chapterIds = [...new Set(groups.map(g => g.chapterId))];
     const filteredGroups = groups.filter(g => filterKeys.every(key => query[key] === undefined || query[key] === g[key]));
     const page = records.slice(0, limit), last = page.at(-1);
-    const items = page.map(row => ({
-      invocationId: row.id, runId: row.runId, generationJobId: row.generationJobId, workflowTaskId: row.workflowTaskId,
-      novelId: row.novelId, chapterId: row.chapterId, chapter: row.chapterId ? chapterMap.get(row.chapterId) ?? null : null,
-      stage: row.stage, provider: row.provider, model: row.model, requestProtocol: row.requestProtocol,
-      promptId: row.promptId, promptVersion: row.promptVersion, status: row.status,
-      startedAt: row.startedAt.toISOString(), finishedAt: row.finishedAt.toISOString(),
-      promptTokens: row.promptTokens, completionTokens: row.completionTokens, totalTokens: row.totalTokens,
-      inputCache: { cacheHitTokens: row.cacheHitTokens, cacheMissTokens: row.cacheMissTokens, cacheWriteTokens: row.cacheWriteTokens,
-        cacheUsageStatus: row.cacheUsageStatus as "reported" | "unavailable" | "invalid" },
-    }));
+    const items = page.map(row => ({ ...projectInvocation(row), chapter: row.chapterId ? chapterMap.get(row.chapterId) ?? null : null }));
+    const timedCalls = timingGroups.reduce((n, row) => n + row._count.durationMs, 0);
+    const totalMs = timingGroups.reduce((n, row) => n + (row._sum.durationMs ?? 0), 0);
     const values = (key: "stage" | "provider" | "model") => [...new Set(groups.map(g => g[key]).filter((value): value is string => value !== null))].sort();
     const firstRecordedAt = groups.reduce<Date | null>((first, g) => !first || (g._min.startedAt && g._min.startedAt < first) ? g._min.startedAt : first, null);
     return {
+      timing: {
+        averageMs: timedCalls ? totalMs / timedCalls : null,
+        slowest: slowest[0]?.durationMs != null ? { invocationId: slowest[0].id, durationMs: slowest[0].durationMs } : null,
+        chapters: [...new Set(timingGroups.map(row => row.chapterId))].map(chapterId => ({ chapterId,
+          steps: timingGroups.filter(row => row.chapterId === chapterId && row._sum.durationMs !== null).map(row => ({ stage: row.stage, durationMs: row._sum.durationMs! })).sort((a, b) => b.durationMs - a.durationMs) })),
+      },
       novel: scope.novel, summary: projectNovelUsage(groups), filteredSummary: projectNovelUsage(filteredGroups), items,
       chapterBreakdown: chapterIds.map(chapterId => {
         const chapter = chapterId ? chapterMap.get(chapterId) : null;
@@ -88,4 +86,24 @@ export class NovelInvocationUsageQueryService {
       firstRecordedAt: firstRecordedAt?.toISOString() ?? null,
     };
   }
+  private bookWhere(novelId: string, scope: NovelUsageScope): Prisma.LlmInvocationUsageRecordWhereInput {
+    // Pre-book opening requests may lack a novelId but retain a saved task/job identity.
+    // An explicit conflicting novelId always wins; it must never leak across books.
+    const linked: Prisma.LlmInvocationUsageRecordWhereInput[] = [];
+    if (scope.workflowTaskIds.length) linked.push({ workflowTaskId: { in: scope.workflowTaskIds } });
+    if (scope.generationJobIds.length) linked.push({ generationJobId: { in: scope.generationJobIds } });
+    return linked.length
+      ? { OR: [{ novelId }, { novelId: null, OR: linked }] } : { novelId };
+
+  }
+  async getInvocation(novelId: string, invocationId: string): Promise<LlmInvocationDetail> {
+    const scope = await this.loadScope(novelId);
+    if (!scope || scope.novel.id !== novelId) throw Object.assign(new Error("找不到这本小说。"), { statusCode: 404 });
+    const bookWhere = this.bookWhere(novelId, scope);
+    const [row] = await this.rows.findMany({ where: { AND: [bookWhere, { id: invocationId }] }, take: 1 });
+    if (!row) throw Object.assign(new Error("找不到本书的调用记录。"), { statusCode: 404 });
+    const chain = row.chainId ? await this.rows.findMany({ where: { AND: [bookWhere, { chainId: row.chainId }] }, orderBy: [{ attemptNumber: "asc" }, { id: "asc" }] }) : [row];
+    return { item: projectInvocation(row), chain: chain.map(projectInvocation), payload: await this.payloads?.read(row.id) ?? null };
+  }
+
 }

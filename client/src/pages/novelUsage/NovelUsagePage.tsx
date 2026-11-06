@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { getNovelInvocation } from "@/api/novel/usage";
+import { UsageTiming } from "./components/UsageTiming";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getNovelUsage } from "@/api/novel";
 import { Button } from "@/components/ui/button";
 import { UsageOverview } from "./components/UsageOverview";
@@ -20,8 +22,14 @@ export default function NovelUsagePage() {
     getNextPageParam: last => last.data?.nextCursor ?? undefined, enabled: Boolean(novelId), retry: false,
     refetchInterval: q => autoRefresh && (q.state.data?.pages.length ?? 0) <= 1 ? 15000 : false,
   });
+  const focusedId = params.get("invocation") ?? undefined;
+  const focused = useQuery({ queryKey: ["novel-invocation", novelId, focusedId], queryFn: () => getNovelInvocation(novelId, focusedId!), enabled: Boolean(focusedId) });
   const data = query.data?.pages[0]?.data;
   const items = query.data?.pages.flatMap(page => page.data?.items ?? []) ?? [];
+  const focusedItem = focused.data?.data?.item;
+  if (focusedItem && !items.some(item => item.invocationId === focusedItem.invocationId)) items.unshift({ ...focusedItem, chapter: data?.facets.chapters.find(ch => ch.id === focusedItem.chapterId) ?? null });
+  useEffect(() => { if (focusedId) document.getElementById(`usage-${focusedId}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [focusedId, focusedItem]);
+  const jump = (id: string) => { const next = new URLSearchParams(params); next.set("invocation", id); setParams(next, { replace: true }); };
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value); else next.delete(key);
@@ -35,6 +43,9 @@ export default function NovelUsagePage() {
     {query.isError ? <div role="alert" className="flex flex-wrap items-center gap-3 text-sm"><p>{query.error instanceof Error ? query.error.message : "本书 AI 用量读取失败。"}</p><Button size="sm" variant="outline" onClick={() => void query.refetch()}>重新读取</Button>{Object.keys(filters).length ? <Button size="sm" variant="ghost" onClick={() => setParams({}, {replace: true})}>清除筛选</Button> : null}</div> : null}
     {query.isPending ? <p className="py-10 text-sm text-muted-foreground">正在读取本书 AI 用量…</p> : data ? <>
       <UsageOverview data={data} />
+      <UsageTiming data={data} onJump={jump} />
+      {focused.isError ? <p role="alert" className="text-sm text-destructive">所选调用读取失败，请重新选择。</p> : null}
+      {focusedItem ? <p className="text-xs text-muted-foreground">所选调用显示在日志中，可能位于筛选或分页范围之外。<button className="ml-2 text-primary" onClick={() => { const next = new URLSearchParams(params); next.delete("invocation"); setParams(next, { replace: true }); }}>取消定位</button></p> : null}
       <section aria-label="调用日志" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">调用日志</h2><div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <label className="flex items-center gap-2"><input type="checkbox" checked={autoRefresh} onChange={event => setAutoRefresh(event.target.checked)} />自动刷新</label>
@@ -48,7 +59,7 @@ export default function NovelUsagePage() {
           <Filter label="调用状态" value={filters.status} onChange={value => setFilter("status", value)} options={["completed", "partial", "failed"].map(status => ({value: status, label: usageStatusLabel(status)}))} />
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground"><p>当前筛选 {data.filteredSummary.recordedCallCount.toLocaleString()} 次调用 · 已报告 {formatUsageTokens(data.filteredSummary.totalTokens)} Tokens</p>{Object.keys(filters).length ? <Button size="sm" variant="ghost" onClick={() => setParams({}, {replace: true})}>清除筛选</Button> : null}</div>
-        <UsageLogTable items={items} />
+        <UsageLogTable items={items} novelId={novelId} focusedId={focusedId} onJump={jump} />
         {query.hasNextPage ? <Button variant="outline" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>{query.isFetchingNextPage ? "正在读取…" : "查看更多调用"}</Button> : null}
         {autoRefresh ? <p className="text-xs text-muted-foreground">最新记录每 15 秒刷新；展开历史分页后，点击“刷新日志”返回最新记录。</p> : null}
       </section>

@@ -1,5 +1,6 @@
 import { feishuChannel } from "./services/task/autoDirectorFollowUps/channels/feishu";
 import "dotenv/config";
+import { startInvocationPayloadRetention } from "./platform/llm/usage";
 import { prisma } from "./db/prisma";
 import {configureDirectorAgentEntry} from "./app/director/entry/agentTools";
 import type { Server } from "node:http";
@@ -320,6 +321,7 @@ function scheduleLogRetentionCleanup(): void {
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
   void feishuChannel.start().catch(() => console.warn("[feishu] channel settings could not be loaded."));
+  const stopPayloadRetention = startInvocationPayloadRetention();
   void marketRadarService.recoverInterruptedRuns().catch((error) => {
     console.warn("[market-radar] failed to mark interrupted scans.", error);
   });
@@ -375,6 +377,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   return {
     stop: async () => {
       feishuChannel.stop();
+      stopPayloadRetention();
       directorWorker.stop();
       directorNextWorker?.stop();
       novelSideEffectWorker.stop();

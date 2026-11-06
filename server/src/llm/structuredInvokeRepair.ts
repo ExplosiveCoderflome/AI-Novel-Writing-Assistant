@@ -1,3 +1,4 @@
+import { observeInvocationParse } from "./compatibility";
 import { beginStructuredDiagnostic, finishStructuredDiagnostic, type StructuredDiagnosticContext } from "../platform/llm/diagnostics/StructuredDiagnosticStore";
 import { emptyResponseEvidence, observeStructuredChunk, classifyResponseEvidence, terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
 import { StructuredOutputError, resolveStructuredOutputProfile } from "./structuredOutput";
@@ -156,7 +157,11 @@ function extractArrayLengthRepairHints(validationError: string): ArrayLengthRepa
   return hints;
 }
 
-export async function repairWithLlm<T>(
+export function repairWithLlm<T>(input: StructuredRepairInput<T>, rawContent: string, validationError: string, repairAttempt: number, helpers: RepairHelpers<T>): Promise<T> {
+  return observeInvocationParse(() => repairWithLlmInScope(input, rawContent, validationError, repairAttempt, helpers), value => value);
+}
+
+async function repairWithLlmInScope<T>(
   input: StructuredRepairInput<T>,
   rawContent: string,
   validationError: string,

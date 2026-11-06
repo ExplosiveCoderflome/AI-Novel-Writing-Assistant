@@ -50,8 +50,8 @@ export const prisma =
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   }).$extends({query: {$allOperations({model, args, query}) {
-    // Usage is an observed billing fact even when the execution lost authority.
-    if (model !== "LlmInvocationUsageRecord") assertExecutionActive();
+    // Invocation facts and their optional payload survive cancellation; they cannot mutate creative state.
+    if (model !== "LlmInvocationUsageRecord" && model !== "LlmInvocationPayload") assertExecutionActive();
     return query(args);
   }}}) as PrismaClient;
 

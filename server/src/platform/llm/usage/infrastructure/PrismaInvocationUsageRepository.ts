@@ -7,7 +7,7 @@ export class PrismaInvocationUsageRepository {
         const { invocationId, usage, ...identity } = record;
         const count = (n: number | null | undefined) => n != null && Number.isSafeInteger(n) && n >= 0 && n <= 2147483647 ? n : null;
         const invalid = usage && [usage.promptTokens, usage.completionTokens, usage.totalTokens, usage.inputCache?.cacheHitTokens, usage.inputCache?.cacheMissTokens, usage.inputCache?.cacheWriteTokens].some(n => n != null && count(n) === null);
-        const data = { id: invocationId, ...identity, promptTokens: invalid ? null : count(usage?.promptTokens), completionTokens: invalid ? null : count(usage?.completionTokens), totalTokens: invalid ? null : count(usage?.totalTokens),
+        const data = { id: invocationId, ...identity, durationMs: record.durationMs ?? record.finishedAt.getTime() - record.startedAt.getTime(), firstTokenMs: record.firstTokenMs ?? null, attemptNumber: record.attemptNumber ?? 1, chainId: record.chainId ?? null, parentInvocationId: record.parentInvocationId ?? null, structuredMode: record.structuredMode ?? null, promptTokens: invalid ? null : count(usage?.promptTokens), completionTokens: invalid ? null : count(usage?.completionTokens), totalTokens: invalid ? null : count(usage?.totalTokens),
             cacheHitTokens: invalid ? null : count(usage?.inputCache?.cacheHitTokens), cacheMissTokens: invalid ? null : count(usage?.inputCache?.cacheMissTokens), cacheWriteTokens: invalid ? null : count(usage?.inputCache?.cacheWriteTokens),
             cacheUsageStatus: invalid ? "invalid" : usage?.inputCache?.cacheUsageStatus ?? "unavailable", cacheDiagnostic: invalid ? "token_count_out_of_database_range" : null };
         try {
