@@ -67,6 +67,10 @@ test("the director module only imports files inside itself", () => {
     "application/commandService.ts", "application/ports.ts", "http/routes.ts",
     "domain/projection.ts",
   ]);
+  // Chapter-list progress is a read-only DTO; volume-planning functions stay outside the kernel.
+  const chapterListProgressContractConsumers = new Set([
+    "application/factsLoader.ts", "domain/projection.ts", "steps/planning/volumeChapterList.ts",
+  ]);
   for (const file of listTsFiles(moduleRoot)) {
     const source = fs.readFileSync(file, "utf8");
     const isInfrastructure = file === infrastructureRoot || file.startsWith(`${infrastructureRoot}${path.sep}`);
@@ -86,6 +90,13 @@ test("the director module only imports files inside itself", () => {
           && unknownClaimContractConsumers.has(relative.replace(/\\/g, "/"));
         const allowedWorkerContract = specifier === "@ai-novel/shared/types/director/worker"
           && relative.replace(/\\/g, "/") === "domain/projection.ts";
+        const allowedChapterListProgressContract = specifier === "@ai-novel/shared/types/volumePlanning"
+          && chapterListProgressContractConsumers.has(relative.replace(/\\/g, "/"));
+        if (allowedChapterListProgressContract) {
+          assert.match(source, /import\s+type\s*\{\s*VolumeChapterListProgress\s*\}\s*from\s*["']@ai-novel\/shared\/types\/volumePlanning["']/);
+          assert.equal(importSpecifiers(source).filter(value => value === specifier).length, 1,
+            "chapter-list progress permits one type-only import and no runtime imports or re-exports");
+        }
         // Read-only transport facts carry no services, storage or policy into the application.
         const allowedRuntimeStatusContract = specifier === "@ai-novel/shared/types/director/runtimeStatus"
           && relative.replace(/\\/g, "/") === "application/diagnostics/runStatus.ts";
@@ -98,7 +109,7 @@ test("the director module only imports files inside itself", () => {
         if (allowedUnknownClaimContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorUnknownClaimsView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/unknownClaims["']/);
         }
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedUnknownClaimContract && !allowedWorkerContract && !allowedRuntimeStatusContract) {
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedUnknownClaimContract && !allowedWorkerContract && !allowedRuntimeStatusContract && !allowedChapterListProgressContract) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;

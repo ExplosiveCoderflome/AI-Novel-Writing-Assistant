@@ -134,6 +134,9 @@ function createHarness(overrides = {}) {
     return overrides.novel ?? {
       id: "novel-1",
       title: "测试小说",
+      narrativeForm: "long_novel",
+      directorVersion: "v1",
+      directorEpoch: 0,
     };
   };
   prisma.novelWorkflowTask.findMany = async ({ where, orderBy }) => {

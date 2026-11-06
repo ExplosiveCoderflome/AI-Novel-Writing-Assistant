@@ -168,6 +168,8 @@ hard 卷锁定前期承诺、卖点、推进秩序和节奏稳定性；soft 卷�
 
 V2 的整卷拆章步骤将同一通知写入本次 Run 的 `chapter_list_progress` 事件，携带步骤启动时的控制版本。读取投影只接受运行中的 `volume_chapter_list` 且版本相同的最新通知，通过 `DashboardView.chapterListProgress` 在本书导演台的当前阶段下展示；切换阶段、暂停、结束或重试后，旧通知不能冒充当前进度。批次章数不写产物台账、不增加阶段完成数，也不触发资料跟随跳转；到达总量仍显示校验保存中，只有原有保存和落账成功才完成阶段。手动工作区的局部 SSE 状态不能作为 V2 的进度来源，否则自动运行时用户只能看到阶段数。
 
+导演内核仅允许 `steps/planning/volumeChapterList.ts`、`application/factsLoader.ts` 与 `domain/projection.ts` 以 `import type` 使用共享的 `VolumeChapterListProgress` 数据契约，避免为同一通知维护两套字段定义。此许可不包含 `volumePlanning` 中的规划函数、业务服务或运行时策略；架构边界测试须同时限制消费文件与类型导入形式，不能为展示进度放开整个共享模块。
+
 ### 章节标题多样性校验分级
 
 背景：拆章提示词层对标题多样性问题有语义重试，重试耗尽后会降级接受原始输出；但合并卷层（`volumeChapterListGeneration`）曾对整卷标题做任意问题即抛错的断言，把提示词层的降级又拦了回来。当模型的标题分布稳定地贴在阈值上方（例如 10 个标题恒定产出 4 个「X的Y」、上限为 3 个）时，重试与恢复只是用同一分布反复重掷，整本书会确定性卡死在拆章步。
