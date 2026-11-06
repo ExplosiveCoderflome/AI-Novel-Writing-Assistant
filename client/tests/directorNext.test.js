@@ -49,7 +49,7 @@ test('the projection guard also rejects a third rendering component', () => {
 test('the projection guard rejects aliases, element access, destructuring and lookalike component names',()=>{
   for(const source of ['state.mode === "running"','const alias = dashboard; alias?.headline','state["progress"]',
     'const {availableActions: actions} = state','const {mode} = state','props.state.sourceTrace',
-    'state.chapterProgress','state["nextLaunchRange"]','const {nextActionGuidance} = state']) {
+    'state.chapterProgress','state.chapterListProgress','state["nextLaunchRange"]','const {nextActionGuidance} = state']) {
     assert.notEqual(presentationViolations('Third.tsx',source).length,0,source);
   }
   assert.notEqual(presentationViolations('ThirdDirectorPanel.tsx','view.mode').length,0);
@@ -101,6 +101,11 @@ export function renderedProduction() {
  const running={...previewView('running'),headline:'正在检查第 3 章《第三章》',nextActionGuidance:'等待本批次完成',chapterProgress:{from:1,to:3,done:2,total:3,current:{order:3,title:'第三章',phase:'reviewing'}},nextLaunchRange:{from:4,to:6}};
  return {running:render(running),completed:render({...running,mode:'completed',headline:'第 1—3 章已完成',nextActionGuidance:'核对范围并提交',chapterProgress:{...running.chapterProgress,done:3,current:null},availableActions:[{id:'open_run',command:'open_run',kind:'command',label:'选择并继续写第 4—6 章',primary:true}]})};
 }
+export function renderedChapterSplit(completedChapters) {
+ const view={...previewView('running'),headline:'正在生成「生成卷拆章列表」',progress:{done:6,total:7,source:'artifact_ledger'},
+  chapterListProgress:{volumeId:'v1',completedChapters,totalChapters:12,label:'正在拆分高潮节奏段'}};
+ return renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><MemoryRouter><DirectorPanel view={view} novelId='book' preview/></MemoryRouter></QueryClientProvider>);
+}
 export function renderedBudget() {
  const view={...previewView('manual'),mode:'paused',availableActions:[],chapterBudget:{jobId:'job',chapterId:'c3',chapterOrder:3,
   metric:'uncached_tokens_v1',usedTokens:89892,rawTokens:114212,promptTokens:95016,completionTokens:19196,cacheHitTokens:24320,
@@ -119,7 +124,7 @@ export function renderedBudgetSettings(tokenLimit) {
       define: { 'import.meta.env': '{}' },
       outfile: output,
     });
-    const { renderedStates, renderedSwitchCases, renderedProduction, renderedBudget, renderedBudgetSettings } = await import(pathToFileURL(output).href);
+    const { renderedStates, renderedSwitchCases, renderedProduction, renderedChapterSplit, renderedBudget, renderedBudgetSettings } = await import(pathToFileURL(output).href);
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
@@ -139,6 +144,18 @@ export function renderedBudgetSettings(tokenLimit) {
       if (available) assert.match(markup, /<button[^>]*disabled=""[^>]*>按本次授权切换创作方式<\/button>/);
     }
     const production=renderedProduction();
+    for (const completed of [0,6,12]) {
+      const split=renderedChapterSplit(completed);
+      const currentWork=split.slice(split.indexOf('id="director-current-work"'),split.indexOf('id="director-next-action"'));
+      assert.match(currentWork,/正在生成「生成卷拆章列表」/);
+      assert.match(currentWork,/6\/7 阶段/);
+      assert.ok(currentWork.includes(`已生成 ${completed}/12 章`));
+      assert.match(currentWork,/正在拆分高潮节奏段/);
+      assert.match(currentWork,new RegExp(`aria-label="章节拆分进度"[^>]*aria-valuemax="12"[^>]*aria-valuenow="${completed}"`));
+      assert.match(currentWork,new RegExp(`width:${completed/12*100}%`));
+      assert.equal(currentWork.includes('正在校验并保存章节列表'),completed===12);
+    }
+    assert.doesNotMatch(production.running,/章节拆分进度/);
     assert.match(production.running,/本次正文/);
     assert.match(production.running,/2\/3/);
     assert.match(production.running,/等待本批次完成/);

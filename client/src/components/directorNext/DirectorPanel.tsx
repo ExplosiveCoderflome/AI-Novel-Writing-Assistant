@@ -9,6 +9,7 @@ import type {ReactNode} from "react";
 import DirectorCharacterCandidates, {useDirectorCharacterCandidates} from "./characters/DirectorCharacterCandidates";
 import ChapterBudgetRecovery from "./budget/ChapterBudgetRecovery";
 import UnknownClaimsRecovery from "./UnknownClaimsRecovery";
+import WorkflowProgressBar from "@/components/workflow/WorkflowProgressBar";
 
 interface DirectorPanelProps {
   view: DashboardView;
@@ -52,6 +53,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
     ? `第 ${view.debts.chapterOrders.join("、")} 章`
     : "本次没有记录章节质量问题";
   const chapterProgress = view.chapterProgress;
+  const chapterListProgress = view.chapterListProgress;
   const progress = chapterProgress ?? view.progress;
 
   return (
@@ -72,6 +74,20 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           正在做什么
         </div>
         <p className="mt-2 text-sm leading-6 text-foreground">{view.headline}</p>
+        {chapterListProgress ? (
+          <div className="mt-3 space-y-2 text-xs" role="status" aria-live="polite">
+            <p>{chapterListProgress.label}</p>
+            <div role="progressbar" aria-label="章节拆分进度" aria-valuemin={0}
+              aria-valuemax={chapterListProgress.totalChapters} aria-valuenow={chapterListProgress.completedChapters}>
+              <WorkflowProgressBar progress={chapterListProgress.completedChapters / chapterListProgress.totalChapters} />
+            </div>
+            <p className="text-muted-foreground">
+              已生成 {chapterListProgress.completedChapters}/{chapterListProgress.totalChapters} 章
+              {chapterListProgress.completedChapters === chapterListProgress.totalChapters
+                ? "，正在校验并保存章节列表…" : "，每完成一个节奏段更新进度。"}
+            </p>
+          </div>
+        ) : null}
         {chapterProgress ? <p className="mt-2 text-xs text-muted-foreground">本次正文：第 {chapterProgress.from}—{chapterProgress.to} 章</p> : null}
         <div className="mt-3" role="progressbar" aria-valuemin={0} aria-valuemax={progress.total} aria-valuenow={progress.done} aria-label={chapterProgress ? "本次正文完成进度" : "导演阶段进度"}>
           <div className="flex items-center justify-between text-xs text-muted-foreground">

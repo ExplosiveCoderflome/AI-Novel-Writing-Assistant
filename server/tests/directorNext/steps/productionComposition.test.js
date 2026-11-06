@@ -19,6 +19,30 @@ test('real production composition registers all adapters and freezes complete po
  assert.equal(planning.stepIdsInScope.includes('chapter_batch'),false);assert.equal(planning.chapterRange,null);
  assert.throws(()=>options.contractFactory({runId:'bad',novelId:'novel',driver:'auto',stepIdsInScope:['chapter_batch'],launchInput:{...launchInput,executionRange:undefined}}),/授权范围/);
 });
+
+test('planning-only chapter splitting records batch progress for the active run version',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const {PrismaEventLog}=require('../../../dist/modules/director');
+ const originals={read:NovelVolumeService.prototype.getVolumes,generate:NovelVolumeService.prototype.generateVolumes,
+  save:NovelVolumeService.prototype.updateVolumesWithOptions,append:PrismaEventLog.prototype.append};
+ const workspace={novelId:'novel',volumes:[{id:'v1',sortOrder:1,status:'active',chapters:[{id:'p1',chapterOrder:1}]}],
+  beatSheets:[{volumeId:'v1',beats:[{key:'opening'}]}]};
+ const progress={volumeId:'v1',completedChapters:1,totalChapters:3,label:'开卷已生成'};
+ const events=[];
+ NovelVolumeService.prototype.getVolumes=async()=>workspace;
+ NovelVolumeService.prototype.generateVolumes=async(_id,input)=>{await input.onPhaseStart({scope:'chapter_list',phase:'prompt',label:progress.label,chapterProgress:progress});return workspace;};
+ NovelVolumeService.prototype.updateVolumesWithOptions=async()=>workspace;
+ PrismaEventLog.prototype.append=async event=>{events.push(event);};
+ try {
+  const result=await options.stepRegistry.get('volume_chapter_list')({...context,
+   control:{version:8},contract:{...contract,chapterRange:null}});
+  assert.deepEqual(events,[{runId:'run',type:'chapter_list_progress',payload:{controlVersion:8,progress}}]);
+  assert.equal(result.artifact.status,'confirmed');
+ } finally {
+  NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;
+  NovelVolumeService.prototype.updateVolumesWithOptions=originals.save;PrismaEventLog.prototype.append=originals.append;
+ }
+});
 test('every production confirmation stays in its own new director workspace', async () => {
  const {ProjectionService}=require('../../../dist/modules/director/application');
  const expectedGates=['character_cast','volume_strategy','chapter_task_sheet','chapter_execution_contract','chapter_batch_closed'];

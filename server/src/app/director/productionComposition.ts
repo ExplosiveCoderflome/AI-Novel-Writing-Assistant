@@ -43,7 +43,10 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
     return {...modelOptions(context), workspace, targetVolumeId: targetVolume(context, workspace),
       estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount};
-  }, contentHash});
+  }, contentHash, onProgress: (context, progress) => events.append({
+    runId: context.runId, type: "chapter_list_progress",
+    payload: {controlVersion: context.control.version, progress},
+  })});
   const routeService = new ChapterRouteWindowService(volumes);
   const productionRoutes = createChapterRouteWindowStepHandler({volumeService: volumes, routeService,
     inputProvider: async context => {

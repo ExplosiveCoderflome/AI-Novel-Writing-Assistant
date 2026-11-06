@@ -1,8 +1,10 @@
 import { FactIntegrityError, type ActionRejection, type FactsSnapshot, type RunContract, type RunControl, type StopSignal } from "../domain";
 import {actionRejectionsSinceProgress} from "./runtime";
+import type {VolumeChapterListProgress} from "@ai-novel/shared/types/volumePlanning";
 import type { ArtifactLedger, EventLog, QualityDebtRepository, RunRepository } from "./ports";
 
 export interface LoadedRunFacts {
+  chapterListProgress?: VolumeChapterListProgress;
   executionFailure?: string;
   actionRejection?: ActionRejection;
   contract: RunContract;
@@ -93,9 +95,14 @@ export class FactsLoader {
       this.deps.eventLog.list(runId),
     ]);
     const eventStop = readStopSignal(events);
+    const chapterListEvent = events.filter(event => event.type === "chapter_list_progress").at(-1)?.payload as
+      {controlVersion: number; progress: VolumeChapterListProgress} | undefined;
+    const chapterListProgress = control.status === "running" && control.cursorStepId === "volume_chapter_list"
+      && chapterListEvent?.controlVersion === control.version ? chapterListEvent.progress : undefined;
     const failure = events.filter(event => event.type === "execution_failure").at(-1)?.payload as {message?: unknown} | undefined;
     const rejected = actionRejectionsSinceProgress(events).at(-1)?.payload as {code?: unknown; action?: {kind?: unknown; stepId?: unknown}} | undefined;
     return {
+      ...(chapterListProgress ? {chapterListProgress} : {}),
       ...(typeof failure?.message === "string" ? {executionFailure: failure.message} : {}),
       ...(typeof rejected?.code === "string" ? {actionRejection: {code: rejected.code,
         ...(rejected.action?.kind === "run_step" && typeof rejected.action.stepId === "string" ? {stepId: rejected.action.stepId} : {})}} : {}),

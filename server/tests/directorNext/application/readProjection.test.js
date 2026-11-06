@@ -91,6 +91,26 @@ test("projection rejects an unavailable saved plan instead of using a new plan",
   await assert.rejects(() => service.get("run-1"), (error) => error.name === "UnknownPlanVersionError");
 });
 
+test('chapter split progress is projected only for the current running step attempt',async()=>{
+  const progress={volumeId:'v1',completedChapters:3,totalChapters:6,label:'已生成开卷章节'};
+  const control=runningControl({cursorStepId:'volume_chapter_list',version:8});
+  const events=[event(1,'chapter_list_progress',{controlVersion:7,progress:{...progress,completedChapters:6}}),
+    event(2,'chapter_list_progress',{controlVersion:8,progress})];
+  const productionPlan=require('../../../dist/modules/director/steps/planDefinition').directorProductionPlan;
+  const read=control=>new ProjectionService({factsLoader:loader({events,control}),planRegistry:{get:()=>productionPlan}}).get('run-1');
+  const view=await read(control);
+  assert.deepEqual(view.chapterListProgress,progress);
+  assert.equal(view.headline,'正在生成「生成卷拆章列表」');
+  assert.equal(view.progress.done,0,'batch counts do not complete a saved stage');
+  for(const nextControl of [
+    {...control,version:9},
+    {...control,cursorStepId:null},
+    {...control,cursorStepId:'chapter_detail_bundle'},
+    ...['paused','failed','completed','cancelled','queued'].map(status=>({...control,status})),
+  ]) assert.equal((await read(nextControl)).chapterListProgress,undefined);
+  assert.equal((await new ProjectionService({factsLoader:loader({control}),planRegistry:{get:()=>productionPlan}}).get('run-1')).chapterListProgress,undefined);
+});
+
 test("review templates encode the saved book id while literal and empty routes retain their contract", async () => {
   const runContract = contract({novelId: 'book/中文?x=1'});
   for (const [registered, expected] of [

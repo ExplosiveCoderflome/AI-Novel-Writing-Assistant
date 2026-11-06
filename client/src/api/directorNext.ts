@@ -48,6 +48,7 @@ export interface DirectorAction {
 }
 
 export interface DashboardView {
+  chapterListProgress?: import("@ai-novel/shared/types/volumePlanning").VolumeChapterListProgress;
   workerStatus?: import("@ai-novel/shared/types/director/worker").DirectorWorkerStatus;
   runId: string;
   novelId: string;
