@@ -7,7 +7,7 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 ## Visual Direction
 
 - Use real product screenshots as proof. Product imagery should carry the page.
-- Lead with a cinematic, full-bleed hero. The first viewport should communicate "from idea to full novel" immediately.
+- Lead with an editorial, paper-and-ink hero. The first viewport should communicate "from idea to full novel" through the act of writing a book, rather than a decorative raster scene.
 - Combine clean editorial surfaces with dark console sections.
 - Keep the interface restrained: thin borders, 8px radii, calm spacing, no decorative blobs.
 
@@ -35,13 +35,21 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 
 ## Page Structure
 
-1. Full-bleed hero with project promise, download, GitHub entry, and production route strip.
-2. Small proof band for the key production capabilities.
-3. Editorial production flow with large screenshots and step copy.
-4. Dark product console section with layered screenshots and system modules.
-5. Public docs entry that helps users understand the project, start using it, browse sidebar modules, and read the roadmap.
-6. Audience and download section.
-7. Final open-source CTA.
+1. Split hero with a short Chinese serif promise, download, GitHub, docs, and an original SVG manuscript. Stack copy above the book on narrow screens.
+2. Editorial production flow with large screenshots and step copy, directly after the hero. Keep route strips and capability checklists out of the first screen.
+3. Dark product console section with layered screenshots and system modules.
+4. Public docs entry that helps users understand the project, start using it, browse sidebar modules, and read the roadmap.
+5. Audience and download section.
+6. Final open-source CTA.
+
+## Hero Illustration And Motion
+
+- `src/components/HeroManuscript.tsx` owns the original SVG line work and its finite drawing sequence; `src/components/hero.css` owns the hero layout and illustration styles.
+- Keep the hero free of raster backgrounds, floating UI cards, surface borders, and decorative shadows. The open book is the visual focus; product screenshots belong in the sections below.
+- SVG path order defines pen order. Cache each path's geometry once, reveal its normalized stroke, and map the pen position from page coordinates into the root SVG coordinates. Pointer tilt must stay subtle and apply to the whole book.
+- The static and prerendered state is the complete illustration. Animate only after mounting; do not require browser globals during rendering or hide useful content pending JavaScript.
+- Respect `prefers-reduced-motion`, including changes during playback: show complete strokes immediately, hide the pen, and disable pointer tilt. Motion must finish rather than loop indefinitely.
+- Keep all three main entry points visible at 390px. The hero must not inherit the full-width mobile button treatment used by later sections.
 
 ## Documentation Experience
 

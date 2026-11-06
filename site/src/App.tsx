@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
 import appIcon from "./assets/app-icon.png";
+import HeroManuscript from "./components/HeroManuscript";
+import "./components/hero.css";
 import { formatStarCount, useGithubStars } from "./hooks/useGithubStars";
 import { usePageMeta } from "./hooks/usePageMeta";
 import DocsPage from "./DocsPage";
@@ -23,15 +25,6 @@ import projectSettingsImage from "../../images/write/项目设定.png";
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
-const docsIntroBannerImage = `${import.meta.env.BASE_URL}assets/docs-intro-banner.png`;
-
-const proofItems = [
-  "灵感、市场、参考书三种起点",
-  "AI 自动准备到可以开始写",
-  "简易 / 专业两种创作方式",
-  "从已保存进度安全恢复",
-];
-
 const productionFlow = [
   {
     marker: "01",
@@ -194,69 +187,34 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
 }
 
 function HomePage() {
-  const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
   usePageMeta(null);
   return (
     <>
-      <section
-        id="top"
-        className="hero"
-        style={{ backgroundImage: `url(${docsIntroBannerImage})` }}
-        aria-label="项目介绍"
-      >
-        <div className="hero-scrim" />
+      <section id="top" className="hero" aria-labelledby="hero-title">
         <div className="hero-content">
-          <p className="eyebrow">Biz Novel Studio · AI 驱动的长篇小说生产系统</p>
-          <h1>说出你的故事</h1>
+          <p className="eyebrow">Biz Novel Studio <span>为第一本小说而生</span></p>
+          <h1 id="hero-title">说出你的故事，<br /><em>写成一本书。</em></h1>
           <p className="hero-copy">
-            你只需要先选开书依据。AI 会准备书级定位、世界、角色和卷章任务；到达可开写状态后，可以让简易创作持续推进，也可以进入专业工作台随时接管。
+            从一个念头，到最后一章。<br />
+            AI 陪你构思、落笔，把第一部长篇写完。
           </p>
           <div className="hero-actions">
             <a className="button primary" href={releaseUrl}>
               <Download size={18} />
               下载桌面版
             </a>
-            <a className="button ghost" href={repoUrl}>
+            <a className="hero-link" href={repoUrl}>
               <Github size={18} />
-              查看 GitHub
+              GitHub
             </a>
-            <a className="button ghost" href={docsPath()}>
+            <a className="hero-link" href={docsPath()}>
               <FileText size={18} />
               阅读文档
             </a>
-            {stars !== null ? (
-              <a
-                className="button star"
-                href={`${repoUrl}/stargazers`}
-                aria-label={`GitHub ${stars} 颗 star`}
-              >
-                <Star size={18} strokeWidth={2.2} />
-                <span>给个 Star</span>
-                <span className="star-count">{formatStarCount(stars)}</span>
-              </a>
-            ) : null}
           </div>
-          <div className="route-strip" aria-label="核心生产路径">
-            <span>灵感 / 市场 / 参考书</span>
-            <ArrowRight size={15} />
-            <span>书级方案</span>
-            <ArrowRight size={15} />
-            <span>世界 / 角色 / 卷章</span>
-            <ArrowRight size={15} />
-            <span>简易 / 专业创作</span>
-            <ArrowRight size={15} />
-            <span>审核 / 修复 / 恢复</span>
-          </div>
+          <p className="hero-note">开源创作工作台 <span aria-hidden="true">/</span> 让想写书的你，写到结尾</p>
         </div>
-      </section>
-
-      <section className="proof-band" aria-label="项目能力概览">
-        {proofItems.map((item) => (
-          <p key={item}>
-            <CheckCircle2 size={17} />
-            <span>{item}</span>
-          </p>
-        ))}
+        <HeroManuscript />
       </section>
 
       <section id="flow" className="section editorial-flow">
