@@ -16,6 +16,10 @@ function createAnalysisRow(patch = {}) {
     id: "analysis-1",
     status: "failed",
     lastError: "budget_exceeded: used 1200 tokens exceeds budget 1000",
+    sections: [
+      { id: "saved-section", status: "succeeded", frozen: false, aiContent: "Saved analysis", editedContent: null, structuredDataJson: null },
+      { id: "frozen-section", status: "succeeded", frozen: true, aiContent: null, editedContent: null, structuredDataJson: null },
+    ],
     ...patch,
   };
 }
@@ -48,7 +52,7 @@ test("BookAnalysisCommandService rebuildAnalysis keeps succeeded sections intact
     assert.deepEqual(sectionWhere, {
       analysisId: "analysis-1",
       frozen: false,
-      status: { not: "succeeded" },
+      OR: [{ status: { not: "succeeded" } }, { id: { in: [] } }],
     });
   } finally {
     prisma.bookAnalysis.findUnique = original.findUnique;
@@ -248,7 +252,7 @@ test("BookAnalysisCommandService resumeWithBudget updates budget and preserves u
     assert.deepEqual(sectionWhere, {
       analysisId: "analysis-1",
       frozen: false,
-      status: { not: "succeeded" },
+      OR: [{ status: { not: "succeeded" } }, { id: { in: [] } }],
     });
     assert.deepEqual(enqueuedTask, { analysisId: "analysis-1", kind: "full" });
   } finally {

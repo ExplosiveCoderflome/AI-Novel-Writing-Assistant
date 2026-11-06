@@ -10,16 +10,19 @@ const ownershipReads = {
   task: prisma.novelWorkflowTask.findUnique,
   novel: prisma.novel.findUnique,
   run: prisma.directorNextRun.findFirst,
+  runById: prisma.directorNextRun.findUnique,
 };
 test.beforeEach(() => {
   prisma.novelWorkflowTask.findUnique = async ({where}) => buildWorkflowRow({id: where.id, directorVersion: "v1", directorEpoch: 0});
   prisma.novel.findUnique = async ({where}) => ({id: where.id, title: "雾港巡夜人", narrativeForm: "long_novel", directorVersion: "v1", directorEpoch: 0});
   prisma.directorNextRun.findFirst = async () => null;
+  prisma.directorNextRun.findUnique = async () => null;
 });
 test.afterEach(() => {
   prisma.novelWorkflowTask.findUnique = ownershipReads.task;
   prisma.novel.findUnique = ownershipReads.novel;
   prisma.directorNextRun.findFirst = ownershipReads.run;
+  prisma.directorNextRun.findUnique = ownershipReads.runById;
 });
 
 function buildWorkflowRow(overrides = {}) {
@@ -115,6 +118,8 @@ test("follow-up actions reject a V2 novel before logging, healing or continuing 
   const executor = new AutoDirectorFollowUpActionExecutor();
   prisma.novel.findUnique = async () => ({directorVersion: "v2", directorEpoch: 0, narrativeForm: "long_novel"});
   const originalLog = prisma.autoDirectorFollowUpActionLog.findUnique;
+  const runLookups = [];
+  prisma.directorNextRun.findUnique = async ({ where }) => { runLookups.push(where.id); return null; };
   let mutations = 0;
   prisma.autoDirectorFollowUpActionLog.findUnique = async () => {mutations++; throw new Error("must reject before reading action logs");};
   executor.workflowService.healAutoDirectorTaskState = async () => {mutations++;};
@@ -122,6 +127,7 @@ test("follow-up actions reject a V2 novel before logging, healing or continuing 
   try {
     await assert.rejects(executor.execute({taskId: "foreign-v1-task", actionCode: "continue_auto_execution", source: "web", idempotencyKey: "reject-foreign-owner"}), error => error.statusCode === 409);
     assert.equal(mutations, 0);
+    assert.deepEqual(runLookups, ["foreign-v1-task"]);
   } finally {prisma.autoDirectorFollowUpActionLog.findUnique = originalLog;}
 });
 
