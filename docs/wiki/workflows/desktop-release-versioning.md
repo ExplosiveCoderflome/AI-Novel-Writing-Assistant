@@ -22,6 +22,12 @@
 3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
 
+## 工作区依赖与部署快照
+
+桌面包通过 `pnpm deploy --prod` 使用注入的 `@ai-novel/server`，而源码运行使用 server importer。新增服务端生产依赖时，必须同步检查锁文件的 `server` importer 和 `snapshots` 中 `@ai-novel/server@file:server(...)` 的依赖集合；仅在 importer 和 packages 中出现新库，仍可能通过 frozen install，却在桌面部署时遗漏该库。
+
+`stage-desktop.cjs` 在部署、Prisma 运行时整理后逐项解析服务端生产依赖，并要求解析结果位于部署目录内，防止借用源码工作区的依赖掩盖漏包。出现 Electron 的 `production dependency not found` 时，先核对注入快照，不应临时复制单个依赖或升级无关依赖。修复后使用新的临时部署目录验证闭包，再通过 GitHub 执行完整打包。
+
 ## Failure Modes
 
 - 如果界面顶部显示版本和安装包文件名不一致，先检查打包所用 commit 的 `desktop/package.json`，不要在前端组件里补一个临时版本。

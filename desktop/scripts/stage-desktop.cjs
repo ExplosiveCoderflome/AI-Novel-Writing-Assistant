@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execSync } = require("node:child_process");
+const { createRequire } = require("node:module");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -192,6 +193,24 @@ function assertExists(targetPath, description) {
   }
 }
 
+function assertStagedServerDependencies(deployedAppDir = appDir) {
+  const manifestPath = path.join(deployedAppDir, "node_modules", "@ai-novel", "server", "package.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const resolveFromServer = createRequire(fs.realpathSync(manifestPath));
+  for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+    let resolved;
+    try {
+      resolved = fs.realpathSync(resolveFromServer.resolve(dependency));
+    } catch (cause) {
+      throw new Error(`Staged server production dependency ${dependency} is missing. Check the injected file:server snapshot in pnpm-lock.yaml.`, { cause });
+    }
+    const relative = path.relative(deployedAppDir, resolved);
+    if (relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error(`Staged server production dependency ${dependency} resolves outside the deployed application.`);
+    }
+  }
+}
+
 function main() {
   assertExists(clientSourceDir, "built client assets");
 
@@ -211,6 +230,7 @@ function main() {
   writeDesktopUpdaterConfig();
   syncPrismaRuntime();
   detachStagedNativePackages();
+  assertStagedServerDependencies();
 
   assertExists(desktopMainEntry, "desktop main bundle");
   assertExists(serverEntry, "bundled server entry");
@@ -231,9 +251,13 @@ function main() {
   console.log(`[stage:desktop] renderer resources staged at ${clientTargetDir}`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error("[stage:desktop] failed.", error);
-  process.exit(1);
+module.exports = { assertStagedServerDependencies };
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error("[stage:desktop] failed.", error);
+    process.exit(1);
+  }
 }
