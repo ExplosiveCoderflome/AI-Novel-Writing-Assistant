@@ -1,4 +1,5 @@
 import type { StepContext, StepHandler } from "../../application";
+import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
 
 interface ChapterListWorkspace {
   novelId: string;
@@ -16,11 +17,13 @@ export interface VolumeChapterListStepInput<Provider extends string, Document ex
 }
 export interface VolumeChapterListStepDependencies<Provider extends string, Document extends ChapterListWorkspace> {
   inputProvider: (context: StepContext) => Promise<VolumeChapterListStepInput<Provider, Document>>;
+  onProgress?: (context: StepContext, progress: VolumeChapterListProgress) => Promise<void>;
   volumeService: {
     generateVolumes(novelId: string, options: {
       scope: "chapter_list"; generationMode: "full_volume"; targetVolumeId: string; draftWorkspace: Document;
       provider?: Provider; model?: string; temperature?: number; guidance?: string; estimatedChapterCount?: number;
       taskId: string; entrypoint: "director_next"; persistIntermediateDocuments: false;
+      onPhaseStart?: (event: {chapterProgress?: VolumeChapterListProgress}) => Promise<void>;
       onChapterTitleDiversityDebt?: (event: {volumeId: string; issue: string; chapterOrder: number}) => void;
     }): Promise<Document>;
     updateVolumesWithOptions(novelId: string, document: Document, options: {
@@ -62,6 +65,9 @@ export function createVolumeChapterListStepHandler<Provider extends string, Docu
       draftWorkspace: input.workspace, provider: input.provider, model: input.model,
       temperature: input.temperature, guidance: input.guidance, estimatedChapterCount: input.estimatedChapterCount,
       taskId: context.runId, entrypoint: "director_next", persistIntermediateDocuments: false,
+      onPhaseStart: async event => {
+        if (event.chapterProgress) await dependencies.onProgress?.(context, event.chapterProgress);
+      },
       onChapterTitleDiversityDebt: event => {
         titleDiversityDebts.push({
           chapterOrder: event.chapterOrder,

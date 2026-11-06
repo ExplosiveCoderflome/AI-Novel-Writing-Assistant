@@ -1,4 +1,5 @@
 import { isArtifactSatisfied, latestArtifact } from "./plan";
+import type {VolumeChapterListProgress} from "@ai-novel/shared/types/volumePlanning";
 import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
 import type {DirectorUnknownClaimsView} from "@ai-novel/shared/types/director/unknownClaims";
 import type {DirectorWorkerStatus} from "@ai-novel/shared/types/director/worker";
@@ -32,6 +33,7 @@ export interface ActionDescriptor {
 }
 
 export interface DashboardView {
+  chapterListProgress?: VolumeChapterListProgress;
   workerStatus?: DirectorWorkerStatus;
   runId: string;
   novelId: string;
@@ -97,6 +99,7 @@ export interface ProductionProjection {
 }
 
 export interface ProjectionInput {
+  chapterListProgress?: VolumeChapterListProgress;
   executionFailure?: string;
   actionRejection?: ActionRejection;
   contract: RunContract;
@@ -292,6 +295,7 @@ export function project(input: ProjectionInput): DashboardView {
     detail,
     nextActionGuidance,
     chapterProgress,
+    ...(input.chapterListProgress ? {chapterListProgress: input.chapterListProgress} : {}),
     nextLaunchRange,
     ...(control.status === "paused" && input.production?.chapterBudget ? {chapterBudget: input.production.chapterBudget} : {}),
     ...(control.status === "paused" && input.production?.unknownClaims ? {unknownClaims: input.production.unknownClaims} : {}),
