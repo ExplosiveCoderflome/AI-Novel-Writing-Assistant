@@ -1,3 +1,4 @@
+import { recordInvocationParseFailure } from "./compatibility";
 import { terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
 import { z, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -395,6 +396,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
 
   const maxRepairAttempts = input.maxRepairAttempts ?? 1;
   if (parseErrorMessage) {
+    await recordInvocationParseFailure(parseErrorMessage);
     for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
       try {
         return {
@@ -488,6 +490,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
   }
 
   let zodError: ZodError = first.error;
+  await recordInvocationParseFailure(formatZodErrors(zodError));
   for (let attempt = 1; attempt <= maxRepairAttempts; attempt += 1) {
     try {
       return {

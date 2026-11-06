@@ -18,7 +18,7 @@ import {
   type StructuredOutputProfile,
   type StructuredOutputStrategy,
 } from "./structuredOutput";
-import { attachLLMUsageTracking } from "./usageTracking";
+import { attachLLMUsageTracking } from "./compatibility";
 import { resolveModel, toStructuredOutputStrategy, type TaskType } from "./modelRouter";
 import {
   getProviderEnvApiKey,
@@ -426,10 +426,11 @@ export function createLLMFromResolvedOptions(resolved: ResolvedLLMClientOptions)
     routeDegraded: resolved.routeDegraded,
     baseURL: resolved.baseURL,
     requestProtocol: resolved.requestProtocol,
+    structuredMode: resolved.structuredStrategy,
     promptMeta: resolved.promptMeta,
   };
   const cacheAware=attachLLMCacheRequestPolicy(llm,resolveCacheCapability({model:resolved.model,baseURL:resolved.baseURL,protocol:resolved.requestProtocol==="anthropic"?"anthropic":"openai-compatible"}));
-  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(cacheAware, meta), meta), meta);
+  const decorated = attachLLMDebugLogging(attachLLMUsageTracking(attachLLMRequestGuard(cacheAware, meta), meta, [resolved.apiKey ?? ""]), meta);
   const limited = attachLLMRequestLimiter(decorated, {
     provider: resolved.provider,
     model: resolved.model,

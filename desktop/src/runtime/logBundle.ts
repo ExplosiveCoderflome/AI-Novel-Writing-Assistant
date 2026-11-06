@@ -62,11 +62,13 @@ function zipEntries(entries: Array<{ name: string; data: Buffer }>): Buffer {
   return Buffer.concat([...local, centralData, end]);
 }
 
+// Support bundles allow only runtime logs and a summary. Never include database files
+// or LlmInvocationPayload history, even when invocation history is enabled.
 function collectRecentLogFiles(limit = 5): Array<{ name: string; data: Buffer }> {
   const directory = resolveDesktopLogsDir();
   if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".log"))
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".log") && !/payload|invocation[-_]?history/i.test(entry.name))
     .map((entry) => {
       const absolutePath = path.join(directory, entry.name);
       return { entry, absolutePath, modifiedAt: fs.statSync(absolutePath).mtimeMs };

@@ -1,3 +1,4 @@
+import { projectInvocation } from "../domain/invocationProjection";
 import type { LlmInvocationUsagePage } from "@ai-novel/shared/types/llmUsage";
 import type { UsageDelegate } from "../infrastructure/PrismaInvocationUsageRepository";
 import { unknownCache } from "../domain/types";
@@ -34,8 +35,7 @@ export class InvocationUsageQueryService {
         const complete = all.length > 0 && all.every(r => r.cacheUsageStatus === "reported" && r.status === "completed");
         const inputCache = complete ? { cacheHitTokens: all.reduce((n, r) => n + (r.cacheHitTokens ?? 0), 0), cacheMissTokens: all.reduce((n, r) => n + (r.cacheMissTokens ?? 0), 0),
             cacheWriteTokens: all.every(r => r.cacheWriteTokens !== null) ? all.reduce((n, r) => n + r.cacheWriteTokens!, 0) : null, cacheUsageStatus: "reported" as const } : unknownCache(all.some(r => r.cacheUsageStatus === "invalid") ? "invalid" : "unavailable");
-        return { items: page.map(({ id, cacheDiagnostic, cacheHitTokens, cacheMissTokens, cacheWriteTokens, cacheUsageStatus, ...r }) => ({ ...r, invocationId: id, startedAt: r.startedAt.toISOString(), finishedAt: r.finishedAt.toISOString(),
-                inputCache: { cacheHitTokens, cacheMissTokens, cacheWriteTokens, cacheUsageStatus: cacheUsageStatus as "reported" | "unavailable" | "invalid" } })),
+        return { items: page.map(projectInvocation),
             nextCursor: after.length > limit && last ? Buffer.from(JSON.stringify({ at: last.startedAt.toISOString(), id: last.id, runId })).toString("base64url") : null,
             recordedSummary: { inputCache, recordedCallCount: all.length, unknownCallCount: all.filter(r => r.cacheUsageStatus === "unavailable").length, invalidCallCount: all.filter(r => r.cacheUsageStatus === "invalid").length, partialCallCount: all.filter(r => r.status === "partial").length } };
     }

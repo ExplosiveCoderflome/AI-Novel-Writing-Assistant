@@ -11,6 +11,7 @@ export interface LlmInvocationUsageItem {
  novelId:string|null; chapterId:string|null; stage:string|null; provider:string|null; model:string|null;
  requestProtocol:string; promptId:string|null; promptVersion:string|null;
  status:string; startedAt:string; finishedAt:string;
+ durationMs:number|null; firstTokenMs:number|null; attemptNumber:number; chainId:string|null; parentInvocationId:string|null; structuredMode:string|null;
  promptTokens:number|null; completionTokens:number|null; totalTokens:number|null; inputCache:LlmInputCacheUsage;
 }
 export interface LlmInvocationUsagePage {
@@ -57,4 +58,23 @@ export interface NovelUsagePage {
   items: (LlmInvocationUsageItem & { chapter: NovelUsageChapter | null })[];
   nextCursor: string | null;
   firstRecordedAt: string | null;
+  timing: NovelUsageTiming;
 }
+
+export interface LlmInvocationPayloadData {
+  messages: { role: string; content: unknown }[];
+  response: string;
+  parsed: unknown;
+  error: string | null;
+}
+export interface LlmInvocationDetail {
+  item: LlmInvocationUsageItem;
+  payload: LlmInvocationPayloadData | null;
+  chain: LlmInvocationUsageItem[];
+}
+export interface NovelUsageTiming {
+  averageMs: number | null;
+  slowest: { invocationId: string; durationMs: number } | null;
+  chapters: { chapterId: string | null; steps: { stage: string | null; durationMs: number }[] }[];
+}
+export interface InvocationHistorySettings { enabled: boolean; retentionDays: number; maxMb: number }

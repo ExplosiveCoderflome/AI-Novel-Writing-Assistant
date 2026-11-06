@@ -2499,6 +2499,11 @@ model DirectorLlmUsageRecord {
   status               String             @default("recorded")
   attributionStatus    String             @default("unattributed")
   durationMs           Int?
+  firstTokenMs Int?
+  attemptNumber Int @default(1)
+  chainId String?
+  parentInvocationId String?
+  structuredMode String?
   promptTokens         Int                @default(0)
   completionTokens     Int                @default(0)
   totalTokens          Int                @default(0)
@@ -4295,6 +4300,13 @@ model DirectorNextCommand {
 
 model LlmInvocationUsageRecord {
   id String @id
+  durationMs Int?
+  firstTokenMs Int?
+  attemptNumber Int @default(1)
+  chainId String?
+  parentInvocationId String?
+  structuredMode String?
+  payload LlmInvocationPayload?
   runId String?
   generationJobId String?
   workflowTaskId String?
@@ -4317,6 +4329,7 @@ model LlmInvocationUsageRecord {
   cacheWriteTokens Int?
   cacheUsageStatus String
   cacheDiagnostic String?
+  @@index([chainId, attemptNumber])
   @@index([runId, startedAt, id])
   @@index([generationJobId, startedAt, id])
   @@index([novelId, chapterId, startedAt, id])
@@ -4404,4 +4417,14 @@ model StructuredInvocationDiagnostic {
 
   @@index([taskId, createdAt])
   @@index([invocationId, attempt])
+}
+
+model LlmInvocationPayload {
+  usageRecordId String @id
+  compressed Bytes
+  compressedBytes Int
+  createdAt DateTime @default(now())
+  usageRecord LlmInvocationUsageRecord @relation(fields: [usageRecordId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, usageRecordId])
 }

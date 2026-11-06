@@ -1,11 +1,7 @@
-import { PrismaInvocationUsageRepository } from "../platform/llm/usage";
-import { randomUUID } from "node:crypto";
-import { captureInvocationUsageObserver, type InvocationUsageRecord } from "../platform/llm/usage";
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { ChatOpenAI } from "@langchain/openai";
 import { prisma } from "../db/prisma";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { extractLlmTokenUsage, mergeStreamTokenUsage, type LlmTokenUsageSnapshot } from "../platform/llm/usage";
+import type { LlmTokenUsageSnapshot } from "../platform/llm/usage";
 export { extractLlmTokenUsage, mergeStreamTokenUsage } from "../platform/llm/usage";
 export type { LlmTokenUsageSnapshot } from "../platform/llm/usage";
 export interface LlmUsageTrackingContext {
@@ -21,6 +17,7 @@ export interface LlmUsageTrackingContext {
     directorNodeKey?: string | null;
 }
 export interface LlmUsageTrackingMeta {
+    structuredMode?: string | null;
     requestProtocol?: "anthropic" | "openai_compatible" | "openai-compatible" | "auto";
     provider?: LLMProvider | string | null;
     model?: string | null;
@@ -40,17 +37,19 @@ export interface LlmUsageTrackingMeta {
         entrypoint?: string | null;
     } | null;
 }
-interface TrackedUsageRecordInput {
+export interface TrackedUsageRecordInput {
+    invocationId?: string;
+    firstTokenMs?: number | null;
+    attemptNumber?: number;
+    chainId?: string | null;
+    parentInvocationId?: string | null;
+    structuredMode?: string | null;
     durationMs?: number | null;
     status?: string;
     meta?: LlmUsageTrackingMeta;
     metadata?: Record<string, unknown>;
 }
 const usageTrackingStore = new AsyncLocalStorage<LlmUsageTrackingContext>();
-const LLM_USAGE_PATCHED = Symbol("LLM_USAGE_PATCHED");
-type PatchableChatOpenAI = ChatOpenAI & {
-    [LLM_USAGE_PATCHED]?: boolean;
-};
 function mergeContextValue<T extends string | null | undefined>(current: T, next: T): string | null {
     if (next !== undefined) {
         return typeof next === "string" && next.trim().length > 0 ? next.trim() : null;
@@ -114,7 +113,7 @@ function buildDirectorUsageMetadata(input: TrackedUsageRecordInput | undefined):
 }
 async function recordDirectorLlmUsage(input: {
     context: LlmUsageTrackingContext;
-    usage: LlmTokenUsageSnapshot;
+    usage: LlmTokenUsageSnapshot | null;
     record?: TrackedUsageRecordInput;
     recordedAt: Date;
 }): Promise<void> {
@@ -124,6 +123,12 @@ async function recordDirectorLlmUsage(input: {
     const promptMeta = input.record?.meta?.promptMeta;
     await prisma.directorLlmUsageRecord.create({
         data: {
+            id: input.record?.invocationId,
+            firstTokenMs: input.record?.firstTokenMs,
+            attemptNumber: input.record?.attemptNumber,
+            chainId: input.record?.chainId,
+            parentInvocationId: input.record?.parentInvocationId,
+            structuredMode: input.record?.structuredMode,
             novelId: input.context.novelId ?? promptMeta?.novelId ?? null,
             taskId: input.context.workflowTaskId ?? promptMeta?.taskId ?? null,
             runId: input.context.directorRunId ?? null,
@@ -139,18 +144,15 @@ async function recordDirectorLlmUsage(input: {
             durationMs: typeof input.record?.durationMs === "number"
                 ? Math.max(0, Math.round(input.record.durationMs))
                 : null,
-            promptTokens: input.usage.promptTokens,
-            completionTokens: input.usage.completionTokens,
-            totalTokens: input.usage.totalTokens,
+            promptTokens: input.usage?.promptTokens ?? 0,
+            completionTokens: input.usage?.completionTokens ?? 0,
+            totalTokens: input.usage?.totalTokens ?? 0,
             metadataJson: buildDirectorUsageMetadata(input.record),
             recordedAt: input.recordedAt,
         },
     }).catch(() => undefined);
 }
 export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null, record?: TrackedUsageRecordInput): Promise<void> {
-    if (!usage) {
-        return;
-    }
     const context = usageTrackingStore.getStore();
     if (!context) {
         return;
@@ -170,7 +172,7 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
                 recordedAt: now,
             })
             : Promise.resolve(null),
-        context.workflowTaskId
+        usage && context.workflowTaskId
             ? prisma.novelWorkflowTask.updateMany({
                 where: { id: context.workflowTaskId },
                 data: {
@@ -182,7 +184,7 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
                 },
             }).catch(() => null)
             : Promise.resolve(null),
-        context.generationJobId
+        usage && context.generationJobId
             ? prisma.generationJob.updateMany({
                 where: { id: context.generationJobId },
                 data: {
@@ -194,7 +196,7 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
                 },
             }).catch(() => null)
             : Promise.resolve(null),
-        context.styleExtractionTaskId
+        usage && context.styleExtractionTaskId
             ? prisma.styleExtractionTask.updateMany({
                 where: { id: context.styleExtractionTaskId },
                 data: {
@@ -208,92 +210,5 @@ export async function recordTrackedLlmUsage(usage: LlmTokenUsageSnapshot | null,
             : Promise.resolve(null),
     ]);
 }
-// Object identity distinguishes SDK batch children already observed through invoke.
-const batchObservations = new AsyncLocalStorage<readonly WeakSet<object>[]>();
-function beginAttempt(meta?: LlmUsageTrackingMeta) {
-    const context = usageTrackingStore.getStore();
-    const notify = captureInvocationUsageObserver();
-    const startedAt = new Date();
-    const invocationId = randomUUID();
-    const protocol = meta?.requestProtocol === "anthropic" ? "anthropic" : "openai-compatible";
-    let finished = false;
-    return { decode: (output: unknown) => extractLlmTokenUsage(output, { protocol }),
-        async finish(usage: LlmTokenUsageSnapshot | null, status: InvocationUsageRecord["status"]) {
-            if (finished)
-                return;
-            finished = true;
-            const record: InvocationUsageRecord = { invocationId, startedAt, finishedAt: new Date(), usage, status,
-                provider: meta?.provider ? String(meta.provider) : null, model: meta?.model ?? null, requestProtocol: protocol,
-                runId: context?.directorNextRunId ?? null, generationJobId: context?.generationJobId ?? null,
-                workflowTaskId: context?.workflowTaskId ?? null, novelId: context?.novelId ?? meta?.promptMeta?.novelId ?? null,
-                chapterId: meta?.promptMeta?.chapterId ?? null, stage: meta?.promptMeta?.stage ?? context?.stage ?? null,
-                promptId: meta?.promptMeta?.promptId ?? null, promptVersion: meta?.promptMeta?.promptVersion ?? null };
-            await notify(record);
-            await new PrismaInvocationUsageRepository(prisma.llmInvocationUsageRecord).record(record).catch(() => console.warn("[llm-usage] journal write failed", record.invocationId));
-            await usageTrackingStore.run(context ?? {}, () => recordTrackedLlmUsage(usage, { meta, status, durationMs: Date.now() - startedAt.getTime() }));
-        } };
-}
-export function attachLLMUsageTracking(llm: ChatOpenAI, meta?: LlmUsageTrackingMeta): ChatOpenAI {
-    const patchable = llm as PatchableChatOpenAI;
-    if (patchable[LLM_USAGE_PATCHED])
-        return llm;
-    const invoke = llm.invoke.bind(llm), stream = llm.stream.bind(llm), batch = llm.batch.bind(llm);
-    patchable.invoke = (async (...args: Parameters<ChatOpenAI["invoke"]>) => {
-        const attempt = beginAttempt(meta);
-        try {
-            const result = await invoke(...args);
-            if (result && typeof result === 'object')
-                for (const scope of batchObservations.getStore() ?? [])
-                    scope.add(result);
-            await attempt.finish(attempt.decode(result), "completed");
-            return result;
-        }
-        catch (error) {
-            await attempt.finish(null, "failed");
-            throw error;
-        }
-    }) as ChatOpenAI["invoke"];
-    patchable.stream = (async (...args: Parameters<ChatOpenAI["stream"]>) => {
-        const attempt = beginAttempt(meta);
-        let raw: AsyncIterable<unknown>;
-        try {
-            raw = await stream(...args);
-        }
-        catch (error) {
-            await attempt.finish(null, "failed");
-            throw error;
-        }
-        return { async *[Symbol.asyncIterator]() {
-                let usage: LlmTokenUsageSnapshot | null = null;
-                let completed = false;
-                try {
-                    for await (const chunk of raw) {
-                        usage = mergeStreamTokenUsage(usage, attempt.decode(chunk));
-                        yield chunk;
-                    }
-                    completed = true;
-                }
-                finally {
-                    await attempt.finish(usage, completed ? "completed" : usage ? "partial" : "failed");
-                }
-            } } as Awaited<ReturnType<ChatOpenAI["stream"]>>;
-    }) as ChatOpenAI["stream"];
-    patchable.batch = (async (...args: Parameters<ChatOpenAI["batch"]>) => {
-        const attempts = args[0].map(() => beginAttempt(meta));
-        const observedResults = new WeakSet<object>();
-        const scopes = [...(batchObservations.getStore() ?? []), observedResults];
-        const result = await batchObservations.run(scopes, () => batch(...args));
-        for (const [index, item] of result.entries()) {
-            if (item && typeof item === 'object' && observedResults.has(item))
-                continue;
-            const attempt = attempts[index] ?? beginAttempt(meta);
-            await attempt.finish(attempt.decode(item), item instanceof Error ? "failed" : "completed");
-            if (item && typeof item === 'object')
-                for (const scope of scopes)
-                    scope.add(item);
-        }
-        return result;
-    }) as ChatOpenAI["batch"];
-    Object.defineProperty(patchable, LLM_USAGE_PATCHED, { value: true });
-    return llm;
-}
+export { attachLLMUsageTracking } from "./compatibility/invocation";
+export function getLlmUsageTrackingContext() { return usageTrackingStore.getStore(); }

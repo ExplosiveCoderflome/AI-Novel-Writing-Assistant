@@ -16,6 +16,7 @@ export interface DirectorNextHttpDeps {
   legacyProjection?: Pick<LegacyRunProjection, "list">;
   readUsage?: (runId:string,query:{limit?:number;cursor?:string|null})=>Promise<unknown>;
   validateUsageCursor?: (runId: string, cursor: string) => void;
+  readNovelInvocation?: (novelId: string, invocationId: string) => Promise<unknown>;
   readNovelUsage?: (novelId: string, query: {limit?: number; cursor?: string; chapterId?: string; stage?: string; provider?: string; model?: string; status?: "completed" | "partial" | "failed"}) => Promise<unknown>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
   readLedgers?: (novelId: string) => Promise<unknown>;
@@ -260,6 +261,14 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     try {
       res.json({success: true, data: await deps.readNovelUsage(id.data, query.data)});
     } catch (error) { if (!sendKnownError(res, error)) throw error; }
+  }));
+
+  router.get("/novels/:novelId/usage/:invocationId", asyncRoute(async (req, res) => {
+    const params = z.object({ novelId: nonEmpty, invocationId: nonEmpty }).safeParse(req.params);
+    if (!params.success) { sendValidationError(res, params.error); return; }
+    if (!deps.readNovelInvocation) { res.status(503).json({ success: false, error: "调用详情暂不可读取。" }); return; }
+    try { res.json({ success: true, data: await deps.readNovelInvocation(params.data.novelId, params.data.invocationId) }); }
+    catch (error) { if (!sendKnownError(res, error)) throw error; }
   }));
 
   router.get("/runs/:runId/usage",asyncRoute(async(req,res)=>{
