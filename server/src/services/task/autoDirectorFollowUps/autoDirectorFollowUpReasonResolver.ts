@@ -82,6 +82,7 @@ function finalizeResolvedReason(input: {
     channelCapabilities: {
       dingtalk: hasChannelAction,
       wecom: hasChannelAction,
+      feishu: hasChannelAction,
     },
   };
 }

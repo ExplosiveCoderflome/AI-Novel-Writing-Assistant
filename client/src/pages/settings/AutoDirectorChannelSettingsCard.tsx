@@ -64,8 +64,8 @@ export function AutoDirectorChannelSettingsCard(props: {
   channelDraft: AutoDirectorChannelDraft;
   onBaseUrlChange: (value: string) => void;
   onPatchChannelDraft: (
-    channelType: "dingtalk" | "wecom",
-    patch: Partial<AutoDirectorChannelDraft["dingtalk"]>,
+    channelType: "dingtalk" | "wecom" | "feishu",
+    patch: Partial<AutoDirectorChannelDraft["dingtalk"] & AutoDirectorChannelDraft["feishu"]>,
   ) => void;
   onSave: () => void;
   isSaving: boolean;
@@ -86,7 +86,7 @@ export function AutoDirectorChannelSettingsCard(props: {
         <div className="min-w-0 space-y-1.5">
           <CardTitle>导演跟进通道配置</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
+            通过钉钉、企业微信或飞书接收创作提醒，并继续或重试任务。飞书长连接适用于桌面端，无需公网回调地址。
           </CardDescription>
         </div>
         <Button
@@ -118,8 +118,15 @@ export function AutoDirectorChannelSettingsCard(props: {
           </div>
 
           {(["dingtalk", "wecom"] as const).map((channelType) => (
-            <div key={channelType} className="min-w-0 space-y-3 rounded-lg border p-3 sm:p-4">
+            <div key={channelType} className="min-w-0 space-y-3 border-t pt-4">
               <div className="font-medium">{channelType === "dingtalk" ? "钉钉" : "企业微信"}</div>
+              {channelType === "dingtalk" ? (
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">加签密钥 Secret（可选）</div>
+                  <Input type="password" value={channelDraft.dingtalk.secret} placeholder="机器人安全设置中的 SEC… 密钥"
+                    onChange={(event) => onPatchChannelDraft("dingtalk", {secret: event.target.value})} />
+                </div>
+              ) : null}
               <div className="grid min-w-0 gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">Webhook URL</div>
@@ -155,6 +162,44 @@ export function AutoDirectorChannelSettingsCard(props: {
               </div>
             </div>
           ))}
+
+          <div className="min-w-0 space-y-3 border-t pt-4">
+            <div className="font-medium">飞书 / Lark 长连接</div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={channelDraft.feishu.enabled}
+                onChange={(event) => onPatchChannelDraft("feishu", {enabled: event.target.checked})} />启用飞书通知与卡片操作
+            </label>
+            <p className="text-xs text-muted-foreground">创建企业自建应用，开启机器人和发送消息权限；在“事件与回调”的回调配置中选择长连接，并订阅 card.action.trigger。将机器人加入接收群。</p>
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
+              {([['appId', 'App ID'], ['appSecret', 'App Secret'], ['receiveId', '接收群或用户 ID'], ['operatorMapJson', '用户映射 JSON']] as const).map(([field, label]) => (
+                <label key={field} className="space-y-1 text-xs text-muted-foreground">
+                  <span>{label}</span>
+                  <Input type={field === "appSecret" ? "password" : "text"} value={channelDraft.feishu[field]}
+                    placeholder={field === "operatorMapJson" ? '{"ou_飞书用户ID":"站内用户ID"}' : label}
+                    onChange={(event) => onPatchChannelDraft("feishu", {[field]: event.target.value})} />
+                </label>
+              ))}
+              <label className="space-y-1 text-xs text-muted-foreground">
+                <span>接收 ID 类型</span>
+                <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={channelDraft.feishu.receiveIdType}
+                  onChange={(event) => onPatchChannelDraft("feishu", {receiveIdType: event.target.value as AutoDirectorChannelDraft["feishu"]["receiveIdType"]})}>
+                  <option value="chat_id">群聊 chat_id</option><option value="open_id">用户 open_id</option><option value="user_id">用户 user_id</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground">
+                <span>服务区域</span>
+                <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={channelDraft.feishu.domain}
+                  onChange={(event) => onPatchChannelDraft("feishu", {domain: event.target.value as "feishu" | "lark"})}>
+                  <option value="feishu">飞书</option><option value="lark">Lark</option>
+                </select>
+              </label>
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">订阅事件</div>
+              <AutoDirectorEventMultiSelect value={channelDraft.feishu.eventTypes}
+                onChange={(eventTypes) => onPatchChannelDraft("feishu", {eventTypes})} />
+            </div>
+          </div>
 
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
             <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>

@@ -76,7 +76,9 @@ test("auto director channel settings routes expose saved config and allow cleari
       },
       body: JSON.stringify({
         baseUrl: "",
+        feishu: {enabled: false, appId: "app_1", appSecret: "app_secret", receiveId: "oc_1", receiveIdType: "chat_id", domain: "lark", operatorMapJson: '{"ou_1":"user_1"}', eventTypes: ["auto_director.exception"]},
         dingtalk: {
+          secret: "SEC_optional",
           webhookUrl: "",
           callbackToken: "",
           operatorMapJson: "",
@@ -93,6 +95,12 @@ test("auto director channel settings routes expose saved config and allow cleari
     const putPayload = await putResponse.json();
     assert.equal(putPayload.success, true);
     assert.equal(putPayload.data.baseUrl, "");
+    assert.equal(putPayload.data.dingtalk.secret, "SEC_optional");
+    assert.equal(putPayload.data.feishu.appSecret, "app_secret");
+    assert.equal(putPayload.data.feishu.domain, "lark");
+    assert.deepEqual(putPayload.data.feishu.eventTypes, ["auto_director.exception"]);
+    assert.equal(upsertCalls.find(item => item.where.key === "autoDirector.channels.dingtalk.secret").update.value, "SEC_optional");
+    assert.equal(upsertCalls.find(item => item.where.key === "autoDirector.channels.feishu.enabled").update.value, "false");
     assert.equal(putPayload.data.dingtalk.webhookUrl, "");
     assert.equal(putPayload.data.dingtalk.callbackToken, "");
     assert.equal(putPayload.data.dingtalk.operatorMapJson, "");
@@ -112,7 +120,7 @@ test("auto director channel settings routes expose saved config and allow cleari
     );
 
     assert.deepEqual(
-      upsertCalls.map((item) => ({
+      upsertCalls.filter(item => !item.where.key.startsWith("autoDirector.channels.feishu.") && !item.where.key.endsWith(".secret")).map((item) => ({
         key: item.where.key,
         value: item.update.value,
       })),

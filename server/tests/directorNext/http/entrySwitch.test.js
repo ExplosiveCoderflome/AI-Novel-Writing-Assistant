@@ -1,10 +1,10 @@
 const test=require('node:test');const assert=require('node:assert/strict');const express=require('express');
 const {createFrozenDirectorEntry}=require('../../../dist/app/director/entrySwitch');
-const boundary={isV2:async()=>true,canExecuteLegacyTask:async()=>false,canRecoverLegacyPipelineJob:async()=>false};
+const boundary={isV2:async()=>true,canExecuteLegacyTask:async()=>false,canRecoverLegacyPipelineJob:async()=>false,isV2Run:async()=>false};
 test('follow-up batches permit owned V1 tasks and reject mixed or stale owners before any action',async()=>{
  const {createFrozenFollowUpEntry}=require('../../../dist/app/director/entrySwitch');
  const app=express();app.use(express.json());let writes=0;
- app.use(createFrozenFollowUpEntry({canExecuteLegacyTask:async id=>['v1-a','v1-b'].includes(id)}));
+ app.use(createFrozenFollowUpEntry({isV2Run:async()=>false,canExecuteLegacyTask:async id=>['v1-a','v1-b'].includes(id)}));
  app.post('/batch-actions',(_req,res)=>{writes++;res.json({allowed:true});});
  const server=app.listen(0);await new Promise(resolve=>server.once('listening',resolve));
  const url='http://127.0.0.1:'+server.address().port;

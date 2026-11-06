@@ -25,6 +25,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Workflows
 
 - [自动导演 Runtime 与恢复边界](./workflows/auto-director-runtime.md)
+- [自动导演外部通知与动作边界](./workflows/auto-director-channels.md)
 - [简易创作模式](./product/simple-creation-mode.md)
 - [章节生产链路](./workflows/chapter-production-chain.md)
 - [章节检查重试策略](./workflows/chapter-review-retry-policy.md)

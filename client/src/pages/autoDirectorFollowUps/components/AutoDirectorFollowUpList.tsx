@@ -95,6 +95,9 @@ function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
   if (item.channelCapabilities.wecom) {
     labels.push("企微可直达");
   }
+  if (item.channelCapabilities.feishu) {
+    labels.push("飞书可直达");
+  }
   return labels;
 }
 

@@ -216,7 +216,7 @@ export function AutoDirectorFollowUpDetailPanel({
                 ) : detail.channelDeliveries?.map((delivery) => (
                   <div key={`${delivery.channelType}:${delivery.eventType}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <TaskQueueStatusBadge label={delivery.channelType === "dingtalk" ? "钉钉" : "企微"} tone="neutral" />
+                      <TaskQueueStatusBadge label={delivery.channelType === "dingtalk" ? "钉钉" : delivery.channelType === "feishu" ? "飞书" : "企微"} tone="neutral" />
                       <TaskQueueStatusBadge
                         label={deliveryStatusLabels[delivery.status]}
                         tone={delivery.status === "delivered" ? "success" : delivery.status === "failed" ? "danger" : "info"}

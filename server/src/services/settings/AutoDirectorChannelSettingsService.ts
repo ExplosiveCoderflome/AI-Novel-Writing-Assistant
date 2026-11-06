@@ -1,6 +1,15 @@
 import { prisma } from "../../db/prisma";
 
 const BASE_URL_KEY = "autoDirector.baseUrl";
+const DINGTALK_SECRET_KEY = "autoDirector.channels.dingtalk.secret";
+const FEISHU_FIELDS = ["enabled", "appId", "appSecret", "receiveId", "receiveIdType", "domain", "operatorMapJson", "eventTypes"] as const;
+const feishuKey = (field: string) => `autoDirector.channels.feishu.${field}`;
+const settingsListeners = new Set<(settings: AutoDirectorChannelSettings) => void>();
+export function onAutoDirectorChannelSettingsChanged(listener: (settings: AutoDirectorChannelSettings) => void): () => void {
+  settingsListeners.add(listener);
+  return () => { settingsListeners.delete(listener); };
+}
+
 const DINGTALK_WEBHOOK_KEY = "autoDirector.channels.dingtalk.webhookUrl";
 const DINGTALK_CALLBACK_TOKEN_KEY = "autoDirector.channels.dingtalk.callbackToken";
 const DINGTALK_OPERATOR_MAP_KEY = "autoDirector.channels.dingtalk.operatorMapJson";
@@ -21,6 +30,8 @@ const DEFAULT_EVENT_TYPES = [
 
 const ALL_KEYS = [
   BASE_URL_KEY,
+  DINGTALK_SECRET_KEY,
+  ...FEISHU_FIELDS.map(feishuKey),
   DINGTALK_WEBHOOK_KEY,
   DINGTALK_CALLBACK_TOKEN_KEY,
   DINGTALK_OPERATOR_MAP_KEY,
@@ -32,8 +43,20 @@ const ALL_KEYS = [
 ] as const;
 
 export interface AutoDirectorChannelConfig {
+  secret?: string;
   webhookUrl: string;
   callbackToken: string;
+  operatorMapJson: string;
+  eventTypes: string[];
+}
+
+export interface FeishuChannelConfig {
+  enabled: boolean;
+  appId: string;
+  appSecret: string;
+  receiveId: string;
+  receiveIdType: "chat_id" | "open_id" | "user_id";
+  domain: "feishu" | "lark";
   operatorMapJson: string;
   eventTypes: string[];
 }
@@ -42,12 +65,14 @@ export interface AutoDirectorChannelSettings {
   baseUrl: string;
   dingtalk: AutoDirectorChannelConfig;
   wecom: AutoDirectorChannelConfig;
+  feishu: FeishuChannelConfig;
 }
 
 export interface SaveAutoDirectorChannelSettingsInput {
   baseUrl?: string;
   dingtalk?: Partial<AutoDirectorChannelConfig>;
   wecom?: Partial<AutoDirectorChannelConfig>;
+  feishu?: Partial<FeishuChannelConfig>;
 }
 
 function isMissingTableError(error: unknown): boolean {
@@ -109,7 +134,9 @@ function stringifyEventTypes(value: string[] | undefined): string {
 function buildDefaults(): AutoDirectorChannelSettings {
   return {
     baseUrl: getDefaultBaseUrl(),
+    feishu: {enabled: false, appId: "", appSecret: "", receiveId: "", receiveIdType: "chat_id", domain: "feishu", operatorMapJson: "", eventTypes: [...DEFAULT_EVENT_TYPES]},
     dingtalk: {
+      secret: trimText(process.env.AUTO_DIRECTOR_DINGTALK_SECRET),
       webhookUrl: trimText(process.env.AUTO_DIRECTOR_DINGTALK_WEBHOOK_URL),
       callbackToken: trimText(process.env.AUTO_DIRECTOR_DINGTALK_CALLBACK_TOKEN),
       operatorMapJson: trimText(process.env.AUTO_DIRECTOR_DINGTALK_OPERATOR_MAP_JSON),
@@ -128,7 +155,15 @@ function buildSettingsFromEntries(entries: Map<string, string>): AutoDirectorCha
   const defaults = buildDefaults();
   return {
     baseUrl: getConfiguredText(entries, BASE_URL_KEY, defaults.baseUrl),
+    feishu: {
+      ...defaults.feishu,
+      ...Object.fromEntries(FEISHU_FIELDS.filter(field => entries.has(feishuKey(field))).map(field => [field,
+        field === "enabled" ? entries.get(feishuKey(field)) === "true"
+          : field === "eventTypes" ? parseEventTypes(entries.get(feishuKey(field))) : entries.get(feishuKey(field)),
+      ])),
+    },
     dingtalk: {
+      secret: getConfiguredText(entries, DINGTALK_SECRET_KEY, defaults.dingtalk.secret || ""),
       webhookUrl: getConfiguredText(entries, DINGTALK_WEBHOOK_KEY, defaults.dingtalk.webhookUrl),
       callbackToken: getConfiguredText(entries, DINGTALK_CALLBACK_TOKEN_KEY, defaults.dingtalk.callbackToken),
       operatorMapJson: getConfiguredText(entries, DINGTALK_OPERATOR_MAP_KEY, defaults.dingtalk.operatorMapJson),
@@ -172,7 +207,9 @@ export async function saveAutoDirectorChannelSettings(
   const previous = await getAutoDirectorChannelSettings();
   const next: AutoDirectorChannelSettings = {
     baseUrl: hasOwn(input, "baseUrl") ? trimText(input.baseUrl) : previous.baseUrl,
+    feishu: {...previous.feishu, ...input.feishu},
     dingtalk: {
+      secret: input.dingtalk && hasOwn(input.dingtalk, "secret") ? trimText(input.dingtalk.secret) : previous.dingtalk.secret,
       webhookUrl: input.dingtalk && hasOwn(input.dingtalk, "webhookUrl")
         ? trimText(input.dingtalk.webhookUrl)
         : previous.dingtalk.webhookUrl,
@@ -204,6 +241,7 @@ export async function saveAutoDirectorChannelSettings(
 
   try {
     await Promise.all([
+      ...[[DINGTALK_SECRET_KEY, next.dingtalk.secret || ""], ...FEISHU_FIELDS.map(field => [feishuKey(field), field === "eventTypes" ? stringifyEventTypes(next.feishu.eventTypes) : String(next.feishu[field])])].map(([key, value]) => prisma.appSetting.upsert({where: {key}, update: {value}, create: {key, value}})),
       prisma.appSetting.upsert({
         where: { key: BASE_URL_KEY },
         update: { value: next.baseUrl },
@@ -250,6 +288,7 @@ export async function saveAutoDirectorChannelSettings(
         create: { key: WECOM_EVENT_TYPES_KEY, value: stringifyEventTypes(next.wecom.eventTypes) },
       }),
     ]);
+    settingsListeners.forEach(listener => listener(next));
     return next;
   } catch (error) {
     if (isMissingTableError(error) || isDbUnavailableError(error)) {

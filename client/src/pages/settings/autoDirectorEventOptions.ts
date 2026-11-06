@@ -8,7 +8,9 @@ export interface AutoDirectorEventOption {
 
 export interface AutoDirectorChannelDraft {
   baseUrl: string;
+  feishu: AutoDirectorChannelSettings["feishu"];
   dingtalk: {
+    secret: string;
     webhookUrl: string;
     callbackToken: string;
     operatorMapJson: string;
@@ -64,7 +66,9 @@ export function buildAutoDirectorChannelDraft(
 ): AutoDirectorChannelDraft {
   return settings ? {
     baseUrl: settings.baseUrl,
+    feishu: settings.feishu ?? {enabled: false, appId: "", appSecret: "", receiveId: "", receiveIdType: "chat_id", domain: "feishu", operatorMapJson: "", eventTypes: []},
     dingtalk: {
+      secret: settings.dingtalk.secret ?? "",
       webhookUrl: settings.dingtalk.webhookUrl,
       callbackToken: settings.dingtalk.callbackToken,
       operatorMapJson: settings.dingtalk.operatorMapJson,
@@ -78,7 +82,9 @@ export function buildAutoDirectorChannelDraft(
     },
   } : {
     baseUrl: "",
+    feishu: {enabled: false, appId: "", appSecret: "", receiveId: "", receiveIdType: "chat_id", domain: "feishu", operatorMapJson: "", eventTypes: []},
     dingtalk: {
+      secret: "",
       webhookUrl: "",
       callbackToken: "",
       operatorMapJson: "",

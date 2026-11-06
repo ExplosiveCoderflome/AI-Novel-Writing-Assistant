@@ -50,3 +50,13 @@ test("auto director event summary renders Chinese labels instead of raw codes", 
     "自动继续待处理、运行异常 等 3 项",
   );
 });
+
+
+test("channel drafts retain DingTalk secret and Feishu long connection configuration", () => {
+  const empty = buildAutoDirectorChannelDraft();
+  const settings = {...empty, dingtalk: {...empty.dingtalk, secret: "SEC_optional"},
+    feishu: {...empty.feishu, enabled: true, appId: "app_1", appSecret: "secret", receiveId: "oc_1", operatorMapJson: '{"ou_1":"user_1"}', eventTypes: ["auto_director.exception"]}};
+  const draft = buildAutoDirectorChannelDraft(settings);
+  assert.equal(draft.dingtalk.secret, "SEC_optional");
+  assert.deepEqual(draft.feishu, settings.feishu);
+});

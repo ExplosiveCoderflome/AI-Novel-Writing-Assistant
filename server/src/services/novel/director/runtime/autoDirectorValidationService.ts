@@ -17,7 +17,7 @@ import type {
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 
 const WEB_SOURCES = new Set(["web", "follow_up_action", "batch_action", "takeover", "continue", "retry"]);
-const CHANNEL_SOURCES = new Set(["dingtalk", "wecom", "channel_callback"]);
+const CHANNEL_SOURCES = new Set(["dingtalk", "wecom", "feishu", "channel_callback"]);
 const AUTO_DIRECTOR_FOLLOW_UP_SECTION_RANK: Record<AutoDirectorFollowUpSection, number> = {
   needs_validation: 0,
   exception: 1,

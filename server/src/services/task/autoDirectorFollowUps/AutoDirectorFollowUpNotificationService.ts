@@ -1,3 +1,4 @@
+import { feishuChannel } from "./channels/feishu";
 import type {
   AutoDirectorAction,
   AutoDirectorChannelNotificationPayload,
@@ -123,6 +124,7 @@ export class AutoDirectorFollowUpNotificationService {
       after: input.after,
       channelSettings,
     });
+    await this.notifyFeishu({event, after: input.after, channelSettings});
   }
 
   async notifyAutoApproved(input: {
@@ -188,6 +190,7 @@ export class AutoDirectorFollowUpNotificationService {
       reasonLabel: copy.reasonLabel,
       availableActions: [],
     });
+    await this.notifyFeishu({event, after: snapshot, channelSettings, cardTitle: copy.cardTitle, reasonLabel: copy.reasonLabel, availableActions: []});
   }
 
   private resolveAvailableActions(input: AutoDirectorEventWorkflowSnapshot): AutoDirectorAction[] {
@@ -327,11 +330,50 @@ export class AutoDirectorFollowUpNotificationService {
     });
   }
 
+  private async notifyFeishu(input: {
+    event: ReturnType<typeof buildAutoDirectorEvent>;
+    after: AutoDirectorEventWorkflowSnapshot;
+    channelSettings: AutoDirectorChannelSettings;
+    cardTitle?: string;
+    reasonLabel?: string | null;
+    availableActions?: AutoDirectorAction[];
+  }) {
+    const config = input.channelSettings.feishu;
+    if (!config?.enabled || !config.appId || !config.appSecret || !config.receiveId) return;
+    if (!this.isEventEnabledForChannel(config.eventTypes, input.event.eventType)
+      || await this.hasNotificationLog(input.event.eventId, "feishu")) return;
+    const reason = resolveAutoDirectorFollowUpReason(resolveReasonInput(input.after));
+    const payload: AutoDirectorChannelNotificationPayload = {
+      channelType: "feishu", event: input.event,
+      task: {taskId: input.after.id, novelId: input.after.novelId, novelTitle: input.after.novel?.title || input.after.id, detailUrl: "", followUpCenterUrl: ""},
+      card: {title: input.cardTitle || "自动导演跟进提醒", summary: input.event.summary,
+        reasonLabel: input.reasonLabel ?? reason?.reasonLabel ?? null, stage: input.after.currentStage,
+        checkpointSummary: input.after.checkpointSummary ?? null,
+        actions: (input.availableActions ?? this.resolveAvailableActions(input.after))
+          .filter(action => action.kind === "mutation" && ["continue_auto_execution", "retry_with_task_model"].includes(action.code))
+          .map(action => ({actionCode: action.code, label: action.label, kind: "callback"})),
+      },
+    };
+    let responseStatus = null, responseBody = null, deliveredAt = null;
+    let status: "delivered" | "failed" = "failed";
+    try {
+      const delivery = await feishuChannel.deliver(payload, config);
+      responseStatus = delivery.status;
+      responseBody = delivery.body;
+      if (delivery.status === 200) {status = "delivered"; deliveredAt = new Date();}
+    } catch {
+      responseBody = "飞书通知发送失败，请检查应用权限和接收目标。";
+    }
+    await this.recordNotificationLog({eventId: input.event.eventId, eventType: input.event.eventType,
+      taskId: input.after.id, channelType: "feishu", target: config.receiveId, payload,
+      responseStatus, responseBody, deliveredAt, status});
+  }
+
   private async recordNotificationLog(input: {
     eventId: string;
     eventType: AutoDirectorEventType;
     taskId: string;
-    channelType: "dingtalk" | "wecom";
+    channelType: "dingtalk" | "wecom" | "feishu";
     target: string | null;
     payload: AutoDirectorChannelNotificationPayload;
     responseBody: string | null;
@@ -363,7 +405,7 @@ export class AutoDirectorFollowUpNotificationService {
     }
   }
 
-  private async hasNotificationLog(eventId: string, channelType: "dingtalk" | "wecom"): Promise<boolean> {
+  private async hasNotificationLog(eventId: string, channelType: "dingtalk" | "wecom" | "feishu"): Promise<boolean> {
     try {
       return Boolean(await prisma.autoDirectorFollowUpNotificationLog.findFirst({
         where: { eventId, channelType },

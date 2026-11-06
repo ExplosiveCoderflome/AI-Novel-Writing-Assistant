@@ -53,6 +53,7 @@
     "@langchain/core": "^1.1.29",
     "@langchain/langgraph": "^1.2.0",
     "@langchain/openai": "^1.2.11",
+    "@larksuiteoapi/node-sdk": "^1.76.0",
     "@prisma/adapter-better-sqlite3": "^7.4.2",
     "@prisma/adapter-pg": "7.4.2",
     "@prisma/client": "^7.4.2",
