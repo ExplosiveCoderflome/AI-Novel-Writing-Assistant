@@ -3,12 +3,13 @@ const path = require("node:path");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 
+const publishTarget = process.argv.includes("--mac") ? "--mac" : "--win";
+
 try {
   execFileSync(process.execPath, [
     path.join("desktop", "scripts", "run-electron-builder.cjs"),
-    "--win",
-    "nsis",
-    "--x64",
+    publishTarget,
+    ...(publishTarget === "--win" ? ["nsis", "--x64"] : []),
     "--publish",
     "always",
   ], {

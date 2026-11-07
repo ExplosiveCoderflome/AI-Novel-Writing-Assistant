@@ -68,3 +68,56 @@ jobs:
 
       - name: Update GitHub release notes
         run: node scripts/update-desktop-release-notes.cjs
+
+  publish-beta-mac:
+    runs-on: macos-14
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: beta
+      AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
+      AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Unsigned build: electron-updater on macOS requires a signed app for in-place updates,
+      # so the mac job publishes artifacts but skips the auto-update feed wiring.
+      AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
+      AI_NOVEL_MAC_ARCH: arm64
+      # macOS DMG builds honor CSC_LINK too; leaving it unset keeps the build unsigned.
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install desktop icon tooling
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Regenerate desktop icon assets
+        run: python desktop/scripts/generate-desktop-icons.py
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build and stage desktop app
+        run: pnpm stage:desktop
+
+      - name: Verify packaged desktop layout (macOS)
+        run: pnpm verify:desktop-package:mac:reuse-stage
+
+      - name: Publish macOS beta build to GitHub Releases
+        run: pnpm publish:desktop:beta:mac:reuse-stage

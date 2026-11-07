@@ -101,8 +101,21 @@ export function resolveRendererIndexHtml(): string {
 }
 
 export function resolveDesktopWindowIcon(): string {
-  if (process.env.AI_NOVEL_DESKTOP_ICON_PATH?.trim()) {
-    return path.resolve(process.env.AI_NOVEL_DESKTOP_ICON_PATH.trim());
+  const configuredIconPath = process.env.AI_NOVEL_DESKTOP_ICON_PATH?.trim();
+  if (configuredIconPath) {
+    return path.resolve(configuredIconPath);
+  }
+
+  if (process.platform === "darwin") {
+    const packagedMacIconPath = path.join(resolveDesktopResourcesDir(), "icons", "app-icon.icns");
+    if (fs.existsSync(packagedMacIconPath)) {
+      return packagedMacIconPath;
+    }
+
+    const workspaceMacIconPath = path.resolve(resolveWorkspaceRoot(), "desktop", "builder", "app-icon.icns");
+    if (fs.existsSync(workspaceMacIconPath)) {
+      return workspaceMacIconPath;
+    }
   }
 
   const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", "app-icon.ico");
