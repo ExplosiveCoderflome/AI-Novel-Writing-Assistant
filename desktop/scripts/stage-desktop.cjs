@@ -187,6 +187,44 @@ function detachStagedNativePackages() {
   }
 }
 
+function detachStagedWorkspaceLinks() {
+  // `pnpm deploy` on machines where the lockfile snapshot resolves to an absolute file: path
+  // (e.g. macOS checkouts) links workspace packages like @ai-novel/server as symlinks into the
+  // pnpm virtual store. electron-builder then copies the store directory under its hashed name
+  // (e.g. "@ai-novel/server@file:server(...)") instead of "@ai-novel/server", breaking the
+  // packaged layout that the desktop runtime and verify script expect. Materialize the links
+  // as physical directories so electron-builder packs them under the declared package name.
+  const workspaceScopeDir = path.join(stagedNodeModulesDir, "@ai-novel");
+  if (!fs.existsSync(workspaceScopeDir)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(workspaceScopeDir, { withFileTypes: true })) {
+    const packageDir = path.join(workspaceScopeDir, entry.name);
+    if (fs.lstatSync(packageDir).isSymbolicLink()) {
+      // fs.cpSync preserves symlinks by default, so copying the link itself would put the link
+      // right back after the rename. Copy the resolved target together with its private
+      // node_modules sibling (the pnpm store layout keeps this package's own dependency links
+      // there), so require() keeps resolving after the symlink is gone.
+      const realPackageDir = fs.realpathSync(packageDir);
+      const tempDir = `${packageDir}.__detached__`;
+      fs.rmSync(tempDir, { recursive: true, force: true });
+      fs.cpSync(realPackageDir, tempDir, { recursive: true, force: true });
+      // Store layout: <storePkg>/node_modules/@ai-novel/<name> — the package's own dependency
+      // links live in <storePkg>/node_modules, i.e. three levels above the package dir.
+      const privateNodeModulesSource = path.resolve(realPackageDir, "..", "..", "..", "node_modules");
+      if (path.basename(privateNodeModulesSource) === "node_modules" && fs.existsSync(privateNodeModulesSource)) {
+        const privateNodeModules = path.join(tempDir, "node_modules");
+        fs.rmSync(privateNodeModules, { recursive: true, force: true });
+        fs.cpSync(privateNodeModulesSource, privateNodeModules, { recursive: true, force: true });
+      }
+      fs.rmSync(packageDir, { force: true });
+      fs.renameSync(tempDir, packageDir);
+      console.log(`[stage:desktop] materialized workspace link ${entry.name}`);
+    }
+  }
+}
+
 function assertExists(targetPath, description) {
   if (!fs.existsSync(targetPath)) {
     throw new Error(`Expected ${description} at ${targetPath}, but it was not found.`);
@@ -230,6 +268,7 @@ function main() {
   writeDesktopUpdaterConfig();
   syncPrismaRuntime();
   detachStagedNativePackages();
+  detachStagedWorkspaceLinks();
   assertStagedServerDependencies();
 
   assertExists(desktopMainEntry, "desktop main bundle");

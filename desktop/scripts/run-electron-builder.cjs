@@ -139,23 +139,41 @@ function normalizeBuildEnvironment(sourceEnv, args) {
   return env;
 }
 
+function isMacBuildRequest(args) {
+  return args.some((arg) => ["--mac", "--darwin", "-m"].includes(arg))
+    || firstNonEmpty(process.env.AI_NOVEL_TARGET_PLATFORM).toLowerCase() === "darwin";
+}
+
 function main() {
-  ensurePatchedElectronBuilder();
+  const args = [...process.argv.slice(2)];
+  const macBuild = isMacBuildRequest(args);
 
-  const shortNsisTemplatesDir = resolveShortNsisTemplateDir();
+  if (!macBuild) {
+    ensurePatchedElectronBuilder();
+  }
+
+  const shortNsisTemplatesDir = macBuild ? "" : resolveShortNsisTemplateDir();
   const electronBuilderCli = resolveModule("electron-builder/cli.js");
-  const args = ["--config", "electron-builder.config.cjs", ...process.argv.slice(2)];
-  const env = normalizeBuildEnvironment(process.env, args);
+  const builderArgs = ["--config", "electron-builder.config.cjs", ...args];
+  const env = normalizeBuildEnvironment(process.env, builderArgs);
 
-  console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
+  if (!macBuild) {
+    console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
+  } else {
+    console.log(`[dist:desktop] macOS build target detected; skipping NSIS template patching.`);
+  }
 
-  execFileSync(process.execPath, [electronBuilderCli, ...args], {
+  execFileSync(process.execPath, [electronBuilderCli, ...builderArgs], {
     cwd: desktopDir,
     stdio: "inherit",
     env: {
       ...env,
-      [nsisEnvOverrideName]: shortNsisTemplatesDir,
-      [traversalEnvOverrideName]: "true",
+      ...(macBuild
+        ? {}
+        : {
+            [nsisEnvOverrideName]: shortNsisTemplatesDir,
+            [traversalEnvOverrideName]: "true",
+          }),
     },
   });
 }

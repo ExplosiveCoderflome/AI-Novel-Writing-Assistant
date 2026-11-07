@@ -136,8 +136,9 @@ V2 单章默认上限为 **100,000 Tokens**，累计包含该章的生成、检�
 
 | 选择 | 下载文件 | 适合谁 |
 | --- | --- | --- |
-| 安装版 | `Biz-Novel-Studio-<版本>-setup-x64.exe` | 长期使用，按安装向导完成安装 |
-| 便携版 | `Biz-Novel-Studio-<版本>-portable-x64.exe` | 希望从独立目录直接启动 |
+| 安装版（Windows） | `Biz-Novel-Studio-<版本>-setup-x64.exe` | 长期使用，按安装向导完成安装 |
+| 便携版（Windows） | `Biz-Novel-Studio-<版本>-portable-x64.exe` | 希望从独立目录直接启动 |
+| 实验支持（macOS Apple Silicon） | `Biz-Novel-Studio-<版本>-arm64.dmg` | macOS 14+ Apple Silicon；未签名构建，首次打开需右键「打开」绕过 Gatekeeper，应用内自动更新在 mac 上需签名构建后才可用 |
 
 **[前往最新桌面版下载页 →](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)**
 

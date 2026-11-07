@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+
 from pathlib import Path
 from PIL import Image, ImageDraw
 
@@ -116,6 +118,22 @@ def main() -> None:
 
     generated_images[512].save(BUILDER_DIR / "app-icon.png")
     generated_images[512].save(BUILDER_DIR / "app-icon.ico", sizes=ICO_SIZES)
+    icns_path = BUILDER_DIR / "app-icon.icns"
+    try:
+        generated_images[512].save(icns_path, format="ICNS")
+    except OSError:
+        # Pillow's ICNS plugin needs a running size hint; retry via iconutil on macOS.
+        icns_path.unlink(missing_ok=True)
+        iconset_dir = BUILDER_DIR / "app-icon.iconset"
+        iconset_dir.mkdir(exist_ok=True)
+        for size in (16, 32, 64, 128, 256, 512):
+            generated_images[size].save(iconset_dir / f"icon_{size}x{size}.png")
+            if size <= 256:
+                generated_images[size].save(iconset_dir / f"icon_{size * 2}x{size * 2}.png")
+        subprocess.run(
+            ["iconutil", "-c", "icns", str(iconset_dir), "-o", str(icns_path)],
+            check=True,
+        )
     print(f"Generated desktop icon assets in {BUILDER_DIR}")
 
 

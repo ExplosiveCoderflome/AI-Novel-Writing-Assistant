@@ -25,7 +25,15 @@ const allowUnsignedRelease =
     process.env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
   ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
+const isMacBuild = process.argv.some((arg) => arg === "--mac" || arg === "--darwin" || arg === "-m")
+  || firstNonEmpty(process.env.AI_NOVEL_TARGET_PLATFORM).toLowerCase() === "darwin";
 const builderIconPath = path.join("builder", "app-icon.ico");
+const builderMacIconPath = path.join("builder", "app-icon.icns");
+const macArch = firstNonEmpty(process.env.AI_NOVEL_MAC_ARCH, process.platform === "arm64" ? "arm64" : "x64").toLowerCase();
+const macTargets = [
+  { target: "dmg", arch: [macArch] },
+  { target: "zip", arch: [macArch] },
+];
 
 if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
   throw new Error(
@@ -51,6 +59,14 @@ module.exports = {
       from: "builder/app-icon.ico",
       to: "icons/app-icon.ico",
     },
+    ...(isMacBuild
+      ? [
+          {
+            from: "builder/app-icon.icns",
+            to: "icons/app-icon.icns",
+          },
+        ]
+      : []),
     {
       from: "build/resources/app-update.yml",
       to: "app-update.yml",
@@ -70,6 +86,20 @@ module.exports = {
   extraMetadata: {
     main: "dist/main.js",
   },
+  ...(isMacBuild
+    ? {
+        mac: {
+          icon: builderMacIconPath,
+          category: "public.app-category.books",
+          target: macTargets,
+          // Unsigned local/CI builds: keep Gatekeeper usable without a developer certificate.
+          identity: null,
+        },
+        dmg: {
+          artifactName: "${productName}-${version}-${arch}.${ext}",
+        },
+      }
+    : {}),
   publish: [
     {
       provider: "github",

@@ -7,10 +7,26 @@ const repoRoot = path.resolve(desktopDir, "..");
 const electronBuilderPackageJson = require.resolve("electron-builder/package.json", { paths: [desktopDir] });
 const electronBuilderRequire = createRequire(electronBuilderPackageJson);
 const asar = electronBuilderRequire("@electron/asar");
+const isMacPackage = process.argv.includes("--mac");
+// electron-builder names the macOS app output dir "mac" (x64) / "mac-arm64" / "mac-universal"
+// without an "-unpacked" suffix; Windows and Linux use "<platform>-unpacked".
+const macArchSuffix = (() => {
+  const configured = firstNonEmptyEnv(process.env.AI_NOVEL_MAC_ARCH);
+  if (configured) {
+    return `-${configured}`;
+  }
+  return process.arch === "arm64" ? "-arm64" : "";
+})();
+const unpackedDirName = isMacPackage ? `mac${macArchSuffix}` : "win-unpacked";
+const windowIconFileName = isMacPackage ? "app-icon.icns" : "app-icon.ico";
+const builderWindowIcon = path.join(desktopDir, "builder", isMacPackage ? "app-icon.icns" : "app-icon.ico");
 const buildDir = path.join(desktopDir, "build");
 const appDir = path.join(buildDir, "app");
-const unpackedDir = path.join(buildDir, "dist", "win-unpacked");
-const builderWindowIcon = path.join(desktopDir, "builder", "app-icon.ico");
+
+function firstNonEmptyEnv(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
 const appPackageJsonPath = path.join(appDir, "package.json");
 const stagedServerEntry = path.join(appDir, "node_modules", "@ai-novel", "server", "dist", "app.js");
 const stagedPrismaRuntimeEntry = path.join(appDir, "node_modules", ".prisma", "client", "default.js");
@@ -28,9 +44,14 @@ const sourceServerSqliteMigrationsDir = path.join(repoRoot, "server", "src", "pr
 const stagedServerSqliteMigrationsDir = path.join(appDir, "node_modules", "@ai-novel", "server", "src", "prisma", "migrations.sqlite");
 const stagedAppUpdateConfig = path.join(buildDir, "resources", "app-update.yml");
 const stagedClientIndex = path.join(buildDir, "resources", "client", "dist", "index.html");
-const unpackedClientIndex = path.join(unpackedDir, "resources", "client", "dist", "index.html");
-const unpackedAppArchive = path.join(unpackedDir, "resources", "app.asar");
-const unpackedWindowIcon = path.join(unpackedDir, "resources", "icons", "app-icon.ico");
+const unpackedDir = path.join(buildDir, "dist", unpackedDirName);
+// electron-builder lays macOS resources inside the .app bundle: <app>/Contents/Resources/.
+const unpackedResourcesDir = isMacPackage
+  ? path.join(unpackedDir, "Biz Novel Studio.app", "Contents", "Resources")
+  : path.join(unpackedDir, "resources");
+const unpackedClientIndex = path.join(unpackedResourcesDir, "client", "dist", "index.html");
+const unpackedAppArchive = path.join(unpackedResourcesDir, "app.asar");
+const unpackedWindowIcon = path.join(unpackedResourcesDir, "icons", windowIconFileName);
 const stagedRuntimeFile = path.join(appDir, "dist", "runtime", "server.js");
 
 function assertExists(targetPath, description) {
@@ -108,7 +129,7 @@ function main() {
     throw new Error("Desktop updater feed configuration is missing the GitHub provider.");
   }
 
-  const packagedFiles = new Set(asar.listPackage(unpackedAppArchive).map((entry) => entry.replace(/^\\/, "").replace(/\\/g, "/")));
+  const packagedFiles = new Set(asar.listPackage(unpackedAppArchive).map((entry) => entry.replace(/^[/\\]/, "").replace(/\\/g, "/")));
   const packagedEntries = Array.from(packagedFiles);
   const sourceSqliteMigrations = listMigrationNames(sourceServerSqliteMigrationsDir);
   const stagedSqliteMigrations = listMigrationNames(stagedServerSqliteMigrationsDir);
