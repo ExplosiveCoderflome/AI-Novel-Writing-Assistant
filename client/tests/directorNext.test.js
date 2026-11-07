@@ -99,7 +99,7 @@ export function renderedProduction() {
   <DirectorPanel view={view} novelId='book' startForm={range=><DirectorStart novelId='book' estimatedChapterCount={12} nextChapter={4} initialStory='故事' suggestedRange={range}/>} />
  </MemoryRouter></QueryClientProvider>);
  const running={...previewView('running'),headline:'正在检查第 3 章《第三章》',nextActionGuidance:'等待本批次完成',chapterProgress:{from:1,to:3,done:2,total:3,current:{order:3,title:'第三章',phase:'reviewing'}},nextLaunchRange:{from:4,to:6}};
- return {running:render(running),completed:render({...running,mode:'completed',headline:'第 1—3 章已完成',nextActionGuidance:'核对范围并提交',chapterProgress:{...running.chapterProgress,done:3,current:null},availableActions:[{id:'open_run',command:'open_run',kind:'command',label:'选择并继续写第 4—6 章',primary:true}]})};
+ return {running:render(running),failed:render({...running,mode:'failed',headline:'本章生成失败，可重试当前步骤',availableActions:[{id:'resume',command:'resume',kind:'command',label:'重试当前写作步骤',primary:true}]}),completed:render({...running,mode:'completed',headline:'第 1—3 章已完成',nextActionGuidance:'核对范围并提交',chapterProgress:{...running.chapterProgress,done:3,current:null},availableActions:[{id:'open_run',command:'open_run',kind:'command',label:'选择并继续写第 4—6 章',primary:true}]})};
 }
 export function renderedChapterSplit(completedChapters) {
  const view={...previewView('running'),headline:'正在生成「生成卷拆章列表」',progress:{done:6,total:7,source:'artifact_ledger'},
@@ -160,6 +160,8 @@ export function renderedBudgetSettings(tokenLimit) {
     assert.match(production.running,/2\/3/);
     assert.match(production.running,/等待本批次完成/);
     assert.doesNotMatch(production.running,/id="director-start"/);
+    assert.match(production.failed,/<button[^>]*>重试当前写作步骤<\/button>/);
+    assert.doesNotMatch(production.failed,/id="director-start"/);
     assert.match(production.completed,/提交并生成第 4—6 章/);
     assert.match(production.completed,/更多创作设置/);
     assert.ok(production.completed.indexOf('正在做什么')<production.completed.indexOf('id="director-start"'),'status and next-step context come before launch settings');

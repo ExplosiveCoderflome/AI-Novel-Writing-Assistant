@@ -15,8 +15,8 @@ import type {
   DirectorCommandRecord,
 } from "../application/ports";
 import {commitGateResolution, type ArtifactEditReader} from "./commands/gateResolution";
-import {commitExplicitResume, type BusinessResume} from "./commands/resumeRun";
-import {assertChapterBudgetReplay} from "../application/commandService";
+import {assertFailedGenerationRecovery, commitExplicitResume, type BusinessResume} from "./commands/resumeRun";
+import {ActiveRunConflictError, InvalidDirectorCommandError, assertChapterBudgetReplay} from "../application/commandService";
 
 function parseJson<T>(value: string | null): T | null {
   return value ? JSON.parse(value) as T : null;
@@ -157,9 +157,18 @@ export class PrismaCommandRepository implements CommandRepository {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
         await this.options.cancelBusiness(JSON.parse(run.contractJson) as RunContract, tx);
       }
-      if (input.event.type === "resume") {
+      if (input.event.type === "resume" || input.event.type === "recover_failed_step") {
+        if (input.event.type === "recover_failed_step") {
+          await assertFailedGenerationRecovery(tx, input.runId, current);
+          if (!this.options.resumeBusiness) throw new InvalidDirectorCommandError("本次失败没有可恢复的生成步骤。");
+        }
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
         await commitExplicitResume(tx, JSON.parse(run.contractJson) as RunContract, input.id, this.options.resumeBusiness, input.chapterBudget, input.resolveUnknownClaims);
+        // Business recovery locks the novel before a terminal run becomes active again.
+        if (input.event.type === "recover_failed_step") {
+          const active = await tx.directorNextRunControl.findFirst({where: {novelId: row.novelId, runId: {not: input.runId}, status: {in: ["queued", "running", "waiting_gate", "paused"]}}});
+          if (active) throw new ActiveRunConflictError(active.runId);
+        }
       }
       if (input.gateResolution) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});

@@ -1,4 +1,5 @@
 import { isArtifactSatisfied, latestArtifact } from "./plan";
+import { canRecoverFailedGeneration } from "./control";
 import type {VolumeChapterListProgress} from "@ai-novel/shared/types/volumePlanning";
 import type {DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
 import type {DirectorUnknownClaimsView} from "@ai-novel/shared/types/director/unknownClaims";
@@ -186,11 +187,13 @@ export function project(input: ProjectionInput): DashboardView {
     case "paused": {
       const pauseKind = control.pause?.kind ?? "manual_recovery";
       detail = control.pause?.reason ?? null;
+      const retryEmptyDraft = detail === "generation_output_unusable";
       if (detail === "execution_retry_budget_exhausted") {
         detail = input.executionFailure?.trim()
           ? `本阶段生成失败：${input.executionFailure.trim()} 自动重试已结束。`
           : "本阶段生成中断，自动重试已结束。";
       }
+      if (detail === "generation_output_unusable") detail = "本章未生成可用正文。请重试当前写作步骤，前期准备和已完成章节会保留。";
       if (detail === "rejection_budget_exhausted" || detail === "protected_content") {
         const rejection = input.actionRejection;
         const step = plan.steps.find(row => row.id === rejection?.stepId);
@@ -212,12 +215,13 @@ export function project(input: ProjectionInput): DashboardView {
       } else if (pauseKind === "safety") {
         headline = "检测到风险，暂停中，等待你处理";
       } else {
-        headline = "暂停中，等待你从保存进度继续";
+        headline = retryEmptyDraft ? "本章生成失败，可重试当前步骤" : "暂停中，等待你从保存进度继续";
       }
+      if (retryEmptyDraft) nextActionGuidance = "点击“重试当前写作步骤”，AI 会保留前期准备和已完成章节，继续本次创作。";
       availableActions = [
         {
           id: "resume",
-          label: pauseKind === "replan" ? "重新规划后继续" : "从保存进度继续",
+          label: pauseKind === "replan" ? "重新规划后继续" : retryEmptyDraft ? "重试当前写作步骤" : "从保存进度继续",
           kind: "command",
           primary: true,
           command: "resume",
@@ -248,6 +252,13 @@ export function project(input: ProjectionInput): DashboardView {
       availableActions = nextLaunchRange ? [{id:"open_run",label:`选择并继续写第 ${nextLaunchRange.from}—${nextLaunchRange.to} 章`,kind:"command",primary:true,command:"open_run"}] : [];
       break;
     case "failed":
+      if (canRecoverFailedGeneration(control, facts.stopSignal)) {
+        headline = "本章生成失败，可重试当前步骤";
+        detail = control.failureReason;
+        nextActionGuidance = "点击“重试当前写作步骤”，AI 会保留前期准备和已完成章节，继续本次创作。";
+        availableActions = [{id: "resume", label: "重试当前写作步骤", kind: "command", primary: true, command: "resume"}];
+        break;
+      }
       headline = "创作中断，可从现有内容继续";
       detail = control.failureReason;
       nextActionGuidance = "请查看下方中断原因。可以核对新的授权范围并提交，已有正文会保留。";

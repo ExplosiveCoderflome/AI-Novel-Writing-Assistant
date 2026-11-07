@@ -17,7 +17,7 @@ const ALLOWED = {
   waiting_gate: { resolve_gate: "running", fail: "failed", cancel: "cancelled" },
   paused: { resume: "running", cancel: "cancelled" },
   completed: {},
-  failed: {},
+  failed: { recover_failed_step: "running" },
   cancelled: {},
 };
 
@@ -73,10 +73,11 @@ test("a paused run can only be left by resume or cancel", () => {
   assert.deepEqual(leaving.sort(), ["cancel", "resume"]);
 });
 
-test("terminal runs accept no events", () => {
+test("terminal runs only allow the explicit failed-step recovery transition", () => {
   for (const status of ["completed", "failed", "cancelled"]) {
     assert.equal(domain.isTerminalStatus(status), true);
     for (const eventType of domain.RUN_EVENT_TYPES) {
+      if (status === "failed" && eventType === "recover_failed_step") continue;
       assert.throws(() => domain.applyEvent(controlIn(status), sampleEvent(eventType)));
     }
   }

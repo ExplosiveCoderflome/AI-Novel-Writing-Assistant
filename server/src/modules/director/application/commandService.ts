@@ -177,8 +177,8 @@ export class CommandService {
 
   private async resume(command: Extract<DirectorCommand, { type: "resume" }>): Promise<DirectorCommandResult> {
     const control = await this.requireControl(command.runId);
-    if (control.status !== "paused") {
-      throw new InvalidDirectorCommandError("只有暂停中的创作可以继续。");
+    if (control.status !== "paused" && control.status !== "failed") {
+      throw new InvalidDirectorCommandError("只有暂停或生成失败的创作可以继续。");
     }
     if (command.chapterBudget && (!directorChapterBudgetGrantSchema.safeParse(command.chapterBudget).success || control.pause?.kind !== "manual_recovery")) {
       throw new InvalidDirectorCommandError("只能为预算暂停中的章节追加有效额度。");
@@ -186,7 +186,7 @@ export class CommandService {
     if (command.resolveUnknownClaims && (!directorUnknownClaimResolutionSchema.safeParse(command.resolveUnknownClaims).success || control.pause?.kind !== "manual_recovery")) {
       throw new InvalidDirectorCommandError("只能为人工恢复暂停中的章节确认未决步骤。");
     }
-    return this.transition(command, { type: "resume" });
+    return this.transition(command, { type: control.status === "failed" ? "recover_failed_step" : "resume" });
   }
 
   private async resolveGate(command: Extract<DirectorCommand, { type: "resolve_gate" }>): Promise<DirectorCommandResult> {

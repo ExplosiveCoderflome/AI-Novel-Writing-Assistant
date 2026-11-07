@@ -48,7 +48,10 @@ test('a style review rejection pauses for manual recovery before commit and cann
 test('only an explicit global-book replan can project a director replan', () => {
   assert.equal(map({ status: 'stopped', progress: finished(), reason: 'global_book' }).stopSignal.kind, 'replan');
   assert.notEqual(map({ status: 'stopped', progress: finished(), reason: 'local_window' }).stopSignal.kind, 'replan');
-  assert.equal(map({ status: 'failed', progress: finished(), reason: 'no_usable_content' }).stopSignal.kind, 'no_usable_content');
+  const empty = map({ status: 'failed', progress: finished(), reason: 'no_usable_content' }).stopSignal;
+  assert.equal(empty.kind, 'manual_recovery');
+  assert.equal(empty.action, 'pause_for_manual');
+  assert.equal(empty.source, 'runtime');
   assert.equal(map({ status: 'failed', progress: finished(), reason: 'data_integrity' }).stopSignal.kind, 'data_integrity');
 });
 test('a completed label cannot hide missing reconciliation or a mismatched retained manuscript', () => {

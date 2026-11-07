@@ -42,8 +42,8 @@ export function mapProductionUnitOutcome(outcome: UnitOutcome): MappedProduction
   }
   if (outcome.status === "failed") {
     if (outcome.reason === "data_integrity") return integrity();
-    return stop({ kind: outcome.reason === "no_usable_content" ? "no_usable_content" : "safety", action: "fail_task", source: "runtime",
-      reason: outcome.reason === "no_usable_content" ? "本章尚未生成可用正文，请从章节页面处理。" : "本章写作未能安全完成，请返回章节页面检查。" });
+    if (outcome.reason === "no_usable_content") return stop({kind: "manual_recovery", action: "pause_for_manual", source: "runtime", reason: "generation_output_unusable"});
+    return stop({ kind: "safety", action: "fail_task", source: "runtime", reason: "本章写作未能安全完成，请返回章节页面检查。" });
   }
   return stop({ kind: "manual_recovery", action: "pause_for_manual", source: "runtime",
     reason: outcome.status === "budget_exhausted" ? "本章可用额度不足，请从创作页面调整额度后继续。" : "本章写作结果尚未确认，请返回章节页面检查后继续。" });

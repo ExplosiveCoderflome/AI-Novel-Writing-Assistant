@@ -23,6 +23,19 @@ function view(overrides = {}) {
   });
 }
 
+test('known empty-generation failures expose same-run resume, safety failures keep their boundary', () => {
+  const signal = {kind: 'no_usable_content', source: 'runtime', action: 'fail_task', reason: 'empty draft'};
+  const control = runningControl({status: 'failed', failureReason: signal.reason});
+  for (const stopSignal of [signal, {...signal, kind: 'data_integrity'}, {...signal, reason: 'older failure'}, null]) {
+    const result = view({control, facts: {...facts([]), stopSignal}});
+    assert.equal(result.availableActions.some(action => action.command === 'resume'), stopSignal === signal);
+    if (stopSignal === signal) assert.match(result.nextActionGuidance, /保留前期准备和已完成章节/);
+  }
+  const paused = view({control: runningControl({status: 'paused', pause: {kind: 'manual_recovery', reason: 'generation_output_unusable'}})});
+  assert.match(paused.detail, /重试当前写作步骤/);
+  assert.ok(paused.availableActions.some(action => action.command === 'resume'));
+});
+
 test('a retry-budget pause shows the actual generation failure instead of an internal error code', () => {
   const result=view({control:runningControl({status:'paused',pause:{kind:'manual_recovery',reason:'execution_retry_budget_exhausted'}}),executionFailure:'章节场景解析失败'});
   assert.match(result.detail,/章节场景解析失败/);

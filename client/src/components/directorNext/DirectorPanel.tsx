@@ -112,7 +112,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
             查看本阶段结果
           </Link>
         ) : null}
-        {!preview && ["completed","cancelled","failed"].includes(view.mode) && (view.mode !== "completed" || view.availableActions.some(action=>action.command === "open_run"))
+        {!preview && ["completed","cancelled","failed"].includes(view.mode) && view.availableActions.some(action=>action.command === "open_run")
           ? typeof startForm === "function" ? startForm(view.nextLaunchRange, view.driver) : startForm : null}
       </section>
 

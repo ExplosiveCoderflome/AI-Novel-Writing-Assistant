@@ -11,13 +11,14 @@ import { productionBatchOwnerKey } from "../execution/ownership";
 import { resetReplannedUnit } from "./replan";
 import { assertKernelCharacterReviewsResolved } from "./characterReviews";
 import {assertKernelStartReadiness} from "../readiness";
+import {retryUnusableDraft} from "./unusableDraft";
 
 async function lockSourceCommand(tx: Prisma.TransactionClient, contract: RunContract) {
   const book = await tx.novel.updateMany({where:{id:contract.novelId,directorEpoch:contract.executionEpoch ?? 0,
     narrativeForm:{not:"short_story"},OR:[{directorVersion:"v2"},{directorVersion:null}]},data:{directorEpoch:{increment:0}}});
   if (book.count !== 1) throw new AppError("本书执行归属已变化，请刷新后重试。",409);
   const control = await tx.directorNextRunControl.findUniqueOrThrow({where:{runId:contract.runId}});
-  if (control.novelId !== contract.novelId || control.status !== "paused") throw new AppError("暂停状态发生变化，请刷新后重试。",409);
+  if (control.novelId !== contract.novelId || !["paused", "failed"].includes(control.status)) throw new AppError("暂停状态发生变化，请刷新后重试。",409);
   const locked = await tx.directorNextRunControl.updateMany({where:{runId:contract.runId,novelId:contract.novelId,
     version:control.version,status:control.status},data:{version:{increment:0}}});
   if (locked.count !== 1) throw new AppError("运行状态发生变化，请刷新后重试。",409);
@@ -47,6 +48,8 @@ export async function resumeKernelProduction(contract: RunContract, tx: Prisma.T
   } else if (grant) throw new AppError("本次暂停没有可调整的章节预算。",400);
   const rows = await tx.productionUnitRun.findMany({where:{ownerKey:productionBatchOwnerKey(contract.runId)}});
   const runs=rows.map(parseProductionUnitRun);
+  const retried = await retryUnusableDraft(tx,contract,runs);
+  if (control.status === "failed" && retried !== 1) throw new AppError("本次失败没有可重试的空正文步骤。",409);
   await resetReplannedUnit(tx,contract,control.updatedAt,runs);
   const stylePaused = runs.filter(run=>run.progress.styleReviewPause && !run.progress.styleReviewPause.acknowledged);
   if (stylePaused.length > 1) throw new AppError("写法复核暂停的章节不唯一，请检查运行记录。",409);
