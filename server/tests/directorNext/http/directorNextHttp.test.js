@@ -52,6 +52,18 @@ test('resume accepts an explicit scoped budget grant and rejects invalid or weig
  });
 });
 
+test('source-page pause carries the saved control version and idempotency key', async () => {
+  const received = [];
+  await withServer(deps({ commandService: { execute: async command => { received.push(command); return {runId: command.runId, controlVersion: 3}; } } }), async base => {
+    const body = {type: 'pause', runId: 'run-1', expectedVersion: 2, idempotencyKey: 'user-pause'};
+    const post = value => fetch(base + '/api/director-next/commands', {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(value)});
+    assert.equal((await post(body)).status, 202);
+    assert.deepEqual(received, [body]);
+    assert.equal((await post({...body, expectedVersion: -1})).status, 400);
+    assert.equal(received.length, 1);
+  });
+});
+
 test('a remaining-chapters grant preserves its explicit boolean scope over HTTP',async()=>{
  const received=[];
  await withServer(deps({commandService:{execute:async command=>{received.push(command);return {runId:command.runId,controlVersion:3};}}}),async base=>{

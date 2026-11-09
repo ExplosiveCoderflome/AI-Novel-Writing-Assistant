@@ -239,11 +239,12 @@ function assertClassIncludes(className, expectedClass, message) {
   );
 }
 
-test("mobile AppLayout uses the site shell for phone entry routes", () => {
+test("mobile AppLayout enters the quick terminal before desktop workbenches", () => {
   assert.match(appLayout, /useIsMobileViewport/);
-  assert.match(appLayout, /MobileSiteShell/);
-  assert.match(appLayout, /useMobileSiteLayout/);
-  assert.match(appLayout, /useMobileNovelWorkspaceLayout/);
+  assert.match(appLayout, /MobileTerminal/);
+  assert.match(appLayout, /if \(isMobileViewport\)/);
+  assert.ok(appLayout.indexOf("if (isMobileViewport)") < appLayout.indexOf("if (isNovelPreview)"));
+  assert.doesNotMatch(appLayout, /MobileSiteShell/);
 });
 
 test("every routed page has a route-specific mobile CSS landing point", () => {

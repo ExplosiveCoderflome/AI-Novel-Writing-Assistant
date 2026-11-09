@@ -12,6 +12,7 @@ import {directorChapterBudgetGrantSchema, type DirectorChapterBudgetGrant} from 
 import {directorUnknownClaimResolutionSchema} from "@ai-novel/shared/types/director/unknownClaims";
 
 export type DirectorCommand =
+  | { type: "pause"; runId: string; expectedVersion: number; idempotencyKey: string }
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
   | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
@@ -142,6 +143,8 @@ export class CommandService {
         return this.resolveGate(command);
       case "resume":
         return this.resume(command);
+      case "pause":
+        return this.transition(command, { type: "pause", pause: { kind: "manual_recovery", reason: "user_requested_pause" } });
       case "retry_start":
         if ((await this.requireControl(command.runId)).status !== "queued") {
           throw new InvalidDirectorCommandError("只有尚未启动的创作可以重新排队。");

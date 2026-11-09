@@ -185,6 +185,10 @@ export async function getDirectorBookAutomationProjection(novelId: string) {
   return data;
 }
 
+export async function pauseDirectorTask(taskId: string) {
+  return (await apiClient.post<ApiResponse<null>>(`/novels/director/tasks/${encodeURIComponent(taskId)}/pause`, {})).data;
+}
+
 export async function getCurrentDirectorTask(novelId: string) {
   const { data } = await apiClient.get<ApiResponse<{ id: string } | null>>(
     `/novels/director/novels/${encodeURIComponent(novelId)}/current`,

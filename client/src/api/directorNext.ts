@@ -98,6 +98,7 @@ export interface DirectorRunRecord {
 }
 
 export type DirectorCommand =
+  | {type: "pause"; runId: string; expectedVersion: number; idempotencyKey: string}
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string; launchInput?: {
     storyInput: string; estimatedChapterCount: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
