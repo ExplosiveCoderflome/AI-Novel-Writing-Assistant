@@ -6,7 +6,7 @@ type Source = Pick<EventSource, "onmessage" | "onopen" | "onerror" | "close">;
 export function subscribeGenerationSnapshots(url: string, novelId: string, callbacks: {
   onSnapshot: (snapshot: DirectorGenerationSnapshot | null) => void;
   onConnection: (connected: boolean) => void;
-}, createSource: (url: string) => Source = address => new EventSource(address)) {
+}, createSource: (url: string) => Source = address => new EventSource(address, { withCredentials: true })) {
   let active = true;
   let current: DirectorGenerationSnapshot | null = null;
   const source = createSource(url);

@@ -6,6 +6,7 @@ const APP_NAME = "AI-Novel-Writing-Assistant-v2";
 const PORTABLE_DATA_SUFFIX = "-data";
 
 export interface DesktopRuntimeConfig {
+  accessToken?: string;
   mode: "desktop";
   apiBaseUrl: string;
   apiTimeoutMs: number;

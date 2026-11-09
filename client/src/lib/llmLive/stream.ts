@@ -62,7 +62,7 @@ export function subscribeLlmLiveStream(input: {
       reconnectImmediately = false;
       armSilenceTimer();
       try {
-        const response = await fetch(input.url, { signal: attempt.signal });
+        const response = await fetch(input.url, { signal: attempt.signal, credentials: "include" });
         if (stopped || attempt.signal.aborted) {
           void response.body?.cancel().catch(() => undefined);
           if (stopped) break;

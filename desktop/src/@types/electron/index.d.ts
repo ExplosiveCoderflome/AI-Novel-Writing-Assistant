@@ -29,6 +29,11 @@ declare module "electron" {
   }
 
   interface WebContents {
+    session: {
+      webRequest: {
+        onBeforeSendHeaders(filter: { urls: string[] }, listener: (details: { requestHeaders: Record<string, string> }, callback: (response: { requestHeaders: Record<string, string> }) => void) => void): void;
+      };
+    };
     send(channel: string, ...args: unknown[]): void;
     once(event: "did-finish-load", listener: () => void): this;
     on(event: "did-finish-load", listener: () => void): this;

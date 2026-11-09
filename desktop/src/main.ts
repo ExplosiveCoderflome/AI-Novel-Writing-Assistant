@@ -12,6 +12,7 @@ import {
 } from "./runtime/dataImport";
 import { appendDesktopLog, cleanupDesktopLogs, logDesktopError } from "./runtime/logging";
 import { resolveDesktopServerPort, startDesktopServer } from "./runtime/server";
+import { configureDesktopAccessToken } from "./runtime/access";
 import {
   isPortableDesktopRuntime,
   resolveDesktopAppDataDir,
@@ -168,6 +169,7 @@ function createMainWindow(port: number): BrowserWindow {
     appVersion: app.getVersion(),
     updateChannel: resolveDesktopUpdateChannel(),
   });
+  runtimeConfig.accessToken = configureDesktopAccessToken(app.isPackaged);
   process.env.AI_NOVEL_DESKTOP_RUNTIME = JSON.stringify(runtimeConfig);
   const windowIcon = resolveDesktopWindowIcon();
 
@@ -186,6 +188,12 @@ function createMainWindow(port: number): BrowserWindow {
       nodeIntegration: false,
     },
   });
+
+  if (runtimeConfig.accessToken) {
+    window.webContents.session.webRequest.onBeforeSendHeaders({ urls: [`${runtimeConfig.apiBaseUrl}/*`] }, (details, callback) => {
+      callback({ requestHeaders: { ...details.requestHeaders, Authorization: `Bearer ${runtimeConfig.accessToken}` } });
+    });
+  }
 
   window.webContents.on("did-finish-load", () => {
     publishBootstrapSnapshot();
