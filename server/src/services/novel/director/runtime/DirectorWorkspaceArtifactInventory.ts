@@ -22,6 +22,10 @@ import {
   pushQualityFoundationArtifacts,
   pushRollingWindowReviewArtifacts,
 } from "./DirectorWorkspaceQualityArtifactInventory";
+import {
+  INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX,
+  isInitializationPlaceholderVolumePlan,
+} from "../../volume/volumePlanUtils";
 
 interface TimestampedRow {
   id: string;
@@ -164,14 +168,6 @@ export const DIRECTOR_INITIALIZATION_PLACEHOLDER_VOLUME_STRATEGY_HASH = stableDi
   "director.initialization.placeholder.volume_strategy.v1",
 ) as string;
 
-const INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX = "legacy-volume-";
-const PLACEHOLDER_VOLUME_TEXT_PREFIX = "待补全";
-
-function isPlaceholderText(value: string | null | undefined): boolean {
-  const normalized = value?.trim();
-  return !normalized || normalized.startsWith(PLACEHOLDER_VOLUME_TEXT_PREFIX);
-}
-
 function hasMeaningfulJsonArray(value: string | null | undefined): boolean {
   const normalized = value?.trim();
   if (!normalized || normalized === "[]") {
@@ -183,34 +179,6 @@ function hasMeaningfulJsonArray(value: string | null | undefined): boolean {
   } catch {
     return true;
   }
-}
-
-function isInitializationPlaceholderVolumePlan(
-  volume: DirectorWorkspaceArtifactInventoryInput["volumePlans"][number],
-  input: DirectorWorkspaceArtifactInventoryInput,
-): boolean {
-  if (
-    input.volumePlans.length !== 1
-    || !volume.id.startsWith(INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX)
-    || volume.sortOrder !== 1
-    || (volume.status && volume.status !== "active")
-    || volume.sourceVersionId
-  ) {
-    return false;
-  }
-  if (
-    input.volumeChapterPlans.some((plan) => plan.volumeId === volume.id)
-    || hasMeaningfulJsonArray(volume.openPayoffsJson)
-  ) {
-    return false;
-  }
-  return [
-    volume.summary,
-    volume.mainPromise,
-    volume.escalationMode,
-    volume.protagonistChange,
-    volume.nextVolumeHook,
-  ].every(isPlaceholderText);
 }
 
 export function isInitializationPlaceholderVolumeStrategyArtifact(
@@ -502,7 +470,11 @@ function pushVolumeStrategyArtifacts(
   ids: ReturnType<typeof buildCoreArtifactIds>,
 ): void {
   for (const volume of input.volumePlans) {
-    const placeholder = isInitializationPlaceholderVolumePlan(volume, input);
+    const placeholder = isInitializationPlaceholderVolumePlan(volume, {
+      volumeCount: input.volumePlans.length,
+      hasChapterPlans: input.volumeChapterPlans.some((plan) => plan.volumeId === volume.id),
+      hasOpenPayoffs: hasMeaningfulJsonArray(volume.openPayoffsJson),
+    });
     artifactTargets.push({
       artifactType: "volume_strategy",
       targetType: "volume",

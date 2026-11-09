@@ -1,6 +1,7 @@
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { AppError } from "../../../../middleware/errorHandler";
 import type { VolumeGenerateOptions } from "../volumeModels";
+import { isInitializationPlaceholderVolumePlan } from "../volumePlanUtils";
 import {
   buildVolumeWorkspaceDocument,
   normalizeVolumeWorkspaceDocument,
@@ -53,6 +54,14 @@ export async function recoverMissingVolumeStrategy(
 ): Promise<VolumePlanDocument | null> {
   const before = await service.getVolumes(novelId, { hydrateCanonical: false });
   if (!before.volumes.length) return null;
+  if (before.volumes.length === 1) {
+    const volume = before.volumes[0];
+    if (isInitializationPlaceholderVolumePlan(volume, {
+      volumeCount: before.volumes.length,
+      hasChapterPlans: volume.chapters.length > 0,
+      hasOpenPayoffs: volume.openPayoffs.length > 0,
+    })) return null;
+  }
   if (before.strategyPlan) return before;
   const sourceSnapshot = planningSnapshot(before);
   const sourceVersionId = before.activeVersionId;

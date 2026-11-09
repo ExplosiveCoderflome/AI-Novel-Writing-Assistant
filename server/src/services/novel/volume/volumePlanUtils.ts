@@ -151,6 +151,51 @@ function normalizeText(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
+export const INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX = "legacy-volume-";
+const PLACEHOLDER_VOLUME_TEXT_PREFIX = "待补全";
+
+interface InitializationPlaceholderVolumeLike {
+  id: string;
+  sortOrder?: number | null;
+  status?: string | null;
+  sourceVersionId?: string | null;
+  summary?: string | null;
+  mainPromise?: string | null;
+  escalationMode?: string | null;
+  protagonistChange?: string | null;
+  nextVolumeHook?: string | null;
+}
+
+function isPlaceholderText(value: string | null | undefined): boolean {
+  const normalized = value?.trim();
+  return !normalized || normalized.startsWith(PLACEHOLDER_VOLUME_TEXT_PREFIX);
+}
+
+export function isInitializationPlaceholderVolumePlan(
+  volume: InitializationPlaceholderVolumeLike,
+  input: { volumeCount: number; hasChapterPlans: boolean; hasOpenPayoffs: boolean },
+): boolean {
+  if (
+    input.volumeCount !== 1
+    || !volume.id.startsWith(INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX)
+    || volume.sortOrder !== 1
+    || (volume.status && volume.status !== "active")
+    || volume.sourceVersionId
+  ) {
+    return false;
+  }
+  if (input.hasChapterPlans || input.hasOpenPayoffs) {
+    return false;
+  }
+  return [
+    volume.summary,
+    volume.mainPromise,
+    volume.escalationMode,
+    volume.protagonistChange,
+    volume.nextVolumeHook,
+  ].every(isPlaceholderText);
+}
+
 function normalizeNullableNumber(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.round(value) : null;
 }

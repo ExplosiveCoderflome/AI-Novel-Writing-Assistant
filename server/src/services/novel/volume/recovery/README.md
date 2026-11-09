@@ -1,6 +1,8 @@
 # 卷战略补缺边界
 
-`NovelVolumeService.recoverVolumeStrategy` 是已有卷规划的补缺入口。完整战略直接复用；没有卷时返回 `null`，由正常分卷流程生成战略、评议和骨架。
+`NovelVolumeService.recoverVolumeStrategy` 是已有卷规划的补缺入口。完整战略直接复用；没有卷或只有初始化兼容占位卷时返回 `null`，由正常分卷流程生成战略、评议和骨架。
+
+初始化占位卷只是兼容读取产生的空壳，不代表作者确认了一卷，也不能据此覆盖用户显式卷数。恢复入口与导演资产盘点共用同一占位判定；已有章节、开放伏笔、版本来源或真实卷级内容的作者卷仍按补缺流程保护，不进入骨架重建。
 
 已有卷但战略缺失时，复用注册的卷战略 Prompt，以现有卷数和规划为上下文生成建议。生成在事务外执行，保存事务重新核对活动版本及规划快照；并发保存的完整战略优先复用，规划变化则拒绝陈旧结果。
 
@@ -10,4 +12,4 @@
 
 作者明确重生成仍使用原来的战略、评议和骨架流程，不把补缺视为重生成授权。调用方使用冻结的 Run 模型、目标章数与任务身份。
 
-验证入口：`server/tests/directorNext/steps/missingVolumeStrategySqlite.test.js`，使用独立临时 SQLite 和模型桩验证数据保留、并发结果拒绝、幂等复用与旧暂停任务恢复。
+验证入口：`server/tests/directorNext/steps/missingVolumeStrategySqlite.test.js` 使用独立临时 SQLite 和模型桩验证数据保留、并发结果拒绝、幂等复用与旧暂停任务恢复；`initializationVolumeStrategySqlite.test.js` 通过创建小说、V2 启动和 `volume_strategy` 的 API 同路径验证新书推荐卷数、显式三卷及作者单卷保留。
