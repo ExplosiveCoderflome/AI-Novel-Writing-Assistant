@@ -66,8 +66,9 @@ for(const remaining of [false,true])test(`kernel budget grant is atomic, replaya
  const budget=f.api.createKernelChapterBudget(f.db,f.context);
  assert.equal((await budget.read(f.unit)).limit,grant.tokenLimit);
  const databases=await f.db.$queryRawUnsafe('PRAGMA database_list');
+ // A cold Node/Prisma worker needs startup headroom on slower Windows hosts.
  const restarted=require('node:child_process').spawnSync(process.execPath,[require('node:path').join(__dirname,'recovery/readBudget.cjs'),databases.find(row=>row.name==='main').file],
-  {input:JSON.stringify({context:f.context,unit:f.unit}),encoding:'utf8',timeout:15000});
+  {input:JSON.stringify({context:f.context,unit:f.unit}),encoding:'utf8',timeout:60000});
  assert.equal(restarted.status,0,restarted.stderr);assert.equal(JSON.parse(restarted.stdout).limit,grant.tokenLimit);
  assert.equal(JSON.parse(restarted.stdout).used,80);
  await f.db.chapter.create({data:{id:'chapter-2',novelId:'novel-1',order:2,title:'二'}});

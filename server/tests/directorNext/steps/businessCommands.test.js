@@ -6,7 +6,7 @@ const legacyBinding=async({where})=>{assert.deepEqual(where,{runId:'run',type:'p
 test('explicit replan recovery requires a saved route newer than the paused job and retains issue history',async()=>{
  const job={id:'job',novelId:'book',pendingManualRecovery:true,updatedAt:new Date('2026-10-03T00:00:00Z'),payload:JSON.stringify({directorNext:{runId:'run',decisions:[decision]},replanAlertDetails:['明确需要重规划']})};
  let updated,versionTime=new Date('2026-10-02T00:00:00Z');
- const tx={directorNextEvent:{findMany:legacyBinding,findFirst:async()=>({payloadJson:JSON.stringify({jobId:'job'})})},generationJob:{findUniqueOrThrow:async()=>job,update:async input=>{updated=input;}},volumePlanVersion:{findFirst:async()=>({updatedAt:versionTime})}};
+ const tx={directorNextRunControl:{findUniqueOrThrow:async({where})=>{assert.deepEqual(where,{runId:'run'});return {status:'paused'};}},directorNextEvent:{findMany:legacyBinding,findFirst:async()=>({payloadJson:JSON.stringify({jobId:'job'})})},generationJob:{findUniqueOrThrow:async()=>job,update:async input=>{updated=input;}},volumePlanVersion:{findFirst:async()=>({updatedAt:versionTime})}};
  await assert.rejects(()=>resumeBusiness({runId:'run',novelId:'book'},tx),e=>e.statusCode===400);assert.equal(updated,undefined);
  versionTime=new Date('2026-10-03T01:00:00Z');await resumeBusiness({runId:'run',novelId:'book'},tx);
  const payload=parsePipelinePayload(updated.data.payload);assert.equal(payload.directorNext.resolvedDecisionCount,1);assert.equal(payload.directorNext.decisions.length,1);assert.equal(updated.data.pendingManualRecovery,false);
