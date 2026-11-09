@@ -1,5 +1,6 @@
 import { getBookAnalysis } from "@/api/bookAnalysis";
 import { ShortStoryReferenceSummary } from "@/components/creation/ShortStoryReferenceSummary";
+import { isReadableBookAnalysisSection } from "@/pages/bookAnalysis/bookAnalysisWorkspaceViewModel";
 import { BOOK_ANALYSIS_SECTIONS, type BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,10 +72,15 @@ export default function CreationStudioPage() {
   const referenceQuery = useQuery({ queryKey: ["short-story-reference", referenceAnalysisId],
     queryFn: () => getBookAnalysis(referenceAnalysisId), enabled: Boolean(referenceAnalysisId && !interpretation), retry: false });
   const sourceAnalysis = referenceQuery.data?.data;
+  const availableReferenceSections = sourceAnalysis?.sections.filter((section) =>
+    (section.status === "succeeded" || section.frozen) && isReadableBookAnalysisSection(section)
+  ) ?? [];
   const referenceUnavailable = referenceRequested && !interpretation && (!sourceAnalysis || sourceAnalysis.documentId !== referenceDocumentId || sourceAnalysis.status !== "succeeded");
   useEffect(() => {
     if (!sourceAnalysis) return;
-    setReferenceSections(task?.referenceSelection?.sectionKeys ?? sourceAnalysis.sections.filter((section) => section.status === "succeeded" || section.frozen).map((section) => section.sectionKey));
+    const availableKeys = new Set(availableReferenceSections.map((section) => section.sectionKey));
+    const selectedKeys = task?.referenceSelection?.sectionKeys ?? availableReferenceSections.map((section) => section.sectionKey);
+    setReferenceSections(selectedKeys.filter((key) => availableKeys.has(key)));
   }, [sourceAnalysis]);
   useEffect(() => {
     if (task?.referenceSelection) setReferenceGoal(task.referenceSelection.goal);
@@ -113,11 +119,15 @@ export default function CreationStudioPage() {
     onSuccess: (response) => {
       const created = response.data;
       if (!created) return;
+      queryClient.setQueryData(["creation-studio", created.taskId], response);
       setSearchParams({ taskId: created.taskId, ...(referenceRequested ? {form:"short_story"} : {}) }, { replace: true });
       if (created.status === "failed") { toast.error(created.diagnostic?.message ?? created.error ?? "创作方向未完成，请查看失败信息后继续。"); return; }
       toast.success("AI 已整理好两个可选方向。");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "暂时无法理解这个想法，请重试。"),
+    onError: async (error) => {
+      if (taskId) await queryClient.invalidateQueries({ queryKey: ["creation-studio", taskId] });
+      toast.error(error instanceof Error ? error.message : "暂时无法理解这个想法，请重试。");
+    },
   });
 
   const regenerateMutation = useMutation({
@@ -197,7 +207,7 @@ export default function CreationStudioPage() {
         <p className="text-sm font-medium">参考小说：{sourceAnalysis?.documentTitle ?? "正在读取参考来源…"}</p>
         {referenceUnavailable && !referenceQuery.isLoading ? <p className="text-sm text-destructive">参考来源不可用或尚未完成分析，请返回参考小说入口重新选择。</p> : null}
         <label className="block text-sm">希望借鉴什么<Input className="mt-2" value={referenceGoal} maxLength={4000} onChange={(event) => setReferenceGoal(event.target.value)} /></label>
-        <div className="flex flex-wrap gap-4 text-sm" aria-label="选择拆书结论">{sourceAnalysis?.sections.filter((section) => section.status === "succeeded" || section.frozen).map((section) => <label className="flex items-center gap-2" key={section.sectionKey}>
+        <div className="flex flex-wrap gap-4 text-sm" aria-label="选择拆书结论">{availableReferenceSections.map((section) => <label className="flex items-center gap-2" key={section.sectionKey}>
           <input type="checkbox" checked={referenceSections.includes(section.sectionKey)} onChange={(event) => setReferenceSections((keys) => event.target.checked ? [...keys,section.sectionKey] : keys.filter((key) => key !== section.sectionKey))} />
           {BOOK_ANALYSIS_SECTIONS.find((item) => item.key === section.sectionKey)?.title ?? section.title}
         </label>)}</div>

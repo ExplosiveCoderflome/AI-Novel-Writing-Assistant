@@ -8,6 +8,7 @@ const ts = require("typescript");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
 const { initializeTemporarySqliteDatabase } = require("./testInfrastructure/tempSqliteDatabase.cjs");
+const { BOOK_ANALYSIS_PRESETS, BOOK_ANALYSIS_SECTIONS } = require("@ai-novel/shared/types/bookAnalysis");
 
 const moduleRoot = path.resolve(__dirname, "../src/modules/novel/short-story");
 let prisma;
@@ -513,6 +514,25 @@ async function referenceFixture() {
     {sectionKey:"style_technique",title:"写法",status:"succeeded",sortOrder:2,aiContent:"短对话推进，线索逐次回收。"}]}}});
   return {doc,version,analysis};
 }
+async function referencePresetFixture(presetKey) {
+  const preset = BOOK_ANALYSIS_PRESETS.find((item) => item.key === presetKey);
+  assert.ok(preset);
+  const doc = await prisma.knowledgeDocument.create({ data: { title: preset.title, fileName: preset.key + ".txt" } });
+  const version = await prisma.knowledgeDocumentVersion.create({ data: { documentId: doc.id, versionNumber: 1,
+    content: "源文完整内容", contentHash: "fixture-hash-" + preset.key, charCount: 7 } });
+  await prisma.knowledgeDocument.update({ where: { id: doc.id }, data: { activeVersionId: version.id, activeVersionNumber: 1 } });
+  const analysis = await prisma.bookAnalysis.create({ data: { documentId: doc.id, documentVersionId: version.id,
+    title: preset.title, status: "succeeded", sections: { create: BOOK_ANALYSIS_SECTIONS.map((section, index) => {
+      const generated = preset.sectionKeys.includes(section.key);
+      return { sectionKey: section.key, title: section.title, status: generated ? "succeeded" : "idle",
+        frozen: !generated, sortOrder: index + 1, aiContent: generated ? section.title + "可读结论" : null };
+    }) } } });
+  return { doc, version, analysis, preset };
+}
+function defaultReferenceInput(f) {
+  return { idea: "新的证据调查故事", preferredNarrativeForm: "short_story",
+    reference: { analysisId: f.analysis.id, documentId: f.doc.id, goal: "借鉴结构和节奏" } };
+}
 function creationOutput(input) {
   if(input.asset.id==="shortStoryReferenceExtractPrompt") return {structureLessons:["线索逐步揭晓"],pacingLessons:["行动推进"],styleLessons:["短对话"],endingLessons:["完整回收证据线"],endingEvidence:"available",originalityConstraints:["更换全部人物、世界和事件"]};
   if(input.asset.id==="creationIntentInterpretPrompt") return {understanding:"参考节奏创作全新故事",recommendedNarrativeForm:"short_story",
@@ -527,6 +547,39 @@ test("reference short story passes verified full-book lessons into direction int
   assert.equal(h.calls.find(call=>call.asset==="creationIntentInterpretPrompt").input.reference?.goal,"借鉴线索回收和快节奏");
   assert.equal(result.reference?.analysisId,f.analysis.id);
   assert.match(JSON.stringify(h.calls.find(call=>call.asset==="shortStoryReferenceExtractPrompt").input), /结局：证据公开/);
+});
+
+for (const preset of BOOK_ANALYSIS_PRESETS) {
+  test("default reference scope matches readable generated sections: " + preset.key, async () => {
+    const f = await referencePresetFixture(preset.key); const h = harness(creationOutput);
+    const task = await h.creation.interpret(defaultReferenceInput(f));
+    assert.equal(task.status, "waiting_approval", task.error);
+    const extracted = h.calls.find((call) => call.asset === "shortStoryReferenceExtractPrompt");
+    assert.deepEqual(Array.from(extracted.input.conclusions, (section) => section.sectionKey), preset.sectionKeys);
+  });
+}
+
+test("default reference scope retains a frozen section with readable content", async () => {
+  const f = await referencePresetFixture("standard");
+  await prisma.bookAnalysisSection.update({ where: { analysisId_sectionKey: { analysisId: f.analysis.id, sectionKey: "timeline" } },
+    data: { aiContent: "保留的历史时间线" } });
+  const h = harness(creationOutput);
+  const task = await h.creation.interpret(defaultReferenceInput(f));
+  assert.equal(task.status, "waiting_approval", task.error);
+  const extracted = h.calls.find((call) => call.asset === "shortStoryReferenceExtractPrompt");
+  const expected = BOOK_ANALYSIS_SECTIONS.filter((section) => f.preset.sectionKeys.includes(section.key) || section.key === "timeline")
+    .map((section) => section.key);
+  assert.deepEqual(Array.from(extracted.input.conclusions, (section) => section.sectionKey), expected);
+});
+
+test("an explicitly selected empty frozen reference section remains invalid", async () => {
+  const f = await referencePresetFixture("standard"); const h = harness(creationOutput);
+  const input = defaultReferenceInput(f);
+  input.reference.sectionKeys = ["overview", "timeline"];
+  const task = await h.creation.interpret(input);
+  assert.equal(task.status, "failed");
+  assert.ok(task.error);
+  assert.equal(h.calls.length, 0);
 });
 
 const referenceInput = (f) => ({ idea: "新的证据调查故事", preferredNarrativeForm: "short_story",
