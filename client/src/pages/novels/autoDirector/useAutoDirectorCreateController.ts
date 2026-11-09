@@ -65,6 +65,7 @@ import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 import type { AutoDirectorCreateDraft } from "./draft/autoDirectorCreateDraft";
 import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import { parseCreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
+import { usesOpeningRetry } from "./recovery";
 
 interface UseAutoDirectorCreateControllerInput {
   marketBriefId?: string;
@@ -553,10 +554,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       if (!taskId) {
         throw new Error("当前没有可继续的自动导演任务。");
       }
-      if (!directorTask?.resumeTarget?.novelId) {
-        try { return await retryOriginalDirectorOpening(taskId); }
-        catch(error) { if ((error as {status?:number}).status !== 404) throw error; }
-      }
+      if (usesOpeningRetry(directorTask, directorVersion)) return retryOriginalDirectorOpening(taskId);
       return continueNovelWorkflow(taskId, { continuationMode: "resume" });
     },
     onSuccess: async (response) => {

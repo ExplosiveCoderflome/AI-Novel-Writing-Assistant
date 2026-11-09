@@ -106,7 +106,7 @@ test("a stale expected version becomes a structured 409 error", async () => {
   );
 });
 
-test("only a paused run can accept resume and other commands cannot clear it", async () => {
+test("a paused run accepts resume and other commands cannot clear it", async () => {
   const { service, calls } = setup({ control: { ...runningControl(), version: 4, status: "paused", pause: { kind: "manual_recovery", reason: "needs_user" } } });
   await service.execute({ type: "resume", runId: "run-1", expectedVersion: 4, idempotencyKey: "resume-1" });
   assert.deepEqual(calls, [["transition", "run-1", { type: "resume" }, 4]]);

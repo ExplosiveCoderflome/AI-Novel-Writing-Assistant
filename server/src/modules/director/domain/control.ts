@@ -1,4 +1,4 @@
-import type { ArtifactType, RunControl, RunPause, RunStatus } from "./types";
+import type { ArtifactType, RunControl, RunPause, RunStatus, StopSignal } from "./types";
 
 export type RunEvent =
   | { type: "start" }
@@ -9,6 +9,7 @@ export type RunEvent =
   | { type: "resolve_gate" }
   | { type: "pause"; pause: RunPause }
   | { type: "resume" }
+  | { type: "recover_failed_step" }
   | { type: "complete" }
   | { type: "fail"; reason: string }
   | { type: "cancel" };
@@ -49,7 +50,7 @@ const TRANSITIONS: Record<RunStatus, Partial<Record<RunEventType, RunStatus>>> =
   waiting_gate: { resolve_gate: "running", fail: "failed", cancel: "cancelled" },
   paused: { resume: "running", cancel: "cancelled" },
   completed: {},
-  failed: {},
+  failed: { recover_failed_step: "running" },
   cancelled: {},
 };
 
@@ -72,6 +73,7 @@ export const RUN_EVENT_TYPES: readonly RunEventType[] = [
   "resolve_gate",
   "pause",
   "resume",
+  "recover_failed_step",
   "complete",
   "fail",
   "cancel",
@@ -90,6 +92,12 @@ export function initialControl(): RunControl {
 
 export function isTerminalStatus(status: RunStatus): boolean {
   return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+/** Only a saved, known empty generation result can reopen a failed run. */
+export function canRecoverFailedGeneration(control: RunControl, signal: StopSignal | null): boolean {
+  return control.status === "failed" && signal?.kind === "no_usable_content"
+    && signal.source === "runtime" && signal.action === "fail_task" && signal.reason === control.failureReason;
 }
 
 export function applyEvent(
@@ -130,7 +138,9 @@ export function applyEvent(
       next.cursorStepId = null;
       break;
     case "resume":
+    case "recover_failed_step":
       next.pause = null;
+      next.failureReason = null;
       break;
     case "fail":
       next.failureReason = event.reason;
