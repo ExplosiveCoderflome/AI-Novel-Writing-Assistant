@@ -31,6 +31,7 @@ import {
 import MobileAutoDirectorStatusCard from "./MobileAutoDirectorStatusCard";
 import MobileFloatingSaveButton from "./MobileFloatingSaveButton";
 import MobileNovelStepNav from "./MobileNovelStepNav";
+import { isLiveWorkflowTask } from "@/lib/novelWorkflowTaskUi";
 import {
   getMobileNovelSaveState,
   getMobileNovelWorkspaceStatusText,
@@ -82,11 +83,11 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     if (taskDrawer.task.status === "failed") {
       return "异常";
     }
-    if (taskDrawer.task.status === "waiting_approval") {
-      return "待确认";
-    }
     if (taskDrawer.task.status === "running" || taskDrawer.task.status === "queued") {
       return "进行中";
+    }
+    if (isLiveWorkflowTask(taskDrawer.task)) {
+      return "待确认";
     }
     return "最近任务";
   })();

@@ -49,7 +49,7 @@ function LegacyTask({ novelId }: { novelId: string }) {
     {projection ? <><p className="text-sm">{projection.userHeadline}</p><p className="text-sm text-muted-foreground">{projection.progressSummary ?? projection.detail}</p>
       {projection.latestTask?.lastError ? <p className="text-sm text-destructive">{projection.latestTask.lastError}</p> : null}
       <div className="flex flex-wrap gap-2">{actions.map(action => <Button key={action.type} variant={action.type === "cancel" ? "outline" : "default"} size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate(action)}>{action.label}</Button>)}</div>
-      {projection.latestTask && ["running", "queued"].includes(projection.latestTask.status) && !projection.latestTask.pendingManualRecovery ? <Button variant="outline" size="sm" disabled={pause.isPending || mutation.isPending} onClick={() => pause.mutate()}>{pause.isPending ? "正在暂停…" : "暂停任务"}</Button> : null}
+      {projection.latestTask && (projection.dashboardView?.mode === "running" || projection.dashboardView?.mode === "queued") ? <Button variant="outline" size="sm" disabled={pause.isPending || mutation.isPending} onClick={() => pause.mutate()}>{pause.isPending ? "正在暂停…" : "暂停任务"}</Button> : null}
     </> : !query.isError ? <p className="text-sm text-muted-foreground">{query.isPending ? "正在读取任务…" : "暂无任务。"}</p> : null}
   </section>;
 }

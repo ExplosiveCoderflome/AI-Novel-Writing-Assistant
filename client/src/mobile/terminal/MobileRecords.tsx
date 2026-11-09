@@ -4,9 +4,14 @@ import { Link } from "react-router-dom";
 import { listTasks } from "@/api/tasks";
 import { listAutoDirectorFollowUps } from "@/api/autoDirectorFollowUps";
 import { Button } from "@/components/ui/button";
-import type { TaskStatus } from "@ai-novel/shared/types/task";
+import type { UnifiedTaskSummary } from "@ai-novel/shared/types/task";
+import { getNovelEditHref } from "@/lib/novelRoutes";
+import { formatStatus, getTaskQueueLevelLabel } from "@/pages/tasks/taskCenterUtils";
 
-const statusLabels: Record<TaskStatus, string> = { queued: "排队中", running: "进行中", waiting_approval: "等待确认", succeeded: "已完成", failed: "需要处理", cancelled: "已取消" };
+function formatMobileTaskStatus(task: UnifiedTaskSummary): string {
+  const queueLabel = getTaskQueueLevelLabel(task);
+  return queueLabel === "普通任务" ? formatStatus(task.status) : queueLabel;
+}
 
 export function MobileRecords() {
   const [cursor, setCursor] = useState<string>();
@@ -16,7 +21,7 @@ export function MobileRecords() {
     <p className="text-sm text-muted-foreground">查看状态，打开对应小说或来源页面处理任务。</p>
     {query.isError ? <p role="alert">记录读取失败。<Button variant="ghost" onClick={() => void query.refetch()}>重新读取</Button></p> : null}
     <div className="divide-y">{data?.items.map(task => <article key={`${task.kind}:${task.id}`} className="space-y-2 py-4">
-      <h2 className="font-medium">{task.title}</h2><p className="text-sm">{task.pendingManualRecovery ? "等待恢复" : statusLabels[task.status]} · {Math.round(task.progress <= 1 ? task.progress * 100 : task.progress)}%</p>
+      <h2 className="font-medium">{task.title}</h2><p className="text-sm">{formatMobileTaskStatus(task)} · {Math.round(task.progress <= 1 ? task.progress * 100 : task.progress)}%</p>
       <p className="text-sm text-muted-foreground">{task.currentItemLabel ?? task.currentStage}</p>
       {task.lastError ? <p className="text-sm text-destructive">{task.lastError}</p> : null}
       <Button asChild variant="outline" size="sm"><Link to={task.sourceRoute}>打开来源页面</Link></Button>
@@ -33,7 +38,7 @@ export function MobileNotifications() {
     {query.isError ? <p role="alert">通知读取失败。<Button variant="ghost" onClick={() => void query.refetch()}>重新读取</Button></p> : null}
     <div className="divide-y">{query.data?.data?.items.map(item => <article className="space-y-2 py-4" key={`${item.itemType}:${item.directorTaskId}:${item.autoApprovalRecordId ?? ""}`}>
       <h2 className="font-medium">{item.novelTitle || item.taskTitle}</h2><p className="text-sm">{item.reasonLabel}</p><p className="text-sm text-muted-foreground">{item.followUpSummary}</p>
-      {item.novelId ? <Button asChild size="sm" variant="outline"><Link to={`/novels/${encodeURIComponent(item.novelId)}/edit?directorTaskId=${encodeURIComponent(item.directorTaskId)}`}>打开小说</Link></Button> : <p className="text-sm text-muted-foreground">请在电脑端查看开书结果。</p>}
+      {item.novelId ? <Button asChild size="sm" variant="outline"><Link to={getNovelEditHref(item.novelId)}>打开小说</Link></Button> : <p className="text-sm text-muted-foreground">请在电脑端查看开书结果。</p>}
     </article>)}</div>
     {query.data?.data?.items.length === 0 ? <p className="text-sm text-muted-foreground">暂无需要跟进的通知。</p> : null}
   </section>;

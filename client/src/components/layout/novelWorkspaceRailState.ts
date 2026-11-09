@@ -1,5 +1,7 @@
 import type { DirectorTakeoverEntryStep } from "@ai-novel/shared/types/novelDirector";
 import { DIRECTOR_TAKEOVER_ENTRY_STEPS } from "@ai-novel/shared/types/novelDirector";
+import type { TaskStatus } from "@ai-novel/shared/types/task";
+import { LIVE_TASK_STATUSES } from "../../lib/novelWorkflowTaskUi.ts";
 import type { NovelWorkspaceFlowTab } from "@/pages/novels/novelWorkspaceNavigation";
 
 export type NovelWorkspaceStepReadiness = Record<NovelWorkspaceFlowTab, boolean>;
@@ -9,9 +11,7 @@ export function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
   latestTaskId?: string | null;
 }): boolean {
   return Boolean(input.latestTaskId) && (
-    input.status === "queued"
-    || input.status === "running"
-    || input.status === "waiting_approval"
+    LIVE_TASK_STATUSES.has(input.status as TaskStatus)
     || input.status === "waiting_recovery"
     || input.status === "blocked"
     || input.status === "failed"
