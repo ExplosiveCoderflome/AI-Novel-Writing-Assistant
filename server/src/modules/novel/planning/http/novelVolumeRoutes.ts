@@ -166,6 +166,9 @@ export function registerNovelVolumeRoutes(input: RegisterNovelVolumeRoutesInput)
         const { id } = req.params as z.infer<typeof idParamsSchema>;
         const data = await novelService.generateVolumes(id, {
           ...req.body,
+          ...((req.body.scope === "chapter_list" || req.body.scope === "volume")
+            && (req.body.generationMode ?? "full_volume") === "full_volume"
+            ? { persistIntermediateDocuments: true } : {}),
           ...(streaming ? { onPhaseStart: (event: unknown) => {
             res.write(`data: ${JSON.stringify({ type: "progress", event })}\n\n`);
           } } : {}),

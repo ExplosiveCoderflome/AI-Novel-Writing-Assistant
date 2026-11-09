@@ -16,6 +16,31 @@ function listen(server) {
   });
 }
 
+test("only full-volume chapter-list requests enable intermediate persistence on the server", async () => {
+  const original = DefaultNovelApplicationServices.prototype.generateVolumes;
+  const seen = [];
+  DefaultNovelApplicationServices.prototype.generateVolumes = async (_id, options) => {
+    seen.push(options); return createWorkspace("policy-novel");
+  };
+  const server = http.createServer(createApp());
+  const port = await listen(server);
+  try {
+    for (const input of [
+      {scope:"chapter_list"}, {scope:"volume",generationMode:"full_volume"},
+      {scope:"chapter_list",generationMode:"single_beat",targetBeatKey:"opening"}, {scope:"beat_sheet"},
+    ]) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/novels/policy-novel/volumes/generate`, {
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...input,targetVolumeId:"volume-1"}),
+      });
+      assert.equal(response.status,200);
+    }
+    assert.deepEqual(seen.map(options=>options.persistIntermediateDocuments),[true,true,undefined,undefined]);
+  } finally {
+    DefaultNovelApplicationServices.prototype.generateVolumes = original;
+    await new Promise(resolve=>server.close(resolve));
+  }
+});
+
 test("chapter-list SSE reports real progress before saving and returns the normal slim payload", async () => {
   const originalGenerate = DefaultNovelApplicationServices.prototype.generateVolumes;
   const originalUpdate = DefaultNovelApplicationServices.prototype.updateVolumes;

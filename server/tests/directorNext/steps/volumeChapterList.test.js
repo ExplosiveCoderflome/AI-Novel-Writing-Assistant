@@ -25,7 +25,7 @@ test('chapter-list adapter generates one full target volume, saves without execu
   const result=await handler(context);
   const {onChapterTitleDiversityDebt,onPhaseStart,...generationOptions}=calls[0][2];
   assert.equal(typeof onChapterTitleDiversityDebt,'function');
-  assert.deepEqual([calls[0][0],calls[0][1],generationOptions],['generate','novel',{scope:'chapter_list',generationMode:'full_volume',targetVolumeId:'v1',draftWorkspace:workspace,provider:'openai',model:'saved-model',temperature:0.3,guidance:input.guidance,estimatedChapterCount:6,taskId:'run',entrypoint:'director_next',persistIntermediateDocuments:false}]);
+  assert.deepEqual([calls[0][0],calls[0][1],generationOptions],['generate','novel',{scope:'chapter_list',generationMode:'full_volume',targetVolumeId:'v1',draftWorkspace:workspace,provider:'openai',model:'saved-model',temperature:0.3,guidance:input.guidance,estimatedChapterCount:6,taskId:'run',entrypoint:'director_next',persistIntermediateDocuments:true}]);
   assert.deepEqual(calls[1],['save','novel',generated,{emitEvent:false,syncPayoffLedger:false,syncToChapterExecution:false,memoryTelemetry:{taskId:'run',stage:'structured_outline',itemKey:'chapter_list',scope:'chapter_list',entrypoint:'director_next',volumeId:'v1'}}]);
   assert.deepEqual(calls[2],['hash',saved.volumes[0].chapters]);
   assert.deepEqual(result.artifact,{scope:'volume:v1',status:'draft',protectedUserContent:false,contentRef:'volume_chapter_list:novel:v1',contentHash:artifactContentHash(saved.volumes[0].chapters)});

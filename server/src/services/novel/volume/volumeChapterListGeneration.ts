@@ -466,12 +466,21 @@ export async function generateBeatChunkedChapterList(params: {
     existingVolumes: document.volumes,
   });
   const targetIndex = document.volumes.findIndex((volume) => volume.id === targetVolume.id);
-  const explicitVolumeChapterCount = explicitChapterCount && generationMode === "full_volume"
-    ? Math.max(1, chapterBudgets[targetIndex] ?? explicitChapterCount)
-    : null;
-  const targetBeatSheet = explicitVolumeChapterCount
+  // A saved partial list carries the effective beat spans used by its completed prefix.
+  // Chapter counts here describe progress; reweighting them would invalidate that prefix.
+  const resumeChapterCount = generationMode === "full_volume"
+    && isVolumeChapterListPartiallyPersisted(targetVolume) && targetVolume.chapters.length > 0
+    ? inferRequiredChapterCountFromBeatSheet(savedTargetBeatSheet) : 0;
+  const explicitVolumeChapterCount = resumeChapterCount || (explicitChapterCount && generationMode === "full_volume"
+    ? Math.max(1, chapterBudgets[targetIndex] ?? explicitChapterCount) : null);
+  if (resumeChapterCount) chapterBudgets[targetIndex] = resumeChapterCount;
+  const targetBeatSheet = explicitVolumeChapterCount && !resumeChapterCount
     ? scaleBeatSheetToChapterCount(savedTargetBeatSheet, explicitVolumeChapterCount)
     : savedTargetBeatSheet;
+  const chapterListDocument = {
+    ...document,
+    beatSheets: document.beatSheets.map(sheet => sheet.volumeId === targetVolume.id ? targetBeatSheet : sheet),
+  };
   const beatSheetRequiredChapterCount = inferRequiredChapterCountFromBeatSheet(targetBeatSheet);
   // 正在生成的卷当前章数是进度而非计划规模，其预算不得低于均分份额（issue #173）。
   const fallbackTargetChapterCount = Math.max(
@@ -588,7 +597,7 @@ export async function generateBeatChunkedChapterList(params: {
     generatedBlocks.push(generatedBlock);
 
     const intermediateDocument = mergeChapterList(
-      document,
+      chapterListDocument,
       targetVolume.id,
       targetBeatSheet,
       generatedBlocks,
@@ -634,7 +643,7 @@ export async function generateBeatChunkedChapterList(params: {
   });
   const rawMergedDocument = generatedBlocks.length > 0
     ? mergeChapterList(
-      document,
+      chapterListDocument,
       targetVolume.id,
       targetBeatSheet,
       generatedBlocks,
@@ -645,7 +654,7 @@ export async function generateBeatChunkedChapterList(params: {
         markAsPartial: false,
       },
     )
-    : setVolumeChapterListPartialStatus(document, targetVolume.id, false);
+    : setVolumeChapterListPartialStatus(chapterListDocument, targetVolume.id, false);
   const rawMergedVolume = rawMergedDocument.volumes.find((volume) => volume.id === targetVolume.id);
   if (!rawMergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");
