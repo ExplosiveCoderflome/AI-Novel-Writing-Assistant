@@ -52,6 +52,7 @@
     "test": "pnpm --filter @ai-novel/server test",
     "test:client": "pnpm --filter @ai-novel/client test",
     "test:all": "pnpm --filter @ai-novel/server test:all && pnpm --filter @ai-novel/client test",
+    "test:release-guards": "node --test desktop/tests/*.test.cjs scripts/tests/*.test.cjs",
     "lint": "pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint"
   },
   "pnpm": {

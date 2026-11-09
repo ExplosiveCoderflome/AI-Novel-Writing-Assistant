@@ -19,8 +19,20 @@
 
 1. 发新版桌面包前，先运行 `pnpm release:desktop:bump X.Y.Z` 更新 `desktop/package.json`。
 2. 更新用户可见 release notes 和 README 最新更新，说明该版本面向用户的变化。
-3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
+3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支、tag、类型检查和测试都通过。dry-run 也执行检查，但不创建 tag 或 push。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
+
+## 发布检查与拒绝规则
+
+`scripts/desktop-release/guard.cjs` 是发布验证门面。创建 tag／push 前运行类型检查、隔离测试库迁移、服务端与前端完整测试、桌面编译及桌面／发版脚本契约测试。测试使用独立临时目录和 SQLite 数据库，不使用作者数据库或应用数据目录；失败时保留输出目录用于诊断。
+
+通过检查不等于长期授权。检查前后读取 HEAD、版本与工作区，期间有代码、版本或提交变化必须重新检查。正式上传再次核对版本 tag 指向当前 HEAD，且提交属于 main；GitHub 必须提供匹配的 tag ref。不能将旧成功结果、任意环境布尔值或另一个分支的验证当作本次通过证据。
+
+本地上传还须读取 origin 的已推送 tag（注解 tag 取 peeled commit）并与本次 HEAD 比较，避免发布器在远端缺少 tag 时替旧 main 自动创建发布标识。
+
+`run-electron-builder.cjs` 默认添加 `--publish never`，避免 CI 环境隐式上传。显式 `--publish`、`--publish=...` 与 `-p` 共用同一验证入口，失败不调用上传；重复 publish 参数被拒绝。两种既有发布脚本都经过此入口，不能另建绕过守卫的上传路径。
+
+发布 workflow 仅允许 push 的版本 tag 进入上传任务。手动 workflow_dispatch 只执行检查与目录打包，不上传 GitHub Release。构建使用已提交的图标；品牌图标应在开发时生成、审核并提交，避免发布检查期间改写受版本控制的素材。发布说明更新脚本也必须拒绝与 package 版本不符的 tag。
 
 ## 平台与原生运行时
 

@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const https = require("node:https");
 const path = require("node:path");
+const { assertReleaseTag } = require("./desktop-release/guard.cjs");
 
 const repoRoot = path.resolve(__dirname, "..");
 const desktopPackagePath = path.join(repoRoot, "desktop", "package.json");
@@ -58,11 +59,9 @@ function readDesktopVersion() {
 }
 
 function resolveReleaseTag(version) {
-  const refName = firstNonEmpty(process.env.GITHUB_REF_NAME);
-  if (/^v\d+\.\d+\.\d+$/.test(refName)) {
-    return refName;
-  }
-  return `v${version}`;
+  const refName = firstNonEmpty(process.env.GITHUB_REF_NAME, `v${version}`);
+  assertReleaseTag(refName, version);
+  return refName;
 }
 
 function extractVersionReleaseNoteBlock(markdown, version) {

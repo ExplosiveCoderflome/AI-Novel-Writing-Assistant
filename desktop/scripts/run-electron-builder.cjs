@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const { createRequire } = require("node:module");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const { parseArgs } = require("node:util");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -87,11 +88,17 @@ function firstNonEmpty(...values) {
   return "";
 }
 
+function resolvePublishMode(args) {
+  const modes = parseArgs({ args, options: { publish: { type: "string", short: "p", multiple: true } }, strict: false, allowPositionals: true }).values.publish ?? [];
+  if (modes.length > 1) throw new Error("Provide exactly one publish mode.");
+  return modes[0];
+}
+
 function normalizeBuildEnvironment(sourceEnv, args) {
   const env = { ...sourceEnv };
   const releaseChannel = firstNonEmpty(env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
-  const publishIndex = args.indexOf("--publish");
-  const isPublishRequested = publishIndex >= 0 && args[publishIndex + 1] !== "never";
+  const publishMode = resolvePublishMode(args);
+  const isPublishRequested = publishMode != null && publishMode !== "never";
   const isWindowsTarget = args.includes("--win") || (process.platform === "win32" && !args.includes("--mac") && !args.includes("--linux"));
   const allowUnsignedRelease =
     firstNonEmpty(
@@ -144,12 +151,15 @@ function normalizeBuildEnvironment(sourceEnv, args) {
 function main() {
   const targetArgs = process.argv.slice(2);
   const isWindowsTarget = targetArgs.includes("--win") || (process.platform === "win32" && !targetArgs.includes("--mac") && !targetArgs.includes("--linux"));
-  ensurePatchedElectronBuilder(isWindowsTarget);
-
-  const shortNsisTemplatesDir = isWindowsTarget ? resolveShortNsisTemplateDir() : undefined;
   const electronBuilderCli = resolveModule("electron-builder/cli.js");
   const args = ["--config", "electron-builder.config.cjs", ...process.argv.slice(2)];
+  if (resolvePublishMode(args) == null) args.push("--publish", "never");
   const env = normalizeBuildEnvironment(process.env, args);
+  if (resolvePublishMode(args) !== "never") {
+    require("../../scripts/desktop-release/guard.cjs").verifyUpload(repoRoot, { env });
+  }
+  ensurePatchedElectronBuilder(isWindowsTarget);
+  const shortNsisTemplatesDir = isWindowsTarget ? resolveShortNsisTemplateDir() : undefined;
 
   if (shortNsisTemplatesDir) console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
 
@@ -164,7 +174,7 @@ function main() {
   });
 }
 
-module.exports = { normalizeBuildEnvironment };
+module.exports = { normalizeBuildEnvironment, resolvePublishMode };
 if (require.main === module) {
   try {
     main();
