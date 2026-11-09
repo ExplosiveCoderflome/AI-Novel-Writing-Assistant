@@ -22,6 +22,16 @@
 3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
 
+## 平台与原生运行时
+
+Windows 保留 x64 NSIS 和便携包；Mac 通过 macos-latest 的独立 x64/arm64 任务产生未签名 DMG，运行时禁用自动更新并使用 icns 图标；Linux 通过 ubuntu-latest 产生 x64 AppImage 并使用 PNG 图标。Mac 用户通过下载新版安装包升级，不能依赖需要签名的自动更新链。
+
+桌面构建显式固定 SQLite，避免开发者的 PostgreSQL 环境影响生成客户端。每个 afterPack 验证最终包中 better-sqlite3 的 PE/Mach-O/ELF 架构及 Prisma SQLite schema；原生模块由 electron-builder 针对当前 Electron 版本和目标架构重建，不能直接复用宿主 Node 的 SQLite 二进制。生成的 Prisma 客户端、WASM 运行时和迁移目录仍由原 staging 入口复制，不自行拼装另一份客户端。
+
+包内验证与职责归属见 [打包模块边界](../../../desktop/scripts/packaging/README.md)。配置使用 [electron-builder 平台选项](https://www.electron.build/mac/)；可选二进制安装使用 [pnpm supportedArchitectures](https://pnpm.io/settings#supportedarchitectures)。
+
+原生重编译的 buildPath 和 projectRootPath 必须同时指向 staging。electron-builder 默认会使用 workspaceRoot 扫描依赖，仅脱离 staging 硬链接仍可能改写源码 SQLite 的 ABI，表现为打包后 Node 测试报 Electron NODE_MODULE_VERSION。beforePack 通过既有 @electron/rebuild 限定范围，并以 npmRebuild=false 禁止默认重编译，保留正常依赖收集；本地验证须确认源码二进制散列保持不变且 Node 可加载。
+
 ## 工作区依赖与部署快照
 
 桌面包通过 `pnpm deploy --prod` 使用注入的 `@ai-novel/server`，而源码运行使用 server importer。新增服务端生产依赖时，必须同步检查锁文件的 `server` importer 和 `snapshots` 中 `@ai-novel/server@file:server(...)` 的依赖集合；仅在 importer 和 packages 中出现新库，仍可能通过 frozen install，却在桌面部署时遗漏该库。

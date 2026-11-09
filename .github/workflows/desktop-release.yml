@@ -71,3 +71,68 @@ jobs:
 
       - name: Update GitHub release notes
         run: node scripts/update-desktop-release-notes.cjs
+
+  publish-mac:
+    if: ${{ startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: python -m pip install --disable-pip-version-check pillow
+      - run: python desktop/scripts/generate-desktop-icons.py
+      - run: pnpm typecheck
+      - run: pnpm stage:desktop
+      - name: Verify packaging contracts
+        run: node --test desktop/tests/*.test.cjs
+      - name: Publish unsigned DMG
+        run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish always
+
+  publish-linux:
+    if: ${{ startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: python -m pip install --disable-pip-version-check pillow
+      - run: python desktop/scripts/generate-desktop-icons.py
+      - run: pnpm typecheck
+      - run: pnpm stage:desktop
+      - name: Verify packaging contracts
+        run: node --test desktop/tests/*.test.cjs
+      - name: Publish AppImage
+        run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish always

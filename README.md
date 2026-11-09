@@ -55,6 +55,7 @@
 
 - 可在模型与厂商中为每个模型分别设置输出 Token 上限，正文和结构化生成共用该额度；留空使用任务预算。
 - 网页部署和局域网访问支持令牌认证；桌面本地运行自动连接，渠道通知回调继续使用渠道凭据。
+- 桌面打包支持 Intel 与 Apple Silicon Mac 的 DMG，以及 Linux AppImage；Mac 版通过下载安装包手动更新。
 
 完整历史更新见 [版本更新说明](./docs/releases/release-notes.md)。
 
