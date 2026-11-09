@@ -41,6 +41,63 @@ test("builtins cover common families and Spark MaaS defaults to prompt-only", ()
   assert.deepEqual(compat.resolveCapability(identity("unknown")).structuredModes, ["prompt_only"]);
 });
 
+test("DeepSeek defaults require the built-in provider and its official endpoint", () => {
+  for (const input of [
+    { provider: "custom_relay", baseURL: "https://relay.invalid/v1" },
+    { provider: "custom_relay", baseURL: "https://api.deepseek.com/v1" },
+    { provider: "deepseek", baseURL: "https://relay.invalid/v1" },
+    { provider: "openai", baseURL: "https://relay.invalid/v1" },
+    { provider: "siliconflow", baseURL: "https://api.siliconflow.cn/v1" },
+  ]) {
+    for (const model of ["deepseek-flash", "vendor/deepseek-v4.1-flash"]) {
+      const profile = compat.resolveCapability({ ...input, model });
+      assert.notEqual(profile.family, "deepseek");
+      assert.equal(profile.thinkingToggle.supported, false);
+      const behavior = resolveProviderReasoningBehavior({ ...input, model, reasoningEnabled: true });
+      assert.equal(behavior.modelKwargs, undefined);
+      assert.equal(behavior.reasoningEffort, null);
+    }
+  }
+});
+
+test("unprobed custom structured requests turn reasoning off even without a known toggle", async (t) => {
+  for (const provider of ["custom_unprobed", "openai", "deepseek"]) {
+    factory.setProviderSecretCache(provider, { key: "fixture-key" });
+    t.after(() => factory.setProviderSecretCache(provider, null));
+    for (const model of ["vendor/deepseek-v4.1-flash", "relay-model"]) {
+      const input = { provider, model, baseURL: "https://unprobed.invalid/v1" };
+      assert.equal(compat.storedCapability(input), undefined);
+      for (const reasoningEnabled of [undefined, true, false]) {
+        const resolved = await factory.resolveLLMClientOptions(provider, { ...input, executionMode: "structured", reasoningEnabled });
+        assert.equal(resolved.structuredProfile.requiresNonThinkingForStructured, true);
+        assert.equal(resolved.reasoningEnabled, false);
+        assert.equal(resolved.reasoningForcedOff, reasoningEnabled !== false);
+        const body = factory.createLLMFromResolvedOptions(resolved).invocationParams({});
+        assert.equal(body.thinking, undefined);
+        assert.equal(body.reasoning_effort, undefined);
+      }
+      const plain = await factory.resolveLLMClientOptions(provider, input);
+      assert.equal(plain.reasoningEnabled, true);
+      assert.equal(plain.reasoningForcedOff, false);
+      assert.equal(plain.modelKwargs, undefined);
+    }
+  }
+});
+
+test("stored probe results override custom structured reasoning defaults", async (t) => {
+  const input = identity("probed-thinking-control");
+  factory.setProviderSecretCache(input.provider, { key: "fixture-key" });
+  t.after(() => factory.setProviderSecretCache(input.provider, null));
+  for (const supported of [true, false]) {
+    await compat.saveCapability(input, { ...compat.builtinCapability(input), source: "probed",
+      thinkingToggle: { supported, control: "enable_thinking", effort: false } });
+    const resolved = await factory.resolveLLMClientOptions(input.provider, { ...input, executionMode: "structured" });
+    assert.equal(resolved.reasoningEnabled, !supported);
+    assert.equal(resolved.reasoningForcedOff, supported);
+    assert.deepEqual(resolved.modelKwargs, supported ? { enable_thinking: false } : undefined);
+  }
+});
+
 test("user override wins over a later probe; host isolation and hostless override are preserved", async () => {
   const input = identity("precedence");
   await saveModes(input, ["tool_calling", "prompt_only"]);
@@ -125,16 +182,16 @@ test("MaaS mode-specific transport rejection falls back and persists the failed 
   assert.deepEqual(compat.resolveCapability(input).failedModes, ["json_object"]);
 });
 
-test("vendor/deepseek-v4.1-flash off removes the reasoning request path and accepts content without reasoning", () => {
+test("unprobed relay thinking-off omits vendor controls and accepts content without reasoning", () => {
   const behavior = resolveProviderReasoningBehavior({ provider: "custom_deepseek_fixture", model: "vendor/deepseek-v4.1-flash", baseURL: "https://fixture.invalid/v1", reasoningEnabled: false, reasoningEffort: "max" });
-  assert.deepEqual(behavior.modelKwargs, { thinking: { type: "disabled" } });
+  assert.equal(behavior.modelKwargs, undefined);
   assert.equal(behavior.reasoningEffort, null);
   const collector = new ReasoningStreamCollector();
   assert.equal(collector.push(fixtures.ok[0], fixtures.ok[0].content) + collector.flush(), "");
 });
 
 test("probes require opt-in, use cheap-first trials, save supported modes and verify thinking-off", async (t) => {
-  const input = { ...identity("probe"), model: "vendor/deepseek-v4.1-flash" };
+  const input = { provider: "deepseek", baseURL: "https://api.deepseek.com/v1", model: "vendor/deepseek-v4.1-flash" };
   const calls = [];
   mockClients(t, (resolved, messages, options) => {
     calls.push(options.response_format?.type ?? (options.tools ? "tool_calling" : "prompt_only"));

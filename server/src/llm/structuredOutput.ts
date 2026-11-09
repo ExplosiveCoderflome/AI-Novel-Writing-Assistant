@@ -3,7 +3,7 @@ import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { resolveCapability, storedCapability, type StructuredMode } from "./compatibility";
-import { isBuiltInProvider } from "./providers";
+import { getProviderDefaultBaseUrl, isBuiltInProvider } from "./providers";
 import { isDeepSeekThinkingModeProvider, isGlmThinkingModeProvider } from "./reasoning";
 
 export type StructuredExecutionMode = "plain" | "structured";
@@ -307,6 +307,8 @@ export function resolveStructuredOutputProfile(input: Parameters<typeof resolveB
   const builtin = resolveBuiltinStructuredOutputProfile(input);
   const capability = resolveCapability(input);
   const stored = storedCapability(input);
+  const customEndpoint = !isBuiltInProvider(input.provider)
+    || Boolean(input.baseURL && extractHost(input.baseURL) !== extractHost(getProviderDefaultBaseUrl(input.provider)));
   const modes = stored?.structuredModes ?? (capability.family === "spark" ? ["prompt_only" as const] : [
     ...(builtin.nativeJsonSchema ? ["json_schema" as const] : []),
     ...(builtin.nativeJsonObject ? ["json_object" as const] : []),
@@ -318,7 +320,9 @@ export function resolveStructuredOutputProfile(input: Parameters<typeof resolveB
     nativeJsonSchema: available.includes("json_schema"), nativeJsonObject: available.includes("json_object"),
     preferredStructuredStrategy: available[0] === "prompt_only" || !available[0] ? "prompt_json" : available[0],
     supportsReasoningToggle: capability.thinkingToggle.supported,
-    requiresNonThinkingForStructured: stored ? capability.thinkingToggle.supported : builtin.requiresNonThinkingForStructured,
+    // Unknown gateways must not inherit request-level thinking-on defaults.
+    // A saved probe or override remains authoritative about usable controls.
+    requiresNonThinkingForStructured: stored ? capability.thinkingToggle.supported : customEndpoint || builtin.requiresNonThinkingForStructured,
   };
 }
 
