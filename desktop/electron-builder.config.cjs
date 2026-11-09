@@ -26,8 +26,9 @@ const allowUnsignedRelease =
   ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
 const builderIconPath = path.join("builder", "app-icon.ico");
+const isWindowsTarget = process.argv.includes("--win") || (process.platform === "win32" && !process.argv.includes("--mac") && !process.argv.includes("--linux"));
 
-if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
+if (isWindowsTarget && !isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
   throw new Error(
     "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK, or explicitly opt in to an unsigned release.",
   );
@@ -47,6 +48,8 @@ module.exports = {
     "node_modules/.prisma/**/*",
   ],
   extraResources: [
+    { from: "builder/app-icon.icns", to: "icons/app-icon.icns" },
+    { from: "builder/app-icon.png", to: "icons/app-icon.png" },
     {
       from: "builder/app-icon.ico",
       to: "icons/app-icon.ico",
@@ -65,8 +68,9 @@ module.exports = {
   asarUnpack: [
     "node_modules/**/*.node",
   ],
-  npmRebuild: true,
-  nativeRebuilder: "sequential",
+  npmRebuild: false,
+  beforePack: "./scripts/packaging/rebuild-native.cjs",
+  afterPack: "./scripts/packaging/verify-native-runtime.cjs",
   extraMetadata: {
     main: "dist/main.js",
   },
@@ -94,6 +98,20 @@ module.exports = {
         arch: ["x64"],
       },
     ],
+  },
+  mac: {
+    icon: "builder/app-icon.icns",
+    identity: null,
+    notarize: false,
+    target: [{ target: "dmg", arch: ["x64", "arm64"] }],
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    category: "public.app-category.productivity",
+  },
+  linux: {
+    icon: "builder/app-icon.png",
+    target: [{ target: "AppImage", arch: ["x64"] }],
+    artifactName: "${productName}-${version}-linux-${arch}.${ext}",
+    category: "Office",
   },
   nsis: {
     artifactName: "${productName}-${version}-setup-${arch}.${ext}",

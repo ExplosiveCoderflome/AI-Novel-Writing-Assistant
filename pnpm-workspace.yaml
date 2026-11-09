@@ -5,6 +5,10 @@ packages:
   - site
   - shared
 injectWorkspacePackages: true
+# Mac builds target both Intel and Apple Silicon, including optional image binaries.
+supportedArchitectures:
+  os: [current]
+  cpu: [x64, arm64]
 allowBuilds:
   '@prisma/engines': true
   better-sqlite3: true

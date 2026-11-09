@@ -98,7 +98,8 @@ export default defineConfig({
     proxy: {
       "/api": {
         target: resolveDevProxyTarget(),
-        changeOrigin: true,
+        // Preserve the browser host so LAN traffic cannot look like local development.
+        changeOrigin: false,
       },
     },
   },

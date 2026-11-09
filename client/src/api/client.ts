@@ -21,6 +21,7 @@ declare module "axios" {
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: API_TIMEOUT_MS,
+  withCredentials: true,
 });
 
 const AUTO_DISMISS_SERVER_ERROR_TOAST = {
@@ -32,6 +33,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiResponse<unknown>>) => {
     const status = error.response?.status;
+    if (status === 401 && typeof window !== "undefined") window.dispatchEvent(new Event("ai-novel:access-required"));
     const backendError = error.response?.data?.error;
     const backendMessage = error.response?.data?.message;
     const source = error.response?.data as (ApiResponse<unknown> & {sourceRoute?: unknown; sourceActionLabel?: unknown}) | undefined;

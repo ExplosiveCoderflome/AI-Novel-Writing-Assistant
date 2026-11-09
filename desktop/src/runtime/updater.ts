@@ -22,6 +22,7 @@ function markUpdaterSnapshot(snapshot: ReturnType<typeof createUpdaterSnapshot>)
 }
 
 function isUpdaterSupported(options: DesktopUpdaterOptions): boolean {
+  if (process.platform === "darwin") return false;
   if (!options.isPackaged) {
     return false;
   }
@@ -40,7 +41,9 @@ function hasPackagedUpdateFeedConfig(): boolean {
 export function initializeDesktopUpdater(options: DesktopUpdaterOptions): DesktopUpdaterController {
   const supported = isUpdaterSupported(options);
   const hasFeedConfig = !supported || hasPackagedUpdateFeedConfig();
-  const unsupportedReason = !options.isPackaged
+  const unsupportedReason = process.platform === "darwin"
+    ? "Mac 版请下载新版安装包后手动安装。"
+    : !options.isPackaged
     ? "开发环境不下载安装包，请在正式安装版中检查更新。"
     : options.isPortable
       ? "便携版需要下载新版安装包后手动替换。"

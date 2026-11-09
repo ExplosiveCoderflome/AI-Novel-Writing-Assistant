@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const { createRequire } = require("node:module");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
+const { parseArgs } = require("node:util");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -46,8 +47,8 @@ function patchFileInPlace(moduleRequest, originalSource, patchedSource, descript
   }
 }
 
-function ensurePatchedElectronBuilder() {
-  patchFileInPlace(
+function ensurePatchedElectronBuilder(isWindowsTarget) {
+  if (isWindowsTarget) patchFileInPlace(
     "app-builder-lib/out/targets/nsis/nsisUtil.js",
     nsisUtilOriginal,
     nsisUtilPatched,
@@ -87,10 +88,18 @@ function firstNonEmpty(...values) {
   return "";
 }
 
+function resolvePublishMode(args) {
+  const modes = parseArgs({ args, options: { publish: { type: "string", short: "p", multiple: true } }, strict: false, allowPositionals: true }).values.publish ?? [];
+  if (modes.length > 1) throw new Error("Provide exactly one publish mode.");
+  return modes[0];
+}
+
 function normalizeBuildEnvironment(sourceEnv, args) {
   const env = { ...sourceEnv };
   const releaseChannel = firstNonEmpty(env.AI_NOVEL_RELEASE_CHANNEL, "beta").toLowerCase();
-  const isPublishRequested = args.includes("--publish");
+  const publishMode = resolvePublishMode(args);
+  const isPublishRequested = publishMode != null && publishMode !== "never";
+  const isWindowsTarget = args.includes("--win") || (process.platform === "win32" && !args.includes("--mac") && !args.includes("--linux"));
   const allowUnsignedRelease =
     firstNonEmpty(
       env.AI_NOVEL_ALLOW_UNSIGNED_RELEASE,
@@ -122,7 +131,7 @@ function normalizeBuildEnvironment(sourceEnv, args) {
   }
 
   const hasSigning = Boolean(signingLink);
-  if (!releaseChannel.startsWith("beta") && !hasSigning && !allowUnsignedRelease) {
+  if (isWindowsTarget && !releaseChannel.startsWith("beta") && !hasSigning && !allowUnsignedRelease) {
     throw new Error(
       "Public Windows desktop releases require signing material. Provide CSC_LINK/WIN_CSC_LINK first, or explicitly allow an unsigned release.",
     );
@@ -140,29 +149,37 @@ function normalizeBuildEnvironment(sourceEnv, args) {
 }
 
 function main() {
-  ensurePatchedElectronBuilder();
-
-  const shortNsisTemplatesDir = resolveShortNsisTemplateDir();
+  const targetArgs = process.argv.slice(2);
+  const isWindowsTarget = targetArgs.includes("--win") || (process.platform === "win32" && !targetArgs.includes("--mac") && !targetArgs.includes("--linux"));
   const electronBuilderCli = resolveModule("electron-builder/cli.js");
   const args = ["--config", "electron-builder.config.cjs", ...process.argv.slice(2)];
+  if (resolvePublishMode(args) == null) args.push("--publish", "never");
   const env = normalizeBuildEnvironment(process.env, args);
+  if (resolvePublishMode(args) !== "never") {
+    require("../../scripts/desktop-release/guard.cjs").verifyUpload(repoRoot, { env });
+  }
+  ensurePatchedElectronBuilder(isWindowsTarget);
+  const shortNsisTemplatesDir = isWindowsTarget ? resolveShortNsisTemplateDir() : undefined;
 
-  console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
+  if (shortNsisTemplatesDir) console.log(`[dist:desktop] using NSIS templates from ${shortNsisTemplatesDir}`);
 
   execFileSync(process.execPath, [electronBuilderCli, ...args], {
     cwd: desktopDir,
     stdio: "inherit",
     env: {
       ...env,
-      [nsisEnvOverrideName]: shortNsisTemplatesDir,
+      ...(shortNsisTemplatesDir ? { [nsisEnvOverrideName]: shortNsisTemplatesDir } : {}),
       [traversalEnvOverrideName]: "true",
     },
   });
 }
 
-try {
-  main();
-} catch (error) {
-  console.error("[dist:desktop] failed.", error);
-  process.exit(1);
+module.exports = { normalizeBuildEnvironment, resolvePublishMode };
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error("[dist:desktop] failed.", error);
+    process.exit(1);
+  }
 }

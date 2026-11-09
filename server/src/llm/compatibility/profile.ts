@@ -10,6 +10,7 @@ export const capabilityProfileSchema = z.object({
   thinkingToggle: z.object({ supported: z.boolean(), control: z.enum(["none", "thinking", "thinking_boolean", "enable_thinking", "reasoning_effort"]), effort: z.boolean().default(false) }),
   reasoningField: z.enum(["none", "reasoning_content", "reasoning", "think_tags", "reasoning_details"]),
   maxContext: z.number().int().positive().optional(),
+  maxOutputTokens: z.number().int().positive().max(1048576).optional(),
   source: z.enum(["builtin_default", "probed", "user_override"]),
   probedAt: z.string().optional(),
   updatedAt: z.string(),

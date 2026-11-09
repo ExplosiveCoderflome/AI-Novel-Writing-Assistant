@@ -19,8 +19,30 @@
 
 1. 发新版桌面包前，先运行 `pnpm release:desktop:bump X.Y.Z` 更新 `desktop/package.json`。
 2. 更新用户可见 release notes 和 README 最新更新，说明该版本面向用户的变化。
-3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支和 tag 规则都通过。
+3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支、tag、类型检查和测试都通过。dry-run 也执行检查，但不创建 tag 或 push。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
+
+## 发布检查与拒绝规则
+
+`scripts/desktop-release/guard.cjs` 是发布验证门面。创建 tag／push 前运行类型检查、隔离测试库迁移、服务端与前端完整测试、桌面编译及桌面／发版脚本契约测试。测试使用独立临时目录和 SQLite 数据库，不使用作者数据库或应用数据目录；失败时保留输出目录用于诊断。
+
+通过检查不等于长期授权。检查前后读取 HEAD、版本与工作区，期间有代码、版本或提交变化必须重新检查。正式上传再次核对版本 tag 指向当前 HEAD，且提交属于 main；GitHub 必须提供匹配的 tag ref。不能将旧成功结果、任意环境布尔值或另一个分支的验证当作本次通过证据。
+
+本地上传还须读取 origin 的已推送 tag（注解 tag 取 peeled commit）并与本次 HEAD 比较，避免发布器在远端缺少 tag 时替旧 main 自动创建发布标识。
+
+`run-electron-builder.cjs` 默认添加 `--publish never`，避免 CI 环境隐式上传。显式 `--publish`、`--publish=...` 与 `-p` 共用同一验证入口，失败不调用上传；重复 publish 参数被拒绝。两种既有发布脚本都经过此入口，不能另建绕过守卫的上传路径。
+
+发布 workflow 仅允许 push 的版本 tag 进入上传任务。手动 workflow_dispatch 只执行检查与目录打包，不上传 GitHub Release。构建使用已提交的图标；品牌图标应在开发时生成、审核并提交，避免发布检查期间改写受版本控制的素材。发布说明更新脚本也必须拒绝与 package 版本不符的 tag。
+
+## 平台与原生运行时
+
+Windows 保留 x64 NSIS 和便携包；Mac 通过 macos-latest 的独立 x64/arm64 任务产生未签名 DMG，运行时禁用自动更新并使用 icns 图标；Linux 通过 ubuntu-latest 产生 x64 AppImage 并使用 PNG 图标。Mac 用户通过下载新版安装包升级，不能依赖需要签名的自动更新链。
+
+桌面构建显式固定 SQLite，避免开发者的 PostgreSQL 环境影响生成客户端。每个 afterPack 验证最终包中 better-sqlite3 的 PE/Mach-O/ELF 架构及 Prisma SQLite schema；原生模块由 electron-builder 针对当前 Electron 版本和目标架构重建，不能直接复用宿主 Node 的 SQLite 二进制。生成的 Prisma 客户端、WASM 运行时和迁移目录仍由原 staging 入口复制，不自行拼装另一份客户端。
+
+包内验证与职责归属见 [打包模块边界](../../../desktop/scripts/packaging/README.md)。配置使用 [electron-builder 平台选项](https://www.electron.build/mac/)；可选二进制安装使用 [pnpm supportedArchitectures](https://pnpm.io/settings#supportedarchitectures)。
+
+原生重编译的 buildPath 和 projectRootPath 必须同时指向 staging。electron-builder 默认会使用 workspaceRoot 扫描依赖，仅脱离 staging 硬链接仍可能改写源码 SQLite 的 ABI，表现为打包后 Node 测试报 Electron NODE_MODULE_VERSION。beforePack 通过既有 @electron/rebuild 限定范围，并以 npmRebuild=false 禁止默认重编译，保留正常依赖收集；本地验证须确认源码二进制散列保持不变且 Node 可加载。
 
 ## 工作区依赖与部署快照
 

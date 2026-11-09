@@ -21,6 +21,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [正文生产内核运行进度、提交与恢复](./architecture/production-kernel-persistence.md)
 - [当前模型选择与厂商默认模型边界](./architecture/model-selection.md)
 - [配置项归属与可见性规范](./architecture/configuration-conventions.md)
+- [API 访问令牌边界](./architecture/access-token-boundary.md)
 
 ### Workflows
 
@@ -62,6 +63,8 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 - [本地数据与版本控制边界](./debugging/local-data-and-version-control.md)
 
 ### Product
+
+- [手机快捷终端](./product/mobile-quick-terminal.md)
 
 - [新手优先与整本小说完成原则](./product/beginner-first-novel-completion.md)
 - [工作台状态表达与下一步合同](./product/workspace-status-expression.md)

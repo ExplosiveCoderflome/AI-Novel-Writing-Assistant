@@ -145,7 +145,7 @@ export default function ProviderStatusCard(props: {
         </Button>
       </div>
 
-      <ModelCompatibilitySection provider={provider} />
+      <ModelCompatibilitySection key={`${provider.provider}:${provider.currentModel}:${provider.currentBaseURL}`} provider={provider} />
 
       <div className="mt-3 border-t pt-3">
         <button

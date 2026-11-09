@@ -33,6 +33,7 @@ function setup({ activeRunId = null, control = runningControl() } = {}) {
       const next = { ...current, version: current.version + 1 };
       if (event.type === "cancel") next.status = "cancelled";
       if (event.type === "resume") next.status = "running";
+      if (event.type === "pause") { next.status = "paused"; next.pause = event.pause; }
       controls.set(runId, next);
       return next;
     },
@@ -87,6 +88,16 @@ test("the same idempotency key returns the first result without a second transit
   assert.equal(first.replayed, false);
   assert.equal(second.replayed, true);
   assert.deepEqual(calls, [["transition", "run-1", { type: "cancel" }, 1]]);
+});
+
+test("user pause uses the manual recovery transition and is idempotent", async () => {
+  const { service, calls } = setup();
+  const command = { type: "pause", runId: "run-1", expectedVersion: 1, idempotencyKey: "pause-1" };
+  const first = await service.execute(command);
+  assert.equal((await service.execute(command)).replayed, true);
+  assert.deepEqual(calls, [["transition", "run-1", { type: "pause", pause: { kind: "manual_recovery", reason: "user_requested_pause" } }, 1]]);
+  await service.execute({ type: "resume", runId: "run-1", expectedVersion: first.controlVersion, idempotencyKey: "resume-after-pause" });
+  assert.equal(calls[1][2].type, "resume");
 });
 
 test("an active run rejects open_run before a new run is created", async () => {

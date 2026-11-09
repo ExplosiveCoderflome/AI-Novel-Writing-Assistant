@@ -15,7 +15,7 @@ export interface PlanRegistry {
   get(version: string): PlanDefinition | null;
 }
 
-export type DirectorCommandType = "open_run" | "resolve_gate" | "resume" | "handoff" | "cancel" | "retry_start";
+export type DirectorCommandType = "open_run" | "resolve_gate" | "resume" | "handoff" | "cancel" | "retry_start" | "pause";
 
 export interface DirectorCommandRecord {
   id: string;

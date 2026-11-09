@@ -101,6 +101,7 @@ export async function* streamCreativeHubRun(
     ...(payload.maxTokens !== undefined ? { maxTokens: payload.maxTokens } : {}),
   };
   const response = await fetch(`${API_BASE_URL}/creative-hub/threads/${resolvedThreadId}/runs/stream`, {
+    credentials: "include",
     method: "POST",
     headers: {
       "Content-Type": "application/json",

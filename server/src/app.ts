@@ -12,6 +12,7 @@ import morgan from "morgan";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { ensureRuntimeDatabaseReady } from "./db/runtimeMigrations";
 import { errorHandler } from "./middleware/errorHandler";
+import { authMiddleware, establishAccessSession } from "./middleware/auth";
 import { loadProviderApiKeys } from "./llm/factory";
 import astrologyRouter from "./routes/astrology";
 import agentCatalogRouter from "./routes/agentCatalog";
@@ -114,7 +115,8 @@ export function createApp() {
         const isListedOrigin = corsAllowList.includes(origin);
         const isLocalhostDevOrigin = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
         const isLanOrigin = allowLan && /^https?:\/\/(?:\d{1,3}\.){3}\d{1,3}:\d+$/.test(origin);
-        callback(null, isListedOrigin || isLocalhostDevOrigin || isLanOrigin);
+        const isDesktopOrigin = process.env.AI_NOVEL_RUNTIME === "desktop" && origin === "null";
+        callback(null, isListedOrigin || isLocalhostDevOrigin || isLanOrigin || isDesktopOrigin);
       },
       credentials: true,
     }),
@@ -131,6 +133,10 @@ export function createApp() {
     return `${method} ${url} ${status} ${responseTime} ms - ${contentLength}${errorSuffix}`;
   }));
   app.use(express.json({ limit: jsonBodyLimit }));
+
+  app.use("/api", authMiddleware);
+  app.get("/api/access/session", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ success: true }); });
+  app.post("/api/access/session", establishAccessSession);
 
   app.use("/api/health", healthRouter);
   app.use("/api/agent-catalog", agentCatalogRouter);

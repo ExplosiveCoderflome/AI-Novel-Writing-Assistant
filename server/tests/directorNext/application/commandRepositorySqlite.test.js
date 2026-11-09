@@ -84,6 +84,19 @@ const { contract } = require(path.join(serverRoot, "tests/directorNext/fixtures"
   assert.deepEqual(await prisma.directorNextArtifact.findMany(), artifactsBeforeHandoff);
   assert.equal(await prisma.directorNextRunControl.count({where: {novelId: 'novel-1', status: {in: ['queued', 'running', 'paused', 'waiting_gate']}}}), 1);
   assert.equal((await service.execute({type: 'handoff', runId: handoff.runId, toDriver: 'auto', expectedVersion: 3, idempotencyKey: 'switch-back'})).replayed, true);
+  await runRepository.transition(back.runId, {type: 'start'}, 0);
+  await runRepository.transition(back.runId, {type: 'step_started', stepId: 'story_macro'}, 1);
+  const savedBeforePause = await prisma.directorNextArtifact.findMany();
+  const pauseCommand = {type: 'pause', runId: back.runId, expectedVersion: 2, idempotencyKey: 'user-pause'};
+  const paused = await service.execute(pauseCommand);
+  assert.equal((await service.execute(pauseCommand)).replayed, true);
+  assert.equal((await runRepository.getControl(back.runId)).status, 'paused');
+  assert.equal((await runRepository.getControl(back.runId)).pause.reason, 'user_requested_pause');
+  await assert.rejects(runRepository.transition(back.runId, {type: 'step_finished'}, 2), /version conflict/);
+  assert.deepEqual(await prisma.directorNextArtifact.findMany(), savedBeforePause);
+  await service.execute({type: 'resume', runId: back.runId, expectedVersion: paused.controlVersion, idempotencyKey: 'user-resume'});
+  assert.equal((await runRepository.getControl(back.runId)).status, 'running');
+  assert.deepEqual(await prisma.directorNextArtifact.findMany(), savedBeforePause);
   await prisma.$disconnect();
 })().catch(async (error) => {
   console.error(error);

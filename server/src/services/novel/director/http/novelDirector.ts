@@ -43,6 +43,7 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { DirectorBookAutomationProjectionService } from "../projections/DirectorBookAutomationProjectionService";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
+import { pauseLegacyDirectorTask } from "../commands/pausing";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
 import { novelDirectorIdeaInspirationService } from "../idea";
@@ -475,6 +476,12 @@ async function appendDirectorCommand(req: Request, res: Response, next: NextFunc
 }
 
 router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
+router.post("/tasks/:taskId/pause", validate({ params: taskParamsSchema }), async (req, res, next) => {
+  try {
+    await pauseLegacyDirectorTask(String(req.params.taskId));
+    res.json({ success: true });
+  } catch (error) { next(error); }
+});
 router.post("/novels/:novelId/commands", validate({ params: takeoverParamsSchema, body: appendCommandSchema }), appendDirectorCommand);
 
 router.get("/novels/:novelId/current", validate({ params: takeoverParamsSchema }), async (req, res, next) => {

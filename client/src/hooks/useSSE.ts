@@ -106,6 +106,7 @@ export function useSSE(options?: UseSSEOptions) {
 
       try {
         const response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
+          credentials: "include",
           method: "POST",
           headers: {
             "Content-Type": "application/json",

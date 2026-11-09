@@ -5,6 +5,7 @@ import { BrowserRouter, HashRouter } from "react-router-dom";
 import "highlight.js/styles/github.css";
 import DesktopBootstrapBoundary from "./components/layout/DesktopBootstrapBoundary";
 import ServerStartupGate from "./components/layout/ServerStartupGate";
+import AccessTokenGate from "./components/layout/AccessTokenGate";
 import { APP_RUNTIME } from "./lib/constants";
 import AppRouter from "./router";
 import { Toaster } from "./components/ui/toast";
@@ -29,7 +30,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <AppRouterProvider>
           <DesktopBootstrapBoundary>
             <ServerStartupGate>
-              <AppRouter />
+              <AccessTokenGate><AppRouter /></AccessTokenGate>
             </ServerStartupGate>
           </DesktopBootstrapBoundary>
           <Toaster />

@@ -62,6 +62,7 @@ export async function generateNovelVolumes(
 ) {
   if (onProgress) {
     const response = await fetch(`${API_BASE_URL}/novels/${id}/volumes/generate`, {
+      credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
       body: JSON.stringify(payload ?? {}),

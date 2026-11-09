@@ -11,6 +11,7 @@ interface ImportMetaEnv {
 
 interface Window {
   __AI_NOVEL_RUNTIME__?: {
+    accessToken?: string;
     mode?: "web" | "desktop";
     apiBaseUrl?: string;
     apiTimeoutMs?: number | string;

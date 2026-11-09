@@ -6,6 +6,7 @@ const APP_NAME = "AI-Novel-Writing-Assistant-v2";
 const PORTABLE_DATA_SUFFIX = "-data";
 
 export interface DesktopRuntimeConfig {
+  accessToken?: string;
   mode: "desktop";
   apiBaseUrl: string;
   apiTimeoutMs: number;
@@ -105,12 +106,13 @@ export function resolveDesktopWindowIcon(): string {
     return path.resolve(process.env.AI_NOVEL_DESKTOP_ICON_PATH.trim());
   }
 
-  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", "app-icon.ico");
+  const iconName = process.platform === "darwin" ? "app-icon.icns" : process.platform === "linux" ? "app-icon.png" : "app-icon.ico";
+  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", iconName);
   if (fs.existsSync(packagedIconPath)) {
     return packagedIconPath;
   }
 
-  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", "app-icon.ico");
+  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", iconName);
 }
 
 export function resolvePackagedServerEntry(): string {

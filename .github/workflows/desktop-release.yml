@@ -5,14 +5,13 @@ on:
   push:
     tags:
       - "v*"
-      - "desktop-v*"
 
 permissions:
   contents: write
 
 jobs:
   publish-release:
-    if: ${{ startsWith(github.ref_name, 'desktop-v') || !contains(github.ref_name, '-') }}
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: windows-latest
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
@@ -25,6 +24,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -45,15 +46,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install desktop icon tooling
-        run: python -m pip install --disable-pip-version-check pillow
-
-      - name: Regenerate desktop icon assets
-        run: python desktop/scripts/generate-desktop-icons.py
-
-      - name: Typecheck
-        run: pnpm typecheck
-
       - name: Build and stage desktop app
         run: pnpm stage:desktop
 
@@ -71,3 +63,89 @@ jobs:
 
       - name: Update GitHub release notes
         run: node scripts/update-desktop-release-notes.cjs
+
+  publish-mac:
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Verify packaging contracts
+        run: node --test desktop/tests/*.test.cjs
+      - name: Publish unsigned DMG
+        run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish always
+
+  publish-linux:
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Verify packaging contracts
+        run: node --test desktop/tests/*.test.cjs
+      - name: Publish AppImage
+        run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish always
+
+  verify-only:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - name: Verify release checks without uploading
+        run: node scripts/desktop-release/check.cjs
+      - run: pnpm stage:desktop
+      - name: Verify Windows package without publishing
+        run: node desktop/scripts/run-electron-builder.cjs --dir --win --x64 --publish never
+      - run: node desktop/scripts/verify-desktop-package.cjs
