@@ -298,7 +298,8 @@ export async function resolveLLMClientOptions(
   }
   const authMode = normalizeProviderAuthMode(options.authMode ?? dbSecret?.authMode);
 
-  await loadCapability({ provider: resolvedProvider, model, baseURL });
+  const capability = await loadCapability({ provider: resolvedProvider, model, baseURL });
+  if (capability.maxOutputTokens != null) respectConfiguredMaxTokens = true;
   const temperature = resolveModelTemperature(resolvedProvider, model, resolvedTemperature);
   const timeoutMs = normalizeOptionalTimeoutMs(options.timeoutMs);
   const concurrencyLimit = normalizeLimitValue(dbSecret?.concurrencyLimit);
@@ -323,8 +324,11 @@ export async function resolveLLMClientOptions(
       && structuredProfile.requiresNonThinkingForStructured,
   );
   const reasoningEnabled = shouldForceDisableReasoning ? false : requestedReasoningEnabled;
-  let effectiveMaxTokens = resolveScopedTaskOutputTokens(resolvedProvider, model, resolvedModelRoute ?? options.taskType, resolvedMaxTokens);
-  if (structuredProfile && usesNativeStructured && structuredProfile.omitMaxTokensForNativeStructured) {
+  let effectiveMaxTokens = resolveScopedTaskOutputTokens(resolvedProvider, model, resolvedModelRoute ?? options.taskType, capability.maxOutputTokens ?? resolvedMaxTokens);
+  if (capability.maxOutputTokens != null) {
+    effectiveMaxTokens = Math.min(effectiveMaxTokens ?? capability.maxOutputTokens, capability.maxOutputTokens);
+  }
+  if (structuredProfile && usesNativeStructured && structuredProfile.omitMaxTokensForNativeStructured && capability.maxOutputTokens == null) {
     effectiveMaxTokens = undefined;
   } else if (
     structuredProfile
