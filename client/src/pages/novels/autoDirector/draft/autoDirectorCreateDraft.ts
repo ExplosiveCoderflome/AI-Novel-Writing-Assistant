@@ -7,6 +7,7 @@ import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeC
 import type { NovelBasicFormState } from "../../novelBasicInfo.shared";
 import type { AutoDirectorCreateStageKey } from "../directorCreateStages";
 import type {DirectorVersion} from "@ai-novel/shared/types/director/version";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 
 const DRAFT_VERSION = 1;
 const DRAFT_STORAGE_PREFIX = `ai-novel.auto-director-create.draft.v${DRAFT_VERSION}`;
@@ -40,6 +41,7 @@ export interface AutoDirectorCreateDraft {
   worldSetupMode: DirectorWorldSetupMode;
   selectedStyleProfileId: string;
   creativeCarryoverContract?: CreativeCarryoverContract | null;
+  issuePolicy?: DirectorIssuePolicy | null;
   savedAt: string;
 }
 
@@ -53,6 +55,7 @@ export interface AutoDirectorCreateDraftInput {
   worldSetupMode: DirectorWorldSetupMode;
   selectedStyleProfileId: string;
   creativeCarryoverContract?: CreativeCarryoverContract | null;
+  issuePolicy?: DirectorIssuePolicy | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -104,6 +107,7 @@ export function saveAutoDirectorCreateDraft(
     worldSetupMode: input.worldSetupMode,
     selectedStyleProfileId: input.selectedStyleProfileId,
     creativeCarryoverContract: input.creativeCarryoverContract ?? null,
+    issuePolicy: input.issuePolicy ?? null,
     savedAt: new Date().toISOString(),
   };
 
@@ -158,6 +162,7 @@ export function loadAutoDirectorCreateDraft(
         : value.creativeCarryoverContract === null
           ? null
           : undefined,
+      issuePolicy: isRecord(value.issuePolicy) ? value.issuePolicy as DirectorIssuePolicy : null,
       savedAt: value.savedAt,
     };
   } catch {

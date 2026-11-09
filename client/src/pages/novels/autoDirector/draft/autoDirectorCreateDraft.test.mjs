@@ -48,6 +48,7 @@ test("creation draft restores the pre-task idea and last safe stage", () => {
     worldSetupMode: "auto_generate",
     selectedStyleProfileId: "style-1",
     creativeCarryoverContract: null,
+    issuePolicy: null,
     savedAt: loadAutoDirectorCreateDraft(storage, scopeKey)?.savedAt,
   });
 });

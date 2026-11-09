@@ -408,6 +408,7 @@ function AutoDirectorCreatePage() {
       worldSetupMode: controller.worldSetupMode,
       selectedStyleProfileId: controller.selectedStyleProfileId,
       creativeCarryoverContract: activeCarryoverContract,
+      issuePolicy: controller.issuePolicy,
     });
   }, [
     activeStage,
@@ -415,6 +416,7 @@ function AutoDirectorCreatePage() {
     activeCarryoverContract,
     completedStages,
     controller.idea,
+    controller.issuePolicy,
     controller.runMode,
     controller.directorVersion,
     controller.selectedStyleProfileId,
@@ -779,6 +781,9 @@ function AutoDirectorCreatePage() {
           basicForm={controller.directorBasicForm}
           onBasicFormChange={controller.onBasicFormChange}
           canGenerate={controller.canGenerate}
+          generationDisabledReasons={controller.generationDisabledReasons}
+          directorVersionsError={controller.directorVersionsError}
+          onRetryDirectorVersions={controller.retryDirectorVersions}
           isGenerating={controller.generateMutation.isPending}
           onBack={() => setActiveStage("world_style")}
           onGenerate={startGenerate}
@@ -1069,7 +1074,7 @@ export default function AutoDirectorCreateRoute() {
   });
   return (
     <AutoDirectorCreateErrorBoundary>
-      <AutoDirectorCreatePage key={scopeKey} />
+      <AutoDirectorCreatePage key={`${scopeKey}:${readCandidateTaskId(searchParams) || searchParams.get("workflowTaskId") || "draft"}`} />
     </AutoDirectorCreateErrorBoundary>
   );
 }

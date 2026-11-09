@@ -17,6 +17,9 @@ interface StageModelRunProps {
   basicForm: NovelBasicFormState;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
   canGenerate: boolean;
+  generationDisabledReasons: string[];
+  directorVersionsError: boolean;
+  onRetryDirectorVersions: () => void;
   isGenerating: boolean;
   onBack: () => void;
   onGenerate: () => void;
@@ -33,6 +36,9 @@ export default function StageModelRun({
   basicForm,
   onBasicFormChange,
   canGenerate,
+  generationDisabledReasons,
+  directorVersionsError,
+  onRetryDirectorVersions,
   isGenerating,
   onBack,
   onGenerate,
@@ -66,7 +72,7 @@ export default function StageModelRun({
             onChange={event => onDirectorVersionChange(event.target.value as "v1" | "v2")}
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:max-w-sm">
             {availableDirectorVersions.map(version => <option key={version} value={version}>{version === "v2" ? "导演 V2 · 新导演" : "导演 V1 · 原导演"}</option>)}
-            {!availableDirectorVersions.includes(directorVersion) ? <option value={directorVersion}>{availableDirectorVersions.length ? `导演 ${directorVersion.toUpperCase()} · 未启用` : "正在读取导演版本…"}</option> : null}
+            {!availableDirectorVersions.includes(directorVersion) ? <option value={directorVersion}>{availableDirectorVersions.length ? `导演 ${directorVersion.toUpperCase()} · 未启用` : directorVersionsError ? "导演版本读取失败" : "正在读取导演版本…"}</option> : null}
           </select>
           <p className="text-xs leading-5 text-muted-foreground">选择本书使用的创作流程。全自动或按阶段确认可在对应导演台设置。</p>
           {versionLocked ? <p className="text-xs text-muted-foreground">结束当前开书任务后可选择其他版本。</p> : null}
@@ -162,9 +168,20 @@ export default function StageModelRun({
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>返回世界与写法</Button>
-        <Button type="button" onClick={onGenerate} disabled={!canGenerate}>
-          {isGenerating ? "生成中..." : "开始生成方向"}
-        </Button>
+        <div className="space-y-2 sm:max-w-md sm:text-right">
+          {!canGenerate ? (
+            <ul id="direction-generation-disabled-reasons" role="status" className="space-y-1 text-sm text-muted-foreground">
+              {generationDisabledReasons.map((reason) => <li key={reason}>{reason}</li>)}
+            </ul>
+          ) : null}
+          {directorVersionsError ? (
+            <Button type="button" variant="ghost" size="sm" onClick={onRetryDirectorVersions}>重试读取导演版本</Button>
+          ) : null}
+          <Button type="button" onClick={onGenerate} disabled={!canGenerate}
+            aria-describedby={!canGenerate ? "direction-generation-disabled-reasons" : undefined}>
+            {isGenerating ? "生成中..." : "开始生成方向"}
+          </Button>
+        </div>
       </div>
     </section>
   );
