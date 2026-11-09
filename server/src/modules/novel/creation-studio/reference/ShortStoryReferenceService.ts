@@ -42,7 +42,9 @@ export class ShortStoryReferenceService {
       throw new AppError("请先完成所选参考小说的拆书分析。", 409);
     }
     const keys = selection.sectionKeys ?? analysis.sections
-      .filter((section) => section.status === "succeeded" || section.frozen).map((section) => section.sectionKey);
+      .filter((section) => (section.status === "succeeded" || section.frozen)
+        && !isEmptySucceededBookAnalysisSection({ ...section, status: "succeeded", frozen: false }))
+      .map((section) => section.sectionKey);
     const supported = new Set(BOOK_ANALYSIS_SECTIONS.map((section) => section.key as string));
     if (!keys.length || new Set(keys).size !== keys.length || keys.some((key) => !supported.has(key))) {
       throw new AppError("请选择有效的拆书结论。", 400);
