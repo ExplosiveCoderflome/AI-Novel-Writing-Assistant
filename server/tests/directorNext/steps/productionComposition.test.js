@@ -125,14 +125,14 @@ test('registered production routes reuse the window service and never request a 
  finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.generateVolumes=originals.generate;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
 });
 
-test('registered opening production defers future volume skeletons but planning retains the full-book request',async()=>{
+test('opening production and planning both retain the AI multi-volume skeleton request',async()=>{
  const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
  const originals={generate:NovelVolumeService.prototype.generateVolumes,save:NovelVolumeService.prototype.updateVolumes,recover:NovelVolumeService.prototype.recoverVolumeStrategy};
  NovelVolumeService.prototype.recoverVolumeStrategy=async()=>null;
  const calls=[];NovelVolumeService.prototype.generateVolumes=async(_id,input)=>{calls.push(input);return {volumes:[{id:'v1'}]};};NovelVolumeService.prototype.updateVolumes=async(_id,input)=>input;
  try {
   await options.stepRegistry.get('volume_strategy')(context);
-  assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,1);
+  assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,undefined);
   assert.equal(calls[0].estimatedChapterCount,10);
   calls.length=0;await options.stepRegistry.get('volume_strategy')({...context,contract:{...contract,chapterRange:null}});
   assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,undefined);
@@ -167,4 +167,40 @@ test('a resumed beat-sheet step repairs its missing strategy before preparing th
  };
  try {const result=await options.stepRegistry.get('volume_beat_sheet')(context);assert.equal(result.artifact.contentRef,'volume_beat_sheet:novel:v1');}
  finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;ChapterRouteWindowService.prototype.ensureRouteWindow=originals.window;}
+});
+
+
+test('fixed volume count is frozen and actual multi-volume skeletons share the chapter budget',async()=>{
+ const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
+ const runner=require('../../../dist/prompting/core/promptRunner');
+ const {generateBeatSheet}=require('../../../dist/services/novel/volume/volumeBeatSheetGeneration');
+ const originals={generate:NovelVolumeService.prototype.generateVolumes,save:NovelVolumeService.prototype.updateVolumes,recover:NovelVolumeService.prototype.recoverVolumeStrategy,prompt:runner.runStructuredPrompt};
+ const calls=[];
+ NovelVolumeService.prototype.recoverVolumeStrategy=async()=>null;
+ let workspace;
+ NovelVolumeService.prototype.generateVolumes=async(_id,input)=>{
+  calls.push(input);
+  if(input.scope==='strategy') return {...workspace,strategyPlan:{recommendedVolumeCount:input.userPreferredVolumeCount ?? 4,volumes:[],uncertainties:[]}};
+  if(input.scope==='strategy_critique') return input.draftWorkspace;
+  const count=input.skeletonVolumeCount ?? input.draftWorkspace.strategyPlan.recommendedVolumeCount;
+  return {...input.draftWorkspace,volumes:Array.from({length:count},(_,i)=>({id:`v${i+1}`,sortOrder:i+1,title:`Volume ${i+1}`,openPayoffs:[],chapters:[]}))};
+ };
+ NovelVolumeService.prototype.updateVolumes=async(_id,input)=>{workspace=input;return input;};
+ try {
+  for (const preferred of [undefined,2,1,24]) {
+   workspace={novelId:'novel',volumes:[],beatSheets:[]};calls.length=0;
+   const fixed=options.contractFactory({runId:'fixed',novelId:'novel',driver:'auto',stepIdsInScope:null,launchInput:{...launchInput,estimatedChapterCount:240,userPreferredVolumeCount:preferred}});
+   assert.equal(JSON.parse(JSON.stringify(fixed)).launchInput.userPreferredVolumeCount,preferred);
+   await options.stepRegistry.get('volume_strategy')({...context,contract:fixed});
+   assert.ok(calls.every(call=>call.userPreferredVolumeCount===preferred));
+   assert.equal(calls.find(call=>call.scope==='skeleton').skeletonVolumeCount,preferred);
+   assert.deepEqual(calls.map(call=>call.scope),['strategy','strategy_critique','skeleton']);
+   assert.equal(workspace.volumes.length,preferred ?? 4);
+   const budgets=[];
+   runner.runStructuredPrompt=async input=>{budgets.push(input.promptInput.targetChapterCount);return {output:{beats:[]}};};
+   for (const volume of workspace.volumes) await generateBeatSheet({document:workspace,workspace,novel:{title:'budget test',estimatedChapterCount:240,characters:[]},storyMacroPlan:null,
+    options:{targetVolumeId:volume.id,estimatedChapterCount:240},notifyVolumeGenerationPhase:async()=>{}});
+   assert.deepEqual(budgets,Array(preferred ?? 4).fill(240/(preferred ?? 4)));
+  }
+ } finally {runner.runStructuredPrompt=originals.prompt;NovelVolumeService.prototype.generateVolumes=originals.generate;NovelVolumeService.prototype.updateVolumes=originals.save;NovelVolumeService.prototype.recoverVolumeStrategy=originals.recover;}
 });

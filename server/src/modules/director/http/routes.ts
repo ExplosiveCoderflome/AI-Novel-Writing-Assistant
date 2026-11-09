@@ -41,6 +41,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     launchInput: z.object({
       storyInput: nonEmpty,
       estimatedChapterCount: z.number().int().positive(),
+      userPreferredVolumeCount: z.number().int().min(1).max(24).optional(),
       chapterTokenLimit: directorChapterTokenLimitSchema.optional(),
       temperature: z.number().min(0).max(2).optional(),
       worldMode: z.enum(["generate", "reuse", "skip"]),

@@ -649,6 +649,7 @@ export interface DirectorProjectContextInput {
   postGenerationStyleReviewEnabled?: boolean;
   defaultChapterLength?: number;
   estimatedChapterCount?: number;
+  userPreferredVolumeCount?: number;
   projectStatus?: ProjectProgressStatus;
   storylineStatus?: ProjectProgressStatus;
   outlineStatus?: ProjectProgressStatus;

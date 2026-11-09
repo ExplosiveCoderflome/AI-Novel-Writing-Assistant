@@ -38,6 +38,7 @@ export default function StageBasicSetup({
   onConfirm,
 }: StageBasicSetupProps) {
   const [estimatedChapterCountDraft, setEstimatedChapterCountDraft] = useState<string | null>(null);
+  const [volumeCountDraft, setVolumeCountDraft] = useState<string | null>(null);
   const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
   const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
@@ -207,6 +208,21 @@ export default function StageBasicSetup({
               建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。
             </div>
           ) : null}
+        </div>
+        <div className="space-y-2">
+          <FieldLabel htmlFor="director-basic-volumes">固定卷数（可选）</FieldLabel>
+          <Input id="director-basic-volumes" type="number" min={1} max={24} step={1}
+            className={controlClassName} placeholder="留空由 AI 推荐"
+            value={volumeCountDraft ?? basicForm.userPreferredVolumeCount ?? ""}
+            onChange={(event) => {
+              const draft = event.target.value;
+              setVolumeCountDraft(draft);
+              const count = Number(draft);
+              if (!draft) onBasicFormChange({userPreferredVolumeCount: undefined});
+              else if (Number.isInteger(count) && count >= 1 && count <= 24) onBasicFormChange({userPreferredVolumeCount: count});
+            }}
+            onBlur={() => setVolumeCountDraft(null)}/>
+          <p className="text-xs text-muted-foreground">填写 1–24 卷，AI 按指定卷数安排全书；留空由 AI 根据故事规模推荐。</p>
         </div>
       </div>
 

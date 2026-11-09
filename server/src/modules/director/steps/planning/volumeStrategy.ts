@@ -6,6 +6,7 @@ export interface VolumeStrategyStepInput<Provider extends string> {
   temperature?: number;
   guidance?: string;
   estimatedChapterCount: number;
+  userPreferredVolumeCount?: number;
   skeletonVolumeCount?: number;
 }
 
@@ -40,6 +41,7 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
       provider: input.provider, model: input.model, temperature: input.temperature,
       ...(guidance === undefined ? {} : {guidance}),
       estimatedChapterCount: input.estimatedChapterCount,
+      ...(input.userPreferredVolumeCount === undefined ? {} : {userPreferredVolumeCount: input.userPreferredVolumeCount}),
       taskId: context.runId, entrypoint: "director_next" as const,
       persistIntermediateDocuments: false as const,
     };
@@ -61,7 +63,7 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
     });
     const skeleton = await dependencies.volumeService.generateVolumes(novelId, {
       ...options, scope: "skeleton", draftWorkspace: reviewed,
-      ...(input.skeletonVolumeCount === undefined ? {} : {skeletonVolumeCount: input.skeletonVolumeCount}),
+      ...((input.userPreferredVolumeCount ?? input.skeletonVolumeCount) === undefined ? {} : {skeletonVolumeCount: input.userPreferredVolumeCount ?? input.skeletonVolumeCount}),
     });
     const saved = await dependencies.volumeService.updateVolumes(novelId, {
       ...skeleton, syncToChapterExecution: false,

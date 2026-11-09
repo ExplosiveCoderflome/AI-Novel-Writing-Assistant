@@ -42,7 +42,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
   const executionRange = source === "original_opening" && ["full_book_autopilot","auto_to_execution"].includes(input.runMode ?? "") && end
     ? {from:input.autoExecutionPlan?.startOrder ?? 1,to:end} : undefined;
   const result = await getDirectorProductionServices().http.commandService.execute({type:"open_run",novelId:novel.id,driver:source === "original_opening" && input.runMode !== "stage_review" ? "auto" : "assisted",stepIdsInScope:null,
-    idempotencyKey:`${source === "creation_studio" ? "creation-studio" : source}:${sourceTaskId}:director`,launchInput:{storyInput:source === "original_opening" ? `${input.idea}\n\n已选定的开书方向：\n${JSON.stringify(input.candidate)}` : input.idea,estimatedChapterCount:chapterCount,
+    idempotencyKey:`${source === "creation_studio" ? "creation-studio" : source}:${sourceTaskId}:director`,launchInput:{storyInput:source === "original_opening" ? `${input.idea}\n\n已选定的开书方向：\n${JSON.stringify(input.candidate)}` : input.idea,estimatedChapterCount:chapterCount,userPreferredVolumeCount:input.userPreferredVolumeCount,
       worldMode:input.worldId ? "reuse" : input.worldSetupMode === "skip" ? "skip" : "generate",targetMode:"opening",provider,model,temperature:input.temperature ?? selection?.temperature,executionRange}});
   return {novel,workflowTaskId:result.runId};
 }

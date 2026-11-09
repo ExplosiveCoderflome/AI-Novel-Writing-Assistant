@@ -9,6 +9,10 @@ test('AI recommended chapter count is not replaced by an untouched form default,
   const initial=createDefaultNovelBasicFormState();
   const payload=form=>buildAutoDirectorRequestPayload(form,'十二章完结',{provider:'deepseek',model:'test'},'full_book_autopilot');
   assert.equal(payload(initial).estimatedChapterCount,undefined);
+  assert.equal(payload(initial).userPreferredVolumeCount,undefined);
+  const fixed=patchNovelBasicForm(initial,{userPreferredVolumeCount:4});
+  assert.equal(payload(patchNovelBasicForm(initial,JSON.parse(JSON.stringify(fixed)))).userPreferredVolumeCount,4);
+  assert.equal(payload(patchNovelBasicForm(fixed,{userPreferredVolumeCount:undefined})).userPreferredVolumeCount,undefined);
   assert.equal(payload(patchNovelBasicForm(initial,{estimatedChapterCount:12})).estimatedChapterCount,12);
   assert.equal(payload(patchNovelBasicForm(initial,{estimatedChapterCount:80})).estimatedChapterCount,80);
   const legacy={...initial}; delete legacy.estimatedChapterCountSource;

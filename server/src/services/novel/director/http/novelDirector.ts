@@ -119,6 +119,7 @@ const projectContextSchema = z.object({
   postGenerationStyleReviewEnabled: z.boolean().optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
   estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
+  userPreferredVolumeCount: z.number().int().min(1).max(24).optional(),
   projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   outlineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),

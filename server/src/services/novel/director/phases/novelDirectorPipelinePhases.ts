@@ -299,6 +299,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
       taskId,
       entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      userPreferredVolumeCount: request.userPreferredVolumeCount,
       signal,
       onPhaseStart: async (event) => {
         const update = buildVolumeStrategyPhaseUpdate(event);
@@ -324,6 +325,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
       taskId,
       entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      userPreferredVolumeCount: request.userPreferredVolumeCount,
       draftWorkspace: workspace,
       signal,
       onPhaseStart: async (event) => {
@@ -350,6 +352,7 @@ export async function runDirectorVolumeStrategyPhase(input: {
       taskId,
       entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      userPreferredVolumeCount: request.userPreferredVolumeCount,
       draftWorkspace: workspace,
       signal,
       onPhaseStart: async (event) => {

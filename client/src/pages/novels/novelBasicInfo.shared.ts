@@ -29,6 +29,7 @@ export interface NovelBasicFormState {
   postGenerationStyleReviewEnabled: boolean;
   defaultChapterLength: number;
   estimatedChapterCount: number;
+  userPreferredVolumeCount?: number;
   estimatedChapterCountSource?: "default" | "user";
   projectStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
   storylineStatus: "not_started" | "in_progress" | "completed" | "rework" | "blocked";

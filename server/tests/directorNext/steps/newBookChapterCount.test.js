@@ -46,11 +46,13 @@ for (const scenario of [
       idea: "测试故事",
       runMode: "full_book_autopilot",
       estimatedChapterCount: scenario.explicitCount,
+      userPreferredVolumeCount: 3,
     }, "source", "original_opening");
     assert.equal(created.length, 1);
     assert.equal(commands.length, 1);
     assert.equal(created[0].estimatedChapterCount, scenario.expected);
     assert.equal(commands[0].launchInput.estimatedChapterCount, scenario.expected);
+    assert.equal(commands[0].launchInput.userPreferredVolumeCount, 3);
     assert.deepEqual(commands[0].launchInput.executionRange, { from: 1, to: scenario.expected });
   });
 }

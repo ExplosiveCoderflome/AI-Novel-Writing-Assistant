@@ -100,7 +100,7 @@ export interface DirectorRunRecord {
 export type DirectorCommand =
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: DirectorDriver; stepIdsInScope: string[] | null; idempotencyKey: string; launchInput?: {
-    storyInput: string; estimatedChapterCount: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
+    storyInput: string; estimatedChapterCount: number; userPreferredVolumeCount?: number; worldMode: "generate" | "reuse" | "skip"; targetMode: "opening" | "selected_volume";
     targetVolumeId?: string | null; provider: string; model: string; temperature?: number; chapterTokenLimit?: number;
     executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
   } }

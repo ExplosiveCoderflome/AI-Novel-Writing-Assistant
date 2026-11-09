@@ -80,6 +80,7 @@ export function buildAutoDirectorRequestPayload(
     aiFreedom: basicForm.aiFreedom,
     postGenerationStyleReviewEnabled: basicForm.postGenerationStyleReviewEnabled,
     defaultChapterLength: basicForm.defaultChapterLength,
+    userPreferredVolumeCount: basicForm.userPreferredVolumeCount,
     estimatedChapterCount: basicForm.estimatedChapterCountSource === "default" ? undefined : basicForm.estimatedChapterCount,
     projectStatus: basicForm.projectStatus,
     storylineStatus: basicForm.storylineStatus,

@@ -47,6 +47,7 @@ export function summarizeBasicStage(basicForm: NovelBasicFormState): string {
     findLabel(PACE_OPTIONS, basicForm.pacePreference),
     findLabel(EMOTION_OPTIONS, basicForm.emotionIntensity),
     basicForm.estimatedChapterCountSource === "default" ? "章节数由 AI 推荐" : `约 ${basicForm.estimatedChapterCount} 章`,
+    basicForm.userPreferredVolumeCount === undefined ? "卷数由 AI 推荐" : `固定 ${basicForm.userPreferredVolumeCount} 卷`,
   ].join(" · ");
 }
 

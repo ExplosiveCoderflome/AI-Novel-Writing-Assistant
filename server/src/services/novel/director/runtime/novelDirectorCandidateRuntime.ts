@@ -272,6 +272,9 @@ export class NovelDirectorCandidateRuntime {
       estimatedChapterCount: typeof directorTaskData.estimatedChapterCount === "number"
         ? directorTaskData.estimatedChapterCount
         : undefined,
+      userPreferredVolumeCount: typeof directorTaskData.userPreferredVolumeCount === "number"
+        ? directorTaskData.userPreferredVolumeCount
+        : undefined,
       projectStatus: directorTaskData.projectStatus === "not_started"
         || directorTaskData.projectStatus === "in_progress"
         || directorTaskData.projectStatus === "completed"
