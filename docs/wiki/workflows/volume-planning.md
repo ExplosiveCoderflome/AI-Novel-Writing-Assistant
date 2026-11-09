@@ -58,6 +58,7 @@
 
 - `userPreferredVolumeCount` 优先级最高，schema 必须硬锁 `recommendedVolumeCount`。
 - 小说初始化产生的单卷占位工作区不代表作者选择，自动卷战略不得据此锁定卷数。
+- 卷战略恢复与导演资产盘点共用初始化占位判定。占位卷视同空工作区，必须继续战略、评议和骨架生成，不得把占位卷数写回用户偏好；已有作者卷仍按原补缺边界保留。
 - 只有调用方明确声明沿用草稿时，`respectedExistingVolumeCount` 才进入 fixed count，而不是只作为上下文软提示。
 - 当用户明确恢复系统建议，才回到 `decisionVolumeCountRange` 内自动判断。
 
