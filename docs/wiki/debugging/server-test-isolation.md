@@ -6,7 +6,9 @@
 
 ## 当前规则
 
-- `server/scripts/run-tests.cjs` 使用 Node 测试运行器按文件隔离进程，并限制并发为 4。快速模式与集成模式区别在于选择的文件，不能通过共享进程换取加载速度。
+- `server/scripts/run-tests.cjs` 默认使用 Node 测试运行器按文件隔离进程。fast 沿用最多 4 个文件的并发上限，integration 最多并发 2 个独立进程；`all` 先跑 fast 再跑 integration，不通过提高并发占满四核机器。
+- `server/scripts/test-batches.json` 是共享进程批次的显式白名单。只有已经联合验证、不依赖独立模块缓存、全局环境或根钩子的测试才能登记；批次内部使用 `--test-isolation=none --test-concurrency=1`，未登记文件仍按文件隔离。真实 SQLite、环境改写、模块缓存替换和测试运行器自身的隔离夹具不得加入批次。清单缺失时运行器回退为全部按文件隔离，不能用隐式全量共享进程换取速度。
+- 清单中的 `serialFiles` 是有子进程超时或严格耗时断言的敏感文件清单。这些文件保持独立进程并串行执行，避免并行负载把既有 60/90 秒子进程超时或毫秒级性能断言变成偶发失败。
 - 文件参数以服务端工作目录为基准传相对路径。Windows 命令行存在长度限制，较长的 worktree 路径会使完整套件的绝对路径参数无法启动；启动失败必须输出 `spawnSync.error`，不能只返回一个空日志的失败码。
 - 需要真实 SQLite、执行迁移或启动数据库夹具的场景必须进入 `integrationTests`。是否属于集成测试取决于实际副作用；`gateService.test.js` 这类无 SQLite 后缀的文件也可能属于集成测试。
 - 快速测试中的数据库调用必须通过测试端口隔离；不能用开发库补齐遗漏的桩。Prisma 模块加载本身可能初始化 SQLite 文件和运行参数，运行验证前应显式指定临时 `DATABASE_URL` 与运行目录。
@@ -31,6 +33,7 @@
 ## 相关模块
 
 - `server/scripts/run-tests.cjs`
+- `server/scripts/test-batches.json`
 - `server/tests/testInfrastructure/runnerIsolation.test.js`
 - `server/tests/directorNext/steps/characterPersistence.test.js`
 - [章节可靠性隔离验证](./chapter-reliability-isolated-tests.md)

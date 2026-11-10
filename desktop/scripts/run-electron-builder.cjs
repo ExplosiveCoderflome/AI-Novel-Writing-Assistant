@@ -150,13 +150,15 @@ function normalizeBuildEnvironment(sourceEnv, args) {
 
 function main() {
   const targetArgs = process.argv.slice(2);
-  const isWindowsTarget = targetArgs.includes("--win") || (process.platform === "win32" && !targetArgs.includes("--mac") && !targetArgs.includes("--linux"));
+  const forceTests = targetArgs.includes("--force-tests");
+  const forwardedArgs = targetArgs.filter(arg => arg !== "--force-tests");
+  const isWindowsTarget = forwardedArgs.includes("--win") || (process.platform === "win32" && !forwardedArgs.includes("--mac") && !forwardedArgs.includes("--linux"));
   const electronBuilderCli = resolveModule("electron-builder/cli.js");
-  const args = ["--config", "electron-builder.config.cjs", ...process.argv.slice(2)];
+  const args = ["--config", "electron-builder.config.cjs", ...forwardedArgs];
   if (resolvePublishMode(args) == null) args.push("--publish", "never");
   const env = normalizeBuildEnvironment(process.env, args);
   if (resolvePublishMode(args) !== "never") {
-    require("../../scripts/desktop-release/guard.cjs").verifyUpload(repoRoot, { env });
+    require("../../scripts/desktop-release/guard.cjs").verifyUpload(repoRoot, { env, forceTests });
   }
   ensurePatchedElectronBuilder(isWindowsTarget);
   const shortNsisTemplatesDir = isWindowsTarget ? resolveShortNsisTemplateDir() : undefined;

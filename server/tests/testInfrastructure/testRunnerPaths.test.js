@@ -7,22 +7,32 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.resolve(__dirname, '../../scripts/run-tests.cjs'), 'utf8');
 
-function runFixture(spawnResult = {status: 0}) {
+function runFixture(spawnResult = {status: 0}, {batch = false} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'director-test-runner-'));
   fs.mkdirSync(path.join(root, 'tests', 'nested'), {recursive: true});
   fs.writeFileSync(path.join(root, 'tests', 'nested', 'fixture.test.js'), '');
+  if (batch) {
+    fs.mkdirSync(path.join(root, 'scripts'), {recursive: true});
+    fs.writeFileSync(path.join(root, 'tests', 'nested', 'batched.test.js'), '');
+    fs.writeFileSync(path.join(root, 'tests', 'nested', 'serial.test.js'), '');
+    fs.writeFileSync(path.join(root, 'scripts', 'test-batches.json'), JSON.stringify({
+      serialFiles: ['nested/serial.test.js'],
+      batches: [{name: 'fixture', directories: [], files: ['nested/batched.test.js']}],
+    }));
+  }
   let invocation, exitCode;
+  const invocations = [];
   const errors = [];
   vm.runInNewContext(source, {
     __dirname: path.join(root, 'scripts'),
-    process: {argv: ['node', 'runner', 'all'], execPath: process.execPath, exit(code) {exitCode = code;}},
+    process: {argv: ['node', 'runner', 'all'], execPath: process.execPath, env: {}, exit(code) {exitCode = code;}},
     console: {error(message) {errors.push(message);}},
     require(name) {
-      if (name === 'node:child_process') return {spawnSync(...args) {invocation = args; return spawnResult;}};
+      if (name === 'node:child_process') return {spawnSync(...args) {invocation = args; invocations.push(args); return spawnResult;}};
       return require(name);
     },
   });
-  return {root, invocation, exitCode, errors};
+  return {root, invocation, invocations, exitCode, errors};
 }
 
 test('test runner resolves file arguments from its cwd to avoid Windows command length failures', () => {
@@ -33,6 +43,15 @@ test('test runner resolves file arguments from its cwd to avoid Windows command 
   assert.equal(path.isAbsolute(files[0]), false);
   assert.equal(fs.existsSync(path.resolve(root, files[0])), true);
   assert.equal(invocation[1].includes('--test-concurrency=4'), true);
+
+  const batchRun = runFixture({status: 0}, {batch: true});
+  assert.equal(batchRun.invocations.length, 3);
+  assert.equal(batchRun.invocations[0][1].includes('--test-isolation=none'), true);
+  assert.equal(batchRun.invocations[0][1].includes('--test-concurrency=1'), true);
+  assert.equal(batchRun.invocations[1][1].includes('--test-isolation=process'), true);
+  assert.equal(batchRun.invocations[1][1].includes('--test-concurrency=1'), true);
+  assert.equal(batchRun.invocations[2][1].includes('--test-isolation=process'), true);
+  assert.equal(batchRun.invocations[2][1].includes('--test-concurrency=4'), true);
 });
 
 test('test runner reports process startup failure rather than producing an empty failed run', () => {

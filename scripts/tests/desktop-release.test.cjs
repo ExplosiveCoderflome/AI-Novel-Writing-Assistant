@@ -80,12 +80,26 @@ test("the release tag must point to HEAD and its commit must belong to main", t 
   assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture({ "merge-base --is-ancestor HEAD refs/remotes/origin/main": () => { throw new Error("not main"); } }), runChecks: () => {} }), /contained in main/);
 });
 
-test("an upload cannot proceed when tests fail; a passing current tagged revision is accepted", t => {
+test("an upload cannot proceed when tests fail; only the same clean passing revision can reuse checks", t => {
   const root = fixture(t);
-  assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => { throw new Error("tests failed"); } }), /tests failed/);
+  let head = "tested-head";
+  const git = gitFixture({
+    "rev-parse HEAD": () => head,
+    "rev-parse refs/tags/v1.2.3^{commit}": () => head,
+  });
+  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: () => { throw new Error("tests failed"); } }), /tests failed/);
   let checks = 0;
-  assert.equal(verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => { checks++; } }), "v1.2.3");
+  const runChecks = () => { checks++; };
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
   assert.equal(checks, 1);
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks, forceTests: true }), "v1.2.3");
+  assert.equal(checks, 2);
+  head = "new-head";
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
+  assert.equal(checks, 3);
+  assert.throws(() => checkRevision(root, { git: gitFixture({ "status --porcelain": " M file" }), runChecks }), /clean/);
+  assert.equal(checks, 3);
 });
 
 test("local uploads require the matching tag to be pushed before contacting the publisher", t => {

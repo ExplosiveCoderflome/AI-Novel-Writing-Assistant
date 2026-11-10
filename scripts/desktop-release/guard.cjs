@@ -42,19 +42,64 @@ function runReleaseChecks(repoRoot, { run = runPnpm, env = process.env } = {}) {
   }
 }
 
+const releaseCheckMarkerSchema = 1;
+
+function releaseCheckMarkerPath(repoRoot, head) {
+  return path.join(repoRoot, ".tmp", "desktop-release", `${encodeURIComponent(head)}.json`);
+}
+
+function hasPassingReleaseCheck(repoRoot, head, version) {
+  try {
+    const marker = JSON.parse(fs.readFileSync(releaseCheckMarkerPath(repoRoot, head), "utf8"));
+    return marker.schema === releaseCheckMarkerSchema
+      && marker.status === "passed"
+      && marker.head === head
+      && marker.desktopVersion === version;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function recordPassingReleaseCheck(repoRoot, head, version) {
+  const markerPath = releaseCheckMarkerPath(repoRoot, head);
+  fs.mkdirSync(path.dirname(markerPath), { recursive: true });
+  fs.writeFileSync(markerPath, `${JSON.stringify({
+    schema: releaseCheckMarkerSchema,
+    status: "passed",
+    head,
+    desktopVersion: version,
+    passedAt: new Date().toISOString(),
+  }, null, 2)}\n`, "utf8");
+}
+
 /** Do not tag or upload a revision other than the one that actually passed checks. */
-function checkRevision(repoRoot, { git = args => gitAt(repoRoot, args), runChecks = () => runReleaseChecks(repoRoot) } = {}) {
+function checkRevision(repoRoot, {
+  git = args => gitAt(repoRoot, args),
+  runChecks = () => runReleaseChecks(repoRoot),
+  forceTests = false,
+} = {}) {
   if (git(["status", "--porcelain"])) throw new Error("Working tree must be clean before release checks.");
   const head = git(["rev-parse", "HEAD"]);
   const version = readVersion(repoRoot);
-  runChecks();
+  const reusePassingCheck = !forceTests && hasPassingReleaseCheck(repoRoot, head, version);
+  if (reusePassingCheck) {
+    console.log(`[desktop-release] reusing passed checks for ${head}; working tree is clean.`);
+  } else {
+    runChecks();
+  }
   if (git(["rev-parse", "HEAD"]) !== head || readVersion(repoRoot) !== version || git(["status", "--porcelain"])) {
     throw new Error("The tested revision changed. Run release checks again before tagging or uploading.");
   }
+  if (!reusePassingCheck) recordPassingReleaseCheck(repoRoot, head, version);
   return { head, version };
 }
 
-function verifyUpload(repoRoot, { env = process.env, git = args => gitAt(repoRoot, args), runChecks = () => runReleaseChecks(repoRoot) } = {}) {
+function verifyUpload(repoRoot, {
+  env = process.env,
+  git = args => gitAt(repoRoot, args),
+  runChecks = () => runReleaseChecks(repoRoot),
+  forceTests = false,
+} = {}) {
   const version = readVersion(repoRoot);
   const tag = `v${version}`;
   if (env.GITHUB_REF_NAME) assertReleaseTag(env.GITHUB_REF_NAME, version);
@@ -73,7 +118,7 @@ function verifyUpload(repoRoot, { env = process.env, git = args => gitAt(repoRoo
   }
   try { git(["merge-base", "--is-ancestor", "HEAD", env.GITHUB_ACTIONS === "true" ? "refs/remotes/origin/main" : "refs/heads/main"]); }
   catch (cause) { throw new Error("Public desktop uploads require a release commit contained in main.", { cause }); }
-  checkRevision(repoRoot, { git, runChecks });
+  checkRevision(repoRoot, { git, runChecks, forceTests });
   return tag;
 }
 

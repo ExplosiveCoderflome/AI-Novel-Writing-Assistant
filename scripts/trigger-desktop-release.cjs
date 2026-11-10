@@ -9,6 +9,7 @@ function parseArgs(argv) {
     remote: "origin",
     branch: "main",
     dryRun: false,
+    forceTests: false,
     help: false,
   };
 
@@ -21,6 +22,10 @@ function parseArgs(argv) {
     }
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+    if (arg === "--force-tests") {
+      options.forceTests = true;
       continue;
     }
     if (arg === "--remote" && argv[index + 1]) {
@@ -42,10 +47,11 @@ function parseArgs(argv) {
 
 function printHelp() {
   console.log([
-    "Usage: node scripts/trigger-desktop-release.cjs [--dry-run] [--remote origin] [--branch main]",
+    "Usage: node scripts/trigger-desktop-release.cjs [--dry-run] [--force-tests] [--remote origin] [--branch main]",
     "",
     "Reads desktop/package.json version, creates tag vX.Y.Z, then pushes the branch and tag",
     "to trigger the GitHub Desktop Release workflow after isolated tests and typechecks pass.",
+    "Reuses the local passing record for the same clean commit; --force-tests runs every check again.",
   ].join("\n"));
 }
 
@@ -109,7 +115,7 @@ function main() {
   assertCleanWorkingTree();
   assertOnBranch(options.branch);
   assertTagDoesNotExist(options.remote, tagName);
-  checkRevision(repoRoot);
+  checkRevision(repoRoot, { forceTests: options.forceTests });
   assertReleaseTag(tagName, readDesktopVersion());
 
   console.log(`[desktop-release] version=${version}`);

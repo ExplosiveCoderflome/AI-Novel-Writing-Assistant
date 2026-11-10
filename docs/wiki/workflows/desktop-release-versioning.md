@@ -19,14 +19,16 @@
 
 1. 发新版桌面包前，先运行 `pnpm release:desktop:bump X.Y.Z` 更新 `desktop/package.json`。
 2. 更新用户可见 release notes 和 README 最新更新，说明该版本面向用户的变化。
-3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支、tag、类型检查和测试都通过。dry-run 也执行检查，但不创建 tag 或 push。
+3. 合入 `main` 后运行 `node scripts/trigger-desktop-release.cjs --dry-run`，确认工作区、分支、tag、类型检查和测试都通过。dry-run 也执行检查，但不创建 tag 或 push。相同干净提交已有本地通过记录时会复用该记录；需要重新验证时添加 `--force-tests`。
 4. 只使用与 `desktop/package.json` 对齐的 `vX.Y.Z` tag 触发正式 GitHub Release。
 
 ## 发布检查与拒绝规则
 
 `scripts/desktop-release/guard.cjs` 是发布验证门面。创建 tag／push 前运行类型检查、隔离测试库迁移、服务端与前端完整测试、桌面编译及桌面／发版脚本契约测试。测试使用独立临时目录和 SQLite 数据库，不使用作者数据库或应用数据目录；失败时保留输出目录用于诊断。
 
-通过检查不等于长期授权。检查前后读取 HEAD、版本与工作区，期间有代码、版本或提交变化必须重新检查。正式上传再次核对版本 tag 指向当前 HEAD，且提交属于 main；GitHub 必须提供匹配的 tag ref。不能将旧成功结果、任意环境布尔值或另一个分支的验证当作本次通过证据。
+通过检查不等于长期授权。检查前后读取 HEAD、版本与工作区，期间有代码、版本或提交变化必须重新检查。唯一可复用的本地证据是 `.tmp/desktop-release/<SHA>.json` 中同 SHA、同桌面版本的完整通过记录，且当前工作区必须干净；记录只用于避免 dry-run、实际打 tag 与本地上传之间重复跑同一套检查。`--force-tests` 可强制重跑并覆盖记录，失败不会写入通过标记。
+
+正式上传再次核对版本 tag 指向当前 HEAD，且提交属于 main；GitHub 必须提供匹配的 tag ref。不能将旧 SHA 的成功结果、任意环境布尔值、其他分支的验证或不干净工作区当作本次通过证据。
 
 本地上传还须读取 origin 的已推送 tag（注解 tag 取 peeled commit）并与本次 HEAD 比较，避免发布器在远端缺少 tag 时替旧 main 自动创建发布标识。
 
