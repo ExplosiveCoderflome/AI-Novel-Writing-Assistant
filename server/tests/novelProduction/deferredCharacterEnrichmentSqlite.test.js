@@ -87,7 +87,7 @@ CharacterVisibleProfileService.prototype.generateCharacterVisibleProfile = async
     if (!output.includes('V1 isolation passed')) throw new Error(output);
   } finally {
     const resolved = path.resolve(dir);
-    if (path.dirname(resolved) !== path.resolve(os.tmpdir()) || !path.basename(resolved).startsWith('v2-character-enrichment-')) throw new Error('Unsafe test cleanup path');
+    if (fs.realpathSync(path.dirname(resolved)) !== fs.realpathSync(os.tmpdir()) || !path.basename(resolved).startsWith('v2-character-enrichment-')) throw new Error('Unsafe test cleanup path');
     fs.rmSync(resolved, {recursive: true, force: true});
   }
 });

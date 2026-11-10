@@ -28,7 +28,7 @@ test.before(async () => {
 test.after(async () => {
   await prisma?.$disconnect();
   if (tempDir) {
-    assert.equal(path.dirname(tempDir), fs.realpathSync(os.tmpdir()));
+    assert.equal(fs.realpathSync(path.dirname(tempDir)), fs.realpathSync(os.tmpdir()));
     assert.ok(path.basename(tempDir).startsWith("short-story-recovery-"));
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

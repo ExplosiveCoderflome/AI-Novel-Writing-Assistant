@@ -42,7 +42,7 @@ async function setup(t, options = {}) {
   t.after(async () => {
     await db.$disconnect();
     // Only this test-created, known temporary directory is eligible for removal.
-    assert.equal(path.dirname(directory), os.tmpdir());
+    assert.equal(fs.realpathSync(path.dirname(directory)), fs.realpathSync(os.tmpdir()));
     assert.ok(path.basename(directory).startsWith('production-kernel-'));
     fs.rmSync(directory, { recursive: true, force: true });
   });

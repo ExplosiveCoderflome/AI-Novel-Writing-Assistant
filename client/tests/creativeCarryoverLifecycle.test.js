@@ -3,6 +3,7 @@ import { after, before, test } from "node:test";
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { nodeStyles } from "./support/nodeStyles.js";
 
@@ -262,7 +263,13 @@ test("the idea-stage entry opens a dismissible dialog and keeps its result acros
     assert.equal(page.button("采用推荐方案").disabled, false);
     assert.equal(page.pending.length, 1, "opening or closing the dialog must not regenerate the proposal");
     await page.click("采用推荐方案");
-    assert.equal(document.activeElement?.textContent, "查看已采用方案");
+    assert.equal(page.surface.querySelector('[role="dialog"]'), null);
+    const trigger = page.button("查看已采用方案");
+    assert.ok(trigger && !trigger.disabled);
+    // Radix restores focus in a timer scheduled during dialog unmount, after the React commit.
+    const deadline = performance.now() + 1000;
+    while (document.activeElement !== trigger && performance.now() < deadline) await delay(10);
+    assert.ok(document.activeElement === trigger, "closing the dialog must return focus to its trigger");
     await page.click("查看已采用方案");
     assert.match(page.surface.querySelector('[role="dialog"]').textContent, /已采用，可继续/);
     assert.equal(page.button("采用推荐方案"), undefined);

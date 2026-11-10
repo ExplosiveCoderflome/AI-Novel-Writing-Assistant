@@ -85,6 +85,8 @@ function checkRevision(repoRoot, {
   if (reusePassingCheck) {
     console.log(`[desktop-release] reusing passed checks for ${head}; working tree is clean.`);
   } else {
+    // A failed rerun must not leave an older pass eligible for the next upload.
+    fs.rmSync(releaseCheckMarkerPath(repoRoot, head), { force: true });
     runChecks();
   }
   if (git(["rev-parse", "HEAD"]) !== head || readVersion(repoRoot) !== version || git(["status", "--porcelain"])) {

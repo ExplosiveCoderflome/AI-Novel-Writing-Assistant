@@ -95,6 +95,9 @@ test("an upload cannot proceed when tests fail; only the same clean passing revi
   assert.equal(checks, 1);
   assert.equal(verifyUpload(root, { env: ci, git, runChecks, forceTests: true }), "v1.2.3");
   assert.equal(checks, 2);
+  const failChecks = () => { throw new Error("rerun failed"); };
+  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: failChecks, forceTests: true }), /rerun failed/);
+  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: failChecks }), /rerun failed/);
   head = "new-head";
   assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
   assert.equal(checks, 3);

@@ -35,7 +35,7 @@ async function setup(t) {
   const db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: `file:${file}` }) });
   t.after(async () => {
     await db.$disconnect();
-    assert.equal(path.dirname(directory), os.tmpdir());
+    assert.equal(fs.realpathSync(path.dirname(directory)), fs.realpathSync(os.tmpdir()));
     assert.ok(path.basename(directory).startsWith('kernel-consumers-'));
     fs.rmSync(directory, { recursive: true, force: true });
   });

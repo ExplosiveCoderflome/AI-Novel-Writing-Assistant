@@ -121,7 +121,7 @@ async function book(id, driver) {
     if (!output.includes('candidate checks passed')) throw new Error(output);
   } finally {
     const resolved = path.resolve(dir);
-    if (path.dirname(resolved) !== path.resolve(os.tmpdir()) || !path.basename(resolved).startsWith('v2-candidates-')) throw Error('Unsafe cleanup path');
+    if (fs.realpathSync(path.dirname(resolved)) !== fs.realpathSync(os.tmpdir()) || !path.basename(resolved).startsWith('v2-candidates-')) throw Error('Unsafe cleanup path');
     fs.rmSync(resolved, {recursive: true, force: true});
   }
 });

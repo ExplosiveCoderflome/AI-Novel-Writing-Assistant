@@ -3,7 +3,7 @@ const {PrismaBetterSqlite3}=require('@prisma/adapter-better-sqlite3');
 const {createKernelChapterBudget}=require('../../../dist/app/director/productionKernel');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const file=path.resolve(process.argv[2]),directory=path.dirname(file);
-assert.equal(path.dirname(directory),os.tmpdir());
+assert.equal(fs.realpathSync(path.dirname(directory)),fs.realpathSync(os.tmpdir()));
 assert.ok(path.basename(directory).startsWith('kernel-consumers-'));
 assert.equal(path.basename(file),'isolated.sqlite');
 const {context,unit}=JSON.parse(fs.readFileSync(0,'utf8'));

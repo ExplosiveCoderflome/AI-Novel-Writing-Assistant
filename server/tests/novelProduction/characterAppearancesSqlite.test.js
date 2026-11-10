@@ -153,7 +153,7 @@ const output = (rows, candidates=[]) => chapterArtifactDeltaOutputSchema.parse({
     if(!result.includes('appearance checks passed')) throw Error(result);
   } finally {
     const resolved=path.resolve(dir);
-    if(path.dirname(resolved)!==path.resolve(os.tmpdir())||!path.basename(resolved).startsWith('v2-appearances-')) throw Error('Unsafe cleanup');
+    if(fs.realpathSync(path.dirname(resolved))!==fs.realpathSync(os.tmpdir())||!path.basename(resolved).startsWith('v2-appearances-')) throw Error('Unsafe cleanup');
     fs.rmSync(resolved,{recursive:true,force:true});
   }
 });

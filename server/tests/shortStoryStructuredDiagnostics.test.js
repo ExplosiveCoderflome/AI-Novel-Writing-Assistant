@@ -24,7 +24,7 @@ test.after(async () => {
   settings.getStructuredFallbackSettings = originalSettings;
   factory.getLLM = originalGetLLM;
   await prisma.$disconnect();
-  assert.equal(path.dirname(fixtureDir), fs.realpathSync(os.tmpdir()));
+  assert.equal(fs.realpathSync(path.dirname(fixtureDir)), fs.realpathSync(os.tmpdir()));
   assert.ok(path.basename(fixtureDir).startsWith("short-story-diagnostics-"));
   fs.rmSync(fixtureDir, { recursive: true, force: true });
 });

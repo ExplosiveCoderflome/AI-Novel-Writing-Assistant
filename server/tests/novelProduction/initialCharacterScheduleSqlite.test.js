@@ -98,7 +98,7 @@ const service=new InitialCharacterScheduleService();
     if(!result.includes('initial schedule checks passed')) throw Error(result);
   }finally{
     const resolved=path.resolve(dir);
-    if(path.dirname(resolved)!==path.resolve(os.tmpdir())||!path.basename(resolved).startsWith('v2-initial-schedule-')) throw Error('Unsafe cleanup');
+    if(fs.realpathSync(path.dirname(resolved))!==fs.realpathSync(os.tmpdir())||!path.basename(resolved).startsWith('v2-initial-schedule-')) throw Error('Unsafe cleanup');
     fs.rmSync(resolved,{recursive:true,force:true});
   }
 });
