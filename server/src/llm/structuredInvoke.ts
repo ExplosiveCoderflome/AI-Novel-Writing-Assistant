@@ -24,6 +24,7 @@ import {
   resolveStructuredOutputProfile,
   schemaAllowsTopLevelArray,
   selectStructuredOutputStrategy,
+  describeStructuredResponseFailure,
   StructuredOutputError,
   type StructuredOutputErrorCategory,
   type StructuredOutputProfile,
@@ -314,11 +315,20 @@ async function invokeStructuredAttempt<T>(input: {
     });
     const rawContent = collected.rawContent;
     evidence.failureReason = classifyResponseEvidence(evidence);
-    if (terminalResponseReason(evidence.failureReason)) throw buildStructuredError({
-      message: "模型未返回完整可用的结构化结果。", category: "transport_error", strategy: input.strategy,
-      retryWithNextStrategy: evidence.failureReason === "empty_response" && input.strategy !== "prompt_json",
-      profile: resolved.structuredProfile ?? input.target.profile,
-    });
+    if (terminalResponseReason(evidence.failureReason)) {
+      const failure = describeStructuredResponseFailure(evidence.failureReason!);
+      throw buildStructuredError({
+        message: `[${input.baseInput.label}] ${failure.message}`,
+        category: failure.category,
+        strategy: input.strategy,
+        retryWithNextStrategy: evidence.failureReason === "empty_response" && input.strategy !== "prompt_json",
+        profile: resolved.structuredProfile ?? input.target.profile,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+        reasoningForcedOff: resolved.reasoningForcedOff,
+        response: evidence,
+      });
+    }
     logStructuredInvokeEvent({
       event: "invoke_done",
       label: input.baseInput.label,
@@ -335,6 +345,7 @@ async function invokeStructuredAttempt<T>(input: {
     let repairStarted = false;
     const parsed = await liveSession.observe(() => parseStructuredLlmRawContentDetailed({
       rawContent,
+      responseEvidence: evidence,
       diagnosticContext: input.baseInput.diagnosticContext,
       schema: input.baseInput.schema,
       tokenUsage: collected.tokenUsage,
@@ -394,7 +405,7 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
-    const wrapped = wrapStructuredInvokeError({
+    let wrapped = wrapStructuredInvokeError({
       label: input.baseInput.label,
       error,
       strategy: input.strategy,
@@ -411,6 +422,21 @@ async function invokeStructuredAttempt<T>(input: {
       evidence.retryAfterMs ??= child.retryAfterMs;
     }
     evidence.failureReason ??= classifyResponseEvidence(evidence, error, wrapped.category, input.baseInput.signal?.aborted);
+    if (!(error instanceof StructuredOutputError) && (evidence.failureReason === "network" || evidence.failureReason === "timeout")) {
+      wrapped = buildStructuredError({
+        message: `[${input.baseInput.label}] ${evidence.failureReason === "network"
+          ? "连接模型服务时发生网络错误，请检查网络、渠道地址和服务状态后重试。"
+          : "模型请求超时，请检查服务状态或稍后重试。"}`,
+        cause: error,
+        category: "transport_error",
+        strategy: input.strategy,
+        profile: resolved.structuredProfile ?? input.target.profile,
+        reasoningForcedOff: resolved.reasoningForcedOff,
+        fallbackAvailable: input.fallbackAvailable,
+        fallbackUsed: input.fallbackUsed,
+        response: evidence,
+      });
+    }
     evidence.durationMs = Date.now() - startedAt;
     wrapped.diagnostics.response = evidence;
     wrapped.diagnostics.attemptId = diagnosticId;
@@ -638,6 +664,9 @@ export function summarizeStructuredOutputFailure(input: {
     incomplete_json: incompleteJsonSummary,
     malformed_json: `模型输出的 JSON 格式不稳定${suffix}`,
     schema_mismatch: `模型输出未满足目标结构要求${suffix}`,
+    empty_response: "模型返回了空内容，没有收到可用正文；请重试，持续出现时检查渠道兼容性、思考设置或更换模型。",
+    reasoning_budget_exhausted: "模型只返回了思考内容，输出 Token 已在生成正文前耗尽；请关闭深度思考或提高输出 Token 上限。",
+    output_budget_exhausted: "模型输出达到 Token 上限后被截断，结果不完整；请提高输出 Token 上限后重试。",
     transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,
   };
   return {

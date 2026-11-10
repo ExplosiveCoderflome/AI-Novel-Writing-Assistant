@@ -15,7 +15,9 @@ export function describeAcceptanceFailure(error: unknown): { code: string; messa
   if (error instanceof StructuredOutputError) {
     return { code: `acceptance_${error.category}`, message: error.category === "transport_error"
       ? "模型连接未完成，章节检查没有可用结果。"
-      : "模型返回的检查结果格式不符合要求，章节检查未完成。" };
+      : ["empty_response", "reasoning_budget_exhausted", "output_budget_exhausted"].includes(error.category)
+        ? error.message
+        : "模型返回的检查结果格式不符合要求，章节检查未完成。" };
   }
   if (error && typeof error === "object" && "promptQualityFailureKind" in error
     && error.promptQualityFailureKind === "post_validate_failed") {

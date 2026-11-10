@@ -1,5 +1,6 @@
 import { recordInvocationParseFailure } from "./compatibility";
-import { terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
+import { classifyResponseEvidence, terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
+import type { StructuredResponseEvidence } from "@ai-novel/shared/types/structuredDiagnostics";
 import { z, type ZodError, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
@@ -11,6 +12,7 @@ import {
   resolveStructuredOutputProfile,
   schemaAllowsTopLevelArray,
   selectStructuredOutputStrategy,
+  describeStructuredResponseFailure,
   StructuredOutputError,
   type StructuredOutputDiagnostics,
   type StructuredOutputErrorCategory,
@@ -32,6 +34,7 @@ export interface StructuredInvokeResult<T> {
 export interface StructuredInvokeRawParseInput<T> {
   diagnosticContext?: import("../platform/llm/diagnostics/StructuredDiagnosticStore").StructuredDiagnosticContext;
   rawContent: string;
+  responseEvidence?: StructuredResponseEvidence;
   schema: ZodType<T>;
   tokenUsage?: LlmTokenUsageSnapshot | null;
   provider?: LLMProvider;
@@ -237,8 +240,10 @@ function buildDiagnostics(input: {
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
   errorCategory?: StructuredOutputErrorCategory | null;
+  response?: StructuredResponseEvidence;
 }): StructuredOutputDiagnostics {
   return {
+    response: input.response,
     strategy: input.strategy,
     profile: input.profile,
     reasoningForcedOff: input.reasoningForcedOff ?? false,
@@ -290,6 +295,7 @@ export function buildStructuredError(input: {
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
+  response?: StructuredResponseEvidence;
   cause?: unknown;
 }): StructuredOutputError {
   return new StructuredOutputError({
@@ -304,6 +310,7 @@ export function buildStructuredError(input: {
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       errorCategory: input.category,
+      response: input.response,
     }),
   });
 }
@@ -378,16 +385,22 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
   });
-  if (!input.rawContent.trim()) {
+  const responseFailureReason = input.responseEvidence
+    ? classifyResponseEvidence(input.responseEvidence)
+    : input.rawContent.trim() ? null : "empty_response";
+  if (input.responseEvidence) input.responseEvidence.failureReason = responseFailureReason;
+  if (terminalResponseReason(responseFailureReason)) {
+    const failure = describeStructuredResponseFailure(responseFailureReason!);
     throw buildStructuredError({
-      message: `[${input.label}] 模型没有返回可用内容，无法执行结构校验或 JSON 修复。`,
-      category: "transport_error",
-      retryWithNextStrategy: input.strategy !== "prompt_json",
+      message: `[${input.label}] ${failure.message}`,
+      category: failure.category,
+      retryWithNextStrategy: responseFailureReason === "empty_response" && input.strategy !== "prompt_json",
       strategy: input.strategy,
       profile: input.profile,
       reasoningForcedOff: input.reasoningForcedOff,
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
+      response: input.responseEvidence,
     });
   }
   const initialParse = tryParseStructuredJsonValue(input.rawContent);

@@ -1,7 +1,7 @@
 import { observeInvocationParse } from "./compatibility";
 import { beginStructuredDiagnostic, finishStructuredDiagnostic, type StructuredDiagnosticContext } from "../platform/llm/diagnostics/StructuredDiagnosticStore";
 import { emptyResponseEvidence, observeStructuredChunk, classifyResponseEvidence, terminalResponseReason } from "../platform/llm/diagnostics/structuredEvidence";
-import { StructuredOutputError, resolveStructuredOutputProfile } from "./structuredOutput";
+import { describeStructuredResponseFailure, StructuredOutputError, resolveStructuredOutputProfile } from "./structuredOutput";
 import { ReasoningStreamCollector } from "./reasoning";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { toJSONSchema, type ZodError, type ZodType } from "zod";
@@ -326,11 +326,14 @@ async function repairWithLlmInScope<T>(
       latencyMs,
     });
     evidence.failureReason = classifyResponseEvidence(evidence);
-    if (terminalResponseReason(evidence.failureReason)) throw new StructuredOutputError({
-      message: "修复请求没有返回完整可用结果。", category: "transport_error",
-      diagnostics: { strategy: "prompt_json", profile: resolveStructuredOutputProfile({ provider: input.provider ?? "deepseek", model: input.model, executionMode: "structured" }),
-        reasoningForcedOff: false, fallbackAvailable: false, fallbackUsed: false, errorCategory: "transport_error", response: evidence },
-    });
+    if (terminalResponseReason(evidence.failureReason)) {
+      const failure = describeStructuredResponseFailure(evidence.failureReason!);
+      throw new StructuredOutputError({
+        message: `[${input.label}] ${failure.message}`, category: failure.category,
+        diagnostics: { strategy: "prompt_json", profile: resolveStructuredOutputProfile({ provider: input.provider ?? "deepseek", model: input.model, executionMode: "structured" }),
+          reasoningForcedOff: false, fallbackAvailable: false, fallbackUsed: false, errorCategory: failure.category, response: evidence },
+      });
+    }
     category = "malformed_json";
     const repairParse = helpers.tryParseStructuredJsonValue(repairedRaw);
     if ("error" in repairParse) {

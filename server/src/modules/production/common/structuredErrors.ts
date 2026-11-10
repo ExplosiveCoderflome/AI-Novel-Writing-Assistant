@@ -19,6 +19,9 @@ const RETRYABLE_STRUCTURED_OUTPUT_CATEGORIES = new Set([
   "incomplete_json",
   "thinking_pollution",
   "unsupported_native_json",
+  "empty_response",
+  "reasoning_budget_exhausted",
+  "output_budget_exhausted",
 ]);
 
 export function isRetryableModelOutputError(error: unknown): boolean {

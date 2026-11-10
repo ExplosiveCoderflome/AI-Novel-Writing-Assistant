@@ -1,4 +1,4 @@
-import type { StructuredResponseEvidence } from "@ai-novel/shared/types/structuredDiagnostics";
+import type { StructuredFailureReason, StructuredResponseEvidence } from "@ai-novel/shared/types/structuredDiagnostics";
 import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
@@ -14,6 +14,9 @@ export type StructuredOutputErrorCategory =
   | "incomplete_json"
   | "malformed_json"
   | "schema_mismatch"
+  | "empty_response"
+  | "reasoning_budget_exhausted"
+  | "output_budget_exhausted"
   | "transport_error";
 
 export interface StructuredOutputProfile {
@@ -495,6 +498,9 @@ export function extractStructuredOutputErrorCategory(message?: string | null): S
     "incomplete_json",
     "malformed_json",
     "schema_mismatch",
+    "empty_response",
+    "reasoning_budget_exhausted",
+    "output_budget_exhausted",
     "transport_error",
   ].includes(category) ? category : null;
 }
@@ -518,6 +524,35 @@ export class StructuredOutputError extends Error {
     this.category = input.category;
     this.diagnostics = input.diagnostics;
     this.retryWithNextStrategy = input.retryWithNextStrategy ?? false;
+  }
+}
+
+export function describeStructuredResponseFailure(reason: StructuredFailureReason): {
+  category: StructuredOutputErrorCategory;
+  message: string;
+} {
+  switch (reason) {
+    case "empty_response":
+      return {
+        category: "empty_response",
+        message: "模型返回了空内容，没有收到可用正文。请重试；若持续出现，请检查渠道兼容性、思考设置或更换模型。",
+      };
+    case "reasoning_budget_exhausted":
+      return {
+        category: "reasoning_budget_exhausted",
+        message: "模型只返回了思考内容，输出 Token 已在生成正文前耗尽。请关闭深度思考或提高输出 Token 上限后重试。",
+      };
+    case "output_budget_exhausted":
+      return {
+        category: "output_budget_exhausted",
+        message: "模型输出达到 Token 上限后被截断（finish_reason=length/max_tokens），结果不完整。请提高输出 Token 上限后重试。",
+      };
+    case "blocked":
+      return { category: "transport_error", message: "模型拒绝或过滤了本次请求，请调整创作要求或核对模型服务提示。" };
+    case "cancelled":
+      return { category: "transport_error", message: "本次模型请求已取消。" };
+    default:
+      return { category: "transport_error", message: "模型未返回完整可用的结构化结果。" };
   }
 }
 

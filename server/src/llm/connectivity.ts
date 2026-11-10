@@ -14,6 +14,7 @@ import {
   upsertModelRouteConfig,
 } from "./modelRouter";
 import { invokeStructuredLlmDetailed, summarizeStructuredOutputFailure } from "./structuredInvoke";
+import { toText } from "../services/novel/novelP0Utils";
 import {
   resolveStructuredOutputProfile,
   selectStructuredOutputStrategy,
@@ -124,7 +125,12 @@ async function testPlainConnection(input: {
       requestProtocol: resolved.requestProtocol,
     });
     const start = Date.now();
-    await llm.invoke([new HumanMessage("请只回复 ok")]);
+    const stream = await llm.stream([new HumanMessage("请只回复 ok")]);
+    let content = "";
+    for await (const chunk of stream) content += toText(chunk.content);
+    if (!content.trim()) {
+      throw new Error("模型连接已建立，但返回了空正文，无法确认渠道可用。请检查渠道协议、模型能力及思考设置。");
+    }
     const plain = {
       ok: true,
       latency: Date.now() - start,

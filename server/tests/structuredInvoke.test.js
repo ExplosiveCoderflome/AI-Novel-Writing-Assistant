@@ -152,7 +152,7 @@ test("parseStructuredLlmRawContentDetailed rejects empty model output without in
         model: "deepseek-v4-flash",
         executionMode: "structured",
       }),
-    }), /STRUCTURED_OUTPUT:transport_error.*没有返回可用内容/i);
+    }), /STRUCTURED_OUTPUT:empty_response.*模型返回了空内容/i);
     assert.equal(repairInvoked, false);
   } finally {
     factory.getLLM = originalGetLLM;

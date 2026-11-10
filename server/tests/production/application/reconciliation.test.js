@@ -170,7 +170,7 @@ test('a physical pre-dispatch refusal releases the extraction claim but a dispat
   assert.equal([...f.cache.values()][0].status,error instanceof ProductionBudgetNotDispatchedError?'ready':'running');
  }
 });
-for (const category of ['malformed_json','schema_mismatch','incomplete_json','thinking_pollution','unsupported_native_json']) {
+for (const category of ['malformed_json','schema_mismatch','incomplete_json','thinking_pollution','unsupported_native_json','empty_response','reasoning_budget_exhausted','output_budget_exhausted']) {
   test(`a known ${category} extraction failure releases the claim and can be retried`, async () => {
     let first = true;
     const f = await fixture({ extract: async () => { if (first) { first = false; const error = new Error(`unusable model output: ${category}`); error.category = category; throw error; } } });

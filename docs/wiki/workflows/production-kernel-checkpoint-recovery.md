@@ -8,7 +8,7 @@
 
 区分“已知失败”和“未知结果”：
 
-- 已知失败：模型已经返回，但输出无法使用。包括结构化输出分类 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json`，以及语义校验拒绝 `post_validate_failed`（输出已完整收到，业务校验拒绝，例如资源变化缺少证据）。模型侧端口在这类调用里没有任何持久写入，重试是安全的。
+- 已知失败：模型已经返回，但输出无法使用。包括结构化输出分类 `malformed_json` / `schema_mismatch` / `incomplete_json` / `thinking_pollution` / `unsupported_native_json` / `empty_response` / `reasoning_budget_exhausted` / `output_budget_exhausted`，以及语义校验拒绝 `post_validate_failed`（输出已完整收到，业务校验拒绝，例如资源变化缺少证据）。模型侧端口在这类调用里没有任何持久写入，重试是安全的。
 - 未知结果：传输失败（`transport_error`）、`llm_error`、进程崩溃、租约失效等，无法确认模型是否执行、是否写入。必须保持认领状态，绝不重试。
 
 ## 当前规则
