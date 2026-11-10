@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { crossOriginResourcePolicy } from "helmet";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
@@ -20,6 +21,14 @@ const comicEpisodePlanService = new ComicEpisodePlanService();
 const comicPanelScriptService = new ComicPanelScriptService();
 
 const router = Router();
+
+router.use([
+  "/character-images",
+  "/panel-images",
+  "/character-assets/:assetId/image",
+  "/scenes/:sceneId/image",
+  "/export-jobs/:jobId/artifacts/:filename",
+], crossOriginResourcePolicy({ policy: "cross-origin" }));
 
 // ─── Param schemas ─────────────────────────────────────────────────────────
 
