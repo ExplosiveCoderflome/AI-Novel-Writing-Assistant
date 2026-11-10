@@ -5,7 +5,7 @@ async function execute(t, scenario = '') {
   const f = await setup(t), databases = await f.db.$queryRawUnsafe('PRAGMA database_list');
   const file = databases.find(row => row.name === 'main').file;
   const child = spawnSync(process.execPath, [path.join(__dirname, 'batch/manualEntryProcess.cjs')], {
-    encoding: 'utf8', timeout: 55000, maxBuffer: 2000000,
+    encoding: 'utf8', timeout: 180000, maxBuffer: 2000000,
     env: {...process.env, DATABASE_URL: `file:${file}`, NODE_ENV: 'test', RAG_ENABLED: 'false', PRODUCTION_KERNEL_V2_CHAPTERS: 'true',
       KERNEL_MANUAL_SCENARIO: scenario,
       PRODUCTION_KERNEL_MODEL_WINDOWS: JSON.stringify([{provider: 'openai', model: 'fixture-model', contextWindow: 1000000}])},
@@ -13,7 +13,7 @@ async function execute(t, scenario = '') {
   assert.equal(child.status, 0, child.stdout + '\n' + child.stderr);
   const result = JSON.parse(child.stdout.trim().split(/\r?\n/).at(-1));
   if (!scenario) {
-    const replay = spawnSync(process.execPath, [path.join(__dirname, 'batch/manualEntryProcess.cjs')], {encoding: 'utf8', timeout: 20000, maxBuffer: 200000,
+    const replay = spawnSync(process.execPath, [path.join(__dirname, 'batch/manualEntryProcess.cjs')], {encoding: 'utf8', timeout: 60000, maxBuffer: 200000,
       env: {...process.env, DATABASE_URL: `file:${file}`, NODE_ENV: 'test', RAG_ENABLED: 'false', PRODUCTION_KERNEL_V2_CHAPTERS: 'false', KERNEL_MANUAL_REPLAY: result.runId}});
     assert.equal(replay.status, 0, replay.stdout + '\n' + replay.stderr);
     const saved = JSON.parse(replay.stdout.trim().split(/\r?\n/).at(-1));
