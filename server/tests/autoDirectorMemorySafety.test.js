@@ -430,6 +430,47 @@ test("acquireScopedHighMemoryReservation blocks overlapping book and targeted sc
   }
 });
 
+test("a reservation left by a crashed process on this host can be taken over after restart", async () => {
+  const restore = installPersistentReservationStoreMock();
+  try {
+    const held = await acquireScopedHighMemoryReservation({
+      namespace: "novel-high-memory",
+      novelId: "novel-crashed",
+      scope: "volume:volume-1",
+      ownerId: "killed-server",
+      ttlMs: 600_000,
+    });
+    assert.equal(held.acquired, true);
+    const live = await acquireScopedHighMemoryReservation({
+      namespace: "novel-high-memory",
+      novelId: "novel-crashed",
+      scope: "volume:volume-1",
+      ownerId: "same-process-duplicate",
+      ttlMs: 600_000,
+    });
+    assert.equal(live.acquired, false);
+
+    const deadPid = require("node:child_process").spawnSync(process.execPath, ["-e", ""]).pid;
+    const [row] = await prisma.appSetting.findMany({ where: { key: { startsWith: "runtime.highMemoryReservation.novel-high-memory." } } });
+    await prisma.appSetting.updateMany({
+      where: { key: row.key, value: row.value },
+      data: { value: JSON.stringify({ ...JSON.parse(row.value), processId: deadPid }) },
+    });
+
+    const resumed = await acquireScopedHighMemoryReservation({
+      namespace: "novel-high-memory",
+      novelId: "novel-crashed",
+      scope: "volume:volume-1",
+      ownerId: "restarted-server",
+      ttlMs: 600_000,
+    });
+    assert.equal(resumed.acquired, true);
+    await resumed.handle.release();
+  } finally {
+    restore();
+  }
+});
+
 test("acquireScopedHighMemoryReservation keeps the novel gate until the scoped reservation is written", async () => {
   const { events, restore } = installReservationGateOrderingMock();
   try {

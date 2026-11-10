@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { hostname } from "node:os";
 import { prisma } from "../../db/prisma";
 import { withSqliteRetry } from "../../db/sqliteRetry";
 
@@ -12,6 +13,8 @@ interface ReservationRecord {
   token?: string;
   acquiredAt?: string;
   expiresAt?: string;
+  processId?: number;
+  hostname?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -82,12 +85,29 @@ function getReservationMetadataString(record: ReservationRecord | null, field: s
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+// A crashed owner on this host can never release or renew, so its reservation is treated as expired right away.
+function isOwnerProcessGone(record: ReservationRecord | null): boolean {
+  const pid = record?.processId;
+  if (typeof pid !== "number" || pid === process.pid || record?.hostname !== hostname()) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
 function isReservationExpired(input: {
   record: ReservationRecord | null;
   updatedAt?: Date | null;
   now: Date;
   ttlMs: number;
 }): boolean {
+  if (isOwnerProcessGone(input.record)) {
+    return true;
+  }
   const expiresAt = parseDate(input.record?.expiresAt);
   if (expiresAt) {
     return expiresAt.getTime() <= input.now.getTime();
@@ -115,6 +135,7 @@ function buildReservationValue(input: {
     acquiredAt: input.acquiredAt,
     expiresAt: new Date(input.now.getTime() + input.ttlMs).toISOString(),
     processId: process.pid,
+    hostname: hostname(),
     metadata: input.metadata ?? {},
   });
 }
