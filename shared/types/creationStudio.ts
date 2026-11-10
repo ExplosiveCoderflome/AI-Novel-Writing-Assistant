@@ -35,7 +35,7 @@ export interface CreationIntentInterpretation {
 
 export interface CreationStudioInterpretRequest {
   reference?: ShortStoryReferenceSelection;
-  idea: string;
+  idea?: string;
   preferredNarrativeForm?: NarrativeForm;
   targetWordCount?: number;
   writingPlatformPreference?: WritingPlatformPreference;

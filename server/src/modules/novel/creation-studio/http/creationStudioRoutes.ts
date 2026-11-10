@@ -25,10 +25,14 @@ const referenceSchema = z.object({
 }).strict();
 const interpretSchema = z.object({
   reference: referenceSchema.optional(),
-  idea: z.string().trim().min(1).max(12000),
+  idea: z.string().trim().max(12000).optional(),
   preferredNarrativeForm: z.enum(["short_story", "long_novel"]).optional(),
   targetWordCount: z.number().int().min(3000).max(3_000_000).optional(),
   writingPlatformPreference: writingPlatformPreferenceSchema.optional(),
+}).superRefine((value, context) => {
+  if (!value.idea && !value.reference) {
+    context.addIssue({ code: "custom", path: ["idea"], message: "请先写下你想创作的内容。" });
+  }
 });
 const regenerateSchema = z.object({
   reference: referenceSchema.optional(),

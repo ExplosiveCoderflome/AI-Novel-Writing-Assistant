@@ -56,6 +56,13 @@ test("creation entry uses a focused editorial canvas instead of a stacked form c
   assert.doesNotMatch(createSource, /CardHeader|CardTitle/);
 });
 
+test("a ready reference can generate directions without an idea but original creation cannot", () => {
+  assert.match(createSource, /const canGenerateWithoutIdea = referenceRequested && referenceSelectionReady/);
+  assert.match(createSource, /disabled=\{\(!idea\.trim\(\) && !canGenerateWithoutIdea\)/);
+  assert.match(createSource, /!referenceUnavailable && Boolean\(referenceGoal\.trim\(\)\) && referenceSections\.length > 0/);
+  assert.match(createSource, /可不填脑洞，AI 会按参考目标生成原创短篇方向/);
+});
+
 test("short story studio keeps internal production language out of the primary reading surface", () => {
   assert.match(storySource, /完整成稿/);
   assert.match(storySource, /直接编辑/);

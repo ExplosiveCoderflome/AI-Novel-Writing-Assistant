@@ -76,6 +76,8 @@ export default function CreationStudioPage() {
     (section.status === "succeeded" || section.frozen) && isReadableBookAnalysisSection(section)
   ) ?? [];
   const referenceUnavailable = referenceRequested && !interpretation && (!sourceAnalysis || sourceAnalysis.documentId !== referenceDocumentId || sourceAnalysis.status !== "succeeded");
+  const referenceSelectionReady = !referenceRequested || (!referenceUnavailable && Boolean(referenceGoal.trim()) && referenceSections.length > 0);
+  const canGenerateWithoutIdea = referenceRequested && referenceSelectionReady;
   useEffect(() => {
     if (!sourceAnalysis) return;
     const availableKeys = new Set(availableReferenceSections.map((section) => section.sectionKey));
@@ -234,7 +236,9 @@ export default function CreationStudioPage() {
             value={idea}
             readOnly={Boolean(taskId)}
             onChange={(event) => setIdea(event.target.value)}
-            placeholder="例如：一个总能听见谎言的女孩，遇见了唯一无法判断真假的人……"
+            placeholder={referenceRequested
+              ? "可留空，AI 会按参考目标创作原创短篇；也可补充新人物或冲突……"
+              : "例如：一个总能听见谎言的女孩，遇见了唯一无法判断真假的人……"}
             aria-label={shortStoryEntry ? "写下短篇故事想法" : "写下故事想法"}
             className="mt-5 min-h-[180px] w-full resize-none bg-transparent px-1 py-1 text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground/60 sm:text-lg sm:leading-8"
             maxLength={12000}
@@ -260,12 +264,12 @@ export default function CreationStudioPage() {
               </Select>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <span className="text-xs leading-5 text-muted-foreground">人物、画面、冲突，写下任何一个就够了。</span>
+              <span className="text-xs leading-5 text-muted-foreground">{referenceRequested ? "可不填脑洞，AI 会按参考目标生成原创短篇方向。" : "人物、画面、冲突，写下任何一个就够了。"}</span>
               <Button
                 size="lg"
                 className="h-11 rounded-full px-6 shadow-none"
                 onClick={() => interpretMutation.mutate()}
-                disabled={!idea.trim() || interpretMutation.isPending || retryWaiting || referenceUnavailable || (referenceRequested && (!referenceGoal.trim() || !referenceSections.length))}
+                disabled={(!idea.trim() && !canGenerateWithoutIdea) || interpretMutation.isPending || retryWaiting || !referenceSelectionReady}
               >
                 {interpretMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 生成创作方向

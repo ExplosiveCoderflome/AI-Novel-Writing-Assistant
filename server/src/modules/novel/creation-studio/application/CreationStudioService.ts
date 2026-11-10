@@ -82,7 +82,8 @@ export class CreationStudioService {
   configureLongNovelLauncher(launcher?: NonNullable<CreationStudioService["longNovelLauncher"]>): void {this.longNovelLauncher = launcher;}
 
   async interpret(input: CreationStudioInterpretRequest): Promise<CreationStudioTaskProjection> {
-    const idea = input.idea.trim();
+    const idea = input.idea?.trim()
+      || (input.reference ? `创作目标：${input.reference.goal.trim()}` : "");
     if (!idea) {
       throw new AppError("请先写下你想创作的内容。", 400);
     }
