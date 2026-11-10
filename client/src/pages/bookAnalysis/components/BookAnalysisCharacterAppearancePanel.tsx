@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ScanLine } from "lucide-react";
 import type {
@@ -363,6 +364,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       {activeTask ? (
         <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           当前图片任务：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
+          <TaskRecordActions kind="image_generation" id={activeTask.id} status={activeTask.status} title="角色外观图片生成" allowStop allowDelete={false} />
           {activeTask.error ? <span className="ml-2 text-destructive">{activeTask.error}</span> : null}
         </div>
       ) : null}

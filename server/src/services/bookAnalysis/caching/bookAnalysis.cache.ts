@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { analysisSignal } from "../generation/lifecycle";
 import { prisma } from "../../../db/prisma";
 import { isBuiltInProvider, PROVIDERS } from "../../../llm/providers";
 import { AppError } from "../../../middleware/errorHandler";
@@ -223,6 +224,7 @@ export class BookAnalysisSourceCacheService {
         segmentContent: input.segment.content,
       },
       options: {
+        signal: analysisSignal(),
         provider: input.provider,
         model: input.model,
         temperature: input.temperature,

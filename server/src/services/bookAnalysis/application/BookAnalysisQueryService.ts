@@ -6,6 +6,7 @@ import type {
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../../db/prisma";
+import { getArchivedTaskIds } from "../../task/taskArchive";
 import { AppError } from "../../../middleware/errorHandler";
 import { KnowledgePublishService } from "../../knowledge/KnowledgePublishService";
 import { buildAnalysisExportContent } from "../publish/bookAnalysis.export";
@@ -45,11 +46,13 @@ export class BookAnalysisQueryService {
     documentId?: string;
   } = {}): Promise<BookAnalysis[]> {
     const keyword = filters.keyword?.trim();
+    const removedIds = await getArchivedTaskIds("book_analysis");
     const persistedStatusFilter = filters.status === "failed"
       ? { in: ["failed" as const, "succeeded" as const] }
       : filters.status;
     const rows = await prisma.bookAnalysis.findMany({
       where: {
+        ...(removedIds.length ? { id: { notIn: removedIds } } : {}),
         ...(persistedStatusFilter ? { status: persistedStatusFilter } : { status: { not: "archived" } }),
         ...(filters.documentId ? { documentId: filters.documentId } : {}),
         ...(keyword

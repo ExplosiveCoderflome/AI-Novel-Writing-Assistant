@@ -6,6 +6,7 @@ import type { StyleExtractionSourceProcessingMode, StyleTemplate } from "@ai-nov
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import {
   Dialog,
   DialogContent,
@@ -644,6 +645,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                         </div>
                         <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
                           <div>任务标题：{activeExtractionTask.title}</div>
+                          <TaskRecordActions kind="style_extraction" id={activeExtractionTask.id} status={activeExtractionTask.status} title={activeExtractionTask.title} allowStop allowDelete={false} />
                           <div>执行阶段：{activeExtractionTask.currentStage ?? "等待调度"}</div>
                           <div>任务进度：{Math.round(activeExtractionTask.progress * 100)}%</div>
                           {activeExtractionTask.failureSummary ? (

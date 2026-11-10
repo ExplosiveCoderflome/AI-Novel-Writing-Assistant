@@ -3,6 +3,7 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { abortAnalysis } from "../generation/lifecycle";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
@@ -487,6 +488,8 @@ export class BookAnalysisCommandService {
         },
       });
     }
+
+    abortAnalysis(analysisId);
 
     const detail = await this.queryService.getAnalysisById(analysisId);
     if (!detail) {

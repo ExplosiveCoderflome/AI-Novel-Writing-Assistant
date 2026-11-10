@@ -91,6 +91,15 @@ export async function archiveTask(kind: TaskKind, id: string) {
   return data;
 }
 
+export async function deleteTask(kind: TaskKind, id: string) {
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/tasks/${kind}/${id}`);
+  return data;
+}
+
+export function isTaskRecordActive(status: string): boolean {
+  return ["queued", "running", "waiting_approval"].includes(status);
+}
+
 export async function getAutoDirectorFollowUpDetail(taskId: string, options?: { revalidate?: boolean }) {
   try {
     const { data } = await apiClient.get<ApiResponse<AutoDirectorFollowUpDetail | null>>(`/tasks/auto-director-follow-ups/${taskId}`, {

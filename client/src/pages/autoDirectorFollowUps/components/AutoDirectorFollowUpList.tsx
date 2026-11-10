@@ -6,6 +6,7 @@ import type {
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { Button } from "@/components/ui/button";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import {
   TaskQueueEmptyState,
   TaskQueueItem,
@@ -218,6 +219,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   当前阶段：{item.currentStage ?? "暂无"} · 当前模型：{item.currentModel ?? "暂无"} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
                 </div>
                 </TaskQueueItem>
+                <TaskRecordActions kind="novel_workflow" id={item.directorTaskId} status={item.status} title={item.novelTitle} allowStop />
                 {item.supportsBatch ? (
                   <label className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center">
                     <span className="sr-only">选择 {item.novelTitle} 进行批量操作</span>

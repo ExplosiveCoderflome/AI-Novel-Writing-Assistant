@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
   queued: "排队中",
@@ -137,6 +138,7 @@ export default function BookAnalysisCharacterImagePanel({
       {activeTask ? (
         <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           当前任务：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
+          <TaskRecordActions kind="image_generation" id={activeTask.id} status={activeTask.status} title="角色图片生成" allowStop allowDelete={false} />
           {activeTask.error ? <span className="ml-2 text-destructive">{activeTask.error}</span> : null}
         </div>
       ) : null}

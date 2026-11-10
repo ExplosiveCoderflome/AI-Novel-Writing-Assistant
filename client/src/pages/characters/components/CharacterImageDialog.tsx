@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import {
   buildCharacterImagePrompt,
   buildDefaultCharacterImageSourceDescription,
@@ -414,6 +415,7 @@ export function CharacterImageDialog({
           {activeTask ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
               <div>当前任务状态：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}</div>
+              <TaskRecordActions kind="image_generation" id={activeTask.id} status={activeTask.status} title="角色图片生成" allowStop allowDelete={false} />
               {activeTask.error ? (
                 <div className="mt-1 text-xs text-destructive">{activeTask.error}</div>
               ) : null}

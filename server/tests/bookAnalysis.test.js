@@ -1634,6 +1634,8 @@ test("reconcileBookAnalysisResultStatus exposes historical empty successes as fa
 
 test("BookAnalysisQueryService listAnalyses filters by selected document", async () => {
   const originalFindMany = prisma.bookAnalysis.findMany;
+  const originalArchives = prisma.taskCenterArchive.findMany;
+  prisma.taskCenterArchive.findMany = async () => [{ taskId: "removed-analysis" }];
   const capturedQueries = [];
   const now = new Date("2026-06-03T00:00:00.000Z");
 
@@ -1690,10 +1692,12 @@ test("BookAnalysisQueryService listAnalyses filters by selected document", async
 
     assert.equal(capturedQueries.length, 1);
     assert.equal(capturedQueries[0].where.documentId, "document-1");
+    assert.deepEqual(capturedQueries[0].where.id, { notIn: ["removed-analysis"] });
     assert.equal(rows.length, 1);
     assert.equal(rows[0].documentId, "document-1");
   } finally {
     prisma.bookAnalysis.findMany = originalFindMany;
+    prisma.taskCenterArchive.findMany = originalArchives;
   }
 });
 
@@ -2423,7 +2427,7 @@ test("BookAnalysisGenerationService runFullAnalysis stops after overview when ca
   };
   const analysisUpdates = [];
   const sectionCalls = [];
-  let cancelCheckCount = 0;
+  let overviewGenerated = false;
 
   prisma.bookAnalysis.findUnique = async (input) => {
     if (input.include) {
@@ -2446,10 +2450,9 @@ test("BookAnalysisGenerationService runFullAnalysis stops after overview when ca
         ],
       };
     }
-    cancelCheckCount += 1;
     return {
       status: "running",
-      cancelRequestedAt: cancelCheckCount >= 2 ? new Date("2026-06-24T00:00:00.000Z") : null,
+      cancelRequestedAt: overviewGenerated ? new Date("2026-06-24T00:00:00.000Z") : null,
     };
   };
   prisma.bookAnalysis.update = async (input) => {
@@ -2470,6 +2473,7 @@ test("BookAnalysisGenerationService runFullAnalysis stops after overview when ca
     {
       generateSection: async (...args) => {
         sectionCalls.push(args);
+        overviewGenerated = true;
         return {
           markdown: "# 拆书总览",
           structuredData: {},

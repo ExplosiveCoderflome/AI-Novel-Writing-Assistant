@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import type { Chapter, NovelBible, PipelineJob, PlotBeat, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -450,6 +451,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                     <div className="space-y-1">
                       <div>任务ID：{pipelineJob.id}</div>
                       <div>状态：{pipelineJob.status}</div>
+                      <TaskRecordActions kind="novel_pipeline" id={pipelineJob.id} status={pipelineJob.status} title="章节生成" allowStop allowDelete={false} />
                       <div>当前阶段：{pipelineJob.currentStage || "-"}</div>
                       <div>当前章节：{pipelineJob.currentItemLabel || "-"}</div>
                       <div>进度：{Math.round((pipelineJob.progress ?? 0) * 100)}%</div>

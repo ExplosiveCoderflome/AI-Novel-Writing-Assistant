@@ -244,6 +244,16 @@ export function createTasksRouter(options: {
     }
   });
 
+  router.delete("/:kind/:id", validate({ params: taskParamsSchema }), async (req, res, next) => {
+    try {
+      const { kind, id } = req.params as z.infer<typeof taskParamsSchema>;
+      await taskCenterService.deleteRecord(kind, id);
+      res.status(200).json({ success: true, data: null, message: "记录已删除，已保存的创作成果会保留。" } satisfies ApiResponse<null>);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post("/:kind/:id/archive", validate({ params: taskParamsSchema }), async (req, res, next) => {
     try {
       const { kind, id } = req.params as z.infer<typeof taskParamsSchema>;

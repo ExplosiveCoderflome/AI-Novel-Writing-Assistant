@@ -1,5 +1,7 @@
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { DocumentChapterService } from "../../knowledge/DocumentChapterService";
+import { withExecutionSignal } from "../../../platform/runtime/execution";
+import { analysisSignal, isAnalysisCancelled } from "./lifecycle";
 
 export async function getDocumentChaptersSafely(
   documentChapterService: DocumentChapterService,
@@ -7,9 +9,13 @@ export async function getDocumentChaptersSafely(
   content: string,
 ): Promise<DocumentChapter[]> {
   try {
-    const result = await documentChapterService.ensureChaptersForVersion(documentVersionId);
+    const signal = analysisSignal();
+    const result = await (signal
+      ? withExecutionSignal(signal, () => documentChapterService.ensureChaptersForVersion(documentVersionId))
+      : documentChapterService.ensureChaptersForVersion(documentVersionId));
     return result.chapters;
-  } catch {
+  } catch (error) {
+    if (isAnalysisCancelled(error)) throw error;
     return [{
       id: "inline-single-chapter",
       documentVersionId,

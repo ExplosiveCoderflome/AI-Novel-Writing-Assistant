@@ -231,7 +231,8 @@ export class AutoDirectorFollowUpService {
       .map((row) => row.novelId)
       .filter((novelId): novelId is string => Boolean(novelId?.trim()));
     const records = await loadRecentAutoDirectorAutoApprovalRecords(novelIds);
-    return records.map((record) => projectAutoApprovalRecordItem({
+    const removedIds = new Set(await getArchivedTaskIds("novel_workflow"));
+    return records.filter((record) => !removedIds.has(record.taskId)).map((record) => projectAutoApprovalRecordItem({
       ...record,
       novel: taskById.get(record.taskId)?.novel ?? null,
     }, taskById));

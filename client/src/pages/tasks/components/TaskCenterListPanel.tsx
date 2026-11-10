@@ -1,5 +1,6 @@
 import type { UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { Button } from "@/components/ui/button";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 import {
   TaskQueueEmptyState,
   TaskQueueItem,
@@ -61,8 +62,8 @@ export default function TaskCenterListPanel({
           const severity = getTaskQueueSeverity(task);
           const progressPercent = Math.round(task.progress * 100);
           return (
+            <div key={`${task.kind}:${task.id}`}>
             <TaskQueueItem
-              key={`${task.kind}:${task.id}`}
               selected={isSelected}
               tone={tone}
               onClick={() => onSelectTask(task)}
@@ -100,6 +101,8 @@ export default function TaskCenterListPanel({
                 更新于 {formatDate(task.updatedAt)}
               </div>
             </TaskQueueItem>
+            <TaskRecordActions kind={task.kind} id={task.id} status={task.status} title={task.title} />
+            </div>
           );
         })}
         {!loading && !errorMessage && tasks.length === 0 ? (

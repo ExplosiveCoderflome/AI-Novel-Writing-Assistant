@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatStatus } from "../bookAnalysis.utils";
 import SelectControl from "@/components/common/SelectControl";
+import { TaskRecordActions } from "@/components/taskQueue/TaskRecordActions";
 
 interface BookAnalysisSidebarProps {
   analysisMode: "reference" | "diagnosis";
@@ -96,8 +97,8 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
               itemSearchParams.set("mode", "diagnosis");
             }
             return (
+              <div key={item.id}>
               <Link
-                key={item.id}
                 to={{ pathname: "/book-analysis", search: itemSearchParams.toString() }}
                 className={`relative block w-full rounded-xl border-0 px-3 py-3 text-left transition-all ${
                   item.id === selectedAnalysisId
@@ -133,6 +134,8 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                   <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
                 ) : null}
               </Link>
+              <TaskRecordActions kind="book_analysis" id={item.id} status={item.status} title={item.title} allowStop />
+              </div>
             );
           }) : null}
 

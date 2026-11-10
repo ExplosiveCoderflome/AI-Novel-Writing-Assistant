@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import { analysisSignal } from "../generation/lifecycle";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { AppError } from "../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -52,6 +53,7 @@ export class BookAnalysisSectionWriter {
         notesText,
       },
       options: {
+        signal: analysisSignal(),
         provider,
         model,
         temperature: normalizeTemperature(temperature),
@@ -105,6 +107,7 @@ export class BookAnalysisSectionWriter {
         notesText,
       },
       options: {
+        signal: analysisSignal(),
         provider: input.provider,
         model: input.model,
         temperature: normalizeTemperature(input.temperature),

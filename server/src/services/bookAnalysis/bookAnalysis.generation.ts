@@ -29,7 +29,7 @@ import {
   normalizeTemperature,
 } from "./shared/bookAnalysis.utils";
 import {
-  AnalysisCancelledError,
+  isAnalysisCancelled,
   ensureNotCancelled,
   markCancelled,
   markFailed,
@@ -130,6 +130,7 @@ export class BookAnalysisGenerationService {
           sectionMaxTokens: maxTokens,
           sourceScopeKey: sourceScope.sourceScopeKey,
         });
+        await ensureNotCancelled(analysisId);
         const documentChapters = await getDocumentChaptersSafely(
           this.documentChapterService,
           analysis.documentVersionId,
@@ -183,6 +184,7 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: overviewSection.focusInstruction,
               },
             );
+            await ensureNotCancelled(analysisId);
             assertReadableSectionResult(generated);
             const evidence = bindEvidenceToDocumentChapters(
               generated.evidence,
@@ -210,7 +212,7 @@ export class BookAnalysisGenerationService {
             summary = buildAnalysisSummaryFromContent(generated.markdown);
             await budgetGuard.onSectionFinished(generated.tokenUsage);
           } catch (error) {
-            if (error instanceof AnalysisCancelledError || error instanceof BookAnalysisBudgetExceededError) {
+            if (isAnalysisCancelled(error) || error instanceof BookAnalysisBudgetExceededError) {
               throw error;
             }
             overviewContext = null;
@@ -279,6 +281,7 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: section.focusInstruction,
               },
             );
+            await ensureNotCancelled(analysisId);
             assertReadableSectionResult(generated);
             const evidence = bindEvidenceToDocumentChapters(
               generated.evidence,
@@ -304,7 +307,7 @@ export class BookAnalysisGenerationService {
             await budgetGuard.onSectionFinished(generated.tokenUsage);
 
           } catch (error) {
-            if (error instanceof AnalysisCancelledError || error instanceof BookAnalysisBudgetExceededError) {
+            if (isAnalysisCancelled(error) || error instanceof BookAnalysisBudgetExceededError) {
               throw error;
             }
             errors.push(`${section.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -349,7 +352,7 @@ export class BookAnalysisGenerationService {
           },
         });
       } catch (error) {
-        if (error instanceof AnalysisCancelledError) {
+        if (isAnalysisCancelled(error)) {
           await markCancelled(analysisId);
           return;
         }
@@ -411,6 +414,7 @@ export class BookAnalysisGenerationService {
           sectionMaxTokens: maxTokens,
           sourceScopeKey: sourceScope.sourceScopeKey,
         });
+        await ensureNotCancelled(analysisId);
         const documentChapters = await getDocumentChaptersSafely(
           this.documentChapterService,
           analysis.documentVersionId,
@@ -454,6 +458,7 @@ export class BookAnalysisGenerationService {
             sectionFocusInstruction: section.focusInstruction,
           },
         );
+        await ensureNotCancelled(analysisId);
         assertReadableSectionResult(generated);
         const evidence = bindEvidenceToDocumentChapters(
           generated.evidence,
@@ -513,7 +518,7 @@ export class BookAnalysisGenerationService {
           },
         });
       } catch (error) {
-        if (error instanceof AnalysisCancelledError) {
+        if (isAnalysisCancelled(error)) {
           await markCancelled(analysisId);
           return;
         }
