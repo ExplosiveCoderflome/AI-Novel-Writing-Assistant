@@ -21,14 +21,13 @@ async function listen(t, app) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
-test("unset tokens allow only local development; forwarded addresses and remote origins do not bypass auth", t => {
-  environment(t, { NODE_ENV: "development", AI_NOVEL_ACCESS_TOKEN: undefined });
+test("unset tokens keep access open so protection stays opt-in", t => {
+  environment(t, { NODE_ENV: "production", AI_NOVEL_ACCESS_TOKEN: undefined });
   assert.equal(authorize().passed, true);
-  assert.equal(authorize({ ip: "192.168.1.8", headers: { "x-forwarded-for": "127.0.0.1" } }).status, 503);
-  assert.equal(authorize({ host: "writing.example.com" }).status, 503);
-  assert.equal(authorize({ headers: { origin: "https://untrusted.example" } }).status, 503);
-  process.env.NODE_ENV = "production";
-  assert.equal(authorize().status, 503);
+  assert.equal(authorize({ ip: "192.168.1.8", host: "192.168.1.2" }).passed, true);
+  assert.equal(authorize({ headers: { origin: "https://writing.example" } }).passed, true);
+  environment(t, { AI_NOVEL_ACCESS_TOKEN: "   " });
+  assert.equal(authorize({ ip: "192.168.1.8" }).passed, true);
 });
 
 test("configured tokens protect local and remote requests, reject query credentials and preserve signed callback routes", t => {

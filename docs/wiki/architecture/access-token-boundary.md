@@ -7,8 +7,8 @@
 ## 当前规则
 
 - `AI_NOVEL_ACCESS_TOKEN` 配置后，所有业务请求都需有效 Bearer 令牌或已验证的浏览器会话，包括本机请求。令牌不进入 URL、日志或前端构建变量。
-- 未配置时只允许非 production、socket 来自 loopback、Host 为 loopback 且 Origin 缺省或为 loopback 的本地开发请求。远程请求返回 503，配置后缺失或错误凭据返回 401。不得信任客户端转发头来扩大本机豁免。
-- 部署必须设置 `NODE_ENV=production` 和 `AI_NOVEL_ACCESS_TOKEN`；反向代理保留原 Host。开发代理也保留 Host，防止局域网请求经代理后被当成本机请求。
+- 令牌保护由部署者自行决定是否开启：未配置（或为空白）时不做访问校验，保持旧版开放行为，便于局域网与已有部署平滑升级；配置后缺失或错误凭据返回 401。
+- 对公网或不受信任的局域网开放时，建议设置 `NODE_ENV=production` 和 `AI_NOVEL_ACCESS_TOKEN` 开启保护。
 - Web 在连接页输入令牌，以 Bearer 验证后获得 HttpOnly、SameSite=Strict 的会话 Cookie；API、资源、流式 Fetch 与 EventSource 共用会话。前后端应部署在同一站点，跨站前后端使用同源反向代理。公网由 HTTPS 终止点保护传输。
 - 健康检查只返回服务存活信息，允许无凭据访问。钉钉、企业微信回调仅豁免已有的回调路径和方法，继续由各渠道签名／Token 校验，不可把普通任务操作加入豁免。
 - 桌面托管模式在主进程生成 32 字节随机令牌，经进程环境传给本地服务，经既有 preload runtime 传给渲染器。Electron 只向对应 loopback API 注入 Authorization，覆盖 Axios、Fetch、资源加载和 EventSource。运行时令牌无需用户配置、不写入磁盘。外接开发服务使用其配置的令牌，不擅自更改外接服务。

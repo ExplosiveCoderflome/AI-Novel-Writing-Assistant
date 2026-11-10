@@ -2,7 +2,6 @@ import type { NextFunction, Request, Response } from "express";
 import { createHash, timingSafeEqual } from "node:crypto";
 
 const COOKIE_NAME = "ai_novel_access";
-const loopbackHosts = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
 const publicRequests = new Set([
   "GET /api/health", "GET /api/health/",
   "POST /api/auto-director/channel-callbacks/dingtalk",
@@ -10,15 +9,6 @@ const publicRequests = new Set([
   "GET /api/auto-director/channel-callbacks/dingtalk/execute",
   "GET /api/auto-director/channel-callbacks/wecom/execute",
 ]);
-
-function isLocalDevelopment(req: Request): boolean {
-  if (process.env.NODE_ENV === "production") return false;
-  if (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress ?? "")) return false;
-  if (!loopbackHosts.has(req.hostname)) return false;
-  const origin = req.get("origin");
-  if (!origin) return true;
-  try { return loopbackHosts.has(new URL(origin).hostname); } catch { return false; }
-}
 
 function cookieToken(req: Request): string {
   const value = req.headers.cookie?.split(";").map(part => part.trim()).find(part => part.startsWith(`${COOKIE_NAME}=`));
@@ -29,11 +19,8 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   const pathname = req.originalUrl.split("?")[0].replace(/\/$/, "");
   if (publicRequests.has(`${req.method} ${pathname}`)) { next(); return; }
   const expected = process.env.AI_NOVEL_ACCESS_TOKEN?.trim();
-  if (!expected) {
-    if (isLocalDevelopment(req)) { next(); return; }
-    res.status(503).json({ success: false, code: "ACCESS_TOKEN_NOT_CONFIGURED", error: "请先在服务端配置访问令牌，再连接工作台。" });
-    return;
-  }
+  // Access protection is opt-in: without a configured token the API keeps its previous open behavior.
+  if (!expected) { next(); return; }
   const authorization = req.get("authorization");
   const token = authorization ? /^Bearer (.+)$/i.exec(authorization)?.[1] ?? "" : cookieToken(req);
   const digest = (value: string) => createHash("sha256").update(value).digest();
