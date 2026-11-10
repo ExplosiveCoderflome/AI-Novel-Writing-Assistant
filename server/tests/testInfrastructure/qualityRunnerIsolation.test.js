@@ -21,7 +21,7 @@ test('quality workers receive a fresh database already in WAL mode before parall
         if (id !== 'node:child_process') return realRequire(id);
         return { spawnSync(_executable, _args, options) {
           directory = options.env.AI_NOVEL_APP_DATA_DIR;
-          assert.equal(path.dirname(directory), fs.realpathSync(os.tmpdir()));
+          assert.equal(fs.realpathSync(path.dirname(directory)), fs.realpathSync(os.tmpdir()));
           assert.ok(path.basename(directory).startsWith('ai-novel-quality-'));
           const filename = options.env.DATABASE_URL.slice('file:'.length);
           const database = new Database(filename, { readonly: true, fileMustExist: true });
@@ -35,7 +35,7 @@ test('quality workers receive a fresh database already in WAL mode before parall
     assert.equal(invocations, 2);
   } finally {
     if (directory) {
-      assert.equal(path.dirname(directory), fs.realpathSync(os.tmpdir()));
+      assert.equal(fs.realpathSync(path.dirname(directory)), fs.realpathSync(os.tmpdir()));
       assert.ok(path.basename(directory).startsWith('ai-novel-quality-'));
       fs.rmSync(directory, { recursive: true, force: true });
     }
