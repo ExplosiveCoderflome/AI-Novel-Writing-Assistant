@@ -76,6 +76,7 @@ jobs:
       AI_NOVEL_DATABASE_MODE: sqlite
       DATABASE_URL: file:./dev.db
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      NODE_OPTIONS: --max-old-space-size=6144
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
