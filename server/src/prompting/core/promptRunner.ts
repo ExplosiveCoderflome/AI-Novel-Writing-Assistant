@@ -1,4 +1,4 @@
-import { recordStructuredBusinessFailure } from "../../platform/llm/diagnostics/StructuredDiagnosticStore";
+import { finishStructuredDiagnostic, recordStructuredBusinessFailure } from "../../platform/llm/diagnostics/StructuredDiagnosticStore";
 import {registerPromptCacheBoundary} from "./cache";
 import { claimModelRequest, currentModelRequestBudget } from "../../platform/llm/retries";
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
@@ -593,6 +593,17 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
       if (semanticRetryAttempts >= maxSemanticRetryAttempts || requestBudget?.remaining() === 0 || (sharedCorrectionBudget !== undefined
         && totalRepairAttempts + semanticRetryAttempts >= sharedCorrectionBudget)) {
         if (input.asset.postValidateFailureRecovery) {
+          const recoveredOutput = input.asset.postValidateFailureRecovery({
+            promptInput: input.promptInput,
+            context: input.context,
+            rawOutput: currentResult.data,
+            validationError: stringifyPromptError(error),
+            semanticRetryAttempts,
+          });
+          if (currentResult.diagnostics?.response) {
+            currentResult.diagnostics.response.failureReason = null;
+            await finishStructuredDiagnostic(currentResult.diagnostics.attemptId ?? null, "succeeded", currentResult.diagnostics.response);
+          }
           logPromptEvent({
             event: "semantic_retry_recovered",
             asset: asset as PromptAsset<unknown, unknown, unknown>,
@@ -618,13 +629,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
             postValidateFailureRecovered: true,
           });
           return {
-            output: input.asset.postValidateFailureRecovery({
-              promptInput: input.promptInput,
-              context: input.context,
-              rawOutput: currentResult.data,
-              validationError: stringifyPromptError(error),
-              semanticRetryAttempts,
-            }),
+            output: recoveredOutput,
             invocation: buildPromptInvocationMeta(
               asset,
               input.context,

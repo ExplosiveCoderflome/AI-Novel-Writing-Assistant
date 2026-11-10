@@ -250,6 +250,7 @@ export class ShortStoryRevisionService {
             promptInput: {
               originalIdea: preview.originalIdea, understanding: interpretation.understanding, direction,
               plan: context.plan, content: context.segments.map((segment) => segment.content).join("\n\n"),
+              requiredSegmentOrders: affected.map(segment => segment.order),
               audit: { decision: "patchable", summary: preview.revision.understoodGoal,
                 issues: affected.map((segment) => ({
                   code: "confirmed_revision", description: preview.revision.understoodGoal,

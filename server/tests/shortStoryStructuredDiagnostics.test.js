@@ -194,3 +194,21 @@ test("short story repair debug logs omit story text and raw provider errors", ()
     assert.equal(rows[0].repairAttempt, 1);
   } finally { file.appendLlmRepairSessionLog = previous; }
 });
+
+test("accepted bounded quality recovery clears the failed diagnostic instead of asking users to retry forever", async () => {
+  const { task } = await invoke([{ content: '{"value":"usable"}', response_metadata: { finish_reason: "stop" } }]);
+  const { runStructuredPrompt } = require("../dist/prompting/core/promptRunner");
+  const { latestStructuredDiagnostic } = require("../dist/platform/llm/diagnostics/StructuredDiagnosticStore");
+  const { shortStoryPlanPrompt } = require("../dist/prompting/prompts/shortStory/shortStory.prompts");
+  const { HumanMessage } = require("@langchain/core/messages");
+  const result = await runStructuredPrompt({
+    asset: { ...shortStoryPlanPrompt, outputSchema: z.object({ value: z.string() }),
+      repairPolicy: { maxAttempts: 0 }, semanticRetryPolicy: { maxAttempts: 0 },
+      render: () => [new HumanMessage("测试")],
+      postValidate: () => { throw new Error("篇幅偏差"); },
+      postValidateFailureRecovery: ({ rawOutput }) => rawOutput },
+    promptInput: {}, options: {taskId: task.id, provider: "deepseek", model: "offline-model"},
+  });
+  assert.equal(result.output.value, "usable");
+  assert.equal(await latestStructuredDiagnostic(task.id), null);
+});

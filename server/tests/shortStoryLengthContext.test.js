@@ -68,3 +68,21 @@ test('one repair correction receives every out-of-range segment instead of disco
   ], residualQualityDebt: [] }, { ...input, segments: [{ order: 1, humanEdited: false }, { order: 2, humanEdited: false }] }, {}),
   error => /第1段/.test(error.message) && /第2段/.test(error.message));
 });
+
+test('confirmed revision scope failure reaches the bounded semantic correction with its concrete reason', async () => {
+  const requests = [];
+  setPromptRunnerStructuredInvokerForTests(async request => {
+    requests.push(request);
+    return {data: {patches: requests.length === 1 ? [] : [{segmentOrder: 2, content: '乙'.repeat(1600)}], residualQualityDebt: []}, repairUsed: false, repairAttempts: 0};
+  });
+  try {
+    const result = await runStructuredPrompt({asset: shortStoryPatchRepairPrompt, promptInput: {
+      ...input, requiredSegmentOrders: [2], segments: [{order: 1, content: '甲'.repeat(1400), humanEdited: true}, {order: 2, content: '乙'.repeat(1600), humanEdited: false}],
+      audit: {decision: 'patchable', summary: '调整第二段', issues: []},
+    }});
+    assert.equal(result.output.patches[0].segmentOrder, 2);
+    assert.equal(requests.length, 2);
+    assert.match(requests[1].messages.at(-1).content, /完整覆盖已确认片段 2/);
+    assert.throws(() => shortStoryPatchRepairPrompt.postValidateFailureRecovery({rawOutput: {patches: [], residualQualityDebt: []}, promptInput: {requiredSegmentOrders: [2]}}), /完整覆盖/);
+  } finally { setPromptRunnerStructuredInvokerForTests(); }
+});

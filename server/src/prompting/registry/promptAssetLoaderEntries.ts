@@ -46,7 +46,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryFullAuditPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.patch.repair@v3",
+    key: "novel.short_story.patch.repair@v7",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPatchRepairPrompt as UnknownPromptAsset,
   },
   {

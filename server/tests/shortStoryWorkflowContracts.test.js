@@ -57,7 +57,7 @@ test("all creation and short story prompts are registered structured assets", ()
     "novel.short_story.plan@v4",
     "novel.short_story.segment.write@v7",
     "novel.short_story.full.audit@v5",
-    "novel.short_story.patch.repair@v6",
+    "novel.short_story.patch.repair@v7",
     "novel.short_story.revision.impact@v3",
   ];
 
