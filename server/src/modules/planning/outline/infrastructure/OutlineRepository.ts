@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 
 export class OutlineRepository {
-  constructor(private readonly db: PrismaClient) {}
+  constructor(private readonly db: PrismaClient, private readonly inTransaction = false) {}
   list() { return this.db.outlineProject.findMany({ where: { status: "active" }, orderBy: { updatedAt: "desc" } }); }
   archive(id: string) { return this.db.outlineProject.update({ where: { id }, data: { status: "archived" } }); }
   get(id: string) { return this.db.outlineProject.findUnique({ where: { id } }); }
@@ -42,7 +42,7 @@ export class OutlineRepository {
     });
   }
   async applyOutlineProposal(projectId: string, proposalId: string, baseVersion: number, selected: Set<string>, source: ReturnType<typeof validateOutlineDocument>, operations: Array<{operationId:string;kind:string;nodeType?:string;nodeId?:string;clientRef?:string;parentNodeId?:string;fields?:Record<string,unknown>;dependsOn:string[]}>) {
-    return this.db.$transaction(async tx => {
+    return this.transaction(async tx => {
       const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
       const proposal = await tx.outlineProposal.findUnique({ where: { id: proposalId } });
       if (!project || project.currentVersion !== baseVersion || !proposal || proposal.status !== "pending") throw new Error("OUTLINE_PROPOSAL_STALE");
@@ -90,5 +90,5 @@ export class OutlineRepository {
     });
   }
   create(data: Parameters<PrismaClient["outlineProject"]["create"]>[0]) { return this.db.outlineProject.create(data); }
-  transaction<T>(run: (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">) => Promise<T>) { return this.db.$transaction(run); }
+  transaction<T>(run: (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">) => Promise<T>): Promise<T> { return this.inTransaction ? run(this.db) : this.db.$transaction(run); }
 }

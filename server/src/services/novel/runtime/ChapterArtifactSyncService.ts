@@ -1,4 +1,5 @@
 import type { RagOwnerType } from "../../rag/types";
+import { outlineFeedbackService } from "../../../modules/planning/outline/feedback";
 import { prisma } from "../../../db/prisma";
 import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { ragServices } from "../../rag";
@@ -108,6 +109,7 @@ export class ChapterArtifactSyncService {
         { label: "chapterArtifactSync.summaryAndFacts" },
       );
       completedArtifacts.push("legacy_summary_and_facts");
+      outlineFeedbackService.notify(novelId, chapterId);
     }
 
     // V2 records structured appearances after candidate identity resolution in the recoverable consumers.

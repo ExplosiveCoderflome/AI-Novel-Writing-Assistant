@@ -4515,8 +4515,26 @@ model OutlineBookBinding {
   policyVersion        Int @default(1)
   policyJson           String
   postCreateStateJson  String
+  feedbackSettingsJson String @default("{}")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   project OutlineProject @relation(fields: [projectId], references: [id], onDelete: Restrict)
   novel Novel @relation(fields: [novelId], references: [id], onDelete: Restrict)
+}
+
+model OutlineFeedbackRun {
+  id String @id
+  projectId String
+  novelId String
+  chapterId String
+  chapterOrder Int
+  requestKey String @unique
+  status String @default("pending")
+  attempt Int @default(0)
+  inputJson String
+  itemsJson String @default("[]")
+  error String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId, createdAt])
 }

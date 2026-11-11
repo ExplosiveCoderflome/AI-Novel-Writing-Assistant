@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { outlineFeedbackService } from "../../modules/planning/outline/feedback";
 import { prisma } from "../../db/prisma";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -153,6 +154,7 @@ export class NovelChapterSummaryService {
       }
     }
 
+    if (content) outlineFeedbackService.notify(novelId, chapterId);
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);
 

@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { outlineFeedbackService } from "../../../../modules/planning/outline/feedback";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import type { ManualChapterArtifacts } from "../domain/manualChapterArtifacts";
@@ -36,8 +37,8 @@ export class ChapterArtifactProjectionStore {
     }), { label: "novelChapterArtifacts.characterTimeline" });
   }
 
-  replaceSummaryAndFacts(novelId: string, chapterId: string, content: string, projection: ManualChapterArtifacts) {
-    return withSqliteRetry(() => prisma.$transaction(async (tx) => {
+  async replaceSummaryAndFacts(novelId: string, chapterId: string, content: string, projection: ManualChapterArtifacts) {
+    const result = await withSqliteRetry(() => prisma.$transaction(async (tx) => {
       if (!await lockCurrentContent(tx, novelId, chapterId, content)) return null;
       const { facts, ...summary } = projection;
       await tx.chapterSummary.upsert({
@@ -52,5 +53,7 @@ export class ChapterArtifactProjectionStore {
       }
       return tx.consistencyFact.findMany({ where: { novelId, chapterId }, select: { id: true } });
     }), { label: "novelChapterArtifacts.summaryAndFacts" });
+    if (result !== null) outlineFeedbackService.notify(novelId, chapterId);
+    return result;
   }
 }

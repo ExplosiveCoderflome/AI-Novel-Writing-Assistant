@@ -20,8 +20,9 @@ export class OutlineProposalService {
     const stale = !latest || latest.project.currentVersion !== baseVersion;
     return this.repository.createProposal({ id: randomUUID(), projectId, baseVersion, kind: request.kind, status: stale ? "stale" : "pending", requestText: request.requestText, proposalJson: JSON.stringify(result.output), promptId: result.meta.invocation.promptId, promptVersion: result.meta.invocation.promptVersion });
   }
-  async apply(projectId: string, proposalId: string, operationIds: string[]) {
+  async apply(projectId: string, proposalId: string, operationIds: string[], feedbackAuthorized = false) {
     const proposal = await this.repository.findProposal(projectId, proposalId);
+    if (proposal?.kind === "text_feedback" && !feedbackAuthorized) throw new AppError("请从章节反馈逐项采纳建议。", 409);
     if (!proposal || !["pending"].includes(proposal.status)) throw new AppError("此提案不可采纳", 409, "请重新生成提案后再采纳。");
     const current = await this.repository.getCurrent(projectId);
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
@@ -48,6 +49,7 @@ export class OutlineProposalService {
   get(projectId: string, proposalId: string) { return this.repository.findProposal(projectId, proposalId); }
   async reject(projectId: string, proposalId: string) {
     const proposal = await this.repository.findProposal(projectId, proposalId);
+    if (proposal?.kind === "text_feedback") throw new AppError("请从章节反馈逐项拒绝建议。", 409);
     if (!proposal || proposal.status !== "pending") throw new Error("此提案不可放弃");
     return this.repository.updateProposalStatus(proposalId, "rejected");
   }

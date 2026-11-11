@@ -1,4 +1,5 @@
 import { prisma } from "../../../../../db/prisma";
+import { outlineFeedbackService } from "../../../../../modules/planning/outline/feedback";
 import type { ChapterArtifactDeltaOutput } from "../../../../../prompting/prompts/novel/chapterArtifactDelta.prompts";
 import type { RagOwnerType } from "../../../../rag/types";
 import { compactText } from "../../../characterResource/characterResourceShared";
@@ -37,6 +38,7 @@ export class ChapterArtifactFactWriter {
         create: {novelId: input.novelId, chapterId: input.chapterId, summary, keyEvents, characterStates},
       });
     });
+    outlineFeedbackService.notify(input.novelId, input.chapterId);
     const facts: NovelFactWriteItem[] = input.output.concreteFacts.map(fact => ({
       text: compactText(fact.text), category: fact.category, source: "auto" as const,
     })).filter(fact => fact.text.length > 0);
