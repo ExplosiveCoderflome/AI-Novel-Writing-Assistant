@@ -52,6 +52,7 @@ import tasksRouter, { createTasksRouter } from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
 import worldRouter from "./modules/setup/world/http";
 import writingFormulaRouter from "./routes/writingFormula";
+import outlineRouter from "./modules/planning/outline/http";
 import { novelEventBus } from "./events/publisher";
 import { registerNovelEventHandlers } from "./events/handlers/registerNovelEventHandlers";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
@@ -139,6 +140,7 @@ export function createApp() {
   app.post("/api/access/session", establishAccessSession);
 
   app.use("/api/health", healthRouter);
+  app.use("/api/outlines", outlineRouter);
   app.use("/api/agent-catalog", agentCatalogRouter);
   app.use("/api/agent-runs", agentRunsRouter);
   app.use("/api/book-analysis", bookAnalysisRouter);

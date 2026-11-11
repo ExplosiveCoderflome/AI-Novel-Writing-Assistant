@@ -2,7 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 
-const nodeSchema = z.object({ clientRef: z.string().min(1), title: z.string(), summary: z.string(), planningDepth: z.enum(["rough", "detailed"]).default("rough"), reason: z.string() });
+const nodeSchema = z.object({ clientRef: z.string().min(1), title: z.string(), summary: z.string(), planningDepth: z.enum(["rough", "detailed"]).default("rough"), reason: z.string(), sourceFragment: z.string() });
 const initialSchema = z.object({ storyFields: z.object({ title: z.string(), premise: z.string(), synopsis: z.string(), theme: z.string(), tone: z.string(), endingDirection: z.string() }), volumes: z.array(nodeSchema), chapters: z.array(nodeSchema.extend({ volumeRef: z.string() })), characters: z.array(nodeSchema.extend({ role: z.string() })), payoffs: z.array(nodeSchema.extend({ setupDescription: z.string(), payoffDescription: z.string() })), facts: z.array(nodeSchema.extend({ content: z.string() })) });
 const operationSchema = z.object({ operationId: z.string(), kind: z.enum(["add_node", "update_fields", "remove_node", "move_node"]), nodeType: z.enum(["volume", "chapter", "character", "payoff", "fact"]).optional(), nodeId: z.string().optional(), clientRef: z.string().optional(), parentNodeId: z.string().optional(), fields: z.record(z.string(), z.unknown()).optional(), reason: z.string(), affectedNodeIds: z.array(z.string()), dependsOn: z.array(z.string()), risks: z.array(z.string()) });
 const editSchema = z.object({ operations: z.array(operationSchema).min(1) });

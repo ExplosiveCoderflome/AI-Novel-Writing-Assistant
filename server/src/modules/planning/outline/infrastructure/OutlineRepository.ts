@@ -5,6 +5,7 @@ import { validateOutlineDocument } from "../domain/outlineDocument";
 export class OutlineRepository {
   constructor(private readonly db: PrismaClient) {}
   list() { return this.db.outlineProject.findMany({ where: { status: "active" }, orderBy: { updatedAt: "desc" } }); }
+  archive(id: string) { return this.db.outlineProject.update({ where: { id }, data: { status: "archived" } }); }
   get(id: string) { return this.db.outlineProject.findUnique({ where: { id } }); }
   async getCurrent(id: string) {
     const project = await this.db.outlineProject.findUnique({ where: { id } });
@@ -16,7 +17,30 @@ export class OutlineRepository {
   findRevision(projectId: string, id: string) { return this.db.outlineRevision.findFirst({ where: { id, projectId } }); }
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
   findProposal(projectId: string, id: string) { return this.db.outlineProposal.findFirst({ where: { id, projectId } }); }
+  updateProposalStatus(id: string, status: string) { return this.db.outlineProposal.update({ where: { id }, data: { status } }); }
   createProposal(data: Parameters<PrismaClient["outlineProposal"]["create"]>[0]["data"]) { return this.db.outlineProposal.create({ data }); }
+  async createImport(title: string, document: ReturnType<typeof validateOutlineDocument>, sourceText: string) {
+    const id = randomUUID();
+    return this.db.$transaction(async tx=>{
+      const project = await tx.outlineProject.create({ data: { id, title, currentVersion: 1 } });
+      const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId: id, version: 1, documentJson: JSON.stringify(document), sourceType: "import" } });
+      const proposal = await tx.outlineProposal.create({ data: { id: randomUUID(), projectId: id, baseVersion: 1, kind: "import_parse", status: "applied", proposalJson: JSON.stringify(document), sourceText } });
+      const updated = await tx.outlineProject.update({ where: { id }, data: { currentRevisionId: revision.id } });
+      return { project: updated, revision, proposal };
+    });
+  }
+  async saveImport(projectId: string, expectedVersion: number, document: ReturnType<typeof validateOutlineDocument>, sourceText: string) {
+    return this.db.$transaction(async tx=>{
+      const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
+      if (!project || project.currentVersion !== expectedVersion) throw new Error("OUTLINE_VERSION_CONFLICT");
+      const proposalId = randomUUID();
+      const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: expectedVersion+1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "import", sourceProposalId: proposalId } });
+      const proposal = await tx.outlineProposal.create({ data: { id: proposalId, projectId, baseVersion: expectedVersion, kind: "import_parse", status: "applied", proposalJson: JSON.stringify(document), sourceText } });
+      const result = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: expectedVersion }, data: { currentVersion: expectedVersion+1, currentRevisionId: revision.id, title: document.story.title } });
+      if (!result.count) throw new Error("OUTLINE_VERSION_CONFLICT");
+      return { revision, proposal };
+    });
+  }
   async applyOutlineProposal(projectId: string, proposalId: string, baseVersion: number, selected: Set<string>, source: ReturnType<typeof validateOutlineDocument>, operations: Array<{operationId:string;kind:string;nodeType?:string;nodeId?:string;clientRef?:string;parentNodeId?:string;fields?:Record<string,unknown>;dependsOn:string[]}>) {
     return this.db.$transaction(async tx => {
       const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
@@ -50,6 +74,18 @@ export class OutlineRepository {
       const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id } });
       if (update.count !== 1) throw new Error("OUTLINE_VERSION_CONFLICT");
       await tx.outlineProposal.update({ where: { id: proposalId }, data: { status: selected.size === operations.length ? "applied" : "partially_applied" } });
+      return { revision, document };
+    });
+  }
+  async applyInitialProposal(projectId: string, proposalId: string, baseVersion: number, input: ReturnType<typeof validateOutlineDocument>) {
+    const document = validateOutlineDocument(input);
+    return this.db.$transaction(async tx=>{
+      const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
+      const proposal = await tx.outlineProposal.findUnique({ where: { id: proposalId } });
+      if (!project || project.currentVersion !== baseVersion || !proposal || proposal.status !== "pending") throw new Error("OUTLINE_PROPOSAL_STALE");
+      const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion+1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "initial_generation", sourceProposalId: proposalId } });
+      await tx.outlineProject.update({ where: { id: projectId }, data: { currentVersion: baseVersion+1, currentRevisionId: revision.id, title: document.story.title } });
+      await tx.outlineProposal.update({ where: { id: proposalId }, data: { status: "applied" } });
       return { revision, document };
     });
   }

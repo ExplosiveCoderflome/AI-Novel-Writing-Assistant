@@ -7,6 +7,7 @@ export class OutlineVersionConflict extends Error { readonly code = "OUTLINE_VER
 export class OutlineProjectService {
   constructor(private readonly repository: OutlineRepository) {}
   list() { return this.repository.list(); }
+  archive(id: string) { return this.repository.archive(id); }
   async create(title = "未命名大纲") {
     const document = createEmptyOutlineDocument(title);
     const id = randomUUID();
