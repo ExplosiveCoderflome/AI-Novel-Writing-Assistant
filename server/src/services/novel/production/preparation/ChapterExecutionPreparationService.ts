@@ -1,5 +1,6 @@
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { prisma } from "../../../../db/prisma";
+import { rejectLegacyManuscriptWrite } from "../../../../modules/novel/manuscript/application/ManuscriptIsolation";
 import { plannerService } from "../../../planner/PlannerService";
 import { ChapterPlanJITService, type ChapterPlanJITDeps } from "../../planning/ChapterPlanJITService";
 import { ChapterRouteWindowService } from "../../planning/ChapterRouteWindowService";
@@ -15,6 +16,7 @@ export interface ChapterExecutionPreparationResult {
 }
 
 export interface ChapterExecutionPreparationServiceDeps {
+  assertChapterWriteAllowed?: (novelId: string, chapterId: string) => Promise<void>;
   chapterPlanJITService: Pick<ChapterPlanJITService, "ensureExecutionReady">;
   planner: Pick<typeof plannerService, "ensureChapterPlan">;
   loadEstimatedChapterCount: (novelId: string) => Promise<number | null>;
@@ -30,6 +32,7 @@ export class ChapterExecutionPreparationService {
     chapterId: string,
     request: ChapterRuntimeRequestInput,
   ): Promise<ChapterExecutionPreparationResult> {
+    await this.deps.assertChapterWriteAllowed?.(novelId, chapterId);
     await this.deps.ensureTimelineReady(novelId, chapterId, request);
     const isAutopilot = request.controlPolicy?.advanceMode === "full_book_autopilot";
     const isDirectorExecution = request.controlPolicy?.advanceMode === "auto_to_execution"
@@ -74,6 +77,7 @@ export function createChapterExecutionPreparationService(input: {
     ),
   });
   return new ChapterExecutionPreparationService({
+    assertChapterWriteAllowed: (novelId) => rejectLegacyManuscriptWrite(prisma, novelId),
     ensureTimelineReady: (novelId, chapterId, request) => chapterTimelineFinalizationService.ensureBeforeGeneration({ novelId, chapterId, request }),
     chapterPlanJITService,
     planner: plannerService,

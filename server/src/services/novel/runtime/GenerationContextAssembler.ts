@@ -2,6 +2,7 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildCompressionLog } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
+import { AppError } from "../../../middleware/errorHandler";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
 import { buildChapterRagQuery } from "../NovelReferenceService";
@@ -142,7 +143,7 @@ export class GenerationContextAssembler {
     }
     const activeManuscriptChapters = await readActiveManuscriptChapters(prisma as never, novelId);
     const manuscriptChapter = activeManuscriptChapters?.find(item => item.id === chapterId);
-    if (activeManuscriptChapters && !manuscriptChapter) throw new Error("Chapter is not an active manuscript unit.");
+    if (activeManuscriptChapters && !manuscriptChapter) throw new AppError("本章已停用，请从原稿修订工作区恢复后再操作。", 409);
     const effectiveOrder = manuscriptChapter?.order ?? chapter.order;
 
     // Context assembly is a read boundary. Planning and contract writes must
