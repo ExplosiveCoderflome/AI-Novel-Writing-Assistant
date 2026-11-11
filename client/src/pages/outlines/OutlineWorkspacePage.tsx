@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   applyOutlineProposal,
   exportOutline,
@@ -23,6 +23,7 @@ import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./out
 
 export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
   const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id), enabled: !!id });
@@ -31,6 +32,7 @@ export default function OutlineWorkspacePage() {
   const currentRevisionQuery = useQuery({ queryKey: ["outline-revision", id, currentRevisionId], queryFn: () => getOutlineRevision(id, currentRevisionId), enabled: !!id && !!currentRevisionId });
   const [document, setDocument] = useState<OutlineDocument | null>(null);
   const [node, setNode] = useState("story");
+  useEffect(()=>{const requested=searchParams.get("nodeId");if(requested)setNode(requested);},[id,searchParams]);
   const [request, setRequest] = useState("");
   const [proposal, setProposal] = useState<OutlineProposal | null>(null);
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");

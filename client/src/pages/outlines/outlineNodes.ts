@@ -44,6 +44,7 @@ export const outlineFieldLabels: Record<string, string> = {
   parent: "父级节点",
   order: "排列顺序",
   chapterNodeIds: "包含章节",
+  chapterRefs: "章节引用",
   characterNodeIds: "关联人物",
   payoffNodeIds: "关联伏笔",
   appearanceNodeIds: "计划出场位置",

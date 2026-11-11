@@ -9,6 +9,7 @@ import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewp
 import { OutlinePreservationDetails } from "@/components/outlines/OutlinePreservationDetails";
 import { findOutlineNodeTitle } from "../outlineNodes";
 import { suggestedChapterCount, suggestVolumeQuotas } from "./model";
+import { presentOutlineOpenBookError } from "./errorPresentation";
 
 export default function OutlineOpenBookPage() {
   const { id = "" } = useParams();
@@ -61,6 +62,7 @@ export default function OutlineOpenBookPage() {
   const valid=outlineOpenBookInputSchema.safeParse(request).success && (!document.volumes.length || quotaTotal===count);
   const error=create.error ?? preview.error;
   const checked=matches ? preview.data : undefined;
+  const shownError=error ? presentOutlineOpenBookError(error.message,document) : null;
   return <main className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col gap-4" aria-label="按大纲开书预览">
     <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/50 pb-4"><div><p className="text-xs text-muted-foreground">大纲 / {outline.data?.title}</p><h1 className="mt-1 text-2xl font-semibold">把这份大纲带入小说创作</h1><p className="mt-2 text-sm text-muted-foreground">来源：修订 v{revision.version}{revision.version!==currentVersion ? ` · 当前为 v${currentVersion}，本次仍只使用所选版本` : " · 只使用这一版"}；待采纳建议不包含在内。</p></div>{back}</header>
     <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -82,7 +84,7 @@ export default function OutlineOpenBookPage() {
         </> : <p className="text-sm leading-7 text-muted-foreground">核对作品设置与篇幅分配后，检查本次开书内容。</p>}</aside>
     </div>
     {unsaved ? <p role="alert" className="shrink-0 text-sm text-warning">工作台有未保存的修改。请返回大纲保存后再开书。</p> : null}
-    {error ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 text-sm text-destructive"><span>{error.message}</span><Button variant="ghost" size="sm" onClick={()=>void Promise.all([binding.refetch(),outline.refetch(),revisions.refetch()])}>重新检查来源与绑定</Button>{back}</div> : null}
+    {shownError ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 text-sm text-destructive"><span>{shownError.message}</span>{shownError.nodeId ? <Button asChild variant="ghost" size="sm"><Link to={`/outlines/${id}?nodeId=${encodeURIComponent(shownError.nodeId)}`}>返回“{shownError.nodeTitle}”编辑</Link></Button> : null}<Button variant="ghost" size="sm" onClick={()=>void Promise.all([binding.refetch(),outline.refetch(),revisions.refetch()])}>重新检查来源与绑定</Button>{back}</div> : null}
     <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3"><p className="max-w-md text-xs leading-6 text-muted-foreground">创建后可查看并确认开写准备，不会自动调用模型或生成正文。</p><div className="flex gap-2"><Button variant="secondary" onClick={()=>{setConfirmed(false);preview.mutate(request);}} disabled={!valid || unsaved || preview.isPending || create.isPending}>{preview.isPending ? "正在检查…" : "检查开书内容"}</Button><Button onClick={()=>create.mutate()} disabled={!matches || !confirmed || unsaved || create.isPending}>{create.isPending ? "正在创建…" : "创建小说并查看准备"}</Button></div></footer>
   </main>;
 }
