@@ -37,3 +37,5 @@ export * from "./types/volumePlanning";
 export * from "./types/canonicalState";
 export * from "./types/creationStudio";
 export * from "./utils/bookAnalysisTimeline";
+
+export * from "./types/outlineOpenBook";

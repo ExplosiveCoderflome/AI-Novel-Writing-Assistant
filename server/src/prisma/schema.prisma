@@ -322,6 +322,7 @@ enum CharacterGender {
 }
 
 model Novel {
+  outlineBookBinding OutlineBookBinding?
   shortStoryReferenceJson String?
   structuredDiagnostics StructuredInvocationDiagnostic[]
   shortStoryRevisionJobs ShortStoryRevisionJob[]
@@ -2107,6 +2108,7 @@ model VolumePlanVersion {
 }
 
 model OutlineProject {
+  bookBinding OutlineBookBinding?
   id                String   @id @default(cuid())
   title             String
   summary           String?
@@ -4475,4 +4477,24 @@ model LlmInvocationPayload {
   usageRecord LlmInvocationUsageRecord @relation(fields: [usageRecordId], references: [id], onDelete: Cascade)
 
   @@index([createdAt, usageRecordId])
+}
+
+model OutlineBookBinding {
+  id                   String @id
+  projectId            String @unique
+  revisionId           String
+  revisionVersion      Int
+  sourceDocumentHash   String
+  novelId              String @unique
+  requestKey           String @unique
+  requestHash          String
+  mappingSchemaVersion Int @default(1)
+  mappingJson          String
+  policyVersion        Int @default(1)
+  policyJson           String
+  postCreateStateJson  String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  project OutlineProject @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Restrict)
 }
