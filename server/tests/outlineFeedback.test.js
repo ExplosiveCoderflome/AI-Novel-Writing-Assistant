@@ -30,7 +30,7 @@ async function fixture(t, analyzer) {
   const m=mapOutlineBook(d,{revisionId:'r',expectedProjectVersion:1,bookSettings:{title:'书',estimatedChapterCount:3},volumeQuotas:{v:3},allowOptimize:[{nodeId:'s2',field:'summary'},{nodeId:'s3',field:'purpose'},{nodeId:'hero',field:'arcDirection'},{nodeId:'key',field:'payoffDescription'}]},'b');
   m.mapping.chapters.forEach((c,i)=>c.chapterId=`c${i+1}`);
   const w=buildOutlineWorkspace('n',d,m.mapping,3000,'wv');
-  await db.outlineProject.create({data:{id:'p',title:'书',currentVersion:1,currentRevisionId:'r'}});
+   await db.outlineProject.create({data:{id:'p',title:'书',currentVersion:1,currentRevisionId:'r',boundNovelId:'n'}});
   await db.outlineRevision.create({data:{id:'r',projectId:'p',version:1,sourceType:'manual',documentJson:JSON.stringify(d)}});
   await db.outlineBookBinding.create({data:{id:'b',projectId:'p',revisionId:'r',revisionVersion:1,sourceDocumentHash:m.sourceDocumentHash,novelId:'n',requestKey:'book',requestHash:m.requestHash,mappingJson:JSON.stringify(m.mapping),policyJson:JSON.stringify(m.policy),postCreateStateJson:'{}'}});
   await db.volumePlanVersion.create({data:{id:'wv',novelId:'n',version:1,status:'active',contentJson:JSON.stringify(w)}});
@@ -56,10 +56,12 @@ test('pending is nonblocking, summary-only and deduplicated; partial adoption cr
  assert.equal(run.status,'pending');assert.equal(f.calls(),0);
  assert.equal((await f.service.enqueue('p','c1','manual')).id,run.id);
  await f.drain();assert.equal(f.calls(),1);
- assert.equal((await f.service.status('p')).runs[0].items.length,2);
+  const view=(await f.service.status('p')).runs[0];
+  assert.equal(view.items.length,2);assert.equal(view.sourceSummary,'主角发现钥匙是假的');assert.equal(view.sourceNodes.find(n=>n.nodeId==='s2').fields.summary,'原章纲2');assert.equal(view.stale,false);
  await f.service.decide('p',run.id,['a'],'adopted');
  assert.equal((await f.db.outlineProject.findUnique({where:{id:'p'}})).currentVersion,2);
- assert.equal((await f.db.chapter.findUnique({where:{id:'c2'}})).expectation,'追查假钥匙的来历');
+  assert.equal((await f.db.chapter.findUnique({where:{id:'c2'}})).expectation,'追查假钥匙的来历');
+  const adopted=(await f.service.status('p')).runs[0];assert.equal(adopted.items[0].revisionVersion,2);assert.ok(adopted.items[0].revisionId);assert.equal(adopted.stale,false);
  assert.equal((await f.db.chapter.findUnique({where:{id:'c1'}})).content,'DO_NOT_SEND_FULL_TEXT');
  assert.equal((await f.db.outlineRevision.findUnique({where:{id:'r'}})).documentJson,JSON.stringify(f.d));
  await f.service.decide('p',run.id,['a'],'adopted');assert.equal(await f.db.outlineRevision.count(),2);
@@ -77,8 +79,12 @@ test('rejection is per-item and idempotent without outline mutation; generic A1 
  await assert.rejects(()=>f.service.decide('p',run.id,['a'],'adopted'));
 });
 test('unbound automatic pipeline and B1 never invoke analyzer or create runs',async t=>{
- const f=await fixture(t);f.service.notify('unbound','no-chapter');await f.drain();
- await f.db.manuscriptProject.create({data:{id:'manuscript',novelId:'n',status:'ready',baselineOutlineRevisionId:'r',workingOutlineProjectId:'p'}});
+  const f=await fixture(t);f.service.notify('unbound','no-chapter');await f.drain();
+  const {OutlineOpenBookService}=require('../dist/modules/planning/outline/openBook/application/OutlineOpenBookService');
+  const opening=new OutlineOpenBookService(f.db,async()=>{});
+  assert.equal((await opening.getBinding('p')).feedbackEligible,true);
+  await f.db.manuscriptProject.create({data:{id:'manuscript',novelId:'n',status:'ready',baselineOutlineRevisionId:'r',workingOutlineProjectId:'p'}});
+  assert.equal((await opening.getBinding('p')).feedbackEligible,false);
  f.service.notify('n','c1');await f.drain();assert.equal(f.calls(),0);assert.equal(await f.db.outlineFeedbackRun.count(),0);
  await assert.rejects(()=>f.service.enqueue('p','c1','blocked'),/仅大纲/);
 });
@@ -96,7 +102,8 @@ test('stale policy, locked model output, progressed chapters and changed workspa
   if(change==='progress')await f.db.chapter.update({where:{id:'c2'},data:{content:'后续已写正文',generationState:'drafted'}});
   if(change==='workspace')await f.db.volumePlanVersion.update({where:{id:'wv'},data:{contentJson:JSON.stringify({...JSON.parse((await f.db.volumePlanVersion.findUnique({where:{id:'wv'}})).contentJson),edited:true})}});
   if(change==='version')await f.db.outlineProject.update({where:{id:'p'},data:{currentVersion:2}});
-  if(change==='summary')await f.db.chapterSummary.update({where:{chapterId:'c1'},data:{summary:'作者修正实际结果'}});
+   if(change==='summary')await f.db.chapterSummary.update({where:{chapterId:'c1'},data:{summary:'作者修正实际结果'}});
+   assert.equal((await f.service.status('p')).runs[0].stale,true);
   await assert.rejects(()=>f.service.decide('p',run.id,['a'],'adopted'));assert.equal(await f.db.outlineRevision.count(),1);
  });
  const f=await fixture(t,()=>({operations:[{operationId:'x',kind:'update_fields',nodeId:'s1',fields:{summary:'非法改写'},reason:'越界',dependsOn:[]}]}));

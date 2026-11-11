@@ -34,8 +34,21 @@ export class OutlineFeedbackService {
   async status(projectId: string): Promise<OutlineFeedbackStatus> {
     const b = await this.binding(this.db, projectId);
     const runs = await this.db.outlineFeedbackRun.findMany({where: {projectId}, orderBy: {createdAt: "desc"}, take: 50});
+    const project = await this.db.outlineProject.findUnique({where: {id: projectId}});
+    const workspace = await this.db.volumePlanVersion.findFirst({where: {novelId: b.novelId, status: "active"}, orderBy: {version: "desc"}});
+    const summaries = await this.db.chapterSummary.findMany({where: {chapterId: {in: runs.map(r => r.chapterId)}}, select: {chapterId: true, summary: true}});
+    const latestWritten = await this.db.chapter.findFirst({where: {novelId: b.novelId, OR: [{content: {not: ""}}, {generationState: {not: "planned"}}]}, orderBy: {order: "desc"}, select: {order: true}});
     return {projectId, novelId: b.novelId, sourceRoute: `/outlines/${projectId}`, settings: outlineFeedbackSettingsSchema.parse(JSON.parse(b.feedbackSettingsJson)),
-      runs: runs.map(r => ({id: r.id, chapterId: r.chapterId, chapterOrder: r.chapterOrder, status: r.status as OutlineFeedbackRunView["status"], error: r.error, attempt: r.attempt, createdAt: r.createdAt.toISOString(), items: JSON.parse(r.itemsJson)}))};
+      runs: runs.map(r => {
+        const snapshot: Snapshot = JSON.parse(r.inputJson);
+        const stale = snapshot.baseVersion !== project?.currentVersion || snapshot.policyVersion !== b.policyVersion || snapshot.revisionId !== b.revisionId
+          || snapshot.workspaceId !== workspace?.id || snapshot.workspaceHash !== (workspace ? outlineHash(JSON.parse(workspace.contentJson)) : null)
+          || snapshot.prompt.summary !== summaries.find(s => s.chapterId === r.chapterId)?.summary.slice(0, 3000)
+          || JSON.parse(r.itemsJson).some((item: Item) => item.status === "pending" && JSON.parse(b.mappingJson).chapters.some((c: {nodeId: string; chapterOrder: number}) => c.nodeId === item.nodeId && c.chapterOrder <= (latestWritten?.order ?? 0)));
+        return {id: r.id, chapterId: r.chapterId, chapterOrder: r.chapterOrder, status: r.status as OutlineFeedbackRunView["status"], error: r.error, attempt: r.attempt, createdAt: r.createdAt.toISOString(), items: JSON.parse(r.itemsJson),
+          sourceSummary: snapshot.prompt.summary, sourceNodes: snapshot.prompt.nodes, baseVersion: snapshot.baseVersion, stale,
+          canRetry: r.status === "failed" || r.status === "pending" || r.status === "running" && r.updatedAt.getTime() < Date.now()-10*60_000};
+      })};
   }
   async settings(projectId: string, raw: unknown) {
     const settings = outlineFeedbackSettingsSchema.parse(raw);
@@ -154,7 +167,8 @@ export class OutlineFeedbackService {
           const mapped = mapping.chapters.find(c => c.nodeId === item.nodeId);
           if (mapped && mapped.chapterOrder <= Math.max(run.chapterOrder, latestWritten?.order ?? 0)) throw conflict("不能修改已写作或当前章节。");
           await tx.outlineProposal.update({where: {id: item.proposalId}, data: {baseVersion: version}});
-          await new OutlineProposalService(repository).apply(projectId, item.proposalId, [item.operationId], true);
+          const applied = await new OutlineProposalService(repository).apply(projectId, item.proposalId, [item.operationId], true);
+          item.revisionId = applied.revision.id; item.revisionVersion = applied.revision.version;
           version++;
           for (const [field,value] of Object.entries(item.fields)) policy.rules.find(r => r.nodeId === item.nodeId && r.field === field)!.value = value;
           const relatedChapterIds = new Set([

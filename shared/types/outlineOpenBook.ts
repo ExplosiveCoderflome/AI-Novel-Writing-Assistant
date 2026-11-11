@@ -47,6 +47,7 @@ export interface OutlineOpenBookPreview {
   counts: { volumes: number; chapters: number; characters: number; payoffs: number };
 }
 export interface OutlineBookBindingView extends OutlineBindingRef {
+  feedbackEligible?: boolean;
   plannedPayoffs?: OutlinePayoffPlan[];
   sourceDifferences?: Array<{nodeId: string; kind: "added" | "removed" | "updated" | "moved"; before?: unknown; after?: unknown}>;
   projectId: string; novelId: string; title: string; revisionVersion: number; currentVersion: number;

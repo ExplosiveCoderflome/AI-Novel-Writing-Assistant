@@ -46,9 +46,10 @@ export class OutlineOpenBookService {
     const planned = await readOutlinePayoffPlans(this.db, novel.id);
     const source = await this.db.outlineRevision.findFirstOrThrow({where: {id: binding.revisionId, projectId}});
     const latest = project.currentRevisionId && project.currentRevisionId !== binding.revisionId ? await this.db.outlineRevision.findFirst({where: {id: project.currentRevisionId, projectId}}) : null;
+    const feedbackEligible = !await this.db.manuscriptProject.findFirst({where: {OR: [{novelId: novel.id}, {workingOutlineProjectId: projectId}]}, select: {id: true}});
     return {plannedPayoffs: planned?.plans ?? [], sourceDifferences: latest ? diffOutlineDocuments(JSON.parse(source.documentJson), JSON.parse(latest.documentJson)) : [], bindingId: binding.id, projectId, novelId: novel.id, title: novel.title, revisionId: binding.revisionId,
       revisionVersion: binding.revisionVersion, currentVersion: project.currentVersion, sourceDocumentHash: binding.sourceDocumentHash,
-      policyVersion: binding.policyVersion, sourceRoute: `/lab/director/${encodeURIComponent(novel.id)}`,
+      feedbackEligible, policyVersion: binding.policyVersion, sourceRoute: `/lab/director/${encodeURIComponent(novel.id)}`,
       mapping: JSON.parse(binding.mappingJson), policy: JSON.parse(binding.policyJson), setupState: JSON.parse(binding.postCreateStateJson)};
   }
   private checkReplay(binding: OutlineBookBinding, key: string, hash: string) {

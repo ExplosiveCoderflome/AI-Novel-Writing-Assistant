@@ -21,9 +21,11 @@ export const outlineFeedbackOutputSchema = z.object({ operations: z.array(z.obje
 export type OutlineFeedbackOutput = z.infer<typeof outlineFeedbackOutputSchema>;
 export interface OutlineFeedbackRunView {
   id: string; chapterId: string; chapterOrder: number;
+  sourceSummary?: string; baseVersion?: number; stale?: boolean; canRetry?: boolean;
+  sourceNodes?: Array<{ nodeId: string; type: string; fields: Record<string, string> }>;
   status: "pending" | "running" | "completed" | "failed";
   error: string | null; attempt: number; createdAt: string;
-  items: Array<{ operationId: string; proposalId: string; nodeId: string; fields: Record<string, string>; reason: string; status: "pending" | "adopted" | "rejected" }>;
+  items: Array<{ operationId: string; proposalId: string; nodeId: string; fields: Record<string, string>; reason: string; status: "pending" | "adopted" | "rejected"; revisionId?: string; revisionVersion?: number }>;
 }
 export interface OutlineFeedbackStatus {
   projectId: string; novelId: string; sourceRoute: string;

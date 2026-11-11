@@ -6,14 +6,18 @@ import {Button} from "@/components/ui/button";
 import {OutlineSetupRecovery} from "./OutlineSetupRecovery";
 import {OutlinePreservationDetails} from "./OutlinePreservationDetails";
 import {findOutlineNodeTitle,formatOutlineValue,outlineFieldLabels} from "@/pages/outlines/outlineNodes";
+import {useIsMobileViewport} from "@/components/layout/mobile/useIsMobileViewport";
+import {feedbackVisible} from "@/pages/outlines/feedback";
 
 export function OutlineBookSource({binding}:{binding:OutlineBookBindingView}) {
+  const mobile=useIsMobileViewport();
   const source=useQuery({queryKey:["outline-revision",binding.projectId,binding.revisionId],queryFn:()=>getOutlineRevision(binding.projectId,binding.revisionId)});
   const differences=binding.sourceDifferences ?? [];
   const kinds={added:"新增",removed:"移除",updated:"修改",moved:"移动"};
   return <section className="shrink-0 rounded-md bg-muted/30 px-4 py-3 text-sm" aria-label="大纲来源与绑定摘要">
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"><p><strong>按大纲创作</strong><span className="ml-3 text-muted-foreground">固定采用修订 v{binding.revisionVersion} · {binding.mapping.volumes.length} 卷 · {binding.mapping.chapters.length} 份源章纲 · 每次只写一章</span></p><Button asChild variant="ghost" size="sm"><Link to={`/outlines/${binding.projectId}`}>打开源大纲工作台</Link></Button></div>
     <p className="mt-1 text-xs leading-6 text-muted-foreground">已填内容保留，空白按需补齐；开书本身不调用模型。独立大纲和本书运行规划分别保存。</p>
+    {feedbackVisible(mobile,binding) ? <Button asChild variant="secondary" size="sm" className="mt-2"><Link to={`/outlines/${binding.projectId}?panel=feedback`}>正文反馈回大纲</Link></Button> : null}
     <details className="mt-2"><summary className="cursor-pointer text-xs">查看采用的大纲 v{binding.revisionVersion} · 保留明细与章节位置</summary><div className="mt-3 max-h-72 space-y-4 overflow-y-auto pr-2">
       {source.data ? <OutlinePreservationDetails policy={binding.policy} document={source.data.document}/> : <p className="text-xs text-muted-foreground">{source.isError ? "源修订读取失败，请打开源大纲核对。" : "正在读取源修订…"}</p>}
       {binding.mapping.volumes.map(volume=><p key={volume.nodeId} className="text-xs">{source.data ? findOutlineNodeTitle(source.data.document,volume.nodeId) : "分卷"} · {volume.chapterQuota} 章 · 第 {volume.from}–{volume.to} 章</p>)}

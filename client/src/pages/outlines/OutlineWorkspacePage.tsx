@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
+import { OutlineFeedbackPanel, feedbackVisible } from "./feedback";
 import "./outlineWorkspace.css";
 import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./outlineNodes";
 
@@ -38,6 +39,10 @@ export default function OutlineWorkspacePage() {
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");
   const [showHistory, setShowHistory] = useState(false);
   const isMobileViewport = useIsMobileViewport();
+  const [feedbackOpen, setFeedbackOpen] = useState(searchParams.get("panel") === "feedback");
+  const feedbackEnabled = feedbackVisible(isMobileViewport, bindingQuery.data);
+  const requestedRevision = searchParams.get("revisionId");
+  const viewedRevision = useQuery({ queryKey: ["outline-revision", id, requestedRevision], queryFn: () => getOutlineRevision(id, requestedRevision!), enabled: !!requestedRevision && !isMobileViewport });
   const hasUnsavedChanges = !!currentRevisionQuery.data?.document && JSON.stringify(document) !== JSON.stringify(currentRevisionQuery.data.document);
 
   useEffect(() => {
@@ -136,11 +141,13 @@ export default function OutlineWorkspacePage() {
         </div>
         <div className="flex gap-2">
           {!isMobileViewport ? (!bindingQuery.isSuccess || (!bindingQuery.data && (!currentRevisionId || hasUnsavedChanges)) ? <Button disabled>按这份大纲开书</Button> : <Button asChild><Link to={bindingQuery.data ? bindingQuery.data.sourceRoute : `/outlines/${id}/open-book?revisionId=${encodeURIComponent(currentRevisionId)}`}>{bindingQuery.data ? "继续这本书" : "按这份大纲开书"}</Link></Button>) : null}
+          {feedbackEnabled ? <Button variant="secondary" aria-expanded={feedbackOpen} onClick={() => setFeedbackOpen(open => !open)}>{feedbackOpen ? "返回 AI 协作" : "正文反馈回大纲"}</Button> : null}
           <Button variant="ghost" onClick={() => setShowHistory(current => !current)}>{showHistory ? "收起历史" : "历史"}</Button>
           <Button variant="ghost" onClick={() => download("json")}>导出 JSON</Button>
           <Button variant="ghost" onClick={() => download("markdown")}>导出 Markdown</Button>
         </div>
       </header>
+      {requestedRevision && !isMobileViewport ? <details open className="shrink-0 bg-muted/30 p-3" aria-label="指定修订只读预览"><summary className="cursor-pointer text-sm font-medium">{viewedRevision.data ? `修订 v${viewedRevision.data.version} · 只读预览` : "正在读取指定修订…"}</summary>{viewedRevision.isError ? <p role="alert" className="text-sm text-destructive">修订读取失败，请重试。</p> : null}{viewedRevision.data ? <div className="mt-2 max-h-64 space-y-2 overflow-y-auto text-sm">{[...viewedRevision.data.document.chapters, ...viewedRevision.data.document.characters, ...viewedRevision.data.document.payoffs].map(item => <section key={item.nodeId}><h3 className="font-medium">{getOutlineNodeTitle(item)}</h3>{Object.entries(item).filter(([field, value]) => outlineFieldLabels[field] && typeof value === "string" && field !== "nodeId").map(([field, value]) => <p key={field} className="whitespace-pre-wrap leading-6">{outlineFieldLabels[field]}：{String(value)}</p>)}</section>)}</div> : null}</details> : null}
 
       {bindingQuery.data ? <p className="shrink-0 text-xs leading-6 text-muted-foreground">已绑定《{bindingQuery.data.title}》 · 固定采用修订 v{bindingQuery.data.revisionVersion}{bindingQuery.data.currentVersion!==bindingQuery.data.revisionVersion ? ` · 源大纲当前为 v${bindingQuery.data.currentVersion}，本书不会自动同步` : ""}</p> : bindingQuery.isError ? <p role="alert" className="shrink-0 text-xs text-destructive">绑定信息读取失败，请刷新后再开书，避免重复创建。</p> : hasUnsavedChanges ? <p className="shrink-0 text-xs text-muted-foreground">先保存本地修改，再按这份修订开书。</p> : null}
       <div className="outline-workspace-grid">
@@ -190,6 +197,7 @@ export default function OutlineWorkspacePage() {
         </section>
 
         <aside aria-label="大纲建议与历史" className="outline-inspector space-y-4 border-t border-border/50 pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
+          {feedbackEnabled && feedbackOpen && bindingQuery.data ? <OutlineFeedbackPanel binding={bindingQuery.data} document={document} unsaved={hasUnsavedChanges}/> : <>
           <div>
             <h2 className="font-semibold">AI 协作</h2>
             <p className="mt-1 text-sm text-muted-foreground">告诉 AI 你希望调整什么，建议会先展示给你检查。</p>
@@ -242,6 +250,7 @@ export default function OutlineWorkspacePage() {
               onRestored={() => { void refreshOutline(); }}
             />
           ) : null}
+          </>}
         </aside>
       </div>
     </div>
