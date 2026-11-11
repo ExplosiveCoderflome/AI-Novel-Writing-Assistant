@@ -1,8 +1,8 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "AI-Novel-Writing-Assistant",
-  "description": "开源 AI 小说写作助手官方文档",
+  "name": "Biz Novel Studio",
+  "description": "AI 小说创作工作台官方文档：从一句灵感，走向一本完整小说",
   "colors": {
     "primary": "#16A34A"
   },
@@ -10,7 +10,7 @@
     "tabs": [
       {
         "tab": "文档",
-        "pages": ["introduction"]
+        "pages": ["introduction", "quickstart", "installation", "model-configuration"]
       }
     ]
   },
