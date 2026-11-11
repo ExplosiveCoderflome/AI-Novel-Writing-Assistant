@@ -19,3 +19,15 @@
 导入确认在单个 Prisma 事务中创建 Novel、全部 Chapter 和稳定 Unit→Chapter 映射，再确认 Session；任一写入失败都回滚。章节正文直接采用 sourceText.slice，不 trim、补标题或调用 writer/diagnose。独立 importRequestKey 与 confirmedRequestKey 分别保护来源创建与物化重放，改载荷不能沿用原请求。
 
 工作稿 hash 使用原始正文 SHA256，不能拿派生同步中规范化空白的短 hash 代替保存 CAS。Source 下载返回原始字节；合并后对照按全部 sourceRanges 连接，不仅读第一段。初次导入不自动重放所有事实/时间线消费者。
+
+## 原纲与工作大纲
+
+AI 反推逐个读取正文源单元的全部片段，不复用 24k 目录前缀。每片的逐字引句必须能在对应 sourceRange 内定位；完整覆盖与尾章证据保存在持久提案。摘要分层归并，不把所有原稿或所有章节摘要直接塞进一次模型请求。采用固定版本的注册 Prompt，模型配置及依赖随提案保存。
+
+分片使用 js-tiktoken 的 cl100k_base 代理估算，单片原文最多 3500 代理 token 并保留 prompt 余量；这不是 DeepSeek 原生精确计费数字。UI 显示结构化请求上限，达到上限保留 checkpoint 并允许提高预算后继续。模型内部 repair/retry 的实际收费仍以调用台账为准。
+
+用户确认前仅创建可校正的 A1 大纲项目与提案，不写确认指针。确认时必须校验候选修订属于本次项目，冻结 exact revision，再复制为独立工作纲。人工校正 revision 的 sourceType 可为 manual，但基线来源标签从原稿提案读取，不能丢掉作者提供/AI 反推的区别。A1 latest 后续移动不影响冻结指针，也不会产生 A2 的伪开书绑定。
+
+## 持久任务与取消
+
+复用 TaskDispatcher 作为唤醒信号，Prisma 提案行保存 generation、owner、过期 lease、真实分片 checkpoint 和预算计数。重启由轮询恢复过期 lease；结果写回必须 CAS 原 dependenciesJson 与 generating 状态。取消先改持久状态再 abort 本地模型请求，晚到结果不能重新成为 pending。来源不删除，成功 applied 回执不被任务重试覆盖。

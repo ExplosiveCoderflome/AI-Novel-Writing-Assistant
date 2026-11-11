@@ -9,6 +9,10 @@ export interface PromptAssetLoaderEntry {
 }
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
+  { key: "manuscript.chapter.extract@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptExtractPrompt as UnknownPromptAsset },
+  { key: "manuscript.outline.merge@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptMergePrompt as UnknownPromptAsset },
+  { key: "manuscript.outline.verify@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptVerifyPrompt as UnknownPromptAsset },
+  { key: "manuscript.chapter.diagnose@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptDiagnosePrompt as UnknownPromptAsset },
   { key: "outline.initial_generate@v1", load: () => require("../prompts/outline/outline.prompts").outlineInitialGeneratePrompt as UnknownPromptAsset },
   { key: "outline.edit_proposal@v1", load: () => require("../prompts/outline/outline.prompts").outlineEditProposalPrompt as UnknownPromptAsset },
   { key: "outline.import_parse@v1", load: () => require("../prompts/outline/outline.prompts").outlineImportParsePrompt as UnknownPromptAsset },

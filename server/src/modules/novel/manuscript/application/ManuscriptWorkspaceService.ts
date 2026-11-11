@@ -32,7 +32,7 @@ export async function assertManuscriptSnapshot(db:ManuscriptDb,projectId:string,
 export async function readActiveManuscriptChapters(db:ManuscriptDb,novelId:string){
   const project=await db.manuscriptProject.findUnique({where:{novelId}});
   if(!project)return null;
-  const units=await db.manuscriptUnit.findMany({where:{projectId:project.id,status:"active"},orderBy:{displayOrder:"asc"}});
+  const units=(await db.manuscriptUnit.findMany({where:{projectId:project.id,status:"active"},orderBy:{displayOrder:"asc"}})).filter(unit=>unit.status==="active").sort((a,b)=>a.displayOrder-b.displayOrder);
   const chapters=await db.chapter.findMany({where:{novelId,id:{in:units.map(unit=>unit.chapterId!).filter(Boolean)}}});
   return units.flatMap((unit,index)=>{const chapter=chapters.find(item=>item.id===unit.chapterId);return chapter?[{...chapter,order:index+1}]:[];});
 }
@@ -42,13 +42,15 @@ export class ManuscriptWorkspaceService {
  async get(projectId:string,unitId?:string){
   const s=await readManuscriptState(prisma,projectId,unitId);
   const rows=await prisma.manuscriptRevisionProposal.findMany({where:{projectId,OR:[{unitId:s.unit?.id??""},{kind:"outline_baseline"},{kind:"structure"}]},orderBy:{createdAt:"desc"},take:40});
+  const baselineProposal=await prisma.manuscriptRevisionProposal.findFirst({where:{projectId,kind:"outline_baseline",status:"applied"},orderBy:{createdAt:"desc"}});
+  const baselineSourceType=baselineProposal?json<{sourceType?:string}>(baselineProposal.operationsJson,{}).sourceType:undefined;
   const baseline=s.project.baselineOutlineRevisionId?await prisma.outlineRevision.findUnique({where:{id:s.project.baselineOutlineRevisionId}}):null;
   const titles=await prisma.chapter.findMany({where:{novelId:s.project.novelId!},select:{id:true,title:true}});
   const units=s.units.map(unit=>({id:unit.id,chapterId:unit.chapterId,title:titles.find(ch=>ch.id===unit.chapterId)?.title??unit.originalTitle,displayOrder:unit.status==="active"?unit.displayOrder:0,status:unit.status,workingRevision:unit.workingRevision,contentHash:unit.contentHash??"",sourceRanges:json(unit.sourceRangesJson,[])}));
   const proposals=await Promise.all(rows.map(row=>this.proposalView(row)));
   const checkpoint=s.chapter?await readManualChapterSync(s.project.novelId!,s.chapter.id,s.chapter.content??""):null;
   const syncState=!checkpoint?"not_requested":checkpoint.status==="succeeded"?"complete":checkpoint.status==="failed"?"failed":"pending";
-  return {project:{id:s.project.id,novelId:s.project.novelId,title:s.project.novel!.title,structureVersion:s.project.structureVersion,baselineOutlineRevisionId:s.project.baselineOutlineRevisionId,baselineOutlineProjectId:baseline?.projectId??null,workingOutlineProjectId:s.project.workingOutlineProjectId,workingOutlineRevisionId:s.working?.currentRevisionId??null,baselineSourceType:baseline?.sourceType??null},source:{id:s.source.id,sourceHash:s.source.sourceHash,rawHash:s.source.rawHash,encoding:s.source.encoding,charCount:s.source.charCount,byteCount:s.source.rawBytes.byteLength,version:s.source.version,originalFileName:s.source.originalFileName},units,currentUnit:s.unit&&s.chapter?{...units.find(unit=>unit.id===s.unit!.id)!,content:s.chapter.content??"",originalText:originalUnitText(s.source.sourceText,s.unit.sourceRangesJson),updatedAt:s.chapter.updatedAt.toISOString()}:null,proposals,syncState};
+  return {project:{id:s.project.id,novelId:s.project.novelId,title:s.project.novel!.title,structureVersion:s.project.structureVersion,baselineOutlineRevisionId:s.project.baselineOutlineRevisionId,baselineOutlineProjectId:baseline?.projectId??null,workingOutlineProjectId:s.project.workingOutlineProjectId,workingOutlineRevisionId:s.working?.currentRevisionId??null,baselineSourceType:baselineSourceType??baseline?.sourceType??null},source:{id:s.source.id,sourceHash:s.source.sourceHash,rawHash:s.source.rawHash,encoding:s.source.encoding,charCount:s.source.charCount,byteCount:s.source.rawBytes.byteLength,version:s.source.version,originalFileName:s.source.originalFileName},units,currentUnit:s.unit&&s.chapter?{...units.find(unit=>unit.id===s.unit!.id)!,content:s.chapter.content??"",originalText:originalUnitText(s.source.sourceText,s.unit.sourceRangesJson),updatedAt:s.chapter.updatedAt.toISOString()}:null,proposals,syncState};
  }
  async proposalView(row:Awaited<ReturnType<typeof prisma.manuscriptRevisionProposal.findUniqueOrThrow>>){
   const payload=json<Record<string,unknown>>(row.operationsJson,{}),deps=json<{snapshot?:ManuscriptSnapshot;task?:unknown}>(row.dependenciesJson,{});
