@@ -42,7 +42,7 @@ test('test runner resolves file arguments from its cwd to avoid Windows command 
   assert.equal(files.length, 1);
   assert.equal(path.isAbsolute(files[0]), false);
   assert.equal(fs.existsSync(path.resolve(root, files[0])), true);
-  assert.equal(invocation[1].includes('--test-concurrency=4'), true);
+  assert.equal(invocation[1].includes(`--test-concurrency=${Math.max(1, Math.min(4, os.availableParallelism()))}`), true);
 
   const batchRun = runFixture({status: 0}, {batch: true});
   assert.equal(batchRun.invocations.length, 3);
@@ -51,7 +51,7 @@ test('test runner resolves file arguments from its cwd to avoid Windows command 
   assert.equal(batchRun.invocations[1][1].includes('--test-isolation=process'), true);
   assert.equal(batchRun.invocations[1][1].includes('--test-concurrency=1'), true);
   assert.equal(batchRun.invocations[2][1].includes('--test-isolation=process'), true);
-  assert.equal(batchRun.invocations[2][1].includes('--test-concurrency=4'), true);
+  assert.equal(batchRun.invocations[2][1].includes(`--test-concurrency=${Math.max(1, Math.min(4, os.availableParallelism()))}`), true);
 });
 
 test('test runner reports process startup failure rather than producing an empty failed run', () => {
