@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const promptRunner = require('../dist/prompting/core/promptRunner');
+const { AppError } = require('../dist/middleware/errorHandler');
 const { OutlineProposalService } = require('../dist/modules/planning/outline/application/OutlineProposalService');
 const { OutlineImportPreviewService } = require('../dist/modules/planning/outline/application/OutlineImportPreviewService');
 const { createEmptyOutlineDocument, validateOutlineDocument } = require('../dist/modules/planning/outline/domain/outlineDocument');
@@ -44,6 +45,17 @@ test('initial generation proposals can be adopted into a validated outline revis
   const generatedIds = [result.document.volumes[0].nodeId, result.document.chapters[0].nodeId, result.document.characters[0].nodeId, result.document.payoffs[0].nodeId, result.document.facts[0].nodeId];
   assert.equal(new Set(generatedIds).size, generatedIds.length);
   assert.ok(generatedIds.every(Boolean));
+});
+
+test('stale outline proposals return a recoverable conflict instead of an internal error', async () => {
+  const repository = {
+    findProposal: async () => ({ id: 'proposal-1', baseVersion: 2, kind: 'edit', status: 'pending' }),
+    getCurrent: async () => ({ project: { currentVersion: 3 }, revision: { documentJson: '{}' } }),
+  };
+  await assert.rejects(
+    new OutlineProposalService(repository).apply('project-1', 'proposal-1', []),
+    error => error instanceof AppError && error.statusCode === 409 && error.message.includes('大纲已更新，请重新生成提案'),
+  );
 });
 
 test('import preview binds verifiable source ranges to node IDs and merges overlapping coverage', async t => {
