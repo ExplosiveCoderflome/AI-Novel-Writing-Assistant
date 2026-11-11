@@ -2,8 +2,8 @@ import { z } from "zod";
 
 export const outlineBookSettingsSchema = z.object({
   title: z.string().trim().min(1).max(200),
-  estimatedChapterCount: z.number().int().min(1).max(10000),
-  defaultChapterLength: z.number().int().min(500).max(20000).default(3000),
+  estimatedChapterCount: z.number().int().min(1).max(2000),
+  defaultChapterLength: z.number().int().min(500).max(10000).default(3000),
   worldId: z.string().min(1).optional(),
   genreId: z.string().min(1).optional(),
 });
@@ -46,6 +46,8 @@ export interface OutlineOpenBookPreview {
   counts: { volumes: number; chapters: number; characters: number; payoffs: number };
 }
 export interface OutlineBookBindingView extends OutlineBindingRef {
+  plannedPayoffs?: OutlinePayoffPlan[];
+  sourceDifferences?: Array<{nodeId: string; kind: "added" | "removed" | "updated" | "moved"; before?: unknown; after?: unknown}>;
   projectId: string; novelId: string; title: string; revisionVersion: number; currentVersion: number;
   sourceRoute: string; mapping: OutlineBookMapping; policy: OutlineBookPolicy;
   setupState: { rag: "pending" | "queued"; error?: string };
@@ -53,3 +55,19 @@ export interface OutlineBookBindingView extends OutlineBindingRef {
 
 export const outlineRetrySetupSchema = z.object({ expectedPolicyVersion: z.number().int().min(1), idempotencyKey: z.string().min(1).max(200) });
 export type OutlineOpenBookResult = OutlineBookBindingView & { replayed: boolean };
+
+export interface OutlinePayoffPlan {
+  nodeId: string; ledgerKey: string; ledgerItemId: string | null; title: string;
+  kind: "foreshadowing" | "hook" | "promise" | "mystery" | "other";
+  setupDescription: string; payoffDescription: string;
+  setupChapterNodeIds: string[]; payoffChapterNodeIds: string[];
+  setupChapterOrders: number[]; payoffChapterOrders: number[];
+  state: "planned" | "linked";
+}
+export const outlinePolicyPatchSchema = z.object({
+  expectedPolicyVersion: z.number().int().min(1),
+  changes: z.array(z.object({nodeId: z.string().min(1), field: z.string().min(1),
+    mode: z.enum(["preserve", "fill_missing", "propose_change", "hard_constraint"]).optional(), value: z.unknown().optional()})).min(1),
+  confirmHardConstraintChange: z.boolean().default(false),
+});
+export type OutlinePolicyPatch = z.infer<typeof outlinePolicyPatchSchema>;

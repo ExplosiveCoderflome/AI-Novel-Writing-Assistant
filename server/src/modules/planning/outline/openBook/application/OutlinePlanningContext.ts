@@ -3,12 +3,14 @@ import type { Prisma } from "@prisma/client";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type { OutlineBindingRef, OutlineBookMapping, OutlineBookPolicy } from "@ai-novel/shared/types/outlineOpenBook";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import { applyOutlinePolicy } from "../domain/policy";
 import { outlineHash } from "../domain/mapping";
 import { OutlineOpenBookError } from "../domain/errors";
 import { withRequiredPromptContext } from "../../../../../prompting/core/requiredContext";
 
 type BindingDb = Pick<Prisma.TransactionClient, "outlineBookBinding" | "outlineRevision" | "volumePlanVersion" | "chapter">;
 export interface OutlinePlanningState {
+  previousActualResult?: {chapterId: string; order: number; content: string; updatedAt: string};
   novelId: string; ref: OutlineBindingRef; document: OutlineDocument; mapping: OutlineBookMapping; policy: OutlineBookPolicy;
   range: {from: number; to: number}; baseline: VolumePlanDocument | null;
 }
@@ -21,9 +23,10 @@ export async function readOutlinePlanningState(db: BindingDb, novelId: string, r
   if (!r) throw new OutlineOpenBookError("OUTLINE_BINDING_INTEGRITY", "找不到采用的大纲修订。");
   const document: OutlineDocument = JSON.parse(r.documentJson);
   if (outlineHash(document) !== b.sourceDocumentHash) throw new OutlineOpenBookError("OUTLINE_BINDING_INTEGRITY", "采用的大纲来源校验不一致。");
+  const previous = range.from > 1 ? await db.chapter.findFirst({where: {novelId, order: range.from-1}, select: {id: true, order: true, content: true, updatedAt: true}}) : null;
   const version = await db.volumePlanVersion.findFirst({where: {novelId, status: "active"}, orderBy: {version: "desc"}});
-  return {novelId, ref: {bindingId: b.id, revisionId: b.revisionId, sourceDocumentHash: b.sourceDocumentHash, policyVersion: b.policyVersion},
-    document, mapping: JSON.parse(b.mappingJson), policy: JSON.parse(b.policyJson), range, baseline: version ? JSON.parse(version.contentJson) : null};
+  return {...(previous?.content?.trim() ? {previousActualResult: {chapterId: previous.id, order: previous.order, content: previous.content, updatedAt: previous.updatedAt.toISOString()}} : {}), novelId, ref: {bindingId: b.id, revisionId: b.revisionId, sourceDocumentHash: b.sourceDocumentHash, policyVersion: b.policyVersion},
+    document: applyOutlinePolicy(document, JSON.parse(b.policyJson)), mapping: JSON.parse(b.mappingJson), policy: JSON.parse(b.policyJson), range, baseline: version ? JSON.parse(version.contentJson) : null};
 }
 export async function assertOutlineReference(db: Pick<BindingDb, "outlineBookBinding">, novelId: string, ref: OutlineBindingRef) {
   const b = await db.outlineBookBinding.findUnique({where: {novelId}});
@@ -41,7 +44,7 @@ export function buildOutlinePlanningPayload(state: OutlinePlanningState) {
   const relevant = new Set([d.story.nodeId, ...(volume ? [volume.nodeId] : []), ...(chapter ? [chapter.nodeId] : []), ...characters.map(c => c.nodeId), ...payoffs.map(p => p.nodeId)]);
   const facts = d.facts.filter(f => f.scope.type === "story" || f.scope.nodeId === volume?.nodeId || f.scope.nodeId === chapter?.nodeId);
   facts.forEach(f => relevant.add(f.nodeId));
-  return {source: state.ref, planningNotActualFacts: true, story: d.story, facts, volume, chapter, characters, payoffs,
+  return {source: state.ref, previousActualResult: state.previousActualResult, planningNotActualFacts: true, story: d.story, facts, volume, chapter, characters, payoffs,
     slot, allowedRange: range, preservedFields: state.policy.rules.filter(r => relevant.has(r.nodeId)),
     futureDirections: d.volumes.filter(v => v.nodeId !== volume?.nodeId).map(v => ({nodeId: v.nodeId, title: v.title, summary: v.summary, endingHook: v.endingHook})),
     neighboringChapters: m.chapters.filter(c => Math.abs(c.chapterOrder-range.from) <= 1 && c.nodeId !== chapter?.nodeId).map(c => d.chapters.find(n => n.nodeId === c.nodeId))};

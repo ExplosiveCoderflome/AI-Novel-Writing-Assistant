@@ -56,5 +56,10 @@ export async function assertOutlineWorkspaceWrite(tx: Prisma.TransactionClient, 
   const state = active?.novelId === novelId ? active : await readOutlinePlanningState(tx, novelId);
   if (!state) return;
   await assertOutlineReference(tx, novelId, state.ref);
+  if (active?.novelId === novelId && state.previousActualResult) {
+    const previous = await tx.chapter.findFirst({where: {id: state.previousActualResult.chapterId, novelId}, select: {content: true, updatedAt: true}});
+    if (!previous || previous.content !== state.previousActualResult.content || previous.updatedAt.toISOString() !== state.previousActualResult.updatedAt)
+      throw new OutlineOpenBookError("OUTLINE_PREVIOUS_CHAPTER_CHANGED", "前章正文在准备期间发生变化，请依据最新正文重新准备。");
+  }
   assertOutlineWorkspaceCandidate(state, candidate);
 }

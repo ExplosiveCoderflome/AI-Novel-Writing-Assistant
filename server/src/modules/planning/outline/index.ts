@@ -16,3 +16,5 @@ export * from "./application/OutlineProposalService";
 export * from "./openBook";
 import { OutlineOpenBookService } from "./openBook";
 export const outlineOpenBookService = new OutlineOpenBookService(prisma);
+import { OutlinePolicyService } from "./openBook";
+export const outlinePolicyService = new OutlinePolicyService(prisma);

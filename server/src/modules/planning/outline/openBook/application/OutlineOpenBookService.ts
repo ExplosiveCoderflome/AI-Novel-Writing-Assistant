@@ -1,3 +1,5 @@
+import { readOutlinePayoffPlans } from "./OutlinePayoffPlans";
+import { diffOutlineDocuments } from "../../domain/outlineDiff";
 import type { PrismaClient, OutlineBookBinding } from "@prisma/client";
 import { outlineOpenBookConfirmSchema, outlineOpenBookInputSchema, type OutlineBookBindingView, type OutlineOpenBookPreview } from "@ai-novel/shared/types/outlineOpenBook";
 import { mapOutlineBook } from "../domain/mapping";
@@ -41,7 +43,10 @@ export class OutlineOpenBookService {
     }
     const novel = await this.db.novel.findUnique({where: {id: binding.novelId}});
     if (!novel || project.boundNovelId !== novel.id) throw new OutlineOpenBookError("OUTLINE_BINDING_INTEGRITY", "找不到绑定小说或来源不一致，不能重复开书。", 409);
-    return {bindingId: binding.id, projectId, novelId: novel.id, title: novel.title, revisionId: binding.revisionId,
+    const planned = await readOutlinePayoffPlans(this.db, novel.id);
+    const source = await this.db.outlineRevision.findFirstOrThrow({where: {id: binding.revisionId, projectId}});
+    const latest = project.currentRevisionId && project.currentRevisionId !== binding.revisionId ? await this.db.outlineRevision.findFirst({where: {id: project.currentRevisionId, projectId}}) : null;
+    return {plannedPayoffs: planned?.plans ?? [], sourceDifferences: latest ? diffOutlineDocuments(JSON.parse(source.documentJson), JSON.parse(latest.documentJson)) : [], bindingId: binding.id, projectId, novelId: novel.id, title: novel.title, revisionId: binding.revisionId,
       revisionVersion: binding.revisionVersion, currentVersion: project.currentVersion, sourceDocumentHash: binding.sourceDocumentHash,
       policyVersion: binding.policyVersion, sourceRoute: `/lab/director/${encodeURIComponent(novel.id)}`,
       mapping: JSON.parse(binding.mappingJson), policy: JSON.parse(binding.policyJson), setupState: JSON.parse(binding.postCreateStateJson)};

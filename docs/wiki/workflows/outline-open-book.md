@@ -23,3 +23,16 @@
 单章补缺复用注册的章节列表提示词，传 typed chapterSlots；结果只构成授权槽位的一章，不先落全卷再删除。无源卷时AI先产生卷骨架，运行卷槽位独立记在runtimeVolumes，不伪造源nodeId。固定源章的全书章序始终不移动。
 
 未来伏笔和人物目标是规划，不是正文事实。最终正文调用同样带采用来源；语义符合度仍须结构化审查和真实模型人工验收，字段hash只负责数据完整性。
+
+## 计划台账与实际证据
+绑定的payoffs映射分配稳定ledgerKey，完整的多章埋设/回收数组从冻结源修订与运行策略投影。GET台账可返回plans，但不计入items和summary，也不为缺正文的绑定书触发旧版“空台账自动同步”。
+
+对账复用PayoffLedgerSyncService和独立注册的novel.payoff_ledger.outline_sync提示词；普通书继续使用原提示词。模型必须显式返回outline_plan来源键和已写正文的原文quote。来源键归属、实际章节与原文证据在事务前和提交时复核；不按标题相似度关联。预定回收时间仅写targetStart/EndChapterOrder。未命中的计划不成为failed/overdue；实际行与binding.ledgerItemId同事务CAS，重复对账复用同一ledgerKey。
+
+## 人工修改与下一章
+PATCH保留策略采用policyVersion CAS。身份/父子/章序不开放修改；hard_constraint变更需独立明确确认。显式字段覆盖只写运行策略及相关正式资产，不动源修订与正文。人物出场和可读伏笔引用同步到完整版本文档，仍由现有持久化派生Novel.outline。
+
+下章准备读取前章最新实际正文，规划保存期间再次检查前章版本，不能把旧候选覆盖到人工编辑之后。原有单章审阅/改写内核保留其manual计划，不被A2准备计划替换；仅携带同一来源保护。源项目新修订只提供差异，不改变binding.revisionId。
+
+## 验证边界
+SQLite测试使用独立临时库执行增量迁移，不重置用户库；原生准备测试实际保存执行合同、StoryPlan与回执，用mock模型输出验证重复恢复与策略冲突。PostgreSQL schema校验不能代替真实数据库迁移；正文语义忠实度、真实token和界面仍须后续真实模型/桌面验收。
