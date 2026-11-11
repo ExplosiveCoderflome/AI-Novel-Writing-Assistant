@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createEmptyOutlineDocument, validateOutlineDocument, exportOutlineJson, importOutlineJson, exportOutlineMarkdown, diffOutlineDocuments } = require('../dist/modules/planning/outline');
+const { createEmptyOutlineDocument, validateOutlineDocument, exportOutlineJson, importOutlineJson, exportOutlineMarkdown, diffOutlineDocuments, applyOutlineImportEdits } = require('../dist/modules/planning/outline');
 
 test('empty outline document validates and preserves JSON contents', () => {
   const document = createEmptyOutlineDocument('第一本小说');
@@ -31,4 +31,20 @@ test('outline document rejects duplicate stable IDs and dangling references', ()
   document.volumes[0].nodeId = 'volume-1';
   document.volumes[0].chapterNodeIds = ['missing'];
   assert.throws(() => validateOutlineDocument(document), /引用不存在/);
+});
+
+test('import edits reject invalid hierarchy and replacement node IDs', () => {
+  const original = createEmptyOutlineDocument('导入');
+  original.volumes.push({ nodeId: 'v1', title: '第一卷', order: 0, planningDepth: 'rough', summary: '', chapterNodeIds: ['c1'] });
+  original.chapters.push({ nodeId: 'c1', volumeNodeId: 'v1', title: '第一章', order: 0, planningDepth: 'rough', summary: '', characterNodeIds: [], payoffNodeIds: [] });
+  original.characters.push({ nodeId: 'char1', name: '林澜', appearanceNodeIds: [] });
+
+  const invalidHierarchy = structuredClone(original);
+  invalidHierarchy.chapters[0].volumeNodeId = 'char1';
+  assert.throws(() => applyOutlineImportEdits(original, invalidHierarchy), /章节必须归属/);
+
+  const replacedId = structuredClone(original);
+  replacedId.chapters[0].nodeId = 'replacement';
+  replacedId.volumes[0].chapterNodeIds = ['replacement'];
+  assert.throws(() => applyOutlineImportEdits(original, replacedId), /不能增删节点或替换节点 ID/);
 });

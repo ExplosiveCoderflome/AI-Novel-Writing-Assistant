@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { outlineImportParsePrompt } from "../../../../prompting/prompts/outline/outline.prompts";
 import { validateOutlineDocument, createEmptyOutlineDocument } from "../domain/outlineDocument";
+import { applyOutlineImportEdits } from "../domain/outlineImportEdits";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 import { importOutlineJson } from "./OutlineTransferService";
 
@@ -139,16 +140,16 @@ export class OutlineImportPreviewService {
     previews.set(token, { userId, expiresAt: Date.now() + this.ttlMs, title, document, sourceText: text, unclassified, coverage, unmatchedSources });
     return { token, document, unclassified, coverage, unmatchedSources, sourceLength: text.length, coveredLength: countCoveredLength(coverage) };
   }
-  async confirm(userId: string, token: string, target: { projectId?: string; expectedVersion?: number }) {
+  async confirm(userId: string, token: string, target: { projectId?: string; expectedVersion?: number; document?: unknown }) {
     const preview = previews.get(token);
     if (!preview || preview.userId !== userId || preview.expiresAt < Date.now()) throw new Error("导入预览已失效，请重新解析");
-    const document = validateOutlineDocument(preview.document);
+    const document = applyOutlineImportEdits(preview.document, target.document ?? preview.document);
     previews.delete(token);
     if (target.projectId) {
       if (target.expectedVersion === undefined) throw new Error("缺少大纲版本号");
       return this.repository.saveImport(target.projectId, target.expectedVersion, document, preview.sourceText);
     }
-    return this.repository.createImport(preview.title, document, preview.sourceText);
+    return this.repository.createImport(document.story.title, document, preview.sourceText);
   }
   async importJson(input: string, target: { projectId?: string; expectedVersion?: number }) {
     const { title, document } = importOutlineJson(input);

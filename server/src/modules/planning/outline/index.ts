@@ -5,6 +5,7 @@ import { OutlineProposalService } from "./application/OutlineProposalService";
 import { OutlineImportPreviewService } from "./application/OutlineImportPreviewService";
 export * from "./domain/outlineDocument";
 export * from "./domain/outlineDiff";
+export * from "./domain/outlineImportEdits";
 export * from "./application/OutlineTransferService";
 export * from "./application/OutlineProjectService";
 export const outlineProjectService = new OutlineProjectService(new OutlineRepository(prisma));

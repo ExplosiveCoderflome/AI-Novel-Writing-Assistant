@@ -84,3 +84,74 @@ test('import preview binds verifiable source ranges to node IDs and merges overl
   assert.equal(preview.unmatchedSources[0].nodeId, preview.document.facts[0].nodeId);
   assert.equal(preview.unmatchedSources[0].sourceFragment, '原文不存在的片段');
 });
+
+test('import confirmation persists edited titles, hierarchy and typed references', async t => {
+  const fragments = {
+    volume1: '# 第一卷',
+    volume2: '# 第二卷',
+    chapter: '## 第一章\n出发',
+    character: '人物：林澜',
+    payoff: '伏笔：信件来源',
+    fact: '设定：信件规则',
+  };
+  const output = {
+    nodes: [
+      { clientRef: 'v1', nodeType: 'volume', title: '第一卷', summary: '启程', planningDepth: 'rough', sourceFragment: fragments.volume1 },
+      { clientRef: 'v2', nodeType: 'volume', title: '第二卷', summary: '深入调查', planningDepth: 'rough', sourceFragment: fragments.volume2 },
+      { clientRef: 'c1', nodeType: 'chapter', parentRef: 'v1', title: '第一章', summary: '主角出发', planningDepth: 'detailed', sourceFragment: fragments.chapter },
+      { clientRef: 'char1', nodeType: 'character', title: '林澜', summary: '主角', planningDepth: 'rough', sourceFragment: fragments.character },
+      { clientRef: 'p1', nodeType: 'payoff', title: '信件来源', summary: '隐藏寄信人', planningDepth: 'rough', sourceFragment: fragments.payoff },
+      { clientRef: 'f1', nodeType: 'fact', title: '信件规则', summary: '只能跨越一天', planningDepth: 'rough', sourceFragment: fragments.fact },
+    ],
+    unclassifiedFragments: [],
+  };
+  t.mock.method(promptRunner, 'runStructuredPrompt', async () => ({ output }));
+  let created;
+  const repository = {
+    createImport: async (title, document, sourceText) => {
+      created = { title, document: validateOutlineDocument(document), sourceText };
+      return { project: { id: 'project-imported' }, document };
+    },
+  };
+  const service = new OutlineImportPreviewService(repository);
+  const sourceText = Object.values(fragments).join('\n');
+  const preview = await service.preview('user-1', '原始标题', sourceText, 'markdown');
+  const edited = structuredClone(preview.document);
+  const [volume1, volume2] = edited.volumes;
+  const [chapter] = edited.chapters;
+  const [character] = edited.characters;
+  const [payoff] = edited.payoffs;
+  const [fact] = edited.facts;
+  edited.story.title = '调整后的故事';
+  volume2.title = '调整后的第二卷';
+  chapter.title = '调整后的第一章';
+  chapter.volumeNodeId = volume2.nodeId;
+  chapter.characterNodeIds = [character.nodeId];
+  chapter.payoffNodeIds = [payoff.nodeId];
+  chapter.summary = '不允许通过标题编辑覆盖的概要';
+  character.appearanceNodeIds = [chapter.nodeId];
+  payoff.setupChapterNodeIds = [chapter.nodeId];
+  payoff.payoffChapterNodeIds = [chapter.nodeId];
+  payoff.relatedNodeIds = [character.nodeId];
+  fact.scope = { type: 'chapter', nodeId: chapter.nodeId };
+  fact.relatedNodeIds = [payoff.nodeId];
+
+  const result = await service.confirm('user-1', preview.token, { document: edited });
+
+  assert.equal(result.project.id, 'project-imported');
+  assert.equal(created.title, '调整后的故事');
+  assert.equal(created.sourceText, sourceText);
+  assert.equal(created.document.story.title, '调整后的故事');
+  assert.equal(created.document.volumes[1].title, '调整后的第二卷');
+  assert.equal(created.document.chapters[0].title, '调整后的第一章');
+  assert.equal(created.document.chapters[0].summary, '主角出发');
+  assert.equal(created.document.chapters[0].volumeNodeId, volume2.nodeId);
+  assert.deepEqual(created.document.volumes[0].chapterNodeIds, []);
+  assert.deepEqual(created.document.volumes[1].chapterNodeIds, [chapter.nodeId]);
+  assert.deepEqual(created.document.chapters[0].characterNodeIds, [character.nodeId]);
+  assert.deepEqual(created.document.characters[0].appearanceNodeIds, [chapter.nodeId]);
+  assert.deepEqual(created.document.payoffs[0].setupChapterNodeIds, [chapter.nodeId]);
+  assert.deepEqual(created.document.payoffs[0].payoffChapterNodeIds, [chapter.nodeId]);
+  assert.deepEqual(created.document.facts[0].scope, { type: 'chapter', nodeId: chapter.nodeId });
+  assert.equal(volume1.nodeId !== volume2.nodeId, true);
+});

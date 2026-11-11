@@ -14,7 +14,7 @@ router.post("/import/preview", route(async req => {
   return { ...preview, document: preview.document, unclassified: preview.unclassified };
 }));
 router.post("/import/confirm", route(async req => {
-  const body = z.object({ token: id, projectId: id.optional(), expectedVersion: z.number().int().optional() }).parse(req.body);
+  const body = z.object({ token: id, projectId: id.optional(), expectedVersion: z.number().int().optional(), document: z.unknown().optional() }).parse(req.body);
   return outlineImportPreviewService.confirm(String(req.user?.id ?? "anonymous"), body.token, body);
 }));
 router.post("/import/json", route(async req => {
