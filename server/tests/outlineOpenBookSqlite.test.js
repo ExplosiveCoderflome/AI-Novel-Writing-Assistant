@@ -103,3 +103,120 @@ test('story-only opening reviews the runtime volume slot created after launch an
  await prisma.outlineBookBinding.update({where:{id:binding.bindingId},data:{mappingJson:JSON.stringify({...binding.mapping,runtimeVolumes:[slot,{...slot,volumeId:'ambiguous'}]})}});
  await assert.rejects(()=>resolveSavedReviewContexts({contract,control}),/缺少唯一/);
 });
+
+
+test('story-only outline opens atomically without invented volumes and registers runtime quotas once', async () => {
+ const f = await fixture();
+ f.d.volumes = []; f.d.chapters = []; f.d.characters = []; f.input.volumeQuotas = {};
+ await prisma.outlineRevision.update({where:{id:f.input.revisionId},data:{documentJson:JSON.stringify(f.d)}});
+ const source = JSON.stringify(f.d), preview = await service.preview(f.id,f.input);
+ assert.deepEqual(preview.counts,{volumes:0,chapters:0,characters:0,payoffs:0});
+ const request = {...f.input,requestHash:preview.requestHash,idempotencyKey:f.id};
+ const binding = await service.confirm(f.id,request);
+ assert.deepEqual(binding.mapping,{volumes:[],chapters:[],characters:[],payoffs:[]});
+ assert.equal(await prisma.chapter.count({where:{novelId:binding.novelId}}),0);
+ assert.equal(await prisma.volumePlan.count({where:{novelId:binding.novelId}}),0);
+ const version = await prisma.volumePlanVersion.findFirstOrThrow({where:{novelId:binding.novelId,status:'active'}});
+ assert.deepEqual(normalizeVolumeWorkspaceDocument(binding.novelId,version.contentJson).volumes,[]);
+ const {prepareOutlineHandoff,withOutlineOpeningSteps} = require('../dist/app/director/outlineOpening');
+ const contract = {novelId:binding.novelId,driver:'auto',planVersion:'director-next-production-v1',chapterRange:null,scope:'novel',
+  launchInput:{storyInput:'客户端旧想法',estimatedChapterCount:99,worldMode:'skip'}};
+ await prepareOutlineHandoff(contract);
+ assert.equal(contract.launchInput.storyInput,f.d.story.premise);
+ assert.equal(contract.launchInput.estimatedChapterCount,3);
+ const {NovelVolumeService} = require('../dist/services/novel/volume/NovelVolumeService');
+ const volumes = new NovelVolumeService();
+ let calls = 0;
+ const handlers = withOutlineOpeningSteps({volume_strategy:async () => {
+  calls++;
+  if (calls === 1) {
+   const workspace = normalizeVolumeWorkspaceDocument(binding.novelId,version.contentJson);
+   const time = new Date(0).toISOString();
+   workspace.volumes = [1,2].map(order => ({id:`${f.id}-runtime-${order}`,sortOrder:order,title:`补充卷${order}`,summary:'待逐章细化',status:'skeleton',chapters:[],createdAt:time,updatedAt:time}));
+   await prisma.$transaction(tx => require('../dist/services/novel/volume/volumeWorkspacePersistence').persistActiveVolumeWorkspace(tx,binding.novelId,require('../dist/services/novel/volume/volumeWorkspaceDocument').buildVolumeWorkspaceDocument(workspace),version.id));
+  }
+  return {artifact:{scope:'novel',status:'draft',protectedUserContent:false,contentRef:'runtime-strategy',contentHash:'fixture'}};
+ }},volumes);
+ const context = {runId:'no-volume-'+f.id,contract};
+ await handlers.volume_strategy(context);
+ const registered = await service.getBinding(f.id);
+ assert.deepEqual(registered.mapping.runtimeVolumes,[
+  {volumeId:`${f.id}-runtime-1`,chapterQuota:1,from:1,to:1},
+  {volumeId:`${f.id}-runtime-2`,chapterQuota:2,from:2,to:3},
+ ]);
+ await handlers.volume_strategy(context);
+ assert.deepEqual((await service.getBinding(f.id)).mapping,registered.mapping);
+ assert.equal((await service.confirm(f.id,request)).novelId,binding.novelId);
+ assert.equal(await prisma.novel.count({where:{id:binding.novelId}}),1);
+ assert.equal(await prisma.chapter.count({where:{novelId:binding.novelId}}),0,'strategy must not create prose chapters');
+ assert.equal((await prisma.outlineRevision.findUniqueOrThrow({where:{id:f.input.revisionId}})).documentJson,source);
+});
+
+test('single-chapter handoffs reach a designated stopping chapter without preparing the next or exceeding the book', async () => {
+ const f = await fixture();
+ for (const order of [1,2]) {
+  const nodeId = 'c'+(order+1); f.d.volumes[0].chapterNodeIds.push(nodeId);
+  f.d.chapters.push({...f.d.chapters[0],nodeId,order,title:`第${order+1}章`,summary:`保留第${order+1}章原纲`});
+ }
+ await prisma.outlineRevision.update({where:{id:f.input.revisionId},data:{documentJson:JSON.stringify(f.d)}});
+ const p = await service.preview(f.id,f.input), b = await service.confirm(f.id,{...f.input,requestHash:p.requestHash,idempotencyKey:f.id});
+ const {prepareOutlineHandoff} = require('../dist/app/director/outlineOpening');
+ const contract = order => ({novelId:b.novelId,driver:'auto',planVersion:'director-next-production-v1',chapterRange:{from:order,to:order},
+  launchInput:{storyInput:'旧输入',estimatedChapterCount:999,worldMode:'skip'}});
+ const last = b.mapping.chapters[2].chapterId;
+ const before = await prisma.chapter.findUniqueOrThrow({where:{id:last}});
+ await assert.rejects(() => prepareOutlineHandoff(contract(2)),e => e.code==='OUTLINE_PREVIOUS_CHAPTER_REQUIRED');
+ await prepareOutlineHandoff(contract(1));
+ await prisma.chapter.update({where:{id:b.mapping.chapters[0].chapterId},data:{content:'第1章人工确认的实际正文'}});
+ const second = contract(2); await prepareOutlineHandoff(second);
+ assert.deepEqual(second.chapterRange,{from:2,to:2});
+ assert.equal(second.driver,'assisted'); assert.equal(second.launchInput.estimatedChapterCount,3);
+ await prisma.chapter.update({where:{id:b.mapping.chapters[1].chapterId},data:{content:'第2章完成，指定停在这里'}});
+ const {readOutlinePlanningState,buildOutlinePlanningPayload} = require('../dist/modules/planning/outline/constraints');
+ const state = await readOutlinePlanningState(prisma,b.novelId,second.chapterRange);
+ assert.deepEqual(state.range,{from:2,to:2});
+ assert.equal(buildOutlinePlanningPayload(state).previousActualResult.content,'第1章人工确认的实际正文');
+ assert.deepEqual(await prisma.chapter.findUniqueOrThrow({where:{id:last}}),before);
+ await assert.rejects(() => prepareOutlineHandoff({...contract(2),chapterRange:{from:2,to:3}}),e => e.code==='OUTLINE_SINGLE_CHAPTER_REQUIRED');
+ await assert.rejects(() => prepareOutlineHandoff(contract(4)),e => e.code==='OUTLINE_RANGE_INVALID');
+ assert.equal(await prisma.directorNextRun.count({where:{novelId:b.novelId}}),0,'handoff validation must not schedule the next run');
+});
+
+test('ordinary foreshadow backfill and same-title outline links keep distinct stable identities across repeated syncs', async () => {
+ const f = await fixture();
+ f.d.payoffs = [{nodeId:'planned-key',title:'铜钥匙',kind:'mystery',setupDescription:'邮包里的钥匙',payoffDescription:'打开远期门',setupChapterNodeIds:['c'],payoffChapterNodeIds:['c'],relatedNodeIds:[]}];
+ await prisma.outlineRevision.update({where:{id:f.input.revisionId},data:{documentJson:JSON.stringify(f.d)}});
+ const p = await service.preview(f.id,f.input), b = await service.confirm(f.id,{...f.input,requestHash:p.requestHash,idempotencyKey:f.id});
+ const chapterId = b.mapping.chapters[0].chapterId, key = b.mapping.payoffs[0].ledgerKey;
+ await prisma.chapter.update({where:{id:chapterId},data:{content:'邮包中有一把铜钥匙。守卫也拿出另一把铜钥匙。'}});
+ const ordinary = {ledgerKey:'ordinary-guard-key',title:'铜钥匙',summary:'守卫手中另一把钥匙',scopeType:'book',currentStatus:'setup',setupChapterOrder:1,
+  firstSeenChapterOrder:1,lastTouchedChapterOrder:1,sourceRefs:[{kind:'foreshadow_state',refId:'guard-key',refLabel:'守卫的钥匙',chapterId,chapterOrder:1}],
+  evidence:[{summary:'守卫的钥匙',quote:'守卫也拿出另一把铜钥匙',chapterId,chapterOrder:1}],riskSignals:[]};
+ const planned = {...ordinary,ledgerKey:'model-key',summary:'邮包钥匙已埋设',sourceRefs:[{kind:'outline_plan',refId:key,refLabel:'铜钥匙'}],
+  evidence:[{summary:'邮包中的钥匙',quote:'邮包中有一把铜钥匙',chapterId,chapterOrder:1}]};
+ const runner = require('../dist/prompting/core/promptRunner'), original = runner.runStructuredPrompt;
+ let output = [ordinary]; runner.runStructuredPrompt = async () => ({output:{items:output}});
+ try {
+  const {PayoffLedgerSyncService} = require('../dist/services/payoff/PayoffLedgerSyncService'), ledger = new PayoffLedgerSyncService();
+  const sync = () => ledger.syncLedger(b.novelId,{chapterOrder:1,sourceChapterId:chapterId});
+  let result = await sync(); const ordinaryId = result.items[0].id;
+  assert.equal(result.plans[0].state,'planned'); assert.equal(result.items.length,1);
+  output = [planned,ordinary]; result = await sync();
+  const plannedId = result.plans[0].ledgerItemId;
+  assert.equal(result.items.length,2); assert.notEqual(plannedId,ordinaryId);
+  assert.equal(result.items.find(x=>x.id===ordinaryId).sourceRefs[0].kind,'foreshadow_state');
+  assert.equal(result.items.find(x=>x.id===plannedId).sourceRefs[0].refId,key);
+  output = [{...ordinary,ledgerKey:'another-model-label'},planned]; result = await sync();
+  assert.equal(result.items.length,2); assert.equal(result.plans[0].ledgerItemId,plannedId);
+  assert.equal(result.items.find(x=>x.ledgerKey==='ordinary-guard-key').id,ordinaryId);
+  output = [planned]; await sync();
+  output = [ordinary]; result = await sync();
+  assert.equal(result.items.length,2); assert.equal(result.plans[0].ledgerItemId,plannedId);
+  const saved = await prisma.payoffLedgerItem.findMany({where:{novelId:b.novelId}});
+  assert.equal(saved.length,2);
+  assert.equal(saved.find(x=>x.id===ordinaryId).summary,ordinary.summary);
+  assert.equal(saved.find(x=>x.id===plannedId).summary,planned.summary);
+  assert.equal(JSON.parse(saved.find(x=>x.id===plannedId).sourceRefsJson)[0].refId,key);
+  assert.equal((await service.getBinding(f.id)).plannedPayoffs[0].ledgerItemId,plannedId);
+ } finally { runner.runStructuredPrompt = original; }
+});
