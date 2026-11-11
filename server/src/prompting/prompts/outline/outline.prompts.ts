@@ -14,9 +14,9 @@ export const outlineInitialGeneratePrompt: PromptAsset<{ idea: string; genre?: s
 };
 export const outlineEditProposalPrompt: PromptAsset<{ request: string; baseVersion: number; document: unknown; scope: string }, z.infer<typeof editSchema>> = {
   id: "outline.edit_proposal", version: "v1", taskType: "planner", mode: "structured", language: "zh", contextPolicy: { maxTokensBudget: 8000 }, outputSchema: editSchema,
-  render: input => [new SystemMessage("你为独立大纲提出可审阅的结构化操作，不要直接替换整份文档。说明每项理由、影响、依赖和风险；只输出结构化操作。"), new HumanMessage(JSON.stringify(input))],
+  render: input => [new SystemMessage("你为独立大纲提出可审阅的结构化操作，不要直接替换整份文档。说明每项理由、影响、依赖和风险；只输出结构化操作。reason、risks 等面向用户的文字必须使用中文字段名（如主题、基调、不可违背），用节点标题描述关联修改，不得夹带 theme、immutable=false、operationId 等内部字段名、操作 ID 或节点 ID；结构化字段和引用仍按 schema 输出。"), new HumanMessage(JSON.stringify(input))],
 };
 export const outlineImportParsePrompt: PromptAsset<{ text: string; format: "markdown" | "text"; chunkIndex: number; chunkCount: number }, z.infer<typeof importSchema>> = {
   id: "outline.import_parse", version: "v1", taskType: "planner", mode: "structured", language: "zh", contextPolicy: { maxTokensBudget: 8000 }, outputSchema: importSchema,
-  render: input => [new SystemMessage("将用户提供的文本片段理解为待确认的大纲节点，不要补造缺失内容。逐段覆盖输入；无法分类的原文放入 unclassifiedFragments。标题格式仅作为线索，不得据此静默丢弃文本。"), new HumanMessage(JSON.stringify(input))],
+  render: input => [new SystemMessage("将用户提供的文本片段理解为待确认的大纲节点，不要补造缺失内容。逐段覆盖输入；无法分类的原文放入 unclassifiedFragments。标题格式仅作为线索，不得据此静默丢弃文本。若 Markdown 顶部一级标题是书名，它是大纲标题，不要把书名识别为空卷；只有真正的卷标题才输出 volume。人物、伏笔、固定设定等分类标题不是节点；其下每个人物、伏笔、设定分别输出独立节点，人物的 title 是姓名，不要将多个人物合并为名叫“人物”的节点。"), new HumanMessage(JSON.stringify(input))],
 };

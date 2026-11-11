@@ -284,7 +284,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         isActive
                           ? "bg-accent/90 font-semibold text-accent-foreground"
                           : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                        isNovelEntry && !collapsed && (isActive ? "ring-1 ring-primary/20" : "bg-primary/5 hover:bg-primary/10"),
+                        isNovelEntry && !collapsed && isActive && "ring-1 ring-primary/20",
                       )}
                     >
                       <span

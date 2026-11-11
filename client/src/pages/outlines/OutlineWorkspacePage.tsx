@@ -14,6 +14,7 @@ import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { Button } from "@/components/ui/button";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
+import "./outlineWorkspace.css";
 import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./outlineNodes";
 
 export default function OutlineWorkspacePage() {
@@ -115,8 +116,8 @@ export default function OutlineWorkspacePage() {
     : [];
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="outline-workspace mx-auto max-w-[1800px]">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{query.data?.title} <span className="text-sm font-normal text-muted-foreground">· 修订 v{query.data?.currentVersion}</span></h1>
           <p className="mt-1 text-xs text-muted-foreground">大纲内容独立保存；AI 建议需要你确认后才会成为新修订。</p>
@@ -128,8 +129,8 @@ export default function OutlineWorkspacePage() {
         </div>
       </header>
 
-      <div className="grid min-h-[70dvh] grid-cols-1 gap-6 lg:grid-cols-[230px_minmax(0,1fr)_360px]">
-        <nav aria-label="大纲目录" className="space-y-5 border-b border-border/50 pb-4 lg:border-b-0 lg:border-r lg:pr-4">
+      <div className="outline-workspace-grid">
+        <nav aria-label="大纲目录" className="outline-directory space-y-5 border-b border-border/50 pb-4 xl:border-b-0 xl:border-r xl:pr-3">
           {directory.map(group => (
             <section key={group.label}>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</h2>
@@ -146,30 +147,35 @@ export default function OutlineWorkspacePage() {
           ))}
         </nav>
 
-        <section className="min-w-0 space-y-4">
+        <section aria-label="大纲内容编辑" className="outline-editor min-w-0">
           {selected ? (
             <>
-              <h2 className="text-lg font-semibold">{getOutlineNodeTitle(selected)}</h2>
-              {selectedFields.map(([key, value]) => (
-                <label key={key} className="block space-y-1.5">
-                  <span className="text-sm text-muted-foreground">{outlineFieldLabels[key] ?? key}</span>
-                  <textarea
-                    className="min-h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={value}
-                    onChange={event => updateSelectedField(key, event.target.value)}
-                  />
-                </label>
-              ))}
-              <div className="flex items-center justify-end gap-3">
-                {save.isSuccess ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
-                <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
+              <div className="outline-editor-fields space-y-4">
+                <h2 className="text-lg font-semibold">{getOutlineNodeTitle(selected)}</h2>
+                {selectedFields.map(([key, value]) => (
+                  <label key={key} className="block space-y-1.5">
+                    <span className="text-sm text-muted-foreground">{outlineFieldLabels[key] ?? key}</span>
+                    <textarea
+                      rows={4}
+                      className="outline-textarea min-h-24 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
+                      value={value}
+                      onChange={event => updateSelectedField(key, event.target.value)}
+                    />
+                  </label>
+                ))}
               </div>
-              {save.isError ? <p role="alert" className="text-sm text-destructive">{save.error instanceof Error ? save.error.message : "保存失败，请重试。"}</p> : null}
+              <div className="outline-save-bar sticky bottom-0 z-10 border-t border-border/50 bg-background py-3">
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  {save.isSuccess ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
+                  <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
+                </div>
+                {save.isError ? <p role="alert" className="mt-2 text-sm text-destructive">{save.error instanceof Error ? save.error.message : "保存失败，请重试。"}</p> : null}
+              </div>
             </>
           ) : <p className="text-sm text-muted-foreground">选择目录中的内容进行编辑。</p>}
         </section>
 
-        <aside className="space-y-4 border-t border-border/50 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+        <aside aria-label="大纲建议与历史" className="outline-inspector space-y-4 border-t border-border/50 pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
           <div>
             <h2 className="font-semibold">AI 协作</h2>
             <p className="mt-1 text-sm text-muted-foreground">告诉 AI 你希望调整什么，建议会先展示给你检查。</p>
@@ -185,7 +191,8 @@ export default function OutlineWorkspacePage() {
           </select>
           <textarea
             aria-label="给 AI 的修改要求"
-            className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            rows={4}
+            className="outline-textarea min-h-28 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
             placeholder={proposalKind === "initial_generation" ? "用一句话描述你想写的故事" : "例如：让第二卷的节奏更紧凑，并加入一条感情线"}
             value={request}
             onChange={event => setRequest(event.target.value)}

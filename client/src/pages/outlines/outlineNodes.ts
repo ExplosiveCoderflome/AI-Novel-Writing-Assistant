@@ -74,11 +74,32 @@ export function findOutlineNode(document: OutlineDocument, nodeId: string): Outl
 
 export function findOutlineNodeTitle(document: OutlineDocument, nodeId: string): string {
   const node = findOutlineNode(document, nodeId);
-  return node ? getOutlineNodeTitle(node) : nodeId;
+  return node ? getOutlineNodeTitle(node) : "（已删除的节点）";
 }
 
-export function formatOutlineValue(value: unknown): string {
-  if (value === undefined || value === null || value === "") return "（空）";
-  if (typeof value === "string") return value;
-  return JSON.stringify(value, null, 2);
+/** Resolve references against the version being displayed, never the current draft. */
+export function formatOutlineValue(value: unknown, field = "", document?: OutlineDocument, titles: Record<string, string> = {}): string {
+  if (value === undefined || value === null || value === "") return "无";
+  if (Array.isArray(value)) {
+    if (!value.length) return "无";
+    return value.map(item => formatOutlineValue(item, field, document, titles)).join("、");
+  }
+  if (typeof value === "string") {
+    if (/NodeIds?$/.test(field)) return titles[value] ?? (document ? findOutlineNodeTitle(document, value) : "（已删除的节点）");
+    const labels: Record<string, string> = { rough: "粗纲", detailed: "细纲", story: "全书", volume: "卷", chapter: "章节", character: "人物", payoff: "伏笔", fact: "固定设定", other: "其他", hook: "钩子", foreshadowing: "伏笔" };
+    return ["planningDepth", "kind", "category", "type"].includes(field) ? labels[value] ?? value : value;
+  }
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (typeof value === "object") return Object.entries(value as Record<string, unknown>).map(([key, item]) => `${outlineFieldLabels[key] ?? (key === "type" ? "类型" : key === "nodeId" ? "节点" : key)}：${formatOutlineValue(item, key === "nodeId" ? "relatedNodeIds" : key, document, titles)}`).join("；");
+  return String(value);
+}
+
+/** Only known schema terms / proposal IDs are translated; prose stays untouched. */
+export function localizeOutlineText(text: string, operationTitles: Record<string, string> = {}): string {
+  let result = text.replace(/\bimmutable\s*=\s*(true|false)\b/g, (_, value: string) => value === "true" ? "不可违背的设定" : "可调整的设定");
+  for (const [id, title] of Object.entries(operationTitles).sort((a, b) => b[0].length - a[0].length)) {
+    result = result.replaceAll(id, title);
+  }
+  return result.replace(/\b[A-Za-z][A-Za-z0-9]*\b/g, word => outlineFieldLabels[word] ?? word)
+    .replace(/\bop-[A-Za-z0-9_-]+\b/g, "相关修改");
 }

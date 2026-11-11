@@ -65,7 +65,15 @@ function countCoveredLength(coverage: SourceCoverage[]) {
 export class OutlineImportPreviewService {
   constructor(private readonly repository: OutlineRepository, private readonly ttlMs = 15 * 60_000) {}
   async preview(userId: string, title: string, text: string, format: "markdown" | "text") {
-    const fragments = text.match(/[\s\S]{1,12000}/g) ?? [];
+    // A leading book heading belongs to the story, not the volume tree. Keep
+    // character offsets intact so source coverage remains verifiable.
+    const heading = format === "markdown" ? /^(?:\uFEFF)?\s*# ([^\r\n]+?)[ \t]*#*[ \t]*(?=\r?\n|$)/.exec(text) : null;
+    const headingTitle = heading?.[1].trim();
+    const isSectionHeading = headingTitle && /^(?:第[一二三四五六七八九十百千万零〇两\d]+[卷章]|[卷章][一二三四五六七八九十\d]+|volume\b|chapter\b|(?:人物|角色|伏笔|钩子|固定设定|世界观|设定|待整理备注)(?:[：:]|$))/i.test(headingTitle);
+    const bookHeading = heading && headingTitle && !isSectionHeading ? heading : null;
+    const parsedTitle = bookHeading ? headingTitle!.replace(/^(?:书名|标题)[：:]\s*/, "") : title;
+    const parseText = bookHeading ? " ".repeat(bookHeading[0].length) + text.slice(bookHeading[0].length) : text;
+    const fragments = parseText.match(/[\s\S]{1,12000}/g) ?? [];
     const outputs: Array<{ nodes: ImportNode[]; unclassifiedFragments: string[] }> = [];
     for (let index = 0; index < fragments.length; index++) {
       const { output } = await runStructuredPrompt({ asset: outlineImportParsePrompt, promptInput: { text: fragments[index], format, chunkIndex: index + 1, chunkCount: fragments.length } });
@@ -100,7 +108,8 @@ export class OutlineImportPreviewService {
       coverage.push({ nodeId, clientRef: node.clientRef, chunkIndex: chunkIndex + 1, start, end: start + node.sourceFragment.length, text: node.sourceFragment });
     }
 
-    const document = createEmptyOutlineDocument(title);
+    const document = createEmptyOutlineDocument(parsedTitle);
+    if (bookHeading) coverage.unshift({ nodeId: document.story.nodeId, clientRef: "story-title", chunkIndex: 1, start: 0, end: bookHeading[0].length, text: bookHeading[0] });
     document.volumes = nodes.filter(item => item.node.nodeType === "volume").map(({ node }, order) => ({
       nodeId: nodeIds.get(node)!,
       title: node.title,
