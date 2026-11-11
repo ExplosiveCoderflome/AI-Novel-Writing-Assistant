@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   applyOutlineProposal,
   exportOutline,
   generateOutlineProposal,
   getOutline,
+  getOutlineRevision,
+  listOutlineRevisions,
+  getOutlineBookBinding,
   saveOutline,
   type OutlineProposal,
   type OutlineProposalKind,
 } from "@/api/outlines";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { Button } from "@/components/ui/button";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
 import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./outlineNodes";
@@ -20,12 +24,18 @@ export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
+  const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id), enabled: !!id });
+  const bindingQuery = useQuery({ queryKey: ["outline-book-binding", id], queryFn: () => getOutlineBookBinding(id), enabled: !!id });
+  const currentRevisionId = revisionQuery.data?.find(revision => revision.version === query.data?.currentVersion)?.id ?? "";
+  const currentRevisionQuery = useQuery({ queryKey: ["outline-revision", id, currentRevisionId], queryFn: () => getOutlineRevision(id, currentRevisionId), enabled: !!id && !!currentRevisionId });
   const [document, setDocument] = useState<OutlineDocument | null>(null);
   const [node, setNode] = useState("story");
   const [request, setRequest] = useState("");
   const [proposal, setProposal] = useState<OutlineProposal | null>(null);
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");
   const [showHistory, setShowHistory] = useState(false);
+  const isMobileViewport = useIsMobileViewport();
+  const hasUnsavedChanges = !!currentRevisionQuery.data?.document && JSON.stringify(document) !== JSON.stringify(currentRevisionQuery.data.document);
 
   useEffect(() => {
     if (query.data?.document) setDocument(query.data.document);
@@ -122,6 +132,7 @@ export default function OutlineWorkspacePage() {
           <p className="mt-1 text-xs text-muted-foreground">大纲内容独立保存；AI 建议需要你确认后才会成为新修订。</p>
         </div>
         <div className="flex gap-2">
+          {!isMobileViewport ? <Button asChild disabled={!bindingQuery.isSuccess || (!bindingQuery.data && (!currentRevisionId || hasUnsavedChanges))}><Link to={bindingQuery.data ? bindingQuery.data.sourceRoute : `/outlines/${id}/open-book?revisionId=${encodeURIComponent(currentRevisionId)}`}>{bindingQuery.data ? "继续这本书" : "按这份大纲开书"}</Link></Button> : null}
           <Button variant="ghost" onClick={() => setShowHistory(current => !current)}>{showHistory ? "收起历史" : "历史"}</Button>
           <Button variant="ghost" onClick={() => download("json")}>导出 JSON</Button>
           <Button variant="ghost" onClick={() => download("markdown")}>导出 Markdown</Button>
