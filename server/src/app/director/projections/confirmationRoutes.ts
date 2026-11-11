@@ -21,6 +21,7 @@ export interface SavedReviewContext {
 export async function resolveSavedReviewContexts({contract, control}: {contract: RunContract; control: RunControl}): Promise<SavedReviewContext[]> {
   const types = control.status === "waiting_gate" ? control.gate?.artifactTypes ?? [] : [];
   const contexts:SavedReviewContext[]=types.map(type=>({type,novelId:contract.novelId,runId:contract.runId,controlVersion:control.version}));
+  for (const context of contexts) if (["volume_beat_sheet","volume_chapter_list"].includes(context.type)) context.volumeId=contract.launchInput?.targetVolumeId ?? undefined;
   const chapterTypes = contexts.filter(row => ["chapter_task_sheet", "chapter_execution_contract", "chapter_batch_closed"].includes(row.type));
   if (!chapterTypes.length) return contexts;
   const from = contract.chapterRange?.from, to = contract.chapterRange?.to;

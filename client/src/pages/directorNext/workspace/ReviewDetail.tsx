@@ -2,6 +2,7 @@ import {parseChapterScenePlan} from "@ai-novel/shared/types/chapterLengthControl
 import type {SavedReview} from "./review";
 import type {WorkspaceBook} from "./model";
 import {ReadingDisplaySettings, readingTextStyle, type ReadingDisplayPreferences} from "./reading";
+import {OutlinePreparationReview} from "./OutlinePreparationReview";
 import {Button} from "@/components/ui/button";
 
 function Field({label,value}:{label:string;value?:string|number|null}) {
@@ -26,6 +27,7 @@ export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,
       {review.chapters?.length ? <ReadingDisplaySettings preferences={readingDisplay} onChange={onReadingDisplayChange} previewText={review.chapters[0].content}/> : null}
     </div>
     {review.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p> : review.notice ? <p role="status" className="text-sm leading-6 text-muted-foreground">{review.notice}</p> : <>
+      <OutlinePreparationReview book={book} review={review}/>
       {chapter ? <><h3 className="mb-3 text-lg font-medium">第 {review.plan?.chapterOrder ?? review.execution?.order} 章 · {chapter.title}</h3>
         {review.plan ? <><Field label="章节概要" value={review.plan.summary}/><Field label="剧情目标" value={review.plan.purpose}/><Field label="核心事件" value={review.plan.exclusiveEvent}/><Field label="结尾状态" value={review.plan.endingState}/></> : null}
         <Field label="章节任务" value={chapter.taskSheet}/><Field label="目标字数" value={chapter.targetWordCount}/><Field label="需要避免" value={chapter.mustAvoid}/><Scenes value={chapter.sceneCards} targetWordCount={chapter.targetWordCount}/><Field label="写法约定" value={review.plan?.styleContract}/>

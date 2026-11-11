@@ -48,6 +48,7 @@ const DirectorNovelPage = lazy(() => import("@/pages/directorNext/DirectorNovelP
 const NovelUsagePage = lazy(() => import("@/pages/novelUsage/NovelUsagePage"));
 const OutlineListPage = lazy(() => import("@/pages/outlines/OutlineListPage"));
 const OutlineWorkspacePage = lazy(() => import("@/pages/outlines/OutlineWorkspacePage"));
+const OutlineOpenBookPage = lazy(() => import("@/pages/outlines/openBook/OutlineOpenBookPage"));
 
 const routes: RouteObject[] = [
   {
@@ -61,6 +62,7 @@ const routes: RouteObject[] = [
       { path: "novels", element: <NovelList /> },
       { path: "outlines", element: <OutlineListPage /> },
       { path: "outlines/:id", element: <OutlineWorkspacePage /> },
+      { path: "outlines/:id/open-book", element: <OutlineOpenBookPage /> },
       { path: "create", element: <CreationStudioPage /> },
       { path: "novels/create", element: <NovelCreate /> },
       { path: "novels/auto-director", element: <AutoDirectorCreatePage /> },

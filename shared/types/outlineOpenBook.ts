@@ -18,6 +18,7 @@ export const outlineOpenBookConfirmSchema = outlineOpenBookInputSchema.extend({
   requestHash: z.string().min(1),
   idempotencyKey: z.string().min(1).max(200),
 });
+export type OutlineOpenBookConfirm = z.infer<typeof outlineOpenBookConfirmSchema>;
 export type OutlineOpenBookInput = z.infer<typeof outlineOpenBookInputSchema>;
 export type OutlineBookSettings = z.infer<typeof outlineBookSettingsSchema>;
 export interface OutlineFieldRule {

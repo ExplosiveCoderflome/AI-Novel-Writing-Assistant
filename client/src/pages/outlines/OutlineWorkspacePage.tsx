@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   applyOutlineProposal,
   exportOutline,
   generateOutlineProposal,
   getOutline,
+  getOutlineRevision,
+  listOutlineRevisions,
+  getOutlineBookBinding,
   saveOutline,
   type OutlineProposal,
   type OutlineProposalKind,
 } from "@/api/outlines";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { Button } from "@/components/ui/button";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
 import "./outlineWorkspace.css";
@@ -21,12 +25,18 @@ export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
+  const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id), enabled: !!id });
+  const bindingQuery = useQuery({ queryKey: ["outline-book-binding", id], queryFn: () => getOutlineBookBinding(id), enabled: !!id });
+  const currentRevisionId = revisionQuery.data?.find(revision => revision.version === query.data?.currentVersion)?.id ?? "";
+  const currentRevisionQuery = useQuery({ queryKey: ["outline-revision", id, currentRevisionId], queryFn: () => getOutlineRevision(id, currentRevisionId), enabled: !!id && !!currentRevisionId });
   const [document, setDocument] = useState<OutlineDocument | null>(null);
   const [node, setNode] = useState("story");
   const [request, setRequest] = useState("");
   const [proposal, setProposal] = useState<OutlineProposal | null>(null);
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");
   const [showHistory, setShowHistory] = useState(false);
+  const isMobileViewport = useIsMobileViewport();
+  const hasUnsavedChanges = !!currentRevisionQuery.data?.document && JSON.stringify(document) !== JSON.stringify(currentRevisionQuery.data.document);
 
   useEffect(() => {
     if (query.data?.document) setDocument(query.data.document);
@@ -112,7 +122,7 @@ export default function OutlineWorkspacePage() {
     { label: "固定设定", items: document.facts.map(item => ({ id: item.nodeId, label: item.title })) },
   ];
   const selectedFields = selected
-    ? Object.entries(selected as unknown as Record<string, unknown>).filter(([key, value]) => key !== "nodeId" && typeof value === "string") as Array<[string, string]>
+    ? Object.entries(selected as unknown as Record<string, unknown>).filter(([key, value]) => key !== "nodeId" && key !== "volumeNodeId" && typeof value === "string") as Array<[string, string]>
     : [];
 
   return (
@@ -123,12 +133,14 @@ export default function OutlineWorkspacePage() {
           <p className="mt-1 text-xs text-muted-foreground">大纲内容独立保存；AI 建议需要你确认后才会成为新修订。</p>
         </div>
         <div className="flex gap-2">
+          {!isMobileViewport ? (!bindingQuery.isSuccess || (!bindingQuery.data && (!currentRevisionId || hasUnsavedChanges)) ? <Button disabled>按这份大纲开书</Button> : <Button asChild><Link to={bindingQuery.data ? bindingQuery.data.sourceRoute : `/outlines/${id}/open-book?revisionId=${encodeURIComponent(currentRevisionId)}`}>{bindingQuery.data ? "继续这本书" : "按这份大纲开书"}</Link></Button>) : null}
           <Button variant="ghost" onClick={() => setShowHistory(current => !current)}>{showHistory ? "收起历史" : "历史"}</Button>
           <Button variant="ghost" onClick={() => download("json")}>导出 JSON</Button>
           <Button variant="ghost" onClick={() => download("markdown")}>导出 Markdown</Button>
         </div>
       </header>
 
+      {bindingQuery.data ? <p className="shrink-0 text-xs leading-6 text-muted-foreground">已绑定《{bindingQuery.data.title}》 · 固定采用修订 v{bindingQuery.data.revisionVersion}{bindingQuery.data.currentVersion!==bindingQuery.data.revisionVersion ? ` · 源大纲当前为 v${bindingQuery.data.currentVersion}，本书不会自动同步` : ""}</p> : bindingQuery.isError ? <p role="alert" className="shrink-0 text-xs text-destructive">绑定信息读取失败，请刷新后再开书，避免重复创建。</p> : hasUnsavedChanges ? <p className="shrink-0 text-xs text-muted-foreground">先保存本地修改，再按这份修订开书。</p> : null}
       <div className="outline-workspace-grid">
         <nav aria-label="大纲目录" className="outline-directory space-y-5 border-b border-border/50 pb-4 xl:border-b-0 xl:border-r xl:pr-3">
           {directory.map(group => (
