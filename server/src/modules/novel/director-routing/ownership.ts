@@ -95,9 +95,10 @@ async function hasActiveProduction(novelId: string, epoch: number, db: Database)
 
 export async function getNovelDirectorIdentity(novelId: string): Promise<NovelDirectorIdentity> {
   const identity = await readNovelDirectorIdentity(novelId);
-  const blocked = await hasActiveProduction(novelId, identity.epoch, prisma);
-  return {...identity, availableVersions: directorV2Available() ? ["v1", "v2"] : ["v1"], canSwitch: !blocked,
-    blockedReason: blocked ? "请先结束本书当前创作任务，再选择导演版本。" : null};
+  const outlineBound = await prisma.outlineBookBinding.findUnique({where: {novelId}, select: {id: true}});
+  const blocked = Boolean(outlineBound) || await hasActiveProduction(novelId, identity.epoch, prisma);
+  return {...identity, availableVersions: outlineBound ? ["v2"] : directorV2Available() ? ["v1", "v2"] : ["v1"], canSwitch: !blocked,
+    blockedReason: outlineBound ? "按大纲写作需要导演 V2 保留来源与约束。" : blocked ? "请先结束本书当前创作任务，再选择导演版本。" : null};
 }
 
 export async function switchNovelDirectorVersion(novelId: string, version: DirectorVersion, expectedEpoch: number): Promise<NovelDirectorIdentity> {
@@ -106,6 +107,7 @@ export async function switchNovelDirectorVersion(novelId: string, version: Direc
     const locked = await tx.novel.updateMany({where: {id: novelId, directorEpoch: expectedEpoch}, data: {directorEpoch: {increment: 0}}});
     if (locked.count !== 1) throw new AppError("本书导演设置已变化，请刷新后重新选择。", 409);
     const identity = await readNovelDirectorIdentity(novelId, tx);
+    if (version === "v1" && await tx.outlineBookBinding.findUnique({where: {novelId}, select: {id: true}})) throw new AppError("按大纲写作需要导演 V2 保留来源与约束，不能切换为 V1。", 409);
     if (identity.version === version) return;
     if (await hasActiveProduction(novelId, expectedEpoch, tx)) throw new AppError("请先结束本书当前创作任务，再选择导演版本。", 409);
     await tx.novel.update({where: {id: novelId}, data: {directorVersion: version, directorEpoch: {increment: 1}}});

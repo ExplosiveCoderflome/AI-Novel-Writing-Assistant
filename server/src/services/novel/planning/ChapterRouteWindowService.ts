@@ -1,3 +1,5 @@
+import { currentOutlinePlanning } from "../../../modules/planning/outline/constraints";
+import { ensureOutlineRouteWindow } from "../volume/routeWindow/outlineSlots";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { DirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
@@ -49,6 +51,8 @@ export class ChapterRouteWindowService {
     fromChapterOrder: number,
     options: ChapterRouteWindowOptions,
   ): Promise<ChapterRouteWindowResult> {
+    const adopted = currentOutlinePlanning();
+    if (adopted?.novelId === novelId) return ensureOutlineRouteWindow(novelId, fromChapterOrder, options, this.volumeService, adopted);
     const minimum = Math.max(1, options.min ?? 3);
     const target = Math.max(minimum, options.target ?? 5);
     const compactTarget = options.completionProfile?.mode === "compact_book"

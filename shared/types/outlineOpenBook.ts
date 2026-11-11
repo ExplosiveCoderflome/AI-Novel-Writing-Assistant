@@ -27,7 +27,9 @@ export interface OutlineFieldRule {
   value: unknown;
 }
 export interface OutlineBookPolicy { rules: OutlineFieldRule[] }
+export interface OutlineVolumeSlot { volumeId: string; chapterQuota: number; from: number; to: number }
 export interface OutlineBookMapping {
+  runtimeVolumes?: OutlineVolumeSlot[];
   volumes: Array<{ nodeId: string; volumeId: string; chapterQuota: number; from: number; to: number }>;
   chapters: Array<{ nodeId: string; volumeId: string; planId: string; chapterId: string; chapterOrder: number }>;
   characters: Array<{ nodeId: string; characterId: string }>;

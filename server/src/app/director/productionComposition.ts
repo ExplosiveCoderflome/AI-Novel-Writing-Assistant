@@ -1,3 +1,4 @@
+import { outlineOpeningPlan, prepareOutlineHandoff, withOutlineOpeningSteps } from "./outlineOpening";
 import { prepareEditedChapterGate } from "./recovery/editedChapterGate";
 import {withStepUsage} from "./usage";
 import { prisma } from "../../db/prisma";
@@ -53,7 +54,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
       return {...modelOptions(context), targetVolumeId: targetVolume(context, workspace)};
     }, contentHash});
-  const stepRegistry = createProductionStepRegistry(withStepUsage({
+  const stepRegistry = createProductionStepRegistry(withStepUsage(withOutlineOpeningSteps({
     story_macro: createStoryMacroStepHandler({storyMacroService: macro, inputProvider: async context => ({...modelOptions(context), storyInput: requireLaunch(context.contract).storyInput}), contentHash}),
     book_contract: createBookContractStepHandler({generationService: new BookContractGenerationService(), bookContractService: book,
       inputProvider: async context => ({novelId: context.contract.novelId, ...modelOptions(context), promptInput: await bookContractInput(context, macro)}), contentHash}),
@@ -118,10 +119,10 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     }, save: async (runId, jobId) => events.append({runId, type: "chapter_batch_job", payload: {jobId}})},
       readOutcome: readBatchOutcome, waitForPoll: () => new Promise(resolve => setTimeout(resolve, 1000)),
       isRunActive: async runId => (await prisma.directorNextRunControl.findUnique({where: {runId}, select: {status: true}}))?.status === "running", contentHash})}),
-  }));
+  }, volumes)));
   const manualPlan = {version: MANUAL_CHAPTER_PLAN_VERSION, externalArtifacts: ["novel_seed"],
     steps: [{...directorProductionPlan.steps.find(step => step.id === "chapter_batch")!, requires: ["novel_seed"], overwrites: [], gateable: false}]};
-  return {prepareGate: prepareEditedChapterGate, plan: directorProductionPlan, additionalPlans: [manualPlan], stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
+  return {prepareGate: prepareEditedChapterGate, plan: directorProductionPlan, additionalPlans: [manualPlan, outlineOpeningPlan], stepRegistry, readEditedArtifact, resumeBusiness, cancelBusiness,
     executionBoundary: {
       beforeOpen: async (novelId, tx) => {
         await tx.novel.update({where: {id: novelId}, data: {directorEpoch: {increment: 0}}});
@@ -161,6 +162,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       launchInput: launch, tokenBudget: null, rejectionBudget: 3};
     requireLaunch(contract);readManualChapterRequest(contract);return contract;
   }, prepareOpen: async contract => {
+    await prepareOutlineHandoff(contract);
     const identity = await assertNovelDirectorVersion(contract.novelId, "v2");
     const manual = readManualChapterRequest(contract);
     if (manual) contract.executionEpoch = identity.epoch;

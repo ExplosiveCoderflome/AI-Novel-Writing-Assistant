@@ -1,3 +1,4 @@
+import type { OutlineBindingRef } from "@ai-novel/shared/types/outlineOpenBook";
 export type ArtifactType = string;
 
 export type ArtifactStatus = "draft" | "confirmed" | "user_edited" | "stale";
@@ -83,6 +84,7 @@ export interface RunContract {
 }
 
 export interface RunLaunchInput {
+  outlineBinding?: OutlineBindingRef;
   storyInput: string;
   estimatedChapterCount: number;
   userPreferredVolumeCount?: number;
