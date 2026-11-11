@@ -1,9 +1,16 @@
 import { Router } from "express";
-import { z } from "zod";
-import { outlineImportPreviewService, outlineProjectService, outlineProposalService } from "..";
+import { z, ZodError } from "zod";
+import { outlineRetrySetupSchema } from "@ai-novel/shared/types/outlineOpenBook";
+import { OutlineOpenBookError } from "../openBook";
+const openBookError = (e: unknown) => e instanceof ZodError ? new OutlineOpenBookError("OUTLINE_OPEN_INVALID", e.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("；"), 422) : e;
+import { outlineImportPreviewService, outlineProjectService, outlineProposalService, outlineOpenBookService } from "..";
 import { exportOutlineJson, exportOutlineMarkdown } from "../application/OutlineTransferService";
 
 const router = Router();
+router.post("/:id/open-book/preview", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.preview(String(req.params.id), req.body)}); } catch (e) { next(openBookError(e)); } });
+router.post("/:id/open-book", async (req, res, next) => { try { const data = await outlineOpenBookService.confirm(String(req.params.id), req.body); res.status(data.replayed ? 200 : 201).json({success: true, data}); } catch (e) { next(openBookError(e)); } });
+router.get("/:id/book-binding", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.getBinding(String(req.params.id))}); } catch (e) { next(openBookError(e)); } });
+router.post("/:id/book-binding/retry-setup", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.retrySetup(String(req.params.id), outlineRetrySetupSchema.parse(req.body).expectedPolicyVersion)}); } catch (e) { next(openBookError(e)); } });
 const id = z.string().min(1);
 const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await handler(req, res) }); } catch (error) { next(error); } };
 router.get("/", route(async req => outlineProjectService.list()));

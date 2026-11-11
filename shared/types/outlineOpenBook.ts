@@ -48,3 +48,6 @@ export interface OutlineBookBindingView extends OutlineBindingRef {
   sourceRoute: string; mapping: OutlineBookMapping; policy: OutlineBookPolicy;
   setupState: { rag: "pending" | "queued"; error?: string };
 }
+
+export const outlineRetrySetupSchema = z.object({ expectedPolicyVersion: z.number().int().min(1), idempotencyKey: z.string().min(1).max(200) });
+export type OutlineOpenBookResult = OutlineBookBindingView & { replayed: boolean };

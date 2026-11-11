@@ -12,3 +12,7 @@ export const outlineProjectService = new OutlineProjectService(new OutlineReposi
 export const outlineProposalService = new OutlineProposalService(new OutlineRepository(prisma));
 export const outlineImportPreviewService = new OutlineImportPreviewService(new OutlineRepository(prisma));
 export * from "./application/OutlineProposalService";
+
+export * from "./openBook";
+import { OutlineOpenBookService } from "./openBook";
+export const outlineOpenBookService = new OutlineOpenBookService(prisma);

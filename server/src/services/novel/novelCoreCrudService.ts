@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
@@ -50,7 +51,7 @@ export class NovelCoreCrudService {
     return listNovels(input);
   }
 
-  async createNovel(input: CreateNovelInput) {
+  async createNovel(input: CreateNovelInput, tx?: Prisma.TransactionClient) {
     const writingMode = input.writingMode ?? "original";
     const sourceNovelId = input.sourceNovelId ?? null;
     const sourceKnowledgeDocumentId = input.sourceKnowledgeDocumentId ?? null;
@@ -75,7 +76,7 @@ export class NovelCoreCrudService {
     });
     await this.validateReferenceBookAnalysis(referenceBookAnalysisId);
 
-    const created = await prisma.novel.create({
+    const created = await (tx ?? prisma).novel.create({
       data: {
         id: input.id,
         title: input.title,
@@ -124,6 +125,7 @@ export class NovelCoreCrudService {
       },
     });
 
+    if (tx) return normalizeNovelOutput(created);
     queueRagUpsert("novel", created.id);
     if (created.worldId) {
       queueRagUpsert("world", created.worldId);
