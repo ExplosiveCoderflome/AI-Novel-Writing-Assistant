@@ -90,3 +90,16 @@ test('V2 saved workspace exposes adopted revision and independent payoff plans w
  const ledger=await readDirectorLedgers(binding.novelId);assert.equal(ledger.payoffs.length,0);
  const legacy='ui-legacy-'+f.id;await prisma.novel.create({data:{id:legacy,title:'普通书'}});assert.equal((await readDirectorWorkspace(legacy)).outlineBinding,undefined);
 });
+
+test('story-only opening reviews the runtime volume slot created after launch and rejects missing or ambiguous slots',async()=>{
+ const {resolveSavedReviewContexts}=require('../dist/app/director/projections/confirmationRoutes');
+ const f=await fixture();f.d.volumes=[];f.d.chapters=[];await prisma.outlineRevision.update({where:{id:f.input.revisionId},data:{documentJson:JSON.stringify(f.d)}});f.input.volumeQuotas={};
+ const preview=await service.preview(f.id,f.input),binding=await service.confirm(f.id,{...f.input,requestHash:preview.requestHash,idempotencyKey:f.id});
+ const contract={novelId:binding.novelId,runId:'runtime-review',chapterRange:null,launchInput:{outlineBinding:binding}},control={status:'waiting_gate',version:4,gate:{artifactTypes:['volume_beat_sheet','volume_chapter_list']}};
+ await assert.rejects(()=>resolveSavedReviewContexts({contract,control}),/缺少唯一/);
+ const slot={volumeId:'saved-runtime-volume',chapterQuota:3,from:1,to:3};
+ await prisma.outlineBookBinding.update({where:{id:binding.bindingId},data:{mappingJson:JSON.stringify({...binding.mapping,runtimeVolumes:[slot]})}});
+ const contexts=await resolveSavedReviewContexts({contract,control});assert.equal(contexts.length,2);assert.ok(contexts.every(context=>context.volumeId===slot.volumeId && context.novelId===binding.novelId && context.runId===contract.runId));
+ await prisma.outlineBookBinding.update({where:{id:binding.bindingId},data:{mappingJson:JSON.stringify({...binding.mapping,runtimeVolumes:[slot,{...slot,volumeId:'ambiguous'}]})}});
+ await assert.rejects(()=>resolveSavedReviewContexts({contract,control}),/缺少唯一/);
+});

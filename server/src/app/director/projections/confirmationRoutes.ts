@@ -1,3 +1,4 @@
+import {readOutlinePlanningState} from "../../../modules/planning/outline/constraints";
 import {prisma} from "../../../db/prisma";
 import {FactIntegrityError, type ArtifactTypeInfo, type RunContract, type RunControl} from "../../../modules/director";
 
@@ -21,7 +22,18 @@ export interface SavedReviewContext {
 export async function resolveSavedReviewContexts({contract, control}: {contract: RunContract; control: RunControl}): Promise<SavedReviewContext[]> {
   const types = control.status === "waiting_gate" ? control.gate?.artifactTypes ?? [] : [];
   const contexts:SavedReviewContext[]=types.map(type=>({type,novelId:contract.novelId,runId:contract.runId,controlVersion:control.version}));
-  for (const context of contexts) if (["volume_beat_sheet","volume_chapter_list"].includes(context.type)) context.volumeId=contract.launchInput?.targetVolumeId ?? undefined;
+  const volumeContexts=contexts.filter(context=>["volume_beat_sheet","volume_chapter_list"].includes(context.type));
+  if (volumeContexts.length) {
+    let volumeId=contract.launchInput?.targetVolumeId ?? undefined;
+    if (!volumeId && contract.launchInput?.outlineBinding) {
+      // A story-only opening gains its runtime slots after strategy, not at launch.
+      const state=await readOutlinePlanningState(prisma,contract.novelId,contract.chapterRange ?? {from:1,to:1});
+      const slots=state ? [...state.mapping.volumes,...(state.mapping.runtimeVolumes ?? [])].filter(slot=>state.range.from>=slot.from && state.range.from<=slot.to) : [];
+      if (slots.length!==1) throw new FactIntegrityError("待确认卷缺少唯一的已保存章节位置。");
+      volumeId=slots[0].volumeId;
+    }
+    for (const context of volumeContexts) context.volumeId=volumeId;
+  }
   const chapterTypes = contexts.filter(row => ["chapter_task_sheet", "chapter_execution_contract", "chapter_batch_closed"].includes(row.type));
   if (!chapterTypes.length) return contexts;
   const from = contract.chapterRange?.from, to = contract.chapterRange?.to;
