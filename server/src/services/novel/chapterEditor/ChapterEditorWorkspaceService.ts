@@ -18,6 +18,8 @@ import {
 } from "../../../prompting/prompts/novel/chapterEditor/workspaceDiagnosis.prompts";
 import { NovelCoreService } from "../NovelCoreService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
+import { readActiveManuscriptChapters } from "../../../modules/novel/manuscript/application/ManuscriptIsolation";
+import { prisma } from "../../../db/prisma";
 import {
   buildAnchorRangeFromParagraphBounds,
   buildCharacterStateSummary,
@@ -242,7 +244,11 @@ export class ChapterEditorWorkspaceService {
       throw new Error("小说不存在。");
     }
 
-    const chapter = novel.chapters.find((item) => item.id === chapterId);
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    const effectiveChapters = activeChapters
+      ? activeChapters.map(item => ({...item, chapterSummary: novel.chapters.find(row => row.id === item.id)?.chapterSummary ?? null}))
+      : novel.chapters;
+    const chapter = effectiveChapters.find((item) => item.id === chapterId);
     if (!chapter) {
       throw new Error("章节不存在。");
     }
@@ -256,8 +262,13 @@ export class ChapterEditorWorkspaceService {
     const currentVolumeChapter = volumeChapters.find((item) => item.chapterOrder === chapter.order) ?? null;
     const previousVolumeChapter = location.chapterIndex > 0 ? volumeChapters[location.chapterIndex - 1] ?? null : null;
     const nextVolumeChapter = location.chapterIndex >= 0 ? volumeChapters[location.chapterIndex + 1] ?? null : null;
-    const previousChapter = novel.chapters.find((item) => item.order === chapter.order - 1) ?? null;
-    const nextChapter = novel.chapters.find((item) => item.order === chapter.order + 1) ?? null;
+    const effectiveOrder = activeChapters ? effectiveChapters.findIndex((item) => item.id === chapterId) + 1 : chapter.order;
+    const previousChapter = activeChapters
+      ? effectiveChapters[effectiveOrder - 2] ?? null
+      : effectiveChapters.find((item) => item.order === chapter.order - 1) ?? null;
+    const nextChapter = activeChapters
+      ? effectiveChapters[effectiveOrder] ?? null
+      : effectiveChapters.find((item) => item.order === chapter.order + 1) ?? null;
     const styleSummary = buildStyleSummary(novel);
     const chapterSummary = buildChapterSummary(chapter, normalizedContent);
     const openAuditIssues = auditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open"));

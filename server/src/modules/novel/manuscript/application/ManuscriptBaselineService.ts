@@ -23,7 +23,7 @@ export function manuscriptExtractionChunks(units:Array<{id:string;sourceRangesJs
  const result:Array<{unitId:string;range:{start:number;end:number};text:string}>=[];
  for(const unit of units)for(const range of json<Array<{start:number;end:number}>>(unit.sourceRangesJson,[])){
   for(let start=range.start;start<range.end;){let end=Math.min(start+6000,range.end);if(end<range.end&&/[\uD800-\uDBFF]/u.test(sourceText.charAt(end-1)))end--;
-   let tokens=manuscriptTokenizer.encode(sourceText.slice(start,end)).length;while(tokens>3500){end=start+Math.max(1,Math.floor((end-start)*3500/tokens*.95));if(end<range.end&&/[\uD800-\uDBFF]/u.test(sourceText.charAt(end-1)))end--;tokens=manuscriptTokenizer.encode(sourceText.slice(start,end)).length;}result.push({unitId:unit.id,range:{start,end},text:sourceText.slice(start,end)});start=end;}
+   let tokens=manuscriptTokenizer.encode(sourceText.slice(start,end),[],[]).length;while(tokens>3500){end=start+Math.max(1,Math.floor((end-start)*3500/tokens*.95));if(end<range.end&&/[\uD800-\uDBFF]/u.test(sourceText.charAt(end-1)))end--;tokens=manuscriptTokenizer.encode(sourceText.slice(start,end),[],[]).length;}result.push({unitId:unit.id,range:{start,end},text:sourceText.slice(start,end)});start=end;}
  }return result;
 }
 export class ManuscriptBaselineService {

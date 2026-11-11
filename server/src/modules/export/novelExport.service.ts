@@ -22,6 +22,7 @@ import {
   mapPipelineJob,
 } from "./novelExport.mappers";
 import type { NovelExportBundle } from "./novelExport.types";
+import { readActiveManuscriptChapters } from "../novel/manuscript/application/ManuscriptIsolation";
 
 export class NovelExportService {
   private readonly novelService = getSharedNovelServices();
@@ -62,6 +63,7 @@ export class NovelExportService {
       throw new AppError("小说不存在。", 404);
     }
 
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
     return {
       title: novel.title,
       description: novel.description,
@@ -70,7 +72,7 @@ export class NovelExportService {
         .map((segment) => segment.content.trim())
         .filter(Boolean)
         .join("\n\n"),
-      chapters: novel.chapters,
+      chapters: activeChapters ?? novel.chapters,
     };
   }
 
@@ -80,6 +82,11 @@ export class NovelExportService {
       throw new AppError("小说不存在。", 404);
     }
     const novel = mapExportNovelDetail(rawNovel);
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    if (activeChapters) {
+      const summaries = new Map((novel.chapters ?? []).map(chapter => [chapter.id, chapter.chapterSummary]));
+      novel.chapters = activeChapters.map(chapter => ({...chapter, createdAt: chapter.createdAt.toISOString(), updatedAt: chapter.updatedAt.toISOString(), chapterSummary: summaries.get(chapter.id) ?? null}));
+    }
 
     const chapterMetaById = new Map(
       (novel.chapters ?? []).map((chapter) => [

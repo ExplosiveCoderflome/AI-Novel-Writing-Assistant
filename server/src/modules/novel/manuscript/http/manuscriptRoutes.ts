@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AppError } from "../../../../middleware/errorHandler";
 import { ManuscriptBaselineService } from "../application/ManuscriptBaselineService";
 import { ManuscriptRevisionService } from "../application/ManuscriptRevisionService";
+import { ManuscriptStructureService } from "../application/ManuscriptStructureService";
 import { ManuscriptTaskService } from "../application/ManuscriptTasks";
 import { originalUnitText, ManuscriptWorkspaceService } from "../application/ManuscriptWorkspaceService";
 import type { ManuscriptImportRequest, ManuscriptPartitionRequest, ManuscriptSplitRequest, ManuscriptConfirmRequest } from "@ai-novel/shared";
@@ -110,7 +111,7 @@ manuscriptRouter.get("/:projectId/novel-export", async (req, res, next) => {
 function isCanonicalBase64(value: string): boolean { return value.length % 4 === 0 && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(value); }
 
 
-const baselineService=new ManuscriptBaselineService(),revisionService=new ManuscriptRevisionService(),tasks=new ManuscriptTaskService();
+const baselineService=new ManuscriptBaselineService(),revisionService=new ManuscriptRevisionService(),structureService=new ManuscriptStructureService(),tasks=new ManuscriptTaskService();
 const modelSchema=z.object({provider:z.string().max(80).optional(),model:z.string().max(160).optional(),temperature:z.number().min(0).max(2).optional(),maxRequests:z.number().int().min(1).max(4000).optional()});
 const revisionBaseSchema=z.object({expectedStructureVersion:version,baseUnitRevision:version,baseContentHash:hash,baselineOutlineRevisionId:key.nullable(),baseWorkingOutlineRevisionId:key.nullable(),requestKey:key});
 const baselinePreviewSchema=modelSchema.extend({sourceHash:hash,expectedStructureVersion:version,sourceType:z.enum(["author_provided","inferred_from_manuscript"]).optional(),outlineProjectId:key.optional(),outlineRevisionId:key.optional()});
@@ -123,8 +124,10 @@ command("/:projectId/units/:unitId/diagnoses",(id,req)=>revisionService.diagnose
 command("/:projectId/units/:unitId/revision-previews",(id,req)=>revisionService.rewrite(id,param(req,"unitId"),revisionBaseSchema.merge(modelSchema).extend({operation:z.enum(["polish","expand","compress","emotion","conflict","custom"]),instruction:z.string().max(5000),selection:z.object({from:version,to:version,text:z.string().max(12000)}).optional()}).parse(req.body)));
 command("/:projectId/units/:unitId/manual-save",(id,req)=>revisionService.manualSave(id,param(req,"unitId"),revisionBaseSchema.extend({content:z.string().max(3000000)}).parse(req.body)));
 command("/:projectId/units/:unitId/restore-original-preview",(id,req)=>revisionService.restore(id,param(req,"unitId"),revisionBaseSchema.parse(req.body)));
-command("/:projectId/proposals/:proposalId/apply",async(id,req)=>{const row=await prisma.manuscriptRevisionProposal.findFirst({where:{id:param(req,"proposalId"),projectId:id},select:{kind:true}});if(!row)throw Error("MANUSCRIPT_NOT_FOUND");return revisionService.apply(id,param(req,"proposalId"),revisionBaseSchema.extend({candidateId:key}).parse(req.body));});
+command("/:projectId/proposals/:proposalId/apply",async(id,req)=>{const row=await prisma.manuscriptRevisionProposal.findFirst({where:{id:param(req,"proposalId"),projectId:id},select:{kind:true}});if(!row)throw Error("MANUSCRIPT_NOT_FOUND");if(row.kind==="structure")return structureService.apply(id,param(req,"proposalId"),z.object({expectedStructureVersion:version,confirmImpact:z.literal(true),requestKey:key}).strict().parse(req.body));return revisionService.apply(id,param(req,"proposalId"),revisionBaseSchema.extend({candidateId:key}).parse(req.body));});
 command("/:projectId/proposals/:proposalId/reject",(id,req)=>revisionService.reject(id,param(req,"proposalId")));
+const structureOperationSchema=z.discriminatedUnion("kind",[z.object({kind:z.literal("insert_unit"),afterUnitId:key.nullable().optional(),beforeUnitId:key.nullable().optional(),title:z.string().trim().min(1).max(200),purpose:z.string().max(5000).optional(),content:z.string().max(3000000).optional()}),z.object({kind:z.literal("deactivate_unit"),unitId:key,expectedUnitRevision:version.optional()}),z.object({kind:z.literal("restore_unit"),unitId:key,afterUnitId:key.nullable().optional()}),z.object({kind:z.literal("merge_units"),unitIds:z.array(key).min(2).max(3000),title:z.string().trim().min(1).max(200)})]);
+command("/:projectId/structure-previews",(id,req)=>structureService.preview(id,z.object({expectedStructureVersion:version,unitId:key.optional(),operations:z.array(structureOperationSchema).min(1).max(20),requestKey:key}).parse(req.body)));
 command("/:projectId/changes/:proposalId/undo",(id,req)=>revisionService.undo(id,param(req,"proposalId"),z.object({expectedStructureVersion:version,expectedAfterHash:hash,requestKey:key}).parse(req.body)));
 command("/:projectId/units/:unitId/sync/retry",(id,req)=>prisma.$transaction(async tx=>{const input=revisionBaseSchema.parse(req.body),unitId=param(req,"unitId"),snapshot=await takeManuscriptSnapshot(tx,id,unitId);validateManuscriptRevisionBase(snapshot,input);await assertManuscriptSnapshot(tx,id,snapshot);const s=await readManuscriptState(tx,id,unitId);if(s.unit?.status!=="active")throw Error("UNIT_INACTIVE");await queueManualChapterSync(tx,s.chapter!);return {status:"pending"};}));
 command("/:projectId/tasks/:taskId/cancel",(id,req)=>tasks.cancel(id,param(req,"taskId")));

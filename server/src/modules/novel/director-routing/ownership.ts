@@ -4,7 +4,7 @@ import {prisma} from "../../../db/prisma";
 import {AppError} from "../../../middleware/errorHandler";
 import {withSqliteRetry} from "../../../db/sqliteRetry";
 
-type Database = Pick<Prisma.TransactionClient, "novel" | "novelWorkflowTask" | "directorNextRun" | "directorNextRunControl" | "directorRunCommand" | "generationJob">;
+type Database = Pick<Prisma.TransactionClient, "novel" | "novelWorkflowTask" | "directorNextRun" | "directorNextRunControl" | "directorRunCommand" | "generationJob"> & Partial<Pick<Prisma.TransactionClient,"manuscriptProject">>;
 export const directorV2Available = () => ["true", "1"].includes(process.env.DIRECTOR_NEXT_ENABLED ?? "true");
 const activeRuns = ["queued", "running", "waiting_gate", "paused"];
 const activeTasks = ["queued", "running", "waiting_approval"] as const;
@@ -25,6 +25,7 @@ export async function readNovelDirectorIdentity(novelId: string, db: Database = 
 }
 
 export async function assertNovelDirectorVersion(novelId: string, version: DirectorVersion, epoch?: number, db: Database = prisma) {
+  if(await db.manuscriptProject?.findUnique({where:{novelId},select:{id:true}}))throw new AppError("原稿修订副本只允许逐章预览和明确采纳，不启动导演写稿。",409);
   const identity = await readNovelDirectorIdentity(novelId, db);
   if (identity.version !== version || (epoch !== undefined && epoch !== identity.epoch)) {
     throw new AppError(`请从本书导演 ${identity.version.toUpperCase()} 工作台开始新的创作。`, 409, {sourceRoute: identity.sourceRoute});
@@ -37,6 +38,7 @@ export async function canExecuteLegacyTask(taskId: string, db: Database = prisma
   const task = await db.novelWorkflowTask.findUnique({where: {id: taskId}, select: {novelId: true, directorVersion: true, directorEpoch: true}});
   if (!task) return false;
   if (!task.novelId) return !task.directorVersion || task.directorVersion === "v1";
+  if(await db.manuscriptProject?.findUnique({where:{novelId:task.novelId},select:{id:true}}))return false;
   const identity = await readNovelDirectorIdentity(task.novelId, db);
   return identity.version === "v1" && (!task.directorVersion || task.directorVersion === "v1") && (task.directorEpoch ?? 0) === identity.epoch;
 }
@@ -102,6 +104,7 @@ export async function getNovelDirectorIdentity(novelId: string): Promise<NovelDi
 }
 
 export async function switchNovelDirectorVersion(novelId: string, version: DirectorVersion, expectedEpoch: number): Promise<NovelDirectorIdentity> {
+  if(await prisma.manuscriptProject.findUnique({where:{novelId},select:{id:true}}))throw new AppError("原稿修订副本不切换导演；请在修订工作区处理章节。",409);
   if (version === "v2" && !directorV2Available()) throw new AppError("导演 V2 未启用。", 409);
   await withSqliteRetry(() => prisma.$transaction(async tx => {
     const locked = await tx.novel.updateMany({where: {id: novelId, directorEpoch: expectedEpoch}, data: {directorEpoch: {increment: 0}}});

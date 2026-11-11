@@ -296,3 +296,41 @@ for (const fault of [
   assert.ok(state.jobs.some(x => x.jobType === 'chapter.manualSync'));
   assert.ok(state.jobs.some(x => x.jobType === 'chapter.timelineFinalization'));
 });
+
+
+test('literal tokenizer special strings remain losslessly covered rather than rejected', async () => {
+  const text = '第一章\n她写下 <|endoftext|> 与 <|fim_prefix|>，这些只是原稿字面量。';
+  const f = await fixture([text]);
+  const { manuscriptExtractionChunks } = require(basePath + 'ManuscriptBaselineService');
+  const chunks = manuscriptExtractionChunks(await prisma.manuscriptUnit.findMany({where:{projectId:f.projectId}}), text);
+  assert.equal(chunks.map(chunk => chunk.text).join(''), text);
+  assert.equal(chunks.at(-1).range.end, text.length);
+});
+
+test('earlier manual save supersedes later running/succeeded artifacts and extracted timeline, not planned facts', async () => {
+  const f = await fixture(), chapterId = f.units[1].chapterId;
+  const rows = await Promise.all(['running', 'succeeded'].map((status, i) => prisma.chapterArtifactSyncCheckpoint.create({data:{
+    novelId:f.novelId,chapterId,contentHash:hash(f.parts[1]),artifactType:`regression_${i}`,syncMode:'manual',status,
+  }})));
+  const event = {novelId:f.novelId,chapterId,chapterIndex:2,eventOrder:1,title:'旧上下文事件',summary:'旧上下文',type:'plot',status:'occurred',visibility:'public'};
+  const extracted = await prisma.storyTimelineEvent.create({data:{...event,source:'chapter_extraction'}});
+  const planned = await prisma.storyTimelineEvent.create({data:{...event,source:'planned'}});
+  await revisions.manualSave(f.projectId,f.units[0].id,{...await base(f,0),content:'第一章\n更新后的前文。'});
+  for(const row of rows)assert.equal((await prisma.chapterArtifactSyncCheckpoint.findUnique({where:{id:row.id}})).status,'superseded');
+  assert.equal((await prisma.storyTimelineEvent.findUnique({where:{id:extracted.id}})).status,'superseded');
+  assert.equal((await prisma.storyTimelineEvent.findUnique({where:{id:planned.id}})).status,'occurred');
+  assert.equal((await prisma.chapter.findUnique({where:{id:chapterId}})).content,f.parts[1]);
+});
+
+test('late timeline commit cannot write unchanged later body with superseded previous working context', async () => {
+  const f=await fixture(),chapterId=f.units[1].chapterId;
+  const { TimelineFinalizationStore }=require('../dist/modules/timeline/persistence/TimelineFinalizationStore');
+  const {withCurrentTimelineContent,TimelineContentVersionError}=require('../dist/modules/timeline/persistence/chapterVersion');
+  const store=new TimelineFinalizationStore(),version={novelId:f.novelId,chapterId,content:f.parts[1],manuscriptVersion:await store.captureManuscriptVersion(f.novelId,chapterId)};
+  let committed=false;
+  await withCurrentTimelineContent(version,async()=>{});
+  await revisions.manualSave(f.projectId,f.units[0].id,{...await base(f,0),content:'前章重新修订，后章正文未改。'});
+  await assert.rejects(()=>withCurrentTimelineContent(version,async()=>{committed=true;}),TimelineContentVersionError);
+  assert.equal(committed,false);
+  assert.equal((await prisma.chapter.findUnique({where:{id:chapterId}})).content,f.parts[1]);
+});

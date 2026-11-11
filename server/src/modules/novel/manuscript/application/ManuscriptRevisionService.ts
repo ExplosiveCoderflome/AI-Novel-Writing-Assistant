@@ -9,6 +9,7 @@ import {ChapterEditorWorkspaceService} from "../../../../services/novel/chapterE
 import {buildChapterEditorDiffChunks} from "../../../../services/novel/chapterEditor/chapterEditorDiff";
 import {saveManualChapterContent} from "../../../../services/novel/chapterEditor/persistence/ManualChapterStore";
 import {sha256} from "../domain/source";
+import {supersedeChapterTimeline} from "../../../timeline/persistence/chapterVersion";
 import {registerManuscriptTask,type ManuscriptTaskExecution} from "./ManuscriptTasks";
 import {json,readManuscriptState,takeManuscriptSnapshot,assertManuscriptSnapshot,originalUnitText,ManuscriptWorkspaceService,type ManuscriptDb,type ManuscriptSnapshot} from "./ManuscriptWorkspaceService";
 import type {ModelInput} from "./ManuscriptBaselineService";
@@ -19,6 +20,9 @@ async function persistContent(tx:ManuscriptDb,projectId:string,unitId:string,sna
  await assertManuscriptSnapshot(tx,projectId,snapshot);const s=await readManuscriptState(tx,projectId,unitId);if(s.unit!.status!=="active")throw Error("UNIT_INACTIVE");
  const changed=await tx.manuscriptUnit.updateMany({where:{id:unitId,status:"active",workingRevision:snapshot.unitRevision!,contentHash:snapshot.contentHash},data:{workingRevision:{increment:1},contentHash:sha256(content)}});if(!changed.count)throw Error("REVISION_BASE_STALE");
  await saveManualChapterContent(tx,s.chapter!,content);
+ const laterChapterIds=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>s.unit!.displayOrder).map(unit=>unit.chapterId!).filter(Boolean);
+ await tx.chapterArtifactSyncCheckpoint.updateMany({where:{novelId:s.project.novelId!,chapterId:{in:laterChapterIds},status:{in:["pending","running","succeeded","failed"]}},data:{status:"superseded"}});
+ for(const chapterId of laterChapterIds)await supersedeChapterTimeline(tx,{novelId:s.project.novelId!,chapterId});
  await tx.manuscriptRevisionProposal.updateMany({where:{projectId,status:{in:["pending","generating"]},unitId:{in:s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>=s.unit!.displayOrder).map(unit=>unit.id)}},data:{status:"stale"}});
  return {unitId,beforeContent:s.chapter!.content??"",afterContent:content,beforeHash:snapshot.contentHash,afterHash:sha256(content),beforeUnitRevision:snapshot.unitRevision,afterUnitRevision:snapshot.unitRevision!+1,structureVersion:snapshot.structureVersion,synchronization:"pending"};
 }
@@ -82,7 +86,7 @@ export async function buildManuscriptRevisionContext(projectId:string,unitId:str
 export function registerManuscriptRevisionTasks(){registerManuscriptTask("diagnosis",generateDiagnosis);registerManuscriptTask("rewrite",generateRewrite);}
 async function generateDiagnosis(task:ManuscriptTaskExecution){const s=await readManuscriptState(prisma,task.row.projectId,task.row.unitId!);const output=await task.call(manuscriptDiagnosePrompt,{currentContent:s.chapter!.content??"",revisionContext:await buildManuscriptRevisionContext(task.row.projectId,task.row.unitId!)},task.payload.input as ModelInput);for(const card of output.diagnosticCards)if(card.quote&&!(s.chapter!.content??"").includes(card.quote))throw Error("MANUSCRIPT_EVIDENCE_INVALID");task.payload.diagnosticCards=output.diagnosticCards;}
 async function generateRewrite(task:ManuscriptTaskExecution){
- const s=await readManuscriptState(prisma,task.row.projectId,task.row.unitId!),input=task.payload.input as RevisionBase&ModelInput&{operation:ChapterEditorOperation;instruction:string;selection?:ChapterEditorTargetRange};
+ const s=await readManuscriptState(prisma,task.row.projectId,task.row.unitId!),input=task.payload.input as unknown as RevisionBase&ModelInput&{operation:ChapterEditorOperation;instruction:string;selection?:ChapterEditorTargetRange};
  const promptRunner=(async(args:any)=>({output:await task.call(args.asset,args.promptInput,args.options)})) as typeof runStructuredPrompt;
  const editor=new NovelChapterEditorService(new ChapterEditorWorkspaceService(),promptRunner);
  const result=await editor.previewAiRevision(s.project.novelId!,s.chapter!.id,{source:"preset",scope:input.selection?"selection":"chapter",presetOperation:input.operation,contentSnapshot:s.chapter!.content??"",selection:input.selection,constraints:{keepFacts:true,keepPov:true,noUnauthorizedSetting:true,preserveCoreInfo:true},...input},await buildManuscriptRevisionContext(task.row.projectId,task.row.unitId!));

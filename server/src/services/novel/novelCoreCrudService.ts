@@ -21,6 +21,7 @@ import {
 } from "./novelCoreShared";
 import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 import { novelEventBus } from "../../events/publisher";
+import { readActiveManuscriptChapters, rejectLegacyManuscriptWrite } from "../../modules/novel/manuscript/application/ManuscriptIsolation";
 
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
@@ -151,7 +152,10 @@ export class NovelCoreCrudService {
     if (!row) {
       return null;
     }
-    return normalizeNovelOutput(row);
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, id);
+    if (!activeChapters) return normalizeNovelOutput(row);
+    const summaries = new Map(row.chapters.map(chapter => [chapter.id, chapter.chapterSummary]));
+    return normalizeNovelOutput({ ...row, chapters: activeChapters.map(chapter => ({ ...chapter, chapterSummary: summaries.get(chapter.id) ?? null })) });
   }
 
   async updateNovel(id: string, input: UpdateNovelInput) {
@@ -346,6 +350,8 @@ export class NovelCoreCrudService {
   }
 
   async listChapters(novelId: string) {
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    if (activeChapters) return activeChapters;
     return prisma.chapter.findMany({
       where: { novelId },
       orderBy: { order: "asc" },
@@ -354,14 +360,14 @@ export class NovelCoreCrudService {
   }
 
   createChapter(novelId: string, input: ChapterInput) {
-    return this.manualChapters.createChapter(novelId, input);
+    return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.createChapter(novelId, input));
   }
 
   updateChapter(novelId: string, chapterId: string, input: Partial<ChapterInput>) {
-    return this.manualChapters.updateChapter(novelId, chapterId, input);
+    return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.updateChapter(novelId, chapterId, input));
   }
 
   deleteChapter(novelId: string, chapterId: string) {
-    return this.manualChapters.deleteChapter(novelId, chapterId);
+    return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.deleteChapter(novelId, chapterId));
   }
 }
