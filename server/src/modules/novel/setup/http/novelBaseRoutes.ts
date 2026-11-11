@@ -184,6 +184,8 @@ interface RegisterNovelBaseRoutesInput {
 }
 
 async function withWorkspaceSource<T extends {id: string; narrativeForm?: string | null}>(book: T, readIdentity: typeof readNovelDirectorIdentity) {
+  const manuscript=await prisma.manuscriptProject.findUnique({where:{novelId:book.id},select:{id:true}});
+  if(manuscript)return {...book,workspaceSourceRoute:`/novels/${book.id}/revision`};
   if (book.narrativeForm === "short_story") return {...book, workspaceSourceRoute: null};
   const identity = await readIdentity(book.id);
   return {...book, directorVersion: identity.version, directorEpoch: identity.epoch,

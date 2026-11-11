@@ -8,6 +8,7 @@ import {
 } from "./rewriteCandidates.promptSchemas";
 
 export interface ChapterEditorRewriteCandidatesPromptInput {
+  manuscriptContext?: import("@ai-novel/shared/types/manuscript").ManuscriptChapterRevisionContext;
   operation: "polish" | "expand" | "compress" | "emotion" | "conflict" | "custom";
   operationLabel: string;
   scope: "selection" | "chapter";
@@ -120,6 +121,7 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
         : "用户补充要求：无",
     ].join("\n")),
     new HumanMessage([
+      input.manuscriptContext ? "【原稿修订专用上下文】\npreviousWorkingChapters才是当前权威前文。wholeBookPlanningConstraints仅为全书约束，不代表本章已发生，禁止提前泄漏后文；原稿只读，不自动回填它。默认保留核心身份/事实/因果/视角/结局。\n" + JSON.stringify(input.manuscriptContext) : "",
       renderOptionalBlock("【本章目标】", input.goalSummary),
       "",
       renderOptionalBlock("【本章摘要】", input.chapterSummary),

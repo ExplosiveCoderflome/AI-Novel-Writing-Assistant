@@ -45,7 +45,7 @@ function DesktopManuscriptImport() {
   },onSuccess:value=>cache.setQueryData(["manuscript-import",value.id],value)});
   const resplit=useMutation({mutationFn:()=>splitManuscript(session!),onSuccess:value=>cache.setQueryData(["manuscript-import",sessionId],value)});
   const save=useMutation({mutationFn:()=>saveManuscriptPartition(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,units:draft}),onSuccess:value=>cache.setQueryData(["manuscript-import",sessionId],value)});
-  const create=useMutation({mutationFn:()=>confirmManuscriptImport(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,coverageHash:session!.coverage.coverageHash,title:title.trim(),requestKey:confirmKey.current}),onSuccess:result=>navigate(`/novels/${result.novelId}/revision`)});
+  const create=useMutation({mutationFn:()=>confirmManuscriptImport(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,coverageHash:session!.coverage!.coverageHash,title:title.trim(),requestKey:confirmKey.current}),onSuccess:result=>navigate(`/novels/${result.novelId}/revision`)});
   const error=localError||upload.error?.message||save.error?.message||create.error?.message||resplit.error?.message;
   const busy=upload.isPending||save.isPending||create.isPending||resplit.isPending;
   const updateSelected=(patch:Partial<ManuscriptPartitionUnit>)=>setDraft(items=>items.map(item=>item.draftId===selectedId?{...item,...patch}:item));

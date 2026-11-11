@@ -1,3 +1,4 @@
+import {startManuscriptWorker} from "./modules/novel/manuscript/application/ManuscriptTasks";
 import { feishuChannel } from "./services/task/autoDirectorFollowUps/channels/feishu";
 import "dotenv/config";
 import { startInvocationPayloadRetention } from "./platform/llm/usage";
@@ -133,6 +134,8 @@ export function createApp() {
     const errorSuffix = errorMessage ? ` | error: ${errorMessage}` : "";
     return `${method} ${url} ${status} ${responseTime} ms - ${contentLength}${errorSuffix}`;
   }));
+  // Raw TXT bytes use base64 JSON; scope the transport allowance, decoded limit remains 20 MiB.
+  app.use("/api/manuscripts/imports",express.json({limit:"30mb"}));
   app.use(express.json({ limit: jsonBodyLimit }));
 
   app.use("/api", authMiddleware);
@@ -140,6 +143,7 @@ export function createApp() {
   app.post("/api/access/session", establishAccessSession);
 
   app.use("/api/health", healthRouter);
+  app.use("/api/manuscripts", require("./modules/novel/manuscript/http/manuscriptRoutes").manuscriptRouter);
   app.use("/api/outlines", outlineRouter);
   app.use("/api/agent-catalog", agentCatalogRouter);
   app.use("/api/agent-runs", agentRunsRouter);
@@ -330,6 +334,7 @@ function scheduleLogRetentionCleanup(): void {
 function initializeBackgroundServices(): BackgroundServicesHandle {
   void feishuChannel.start().catch(() => console.warn("[feishu] channel settings could not be loaded."));
   const stopPayloadRetention = startInvocationPayloadRetention();
+  const stopManuscriptWorker=startManuscriptWorker();
   void marketRadarService.recoverInterruptedRuns().catch((error) => {
     console.warn("[market-radar] failed to mark interrupted scans.", error);
   });
@@ -386,6 +391,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
     stop: async () => {
       feishuChannel.stop();
       stopPayloadRetention();
+      stopManuscriptWorker();
       directorWorker.stop();
       directorNextWorker?.stop();
       novelSideEffectWorker.stop();

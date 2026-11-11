@@ -31,3 +31,11 @@ AI 反推逐个读取正文源单元的全部片段，不复用 24k 目录前缀
 ## 持久任务与取消
 
 复用 TaskDispatcher 作为唤醒信号，Prisma 提案行保存 generation、owner、过期 lease、真实分片 checkpoint 和预算计数。重启由轮询恢复过期 lease；结果写回必须 CAS 原 dependenciesJson 与 generating 状态。取消先改持久状态再 abort 本地模型请求，晚到结果不能重新成为 pending。来源不删除，成功 applied 回执不被任务重试覆盖。
+
+## 单章修文与持久撤回
+
+B1 以有类型的 server-authored context 调用既有 NovelChapterEditorService.previewAiRevision，并沿用 diff 和手动正文 CAS 原语。整章与选区候选都持久为完整可替换的当前章版本，选区外原始 CRLF 与字符不改变。原稿不塞进 customInstruction，全书规划明确标注“不代表本章已经发生”；最近有效工作稿前文是权威上下文。
+
+采纳只接受本提案持久 candidateId，不接受浏览器提交候选正文。事务同时校验 sourceHash、结构版本、当前正文/单元修订、冻结基线、工作纲 exact revision 与前文 hash，提交正文、单元版本、永久 before/after 回执和事实/时间线 outbox。旧章节 CRUD 对 B1 明确拒绝，避免绕过。预览、取消或拒绝都不写正文，也不启动下一章。
+
+Undo 是一条新的受版本保护命令；只有最新 afterHash、单元修订和结构版本仍匹配才允许，不覆盖其后手改。永久回执与 Source 不依赖自动快照的十次轮换。同步失败保留已保存正文，从修订源页重试资料对账，不重新改稿。

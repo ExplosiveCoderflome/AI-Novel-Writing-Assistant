@@ -1,30 +1,8 @@
-import type { ManuscriptConfirmRequest, ManuscriptCoverage, ManuscriptEncoding, ManuscriptImportRequest, ManuscriptImportResponse, ManuscriptPartitionRequest, ManuscriptPartitionUnit, ManuscriptWorkspaceUnit } from "@ai-novel/shared/types/manuscript";
-import type { ChapterEditorCandidate, ChapterEditorDiagnosticCard, ChapterEditorOperation, ChapterEditorTargetRange } from "@ai-novel/shared/types/novel";
-import type { OutlineDocument } from "@ai-novel/shared/types/outline";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ManuscriptConfirmRequest, ManuscriptCoverage, ManuscriptEncoding, ManuscriptImportRequest, ManuscriptImportResponse, ManuscriptPartitionRequest, ManuscriptPartitionUnit, ManuscriptWorkspaceUnit, ManuscriptSourceView, ManuscriptSessionView, ManuscriptUnitDetail, ManuscriptStructureOperation, ManuscriptProposalView, ManuscriptWorkspace, ManuscriptModelConfig, ManuscriptRevisionBase } from "@ai-novel/shared/types/manuscript";
+import type { ChapterEditorOperation, ChapterEditorTargetRange } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
-export interface ManuscriptSourceView {id:string;sourceHash:string;rawHash:string;charCount:number;byteCount:number;encoding:ManuscriptEncoding;originalFileName:string|null;version:number}
-export interface ManuscriptSessionView {id:string;projectId:string;sourceId:string;version:number;status:string;source:ManuscriptSourceView;units:ManuscriptPartitionUnit[];coverage:ManuscriptCoverage;createdNovelId:string|null;text?:string}
-export interface ManuscriptUnitDetail extends ManuscriptWorkspaceUnit {content:string;originalText:string;updatedAt:string}
-export type ManuscriptStructureOperation = {kind:"insert_unit";afterUnitId:string|null;beforeUnitId:string|null;title:string;purpose:string} | {kind:"deactivate_unit";unitId:string;expectedUnitRevision:number} | {kind:"restore_unit";unitId:string;afterUnitId:string|null} | {kind:"merge_units";unitIds:string[];title:string};
-export interface ManuscriptProposalView {
-  id:string; kind:string; status:string; unitId:string|null; taskId?:string; error?:string|null; staleReasons?:string[];
-  candidates?:ChapterEditorCandidate[]; diagnosticCards?:ChapterEditorDiagnosticCard[];
-  document?:OutlineDocument; candidateRevisionId?:string; outlineProjectId?:string; coverageHash?:string;
-  evidence?:Array<{unitId:string;quote:string;range:{start:number;end:number}}>;
-  coverage?:{totalUnits:number;coveredUnitIds:string[];totalChunks:number;completedChunks:number};
-  impact?:{before:string[];after:string[];affectedUnitIds:string[];references:string[];warnings:string[];invalidateFrom:number};
-  appliedReceipt?:{beforeContent?:string;afterHash?:string;synchronization?:string};
-  createdAt?:string;
-}
-export interface ManuscriptWorkspace {
-  project:{id:string;novelId:string;title:string;structureVersion:number;baselineOutlineRevisionId:string|null;baselineOutlineProjectId:string|null;workingOutlineProjectId:string|null;workingOutlineRevisionId:string|null;baselineSourceType?:string};
-  source:ManuscriptSourceView; units:ManuscriptWorkspaceUnit[]; currentUnit:ManuscriptUnitDetail|null; proposals:ManuscriptProposalView[];
-  syncState?:string;
-}
-export interface ManuscriptModelConfig {provider:LLMProvider;model:string;temperature:number;maxRequests?:number}
-export interface ManuscriptRevisionBase {expectedStructureVersion:number;baseUnitRevision:number;baseContentHash:string;baselineOutlineRevisionId:string|null;baseWorkingOutlineRevisionId:string|null;requestKey:string}
+export type {ManuscriptSourceView, ManuscriptSessionView, ManuscriptUnitDetail, ManuscriptStructureOperation, ManuscriptProposalView, ManuscriptWorkspace, ManuscriptModelConfig, ManuscriptRevisionBase} from "@ai-novel/shared/types/manuscript";
 const options={errorPresentation:"inline" as const};
 async function post<T>(path:string,body:unknown):Promise<T> {return (await apiClient.post(`/manuscripts${path}`,body,options)).data.data as T;}
 export async function createManuscriptImport(input:ManuscriptImportRequest,file?:File):Promise<ManuscriptImportResponse> {

@@ -1,3 +1,6 @@
+import type {ChapterEditorCandidate,ChapterEditorDiagnosticCard} from "./novel";
+import type {OutlineDocument} from "./outline";
+import type {LLMProvider} from "./llm";
 export type ManuscriptEncoding = "utf-8" | "utf-16le" | "utf-16be" | "gb18030";
 export type ManuscriptNarrativeForm = "long_novel";
 export type ManuscriptRange = { start: number; end: number };
@@ -92,3 +95,25 @@ export interface ManuscriptChapterRevisionContext {
  wholeBookPlanningConstraints:{label:"全书约束，不代表本章已经发生";baselineRevisionId:string;workingRevisionId:string;endingDirection:string;immutableFacts:Array<{title:string;content:string}>;currentChapterPlan:unknown};
  preserve:{coreFacts:true;identity:true;causality:true;pov:true;ending:true};
 }
+
+export interface ManuscriptSourceView {id:string;sourceHash:string;rawHash:string;charCount:number;byteCount:number;encoding:ManuscriptEncoding;originalFileName:string|null;version:number}
+export interface ManuscriptSessionView {id:string;projectId:string;sourceId:string;version:number;status:string;source:ManuscriptSourceView;units:ManuscriptPartitionUnit[];coverage:ManuscriptCoverage|null;createdNovelId:string|null;text?:string}
+export interface ManuscriptUnitDetail extends ManuscriptWorkspaceUnit {content:string;originalText:string;updatedAt:string}
+export type ManuscriptStructureOperation = {kind:"insert_unit";afterUnitId:string|null;beforeUnitId:string|null;title:string;purpose:string} | {kind:"deactivate_unit";unitId:string;expectedUnitRevision:number} | {kind:"restore_unit";unitId:string;afterUnitId:string|null} | {kind:"merge_units";unitIds:string[];title:string};
+export interface ManuscriptProposalView {
+  id:string; kind:string; status:string; unitId:string|null; taskId?:string; error?:string|null; staleReasons?:string[]; warnings?:string[];
+  candidates?:ChapterEditorCandidate[]; diagnosticCards?:ChapterEditorDiagnosticCard[];
+  document?:OutlineDocument; candidateRevisionId?:string; outlineProjectId?:string; coverageHash?:string;
+  evidence?:Array<{unitId:string;quote:string;range:{start:number;end:number}}>;
+  coverage?:{totalUnits:number;coveredUnitIds:string[];totalChunks:number;completedChunks:number};
+  impact?:{before:string[];after:string[];affectedUnitIds:string[];references:string[];warnings:string[];invalidateFrom:number};
+  appliedReceipt?:{beforeContent?:string;afterHash?:string;synchronization?:string};
+  createdAt?:string;
+}
+export interface ManuscriptWorkspace {
+  project:{id:string;novelId:string;title:string;structureVersion:number;baselineOutlineRevisionId:string|null;baselineOutlineProjectId:string|null;workingOutlineProjectId:string|null;workingOutlineRevisionId:string|null;baselineSourceType?:string};
+  source:ManuscriptSourceView; units:ManuscriptWorkspaceUnit[]; currentUnit:ManuscriptUnitDetail|null; proposals:ManuscriptProposalView[];
+  syncState?:string;
+}
+export interface ManuscriptModelConfig {provider:LLMProvider;model:string;temperature:number;maxRequests?:number}
+export interface ManuscriptRevisionBase {expectedStructureVersion:number;baseUnitRevision:number;baseContentHash:string;baselineOutlineRevisionId:string|null;baseWorkingOutlineRevisionId:string|null;requestKey:string}

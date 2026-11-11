@@ -6,6 +6,8 @@ import { featureFlags } from "@/config/featureFlags";
 
 const Home = lazy(() => import("@/pages/Home"));
 const HelpPage = lazy(() => import("@/pages/help/HelpPage"));
+const ManuscriptImportPage = lazy(() => import("@/pages/novels/manuscript/ManuscriptImportPage"));
+const ManuscriptRevisionPage = lazy(() => import("@/pages/novels/manuscript/ManuscriptRevisionPage"));
 const NovelList = lazy(() => import("@/pages/novels/NovelList"));
 const NovelCreate = lazy(() => import("@/pages/novels/NovelCreate"));
 const CreationStudioPage = lazy(() => import("@/pages/creationStudio/CreationStudioPage"));
@@ -65,6 +67,8 @@ const routes: RouteObject[] = [
       { path: "outlines/:id/open-book", element: <OutlineOpenBookPage /> },
       { path: "create", element: <CreationStudioPage /> },
       { path: "novels/create", element: <NovelCreate /> },
+      { path: "novels/import-manuscript", element: <ManuscriptImportPage /> },
+      { path: "novels/:id/revision", element: <ManuscriptRevisionPage /> },
       { path: "novels/auto-director", element: <AutoDirectorCreatePage /> },
       { path: "novels/:id/simple", element: <SimpleNovelShelfPage /> },
       { path: "novels/:id/story", element: <ShortStoryStudioPage /> },
