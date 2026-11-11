@@ -13,3 +13,9 @@
 ## 维护规则
 
 来源不可经 PUT 覆写。修改章节工作稿不改变 sourceRanges；无原稿的新章用空 ranges 明确标识。规则识别不宣称模型已理解全书，用户必须核对区间和角色；无标题可明确确认全文一章。
+
+## 原子物化与只读对照
+
+导入确认在单个 Prisma 事务中创建 Novel、全部 Chapter 和稳定 Unit→Chapter 映射，再确认 Session；任一写入失败都回滚。章节正文直接采用 sourceText.slice，不 trim、补标题或调用 writer/diagnose。独立 importRequestKey 与 confirmedRequestKey 分别保护来源创建与物化重放，改载荷不能沿用原请求。
+
+工作稿 hash 使用原始正文 SHA256，不能拿派生同步中规范化空白的短 hash 代替保存 CAS。Source 下载返回原始字节；合并后对照按全部 sourceRanges 连接，不仅读第一段。初次导入不自动重放所有事实/时间线消费者。

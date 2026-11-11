@@ -14,7 +14,7 @@ export function decodeManuscript(raw: Buffer, requested?: ManuscriptEncoding): {
   else if (raw.length >= 2 && raw[0] === 0xfe && raw[1] === 0xff) { encoding = "utf-16be"; bytes = raw.subarray(2); }
   encoding ??= "utf-8";
   try {
-    const text = new TextDecoder(encoding, { fatal: true, ignoreBOM: false }).decode(bytes);
+    const text = new TextDecoder(encoding, { fatal: true, ignoreBOM: true }).decode(bytes);
     if (text.length > MAX_SOURCE_UNITS) throw new Error("MANUSCRIPT_CHARACTER_LIMIT");
     if (!text.trim()) throw new Error("MANUSCRIPT_EMPTY");
     return { text, encoding };
