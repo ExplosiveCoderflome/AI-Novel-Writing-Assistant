@@ -39,3 +39,4 @@ export * from "./types/creationStudio";
 export * from "./utils/bookAnalysisTimeline";
 
 export * from "./types/outlineOpenBook";
+export * from "./types/manuscript";
