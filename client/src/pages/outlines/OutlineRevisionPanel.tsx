@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import {
   compareOutlineRevisions,
+  getOutlineRevision,
   listOutlineRevisions,
   restoreOutlineRevision,
   type OutlineChange,
@@ -66,24 +67,24 @@ function VersionSelector({ label, value, versions, onChange }: {
   );
 }
 
-function FieldDiff({ field, before, after }: { field: string; before: unknown; after: unknown }) {
+function FieldDiff({ field, before, after, beforeDocument, afterDocument }: { field: string; before: unknown; after: unknown; beforeDocument?: OutlineDocument; afterDocument?: OutlineDocument }) {
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground">{outlineFieldLabels[field] ?? field}</p>
-      <dl className="mt-1 grid gap-2 sm:grid-cols-2">
-        <div className="bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">起始版本</dt><dd className="mt-1 whitespace-pre-wrap break-words text-xs">{formatOutlineValue(before)}</dd></div>
-        <div className="bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">目标版本</dt><dd className="mt-1 whitespace-pre-wrap break-words text-xs">{formatOutlineValue(after)}</dd></div>
+      <dl className="outline-comparison mt-1">
+        <div className="bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">起始版本</dt><dd className="mt-1 whitespace-pre-wrap break-words text-xs">{formatOutlineValue(before, field, beforeDocument)}</dd></div>
+        <div className="bg-muted/40 p-2"><dt className="text-xs text-muted-foreground">目标版本</dt><dd className="mt-1 whitespace-pre-wrap break-words text-xs">{formatOutlineValue(after, field, afterDocument)}</dd></div>
       </dl>
     </div>
   );
 }
 
-function ChangeDetails({ change, document }: { change: OutlineChange; document: OutlineDocument }) {
+function ChangeDetails({ change, beforeDocument, afterDocument }: { change: OutlineChange; beforeDocument: OutlineDocument; afterDocument: OutlineDocument }) {
   if (change.kind === "moved") {
     const before = asRecord(change.before);
     const after = asRecord(change.after);
-    const beforeParent = typeof before.parent === "string" && before.parent !== "story" ? findOutlineNodeTitle(document, before.parent) : "总纲";
-    const afterParent = typeof after.parent === "string" && after.parent !== "story" ? findOutlineNodeTitle(document, after.parent) : "总纲";
+    const beforeParent = typeof before.parent === "string" && before.parent !== "story" ? findOutlineNodeTitle(beforeDocument, before.parent) : "总纲";
+    const afterParent = typeof after.parent === "string" && after.parent !== "story" ? findOutlineNodeTitle(afterDocument, after.parent) : "总纲";
     return (
       <div className="mt-2 space-y-2">
         {before.parent !== after.parent ? <FieldDiff field="parent" before={beforeParent} after={afterParent} /> : null}
@@ -99,7 +100,7 @@ function ChangeDetails({ change, document }: { change: OutlineChange; document: 
     .filter(field => change.kind !== "updated" || JSON.stringify(before[field]) !== JSON.stringify(after[field]));
   return (
     <div className="mt-2 space-y-3">
-      {fields.map(field => <FieldDiff key={field} field={field} before={before[field]} after={after[field]} />)}
+      {fields.map(field => <FieldDiff key={field} field={field} before={before[field]} after={after[field]} beforeDocument={beforeDocument} afterDocument={afterDocument} />)}
     </div>
   );
 }
@@ -127,6 +128,10 @@ export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRe
     queryFn: () => compareOutlineRevisions(outlineId, fromVersion, toVersion),
     enabled: ordered.length > 1 && fromVersion > 0 && toVersion > 0 && fromVersion !== toVersion,
   });
+  const fromRevision = ordered.find(item => item.version === fromVersion);
+  const toRevision = ordered.find(item => item.version === toVersion);
+  const before = useQuery({ queryKey: ["outline-revision", outlineId, fromRevision?.id], queryFn: () => getOutlineRevision(outlineId, fromRevision!.id), enabled: !!fromRevision });
+  const after = useQuery({ queryKey: ["outline-revision", outlineId, toRevision?.id], queryFn: () => getOutlineRevision(outlineId, toRevision!.id), enabled: !!toRevision });
   const restore = useMutation({
     mutationFn: (revisionId: string) => restoreOutlineRevision(outlineId, revisionId, currentVersion),
     onSuccess: async () => {
@@ -134,7 +139,6 @@ export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRe
       onRestored();
     },
   });
-  const fromRevision = ordered.find(item => item.version === fromVersion);
 
   return (
     <section className="space-y-4 border-t border-border/50 pt-4">
@@ -164,15 +168,15 @@ export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRe
 
           {fromVersion === toVersion ? <p className="text-xs text-muted-foreground">请选择两个不同版本进行比较。</p> : null}
           {ordered.length < 2 ? <p className="text-xs text-muted-foreground">保存另一个修订后，就可以比较两版内容。</p> : null}
-          {diff.isLoading ? <p className="text-sm text-muted-foreground">正在比较所选修订…</p> : null}
-          {diff.isError ? <p role="alert" className="text-sm text-destructive">差异读取失败，请重新选择版本。</p> : null}
+          {diff.isLoading || before.isLoading || after.isLoading ? <p className="text-sm text-muted-foreground">正在比较所选修订…</p> : null}
+          {diff.isError || before.isError || after.isError ? <p role="alert" className="text-sm text-destructive">差异读取失败，请重新选择版本。</p> : null}
           {diff.data && !diff.data.length ? <p className="text-sm text-muted-foreground">两版之间没有内容差异。</p> : null}
-          {diff.data?.length ? (
+          {diff.data?.length && before.data && after.data ? (
             <ul className="space-y-4">
               {diff.data.map(change => (
                 <li key={`${change.kind}-${change.nodeId}`} className="bg-muted/25 p-3">
                   <p className="text-sm font-medium">{changeKindLabels[change.kind]} · {changeTitle(change)}</p>
-                  <ChangeDetails change={change} document={document} />
+                  <ChangeDetails change={change} beforeDocument={before.data?.document ?? document} afterDocument={after.data?.document ?? document} />
                 </li>
               ))}
             </ul>

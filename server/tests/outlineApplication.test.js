@@ -167,3 +167,48 @@ test('import confirmation persists edited titles, hierarchy and typed references
   assert.deepEqual(created.document.facts[0].scope, { type: 'chapter', nodeId: chapter.nodeId });
   assert.equal(volume1.nodeId !== volume2.nodeId, true);
 });
+
+
+test('Markdown book heading is the story title, not an empty volume, with original source coverage', async t => {
+  const text = '# 潮汐邮局\n\n## 第一卷：最后一封信\n### 第一章：空信封\n苏禾发现空信封。';
+  let promptText;
+  t.mock.method(promptRunner, 'runStructuredPrompt', async ({ promptInput }) => {
+    promptText = promptInput.text;
+    return { output: { nodes: [
+      { clientRef: 'v1', nodeType: 'volume', title: '第一卷：最后一封信', summary: '', planningDepth: 'rough', sourceFragment: '## 第一卷：最后一封信' },
+      { clientRef: 'c1', nodeType: 'chapter', parentRef: 'v1', title: '第一章：空信封', summary: '苏禾发现空信封。', planningDepth: 'detailed', sourceFragment: '### 第一章：空信封\n苏禾发现空信封。' },
+    ], unclassifiedFragments: [] } };
+  });
+  const preview = await new OutlineImportPreviewService({}).preview('u', '导入的大纲', text, 'markdown');
+  assert.equal(preview.document.story.title, '潮汐邮局');
+  assert.equal(preview.document.volumes.length, 1);
+  assert.equal(preview.document.volumes[0].title, '第一卷：最后一封信');
+  assert.equal(preview.document.chapters[0].volumeNodeId, preview.document.volumes[0].nodeId);
+  assert.equal(promptText.length, text.length);
+  assert.ok(!promptText.includes('潮汐邮局'));
+  assert.ok(preview.coverage.some(item => item.nodeId === preview.document.story.nodeId));
+  for (const item of preview.coverage) assert.equal(text.slice(item.start, item.end), item.text);
+});
+
+test('a top-level real volume heading is still parsed as a volume', async t => {
+  const text = '# 第一卷：启航\n故事开始。';
+  t.mock.method(promptRunner, 'runStructuredPrompt', async ({ promptInput }) => {
+    assert.equal(promptInput.text, text);
+    return { output: { nodes: [{ clientRef: 'v', nodeType: 'volume', title: '第一卷：启航', summary: '故事开始。', planningDepth: 'rough', sourceFragment: text }], unclassifiedFragments: [] } };
+  });
+  const preview = await new OutlineImportPreviewService({}).preview('u', '原书名', text, 'markdown');
+  assert.equal(preview.document.story.title, '原书名');
+  assert.equal(preview.document.volumes.length, 1);
+});
+
+
+test('a top-level category heading is not mistaken for a book title', async t => {
+  const text = '# 人物\n苏禾：邮差。';
+  t.mock.method(promptRunner, 'runStructuredPrompt', async ({ promptInput }) => {
+    assert.equal(promptInput.text, text);
+    return { output: { nodes: [{ clientRef: 'p', nodeType: 'character', title: '苏禾', summary: '邮差。', planningDepth: 'rough', sourceFragment: '苏禾：邮差。' }], unclassifiedFragments: [] } };
+  });
+  const preview = await new OutlineImportPreviewService({}).preview('u', '原书名', text, 'markdown');
+  assert.equal(preview.document.story.title, '原书名');
+  assert.equal(preview.document.characters[0].name, '苏禾');
+});

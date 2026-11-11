@@ -127,3 +127,5 @@ export const compareOutlineRevisions = async (id: string, from: number, to: numb
 export const restoreOutlineRevision = async (id: string, revisionId: string, expectedVersion: number) => (await apiClient.post(`/outlines/${id}/revisions/${revisionId}/restore`, { expectedVersion })).data.data as { revision: OutlineRevisionSummary; document: OutlineDocument };
 export const previewOutlineImport = async (input: { title: string; text: string; format: "markdown" | "text" }) => (await apiClient.post("/outlines/import/preview", input)).data.data as OutlineImportPreview;
 export const confirmOutlineImport = async (token: string, document: OutlineDocument) => (await apiClient.post("/outlines/import/confirm", { token, document })).data.data as { project: OutlineProject };
+
+export const getOutlineRevision = async (id: string, revisionId: string) => (await apiClient.get(`/outlines/${id}/revisions/${revisionId}`)).data.data as OutlineRevision;

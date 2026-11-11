@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getOutlineRevision, listOutlineRevisions } from "@/api/outlines";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type {
   OutlineInitialProposalPayload,
@@ -15,6 +17,7 @@ import {
   findOutlineNodeTitle,
   formatOutlineValue,
   outlineFieldLabels,
+  localizeOutlineText,
 } from "./outlineNodes";
 
 const operationKindLabels = {
@@ -51,18 +54,18 @@ interface OutlineProposalPanelProps {
 function operationTitle(operation: OutlineProposalOperation, document: OutlineDocument): string {
   const targetTitle = operation.nodeId ? findOutlineNodeTitle(document, operation.nodeId) : "";
   if (operation.kind === "add_node") {
-    const title = operation.fields?.title ?? operation.fields?.name ?? operation.clientRef ?? "新节点";
+    const title = operation.fields?.title ?? operation.fields?.name ?? "新节点";
     return `新增${operation.nodeType ? nodeTypeLabels[operation.nodeType] : "节点"}「${String(title)}」`;
   }
-  return `${operationKindLabels[operation.kind]}「${targetTitle || operation.nodeId || operation.clientRef || "节点"}」`;
+  return `${operationKindLabels[operation.kind]}「${targetTitle || "节点"}」`;
 }
 
-function FieldChanges({ operation, document }: { operation: OutlineProposalOperation; document: OutlineDocument }) {
+function FieldChanges({ operation, document, titles }: { operation: OutlineProposalOperation; document: OutlineDocument; titles: Record<string, string> }) {
   const target = operation.nodeId ? findOutlineNode(document, operation.nodeId) : undefined;
   const targetRecord = target as unknown as Record<string, unknown> | undefined;
   if (operation.kind === "move_node") {
     return (
-      <dl className="grid gap-2 text-xs sm:grid-cols-2">
+      <dl className="outline-comparison text-xs">
         <div><dt className="text-muted-foreground">原所属卷</dt><dd className="mt-1 whitespace-pre-wrap">{targetRecord?.volumeNodeId ? findOutlineNodeTitle(document, String(targetRecord.volumeNodeId)) : "（空）"}</dd></div>
         <div><dt className="text-muted-foreground">调整后所属卷</dt><dd className="mt-1 whitespace-pre-wrap">{operation.parentNodeId ? findOutlineNodeTitle(document, operation.parentNodeId) : "（空）"}</dd></div>
       </dl>
@@ -78,9 +81,9 @@ function FieldChanges({ operation, document }: { operation: OutlineProposalOpera
       {fields.map(([field, after]) => (
         <div key={field} className="text-xs">
           <p className="font-medium text-muted-foreground">{outlineFieldLabels[field] ?? field}</p>
-          <dl className="mt-1 grid gap-2 sm:grid-cols-2">
-            <div className="bg-muted/40 p-2"><dt className="text-muted-foreground">调整前</dt><dd className="mt-1 whitespace-pre-wrap break-words">{formatOutlineValue(targetRecord?.[field])}</dd></div>
-            <div className="bg-muted/40 p-2"><dt className="text-muted-foreground">调整后</dt><dd className="mt-1 whitespace-pre-wrap break-words">{formatOutlineValue(after)}</dd></div>
+          <dl className="outline-comparison mt-1">
+            <div className="bg-muted/40 p-2"><dt className="text-muted-foreground">调整前</dt><dd className="mt-1 whitespace-pre-wrap break-words">{formatOutlineValue(targetRecord?.[field], field, document)}</dd></div>
+            <div className="bg-muted/40 p-2"><dt className="text-muted-foreground">调整后</dt><dd className="mt-1 whitespace-pre-wrap break-words">{formatOutlineValue(after, field, document, titles)}</dd></div>
           </dl>
         </div>
       ))}
@@ -113,12 +116,26 @@ function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPa
   );
 }
 
-export function OutlineProposalPanel({ proposal, document, isApplying, onApply, onDiscard }: OutlineProposalPanelProps) {
+export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, onApply, onDiscard }: OutlineProposalPanelProps) {
+  const revisions = useQuery({ queryKey: ["outline-revisions", proposal.projectId], queryFn: () => listOutlineRevisions(proposal.projectId) });
+  const baseRevision = revisions.data?.find(item => item.version === proposal.baseVersion);
+  const base = useQuery({ queryKey: ["outline-revision", proposal.projectId, baseRevision?.id], queryFn: () => getOutlineRevision(proposal.projectId, baseRevision!.id), enabled: !!baseRevision });
+  const document = base.data?.document ?? currentDocument;
   const payload = useMemo(
     () => JSON.parse(proposal.proposalJson) as OutlineInitialProposalPayload | { operations: OutlineProposalOperation[] },
     [proposal.proposalJson],
   );
   const operations = "operations" in payload ? payload.operations : [];
+  const titles: Record<string, string> = {};
+  for (const operation of operations) {
+    const title = operation.fields?.title ?? operation.fields?.name;
+    if (typeof title === "string") {
+      if (operation.nodeId) titles[operation.nodeId] = title;
+      if (operation.clientRef) titles[operation.clientRef] = title;
+    }
+  }
+  const operationTitles = Object.fromEntries(operations.map(operation => [operation.operationId, operationTitle(operation, document)]));
+  const displayText = (text: string) => localizeOutlineText(text, operationTitles);
   const allOperationIds = useMemo(() => operations.map(operation => operation.operationId), [operations]);
   const [selectedIds, setSelectedIds] = useState<string[]>(allOperationIds);
   const selected = new Set(selectedIds);
@@ -134,8 +151,11 @@ export function OutlineProposalPanel({ proposal, document, isApplying, onApply, 
 
   const dependencyName = (operationId: string) => {
     const dependency = operations.find(operation => operation.operationId === operationId);
-    return dependency ? operationTitle(dependency, document) : operationId;
+    return dependency ? operationTitle(dependency, document) : "相关修改";
   };
+
+  if (revisions.isLoading || base.isLoading) return <p className="text-sm text-muted-foreground">正在读取提案基准修订…</p>;
+  if (revisions.isError || base.isError || !base.data) return <p role="alert" className="text-sm text-destructive">提案基准修订读取失败，请重新生成建议。</p>;
 
   return (
     <section className="space-y-4 border-t border-border/50 pt-4">
@@ -164,7 +184,7 @@ export function OutlineProposalPanel({ proposal, document, isApplying, onApply, 
                     />
                     <span className="text-sm font-medium">{operationTitle(operation, document)}</span>
                   </label>
-                  <p className="text-xs text-muted-foreground">建议理由：{operation.reason}</p>
+                  <p className="text-xs text-muted-foreground">建议理由：{displayText(operation.reason)}</p>
                   {operation.dependsOn.length ? (
                     <p className="text-xs text-muted-foreground">
                       前置依赖：{operation.dependsOn.map(dependencyName).join("、")}
@@ -175,11 +195,11 @@ export function OutlineProposalPanel({ proposal, document, isApplying, onApply, 
                       还需同时勾选：{ownMissing.dependencyIds.map(dependencyName).join("、")}
                     </p>
                   ) : null}
-                  <FieldChanges operation={operation} document={document} />
+                  <FieldChanges operation={operation} document={document} titles={titles} />
                   {operation.affectedNodeIds.length ? (
-                    <p className="text-xs text-muted-foreground">影响范围：{operation.affectedNodeIds.map(id => findOutlineNodeTitle(document, id)).join("、")}</p>
+                    <p className="text-xs text-muted-foreground">影响范围：{operation.affectedNodeIds.map(id => titles[id] ?? findOutlineNodeTitle(document, id)).join("、")}</p>
                   ) : null}
-                  {operation.risks.length ? <p className="text-xs text-amber-700 dark:text-amber-400">需要注意：{operation.risks.join("；")}</p> : null}
+                  {operation.risks.length ? <p className="text-xs text-amber-700 dark:text-amber-400">需要注意：{displayText(operation.risks.join("；"))}</p> : null}
                 </li>
               );
             })}
