@@ -63,9 +63,8 @@ export default function OutlineOpenBookPage() {
   const checked=matches ? preview.data : undefined;
   return <main className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col gap-4" aria-label="按大纲开书预览">
     <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/50 pb-4"><div><p className="text-xs text-muted-foreground">大纲 / {outline.data?.title}</p><h1 className="mt-1 text-2xl font-semibold">把这份大纲带入小说创作</h1><p className="mt-2 text-sm text-muted-foreground">来源：修订 v{revision.version}{revision.version!==currentVersion ? ` · 当前为 v${currentVersion}，本次仍只使用所选版本` : " · 只使用这一版"}；待采纳建议不包含在内。</p></div>{back}</header>
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="min-w-0 space-y-6">
+    <div className="grid min-h-0 flex-1 gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="min-h-0 min-w-0 space-y-6 overflow-y-auto overscroll-contain pr-2">
           <section className="space-y-4"><h2 className="text-lg font-semibold">作品设置</h2>
             <label className="block space-y-1.5"><span className="text-sm">书名</span><input className="h-10 w-full rounded-md border border-input bg-background px-3" value={title} onChange={event=>setTitle(event.target.value)}/></label>
             <div className="grid grid-cols-2 gap-4"><label className="space-y-1.5 text-sm"><span className="block">目标章数</span><input aria-label="目标章数" className="h-10 w-full rounded-md border border-input bg-background px-3" type="number" min={1} max={2000} value={count} onChange={event=>{const total=Number(event.target.value);setCount(total);setQuotas(suggestVolumeQuotas(document,total));}}/></label><label className="space-y-1.5 text-sm"><span className="block">每章约多少字</span><input aria-label="每章约多少字" className="h-10 w-full rounded-md border border-input bg-background px-3" type="number" min={500} max={10000} value={length} onChange={event=>setLength(Number(event.target.value))}/></label></div>
@@ -74,14 +73,13 @@ export default function OutlineOpenBookPage() {
           <section className="space-y-3 border-t border-border/50 pt-5"><h2 className="text-lg font-semibold">保留什么</h2><p className="text-sm leading-6 text-muted-foreground">保留大纲中已填写的内容；空白字段可补充，不可违背的固定设定始终约束写作。</p>{document.facts.filter(fact=>fact.immutable).map(fact=><p key={fact.nodeId} className="text-sm leading-6"><strong>{fact.title}：</strong>{fact.content}</p>)}<Button variant="ghost" size="sm" onClick={()=>setShowDetails(value=>!value)} aria-expanded={showDetails}>{showDetails ? "收起保留明细" : "展开保留明细"}</Button>{showDetails ? checked ? <OutlinePreservationDetails policy={checked.policy} document={document}/> : <p className="text-sm text-muted-foreground">先检查开书内容，查看逐字段保留明细。</p> : null}</section>
           <section className="space-y-3 border-t border-border/50 py-5"><h2 className="text-lg font-semibold">补充什么</h2><p className="text-sm leading-6 text-muted-foreground">远期保持卷纲，临近写作时再安排章节。开书后先确认各阶段准备，再明确授权单章正文。</p><p className="text-xs text-muted-foreground">本地未保存的修改和待采纳的 AI 建议不会进入这次开书。</p></section>
         </section>
-        <aside className="space-y-4 rounded-lg bg-muted/30 p-5 lg:sticky lg:top-0" aria-label="本次交接"><h2 className="text-lg font-semibold">本次交接</h2>{checked ? <>
+        <aside className="min-h-0 space-y-4 overflow-y-auto overscroll-contain rounded-lg bg-muted/30 p-5" aria-label="本次交接"><h2 className="text-lg font-semibold">本次交接</h2>{checked ? <>
           <p className="text-sm leading-7">{checked.counts.volumes} 卷 · {checked.counts.chapters} 份已有章纲<br/>{checked.counts.characters} 位人物草案 · {checked.counts.payoffs} 条伏笔计划</p>
           <div className="space-y-3 border-t border-border/50 pt-4"><h3 className="text-sm font-medium">每卷章数与全书章序</h3>{checked.mapping.volumes.map(volume=><section key={volume.nodeId} className="text-sm"><p className="font-medium">{findOutlineNodeTitle(document,volume.nodeId)}</p><p className="mt-1 tabular-nums text-muted-foreground">预计 {volume.chapterQuota} 章 · 第 {volume.from}–{volume.to} 章</p>{checked.mapping.chapters.filter(chapter=>chapter.volumeId===volume.volumeId).map(chapter=><p key={chapter.nodeId} className="mt-1 text-xs leading-6 text-muted-foreground">第 {chapter.chapterOrder} 章 · {findOutlineNodeTitle(document,chapter.nodeId)}</p>)}</section>)}</div>
           <p className="text-xs leading-6 text-muted-foreground">仅创建上述已有章纲；未展开位置只保留预算。伏笔作为计划显示，有正文证据后才关联实际台账。</p>
           {checked.warnings.map((warning,index)=><p key={index} className="text-sm leading-6 text-warning">{warning}</p>)}
           <label className="flex cursor-pointer items-start gap-2 border-t border-border/50 pt-4 text-sm leading-6"><input type="checkbox" className="mt-1 shrink-0 accent-primary" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>确认每卷章数、章序区间与保留内容，只采用修订 v{checked.revisionVersion}</span></label>
         </> : <p className="text-sm leading-7 text-muted-foreground">核对作品设置与篇幅分配后，检查本次开书内容。</p>}</aside>
-      </div>
     </div>
     {unsaved ? <p role="alert" className="shrink-0 text-sm text-warning">工作台有未保存的修改。请返回大纲保存后再开书。</p> : null}
     {error ? <div role="alert" className="flex shrink-0 flex-wrap items-center gap-2 text-sm text-destructive"><span>{error.message}</span><Button variant="ghost" size="sm" onClick={()=>void Promise.all([binding.refetch(),outline.refetch(),revisions.refetch()])}>重新检查来源与绑定</Button>{back}</div> : null}

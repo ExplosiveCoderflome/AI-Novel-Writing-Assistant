@@ -3,6 +3,7 @@ import {Link} from "react-router-dom";
 import {getOutlineRevision} from "@/api/outlines";
 import type {OutlineBookBindingView} from "@ai-novel/shared/types/outlineOpenBook";
 import {Button} from "@/components/ui/button";
+import {OutlineSetupRecovery} from "./OutlineSetupRecovery";
 import {OutlinePreservationDetails} from "./OutlinePreservationDetails";
 import {findOutlineNodeTitle,formatOutlineValue,outlineFieldLabels} from "@/pages/outlines/outlineNodes";
 
@@ -24,6 +25,6 @@ export function OutlineBookSource({binding}:{binding:OutlineBookBindingView}) {
       const fields=[...new Set([...Object.keys(before ?? {}),...Object.keys(after ?? {})])].filter(key=>key!=="nodeId" && JSON.stringify(before?.[key])!==JSON.stringify(after?.[key]));
       return <section key={`${change.nodeId}:${index}`} className="border-t border-border/40 pt-2"><h3 className="text-sm font-medium">{kinds[change.kind]} · {title}</h3>{change.kind==="moved" ? <p className="text-xs leading-6 text-muted-foreground">节点位置有调整；本书仍保留原位置。</p> : null}{fields.filter(field=>outlineFieldLabels[field]).map(field=><div key={field} className="mt-2 text-xs leading-6"><p className="font-medium">{outlineFieldLabels[field]}</p><p className="text-muted-foreground">采用版本：{formatOutlineValue(before?.[field],field,source.data?.document)}</p><p>新修订：{formatOutlineValue(after?.[field],field,source.data?.document)}</p></div>)}</section>;
     })}<Button asChild variant="ghost" size="sm"><Link to={`/outlines/${binding.projectId}`}>在大纲工作台查看版本</Link></Button></div></details> : null}
-    {binding.setupState.error ? <p role="alert" className="mt-2 text-xs text-warning">资料索引待恢复，请回到源大纲检查后处理；无需重新开书。</p> : null}
+    {binding.setupState.error ? <OutlineSetupRecovery binding={binding}/> : null}
   </section>;
 }

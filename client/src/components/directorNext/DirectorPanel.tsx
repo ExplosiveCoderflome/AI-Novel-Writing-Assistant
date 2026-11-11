@@ -14,6 +14,7 @@ import WorkflowProgressBar from "@/components/workflow/WorkflowProgressBar";
 interface DirectorPanelProps {
   view: DashboardView;
   novelId: string;
+  outlineBound?: boolean;
   timeline?: DirectorTimelineEvent[];
   preview?: boolean;
   startForm?: ReactNode | ((range: DashboardView["nextLaunchRange"], driver: DashboardView["driver"]) => ReactNode);
@@ -41,7 +42,7 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion, renderPlanEditor }: DirectorPanelProps) {
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion, renderPlanEditor, outlineBound = false }: DirectorPanelProps) {
   const candidates = useDirectorCharacterCandidates(view.runId, !preview);
   const candidatePage = candidates.data?.data;
   const reviewingCharacters = candidatePage?.reviews.some(r => r.blocking) ?? false;
@@ -58,7 +59,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
 
   return (
     <aside className="flex min-h-0 flex-col gap-0 bg-background" aria-label="小说导演台">
-      <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} />
+      <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} openRunLabel={outlineBound ? "选择下一章并确认" : undefined} />
       {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}/> : null}
       {candidates.isError ? <p role="alert" className="py-2 text-xs text-destructive">人物候选暂时未能加载，请稍后重试。</p> : null}
       {view.mode === "paused" && view.chapterBudget ? <ChapterBudgetRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.chapterBudget.chapterId}`}
@@ -66,7 +67,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
       {view.mode === "paused" && view.unknownClaims ? <UnknownClaimsRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.unknownClaims.chapterId}`}
         claims={view.unknownClaims} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
       {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={view.availableActions.find(action=>action.kind==="navigate" && action.target===reviewTarget)?.id.slice("review:".length)} renderPlanEditor={renderPlanEditor}/>:null}
-      {driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
+      {!outlineBound && driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-current-work">
         <div className="flex items-center gap-2 text-sm font-semibold" id="director-current-work">

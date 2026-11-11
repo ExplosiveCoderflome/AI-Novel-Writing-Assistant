@@ -86,7 +86,7 @@ export function formatOutlineValue(value: unknown, field = "", document?: Outlin
   }
   if (typeof value === "string") {
     if (/NodeIds?$/.test(field)) return titles[value] ?? (document ? findOutlineNodeTitle(document, value) : "（已删除的节点）");
-    const labels: Record<string, string> = { rough: "粗纲", detailed: "细纲", story: "全书", volume: "卷", chapter: "章节", character: "人物", payoff: "伏笔", fact: "固定设定", other: "其他", hook: "钩子", foreshadowing: "伏笔" };
+    const labels: Record<string, string> = { rough: "粗纲", detailed: "细纲", story: "全书", volume: "卷", chapter: "章节", character: "人物", payoff: "伏笔", fact: "固定设定", other: "其他", hook: "钩子", foreshadowing: "伏笔", promise: "承诺", mystery: "悬念" };
     return ["planningDepth", "kind", "category", "type"].includes(field) ? labels[value] ?? value : value;
   }
   if (typeof value === "boolean") return value ? "是" : "否";

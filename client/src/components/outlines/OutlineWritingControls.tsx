@@ -28,7 +28,7 @@ export default function OutlineWritingControls({book,initialStory,worldId}:{book
       launchInput:{storyInput:initialStory,estimatedChapterCount:total,worldMode:worldId ? "reuse" : "skip",targetMode:"opening",provider:model.provider,model:model.model,temperature:model.temperature,
         ...(action!=="opening" ? {executionRange:{from:order,to:order}} : {})}});
   },onSuccess:async()=>{setConfirmed(false);await Promise.all([queries.invalidateQueries({queryKey:queryKeys.directorNext.summary(book.novel.id)}),queries.invalidateQueries({queryKey:queryKeys.directorNext.detail(book.novel.id)}),queries.invalidateQueries({queryKey:["directorBookWorkspace",book.novel.id]})]);}});
-  return <section className="space-y-4 border-t border-border/50 py-4" aria-label="按大纲逐章确认">
+  return <section id="director-start" className="space-y-4 border-t border-border/50 py-4" aria-label="按大纲逐章确认">
     <h2 className="text-sm font-semibold">下一步写哪章</h2><p className="text-xs leading-6 text-muted-foreground">分阶段查看并确认补缺结果。准备章节不会生成正文；写完后先阅读修改，再推进下一章。</p>
     <Button variant="secondary" className="w-full" disabled={mutation.isPending} onClick={()=>mutation.mutate("opening")}>补齐开写准备</Button>
     <label className="flex items-center justify-between gap-3 text-sm">当前章<input aria-label="当前章" className="h-9 w-24 rounded-md border border-input bg-background px-3 text-right" type="number" min={1} max={total} value={order} onChange={event=>{setOrder(Number(event.target.value));setConfirmed(false);}}/></label>
