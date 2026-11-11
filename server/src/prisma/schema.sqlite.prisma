@@ -2106,6 +2106,54 @@ model VolumePlanVersion {
   @@index([novelId, status, version])
 }
 
+model OutlineProject {
+  id                String   @id @default(cuid())
+  title             String
+  summary           String?
+  status            String   @default("active")
+  currentVersion    Int      @default(0)
+  currentRevisionId String?
+  boundNovelId      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  revisions         OutlineRevision[]
+  proposals         OutlineProposal[]
+  @@index([updatedAt])
+}
+
+model OutlineRevision {
+  id               String   @id @default(cuid())
+  projectId        String
+  version          Int
+  parentRevisionId String?
+  documentJson     String
+  sourceType       String
+  sourceProposalId String?
+  diffSummary      String?
+  createdAt        DateTime @default(now())
+  project          OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([projectId, version])
+  @@index([projectId, createdAt])
+}
+
+model OutlineProposal {
+  id            String   @id @default(cuid())
+  projectId     String
+  baseVersion   Int
+  kind          String
+  status        String
+  requestText   String?
+  proposalJson  String
+  sourceText    String?
+  promptId      String?
+  promptVersion String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  project       OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, status, createdAt])
+  @@index([projectId, baseVersion])
+}
+
 model VolumePlan {
   id                String             @id @default(cuid())
   novelId           String

@@ -32,6 +32,7 @@ export * from "./types/autoDirectorValidation";
 export * from "./types/marketRadar";
 export * from "./types/novelWorkflow";
 export * from "./types/onboarding";
+export * from "./types/outline";
 export * from "./types/volumePlanning";
 export * from "./types/canonicalState";
 export * from "./types/creationStudio";
