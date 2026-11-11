@@ -8,10 +8,10 @@ const id = z.string().min(1);
 const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await handler(req, res) }); } catch (error) { next(error); } };
 router.get("/", route(async req => outlineProjectService.list()));
 router.post("/", route(async req => outlineProjectService.create(z.object({ title: z.string().min(1).max(200).optional() }).parse(req.body).title), 201));
-router.get("/import-preview/:token", route(async () => { throw new Error("请在导入预览提交后确认"); }));
 router.post("/import/preview", route(async req => {
   const body = z.object({ title: z.string().min(1).max(200), text: z.string().min(1), format: z.enum(["markdown", "text"]) }).parse(req.body);
-  return outlineImportPreviewService.preview(String(req.user?.id ?? "anonymous"), body.title, body.text, body.format);
+  const preview = await outlineImportPreviewService.preview(String(req.user?.id ?? "anonymous"), body.title, body.text, body.format);
+  return { ...preview, document: preview.document, unclassified: preview.unclassified };
 }));
 router.post("/import/confirm", route(async req => {
   const body = z.object({ token: id, projectId: id.optional(), expectedVersion: z.number().int().optional() }).parse(req.body);

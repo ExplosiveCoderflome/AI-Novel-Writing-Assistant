@@ -46,6 +46,8 @@ const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"
 const DirectorRunHistoryPage = lazy(() => import("@/pages/directorNext/DirectorRunHistoryPage"));
 const DirectorNovelPage = lazy(() => import("@/pages/directorNext/DirectorNovelPage"));
 const NovelUsagePage = lazy(() => import("@/pages/novelUsage/NovelUsagePage"));
+const OutlineListPage = lazy(() => import("@/pages/outlines/OutlineListPage"));
+const OutlineWorkspacePage = lazy(() => import("@/pages/outlines/OutlineWorkspacePage"));
 
 const routes: RouteObject[] = [
   {
@@ -57,6 +59,8 @@ const routes: RouteObject[] = [
       { path: "lab/director", element: <DirectorRunHistoryPage /> },
       { path: "lab/director/:novelId", element: <DirectorNovelPage /> },
       { path: "novels", element: <NovelList /> },
+      { path: "outlines", element: <OutlineListPage /> },
+      { path: "outlines/:id", element: <OutlineWorkspacePage /> },
       { path: "create", element: <CreationStudioPage /> },
       { path: "novels/create", element: <NovelCreate /> },
       { path: "novels/auto-director", element: <AutoDirectorCreatePage /> },
