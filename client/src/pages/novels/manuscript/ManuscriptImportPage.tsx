@@ -19,6 +19,7 @@ function DesktopManuscriptImport() {
   const [params,setParams]=useSearchParams();
   const sessionId=params.get("sessionId")??"";
   const [title,setTitle]=useState("");
+  const [narrativeForm,setNarrativeForm]=useState<"long_novel"|"short_story">("long_novel");
   const [mode,setMode]=useState<"upload"|"paste">("upload");
   const [file,setFile]=useState<File|null>(null),[pastedText,setPastedText]=useState("");
   const [encoding,setEncoding]=useState<ManuscriptEncoding>("utf-8");
@@ -38,14 +39,14 @@ function DesktopManuscriptImport() {
   const source=useQuery({queryKey:["manuscript-source",session?.source.sourceHash,from,to],queryFn:()=>getManuscriptSourceText(session!.projectId,session!.sourceId,from,to),enabled:!!session && to>from});
   const changed=!!session && JSON.stringify(draft)!==JSON.stringify(session.units);
   const upload=useMutation({mutationFn:async()=>{
-    const created=await createManuscriptImport({title:title.trim(),pastedText:mode==="paste"?pastedText:undefined,encoding,narrativeForm:"long_novel",requestKey:importKey.current},mode==="upload"?file??undefined:undefined);
+     const created=await createManuscriptImport({title:title.trim(),pastedText:mode==="paste"?pastedText:undefined,encoding,narrativeForm,requestKey:importKey.current},mode==="upload"?file??undefined:undefined);
     setParams({sessionId:created.sessionId});
-    const stored=await getManuscriptSession(created.sessionId);
+     const stored=await getManuscriptSession(created.sessionId);
     return splitManuscript(stored);
   },onSuccess:value=>cache.setQueryData(["manuscript-import",value.id],value)});
   const resplit=useMutation({mutationFn:()=>splitManuscript(session!),onSuccess:value=>cache.setQueryData(["manuscript-import",sessionId],value)});
   const save=useMutation({mutationFn:()=>saveManuscriptPartition(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,units:draft}),onSuccess:value=>cache.setQueryData(["manuscript-import",sessionId],value)});
-  const create=useMutation({mutationFn:()=>confirmManuscriptImport(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,coverageHash:session!.coverage!.coverageHash,title:title.trim(),requestKey:confirmKey.current}),onSuccess:result=>navigate(`/novels/${result.novelId}/revision`)});
+   const create=useMutation({mutationFn:()=>confirmManuscriptImport(sessionId,{expectedSessionVersion:session!.version,sourceHash:session!.source.sourceHash,coverageHash:session!.coverage!.coverageHash,title:title.trim(),requestKey:confirmKey.current}),onSuccess:result=>navigate(`/novels/${result.novelId}/revision`)});
   const error=localError||upload.error?.message||save.error?.message||create.error?.message||resplit.error?.message;
   const busy=upload.isPending||save.isPending||create.isPending||resplit.isPending;
   const updateSelected=(patch:Partial<ManuscriptPartitionUnit>)=>setDraft(items=>items.map(item=>item.draftId===selectedId?{...item,...patch}:item));
@@ -58,8 +59,9 @@ function DesktopManuscriptImport() {
     <header className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4"><div><p className="text-xs text-muted-foreground">小说 / 导入原稿</p><h1 className="mt-1 text-xl font-semibold">建立一份可追溯的修订副本</h1><p className="mt-2 text-sm text-muted-foreground">原文件和原文永久保留；每次修文都先比较，再由你采纳。</p></div><Button asChild variant="ghost"><Link to="/novels">返回小说</Link></Button></header>
     <ol aria-label="导入步骤" className="flex shrink-0 gap-6 text-sm"><li className={!session?"font-medium":"text-muted-foreground"}>1 上传原稿</li><li className={session?"font-medium":"text-muted-foreground"}>2 确认全量分章</li><li className="text-muted-foreground">3 创建修订副本</li></ol>
     {!sessionId?<div className="grid min-h-0 flex-1 gap-8 overflow-auto lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="max-w-3xl space-y-5 pb-4"><label className="block space-y-2 text-sm"><span>作品名</span><input className="manuscript-field" value={title} onChange={e=>setTitle(e.target.value)} placeholder="为修订副本取个名字" maxLength={200}/></label>
-        <div className="flex gap-2" aria-label="原稿输入方式"><Button variant={mode==="upload"?"secondary":"ghost"} onClick={()=>setMode("upload")}>上传 TXT</Button><Button variant={mode==="paste"?"secondary":"ghost"} onClick={()=>setMode("paste")}>粘贴全文</Button></div>
+       <div className="max-w-3xl space-y-5 pb-4"><label className="block space-y-2 text-sm"><span>作品名</span><input className="manuscript-field" value={title} onChange={e=>setTitle(e.target.value)} placeholder="为修订副本取个名字" maxLength={200}/></label>
+         <label className="block space-y-2 text-sm"><span>作品形式</span><select className="manuscript-field max-w-48" value={narrativeForm} onChange={e=>{setNarrativeForm(e.target.value as "long_novel"|"short_story");importKey.current=crypto.randomUUID();}}><option value="long_novel">长篇小说</option><option value="short_story">短篇小说</option></select></label><p className="text-sm text-muted-foreground">短篇按你确认的分节形成 Segment；没有标题时可将全文确认成一节。</p>
+         <div className="flex gap-2" aria-label="原稿输入方式"><Button variant={mode==="upload"?"secondary":"ghost"} onClick={()=>setMode("upload")}>上传 TXT</Button><Button variant={mode==="paste"?"secondary":"ghost"} onClick={()=>setMode("paste")}>粘贴全文</Button></div>
         {mode==="upload"?<label className="flex min-h-52 cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-input bg-muted/20 px-6 py-8 text-center"><span className="text-base font-medium">选择 TXT 原稿</span><span className="text-sm text-muted-foreground">完整保留字节与换行，不会覆盖已有作品</span><input type="file" accept=".txt,text/plain" aria-label="选择 TXT 原稿" onChange={e=>{const picked=e.target.files?.[0]??null;setFile(picked);if(picked&&!title)setTitle(picked.name.replace(/\.txt$/i,""));importKey.current=crypto.randomUUID();}} className="sr-only"/><span className="rounded-md bg-secondary px-4 py-2 text-sm text-secondary-foreground">选择 TXT 文件</span>{file?<span className="text-sm tabular-nums">{file.name} · {file.size.toLocaleString()} 字节</span>:null}</label>:<label className="block space-y-2 text-sm"><span>原稿全文</span><textarea aria-label="原稿全文" className="manuscript-field min-h-72 font-sans leading-7" value={pastedText} onChange={e=>{setPastedText(e.target.value);importKey.current=crypto.randomUUID();}} placeholder="粘贴包含目录、前言与结尾的完整稿件"/></label>}
         <label className="flex items-center gap-3 text-sm"><span>文本编码</span><select aria-label="文本编码" className="manuscript-field max-w-48" value={encoding} onChange={e=>{setEncoding(e.target.value as ManuscriptEncoding);importKey.current=crypto.randomUUID();}}><option value="utf-8">UTF-8（默认）</option><option value="utf-16le">UTF-16 LE</option><option value="utf-16be">UTF-16 BE</option><option value="gb18030">GB18030</option></select></label>
         <p className="text-xs leading-6 text-muted-foreground">文件上限 20 MiB、300 万字符。解码失败会要求重新选择，不会忽略乱码或截去书尾。</p>
@@ -80,7 +82,7 @@ function DesktopManuscriptImport() {
           <label className="flex items-start gap-2 text-sm leading-6"><input type="checkbox" className="mt-1 accent-primary" checked={!selected.needsReview} onChange={e=>updateSelected({needsReview:!e.target.checked})}/><span>确认此区域的标题、边界与归属</span></label>
         </>:<ManuscriptNotice>尚未确认章节边界。可以明确将全文作为一章，再按需切分。</ManuscriptNotice>}</section>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3"><div><p className="text-sm tabular-nums">服务端覆盖：{coverage?.complete?"100%":"未完整"} · {coverage?.bodyUnitCount??0} 章 / {coverage?.attachmentUnitCount??0} 附属区 · 待确认 {coverage?.unresolvedCount??0}</p><p className="mt-1 text-xs text-muted-foreground">{changed?"边界有未保存修改，请先校验并保存。":"目录与前后文会保留在原稿中，不混进正文。"}</p></div><div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" disabled={busy} onClick={()=>setDraft(items=>items.map(item=>({...item,needsReview:false})))}>确认全部区域</Button><Button variant="secondary" disabled={busy||!changed} onClick={()=>save.mutate()}>{save.isPending?"校验中…":"校验并保存分章"}</Button></div></div>
+       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3"><div><p className="text-sm tabular-nums">服务端覆盖：{coverage?.complete?"100%":"未完整"} · {coverage?.bodyUnitCount??0} {narrativeForm==="short_story"?"节":"章"} / {coverage?.attachmentUnitCount??0} 附属区 · 待确认 {coverage?.unresolvedCount??0}</p><p className="mt-1 text-xs text-muted-foreground">{changed?"边界有未保存修改，请先校验并保存。":"目录与前后文会保留在原稿中，不混进正文。"}</p></div><div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" disabled={busy} onClick={()=>setDraft(items=>items.map(item=>({...item,needsReview:false})))}>确认全部区域</Button><Button variant="secondary" disabled={busy||!changed} onClick={()=>save.mutate()}>{save.isPending?"校验中…":"校验并保存分章"}</Button></div></div>
       <label className="flex shrink-0 items-center gap-2 text-sm"><input type="checkbox" checked={confirmed} disabled={!valid} onChange={e=>setConfirmed(e.target.checked)} className="accent-primary"/>确认全量分章，只复制原文建立一本新的修订副本</label>
     </>:null}
     {error?<ManuscriptNotice error>{error}</ManuscriptNotice>:null}

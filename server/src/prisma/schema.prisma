@@ -512,7 +512,7 @@ model CreationStudioConfirmation {
 model ShortStoryPlan {
   id                String   @id @default(cuid())
   novelId           String   @unique
-  intentVersionId   String
+  intentVersionId   String?
   status            String   @default("planning")
   targetWordCount   Int
   endingPromise     String
@@ -521,7 +521,7 @@ model ShortStoryPlan {
   auditResultJson   String?
   schemaVersion     Int      @default(1)
   novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  intentVersion     NovelIntentVersion @relation(fields: [intentVersionId], references: [id], onDelete: Restrict)
+  intentVersion     NovelIntentVersion? @relation(fields: [intentVersionId], references: [id], onDelete: Restrict)
   segments          ShortStorySegment[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

@@ -16,22 +16,30 @@ import type {ModelInput} from "./ManuscriptBaselineService";
 export type RevisionBase=import("@ai-novel/shared/types/manuscript").ManuscriptRevisionBase;
 export function validateManuscriptRevisionBase(snapshot:ManuscriptSnapshot,input:RevisionBase){if(snapshot.structureVersion!==input.expectedStructureVersion||snapshot.unitRevision!==input.baseUnitRevision||snapshot.contentHash!==input.baseContentHash||snapshot.baselineRevisionId!==input.baselineOutlineRevisionId||snapshot.workingRevisionId!==input.baseWorkingOutlineRevisionId)throw Error("REVISION_BASE_STALE");}
 async function persistContent(tx:ManuscriptDb,projectId:string,unitId:string,snapshot:ManuscriptSnapshot,content:string){
- const lock=await tx.manuscriptProject.updateMany({where:{id:projectId,structureVersion:snapshot.structureVersion},data:{structureVersion:snapshot.structureVersion}});if(!lock.count)throw Error("REVISION_BASE_STALE");
+  const lock=await tx.manuscriptProject.updateMany({where:{id:projectId,structureVersion:snapshot.structureVersion},data:{structureVersion:snapshot.structureVersion}});if(!lock.count)throw Error("REVISION_BASE_STALE");
  await assertManuscriptSnapshot(tx,projectId,snapshot);const s=await readManuscriptState(tx,projectId,unitId);if(s.unit!.status!=="active")throw Error("UNIT_INACTIVE");
- const changed=await tx.manuscriptUnit.updateMany({where:{id:unitId,status:"active",workingRevision:snapshot.unitRevision!,contentHash:snapshot.contentHash},data:{workingRevision:{increment:1},contentHash:sha256(content)}});if(!changed.count)throw Error("REVISION_BASE_STALE");
- await saveManualChapterContent(tx,s.chapter!,content);
- const laterChapterIds=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>s.unit!.displayOrder).map(unit=>unit.chapterId!).filter(Boolean);
+  const changed=await tx.manuscriptUnit.updateMany({where:{id:unitId,status:"active",workingRevision:snapshot.unitRevision!,contentHash:snapshot.contentHash},data:{workingRevision:{increment:1},contentHash:sha256(content)}});if(!changed.count)throw Error("REVISION_BASE_STALE");
+  if(s.unit!.segmentId){
+   const previousVersion=(s.chapter as {version:number}).version;
+   const prior=await tx.shortStorySegment.findUniqueOrThrow({where:{id:s.unit!.segmentId}});
+   const history=prior.humanSnapshotJson?JSON.parse(prior.humanSnapshotJson) as unknown[]:[];
+   const changedSegment=await tx.shortStorySegment.updateMany({where:{id:s.unit!.segmentId,novelId:s.project.novelId!,version:previousVersion},data:{content,version:{increment:1},status:"completed",userEditedAt:new Date(),humanSnapshotJson:JSON.stringify([...history.slice(-9),{content:s.chapter!.content??"",version:previousVersion,createdAt:new Date().toISOString()}])}});
+   if(!changedSegment.count)throw Error("REVISION_BASE_STALE");
+  }else await saveManualChapterContent(tx,s.chapter!,content);
+  const laterChapterIds=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>s.unit!.displayOrder).map(unit=>unit.chapterId!).filter(Boolean);
  await tx.chapterArtifactSyncCheckpoint.updateMany({where:{novelId:s.project.novelId!,chapterId:{in:laterChapterIds},status:{in:["pending","running","succeeded","failed"]}},data:{status:"superseded"}});
- for(const chapterId of laterChapterIds)await supersedeChapterTimeline(tx,{novelId:s.project.novelId!,chapterId});
+  for(const chapterId of laterChapterIds)await supersedeChapterTimeline(tx,{novelId:s.project.novelId!,chapterId});
+  const laterSegmentIds=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>s.unit!.displayOrder&&unit.segmentId).map(unit=>unit.segmentId!);
+  if(laterSegmentIds.length)await tx.shortStorySegment.updateMany({where:{id:{in:laterSegmentIds},novelId:s.project.novelId!},data:{qualityResultJson:null}});
  await tx.manuscriptRevisionProposal.updateMany({where:{projectId,status:{in:["pending","generating"]},unitId:{in:s.units.filter(unit=>unit.status==="active"&&unit.displayOrder>=s.unit!.displayOrder).map(unit=>unit.id)}},data:{status:"stale"}});
- return {unitId,beforeContent:s.chapter!.content??"",afterContent:content,beforeHash:snapshot.contentHash,afterHash:sha256(content),beforeUnitRevision:snapshot.unitRevision,afterUnitRevision:snapshot.unitRevision!+1,structureVersion:snapshot.structureVersion,synchronization:"pending"};
+  return {unitId,beforeContent:s.chapter!.content??"",afterContent:content,beforeHash:snapshot.contentHash,afterHash:sha256(content),beforeUnitRevision:snapshot.unitRevision,afterUnitRevision:snapshot.unitRevision!+1,structureVersion:snapshot.structureVersion,synchronization:s.unit!.segmentId?"not_requested":"pending"};
 }
 export class ManuscriptRevisionService {
  private async preview(projectId:string,unitId:string,kind:string,input:RevisionBase&ModelInput&{operation?:ChapterEditorOperation;instruction?:string;selection?:ChapterEditorTargetRange},original=false){
   const payloadHash=sha256(JSON.stringify({unitId,kind,...input})),old=await prisma.manuscriptRevisionProposal.findUnique({where:{requestKey:input.requestKey}});
   if(old){if(old.projectId!==projectId||old.payloadHash!==payloadHash)throw Error("REQUEST_KEY_CONFLICT");return new ManuscriptWorkspaceService().proposalView(old);}
   const s=await readManuscriptState(prisma,projectId,unitId),snapshot=await takeManuscriptSnapshot(prisma,projectId,unitId);validateManuscriptRevisionBase(snapshot,input);
-  if(s.unit!.status!=="active")throw Error("UNIT_INACTIVE");if(!original&&!snapshot.baselineRevisionId)throw Error("BASELINE_REQUIRED");
+   if(s.unit!.status!=="active")throw Error("UNIT_INACTIVE");if(!original&&!snapshot.baselineRevisionId)throw Error("BASELINE_REQUIRED");
   if(!original&&(s.chapter!.content??"").length>12000&&!input.selection)throw Error("MANUSCRIPT_CHAPTER_TOO_LONG");
   if(input.selection){const {from,to,text}=input.selection,body=s.chapter!.content??"";if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<=from||to>body.length||text!==body.slice(from,to)||/[\uD800-\uDBFF]/u.test(body.charAt(from-1))||/[\uD800-\uDBFF]/u.test(body.charAt(to-1)))throw Error("MANUSCRIPT_RANGE_INVALID");}
   let candidates:ChapterEditorCandidate[]|undefined;
@@ -76,12 +84,13 @@ export class ManuscriptRevisionService {
  }
 }
 export async function buildManuscriptRevisionContext(projectId:string,unitId:string):Promise<ManuscriptChapterRevisionContext>{
- const s=await readManuscriptState(prisma,projectId,unitId);if(!s.project.baselineOutlineRevisionId||!s.working?.currentRevisionId)throw Error("BASELINE_REQUIRED");
- const baseline=await prisma.outlineRevision.findUniqueOrThrow({where:{id:s.project.baselineOutlineRevisionId}}),working=await prisma.outlineRevision.findUniqueOrThrow({where:{id:s.working.currentRevisionId}});
- const original=json<any>(baseline.documentJson,{}),document=json<any>(working.documentJson,{});
- const prior=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder<s.unit!.displayOrder).slice(-3),chapters=await prisma.chapter.findMany({where:{id:{in:prior.map(unit=>unit.chapterId!)}}});
+  const s=await readManuscriptState(prisma,projectId,unitId);
+  if(!s.project.baselineOutlineRevisionId||!s.working?.currentRevisionId)throw Error("BASELINE_REQUIRED");
+  const baseline=await prisma.outlineRevision.findUniqueOrThrow({where:{id:s.project.baselineOutlineRevisionId}}),working=await prisma.outlineRevision.findUniqueOrThrow({where:{id:s.working.currentRevisionId}});
+  const original=json<any>(baseline.documentJson,{}),document=json<any>(working.documentJson,{});
+  const prior=s.units.filter(unit=>unit.status==="active"&&unit.displayOrder<s.unit!.displayOrder).slice(-3),chapters=await prisma.chapter.findMany({where:{id:{in:prior.map(unit=>unit.chapterId!).filter(Boolean)}}}),segments=await prisma.shortStorySegment.findMany({where:{id:{in:prior.map(unit=>unit.segmentId!).filter(Boolean)}}});
  const sourceText=originalUnitText(s.source.sourceText,s.unit!.sourceRangesJson);
- return {source:{sourceHash:s.source.sourceHash,unitId,ranges:json(s.unit!.sourceRangesJson,[]),originalText:sourceText.slice(0,8000),excerpted:sourceText.length>8000},previousWorkingChapters:prior.map(unit=>{const content=chapters.find(ch=>ch.id===unit.chapterId)?.content??"";return {unitId:unit.id,chapterId:unit.chapterId!,contentHash:sha256(content),content:content.slice(-3000),omittedPrefixCharCount:Math.max(0,content.length-3000)};}),wholeBookPlanningConstraints:{label:"全书约束，不代表本章已经发生",baselineRevisionId:baseline.id,workingRevisionId:working.id,endingDirection:document.story.endingDirection||original.story.endingDirection,immutableFacts:original.facts.filter((fact:any)=>fact.immutable&&(fact.scope.type==="story"||fact.relatedNodeIds.includes(unitId))).map((fact:any)=>({title:fact.title,content:fact.content})),currentChapterPlan:document.chapters.find((chapter:any)=>chapter.nodeId===unitId)??null},preserve:{coreFacts:true,identity:true,causality:true,pov:true,ending:true}};
+   return {source:{sourceHash:s.source.sourceHash,unitId,ranges:json(s.unit!.sourceRangesJson,[]),originalText:sourceText.slice(0,8000),excerpted:sourceText.length>8000},previousWorkingChapters:prior.map(unit=>{const content=chapters.find(ch=>ch.id===unit.chapterId)?.content??segments.find(segment=>segment.id===unit.segmentId)?.content??"";return {unitId:unit.id,chapterId:unit.chapterId??unit.segmentId!,contentHash:sha256(content),content:content.slice(-3000),omittedPrefixCharCount:Math.max(0,content.length-3000)};}),wholeBookPlanningConstraints:{label:"全书约束，不代表本章已经发生",baselineRevisionId:baseline.id,workingRevisionId:working.id,endingDirection:document.story?.endingDirection||original.story?.endingDirection||"",immutableFacts:(original.facts??[]).filter((fact:any)=>fact.immutable&&(fact.scope.type==="story"||fact.relatedNodeIds.includes(unitId))).map((fact:any)=>({title:fact.title,content:fact.content})),currentChapterPlan:document.chapters?.find((chapter:any)=>chapter.nodeId===unitId)??null},preserve:{coreFacts:true,identity:true,causality:true,pov:true,ending:true}};
 }
 export function registerManuscriptRevisionTasks(){registerManuscriptTask("diagnosis",generateDiagnosis);registerManuscriptTask("rewrite",generateRewrite);}
 async function generateDiagnosis(task:ManuscriptTaskExecution){const s=await readManuscriptState(prisma,task.row.projectId,task.row.unitId!);const output=await task.call(manuscriptDiagnosePrompt,{currentContent:s.chapter!.content??"",revisionContext:await buildManuscriptRevisionContext(task.row.projectId,task.row.unitId!)},task.payload.input as ModelInput);for(const card of output.diagnosticCards)if(card.quote&&!(s.chapter!.content??"").includes(card.quote))throw Error("MANUSCRIPT_EVIDENCE_INVALID");task.payload.diagnosticCards=output.diagnosticCards;}

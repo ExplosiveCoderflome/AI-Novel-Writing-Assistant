@@ -1,0 +1,32 @@
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const os=require("node:os");
+const path=require("node:path");
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),"b1-short-revision-"));
+Object.assign(process.env,{NODE_ENV:"test",AI_NOVEL_RUNTIME:"desktop",AI_NOVEL_APP_DATA_DIR:dir,DATABASE_URL:`file:${path.join(dir,"short.db")}`});
+const {prisma}=require("../dist/db/prisma");
+const {ensureRuntimeDatabaseReady}=require("../dist/db/runtimeMigrations");
+const {ManuscriptImportService}=require("../dist/modules/novel/manuscript/application/ManuscriptImportService");
+const {ManuscriptWorkspaceService}=require("../dist/modules/novel/manuscript/application/ManuscriptWorkspaceService");
+const {ManuscriptRevisionService}=require("../dist/modules/novel/manuscript/application/ManuscriptRevisionService");
+const service=new ManuscriptImportService();
+test.before(()=>ensureRuntimeDatabaseReady());
+test.after(async()=>{await prisma.$disconnect();fs.rmSync(dir,{recursive:true,force:true});});
+
+test("imported short story requires confirmed baseline before semantic revision",async()=>{
+  const text="第一场\r\n\r\n第二场";
+  const created=await service.create({bytes:Buffer.from(text),title:"短篇",narrativeForm:"short_story",requestKey:"short-revision-import"});
+  const split=await service.split(created.sessionId,1,created.sourceHash,"rules");
+  const ready=await service.partition(created.sessionId,split.version,created.sourceHash,split.units.map(unit=>({...unit,needsReview:false})));
+  const result=await service.confirm(created.sessionId,ready.version,created.sourceHash,ready.coverage.coverageHash,"短篇", "short-revision-confirm");
+  const project=await prisma.manuscriptProject.findUniqueOrThrow({where:{id:result.projectId}});
+  const unit=await prisma.manuscriptUnit.findFirstOrThrow({where:{projectId:project.id}});
+  const workspace=await new ManuscriptWorkspaceService().get(project.id,unit.id);
+  const base={expectedStructureVersion:project.structureVersion,baseUnitRevision:unit.workingRevision,baseContentHash:unit.contentHash,baselineOutlineRevisionId:null,baseWorkingOutlineRevisionId:null,requestKey:"short-diagnosis"};
+  const revisions=new ManuscriptRevisionService();
+  await assert.rejects(()=>revisions.diagnose(project.id,unit.id,{...base,provider:"mock",model:"mock",temperature:0}),/BASELINE_REQUIRED/);
+  assert.equal(workspace.currentUnit.originalText,text.slice(0,5));
+  assert.equal((await prisma.novelWorkflowTask.count({where:{novelId:result.novelId}})),0);
+  assert.equal((await prisma.novelIntentVersion.count({where:{novelId:result.novelId}})),0);
+});

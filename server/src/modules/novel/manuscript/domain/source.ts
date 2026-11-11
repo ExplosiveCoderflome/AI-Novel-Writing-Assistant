@@ -96,4 +96,19 @@ export function detectRulePartition(text: string): ManuscriptPartitionUnit[] {
   return units;
 }
 
+/** Short-story boundaries are reviewable candidates, never a semantic decision. */
+export function detectShortStoryPartition(text: string): ManuscriptPartitionUnit[] {
+  const starts = [0];
+  const separator = /\r?\n[ \t]*\r?\n[ \t]*/gu;
+  for (const match of text.matchAll(separator)) {
+    const start = (match.index ?? 0) + match[0].length;
+    if (start < text.length && start > starts.at(-1)!) starts.push(start);
+  }
+  if (starts.length === 1) return [{draftId: randomUUID(), range: {start: 0, end: text.length}, role: "body", title: "全文（短篇分节待确认）", confidence: 0.2, needsReview: true}];
+  return starts.map((start, index) => ({
+    draftId: randomUUID(), range: {start, end: starts[index + 1] ?? text.length}, role: "body" as const,
+    title: `分节候选 ${index + 1}`, confidence: 0.2, needsReview: true,
+  }));
+}
+
 export type { ManuscriptRange };

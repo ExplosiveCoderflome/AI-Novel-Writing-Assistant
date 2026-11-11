@@ -13,6 +13,7 @@ export async function previewShortStoryRevision(
   novelId: string, instruction: string, mode: "revision" | "replan" = "revision",
 ): Promise<ShortStoryRevisionImpact> {
   const context = await loadRevisionContext(novelId);
+  if(context.imported)throw new AppError("导入短篇请在原稿修订工作区逐节生成候选并明确采纳；全篇重规划尚未开放。",409);
   if (!await canRetryStructuredTask(context.task.id)) throw new AppError("模型服务要求稍后再试，请等待后继续。", 429);
   if (context.task.status === "queued" || context.task.status === "running") {
     throw new AppError("请等待当前生成结束后再预览修改。", 409);

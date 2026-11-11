@@ -52,4 +52,10 @@ Undo 是一条新的受版本保护命令；只有最新 afterHash、单元修�
 
 ## 验证与开放边界
 
-自动化使用真实临时 SQLite、全量迁移、mock structured prompt，不调用真实模型。长稿覆盖超 24k 目录前缀、Unicode/CRLF、字面特殊 token、重放/取消/陈旧任务、事务故障注入、永久 Undo、工作纲引用与 V2 admission。源文本分片采用 cl100k_base 的跨模型保守代理预算，并非 DeepSeek 原生计费；structured 调用预算不等同底层 JSON 修复/网络尝试次数。客户端默认功能开关关闭，移动端不挂载重功能。短篇适配另行验收；真实模型仍需独立复制库留证，不以 mock 或输出观感替代 sourceRange、冻结修订与正文 hash 对照，不能据此关闭 #230。
+自动化使用真实临时 SQLite、全量迁移、mock structured prompt，不调用真实模型。长稿覆盖超 24k 目录前缀、Unicode/CRLF、字面特殊 token、重放/取消/陈旧任务、事务故障注入、永久 Undo、工作纲引用与 V2 admission。源文本分片采用 cl100k_base 的跨模型保守代理预算，并非 DeepSeek 原生计费；structured 调用预算不等同底层 JSON 修复/网络尝试次数。客户端默认功能开关关闭，移动端不挂载重功能。真实模型仍需独立复制库留证，不以 mock 或输出观感替代 sourceRange、冻结修订与正文 hash 对照，不能据此关闭 #230。
+
+## 短篇原稿导入与 Segment 适配
+
+短篇导入使用真实 `ManuscriptUnit → ShortStorySegment` 映射。导入分节直接来自确认的 source ranges；无标题全文可作为一个 Segment，人工边界调整在物化前完成。Segment 内容、顺序和来源映射在同一事务创建，工作区通过 ManuscriptUnit 统一投影，原生短篇继续沿用原有意图/任务上下文。
+
+导入短篇上下文明确是 `imported`：它提供现存 Segment、原文对照和分节修订所需上下文，但没有 active intent 或 workflow task。禁止为满足旧短篇服务前置条件创建虚假意图/生成任务。短篇修订沿用持久 proposal、内容版本 CAS、采纳回执和撤回；更新 Segment 与 Unit revision 同一事务，导出按有效 Unit 顺序连接当前 Segment 正文，不插入额外分隔字符。原生短篇的生成式全篇规划不适用于 imported 项目；结构增删/合并暂时拒绝，避免破坏 Segment order 与既有原生流程。

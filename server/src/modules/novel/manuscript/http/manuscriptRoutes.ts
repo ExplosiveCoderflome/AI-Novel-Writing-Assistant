@@ -17,7 +17,7 @@ import { MAX_RAW_BYTES } from "../domain/source";
 const service = new ManuscriptImportService();
 const workspaceService = new ManuscriptWorkspaceService();
 const key=z.string().min(1).max(160),hash=z.string().min(1).max(128),version=z.number().int().min(0);
-const importSchema=z.object({title:z.string().trim().min(1).max(200),narrativeForm:z.literal("long_novel"),pastedText:z.string().optional(),fileBase64:z.string().optional(),fileName:z.string().max(255).optional(),encoding:z.enum(["utf-8","utf-16le","utf-16be","gb18030"]).optional(),requestKey:key}).refine(value=>(value.pastedText!==undefined)!==(value.fileBase64!==undefined),"请选择TXT或粘贴全文，不能同时提交。");
+const importSchema=z.object({title:z.string().trim().min(1).max(200),narrativeForm:z.enum(["long_novel","short_story"]),pastedText:z.string().optional(),fileBase64:z.string().optional(),fileName:z.string().max(255).optional(),encoding:z.enum(["utf-8","utf-16le","utf-16be","gb18030"]).optional(),requestKey:key}).refine(value=>(value.pastedText!==undefined)!==(value.fileBase64!==undefined),"请选择TXT或粘贴全文，不能同时提交。");
 const partitionSchema=z.object({expectedSessionVersion:version,sourceHash:hash,units:z.array(z.object({draftId:key,range:z.object({start:z.number().int().nonnegative(),end:z.number().int().positive()}),role:z.enum(["body","toc","front_matter","back_matter","other_reviewed"]),title:z.string().max(200),confidence:z.number().min(0).max(1).optional(),needsReview:z.boolean()})).max(6000)});
 export const manuscriptRouter = Router();
 
@@ -27,7 +27,7 @@ manuscriptRouter.post("/imports", async (req, res, next) => {
     const bytes = typeof body.pastedText === "string" ? Buffer.from(body.pastedText, "utf8") : typeof body.fileBase64 === "string" && isCanonicalBase64(body.fileBase64) ? Buffer.from(body.fileBase64, "base64") : null;
     if (!bytes) throw new Error("MANUSCRIPT_SOURCE_INVALID");
     if (bytes.byteLength > MAX_RAW_BYTES) throw new Error("MANUSCRIPT_SIZE_LIMIT");
-    res.status(201).json({ success: true, data: await service.create({ bytes, title: body.title, encoding: body.encoding, fileName: body.fileName, requestKey: body.requestKey }) });
+    res.status(201).json({ success: true, data: await service.create({ bytes, title: body.title, narrativeForm:body.narrativeForm, encoding: body.encoding, fileName: body.fileName, requestKey: body.requestKey }) });
   } catch (error) { next(error); }
 });
 
@@ -103,7 +103,8 @@ manuscriptRouter.get("/:projectId/novel-export", async (req, res, next) => {
     const project = await prisma.manuscriptProject.findUnique({ where: { id: param(req,"projectId") }, include: { units: { where: { status: "active" }, orderBy: { displayOrder: "asc" } } } });
     if (!project?.novelId) throw new Error("MANUSCRIPT_NOT_FOUND");
     const chapters = await prisma.chapter.findMany({ where: { novelId: project.novelId, id: { in: project.units.map(unit => unit.chapterId).filter((id): id is string => Boolean(id)) } }, orderBy: { order: "asc" } });
-    const text = project.units.map(unit => chapters.find(chapter => chapter.id === unit.chapterId)?.content ?? "").join("");
+    const segments=await prisma.shortStorySegment.findMany({where:{novelId:project.novelId,id:{in:project.units.map(unit=>unit.segmentId).filter((id):id is string=>Boolean(id))}}});
+    const text = project.units.map(unit => chapters.find(chapter => chapter.id === unit.chapterId)?.content ?? segments.find(segment=>segment.id===unit.segmentId)?.content ?? "").join("");
     res.type("text/plain; charset=utf-8").send(text);
   } catch (error) { next(error); }
 });
@@ -137,7 +138,8 @@ export const manuscriptErrorHandler:ErrorRequestHandler=(error,req,res,next)=>{
  if(error instanceof z.ZodError||error instanceof AppError)return next(error);
  const code=error instanceof Error?error.message:"";
  const messages:Record<string,string>={MANUSCRIPT_UNIT_INVALID:"章节不属于当前目录或位置已变化，请重新核对。",MANUSCRIPT_MERGE_NON_ADJACENT:"只可合并当前工作目录中相邻的章节。",BASELINE_ALREADY_CONFIRMED:"原稿大纲基线已固定；后续请编辑独立工作大纲。",MANUSCRIPT_CHAPTER_TOO_LONG:"整章超过当前修订预算，请在编辑区选中片段后生成；不会截断或改写长章其余内容。",MANUSCRIPT_CANDIDATE_INVALID:"候选不属于本次提案，请重新核对。",PARTITION_INVALID_ROLE:"请选择每个原文区域的用途。",PARTITION_DRAFT_ID_INVALID:"分章单元标识重复，请重新识别或拆分。",PARTITION_UNIT_INVALID:"请核对分章标题与确认状态。",MANUSCRIPT_NOT_FOUND:"找不到本书所属的原稿或修订记录。",MANUSCRIPT_SOURCE_INVALID:"原稿来源无效，请重新选择TXT或粘贴完整原稿。",MANUSCRIPT_EMPTY:"文件没有可导入正文。",MANUSCRIPT_SIZE_LIMIT:"原稿文件超过20 MiB上限，请缩小文件后重试。",MANUSCRIPT_CHARACTER_LIMIT:"原稿超过300万字符上限，未截断或保存部分原文。",MANUSCRIPT_RANGE_INVALID:"原文定位范围无效，请重新选择。",MANUSCRIPT_REQUEST_INVALID:"请核对作品名与本次请求。",ENCODING_CONFIRM_REQUIRED:"当前编码无法完整解码，请选择正确编码；不会保存乱码。",PARTITION_INCOMPLETE:"分章存在空白、重叠、未确认区域或没有正文章，请核对完整覆盖。",PARTITION_SURROGATE_SPLIT:"切分点位于一个完整字符内部，请移动到相邻字符。",IMPORT_VERSION_CONFLICT:"原稿分章版本有更新，请重新读取后确认。",IMPORT_ALREADY_CONFIRMED:"这份原稿已创建修订副本，请进入原书。",REQUEST_KEY_CONFLICT:"本次请求与先前确认内容不一致，请重新核对。",REVISION_BASE_STALE:"本章、前文或工作大纲有更新，候选只供对照，请重新生成。",UNIT_INACTIVE:"本章已停用，请先从结构修订恢复。",BASELINE_REQUIRED:"请先确认原稿大纲基线，再生成语义修订。",TASK_CANCELLED:"本次任务已取消，晚到结果不会改动正文。",STRUCTURE_IMPACT_CONFIRM_REQUIRED:"请核对章节结构的影响后明确确认。",MANUSCRIPT_DIRECTOR_BLOCKED:"原稿修订不会启动自动导演。请在原稿修订页逐章预览和采纳。",MANUSCRIPT_CORE_FACT_CONFIRM_REQUIRED:"核心情节变化请先在工作大纲提出并确认，不通过局部修文自动扩散。"};
- if(messages[code])return res.status(code.includes("NOT_FOUND")?404:["REVISION_BASE_STALE","IMPORT_VERSION_CONFLICT","IMPORT_ALREADY_CONFIRMED","REQUEST_KEY_CONFLICT","UNIT_INACTIVE","TASK_CANCELLED","MANUSCRIPT_DIRECTOR_BLOCKED"].includes(code)?409:422).json({success:false,error:messages[code],code});
+  if(code==="SHORT_STORY_STRUCTURE_UNAVAILABLE")return res.status(409).json({success:false,error:"短篇可逐节修订；请从分节列表选择要修改的内容。",code});
+  if(messages[code])return res.status(code.includes("NOT_FOUND")?404:["REVISION_BASE_STALE","IMPORT_VERSION_CONFLICT","IMPORT_ALREADY_CONFIRMED","REQUEST_KEY_CONFLICT","UNIT_INACTIVE","TASK_CANCELLED","MANUSCRIPT_DIRECTOR_BLOCKED"].includes(code)?409:422).json({success:false,error:messages[code],code});
  next(error);
 };
 
