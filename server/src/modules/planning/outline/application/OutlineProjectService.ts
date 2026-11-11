@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createEmptyOutlineDocument, validateOutlineDocument, type OutlineDocument } from "../domain/outlineDocument";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
+import { diffOutlineDocuments } from "../domain/outlineDiff";
 
 export class OutlineVersionConflict extends Error { readonly code = "OUTLINE_VERSION_CONFLICT"; }
 export class OutlineProjectService {
@@ -20,6 +21,26 @@ export class OutlineProjectService {
     const result = await this.repository.getCurrent(id);
     if (!result) return null;
     return { ...result.project, document: result.revision ? validateOutlineDocument(JSON.parse(result.revision.documentJson)) : null };
+  }
+  async listRevisions(id: string) {
+    const project = await this.repository.getCurrent(id);
+    if (!project) throw new Error("大纲项目不存在");
+    return this.repository.listRevisionRows(id);
+  }
+  async getRevision(id: string, revisionId: string) {
+    const revision = await this.repository.findRevision(id, revisionId);
+    return revision ? { ...revision, document: validateOutlineDocument(JSON.parse(revision.documentJson)) } : null;
+  }
+  async diff(id: string, fromVersion: number, toVersion: number) {
+    const revisions = await this.repository.findRevisions(id, [fromVersion, toVersion]);
+    const from = revisions.find(x => x.version === fromVersion), to = revisions.find(x => x.version === toVersion);
+    if (!from || !to) throw new Error("找不到要比较的大纲修订");
+    return diffOutlineDocuments(validateOutlineDocument(JSON.parse(from.documentJson)), validateOutlineDocument(JSON.parse(to.documentJson)));
+  }
+  async restore(id: string, revisionId: string, expectedVersion: number) {
+    const target = await this.getRevision(id, revisionId);
+    if (!target) throw new Error("大纲修订不存在");
+    return this.save(id, expectedVersion, target.document, "restore");
   }
   async save(id: string, expectedVersion: number, input: unknown, sourceType = "manual") {
     const document: OutlineDocument = validateOutlineDocument(input);
