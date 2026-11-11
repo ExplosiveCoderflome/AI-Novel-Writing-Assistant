@@ -22,7 +22,8 @@ export function withOutlineOpeningSteps(handlers: Record<ProductionStepId, StepH
         if (!sheet) {
           const generated = await volumes.generateVolumes(state.novelId, {...modelOptions(context), scope: "beat_sheet", targetVolumeId,
             draftWorkspace: workspace, taskId: context.runId, entrypoint: "director_next", persistIntermediateDocuments: false});
-          const saved = await volumes.updateVolumesWithOptions(state.novelId, generated, {emitEvent: false, syncPayoffLedger: false, syncToChapterExecution: false});
+          const saved = await volumes.updateVolumesWithOptions(state.novelId, generated, {emitEvent: false, syncPayoffLedger: false, syncToChapterExecution: false,
+            memoryTelemetry: {entrypoint: "director_next", taskId: context.runId, stage: "structured_outline", scope: "beat_sheet", volumeId: targetVolumeId}});
           sheet = saved.beatSheets.find(s => s.volumeId === targetVolumeId && s.beats.length);
         }
         if (!sheet) throw new Error("当前卷缺少可确认的节奏安排。");

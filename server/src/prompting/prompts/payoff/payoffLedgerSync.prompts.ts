@@ -1,3 +1,4 @@
+import { resolveOutlinePayoffSource } from "../../../modules/planning/outline/payoffs";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -182,7 +183,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "2. confidence 如填写，必须是数字，不要写成字符串。",
       "3. scopeType 只能是 book、volume、chapter。",
     ].join("\n")),
-    ...(input.outlinePlans?.length ? [new HumanMessage(`独立大纲伏笔计划（未来安排，不是事实）：${JSON.stringify(input.outlinePlans)}。仅在最近已写正文中确有证据时，输出sourceRefs.kind=outline_plan且refId严格等于计划ledgerKey，并在evidence给出chapterId或chapterOrder及正文原文quote。没有证据的计划不要输出成实际账项，不标failed/overdue，不把预定章节写成实际setup/payoff章节。`)] : []),
+    ...(input.outlinePlans?.length ? [new HumanMessage(`独立大纲伏笔计划（未来安排，不是事实）：${JSON.stringify(input.outlinePlans)}。仅在最近已写正文中确有证据时，输出sourceRefs.kind=outline_plan且refId严格等于计划ledgerKey，并在evidence给出chapterId或chapterOrder及正文原文quote。关联计划时覆盖基础压缩限制：setupChapterId/setupChapterOrder和payoffChapterId/payoffChapterOrder涉及的每个实际章节，都必须分别有该章原文quote，可保留多条evidence；不要填写没有对应证据的实际章定位。refId复制计划ledgerKey，不用nodeId或自行简写。没有证据的计划不要输出成实际账项，不标failed/overdue，不把预定章节写成实际setup/payoff章节。`)] : []),
     ...(input.writtenChapterEvidence?.length ? [new HumanMessage(`已写正文证据窗口（仅从这里引用原文quote，不以大纲作证）：${JSON.stringify(input.writtenChapterEvidence)}`)] : []),
   ],
   postValidate: (output, input) => {
@@ -226,6 +227,17 @@ export const payoffLedgerSyncPrompt: PromptAsset<
 export const outlinePayoffLedgerSyncPrompt: typeof payoffLedgerSyncPrompt = {
   ...payoffLedgerSyncPrompt,
   id: "novel.payoff_ledger.outline_sync",
-  version: "v1",
+  version: "v3",
+  postValidate: (output, input, context) => {
+    const errors: string[] = [];
+    try { payoffLedgerSyncPrompt.postValidate?.(output, input, context); }
+    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
+    for (const item of output.items) {
+      try { resolveOutlinePayoffSource(item, input.outlinePlans ?? [], input.writtenChapterEvidence ?? []); }
+      catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
+    }
+    if (errors.length) throw new Error(errors.join("\n") + "\n计划的回收章不是实际兑现章；省略没有逐字正文证据的setup/payoff定位，或补齐每个已写章的原文quote。实际字段不能填写未写章。");
+    return output;
+  },
   structuredOutputHint: {...payoffLedgerSyncPrompt.structuredOutputHint!, note: "sourceRefs.kind可使用outline_plan，refId必须是输入计划ledgerKey；关联计划时evidence需要原文quote与实际章定位。其余字段与枚举遵循基础台账合同。"},
 };

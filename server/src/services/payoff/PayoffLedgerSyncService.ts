@@ -561,6 +561,7 @@ export class PayoffLedgerSyncService {
       await this.syncLedgerOpenConflicts(novelId, items);
       return {...buildPayoffLedgerResponse(items, chapterOrder), ...(outline ? {plans: (await readOutlinePayoffPlans(prisma, novelId))!.plans} : {})};
     } catch (error) {
+      console.warn("[payoff-ledger.sync] rejected", {novelId, code: error && typeof error === "object" && "code" in error ? error.code : "PAYOFF_SYNC_FAILED", errorName: error instanceof Error ? error.name : "unknown"});
       if (existingRows.length > 0) {
         await prisma.$transaction(async (tx) => {
           for (const row of existingRows) {
