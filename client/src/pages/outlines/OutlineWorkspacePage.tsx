@@ -204,7 +204,15 @@ export default function OutlineWorkspacePage() {
               onDiscard={() => setProposal(null)}
             />
           ) : null}
-          {apply.isError ? <p role="alert" className="text-sm text-destructive">{apply.error instanceof Error ? apply.error.message : "采纳失败，请刷新大纲后重试。"}</p> : null}
+          {apply.isError ? (
+            <div role="alert" className="space-y-2 text-sm text-destructive">
+              <p>{apply.error instanceof Error ? apply.error.message : "采纳失败，请刷新大纲后重试。"}</p>
+              <p className="text-xs text-muted-foreground">请根据当前大纲重新生成建议，再检查并采纳。</p>
+              <Button type="button" size="sm" variant="secondary" onClick={() => { setProposal(null); apply.reset(); }}>
+                重新生成建议
+              </Button>
+            </div>
+          ) : null}
           {showHistory ? (
             <OutlineRevisionPanel
               outlineId={id}

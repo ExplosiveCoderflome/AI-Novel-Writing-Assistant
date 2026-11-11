@@ -4,6 +4,7 @@ import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 import { createEmptyOutlineDocument } from "../domain/outlineDocument";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
+import { AppError } from "../../../../middleware/errorHandler";
 
 export class OutlineProposalService {
   constructor(private readonly repository: OutlineRepository) {}
@@ -21,9 +22,9 @@ export class OutlineProposalService {
   }
   async apply(projectId: string, proposalId: string, operationIds: string[]) {
     const proposal = await this.repository.findProposal(projectId, proposalId);
-    if (!proposal || !["pending"].includes(proposal.status)) throw new Error("此提案不可采纳");
+    if (!proposal || !["pending"].includes(proposal.status)) throw new AppError("此提案不可采纳", 409, "请重新生成提案后再采纳。");
     const current = await this.repository.getCurrent(projectId);
-    if (!current || current.project.currentVersion !== proposal.baseVersion) throw new Error("OUTLINE_PROPOSAL_STALE");
+    if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
     const payload = JSON.parse(proposal.proposalJson) as { operations: Array<{ operationId: string; kind: string; nodeType?: string; nodeId?: string; clientRef?: string; parentNodeId?: string; fields?: Record<string, unknown>; dependsOn: string[] }> };
     if (proposal.kind === "initial_generation") {
       const initial = JSON.parse(proposal.proposalJson) as { storyFields: Record<string, unknown>; volumes: Array<Record<string, any>>; chapters: Array<Record<string, any>>; characters: Array<Record<string, any>>; payoffs: Array<Record<string, any>>; facts: Array<Record<string, any>> };
