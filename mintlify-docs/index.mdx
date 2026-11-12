@@ -5,7 +5,35 @@ description: "开源 AI 小说创作工作台：从一句灵感，走向一本�
 mode: "custom"
 ---
 
-<BnHome />
+<BnHome>
+  <div>
+    <BnHero />
+
+    <BnTyping />
+
+    <BnDirector />
+
+    <BnStarMap />
+
+    <BnFeatures />
+
+    <BnCta />
+  </div>
+
+  <div>
+    <XzHero />
+
+    <XzScroll />
+
+    <XzDirector />
+
+    <XzWeb />
+
+    <XzFeatures />
+
+    <XzCta />
+  </div>
+</BnHome>
 
 export const BnHero = () => {
   const canvasRef = useRef(null);
@@ -399,18 +427,15 @@ export const BnStarMap = () => {
   );
 };
 
-export const BnHome = () => {
+export const BnHome = ({ children }) => {
   const wrapRef = useRef(null);
   const busy = useRef(false);
   const [layers, setLayers] = useState([{ id: 0, theme: "ink" }]);
   const [fx, setFx] = useState(null);
   const current = layers[layers.length - 1].theme;
 
-  const renderSet = (t) => t === "ink" ? (
-    <div><BnHero /><BnTyping /><BnDirector /><BnStarMap /><BnFeatures /><BnCta /></div>
-  ) : (
-    <div><XzHero /><XzScroll /><XzDirector /><XzWeb /><XzFeatures /><XzCta /></div>
-  );
+  const kids = (Array.isArray(children) ? children : [children]).filter((c) => c && typeof c === "object");
+  const renderSet = (t) => (t === "ink" ? kids[0] : kids[1]) || null;
 
   const toggle = (e) => {
     if (busy.current || !wrapRef.current) return;
