@@ -50,5 +50,15 @@
         ]
       }
     ]
+  },
+  "seo": {
+    "metatags": {
+      "author": "ExplosiveCoderflome",
+      "keywords": "AI 小说,AI 写小说,AI 小说创作,长篇小说生成,短篇小说,小说写作助手,开源,Biz Novel Studio,AI-Novel-Writing-Assistant,AI Novel Writing Assistant,AI novel writing assistant",
+      "language": "zh-CN",
+      "og:locale": "zh_CN",
+      "theme-color": "#05080a",
+      "application-name": "Biz Novel Studio"
+    }
   }
 }
