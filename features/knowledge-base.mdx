@@ -1,0 +1,339 @@
+---
+title: "知识库与 RAG"
+description: "保存长期影响创作的资料，让 AI 在规划、续写和正文生成中自动召回参考。"
+sidebarTitle: "知识库与 RAG"
+icon: "database"
+---
+
+知识库用于保存长期会影响创作的资料，例如设定文档、参考作品、拆书结论、角色资料、世界规则和写法样本。它的作用是让资料在后续规划、续写和正文生成中继续被使用，而不是每次都靠你临时复制粘贴。
+
+RAG（检索增强生成）是知识库的核心机制：系统在章节执行时，会根据当前章节任务构造查询，从知识库召回最相关的资料片段，与本书事实、规划资产一起组装成上下文包，供 AI 生成正文时参考。
+
+## 知识库能帮你做什么
+
+- 上传和管理创作资料。
+- 保存拆书发布结果，让拆书经验进入后续写作。
+- 查看资料索引进度，确认文档是否可以被检索使用。
+- 测试某份资料是否能被召回。
+- 归档不常用资料，并在需要时恢复。
+- 为小说、世界观、写法和章节生成提供长期参考。
+
+## 适合什么时候用
+
+- 有设定、资料、参考文本或拆书结论，希望后续写作继续使用。
+- 写长篇时，经常担心 AI 忘记前面的世界规则或资料背景。
+- 想把多个参考来源统一整理，而不是散落在本地文件和聊天记录里。
+- 想检查某份资料是否真的能被后续生成用上。
+- 想让拆书结果、写法样本和世界资料成为可复用资产。
+
+## 开始前准备
+
+知识库是增强能力，不是开始写小说的前置条件。你可以先不配置知识库，直接创建小说和生成章节；当你开始需要长期资料、参考作品或复杂设定时，再启用知识库。
+
+如果要完整使用资料检索能力，通常需要配置可用的 Embedding 模型和向量库连接。普通用户可以先按设置页提示完成基础配置，再回到知识库上传资料。
+
+上传前建议先整理文本：
+
+- 一份文档尽量只放同一类资料。
+- 标题写清楚资料用途。
+- 参考作品、世界设定、写法样本最好分开保存。
+- 不再使用的资料可以归档，避免干扰后续召回。
+
+## 推荐使用路径
+
+<Steps>
+  <Step title="打开知识库">
+    进入“知识库”页面。
+  </Step>
+  <Step title="上传资料">
+    上传设定、参考文本或整理好的资料。
+  </Step>
+  <Step title="确认索引完成">
+    查看索引状态，等待资料处理完成。
+  </Step>
+  <Step title="召回测试">
+    使用召回测试确认资料能被找到。
+  </Step>
+  <Step title="绑定使用">
+    在小说、世界、拆书或写法流程中选择或绑定这份资料。
+  </Step>
+  <Step title="归档与恢复">
+    不再使用时归档；需要重新使用时恢复并重建索引。
+  </Step>
+</Steps>
+
+如果你从拆书模块发布结果，知识库会把它作为拆书发布资料保存，方便回到来源拆书继续查看。
+
+## 资料如何进入章节上下文
+
+<ChapterContextAssembler />
+
+这是 Biz Novel Studio 章节生成时最关键的一步。系统不会简单地用章节标题去搜索知识库，而是根据完整的章节任务组装查询，再召回与当前目标最相关的资料。
+
+### 查询构造内容
+
+章节 RAG 查询会包含以下信息，全部来自章节任务单和上下文包：
+
+- 小说标题
+- 章节标题
+- 章节目标
+- 章节期待
+- 本章必须推进内容
+- 目标冲突
+- 出场角色
+- 结构化大纲
+
+查询越贴近本章目标，召回越容易命中真正有用的资料。
+
+### 资料来源分层
+
+RAG 不是一个单独资料池。不同资料的可信度和用途不同：
+
+| 层级 | 示例 | 使用原则 |
+| --- | --- | --- |
+| 本书事实 | 已写章节、事实账本、角色状态、世界状态 | 最高优先级，不能被外部资料覆盖 |
+| 本书规划 | 书契约、宏观故事、卷战略、章节任务 | 指导下一步写作目标 |
+| 用户资料 | 上传知识库、世界样本、专门设定文档 | 用于补充事实和设定 |
+| 拆书结论 | 参考作品结构、卖点、人物和写法分析 | 迁移方法，不复制情节 |
+| 写法资产 | 风格规则、反 AI 规则、样本文本特征 | 控制表达方式 |
+| 临时对话 | 创作中枢当前轮输入 | 只能影响当前任务，长期生效需落库 |
+
+<Note>
+  本书事实优先：如果外部知识库资料和本书已发生事实冲突，章节执行应优先遵守本书事实。参考资料用于补充，不用于推翻已经写入小说状态的内容。
+</Note>
+
+### 检索方式
+
+系统使用向量检索、文本检索或混合召回来命中资料：
+
+| 检索方式 | 适合内容 | 常见问题 |
+| --- | --- | --- |
+| 向量检索 | 语义相近但用词不同的资料、长文档、拆书结论 | 文档未索引或向量库不可用时无法命中 |
+| 文本检索 | 人名、地名、专有名词、固定术语 | 用户没有写清关键词时可能漏掉 |
+| 混合召回 | 同时需要语义和关键词 | 需要合理的文档标题、分块和元数据 |
+
+### 分块和元数据为什么重要
+
+知识库不是上传文件就一定能召回。分块、标题、摘要和元数据会影响命中：
+
+| 信息 | 影响 |
+| --- | --- |
+| 文档标题 | 帮助识别资料主题和来源 |
+| chunk 文本 | 决定向量语义和文本检索命中 |
+| facets | 让题材、卖点、角色名、章节锚点等过滤更精确 |
+| source type | 区分上传文档、拆书发布、世界样本等来源 |
+| document version | 避免同名资料混在一起 |
+
+资料越长，越需要清晰标题和稳定分块。百万字原文如果没有可靠索引，章节执行只会看到有限片段。
+
+## RAG 在哪些阶段使用
+
+| 阶段 | 是否使用 RAG | 说明 |
+| --- | --- | --- |
+| 候选方向 | 可能使用拆书/资料摘要 | 用于理解题材、读者期待和参考方向 |
+| 书契约 | 主要使用候选和宏观故事 | 关键目标来自用户选择，不应被外部资料覆盖 |
+| 世界搭建 | 可能参考世界样本和知识库 | 帮助生成规则、势力和地点 |
+| 角色生成 | 可能参考世界、题材和角色资产 | 角色必须服从本书方向 |
+| 卷战略 | 使用书契约、宏观故事、角色阵容 | RAG 只作辅助，不替代主线规划 |
+| 节奏板/章节清单 | 使用卷战略和章节任务资料 | 重点是结构一致性 |
+| 章节执行 | 明确使用任务驱动 RAG | GenerationContextAssembler 会根据章节目标构造查询并召回资料 |
+| 审核/修复 | 使用章节 runtime package | 修复器读取写作上下文、审核问题和 RAG 片段 |
+
+## 如何进入后续创作链路
+
+知识库资料会在多个地方发挥作用：
+
+- **开书和规划时**，提供题材、设定和参考作品信息。
+- **世界和角色生成时**，提供背景规则和人物资料。
+- **章节写作时**，提供当前任务相关的资料参考。
+- **拆书发布后**，让作品分析结论继续被后续创作召回。
+- **写法引擎中**，可以从知识库原文提取写法资产。
+
+知识库不是正文编辑器。它更像长期资料仓库：把重要资料放进去，再让创作链路在需要时使用。
+
+## 资产闭环
+
+章节执行完成后，系统会把新事实、角色变化、伏笔状态和质量问题回灌。后续章节再组装上下文时，会读取这些状态。
+
+闭环路径是：
+
+<Steps>
+  <Step title="自动导演准备">
+    准备书级、世界、角色和章节任务。
+  </Step>
+  <Step title="章节执行">
+    读取这些资产和 RAG 资料。
+  </Step>
+  <Step title="正文生成">
+    提取事实、角色资源和伏笔变化。
+  </Step>
+  <Step title="状态回灌">
+    状态提交和账本同步写回项目。
+  </Step>
+  <Step title="继续生成">
+    下一章读取新的状态继续生成。
+  </Step>
+</Steps>
+
+这就是长篇生产链和一次性文本生成的核心区别。
+
+## 常见问题
+
+<AccordionGroup>
+  <Accordion title="不配置知识库能开始写小说吗？">
+    可以。知识库是增强能力，不是开书前置条件。先跑通创作流程，再逐步补资料，通常更适合新手。
+  </Accordion>
+
+  <Accordion title="上传后为什么还不能用？">
+    上传只是保存资料。资料还需要完成索引，才能在召回测试和创作链路中稳定使用。先查看索引状态和最近任务。
+  </Accordion>
+
+  <Accordion title="什么资料适合放进知识库？">
+    适合放长期会重复使用的内容，例如世界规则、势力资料、参考作品分析、拆书结论、角色背景、写法样本。临时灵感可以先放在小说项目里。
+  </Accordion>
+
+  <Accordion title="文档太多会不会干扰生成？">
+    会有可能。建议用清楚的标题、归档不再使用的资料，并在具体小说或任务里选择真正相关的资料。
+  </Accordion>
+
+  <Accordion title="归档会删除资料吗？">
+    归档不是删除。归档资料会退出默认使用范围，需要时可以恢复。恢复后通常要重新处理索引，才能再次被稳定召回。
+  </Accordion>
+
+  <Accordion title="Qdrant 和 RAG 是必须理解的吗？">
+    不需要。你只要知道：配置完整后，知识库可以更好地按当前任务查找资料。技术细节交给系统和设置页处理。
+  </Accordion>
+
+  <Accordion title="知识库没生效怎么查？">
+    按顺序检查：1) 文档是否存在 2) 索引是否完成 3) 单文档召回测试能否命中 4) 当前章节任务是否真的需要这份资料 5) 上下文包中是否有 RAG 片段 6) 审核报告是否因为冲突压掉了资料。
+  </Accordion>
+
+  <Accordion title="召回过多怎么办？">
+    如果章节写偏到参考作品，强化章节任务和本书事实，减少参考召回。如果模型复述资料摘要，收窄查询，保留与本章冲突相关的片段。如果专名混入正文，审核和反 AI 规则应拦截专名泄露。
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="拆书工作台" icon="book-open" href="/features/book-analysis">
+    把作品分析发布到知识库，让结论成为可复用资产。
+  </Card>
+
+  <Card title="写法引擎" icon="pen-nib" href="/features/style-engine">
+    从知识库原文提取写法资产，控制表达方式。
+  </Card>
+</CardGroup>
+
+export const ChapterContextAssembler = () => {
+  const [phase, setPhase] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const items = [
+    { id: "book-facts", label: "本书事实", color: "#16A34A", desc: "已写章节、事实账本、角色状态、世界状态。最高优先级，不能被外部资料覆盖。" },
+    { id: "book-plan", label: "本书规划", color: "#16A34A", desc: "书契约、宏观故事、卷战略、章节任务。指导下一步写作目标。" },
+    { id: "rag-docs", label: "知识库召回", color: "#2563EB", desc: "根据章节任务构造查询，从知识库召回最相关的资料片段。" },
+    { id: "world-assets", label: "世界样本", color: "#9333EA", desc: "世界规则、势力、地点、边界。用于世界搭建和章节上下文补充。" },
+    { id: "character-assets", label: "角色库", color: "#9333EA", desc: "角色基础信息、形象资产、关系。用于角色生成和章节上下文。" },
+    { id: "style-assets", label: "写法资产", color: "#EA580C", desc: "叙述风格、语言规则、反模板表达。通过 style binding 进入上下文。" },
+    { id: "anti-ai", label: "反 AI 规则", color: "#EA580C", desc: "全局反 AI 基线与写法专属规则，合并成生成契约注入正文写作提示。" },
+  ];
+
+  const totalPhases = items.length + 2;
+
+  useEffect(() => {
+    if (!playing) return;
+    const timer = setInterval(() => {
+      setPhase((p) => {
+        if (p >= totalPhases - 1) {
+          setPlaying(false);
+          return p;
+        }
+        return p + 1;
+      });
+    }, 900);
+    return () => clearInterval(timer);
+  }, [playing, totalPhases]);
+
+  const isInPackage = (index) => phase >= index + 2;
+  const isAssembled = phase >= totalPhases - 1;
+
+  return (
+    <div className="not-prose" style={{ border: "1px solid rgba(127,127,127,.25)", borderRadius: 12, padding: 16, fontFamily: "inherit" }}>
+      <style>{`
+        .kbc-row { display: flex; align-items: center; gap: 12px; margin: 6px 0; }
+        .kbc-label { width: 110px; font-size: 13px; font-weight: 600; color: inherit; flex-shrink: 0; }
+        .kbc-chip { padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: all 400ms ease; border: 1px solid rgba(127,127,127,.25); color: inherit; background: rgba(127,127,127,.08); }
+        .kbc-chip:hover { transform: translateY(-1px); }
+        .kbc-chip.active { border-width: 2px; }
+        .kbc-package { border: 2px dashed rgba(22,163,74,.5); border-radius: 10px; padding: 10px; min-height: 44px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: rgba(22,163,74,.06); }
+        .kbc-pkg-label { font-size: 12px; font-weight: 700; color: #16A34A; width: 100%; }
+        .kbc-pkg-chip { padding: 4px 8px; border-radius: 6px; font-size: 11px; color: #fff; }
+        .kbc-desc { font-size: 13px; margin-top: 10px; padding: 10px; border-radius: 8px; background: rgba(127,127,127,.08); min-height: 56px; }
+        .kbc-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(127,127,127,.35); background: transparent; color: inherit; font: inherit; cursor: pointer; margin-right: 8px; }
+        .kbc-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      `}</style>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <button type="button" className="kbc-btn" onClick={() => { setPhase(0); setPlaying(true); }} disabled={playing}>
+          {playing ? "播放中..." : "播放组装过程"}
+        </button>
+        <button type="button" className="kbc-btn" onClick={() => { setPlaying(false); setPhase(0); setSelected(null); }} disabled={!phase && !playing}>
+          重置
+        </button>
+        <span style={{ fontSize: 12, opacity: 0.7 }}>
+          {isAssembled ? "章节上下文组装完成" : phase === 0 ? "点击播放查看组装流程" : `步骤 ${phase}/${totalPhases - 1}`}
+        </span>
+      </div>
+
+      {items.map((item, i) => (
+        <div key={item.id} className="kbc-row">
+          <span className="kbc-label" style={{ opacity: isInPackage(i) ? 0.5 : 1 }}>{item.label}</span>
+          <button
+            type="button"
+            className="kbc-chip"
+            style={{
+              borderColor: selected === item.id ? item.color : undefined,
+              background: selected === item.id ? `${item.color}18` : undefined,
+              transform: isInPackage(i) ? "scale(0.95)" : "scale(1)",
+              opacity: isInPackage(i) ? 0.45 : 1,
+            }}
+            onClick={() => setSelected(selected === item.id ? null : item.id)}
+          >
+            {item.desc.slice(0, 20)}...
+          </button>
+        </div>
+      ))}
+
+      <div className="kbc-package" style={{ marginTop: 10 }}>
+        <span className="kbc-pkg-label">章节上下文包</span>
+        {items.map((item, i) =>
+          isInPackage(i) ? (
+            <span key={item.id} className="kbc-pkg-chip" style={{ background: item.color }}>
+              {item.label}
+            </span>
+          ) : null
+        )}
+        {isAssembled && (
+          <span className="kbc-pkg-chip" style={{ background: "#16A34A" }}>
+            已组装
+          </span>
+        )}
+      </div>
+
+      {selected && (
+        <div className="kbc-desc">
+          <strong>{items.find((i) => i.id === selected).label}</strong>：{items.find((i) => i.id === selected).desc}
+        </div>
+      )}
+
+      {!selected && (
+        <div className="kbc-desc">
+          {phase === 0 && "点击上方「播放组装过程」，资料会按优先级依次汇入章节上下文包。也可以逐一点击各资料块查看说明。"}
+          {phase === 1 && "开始：本书事实与本书规划最先进入上下文，它们是最高优先级的内容。"}
+          {phase >= 2 && phase < totalPhases - 1 && `${items[phase - 2].label} 正在被召回并放入上下文包...`}
+          {isAssembled && "组装完成：章节上下文包已包含本书事实、规划、知识库召回、世界样本、角色库、写法资产和反 AI 规则。GenerationContextAssembler 会将这个包交给正文生成使用。"}
+        </div>
+      )}
+    </div>
+  );
+};

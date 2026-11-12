@@ -10,7 +10,43 @@
     "tabs": [
       {
         "tab": "文档",
-        "pages": ["introduction", "quickstart", "installation", "model-configuration"]
+        "groups": [
+          {
+            "group": "开始使用",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation",
+              "model-configuration"
+            ]
+          },
+          {
+            "group": "长篇与短篇创作",
+            "pages": [
+              "features/novels",
+              "features/auto-director",
+              "features/short-story",
+              "features/token-usage"
+            ]
+          },
+          {
+            "group": "世界、角色与写法",
+            "pages": [
+              "features/world-library",
+              "features/character-library",
+              "features/style-engine",
+              "features/anti-ai-rules"
+            ]
+          },
+          {
+            "group": "资料与辅助",
+            "pages": [
+              "features/book-analysis",
+              "features/knowledge-base",
+              "features/creative-hub"
+            ]
+          }
+        ]
       }
     ]
   },
