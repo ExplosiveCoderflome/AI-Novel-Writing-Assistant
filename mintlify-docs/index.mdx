@@ -406,8 +406,9 @@ export const BnIntro = () => {
   return (
     <div className={"not-prose bi-wrap bi-p" + ph}>
       <style>{`
-        .bi-wrap{position:fixed;inset:0;z-index:9999;perspective:1800px;pointer-events:auto}
+        .bi-wrap{position:fixed;inset:0;z-index:9999;pointer-events:auto;isolation:isolate}
         .bi-p3{pointer-events:none}
+        .bi-doors{position:absolute;inset:0;z-index:1;perspective:1800px;overflow:hidden}
         .bi-door{position:absolute;top:0;bottom:0;width:50%;background:#05080a;transition:transform 1.4s cubic-bezier(.65,0,.25,1),opacity .5s ease .9s;will-change:transform}
         .bi-l{left:0;transform-origin:left center;box-shadow:inset -40px 0 60px -40px rgba(74,222,128,.25)}
         .bi-r{right:0;transform-origin:right center;box-shadow:inset 40px 0 60px -40px rgba(74,222,128,.25)}
@@ -416,7 +417,7 @@ export const BnIntro = () => {
         .bi-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,#4ade80,transparent);opacity:0;transition:opacity .6s}
         .bi-p2 .bi-spine{opacity:.7}
         .bi-p3 .bi-spine{opacity:0}
-        .bi-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#e7f5ec;transition:opacity .4s,transform .6s}
+        .bi-c{position:absolute;z-index:3;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#e7f5ec;transition:opacity .4s,transform .6s}
         .bi-p3 .bi-c{opacity:0;transform:scale(.96)}
         .bi-eb{font-size:12px;letter-spacing:.35em;color:#4ade80;margin-bottom:14px;animation:biUp .5s both}
         .bi-h{font-size:clamp(24px,3.6vw,32px);font-weight:600;text-align:center;animation:biUp .5s .05s both}
@@ -444,14 +445,16 @@ export const BnIntro = () => {
         .bi-s b{width:16px;height:16px;border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px currentColor;font-weight:600}
         .bi-s.on{color:#86efac;box-shadow:0 0 0 1px rgba(74,222,128,.5);background:rgba(22,163,74,.12)}
         .bi-s.on b{background:#16A34A;color:#fff;box-shadow:none}
-        .bi-skip{position:absolute;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.55);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
+        .bi-skip{position:absolute;z-index:4;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.55);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
         .bi-skip:hover{color:#fff;border-color:#4ade80}
         @keyframes biBlink{50%{opacity:0}}
         @keyframes biUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
         @media (max-width:560px){.bi-chips{grid-template-columns:1fr}.bi-outline,.bi-ghost{display:none}}
       `}</style>
-      <div className="bi-door bi-l" />
-      <div className="bi-door bi-r" />
+      <div className="bi-doors">
+        <div className="bi-door bi-l" />
+        <div className="bi-door bi-r" />
+      </div>
       <div className="bi-spine" />
       <div className="bi-c">
         <div className="bi-eb">AI 自动导演创建</div>
