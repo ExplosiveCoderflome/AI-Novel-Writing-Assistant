@@ -474,7 +474,7 @@ export const BnHome = ({ children }) => {
     : "radial-gradient(circle closest-side, transparent 84%, rgba(74,222,128,.75) 91%, rgba(5,8,10,.95) 94.5%, rgba(5,8,10,0) 100%)";
 
   return (
-    <div ref={wrapRef} className="not-prose bnh">
+    <div ref={wrapRef} className="not-prose bnh" data-bn-theme={current}>
       <style>{`
         .bnh{position:relative;overflow:hidden}
         .bnh-tg{position:fixed;right:22px;top:50%;z-index:60;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
