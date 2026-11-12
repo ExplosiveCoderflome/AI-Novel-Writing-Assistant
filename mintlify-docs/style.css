@@ -1,24 +1,157 @@
-/* 首页（含 .bnh 的页面）隐藏 Mintlify 顶部导航栏，让首页全屏沉浸 */
+/* ==========================================================
+   首页（含 .bnh 的页面）：系统顶栏跟随首页主题美化
+   墨夜 ink：深色半透明 + 绿色微光
+   水墨 paper：宣纸底 + 墨色宋体 + 朱红点缀
+   ========================================================== */
+
+/* ---------- 通用：去掉系统顶栏自带的白底、阴影与边框 ---------- */
 html:has(.bnh[data-bn-theme]) #navbar,
-html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"],
+html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"] {
+  box-shadow: none !important;
+  border-color: transparent !important;
+  transition: background-color .8s ease, color .8s ease, border-color .8s ease !important;
+}
+html:has(.bnh[data-bn-theme]) #navbar div,
+html:has(.bnh[data-bn-theme]) #navbar nav,
+html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"] div {
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+html:has(.bnh[data-bn-theme]) #navbar a,
+html:has(.bnh[data-bn-theme]) #navbar button,
+html:has(.bnh[data-bn-theme]) #navbar span,
+html:has(.bnh[data-bn-theme]) #navbar svg {
+  transition: color .3s ease, background-color .3s ease, border-color .3s ease, text-shadow .3s ease, fill .3s ease !important;
+}
+/* 底部细线 */
+html:has(.bnh[data-bn-theme]) #navbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  transition: background .8s ease;
+}
+/* 页面底色与主题一致，顶栏下方不再露出白底 */
+html:has(.bnh[data-bn-theme]),
+html:has(.bnh[data-bn-theme]) body {
+  transition: background-color .8s ease;
+}
 html:has(.bnh[data-bn-theme]) #banner {
   display: none !important;
 }
 
-/* 去掉为顶栏预留的上边距 */
-html:has(.bnh[data-bn-theme]) body,
-html:has(.bnh[data-bn-theme]) main,
-html:has(.bnh[data-bn-theme]) #content-area,
-html:has(.bnh[data-bn-theme]) #content-container,
-html:has(.bnh[data-bn-theme]) [data-layout-item="content"] {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
-/* 背景跟随当前主题，避免露出白底 */
+/* ---------- 墨夜 ink ---------- */
+html:has(.bnh[data-bn-theme="ink"]),
 html:has(.bnh[data-bn-theme="ink"]) body {
   background-color: #05080a !important;
 }
+html:has(.bnh[data-bn-theme="ink"]) #navbar,
+html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] {
+  background-color: rgba(5, 8, 10, .72) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  color: #e5f6ea !important;
+}
+html:has(.bnh[data-bn-theme="ink"]) #navbar::after {
+  background: linear-gradient(90deg, transparent, rgba(74, 222, 128, .45), transparent);
+}
+html:has(.bnh[data-bn-theme="ink"]) #navbar a,
+html:has(.bnh[data-bn-theme="ink"]) #navbar button,
+html:has(.bnh[data-bn-theme="ink"]) #navbar span,
+html:has(.bnh[data-bn-theme="ink"]) #navbar svg {
+  color: rgba(229, 246, 234, .78) !important;
+}
+html:has(.bnh[data-bn-theme="ink"]) #navbar svg path[fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
+html:has(.bnh[data-bn-theme="ink"]) #navbar a:hover,
+html:has(.bnh[data-bn-theme="ink"]) #navbar button:hover,
+html:has(.bnh[data-bn-theme="ink"]) #navbar a:hover span,
+html:has(.bnh[data-bn-theme="ink"]) #navbar button:hover svg {
+  color: #86efac !important;
+  text-shadow: 0 0 12px rgba(74, 222, 128, .7);
+}
+/* 站名 */
+html:has(.bnh[data-bn-theme="ink"]) #navbar a[href="/"],
+html:has(.bnh[data-bn-theme="ink"]) #navbar a[href="/"] * {
+  color: #e5f6ea !important;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+/* 搜索框与 AI 助手入口 */
+html:has(.bnh[data-bn-theme="ink"]) #navbar [data-search-item="trigger"],
+html:has(.bnh[data-bn-theme="ink"]) #navbar #search-bar-entry,
+html:has(.bnh[data-bn-theme="ink"]) #navbar #assistant-entry,
+html:has(.bnh[data-bn-theme="ink"]) #navbar [data-layout-item="search-entry"],
+html:has(.bnh[data-bn-theme="ink"]) #navbar [data-layout-item="assistant-entry"] {
+  background-color: rgba(22, 163, 74, .08) !important;
+  border: 1px solid rgba(134, 239, 172, .28) !important;
+  color: rgba(229, 246, 234, .7) !important;
+  box-shadow: none !important;
+}
+html:has(.bnh[data-bn-theme="ink"]) #navbar [data-search-item="trigger"]:hover,
+html:has(.bnh[data-bn-theme="ink"]) #navbar #search-bar-entry:hover,
+html:has(.bnh[data-bn-theme="ink"]) #navbar #assistant-entry:hover {
+  border-color: rgba(134, 239, 172, .6) !important;
+  box-shadow: 0 0 18px -4px rgba(34, 197, 94, .7) !important;
+}
+
+/* ---------- 水墨 paper ---------- */
+html:has(.bnh[data-bn-theme="paper"]),
 html:has(.bnh[data-bn-theme="paper"]) body {
   background-color: #f3ede1 !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar,
+html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] {
+  background-color: rgba(243, 237, 225, .86) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  color: #1c1a17 !important;
+  font-family: "Noto Serif SC", "Songti SC", "STSong", serif !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar::after {
+  background: linear-gradient(90deg, transparent, rgba(28, 26, 23, .35) 20%, rgba(28, 26, 23, .35) 80%, transparent);
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar a,
+html:has(.bnh[data-bn-theme="paper"]) #navbar button,
+html:has(.bnh[data-bn-theme="paper"]) #navbar span,
+html:has(.bnh[data-bn-theme="paper"]) #navbar svg {
+  color: rgba(28, 26, 23, .78) !important;
+  font-family: "Noto Serif SC", "Songti SC", "STSong", serif !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar svg path[fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar a:hover,
+html:has(.bnh[data-bn-theme="paper"]) #navbar button:hover,
+html:has(.bnh[data-bn-theme="paper"]) #navbar a:hover span,
+html:has(.bnh[data-bn-theme="paper"]) #navbar button:hover svg {
+  color: #b4382a !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar a[href="/"],
+html:has(.bnh[data-bn-theme="paper"]) #navbar a[href="/"] * {
+  color: #1c1a17 !important;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar [data-search-item="trigger"],
+html:has(.bnh[data-bn-theme="paper"]) #navbar #search-bar-entry,
+html:has(.bnh[data-bn-theme="paper"]) #navbar #assistant-entry,
+html:has(.bnh[data-bn-theme="paper"]) #navbar [data-layout-item="search-entry"],
+html:has(.bnh[data-bn-theme="paper"]) #navbar [data-layout-item="assistant-entry"] {
+  background-color: #faf6ec !important;
+  border: 1px solid rgba(28, 26, 23, .3) !important;
+  border-radius: 4px !important;
+  color: rgba(28, 26, 23, .65) !important;
+  box-shadow: none !important;
+}
+html:has(.bnh[data-bn-theme="paper"]) #navbar [data-search-item="trigger"]:hover,
+html:has(.bnh[data-bn-theme="paper"]) #navbar #search-bar-entry:hover,
+html:has(.bnh[data-bn-theme="paper"]) #navbar #assistant-entry:hover {
+  border-color: #b4382a !important;
 }

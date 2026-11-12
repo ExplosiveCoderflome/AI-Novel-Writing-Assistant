@@ -20,7 +20,6 @@
             "group": "开始使用",
             "pages": [
               "index",
-              "home-light",
               "introduction",
               "quickstart",
               "installation",
