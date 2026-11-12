@@ -370,24 +370,29 @@ export const BnTyping = () => {
 };
 
 export const BnIntro = () => {
-  const IDEA = "普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。";
+  const IDEA = "全民觉醒系统那天，我觉醒的是「系统客服」：全世界的系统出了 bug，都得排队来找我售后。";
   const STAGES = ["起始想法", "导演起始设置", "世界与写法", "模型与生产准备", "方向与自动准备"];
   const [ph, setPh] = useState(0);
   const [k, setK] = useState(0);
   const [s, setS] = useState(0);
-  const [gone, setGone] = useState(false);
+  const [gone, setGone] = useState(true);
   useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setGone(true);
-      return;
-    }
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const KEY = "bn-intro-day";
+    const today = new Date().toDateString();
+    try {
+      if (window.localStorage.getItem(KEY) === today) return;
+      window.localStorage.setItem(KEY, today);
+    } catch (e) {}
+    setGone(false);
     const ts = [];
-    for (let i = 1; i <= IDEA.length; i++) ts.push(setTimeout(() => setK(i), 600 + i * 55));
-    ts.push(setTimeout(() => setPh(1), 2700));
-    ts.push(setTimeout(() => setPh(2), 3300));
-    for (let i = 1; i <= STAGES.length; i++) ts.push(setTimeout(() => setS(i), 3400 + i * 380));
-    ts.push(setTimeout(() => setPh(3), 5900));
-    ts.push(setTimeout(() => setGone(true), 7100));
+    const end = 500 + IDEA.length * 45;
+    for (let i = 1; i <= IDEA.length; i++) ts.push(setTimeout(() => setK(i), 500 + i * 45));
+    ts.push(setTimeout(() => setPh(1), end + 250));
+    ts.push(setTimeout(() => setPh(2), end + 850));
+    for (let i = 1; i <= STAGES.length; i++) ts.push(setTimeout(() => setS(i), end + 950 + i * 360));
+    ts.push(setTimeout(() => setPh(3), end + 3300));
+    ts.push(setTimeout(() => setGone(true), end + 4500));
     return () => ts.forEach(clearTimeout);
   }, []);
   if (gone) return null;
