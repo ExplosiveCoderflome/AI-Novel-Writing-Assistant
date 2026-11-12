@@ -26,6 +26,8 @@ keywords:
 
     <BnFeatures />
 
+    <RepoPulse theme="ink" />
+
     <BnCta />
   </div>
 
@@ -39,6 +41,8 @@ keywords:
     <XzWeb />
 
     <XzFeatures />
+
+    <RepoPulse theme="paper" />
 
     <XzCta />
   </div>
@@ -140,6 +144,9 @@ export const BnHero = () => {
             <a className="bn-btn bn-sec" href="/installation">下载桌面版</a>
             <a className="bn-btn bn-sec" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
+          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
+            <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=0b1210&color=16A34A" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
+          </a>
         </div>
         <div className="bn-book" aria-hidden="true">
           <div className="bn-page bn-back" />
@@ -615,6 +622,9 @@ export const XzHero = () => {
             <a className="xz-btn" href="/installation">下载桌面版</a>
             <a className="xz-btn" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
+          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
+            <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=1c1a17&color=b4382a" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
+          </a>
           <div className="xz-hint">v0.7.5 · AGPL-3.0 · 点击纸面，滴一滴墨</div>
         </div>
       </div>
@@ -919,7 +929,7 @@ export const XzCta = () => (
       .xz-small{position:relative;margin-top:22px;font-size:13px;color:rgba(28,26,23,.45);letter-spacing:.2em}
       @keyframes xzSlow{to{transform:rotate(380deg)}}
     `}</style>
-    <div className="xz-ck">五 · 落款</div>
+    <div className="xz-ck">六 · 落款</div>
     <h2 className="xz-ch">现在开始写你的第一本书</h2>
     <p className="xz-cp">桌面版适合直接开始写作，源码版适合开发和自行部署。模型使用你自己的 API 配置。</p>
     <div className="xz-os"><span>Windows</span><span>macOS · Intel</span><span>macOS · Apple Silicon</span><span>Linux</span></div>
@@ -927,3 +937,94 @@ export const XzCta = () => (
     <div className="xz-small">点击印章，前往下载与安装</div>
   </div>
 );
+
+export const RepoPulse = ({ theme }) => {
+  const R = "ExplosiveCoderflome/AI-Novel-Writing-Assistant";
+  const G = "https://github.com/" + R;
+  const ink = theme === "ink";
+  const body = "**使用版本**：\n\n**安装方式**（桌面版 / 源码版）：\n\n**所选导演与模式**：\n\n**操作步骤**：\n1. \n\n**期望结果**：\n\n**实际结果**：\n\n**相关日志或截图**：\n";
+  const ideaBody = "**想解决的问题**：\n\n**期望的做法**：\n\n**补充说明**：\n";
+  const bugUrl = G + "/issues/new?title=" + encodeURIComponent("[问题] ") + "&body=" + encodeURIComponent(body);
+  const ideaUrl = G + "/issues/new?title=" + encodeURIComponent("[建议] ") + "&body=" + encodeURIComponent(ideaBody);
+  const lc = ink ? "0b1210" : "1c1a17";
+  const cc = ink ? "16A34A" : "b4382a";
+  const badge = (kind, label) => "https://img.shields.io/github/" + kind + "/" + R + "?style=for-the-badge&logo=github&label=" + encodeURIComponent(label) + "&labelColor=" + lc + "&color=" + cc;
+  const BADGES = [
+    { src: badge("stars", "Star"), href: G + "/stargazers", alt: "Star 数" },
+    { src: badge("forks", "Fork"), href: G + "/forks", alt: "Fork 数" },
+    { src: badge("issues", "Open Issues"), href: G + "/issues", alt: "未关闭的 Issue 数" },
+    { src: badge("last-commit", "最近提交"), href: G + "/commits", alt: "最近提交时间" },
+  ];
+  const ACTIONS = [
+    { k: ink ? "BUG" : "疾", t: "报告问题", d: "已为你准备好填写模板：版本、导演与模式、操作步骤和日志。", h: bugUrl },
+    { k: ink ? "IDEA" : "策", t: "提交建议", d: "想要的新功能、体验改进，直接写下来。", h: ideaUrl },
+    { k: ink ? "LIST" : "览", t: "查看已有反馈", d: "先搜一下，也许已经有人提过或已经解决。", h: G + "/issues" },
+    { k: ink ? "STAR" : "星", t: "点个 Star", d: "如果工作台对你有帮助，一个 Star 就是最直接的支持。", h: G },
+  ];
+  const chart = "https://api.star-history.com/svg?repos=" + R + "&type=Date" + (ink ? "&theme=dark" : "");
+  const p = ink ? "bn-cm" : "xz-cm";
+  return (
+    <div className={"not-prose " + p}>
+      <style>{`
+        .bn-cm{background:#05080a;color:#e7f5ec;padding:90px 24px;border-top:1px solid rgba(134,239,172,.08)}
+        .xz-cm{background:#f3ede1;color:#1c1a17;padding:90px 24px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .cm-in{max-width:1120px;margin:0 auto}
+        .cm-k{font-size:13px;letter-spacing:.3em}
+        .bn-cm .cm-k{color:#4ade80}
+        .xz-cm .cm-k{color:#b4382a;letter-spacing:.5em}
+        .cm-h{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 12px}
+        .xz-cm .cm-h{font-weight:800;letter-spacing:.08em}
+        .cm-p{font-size:16px;line-height:1.75;max-width:640px}
+        .bn-cm .cm-p{color:rgba(231,245,236,.65)}
+        .xz-cm .cm-p{color:rgba(28,26,23,.65);line-height:1.9}
+        .cm-badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+        .cm-badges a{display:block;transition:transform .25s}
+        .cm-badges a:hover{transform:translateY(-2px)}
+        .cm-badges img{height:28px;display:block}
+        .cm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-top:36px;align-items:stretch}
+        .cm-chart{display:block;border-radius:16px;overflow:hidden;padding:14px;text-decoration:none}
+        .bn-cm .cm-chart{border:1px solid rgba(134,239,172,.18);background:linear-gradient(180deg,#0b1210,#070b09)}
+        .xz-cm .cm-chart{border:1px solid rgba(28,26,23,.2);background:#faf6ec;border-radius:2px}
+        .cm-chart img{width:100%;height:auto;display:block}
+        .cm-cap{font-size:12px;margin-top:8px;opacity:.55;text-align:right}
+        .cm-acts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+        .cm-a{display:flex;flex-direction:column;gap:8px;padding:20px;border-radius:14px;text-decoration:none;color:inherit;transition:all .25s}
+        .bn-cm .cm-a{border:1px solid rgba(231,245,236,.1);background:rgba(255,255,255,.02)}
+        .bn-cm .cm-a:hover{border-color:#22c55e;background:rgba(22,163,74,.12);transform:translateY(-3px);box-shadow:0 0 24px -8px rgba(34,197,94,.6)}
+        .xz-cm .cm-a{border:1px solid rgba(28,26,23,.22);background:#faf6ec;border-radius:2px}
+        .xz-cm .cm-a:hover{border-color:#b4382a;transform:translateY(-3px);box-shadow:0 16px 30px -20px rgba(28,26,23,.6)}
+        .cm-ak{font-size:11px;letter-spacing:.2em;align-self:flex-start;padding:2px 8px;border-radius:6px}
+        .bn-cm .cm-ak{color:#4ade80;border:1px solid rgba(74,222,128,.35)}
+        .xz-cm .cm-ak{color:#faf6ec;background:#b4382a;font-size:14px;font-weight:800;letter-spacing:0;border-radius:3px}
+        .cm-at{font-size:17px;font-weight:700}
+        .cm-ad{font-size:13.5px;line-height:1.7;opacity:.65}
+        @media (max-width:520px){.cm-acts{grid-template-columns:1fr}}
+      `}</style>
+      <div className="cm-in">
+        <div className="cm-k">{ink ? "COMMUNITY" : "五 · 同道"}</div>
+        <div className="cm-h">{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</div>
+        <div className="cm-p">Star 数和趋势实时来自 GitHub。遇到问题或有想法，直接在下面提交 Issue；附上使用版本、所选导演与模式、操作步骤和相关日志，会更容易定位问题。</div>
+        <div className="cm-badges">
+          {BADGES.map((b) => (
+            <a key={b.alt} href={b.href} aria-label={b.alt}><img src={b.src} alt={b.alt} /></a>
+          ))}
+        </div>
+        <div className="cm-grid">
+          <a className="cm-chart" href={"https://star-history.com/#" + R + "&Date"} aria-label="Star 增长趋势">
+            <img src={chart} alt="Star 增长趋势图" loading="lazy" />
+            <div className="cm-cap">Star 增长趋势 · star-history.com</div>
+          </a>
+          <div className="cm-acts">
+            {ACTIONS.map((a) => (
+              <a key={a.t} className="cm-a" href={a.h} target="_blank" rel="noopener noreferrer">
+                <span className="cm-ak">{a.k}</span>
+                <span className="cm-at">{a.t} →</span>
+                <span className="cm-ad">{a.d}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
