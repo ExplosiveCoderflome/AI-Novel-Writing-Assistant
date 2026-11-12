@@ -1,79 +1,24 @@
-/* 首页顶栏随主题变色：仅作用于首页 */
+/* 首页（含 .bnh 的页面）隐藏 Mintlify 顶部导航栏，让首页全屏沉浸 */
 html:has(.bnh[data-bn-theme]) #navbar,
-html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"] {
-  transition: background-color 1.2s cubic-bezier(.76,0,.18,1), color 1.2s, border-color 1.2s;
-}
-html:has(.bnh[data-bn-theme]) #navbar *,
-html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"] * {
-  transition: background-color 1.2s cubic-bezier(.76,0,.18,1), color 1.2s, border-color 1.2s;
+html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"],
+html:has(.bnh[data-bn-theme]) #banner {
+  display: none !important;
 }
 
-/* 墨夜 */
-html:has(.bnh[data-bn-theme="ink"]) #navbar,
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"],
-html:has(.bnh[data-bn-theme="ink"]) #navbar > div,
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] > div {
-  background-color: rgba(5, 8, 10, 0.82) !important;
-  border-color: rgba(134, 239, 172, 0.12) !important;
-  backdrop-filter: blur(14px);
-  color: #e6efe9 !important;
-}
-html:has(.bnh[data-bn-theme="ink"]) #navbar *,
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] * {
-  border-color: rgba(134, 239, 172, 0.12) !important;
-}
-html:has(.bnh[data-bn-theme="ink"]) #navbar a,
-html:has(.bnh[data-bn-theme="ink"]) #navbar button,
-html:has(.bnh[data-bn-theme="ink"]) #navbar svg,
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] a,
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] button {
-  color: #e6efe9 !important;
-}
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="search-entry"],
-html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="assistant-entry"],
-html:has(.bnh[data-bn-theme="ink"]) [data-search-item="trigger"] {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(134, 239, 172, 0.22) !important;
-  color: rgba(230, 239, 233, 0.7) !important;
-}
-html:has(.bnh[data-bn-theme="ink"]) .nav-tabs-item[data-active] {
-  color: #4ade80 !important;
-  border-color: #16A34A !important;
+/* 去掉为顶栏预留的上边距 */
+html:has(.bnh[data-bn-theme]) body,
+html:has(.bnh[data-bn-theme]) main,
+html:has(.bnh[data-bn-theme]) #content-area,
+html:has(.bnh[data-bn-theme]) #content-container,
+html:has(.bnh[data-bn-theme]) [data-layout-item="content"] {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
 }
 
-/* 宣纸水墨 */
-html:has(.bnh[data-bn-theme="paper"]) #navbar,
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"],
-html:has(.bnh[data-bn-theme="paper"]) #navbar > div,
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] > div {
-  background-color: rgba(243, 237, 225, 0.88) !important;
-  border-color: rgba(28, 26, 23, 0.12) !important;
-  backdrop-filter: blur(14px);
-  color: #1c1a17 !important;
+/* 背景跟随当前主题，避免露出白底 */
+html:has(.bnh[data-bn-theme="ink"]) body {
+  background-color: #05080a !important;
 }
-html:has(.bnh[data-bn-theme="paper"]) #navbar *,
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] * {
-  border-color: rgba(28, 26, 23, 0.12) !important;
-}
-html:has(.bnh[data-bn-theme="paper"]) #navbar a,
-html:has(.bnh[data-bn-theme="paper"]) #navbar button,
-html:has(.bnh[data-bn-theme="paper"]) #navbar svg,
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] a,
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] button {
-  color: #1c1a17 !important;
-}
-html:has(.bnh[data-bn-theme="paper"]) #navbar a,
-html:has(.bnh[data-bn-theme="paper"]) .nav-logo {
-  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif;
-}
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="search-entry"],
-html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="assistant-entry"],
-html:has(.bnh[data-bn-theme="paper"]) [data-search-item="trigger"] {
-  background-color: rgba(250, 246, 236, 0.7) !important;
-  border-color: rgba(28, 26, 23, 0.2) !important;
-  color: rgba(28, 26, 23, 0.65) !important;
-}
-html:has(.bnh[data-bn-theme="paper"]) .nav-tabs-item[data-active] {
-  color: #b4382a !important;
-  border-color: #b4382a !important;
+html:has(.bnh[data-bn-theme="paper"]) body {
+  background-color: #f3ede1 !important;
 }
