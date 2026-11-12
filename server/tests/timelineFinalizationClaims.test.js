@@ -15,7 +15,7 @@ function claimStore(checkpoints) {
     require(name) {
       if (name === "../../../db/prisma") return { prisma: { chapterArtifactSyncCheckpoint: checkpoints } };
       if (name === "../domain/finalizationPolicy") return { TIMELINE_FINALIZATION_RUNNING_STALE_MS: 15 * 60_000 };
-      if (["../timeline.repository", "../timeline.service", "./chapterVersion"].includes(name)) return {};
+      if (["../timeline.repository", "../timeline.service", "./chapterVersion", "../../novel/manuscript/application/ManuscriptWorkspaceService"].includes(name)) return {};
       assert.fail(`Unexpected claim dependency ${name}`);
     },
   });

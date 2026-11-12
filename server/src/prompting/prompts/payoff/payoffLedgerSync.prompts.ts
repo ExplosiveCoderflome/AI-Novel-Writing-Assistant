@@ -1,3 +1,4 @@
+import { resolveOutlinePayoffSource } from "../../../modules/planning/outline/payoffs";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -44,6 +45,8 @@ const PAYOFF_LEDGER_SYNC_EXAMPLE = {
 };
 
 export interface PayoffLedgerSyncPromptInput {
+  writtenChapterEvidence?: Array<{id: string; order: number; content: string | null}>;
+  outlinePlans?: import("@ai-novel/shared/types/outlineOpenBook").OutlinePayoffPlan[];
   novelTitle: string;
   bookContractPayoffs?: Array<{
     refId: string;
@@ -99,7 +102,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "顶层固定格式只能是 {\"items\":[...]}。",
       "",
       "硬性字段约束：",
-      "1. sourceRefs.kind 只能是：major_payoff、volume_open_payoff、chapter_payoff_ref、foreshadow_state、open_conflict、audit_issue。",
+      input.outlinePlans?.length ? "1. sourceRefs.kind 只能是：major_payoff、volume_open_payoff、chapter_payoff_ref、foreshadow_state、open_conflict、audit_issue、outline_plan。" : "1. sourceRefs.kind 只能是：major_payoff、volume_open_payoff、chapter_payoff_ref、foreshadow_state、open_conflict、audit_issue。",
       "2. 不要输出旧别名 chapter_payoff 或 volume_open。",
       "3. scopeType 只能是：book、volume、chapter。",
       "4. confidence 不是必填；只有明确有把握时才写，而且必须是 0-1 的数字。",
@@ -180,6 +183,8 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "2. confidence 如填写，必须是数字，不要写成字符串。",
       "3. scopeType 只能是 book、volume、chapter。",
     ].join("\n")),
+    ...(input.outlinePlans?.length ? [new HumanMessage(`独立大纲伏笔计划（未来安排，不是事实）：${JSON.stringify(input.outlinePlans)}。仅在最近已写正文中确有证据时，输出sourceRefs.kind=outline_plan且refId严格等于计划ledgerKey，并在evidence给出chapterId或chapterOrder及正文原文quote。关联计划时覆盖基础压缩限制：setupChapterId/setupChapterOrder和payoffChapterId/payoffChapterOrder涉及的每个实际章节，都必须分别有该章原文quote，可保留多条evidence；不要填写没有对应证据的实际章定位。refId复制计划ledgerKey，不用nodeId或自行简写。没有证据的计划不要输出成实际账项，不标failed/overdue，不把预定章节写成实际setup/payoff章节。`)] : []),
+    ...(input.writtenChapterEvidence?.length ? [new HumanMessage(`已写正文证据窗口（仅从这里引用原文quote，不以大纲作证）：${JSON.stringify(input.writtenChapterEvidence)}`)] : []),
   ],
   postValidate: (output, input) => {
     const ledgerKeySet = new Set<string>();
@@ -216,4 +221,23 @@ export const payoffLedgerSyncPrompt: PromptAsset<
     }
     return output;
   },
+};
+
+/** Separate registered variant keeps the unbound v8 prompt and structured hint byte-for-byte unchanged. */
+export const outlinePayoffLedgerSyncPrompt: typeof payoffLedgerSyncPrompt = {
+  ...payoffLedgerSyncPrompt,
+  id: "novel.payoff_ledger.outline_sync",
+  version: "v3",
+  postValidate: (output, input, context) => {
+    const errors: string[] = [];
+    try { payoffLedgerSyncPrompt.postValidate?.(output, input, context); }
+    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
+    for (const item of output.items) {
+      try { resolveOutlinePayoffSource(item, input.outlinePlans ?? [], input.writtenChapterEvidence ?? []); }
+      catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
+    }
+    if (errors.length) throw new Error(errors.join("\n") + "\n计划的回收章不是实际兑现章；省略没有逐字正文证据的setup/payoff定位，或补齐每个已写章的原文quote。实际字段不能填写未写章。");
+    return output;
+  },
+  structuredOutputHint: {...payoffLedgerSyncPrompt.structuredOutputHint!, note: "sourceRefs.kind可使用outline_plan，refId必须是输入计划ledgerKey；关联计划时evidence需要原文quote与实际章定位。其余字段与枚举遵循基础台账合同。"},
 };

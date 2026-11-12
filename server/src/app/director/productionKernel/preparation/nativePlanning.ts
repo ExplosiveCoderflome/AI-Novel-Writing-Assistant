@@ -1,3 +1,5 @@
+import { currentOutlinePlanning, assertOutlineReference } from "../../../../modules/planning/outline/constraints";
+import type { OutlineBindingRef } from "@ai-novel/shared/types/outlineOpenBook";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { ChapterRuntimeRequestInput } from "../../../../services/novel/runtime/chapterRuntimeSchema";
 import type { GenerationContextAssembler } from "../../../../services/novel/runtime/GenerationContextAssembler";
@@ -17,6 +19,7 @@ import { readPreparationTimeline, assertPreparationTimeline, ProductionSnapshotC
 import { canonicalProductionJson, ProductionVersionConflictError, type ProductionJson } from "../../../../modules/production/common";
 
 interface SavedPreparation {
+  outlineBinding?: OutlineBindingRef;
   request: ChapterRuntimeRequestInput;
   timeline: PreparationTimelineSource[];
   contract: PreparedChapterExecutionContract;
@@ -57,6 +60,7 @@ export function createKernelNativePlanningPreparation(deps: NativePlanningPrepar
   const sources: ChapterContractPreparationPorts = { ...deps.contractSources, generateDocument: unavailable, reviewContinuity: unavailable };
   async function assertSources(tx: Prisma.TransactionClient, run: UnitRun, saved: SavedPreparation) {
     await deps.assertOwnership(tx, run);
+    if (saved.outlineBinding) await assertOutlineReference(tx, run.progress.unit.novelId, saved.outlineBinding);
     await assertPreparationTimeline(tx, run.progress.unit, saved.timeline, deps.sourceRoute(run));
   }
   function contractOptions(request: ChapterRuntimeRequestInput) {
@@ -75,7 +79,7 @@ export function createKernelNativePlanningPreparation(deps: NativePlanningPrepar
       const generation = await prepareChapterContractGeneration({ novelId: unit.novelId, workspace: contract.workspace,
         targetVolumeId: contract.matched.volumeId, targetChapterId: contract.matched.volumeChapterId,
         options, db: deps.db, storyMacroPlanService: deps.storyMacroPlanService });
-      return wire({ request, timeline, contract, generation, contextInput });
+      return wire({ request, timeline, contract, generation, contextInput, outlineBinding: currentOutlinePlanning()?.ref });
     },
     async execute(run, input, steps) {
       const saved = input as unknown as SavedPreparation, unit = run.progress.unit;

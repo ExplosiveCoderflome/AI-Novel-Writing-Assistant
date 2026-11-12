@@ -3,7 +3,7 @@ export type PayoffLedgerScopeType = "book" | "volume" | "chapter";
 export type PayoffLedgerStatus = "setup" | "hinted" | "pending_payoff" | "paid_off" | "failed" | "overdue";
 
 export interface PayoffLedgerSourceRef {
-  kind: "major_payoff" | "volume_open_payoff" | "chapter_payoff_ref" | "foreshadow_state" | "open_conflict" | "audit_issue";
+  kind: "major_payoff" | "volume_open_payoff" | "chapter_payoff_ref" | "foreshadow_state" | "open_conflict" | "audit_issue" | "outline_plan";
   refId?: string | null;
   refLabel: string;
   chapterId?: string | null;
@@ -13,6 +13,7 @@ export interface PayoffLedgerSourceRef {
 }
 
 export interface PayoffLedgerEvidence {
+  quote?: string;
   summary: string;
   chapterId?: string | null;
   chapterOrder?: number | null;
@@ -61,6 +62,7 @@ export interface PayoffLedgerSummary {
 }
 
 export interface PayoffLedgerResponse {
+  plans?: import("./outlineOpenBook").OutlinePayoffPlan[];
   summary: PayoffLedgerSummary;
   items: PayoffLedgerItem[];
   updatedAt?: string | null;

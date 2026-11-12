@@ -1,3 +1,4 @@
+import {currentOutlinePlanning} from "../../../modules/planning/outline/constraints";
 import type {
   StorylineDiff,
   StorylineVersion,
@@ -301,6 +302,8 @@ export class NovelVolumeService {
       novelId,
       getLegacySource: () => getLegacyVolumeSource(novelId),
     });
+    // A2 preparation owns only its authorized chapter; read paths must not backfill every other chapter.
+    if (currentOutlinePlanning()?.novelId === novelId) return document;
     const hydrated = await this.hydrateCanonicalChapterFields(novelId, document);
     if (!hydrated.changed) {
       return hydrated.document;

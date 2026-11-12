@@ -1,3 +1,4 @@
+import { currentOutlinePlanning } from "../../modules/planning/outline/constraints";
 import { prisma } from "../../db/prisma";
 import type { StepContext, RunContract } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
@@ -42,7 +43,10 @@ export function findTargetVolume(context: Pick<StepContext,"contract">, workspac
     return input.targetVolumeId;
   }
   if (input.targetMode !== "opening") throw new Error("启动创作需要明确选择开篇或目标卷。");
-  const from = context.contract.chapterRange?.from;
+  const from = context.contract.chapterRange?.from ?? (input.outlineBinding ? 1 : undefined);
+  const state = currentOutlinePlanning();
+  const slot = state && [...state.mapping.volumes, ...(state.mapping.runtimeVolumes ?? [])].find(s => from != null && from >= s.from && from <= s.to);
+  if (slot) return slot.volumeId;
   const match = from ? workspace.volumes.find(volume => volume.chapters.some(chapter => chapter.chapterOrder === from)) : null;
   if (match) return match.id;
   // Fresh book opening follows the explicit sort order produced by the AI volume strategy.

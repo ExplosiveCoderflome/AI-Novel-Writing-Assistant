@@ -8,9 +8,9 @@ import {
 } from "@ai-novel/shared/types/characterResource";
 
 const chapterRef = {chapterId:z.string().nullable().optional(),chapterOrder:z.number().int().nullable().optional()};
-const payoffEvidence = z.object({summary:z.string(),...chapterRef});
+const payoffEvidence = z.object({summary:z.string(),quote:z.string().optional(),...chapterRef});
 const payoffSource = z.object({
-  kind:z.enum(["major_payoff","volume_open_payoff","chapter_payoff_ref","foreshadow_state","open_conflict","audit_issue"]),
+  kind:z.enum(["major_payoff","volume_open_payoff","chapter_payoff_ref","foreshadow_state","open_conflict","audit_issue","outline_plan"]),
   refId:z.string().nullable().optional(),refLabel:z.string(),...chapterRef,
   volumeId:z.string().nullable().optional(),volumeSortOrder:z.number().int().nullable().optional(),
 });

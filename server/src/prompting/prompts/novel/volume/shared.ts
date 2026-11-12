@@ -50,6 +50,7 @@ export interface VolumeBeatSheetPromptInput {
 }
 
 export interface VolumeChapterListPromptInput {
+  chapterSlots?: Array<{volumeId: string; chapterOrder: number}>;
   novel: VolumeGenerationNovel;
   workspace: VolumeWorkspace;
   storyMacroPlan: StoryMacroPlan | null;

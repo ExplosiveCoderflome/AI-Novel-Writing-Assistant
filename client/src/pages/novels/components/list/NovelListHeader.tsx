@@ -1,3 +1,4 @@
+import { featureFlags } from "@/config/featureFlags";
 import { Link } from "react-router-dom";
 import { BookCopy, BookOpenText, LayoutDashboard, Library, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,8 @@ export function NovelListHeader(props: {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="flex max-w-2xl flex-wrap justify-end gap-2">
+          {featureFlags.manuscriptRevisionEnabled ? <Button asChild variant="outline"><Link to="/novels/import-manuscript">导入原稿修订</Link></Button> : null}
           <Button asChild>
             <Link to={DIRECTOR_CREATE_LINK}>
               <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />

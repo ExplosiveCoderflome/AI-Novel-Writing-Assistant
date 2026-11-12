@@ -12,6 +12,9 @@ export async function readNovelBookProgress(books: Book[]): Promise<Map<string, 
     SELECT "novelId", COUNT(DISTINCT "order") AS "written" FROM "Chapter"
     WHERE "novelId" IN (${Prisma.join(books.map(book => book.id))})
       AND LENGTH(TRIM(REPLACE(REPLACE(REPLACE(COALESCE("content", ''), ${"\n"}, ''), ${"\r"}, ''), ${"\t"}, ''))) > 0
+      AND (NOT EXISTS (SELECT 1 FROM "ManuscriptProject" p WHERE p."novelId" = "Chapter"."novelId")
+        OR EXISTS (SELECT 1 FROM "ManuscriptUnit" u JOIN "ManuscriptProject" p ON p."id" = u."projectId"
+          WHERE p."novelId" = "Chapter"."novelId" AND u."chapterId" = "Chapter"."id" AND u."status" = 'active'))
     GROUP BY "novelId"`);
   const written = new Map(counts.map(row => [row.novelId, Number(row.written)]));
   return new Map(await Promise.all(books.map(async book => {

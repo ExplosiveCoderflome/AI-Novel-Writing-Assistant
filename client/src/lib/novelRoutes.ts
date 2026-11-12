@@ -24,6 +24,7 @@ export function getDirectorWorkspaceHref(novel: NovelWorkspaceLinkInput): string
 
 export function getNovelWorkspaceHref(novel: NovelWorkspaceLinkInput): string {
   const root = `/novels/${encodeURIComponent(novel.id)}`;
+  if (novel.workspaceSourceRoute === `${root}/revision`) return `${root}/revision`;
   if (novel.narrativeForm === "short_story") {
     return `${root}/story`;
   }

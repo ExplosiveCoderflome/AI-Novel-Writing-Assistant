@@ -35,7 +35,7 @@ function normalizeOptionalConfidence(value: unknown): unknown {
 export const payoffLedgerSyncSourceRefSchema = z.object({
   kind: z.preprocess(
     normalizePayoffSourceRefKind,
-    z.enum(["major_payoff", "volume_open_payoff", "chapter_payoff_ref", "foreshadow_state", "open_conflict", "audit_issue"]),
+    z.enum(["major_payoff", "volume_open_payoff", "chapter_payoff_ref", "foreshadow_state", "open_conflict", "audit_issue", "outline_plan"]),
   ),
   refId: z.string().trim().optional().nullable(),
   refLabel: z.string().trim().min(1),
@@ -46,6 +46,7 @@ export const payoffLedgerSyncSourceRefSchema = z.object({
 });
 
 export const payoffLedgerSyncEvidenceSchema = z.object({
+  quote: z.string().trim().min(1).optional(),
   summary: z.string().trim().min(1),
   chapterId: z.string().trim().optional().nullable(),
   chapterOrder: z.number().int().optional().nullable(),

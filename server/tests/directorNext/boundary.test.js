@@ -109,7 +109,13 @@ test("the director module only imports files inside itself", () => {
         if (allowedUnknownClaimContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorUnknownClaimsView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/unknownClaims["']/);
         }
-        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedUnknownClaimContract && !allowedWorkerContract && !allowedRuntimeStatusContract && !allowedChapterListProgressContract) {
+        const allowedOutlineBindingContract = specifier === "@ai-novel/shared/types/outlineOpenBook"
+          && relative.replace(/\\/g, "/") === "domain/types.ts";
+        if (allowedOutlineBindingContract) {
+          assert.match(source, /import\s+type\s*\{\s*OutlineBindingRef\s*\}\s*from/);
+          assert.equal(importSpecifiers(source).filter(value => value === specifier).length, 1);
+        }
+        if ((!isInfrastructure || !allowedInfrastructureImports.has(specifier)) && !allowedRuntimeImport && !allowedHttpImport && !allowedRevisionContract && !allowedChapterBudgetContract && !allowedUnknownClaimContract && !allowedWorkerContract && !allowedRuntimeStatusContract && !allowedChapterListProgressContract && !allowedOutlineBindingContract) {
           violations.push(`${relative} imports package or alias "${specifier}"`);
         }
         continue;

@@ -9,6 +9,7 @@ import { buildChapterArtifactContentHash } from "../../runtime/artifactSync/Chap
 import { CHAPTER_ARTIFACT_BOUNDARY_TYPE, hasCurrentChapterArtifactSyncBoundary } from "../../runtime/artifactSync/ChapterArtifactSyncBoundary";
 import { ChapterArtifactSyncBoundaryError, type ChapterArtifactSyncResult } from "../../runtime/artifactSync/ChapterArtifactSyncResult";
 import { MANUAL_CHAPTER_SYNC_TYPE, queueManualChapterSync, readManualChapterSync, type ManualChapterSyncPayload } from "./ManualChapterSyncStore";
+import { isCurrentSyncMarker, readActiveManuscriptChapters } from "../../../../modules/novel/manuscript/application/ManuscriptIsolation";
 
 const RUNNING_STALE_MS = 15 * 60 * 1000;
 
@@ -25,6 +26,13 @@ export class ManualChapterSyncService {
   }
 
   async ensurePrevious(novelId: string, beforeOrder: number, checkCancelled: () => Promise<void>): Promise<void> {
+    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    if (activeChapters) {
+      for (const chapter of activeChapters.filter(item => item.order < beforeOrder)) {
+        await this.ensureCurrent(novelId, chapter.id, checkCancelled);
+      }
+      return;
+    }
     const chapters = await prisma.chapter.findMany({where: {novelId, order: {lt: beforeOrder}, OR: [
       {generationState: {in: ["approved", "published"]}}, {chapterStatus: "completed"},
       {artifactSyncCheckpoints: {some: {artifactType: MANUAL_CHAPTER_SYNC_TYPE}}},
@@ -39,13 +47,18 @@ export class ManualChapterSyncService {
     try {
       const chapter = await prisma.chapter.findFirst({ where: { id: payload.chapterId, novelId: payload.novelId },
         include: { novel: { select: { directorVersion: true, directorEpoch: true } } } });
+      const activeChapters = await readActiveManuscriptChapters(prisma as never, payload.novelId);
+      if (activeChapters && !activeChapters.some(item => item.id === payload.chapterId)) {
+        return { ...empty, status: "completed", reason: "章节已退出原稿有效单元。" };
+      }
       if (!chapter || buildChapterArtifactContentHash(chapter.content ?? "") !== payload.contentHash) {
         return { ...empty, status: "completed", reason: "旧修订已被新正文替代。" };
       }
       const marker = await readManualChapterSync(payload.novelId, payload.chapterId, chapter.content ?? "");
-      if (!marker || JSON.parse(marker.metadataJson ?? "{}").revision !== payload.revision) {
+      if (!isCurrentSyncMarker(marker) || JSON.parse(marker!.metadataJson ?? "{}").revision !== payload.revision) {
         return { ...empty, status: "completed", reason: "旧修订已被新正文替代。" };
       }
+      if (!marker) return { ...empty, status: "completed", reason: "旧修订已被新正文替代。" };
       if (marker.status === "succeeded") return { ...empty, status: "completed", completedArtifacts: ["artifact_delta"] };
       const identity = { id: marker.id, metadataJson: JSON.stringify({...payload, attemptId: randomUUID()}) };
       const claimed = await prisma.chapterArtifactSyncCheckpoint.updateMany({ where: { id: marker.id, metadataJson: marker.metadataJson,
@@ -101,12 +114,14 @@ export class ManualChapterSyncService {
           orderBy: { updatedAt: "desc" }, take: 6 },
       } });
       if (!chapter?.content?.trim()) return;
+      const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+      if (activeChapters && !activeChapters.some(item => item.id === chapterId)) return;
       let marker = await readManualChapterSync(novelId, chapterId, chapter.content);
       const terminal = chapter.generationState === "approved" || chapter.generationState === "published"
         || chapter.chapterStatus === "completed";
       // Also recover edits saved by older clients. Unfinished generated drafts retain their production recovery path.
       const currentBoundary = hasCurrentChapterArtifactSyncBoundary(chapter.content, chapter.artifactSyncCheckpoints, {requireAppliedDelta: true});
-      if (!currentBoundary && ((!marker && terminal) || marker?.status === "succeeded")) {
+      if (!currentBoundary && ((!isCurrentSyncMarker(marker) && terminal) || marker?.status === "succeeded")) {
         await prisma.$transaction(async tx => {
           const locked = await tx.chapter.updateMany({ where: { id: chapterId, novelId, content: chapter.content,
             updatedAt: chapter.updatedAt }, data: { updatedAt: chapter.updatedAt } });

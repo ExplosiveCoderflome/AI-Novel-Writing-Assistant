@@ -97,7 +97,7 @@ function buildIntentSummary(intent: ChapterEditorAiRevisionIntent): string {
   ].join("\n");
 }
 
-function resolveSelectionTargetRange(content: string, targetRange?: ChapterEditorTargetRange): ChapterEditorTargetRange {
+function resolveSelectionTargetRange(content: string, targetRange?: ChapterEditorTargetRange, preserveExact=false): ChapterEditorTargetRange {
   if (!targetRange) {
     throw new Error("片段修正需要先选中正文内容。");
   }
@@ -114,7 +114,7 @@ function resolveSelectionTargetRange(content: string, targetRange?: ChapterEdito
   if (!selectedText.trim()) {
     throw new Error("选中文本不能为空。");
   }
-  if (normalizeEditorText(targetRange.text) !== selectedText) {
+  if ((preserveExact ? targetRange.text : normalizeEditorText(targetRange.text)) !== selectedText) {
     throw new Error("选中文本已发生变化，请重新选择后再试。");
   }
   return {
@@ -134,9 +134,11 @@ export class NovelChapterEditorService {
     novelId: string,
     chapterId: string,
     input: ChapterEditorAiRevisionRequest,
+    manuscriptContext?: import("@ai-novel/shared/types/manuscript").ManuscriptChapterRevisionContext,
   ): Promise<ChapterEditorAiRevisionResponse> {
     const context = await this.workspaceService.loadContext(novelId, chapterId);
-    const content = normalizeChapterContent(input.contentSnapshot ?? context.chapter.content ?? "");
+    const rawContent = input.contentSnapshot ?? context.chapter.content ?? "";
+    const content = manuscriptContext ? rawContent : normalizeChapterContent(rawContent);
     if (!content.trim()) {
       throw new Error("当前章节正文为空，无法发起 AI 修正。");
     }
@@ -146,10 +148,10 @@ export class NovelChapterEditorService {
     }
 
     const targetRange = input.scope === "chapter"
-      ? createTargetRangeForWholeChapter(content)
-      : resolveSelectionTargetRange(content, input.selection);
+      ? (manuscriptContext ? {from:0,to:content.length,text:content} : createTargetRangeForWholeChapter(content))
+      : resolveSelectionTargetRange(content, input.selection, !!manuscriptContext);
 
-    const resolvedIntent = await this.resolveRevisionIntent(input, context.macroContext, targetRange.text);
+    const resolvedIntent = manuscriptContext ? buildPresetIntent(input.presetOperation??"polish",["保留已发生事实、人物身份、因果、视角和原有结局；全书规划不等于本章事实。"],input.instruction) : await this.resolveRevisionIntent(input, context.macroContext, targetRange.text);
     const contextWindow = input.scope === "selection"
       ? input.context ?? buildParagraphWindow(content, targetRange)
       : { beforeParagraphs: [], afterParagraphs: [] };
@@ -157,6 +159,7 @@ export class NovelChapterEditorService {
     const result = await this.promptRunner({
       asset: chapterEditorRewriteCandidatesPrompt,
       promptInput: {
+        manuscriptContext,
         operation: input.presetOperation ?? (input.source === "freeform" ? "custom" : "polish"),
         operationLabel: input.presetOperation ? OPERATION_LABELS[input.presetOperation] : "按用户要求修正",
         scope: input.scope,
@@ -165,12 +168,12 @@ export class NovelChapterEditorService {
         selectedText: targetRange.text,
         beforeParagraphs: contextWindow.beforeParagraphs,
         afterParagraphs: contextWindow.afterParagraphs,
-        goalSummary: context.chapterPlan?.objective?.trim() || context.chapter.expectation?.trim() || null,
-        chapterSummary: context.chapterSummary,
+        goalSummary: manuscriptContext ? null : context.chapterPlan?.objective?.trim() || context.chapter.expectation?.trim() || null,
+        chapterSummary: manuscriptContext ? null : context.chapterSummary,
         styleSummary: context.styleSummary || null,
-        characterStateSummary: buildCharacterStateSummary(context.latestStateSnapshot),
-        worldConstraintSummary: context.macroContext.worldConstraintSummary,
-        macroContextSummary: buildMacroContextSummary(context.macroContext),
+        characterStateSummary: manuscriptContext ? null : buildCharacterStateSummary(context.latestStateSnapshot),
+        worldConstraintSummary: manuscriptContext ? null : context.macroContext.worldConstraintSummary,
+        macroContextSummary: manuscriptContext ? "全书约束与已发生前文按原稿专用上下文区分。" : buildMacroContextSummary(context.macroContext),
         resolvedIntentSummary: buildIntentSummary(resolvedIntent),
         constraintsText: buildConstraintsText(input.constraints),
       } satisfies ChapterEditorRewriteCandidatesPromptInput,

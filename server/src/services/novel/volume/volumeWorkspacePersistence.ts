@@ -1,3 +1,4 @@
+import { assertOutlineWorkspaceWrite } from "../../../modules/planning/outline/constraints";
 import type { VolumeChapterPlan, VolumePlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
@@ -418,6 +419,7 @@ export async function persistActiveVolumeWorkspace(
   sourceVersionId: string | null,
 ): Promise<void> {
   assertUniqueWorkspaceOrders(document);
+  await assertOutlineWorkspaceWrite(tx, novelId, document);
   const existingVolumes = await tx.volumePlan.findMany({
     where: { novelId },
     select: {

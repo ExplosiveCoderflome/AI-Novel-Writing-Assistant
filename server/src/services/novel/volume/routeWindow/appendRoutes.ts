@@ -15,7 +15,7 @@ export function mergeSavedRouteRows(current: VolumePlanDocument, rows: VolumePla
       "midVolumeRisk", "payoffType", "createdAt", "updatedAt"]);
     return {...volume, chapters: row.chapters.map(chapter => retainDocumentFields(
       saved?.chapters.find(item => item.id === chapter.id), chapter,
-      ["beatKey", "exclusiveEvent", "endingState", "nextChapterEntryState", "styleContract", "createdAt", "updatedAt"],
+      ["plannedCharacterIds", "beatKey", "exclusiveEvent", "endingState", "nextChapterEntryState", "styleContract", "createdAt", "updatedAt"],
     ))};
   })};
 }

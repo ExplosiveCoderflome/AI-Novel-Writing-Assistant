@@ -49,6 +49,7 @@ interface TimelineFinalizationRequestOptions {
 }
 
 interface FinalizeCurrentContentInput {
+  manuscriptVersion?: import("../../../modules/timeline/persistence/chapterVersion").ManuscriptTimelineVersion | null;
   novelId: string;
   chapterId: string;
   content: string;
@@ -160,6 +161,7 @@ export class ChapterTimelineFinalizationService {
   }
 
   async finalizeCurrentContent(input: FinalizeCurrentContentInput): Promise<ChapterTimelineFinalizationResult> {
+    input={...input,manuscriptVersion:await this.store.captureManuscriptVersion?.(input.novelId,input.chapterId)};
     const content = input.content.trim();
     const contentHash = hashContent(content);
     const existingMode = await this.store.findCurrentFinalizationMode({

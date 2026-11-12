@@ -8,6 +8,8 @@ import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import DirectorPanel from "@/components/directorNext/DirectorPanel";
 import DirectorBadge from "@/components/directorNext/DirectorBadge";
+import {OutlineBookSource} from "@/components/outlines/OutlineBookSource";
+import OutlineWritingControls from "@/components/outlines/OutlineWritingControls";
 import DirectorStart from "@/components/directorNext/DirectorStart";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { previewStates, previewTimeline, previewView } from "./preview";
@@ -51,7 +53,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   useEffect(() => {
     if (!preview && metadata?.directorVersion === "v1") navigate(`/novels/${encodeURIComponent(novelId)}/edit`, {replace: true});
   }, [metadata?.directorVersion, navigate, novelId, preview]);
-  const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
+  const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => book.outlineBinding ? <OutlineWritingControls key={`${view?.runId ?? novelId}:${book.chapters.filter(chapter=>chapter.content?.trim()).length}`} book={book} initialStory={metadata.description ?? ""} worldId={metadata.worldId}/> : <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-3">
@@ -73,6 +75,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!preview ? <Button asChild variant="ghost"><Link to={`/novels/${encodeURIComponent(novelId)}/ai-usage`}>AI 用量</Link></Button> : null}
         </div>
       </header>
+      {book?.outlineBinding ? <OutlineBookSource binding={book.outlineBinding}/> : null}
       {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}
       {preview ? <details className="rounded-md bg-muted/30 px-4 py-3"><summary className="cursor-pointer text-xs text-muted-foreground">示例预览 · 切换导演状态</summary><p className="mt-3 text-xs text-muted-foreground">本页使用示例内容，创作命令禁用。</p><div className="mt-3 flex flex-wrap gap-2">{previewStates.map((state) => <Button key={state.id} size="sm" variant={(params.get("state") ?? "running") === state.id ? "default" : "ghost"} onClick={() => setParams({ state: state.id })}>{state.label}</Button>)}</div></details> : null}
       <ResizableWorkspace id="director-novel-layout" className="min-h-0 flex-1" label="调整正文与导演台宽度" defaultLeft={76} minLeft={580} minRight={280} breakpoint={920} left={<div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -82,7 +85,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p>
             {diagnostic ? <div className="space-y-2 text-sm"><p>保存的运行状态：{diagnostic.status} · 版本 {diagnostic.controlVersion}</p>{diagnostic.lastFailure ? <p>最近中断原因：{diagnostic.lastFailure.message}</p> : null}<p className="text-muted-foreground">正文进度暂不可读取，请处理原因后重新读取。</p></div> : diagnosticQuery.isError ? <p className="text-sm">运行诊断也暂时无法读取。</p> : null}
             <Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), ...(runId ? [detailQuery.refetch()] : []), diagnosticQuery.refetch()])}>重新读取</Button></div>
-            : view ? <DirectorPanel view={view} novelId={novelId} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}
+            : view ? <DirectorPanel view={view} novelId={novelId} outlineBound={Boolean(book?.outlineBinding)} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}
                 renderPlanEditor={!preview && !bookQuery.isError && savedReview?.ready && savedReview.type==="chapter_task_sheet" && savedReview.plan ? input=><DirectorChapterPlanEditor novelId={novelId} plan={savedReview.plan!} {...input}/> : undefined}/>
               : <p className="py-4 text-sm text-muted-foreground">{summaryQuery.isLoading || detailQuery.isLoading ? "正在读取导演信息…" : "选择创作范围，让 AI 从本书内容继续。"}</p>}
           {!error && !view ? startForm?.(null):null}

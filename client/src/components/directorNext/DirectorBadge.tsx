@@ -17,6 +17,7 @@ interface DirectorBadgeProps {
   preview?: boolean;
   modeOnly?: boolean;
   currentNavigationTarget?: string;
+  openRunLabel?: string;
 }
 
 function statusLabel(mode: DashboardView["mode"]): string {
@@ -68,7 +69,7 @@ function commandFor(action: DirectorAction, view: DashboardView, novelId: string
   return null;
 }
 
-export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, modeOnly = false, currentNavigationTarget }: DirectorBadgeProps) {
+export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, modeOnly = false, currentNavigationTarget, openRunLabel }: DirectorBadgeProps) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (action: DirectorAction) => {
@@ -109,7 +110,7 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
 
   const renderAction = (action: DirectorAction, primary: boolean) => {
     const actionClassName = "h-auto max-w-full whitespace-normal py-2";
-    if (action.command === "open_run") return preview ? <Button key={action.id} className={actionClassName} disabled>{action.label}</Button> : <Button key={action.id} className={actionClassName} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{action.label}</a></Button>;
+    if (action.command === "open_run") return preview ? <Button key={action.id} className={actionClassName} disabled>{action.label}</Button> : <Button key={action.id} className={actionClassName} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{openRunLabel ?? action.label}</a></Button>;
     if (action.kind === "navigate" && action.target) {
       return (
         <Button key={action.id} className={actionClassName} asChild size={primary ? "default" : "sm"} variant={primary ? "default" : "ghost"}>

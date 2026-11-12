@@ -37,6 +37,7 @@ import {
   briefSummary,
 } from "./novelCoreShared";
 import { ensureNovelCharacters, queueRagUpsert } from "./novelCoreSupport";
+import { rejectLegacyManuscriptWrite } from "../../modules/novel/manuscript/application/ManuscriptIsolation";
 
 export interface ChapterStreamProductionPort {
   createChapterStream(
@@ -84,6 +85,7 @@ export class NovelCoreGenerationService {
   }
 
   async createOutlineStream(novelId: string, options: OutlineGenerateOptions = {}) {
+    await rejectLegacyManuscriptWrite(prisma as never, novelId);
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       include: { world: true, characters: true },
@@ -140,6 +142,7 @@ export class NovelCoreGenerationService {
   }
 
   async createStructuredOutlineStream(novelId: string, options: StructuredOutlineGenerateOptions = {}) {
+    await rejectLegacyManuscriptWrite(prisma as never, novelId);
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       include: { world: true, characters: true },
@@ -274,6 +277,7 @@ export class NovelCoreGenerationService {
   }
 
   async createChapterStream(novelId: string, chapterId: string, options: ChapterGenerateOptions = {}) {
+    await rejectLegacyManuscriptWrite(prisma as never, novelId);
     return this.chapterProduction.createChapterStream(novelId, chapterId, options);
   }
 

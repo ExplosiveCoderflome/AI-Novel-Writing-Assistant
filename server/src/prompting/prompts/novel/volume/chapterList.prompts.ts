@@ -459,6 +459,7 @@ export function createVolumeChapterListPrompt(
       ),
 
       ...(withSchedule ? [new HumanMessage(`角色目录（ID、姓名、身份、剧情定位；后续章节沿用这些身份）：\n${JSON.stringify(promptInput.novel.characters.map(character => ({id:character.id,name:character.name,role:character.role,castRole:character.castRole ?? null})).sort((a,b)=>(a.id ?? "").localeCompare(b.id ?? "")))}`)] : []),
+      ...(promptInput.chapterSlots ? [new HumanMessage(`只补下列明确章槽：${JSON.stringify(promptInput.chapterSlots)}。这是当前节奏段的一小段，不要求在本次兑现整个节奏段；不得生成其他章，不提前兑现远期伏笔。`)] : []),
       new HumanMessage(
         [
           "请基于以下上下文，输出当前节奏段的章节块。",

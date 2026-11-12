@@ -64,6 +64,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "js-tiktoken": "1.0.21",
     "langchain": "^1.2.28",
     "morgan": "^1.10.1",
     "sharp": "^0.35.1",
