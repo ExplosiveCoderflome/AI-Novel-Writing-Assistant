@@ -62,5 +62,10 @@
       "theme-color": "#05080a",
       "application-name": "Biz Novel Studio"
     }
-  }
+  },
+  "logo": {
+    "light": "https://avatars.githubusercontent.com/u/191454658?v=4",
+    "dark": "https://avatars.githubusercontent.com/u/191454658?v=4"
+  },
+  "favicon": "https://avatars.githubusercontent.com/u/191454658?v=4"
 }
