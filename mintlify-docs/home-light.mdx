@@ -1,0 +1,410 @@
+---
+title: "Biz Novel Studio"
+sidebarTitle: "首页（水墨）"
+description: "开源 AI 小说创作工作台：从一句灵感，走向一本完整小说"
+mode: "custom"
+---
+
+<XzHero />
+
+<XzScroll />
+
+<XzDirector />
+
+<XzWeb />
+
+<XzFeatures />
+
+<XzCta />
+
+export const XzHero = () => {
+  const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
+  const colA = "从一句灵感".split("");
+  const colB = "走向一本完整小说".split("");
+  const [drops, setDrops] = useState([]);
+  const onDrop = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const id = Date.now() + Math.random();
+    setDrops((d) => [...d.slice(-5), { id, x: e.clientX - r.left, y: e.clientY - r.top }]);
+    setTimeout(() => setDrops((d) => d.filter((x) => x.id !== id)), 4000);
+  };
+  return (
+    <div className="not-prose xz-hero" style={{ backgroundImage: PAPER }} onClick={onDrop}>
+      <style>{`
+        .xz-hero{position:relative;overflow:hidden;background-color:#f3ede1;color:#1c1a17;padding:96px 24px 220px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;cursor:crosshair}
+        .xz-sun{position:absolute;right:12%;top:70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(180,56,42,.85),rgba(180,56,42,.55) 60%,rgba(180,56,42,0) 72%);filter:blur(1px);animation:xzSun 9s ease-in-out infinite;pointer-events:none}
+        .xz-bloom{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(28,26,23,.5),rgba(28,26,23,.18) 45%,transparent 70%);filter:blur(6px);pointer-events:none;animation:xzBloom 9s ease-out infinite}
+        .xz-drop{position:absolute;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:radial-gradient(circle,rgba(28,26,23,.55),rgba(28,26,23,.2) 40%,transparent 70%);filter:blur(5px);pointer-events:none;animation:xzDrop 4s ease-out forwards}
+        .xz-wrap{position:relative;z-index:2;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:48px;align-items:center}
+        .xz-left{order:1}
+        .xz-title{order:2;display:flex;flex-direction:row-reverse;justify-content:center;gap:26px;height:min(560px,70vw)}
+        .xz-col{writing-mode:vertical-rl;font-size:clamp(40px,6vw,72px);font-weight:900;letter-spacing:.12em;line-height:1}
+        .xz-col.b{margin-top:90px}
+        .xz-ch{display:inline-block;opacity:0;animation:xzInk 1.4s cubic-bezier(.2,.7,.2,1) forwards}
+        .xz-col.b .xz-ch{color:#2b2722}
+        .xz-col.b .xz-ch.hl{color:#b4382a}
+        .xz-seal{display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border:3px solid #b4382a;border-radius:6px;color:#b4382a;font-weight:900;font-size:17px;line-height:1.1;text-align:center;transform:rotate(-6deg);opacity:0;animation:xzStamp .6s 2.8s cubic-bezier(.3,1.6,.5,1) forwards;box-shadow:inset 0 0 0 2px rgba(180,56,42,.15)}
+        .xz-k{font-size:14px;letter-spacing:.5em;color:rgba(28,26,23,.55)}
+        .xz-name{font-size:clamp(26px,3.4vw,34px);font-weight:700;margin:14px 0 0;letter-spacing:.06em}
+        .xz-rule{width:64px;height:2px;background:#1c1a17;margin:22px 0;opacity:.7}
+        .xz-p{font-size:17px;line-height:2;color:rgba(28,26,23,.72);max-width:440px}
+        .xz-btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px;align-items:center}
+        .xz-btn{position:relative;display:inline-block;padding:12px 26px;font-size:16px;letter-spacing:.2em;text-decoration:none;color:#1c1a17;border:1.5px solid #1c1a17;transition:all .35s;cursor:pointer;overflow:hidden}
+        .xz-btn::before{content:"";position:absolute;inset:0;background:#1c1a17;transform:scaleX(0);transform-origin:left;transition:transform .45s cubic-bezier(.6,.1,.2,1);z-index:-1}
+        .xz-btn:hover{color:#f3ede1}
+        .xz-btn:hover::before{transform:scaleX(1)}
+        .xz-btn{z-index:0}
+        .xz-red{background:#b4382a;border-color:#b4382a;color:#f8f1e4}
+        .xz-red::before{background:#1c1a17}
+        .xz-hint{margin-top:26px;font-size:13px;color:rgba(28,26,23,.42);letter-spacing:.15em}
+        .xz-mt{position:absolute;left:0;right:0;bottom:0;height:260px;pointer-events:none}
+        .xz-mt svg{position:absolute;bottom:0;width:200%;height:100%}
+        .xz-m1{animation:xzDrift 90s linear infinite;opacity:.35}
+        .xz-m2{animation:xzDrift 60s linear infinite;opacity:.55}
+        .xz-m3{animation:xzDrift 40s linear infinite;opacity:.85}
+        .xz-mist{position:absolute;left:0;right:0;bottom:60px;height:120px;background:linear-gradient(transparent,rgba(243,237,225,.85),transparent);animation:xzMist 12s ease-in-out infinite}
+        @keyframes xzInk{0%{opacity:0;filter:blur(10px);transform:scale(1.35)}60%{opacity:.9;filter:blur(1.5px)}100%{opacity:1;filter:blur(0);transform:scale(1)}}
+        @keyframes xzStamp{0%{opacity:0;transform:rotate(-6deg) scale(1.8)}100%{opacity:1;transform:rotate(-6deg) scale(1)}}
+        @keyframes xzBloom{0%{transform:scale(.2);opacity:0}15%{opacity:.6}100%{transform:scale(1.4);opacity:0}}
+        @keyframes xzDrop{0%{transform:scale(.1);opacity:.9}100%{transform:scale(1.3);opacity:0}}
+        @keyframes xzDrift{to{transform:translateX(-50%)}}
+        @keyframes xzMist{50%{transform:translateX(4%);opacity:.6}}
+        @keyframes xzSun{50%{transform:translateY(10px);opacity:.85}}
+      `}</style>
+      <div className="xz-sun" />
+      <div className="xz-bloom" style={{ left: "6%", top: "18%", width: 240, height: 240 }} />
+      <div className="xz-bloom" style={{ left: "44%", top: "8%", width: 180, height: 180, animationDelay: "3s" }} />
+      <div className="xz-bloom" style={{ left: "70%", top: "52%", width: 220, height: 220, animationDelay: "6s" }} />
+      {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
+      <div className="xz-wrap">
+        <div className="xz-title" aria-label="从一句灵感，走向一本完整小说">
+          <div className="xz-col">
+            {colA.map((c, i) => <span key={i} className="xz-ch" style={{ animationDelay: 0.2 + i * 0.18 + "s" }}>{c}</span>)}
+          </div>
+          <div className="xz-col b">
+            {colB.map((c, i) => <span key={i} className={"xz-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 1.2 + i * 0.18 + "s" }}>{c}</span>)}
+            <div style={{ marginTop: 22 }}><span className="xz-seal" style={{ writingMode: "horizontal-tb" }}>开源<br />创作</span></div>
+          </div>
+        </div>
+        <div className="xz-left">
+          <div className="xz-k">AI NOVEL STUDIO</div>
+          <div className="xz-name">Biz Novel Studio</div>
+          <div className="xz-rule" />
+          <p className="xz-p">开源的 AI 小说创作工作台。AI 帮你规划世界与角色、逐章写作、检查和保存，让长篇创作有一条可以继续走下去的路。</p>
+          <div className="xz-btns">
+            <a className="xz-btn xz-red" href="/quickstart">开始使用</a>
+            <a className="xz-btn" href="/installation">下载桌面版</a>
+            <a className="xz-btn" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
+          </div>
+          <div className="xz-hint">v0.7.5 · AGPL-3.0 · 点击纸面，滴一滴墨</div>
+        </div>
+      </div>
+      <div className="xz-mt" aria-hidden="true">
+        <svg className="xz-m1" viewBox="0 0 2400 260" preserveAspectRatio="none">
+          <path fill="#6d6a63" d="M0 260V120Q120 40 260 110T520 80Q640 20 780 100T1040 90Q1120 60 1200 120V260ZM1200 260V120Q1320 40 1460 110T1720 80Q1840 20 1980 100T2240 90Q2320 60 2400 120V260Z" />
+        </svg>
+        <svg className="xz-m2" viewBox="0 0 2400 260" preserveAspectRatio="none">
+          <path fill="#3d3a35" d="M0 260V170Q90 110 200 160T420 130Q520 70 640 150T900 140Q1040 100 1200 170V260ZM1200 260V170Q1290 110 1400 160T1620 130Q1720 70 1840 150T2100 140Q2240 100 2400 170V260Z" />
+        </svg>
+        <div className="xz-mist" />
+        <svg className="xz-m3" viewBox="0 0 2400 260" preserveAspectRatio="none">
+          <path fill="#1c1a17" d="M0 260V215Q150 180 300 210T640 200Q800 170 960 205T1200 215V260ZM1200 260V215Q1350 180 1500 210T1840 200Q2000 170 2160 205T2400 215V260Z" />
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+export const XzScroll = () => {
+  const STEPS = [
+    { k: "灵感", t: "我有一个想写的故事点子" },
+    { k: "方向", t: "生成可选书级方向和标题组" },
+    { k: "世界", t: "世界骨架规则势力和地点" },
+    { k: "角色", t: "角色候选和阵容草案" },
+    { k: "章节", t: "章节任务单场景卡和目标" },
+    { k: "正文", t: "按章节任务生成正文草稿" },
+  ];
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(-1);
+  const [chars, setChars] = useState(0);
+  useEffect(() => {
+    if (!open) {
+      const t = setTimeout(() => { setOpen(true); setStep(0); setChars(0); }, 600);
+      return () => clearTimeout(t);
+    }
+    if (step < 0) return;
+    const cur = STEPS[step].t;
+    if (chars < cur.length) {
+      const t = setTimeout(() => setChars((c) => c + 1), 90);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      if (step < STEPS.length - 1) { setStep(step + 1); setChars(0); }
+      else { setOpen(false); setStep(-1); }
+    }, step === STEPS.length - 1 ? 3600 : 500);
+    return () => clearTimeout(t);
+  }, [open, step, chars]);
+  return (
+    <div className="not-prose xz-sc">
+      <style>{`
+        .xz-sc{background:#f3ede1;color:#1c1a17;padding:80px 24px 100px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xz-si{max-width:1100px;margin:0 auto}
+        .xz-hd{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:40px}
+        .xz-hk{font-size:13px;letter-spacing:.5em;color:#b4382a}
+        .xz-hh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 0}
+        .xz-hp{max-width:420px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.65)}
+        .xz-roll{position:relative;padding:0 18px}
+        .xz-rod{position:absolute;top:-10px;bottom:-10px;width:16px;border-radius:8px;background:linear-gradient(90deg,#5b3a24,#8a5a37 40%,#4a2e1c);box-shadow:0 6px 14px rgba(0,0,0,.25);z-index:2}
+        .xz-rod.r{right:0}
+        .xz-rod.l{transition:right 1.4s cubic-bezier(.6,.1,.2,1)}
+        .xz-paper{position:relative;margin-left:auto;height:400px;background:#faf6ec;border-top:1px solid rgba(28,26,23,.08);border-bottom:1px solid rgba(28,26,23,.08);box-shadow:0 30px 60px -40px rgba(28,26,23,.5);overflow:hidden;transition:width 1.4s cubic-bezier(.6,.1,.2,1)}
+        .xz-paper::before{content:"";position:absolute;inset:14px;border:1px solid rgba(180,56,42,.25);pointer-events:none}
+        .xz-cols{position:absolute;inset:34px 30px;display:flex;flex-direction:row-reverse;gap:clamp(10px,3vw,40px);justify-content:flex-start}
+        .xz-c{display:flex;flex-direction:column;align-items:center;gap:14px;opacity:0;transition:opacity .5s}
+        .xz-c.show{opacity:1}
+        .xz-lab{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#b4382a;color:#faf6ec;font-size:14px;font-weight:700;border-radius:3px}
+        .xz-v{writing-mode:vertical-rl;font-size:clamp(15px,1.8vw,19px);letter-spacing:.25em;line-height:1.6;color:#2b2722;min-height:10px}
+        .xz-v .cur{display:inline-block;width:1em;height:2px;background:#b4382a;animation:xzBk 1s steps(1) infinite}
+        .xz-v.done{color:rgba(28,26,23,.62)}
+        .xz-v.last{color:#1c1a17;font-weight:700}
+        @keyframes xzBk{50%{opacity:0}}
+      `}</style>
+      <div className="xz-si">
+        <div className="xz-hd">
+          <div>
+            <div className="xz-hk">一 · 展卷</div>
+            <div className="xz-hh">一句灵感，徐徐展开成书</div>
+          </div>
+          <div className="xz-hp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
+        </div>
+        <div className="xz-roll">
+          <div className="xz-rod r" />
+          <div className="xz-rod l" style={{ right: open ? "calc(100% - 16px)" : "0" }} />
+          <div className="xz-paper" style={{ width: open ? "100%" : "0%" }}>
+            <div className="xz-cols" aria-live="polite">
+              {STEPS.map((s, i) => (
+                <div key={s.k} className={"xz-c" + (i <= step ? " show" : "")}>
+                  <span className="xz-lab">{s.k.slice(0, 1)}</span>
+                  <div className={"xz-v" + (i < step ? " done" : "") + (i === STEPS.length - 1 && i <= step ? " last" : "")}>
+                    {i < step ? s.t : i === step ? s.t.slice(0, chars) : ""}
+                    {i === step && <span className="cur" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const XzDirector = () => {
+  const NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "十一", "十二"];
+  const STAGES = ["方向候选", "立项创建", "故事宏观", "世界搭建", "角色生成", "卷战略", "节奏板", "章节细化", "章节批次就绪", "正文生成", "质量审核", "修复与回灌"];
+  const DETAILS = ["从灵感生成可选书级方向和标题组。", "将确认的方向变成小说项目，写入候选方向、标题和运行参数。", "生成整本书长期冲突、推进循环和主线结构。", "生成本书世界骨架、规则、势力和地点。", "生成角色候选和阵容草案。", "生成分卷策略、推进路线和卷目标。", "把卷规划拆成可执行章节任务。", "生成章节任务单、场景卡和目标。", "可以开始写这一批章节。", "按章节任务生成正文草稿。", "检查正文是否满足任务与写法要求。", "局部修文、保存正文并同步角色与伏笔状态。"];
+  const [cur, setCur] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setCur((c) => (c + 1) % STAGES.length), 2000);
+    return () => clearInterval(t);
+  }, [paused]);
+  return (
+    <div className="not-prose xz-dr" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+      <style>{`
+        .xz-dr{background:#ece5d6;color:#1c1a17;padding:90px 24px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xz-di{max-width:1100px;margin:0 auto}
+        .xz-dk{font-size:13px;letter-spacing:.5em;color:#b4382a}
+        .xz-dh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 12px}
+        .xz-dp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.65);max-width:620px}
+        .xz-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:18px 10px;margin-top:44px}
+        .xz-st{background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font-family:inherit;color:inherit}
+        .xz-st svg{width:78px;height:78px;overflow:visible}
+        .xz-ring{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-width:5;opacity:.18;transition:opacity .4s}
+        .xz-st.done .xz-ring{opacity:.45}
+        .xz-st.on .xz-ring{opacity:1;stroke:#1c1a17;stroke-dasharray:.86 1;animation:xzEnso 1.2s cubic-bezier(.5,.1,.2,1) both}
+        .xz-st:hover .xz-ring{opacity:.7}
+        .xz-nm{font-size:20px;font-weight:800;fill:#1c1a17;text-anchor:middle;dominant-baseline:central}
+        .xz-st.on .xz-nm{fill:#b4382a}
+        .xz-sl{font-size:14px;letter-spacing:.08em;color:rgba(28,26,23,.6);transition:color .3s}
+        .xz-st.on .xz-sl{color:#1c1a17;font-weight:700}
+        .xz-note{margin-top:40px;display:flex;gap:22px;align-items:flex-start;padding:26px 30px;background:#faf6ec;border-left:4px solid #b4382a;box-shadow:0 20px 40px -30px rgba(28,26,23,.5)}
+        .xz-note b{font-size:22px;letter-spacing:.1em}
+        .xz-note p{margin:8px 0 0;font-size:16px;line-height:1.9;color:rgba(28,26,23,.75)}
+        .xz-big{font-size:46px;font-weight:900;color:#b4382a;line-height:1;min-width:64px}
+        @keyframes xzEnso{from{stroke-dashoffset:.86}to{stroke-dashoffset:0}}
+      `}</style>
+      <div className="xz-di">
+        <div className="xz-dk">二 · 运笔</div>
+        <div className="xz-dh">自动导演，十二道工序成一书</div>
+        <div className="xz-dp">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
+        <div className="xz-grid">
+          {STAGES.map((s, i) => (
+            <button type="button" key={s} className={"xz-st" + (i === cur ? " on" : i < cur ? " done" : "")} onClick={() => { setCur(i); setPaused(true); }}>
+              <svg viewBox="0 0 80 80">
+                <circle key={i === cur ? "on" + cur : "off"} className="xz-ring" cx="40" cy="40" r="32" pathLength="1" transform="rotate(-70 40 40)" />
+                <text className="xz-nm" x="40" y="41" style={{ fontSize: NUM[i].length > 1 ? 16 : 20 }}>{NUM[i]}</text>
+              </svg>
+              <span className="xz-sl">{s}</span>
+            </button>
+          ))}
+        </div>
+        <div className="xz-note" aria-live="polite">
+          <div className="xz-big">{NUM[cur]}</div>
+          <div>
+            <b>{STAGES[cur]}</b>
+            <p>{DETAILS[cur]}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const XzWeb = () => {
+  const NODES = [
+    { id: "book", x: 300, y: 215, r: 30, l: "本书", main: true },
+    { id: "world", x: 140, y: 120, r: 20, l: "世界", main: true },
+    { id: "char", x: 460, y: 120, r: 20, l: "角色", main: true },
+    { id: "chap", x: 300, y: 370, r: 20, l: "章节", main: true },
+    { id: "rule", x: 40, y: 50, r: 7, l: "规则" },
+    { id: "force", x: 50, y: 195, r: 7, l: "势力" },
+    { id: "place", x: 180, y: 25, r: 7, l: "地点" },
+    { id: "tension", x: 60, y: 300, r: 7, l: "冲突张力" },
+    { id: "rel", x: 560, y: 55, r: 7, l: "关系" },
+    { id: "trait", x: 420, y: 25, r: 7, l: "性格与能力" },
+    { id: "state", x: 560, y: 225, r: 7, l: "章节状态" },
+    { id: "task", x: 160, y: 410, r: 7, l: "章节任务" },
+    { id: "scene", x: 440, y: 410, r: 7, l: "场景卡" },
+    { id: "fore", x: 555, y: 340, r: 7, l: "伏笔" },
+  ];
+  const EDGES = [["book","world"],["book","char"],["book","chap"],["world","rule"],["world","force"],["world","place"],["world","tension"],["char","rel"],["char","trait"],["char","state"],["chap","task"],["chap","scene"],["chap","fore"],["force","rel"],["state","chap"],["fore","char"],["tension","task"]];
+  const [hover, setHover] = useState(null);
+  const P = Object.fromEntries(NODES.map((n) => [n.id, n]));
+  const curve = (a, b) => {
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    return `M${a.x} ${a.y} Q${mx - dy * 0.18} ${my + dx * 0.18} ${b.x} ${b.y}`;
+  };
+  const on = (a, b) => hover && (a === hover || b === hover);
+  const near = (id) => !hover || id === hover || EDGES.some(([a, b]) => (a === hover && b === id) || (b === hover && a === id));
+  return (
+    <div className="not-prose xz-wb">
+      <style>{`
+        .xz-wb{background:#f3ede1;color:#1c1a17;padding:90px 24px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xz-wi{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px;align-items:center}
+        .xz-wk{font-size:13px;letter-spacing:.5em;color:#b4382a}
+        .xz-wh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 14px}
+        .xz-wp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.65)}
+        .xz-svg{width:100%;height:auto;overflow:visible}
+        .xz-ln{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:xzDraw 1.6s ease forwards;transition:stroke .3s,opacity .3s}
+        .xz-ln.on{stroke:#b4382a;opacity:1!important}
+        .xz-nd{cursor:pointer;transition:opacity .35s}
+        .xz-nd text{font-size:14px;fill:#1c1a17;text-anchor:middle;letter-spacing:.08em;pointer-events:none}
+        .xz-nd.main text{font-size:17px;font-weight:800;fill:#faf6ec}
+        .xz-halo{animation:xzHalo 4s ease-in-out infinite}
+        @keyframes xzDraw{to{stroke-dashoffset:0}}
+        @keyframes xzHalo{50%{opacity:.25;transform:scale(1.15)}}
+      `}</style>
+      <div className="xz-wi">
+        <div>
+          <div className="xz-wk">三 · 经纬</div>
+          <div className="xz-wh">一书之内，皆有牵连</div>
+          <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
+        </div>
+        <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
+          <defs>
+            <filter id="xzRough"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="3" /><feDisplacementMap in="SourceGraphic" scale="7" /></filter>
+            <radialGradient id="xzInkG"><stop offset="0%" stopColor="#3a3631" /><stop offset="70%" stopColor="#1c1a17" /><stop offset="100%" stopColor="#1c1a17" stopOpacity=".7" /></radialGradient>
+          </defs>
+          {EDGES.map(([a, b], i) => (
+            <path key={i} d={curve(P[a], P[b])} pathLength="1" className={"xz-ln" + (on(a, b) ? " on" : "")} style={{ strokeWidth: i < 3 ? 3.2 : 1.3, opacity: hover && !on(a, b) ? 0.12 : i < 3 ? 0.8 : 0.4, animationDelay: i * 0.12 + "s" }} />
+          ))}
+          {NODES.map((n) => (
+            <g key={n.id} className={"xz-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
+              {n.main && <circle className="xz-halo" cx={n.x} cy={n.y} r={n.r + 12} fill="rgba(28,26,23,.08)" style={{ transformOrigin: `${n.x}px ${n.y}px` }} />}
+              <circle cx={n.x} cy={n.y} r={n.main ? n.r : n.r + 6} fill="transparent" />
+              <circle cx={n.x} cy={n.y} r={n.r} fill={hover === n.id ? "#b4382a" : "url(#xzInkG)"} filter="url(#xzRough)" />
+              <text x={n.x} y={n.main ? n.y + 6 : n.y + 26}>{n.l}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+export const XzFeatures = () => {
+  const NUM = ["壹", "贰", "叁", "肆", "伍", "陆"];
+  const ITEMS = [
+    { t: "把点子变成一本书", d: "自动导演整理题材、卖点、人物目标和候选方向；也可从热门题材或完成的拆书起步。", h: "/features/novels" },
+    { t: "写一篇完整短篇", d: "从想法与方向选择进入 3,000 至 30,000 字短篇生产，连续阅读、修改和导出。", h: "/features/short-story" },
+    { t: "持续写出后续章节", d: "围绕授权范围推进近期规划、章节任务、场景、正文、检查与保存。", h: "/features/auto-director" },
+    { t: "维护世界与人物", d: "保存本书世界、角色、关系和章节状态，查看世界地图与角色关系图。", h: "/features/world-library" },
+    { t: "拆书学习参考作品", d: "拆书分析结构、人物与写法，回溯原文证据，结果可用于知识库与写法资产。", h: "/features/book-analysis" },
+    { t: "为不同任务选模型", d: "配置供应商、连接测试与模型路由，为规划、正文、审阅、拆书分别选择模型。", h: "/model-configuration" },
+  ];
+  return (
+    <div className="not-prose xz-ft">
+      <style>{`
+        .xz-ft{background:#ece5d6;color:#1c1a17;padding:90px 24px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xz-fi{max-width:1100px;margin:0 auto}
+        .xz-fk{font-size:13px;letter-spacing:.5em;color:#b4382a}
+        .xz-fh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 40px}
+        .xz-fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));border-top:1.5px solid #1c1a17;border-left:1px solid rgba(28,26,23,.2)}
+        .xz-card{position:relative;display:block;padding:34px 30px 30px;min-height:210px;border-right:1px solid rgba(28,26,23,.2);border-bottom:1px solid rgba(28,26,23,.2);text-decoration:none;color:inherit;overflow:hidden;background:#f6f1e6}
+        .xz-card::before{content:"";position:absolute;right:-60px;bottom:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(28,26,23,.95),rgba(28,26,23,.7) 50%,transparent 72%);filter:blur(4px);transform:scale(0);transition:transform .9s cubic-bezier(.3,.7,.2,1)}
+        .xz-card:hover::before{transform:scale(4.2)}
+        .xz-num{position:absolute;right:22px;top:8px;font-size:84px;font-weight:900;color:rgba(28,26,23,.07);transition:color .6s;line-height:1}
+        .xz-card:hover .xz-num{color:rgba(250,246,236,.1)}
+        .xz-ct{position:relative;font-size:21px;font-weight:800;letter-spacing:.06em;transition:color .5s}
+        .xz-cd{position:relative;margin-top:14px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.65);transition:color .5s;max-width:340px}
+        .xz-card:hover .xz-ct{color:#faf6ec}
+        .xz-card:hover .xz-cd{color:rgba(250,246,236,.75)}
+        .xz-stamp{position:absolute;right:26px;bottom:24px;width:46px;height:46px;border:2.5px solid #b4382a;color:#b4382a;font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:rgba(180,56,42,.06);opacity:0;transform:rotate(8deg) scale(1.8);transition:all .35s cubic-bezier(.3,1.6,.5,1)}
+        .xz-card:hover .xz-stamp{opacity:1;transform:rotate(8deg) scale(1);transition-delay:.25s;background:#b4382a;color:#faf6ec}
+      `}</style>
+      <div className="xz-fi">
+        <div className="xz-fk">四 · 成卷</div>
+        <div className="xz-fh">现在已经能做什么</div>
+        <div className="xz-fg">
+          {ITEMS.map((it, i) => (
+            <a key={it.t} className="xz-card" href={it.h}>
+              <span className="xz-num">{NUM[i]}</span>
+              <div className="xz-ct">{it.t}</div>
+              <div className="xz-cd">{it.d}</div>
+              <span className="xz-stamp">阅</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const XzCta = () => (
+  <div className="not-prose xz-cta">
+    <style>{`
+      .xz-cta{position:relative;overflow:hidden;background:#f3ede1;color:#1c1a17;padding:110px 24px 120px;text-align:center;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+      .xz-cta::before{content:"";position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;border:26px solid rgba(28,26,23,.05);border-right-color:transparent;transform:rotate(20deg);animation:xzSlow 40s linear infinite}
+      .xz-ck{position:relative;font-size:13px;letter-spacing:.5em;color:#b4382a}
+      .xz-ch{position:relative;font-size:clamp(28px,4.6vw,48px);font-weight:900;letter-spacing:.12em;margin:16px 0 0}
+      .xz-cp{position:relative;font-size:16px;line-height:1.9;color:rgba(28,26,23,.65);margin:18px auto 0;max-width:540px}
+      .xz-os{position:relative;display:flex;justify-content:center;flex-wrap:wrap;gap:0;margin-top:30px}
+      .xz-os span{font-size:14px;padding:4px 18px;letter-spacing:.06em;color:rgba(28,26,23,.75)}
+      .xz-os span+span{border-left:1px solid rgba(28,26,23,.3)}
+      .xz-go{position:relative;display:inline-flex;align-items:center;justify-content:center;margin-top:40px;width:120px;height:120px;background:#b4382a;color:#faf6ec;text-decoration:none;font-size:20px;font-weight:900;line-height:1.35;letter-spacing:.15em;border-radius:8px;transform:rotate(-4deg);box-shadow:0 18px 36px -16px rgba(180,56,42,.8);transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
+      .xz-go::after{content:"";position:absolute;inset:7px;border:1.5px solid rgba(250,246,236,.6);border-radius:4px}
+      .xz-go:hover{transform:rotate(0) scale(1.06)}
+      .xz-small{position:relative;margin-top:22px;font-size:13px;color:rgba(28,26,23,.45);letter-spacing:.2em}
+      @keyframes xzSlow{to{transform:rotate(380deg)}}
+    `}</style>
+    <div className="xz-ck">五 · 落款</div>
+    <h2 className="xz-ch">现在开始写你的第一本书</h2>
+    <p className="xz-cp">桌面版适合直接开始写作，源码版适合开发和自行部署。模型使用你自己的 API 配置。</p>
+    <div className="xz-os"><span>Windows</span><span>macOS · Intel</span><span>macOS · Apple Silicon</span><span>Linux</span></div>
+    <a className="xz-go" href="/installation">下载<br />安装</a>
+    <div className="xz-small">点击印章，前往下载与安装</div>
+  </div>
+);
