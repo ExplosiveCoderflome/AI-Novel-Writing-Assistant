@@ -26,6 +26,7 @@ const DIRECTOR_APP_MAIN_CLASS_NAME = "h-full min-h-0 min-w-0 flex-1 overflow-hid
 
 export default function AppLayout() {
   const location = useLocation();
+  const isManuscriptWorkspace = Boolean(matchPath("/novels/:id/revision", location.pathname) || location.pathname === "/novels/import-manuscript");
   const isDirectorNovel = Boolean(matchPath("/lab/director/:novelId", location.pathname));
   const isDirectorWorkbench = Boolean(
     isDirectorNovel
@@ -124,7 +125,7 @@ export default function AppLayout() {
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
         />
         <div className="flex h-[calc(100dvh-4rem)] min-h-0">
-          {!isDirectorWorkbench && !isChapterEditor ? <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
+          {!isDirectorWorkbench && !isChapterEditor && !isManuscriptWorkspace ? <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
             {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
               <NovelWorkspaceRail
                 novelId={workspaceRoute.novelId}
@@ -140,7 +141,7 @@ export default function AppLayout() {
               />
             )}
           </div> : null}
-          <main className={isDirectorNovel ? DIRECTOR_APP_MAIN_CLASS_NAME : useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
+          <main className={(isDirectorNovel || isManuscriptWorkspace) ? DIRECTOR_APP_MAIN_CLASS_NAME : useMobileFullWidthContent ? AUTO_DIRECTOR_MOBILE_CLASSES.appMain : DEFAULT_APP_MAIN_CLASS_NAME}>
             <Suspense fallback={<AppRouteFallback />}>
               <Outlet />
             </Suspense>

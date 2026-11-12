@@ -1,3 +1,4 @@
+import { appendRequiredPromptContext } from "../core/requiredContext";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { PromptAsset, PromptRenderContext } from "../core/promptTypes";
 import { compilePromptTemplate, hasBlockingPromptTemplateDiagnostics } from "./templateCompiler";
@@ -23,14 +24,14 @@ export async function resolveAdvancedPromptMessages<I, O, R = O>(input: {
   novelId?: string;
 }): Promise<BaseMessage[]> {
   if (!supportsAdvancedPromptTemplate(input.asset.id) || !input.novelId) {
-    return input.officialMessages;
+    return appendRequiredPromptContext(input.officialMessages);
   }
   const activeTemplate = await promptTemplateOverrideService.getActiveCustomTemplate({
     promptId: input.asset.id,
     novelId: input.novelId,
   });
   if (!activeTemplate) {
-    return input.officialMessages;
+    return appendRequiredPromptContext(input.officialMessages);
   }
   const dynamicRequiredGroups = input.context.blocks
     .filter((block) => block.required && (
@@ -64,5 +65,5 @@ export async function resolveAdvancedPromptMessages<I, O, R = O>(input: {
     ].filter(Boolean).join("；");
     throw new Error(`正文写作高级模板渲染失败：${details}`);
   }
-  return compiled.messages;
+  return appendRequiredPromptContext(compiled.messages);
 }

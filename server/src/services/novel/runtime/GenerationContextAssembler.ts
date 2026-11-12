@@ -2,6 +2,7 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { buildCompressionLog } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
+import { AppError } from "../../../middleware/errorHandler";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
 import { buildChapterRagQuery } from "../NovelReferenceService";
@@ -59,6 +60,7 @@ import {
 import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
 import { evaluateChapterContextProviderContracts } from "./context/chapterContextProviderContracts";
 import { characterLocationService } from "../characters/locations";
+import { readActiveManuscriptChapters } from "../../../modules/novel/manuscript/application/ManuscriptIsolation";
 
 export { buildBlockingPendingReviewProposalWhere } from "./context/pendingReviewContext";
 export { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
@@ -139,6 +141,10 @@ export class GenerationContextAssembler {
     if (!novel || !chapter) {
       throw new Error("Novel or chapter not found.");
     }
+    const activeManuscriptChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    const manuscriptChapter = activeManuscriptChapters?.find(item => item.id === chapterId);
+    if (activeManuscriptChapters && !manuscriptChapter) throw new AppError("本章已停用，请从原稿修订工作区恢复后再操作。", 409);
+    const effectiveOrder = manuscriptChapter?.order ?? chapter.order;
 
     // Context assembly is a read boundary. Planning and contract writes must
     // finish in ChapterExecutionPreparationService before this method runs.
@@ -182,7 +188,7 @@ export class GenerationContextAssembler {
         },
         orderBy: [{ createdAt: "desc" }],
       }),
-      prisma.chapterSummary.findMany({
+      activeManuscriptChapters ? Promise.resolve([]) : prisma.chapterSummary.findMany({
         where: {
           novelId,
           chapter: { order: { lt: chapter.order } },
@@ -191,7 +197,9 @@ export class GenerationContextAssembler {
         orderBy: { chapter: { order: "desc" } },
         take: 3,
       }),
-      prisma.chapter.findMany({
+      activeManuscriptChapters
+        ? Promise.resolve(activeManuscriptChapters.filter(item => item.order < effectiveOrder && item.content != null).slice(-1).map(item => ({order: item.order, title: item.title, content: item.content})).reverse())
+        : prisma.chapter.findMany({
         where: {
           novelId,
           order: { lt: chapter.order },
@@ -682,7 +690,10 @@ export class GenerationContextAssembler {
   }
 
   private async buildOpeningConstraintHint(novelId: string, chapterOrder: number): Promise<string> {
-    const recentChapters = await prisma.chapter.findMany({
+    const active = await readActiveManuscriptChapters(prisma as never, novelId);
+    const recentChapters = active
+      ? active.filter(chapter => chapter.order < chapterOrder && chapter.content != null).slice(-OPENING_COMPARE_LIMIT).reverse()
+      : await prisma.chapter.findMany({
       where: {
         novelId,
         order: { lt: chapterOrder },

@@ -6,6 +6,7 @@ import { prisma } from "../dist/db/prisma.js";
 test("chapter save rejects a stale editor version before writing", async () => {
   const originalFindFirst = prisma.chapter.findFirst;
   const originalUpdate = prisma.chapter.update;
+  const originalManuscriptProjectFindUnique = prisma.manuscriptProject.findUnique;
   let updateCalls = 0;
   prisma.chapter.findFirst = async () => ({
     id: "chapter-1",
@@ -15,6 +16,7 @@ test("chapter save rejects a stale editor version before writing", async () => {
     updateCalls += 1;
     throw new Error("stale editor was written");
   };
+  prisma.manuscriptProject.findUnique = async () => null;
 
   try {
     await assert.rejects(
@@ -28,5 +30,6 @@ test("chapter save rejects a stale editor version before writing", async () => {
   } finally {
     prisma.chapter.findFirst = originalFindFirst;
     prisma.chapter.update = originalUpdate;
+    prisma.manuscriptProject.findUnique = originalManuscriptProjectFindUnique;
   }
 });

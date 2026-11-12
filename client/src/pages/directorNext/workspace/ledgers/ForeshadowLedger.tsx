@@ -8,7 +8,10 @@ export function ForeshadowLedger({book,items,onSelect}:{book:WorkspaceBook;items
   const [status,setStatus]=useState("all");
   const saved=items.filter(item=>item.novelId===book.novel.id);
   const filtered=saved.filter(item=>status==="all" || item.currentStatus===status);
+  const plans=book.outlineBinding?.plannedPayoffs ?? [];
   return <>
+    {plans.length ? <section className="mb-6 space-y-3" aria-label="来自大纲的伏笔计划"><h3 className="text-base font-semibold">来自大纲的计划 · {plans.length} 项</h3><p className="text-xs leading-6 text-muted-foreground">计划不计入实际埋设、逾期或兑现数量；只有正文证据才能关联实际台账。</p><div className="divide-y divide-border/40">{plans.map(plan=><section key={plan.nodeId} className="space-y-2 py-4"><div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-medium">{plan.title}</h4><span className="text-xs text-muted-foreground">{plan.state==="linked" ? "计划 · 已关联正文证据" : "计划 · 未见正文证据"}</span></div><p className="text-sm leading-7">埋设：{plan.setupDescription || "待补充"}</p><p className="text-sm leading-7">回收：{plan.payoffDescription || "待补充"}</p><p className="text-xs leading-6 text-muted-foreground">计划埋设：{plan.setupChapterOrders.length ? plan.setupChapterOrders.map(order=>`第 ${order} 章`).join("、") : "待安排"} · 计划回收：{plan.payoffChapterOrders.length ? plan.payoffChapterOrders.map(order=>`第 ${order} 章`).join("、") : "待安排"}</p></section>)}</div></section> : null}
+    {plans.length ? <h3 className="mb-3 text-base font-semibold">实际正文台账</h3> : null}
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <p className="text-sm text-muted-foreground">共 {saved.length} 项 · 已兑现 {saved.filter(item=>item.currentStatus==="paid_off").length} 项</p>
       <label className="flex items-center gap-2 text-sm">状态<select className="rounded-md border border-input bg-background px-3 py-2" value={status} onChange={event=>setStatus(event.target.value)}><option value="all">全部状态</option>{Object.entries(payoffStatusLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>

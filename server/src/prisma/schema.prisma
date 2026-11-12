@@ -322,6 +322,8 @@ enum CharacterGender {
 }
 
 model Novel {
+  manuscriptProject ManuscriptProject?
+  outlineBookBinding OutlineBookBinding?
   shortStoryReferenceJson String?
   structuredDiagnostics StructuredInvocationDiagnostic[]
   shortStoryRevisionJobs ShortStoryRevisionJob[]
@@ -669,6 +671,115 @@ model NovelSnapshot {
   createdAt    DateTime @default(now())
 
   @@index([novelId, createdAt])
+}
+
+model ManuscriptProject {
+  id String @id @default(cuid())
+  novelId String? @unique
+  narrativeForm String @default("long_novel")
+  activeSourceId String?
+  baselineOutlineRevisionId String?
+  workingOutlineProjectId String?
+  structureVersion Int @default(0)
+  status String @default("importing")
+  novel Novel? @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  sources ManuscriptSource[]
+  sessions ManuscriptImportSession[]
+  units ManuscriptUnit[]
+  proposals ManuscriptRevisionProposal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, updatedAt])
+}
+
+model ManuscriptSource {
+  id String @id @default(cuid())
+  projectId String
+  version Int
+  rawBytes Bytes
+  originalFileName String?
+  mediaType String @default("text/plain")
+  encoding String
+  sourceText String
+  sourceHash String
+  rawHash String
+  charCount Int
+  project ManuscriptProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sessions ManuscriptImportSession[]
+  units ManuscriptUnit[]
+  createdAt DateTime @default(now())
+  @@unique([projectId, version])
+  @@index([sourceHash])
+}
+
+model ManuscriptImportSession {
+  id String @id @default(cuid())
+  projectId String
+  sourceId String
+  version Int @default(1)
+  status String @default("uploaded")
+  splitDocumentJson String?
+  coverageHash String?
+  importRequestKey String? @unique
+  taskId String?
+  promptReceiptJson String?
+  confirmedRequestKey String? @unique
+  confirmedPayloadHash String?
+  createdNovelId String?
+  errorCode String?
+  project ManuscriptProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source ManuscriptSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId, status])
+}
+
+model ManuscriptUnit {
+  id String @id @default(cuid())
+  projectId String
+  sourceId String?
+  sourceRangesJson String @default("[]")
+  originalTitle String
+  sourceOrdinal Int?
+  workTargetType String @default("chapter")
+  chapterId String?
+  segmentId String?
+  displayOrder Int
+  status String @default("active")
+  workingRevision Int @default(0)
+  contentHash String?
+  project ManuscriptProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  source ManuscriptSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  proposals ManuscriptRevisionProposal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId, status, displayOrder])
+  @@index([chapterId])
+}
+
+model ManuscriptRevisionProposal {
+  id String @id @default(cuid())
+  projectId String
+  unitId String?
+  kind String
+  status String @default("generating")
+  baseStructureVersion Int
+  baseUnitRevision Int?
+  baseContentHash String?
+  baselineOutlineRevisionId String?
+  baseWorkingOutlineRevisionId String?
+  dependenciesJson String @default("{}")
+  operationsJson String @default("[]")
+  promptId String?
+  promptVersion String?
+  requestKey String @unique
+  payloadHash String
+  appliedReceiptJson String?
+  project ManuscriptProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  unit ManuscriptUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId, status, createdAt])
 }
 
 model Chapter {
@@ -2104,6 +2215,55 @@ model VolumePlanVersion {
   @@unique([novelId, version])
   @@index([novelId, status, createdAt])
   @@index([novelId, status, version])
+}
+
+model OutlineProject {
+  bookBinding OutlineBookBinding?
+  id                String   @id @default(cuid())
+  title             String
+  summary           String?
+  status            String   @default("active")
+  currentVersion    Int      @default(0)
+  currentRevisionId String?
+  boundNovelId      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  revisions         OutlineRevision[]
+  proposals         OutlineProposal[]
+  @@index([updatedAt])
+}
+
+model OutlineRevision {
+  id               String   @id @default(cuid())
+  projectId        String
+  version          Int
+  parentRevisionId String?
+  documentJson     String
+  sourceType       String
+  sourceProposalId String?
+  diffSummary      String?
+  createdAt        DateTime @default(now())
+  project          OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([projectId, version])
+  @@index([projectId, createdAt])
+}
+
+model OutlineProposal {
+  id            String   @id @default(cuid())
+  projectId     String
+  baseVersion   Int
+  kind          String
+  status        String
+  requestText   String?
+  proposalJson  String
+  sourceText    String?
+  promptId      String?
+  promptVersion String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  project       OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@index([projectId, status, createdAt])
+  @@index([projectId, baseVersion])
 }
 
 model VolumePlan {
@@ -4427,4 +4587,24 @@ model LlmInvocationPayload {
   usageRecord LlmInvocationUsageRecord @relation(fields: [usageRecordId], references: [id], onDelete: Cascade)
 
   @@index([createdAt, usageRecordId])
+}
+
+model OutlineBookBinding {
+  id                   String @id
+  projectId            String @unique
+  revisionId           String
+  revisionVersion      Int
+  sourceDocumentHash   String
+  novelId              String @unique
+  requestKey           String @unique
+  requestHash          String
+  mappingSchemaVersion Int @default(1)
+  mappingJson          String
+  policyVersion        Int @default(1)
+  policyJson           String
+  postCreateStateJson  String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  project OutlineProject @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Restrict)
 }

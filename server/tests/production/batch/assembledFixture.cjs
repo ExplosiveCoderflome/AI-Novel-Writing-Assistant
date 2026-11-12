@@ -9,6 +9,7 @@ const native=require('../../../dist/services/novel/runtime/acceptance/retries/Ch
 async function fixture(t,options={}) {
  const f=await base(t),{db,kernel:k,api,context}=f;
  f.contract.launchInput={chapterTokenLimit:10000};
+ Object.assign(f.contract,options.contract??{});
  await db.directorNextRun.update({where:{id:'batch-1'},data:{contractJson:JSON.stringify(f.contract)}});
  await db.chapter.update({where:{id:'chapter-1'},data:{content:''}});
  for(const order of [2,3])await db.chapter.create({data:{id:`chapter-${order}`,novelId:'novel-1',order,title:`第 ${order} 章`,content:''}});

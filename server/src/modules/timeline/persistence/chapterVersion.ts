@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
+import {assertManuscriptSnapshot,type ManuscriptSnapshot} from "../../novel/manuscript/application/ManuscriptWorkspaceService";
+export type ManuscriptTimelineVersion={projectId:string;snapshot:ManuscriptSnapshot};
 
 export function buildTimelineContentHash(content: string): string {
   return createHash("sha1").update(content.trim()).digest("hex");
@@ -36,10 +38,16 @@ export async function supersedeChapterTimeline(
 
 /** The chapter row lock makes the version check and every derived write one boundary. */
 export async function withCurrentTimelineContent<T>(
-  input: { novelId: string; chapterId: string; content: string },
+  input: { novelId: string; chapterId: string; content: string; manuscriptVersion?: ManuscriptTimelineVersion | null },
   commit: (db: Prisma.TransactionClient) => Promise<T>,
 ): Promise<T> {
   return prisma.$transaction(async (db) => {
+    if(input.manuscriptVersion){
+      const {projectId,snapshot}=input.manuscriptVersion;
+      const locked=await db.manuscriptProject.updateMany({where:{id:projectId,structureVersion:snapshot.structureVersion},data:{structureVersion:snapshot.structureVersion}});
+      if(!locked.count)throw new TimelineContentVersionError();
+      try{await assertManuscriptSnapshot(db,projectId,snapshot);}catch{throw new TimelineContentVersionError();}
+    }
     const current = await db.chapter.findFirst({
       where: { id: input.chapterId, novelId: input.novelId },
       select: { content: true, updatedAt: true },

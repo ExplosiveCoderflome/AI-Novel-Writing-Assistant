@@ -23,6 +23,7 @@ import {
   PipelineExecutionLeaseService,
 } from "./production/executionLease";
 import { directorIssuePolicyService, loadDirectorIssueTaskContext } from "./director/issues";
+import { rejectLegacyManuscriptWrite } from "../../modules/novel/manuscript/application/ManuscriptIsolation";
 
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
@@ -329,6 +330,7 @@ export class NovelCorePipelineService {
   }
 
   async startPipelineJob(novelId: string, options: PipelineRunOptions) {
+    await rejectLegacyManuscriptWrite(prisma as never, novelId);
     await this.assertOwner(novelId, options);
     const rangeKey = this.buildRangeKey(novelId, options.startOrder, options.endOrder);
     return this.withStartLock(rangeKey, async () => {

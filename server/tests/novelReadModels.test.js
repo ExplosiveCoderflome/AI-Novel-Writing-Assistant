@@ -41,6 +41,7 @@ test("catalog keeps pagination, archived filtering, failed tasks and live step l
       assert.deepEqual(query.where.taskId.in, ["live"]);
       return [{ taskId: "live", label: "  准备章节  " }];
     } },
+    manuscriptProject: { findMany: async () => [] },
     imageAsset: { findMany: async () => [] },
     imageGenerationTask: { findMany: async () => [{ id: "cover", novelId: "a", status: "failed" }] },
   };

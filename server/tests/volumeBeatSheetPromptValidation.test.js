@@ -4,6 +4,8 @@ const assert = require("node:assert/strict");
 const {
   volumeBeatSheetPrompt,
 } = require("../dist/prompting/prompts/novel/volume/beatSheet.prompts.js");
+const { createVolumeBeatSheetSchema } = require("../dist/services/novel/volume/volumeGenerationSchemas.js");
+const { validateBeatSheetChapterCoverage } = require("../dist/services/novel/volume/volumeBeatSheetChapterBudget.js");
 
 function createPromptInput(targetChapterCount) {
   return {
@@ -133,4 +135,65 @@ test("volumeBeatSheetPrompt postValidate accepts output that covers target 54", 
     ),
     output,
   );
+});
+
+const emptyContext = { blocks: [], selectedBlockIds: [], droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 };
+
+function createShortSheet(keys, chapters) {
+  const byKey = new Map(createCoveringBeats(4).map(beat => [beat.key, beat]));
+  return {
+    beats: keys.map((key, index) => ({
+      ...byKey.get(key),
+      chapterSpanHint: `${chapters[index]}章`,
+      ...(key === "end_hook" ? { title: "尘埃落定", summary: "兑现本卷结局。", mustDeliver: ["主角完成目标，故事收束。"] } : {}),
+    })),
+  };
+}
+
+for (const omittedKey of ["midpoint_turn", "first_escalation"]) {
+  test(`four-chapter sheet without ${omittedKey} passes generation schema, postValidate and coverage`, () => {
+    const keys = ["open_hook", "first_escalation", "midpoint_turn", "climax", "end_hook"].filter(key => key !== omittedKey);
+    const output = createShortSheet(keys, [1, 2, 3, 4]);
+    assert.deepEqual(volumeBeatSheetPrompt.outputSchema.parse(output), output);
+    assert.deepEqual(createVolumeBeatSheetSchema(4).parse(output), output);
+    assert.deepEqual(volumeBeatSheetPrompt.postValidate(output, createPromptInput(4), emptyContext), output);
+    assert.equal(validateBeatSheetChapterCoverage({ beatSheet: output, targetChapterCount: 4 }).accepted, true);
+  });
+}
+
+test("six distinct beats sharing chapters 1,2,3,3,4,4 pass all short-volume validators", () => {
+  const output = createShortSheet(
+    ["open_hook", "first_escalation", "midpoint_turn", "pressure_lock", "climax", "end_hook"],
+    [1, 2, 3, 3, 4, 4],
+  );
+  assert.deepEqual(volumeBeatSheetPrompt.outputSchema.parse(output), output);
+  assert.deepEqual(createVolumeBeatSheetSchema(4).parse(output), output);
+  assert.deepEqual(volumeBeatSheetPrompt.postValidate(output, createPromptInput(4), emptyContext), output);
+  const coverage = validateBeatSheetChapterCoverage({ beatSheet: output, targetChapterCount: 4 });
+  assert.equal(coverage.accepted, true);
+  assert.equal(coverage.plannedChapterCount, 4);
+});
+
+test("four-chapter target still rejects a structurally valid sheet extending to chapter 12", () => {
+  const output = { beats: createCoveringBeats(12) };
+  assert.equal(volumeBeatSheetPrompt.outputSchema.safeParse(output).success, true);
+  assert.throws(() => volumeBeatSheetPrompt.postValidate(output, createPromptInput(4), emptyContext), /4/);
+  assert.equal(validateBeatSheetChapterCoverage({ beatSheet: output, targetChapterCount: 4 }).accepted, false);
+});
+
+test("long-volume target cannot use short-sheet inference to bypass required middle slots", () => {
+  const output = createShortSheet(["open_hook", "first_escalation", "climax", "end_hook"], [1, 2, 3, 4]);
+  assert.equal(createVolumeBeatSheetSchema(54).safeParse(output).success, false);
+  assert.throws(() => volumeBeatSheetPrompt.postValidate(output, createPromptInput(54), emptyContext), /中段转向/);
+  const longOutput = { beats: output.beats.map((beat, index) => ({ ...beat, chapterSpanHint: ["1-12章", "13-26章", "27-40章", "41-54章"][index] })) };
+  assert.equal(volumeBeatSheetPrompt.outputSchema.safeParse(longOutput).success, false);
+});
+
+test("short-volume core slots remain mandatory", () => {
+  const output = createShortSheet(["open_hook", "first_escalation", "climax", "end_hook"], [1, 2, 3, 4]);
+  for (const key of ["open_hook", "climax", "end_hook"]) {
+    const missingCore = { beats: output.beats.filter(beat => beat.key !== key) };
+    assert.equal(volumeBeatSheetPrompt.outputSchema.safeParse(missingCore).success, false);
+    assert.throws(() => volumeBeatSheetPrompt.postValidate(missingCore, createPromptInput(4), emptyContext), /缺少必需职能/);
+  }
 });

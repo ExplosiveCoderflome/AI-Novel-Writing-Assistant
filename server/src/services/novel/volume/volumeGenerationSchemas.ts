@@ -11,6 +11,7 @@ import {
   VOLUME_BEAT_SLOT_DEFINITIONS,
 } from "@ai-novel/shared/types/volumeBeatSlots";
 import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
+import { inferRequiredChapterCountFromBeatSheet } from "./volumeBeatSheetChapterBudget";
 
 function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -623,12 +624,18 @@ export function createVolumeStrategyCritiqueSchema() {
   });
 }
 
-export function createVolumeBeatSheetSchema() {
+export function createVolumeBeatSheetSchema(targetChapterCount?: number) {
   return z.preprocess(normalizeBeatSheetPayload, z.object({
-    beats: z.array(generatedVolumeBeatSchema).min(6).max(8),
+    beats: z.array(generatedVolumeBeatSchema).min(1).max(8),
   }).superRefine((value, ctx) => {
     const keys = value.beats.map((beat) => beat.key);
-    const missingRequired = listMissingRequiredVolumeBeatKeys(keys);
+    // The registry schema has no input context; postValidate supplies the adopted target.
+    const chapterCount = targetChapterCount ?? inferRequiredChapterCountFromBeatSheet(value);
+    const missingRequired = chapterCount > 0 && chapterCount <= 8
+      ? ["open_hook", "climax", "end_hook"].filter(key => !keys.includes(key as typeof keys[number]))
+      : value.beats.length <= 5
+      ? ["open_hook", "first_escalation", "midpoint_turn", "climax", "end_hook"].filter(key => !keys.includes(key as typeof keys[number]))
+      : listMissingRequiredVolumeBeatKeys(keys);
     if (missingRequired.length > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

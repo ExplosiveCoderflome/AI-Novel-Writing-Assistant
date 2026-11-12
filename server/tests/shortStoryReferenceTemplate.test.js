@@ -18,6 +18,7 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync(source, "utf8"), {
       { role: "system", content: "按本书写法写正文" }, { role: "human", content: "继续写作" },
     ] } }),
   } };
+  if (id === "../core/requiredContext") return require("../dist/prompting/core/requiredContext");
   throw new Error("Unexpected dependency " + id);
 } }, { filename: source });
 

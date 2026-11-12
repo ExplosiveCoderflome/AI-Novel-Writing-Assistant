@@ -1,10 +1,13 @@
+import { readOutlinePayoffPlans } from "../../modules/planning/outline/payoffs";
+import { resolveOutlinePayoffSource } from "./sources/outlinePayoffSources";
+import { assertOutlineReference } from "../../modules/planning/outline/constraints";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {payoffLedgerReadOnly} from "./readScope";
 import type { AuditReport, OpenConflict, PayoffLedgerResponse } from "@ai-novel/shared/types/novel";
 import type { PayoffLedgerItem } from "@ai-novel/shared/types/payoffLedger";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
-import { payoffLedgerSyncPrompt } from "../../prompting/prompts/payoff/payoffLedgerSync.prompts";
+import { payoffLedgerSyncPrompt, outlinePayoffLedgerSyncPrompt } from "../../prompting/prompts/payoff/payoffLedgerSync.prompts";
 import {
   appendStaleRiskSignal,
   buildPayoffLedgerResponse,
@@ -105,6 +108,7 @@ function formatMajorPayoffs(rawPlanJson: string | null | undefined): string {
 }
 
 export class PayoffLedgerSyncService {
+  constructor(private readonly readOutlinePlans = (novelId: string) => readOutlinePayoffPlans(prisma, novelId)) {}
   private async getResolvedChapterOrder(novelId: string, options: PayoffLedgerSyncOptions): Promise<number | null> {
     if (typeof options.chapterOrder === "number") {
       return options.chapterOrder;
@@ -356,8 +360,9 @@ export class PayoffLedgerSyncService {
   }
 
   async getPayoffLedger(novelId: string, options: PayoffLedgerReadOptions = {}): Promise<PayoffLedgerResponse> {
+    const outline = await this.readOutlinePlans(novelId);
     let rows = await this.loadLedgerRows(novelId);
-    if (rows.length === 0 && options.syncIfMissing !== false && !payoffLedgerReadOnly()) {
+    if (!outline && rows.length === 0 && options.syncIfMissing !== false && !payoffLedgerReadOnly()) {
       try {
         const synced = await this.syncLedger(novelId, options);
         return synced;
@@ -365,15 +370,20 @@ export class PayoffLedgerSyncService {
         rows = await this.loadLedgerRows(novelId);
       }
     }
-    return buildPayoffLedgerResponse(rows.map(mapPayoffLedgerRow), options.chapterOrder);
+    return {...buildPayoffLedgerResponse(rows.map(mapPayoffLedgerRow), options.chapterOrder), ...(outline ? {plans: outline.plans} : {})};
   }
 
   async syncLedger(novelId: string, options: PayoffLedgerSyncOptions = {}): Promise<PayoffLedgerResponse> {
     const existingRows = await this.loadLedgerRows(novelId);
     try {
-      const { promptInput, chapterOrder, latestSnapshotId } = await this.buildSyncPromptInput(novelId, options);
+      const { promptInput: basePromptInput, chapterOrder, latestSnapshotId } = await this.buildSyncPromptInput(novelId, options);
+      const outline = await this.readOutlinePlans(novelId);
+      const promptInput = {...basePromptInput, ...(outline ? {outlinePlans: outline.plans, writtenChapterEvidence: [] as Array<{id: string; order: number; content: string | null}>} : {})};
+      const writtenChapters = outline ? await prisma.chapter.findMany({where: {novelId, content: {not: ""}}, select: {id: true, order: true, content: true}}) : [];
+      if (outline && !writtenChapters.some(c => c.content?.trim())) return {...buildPayoffLedgerResponse(existingRows.map(mapPayoffLedgerRow), options.chapterOrder), plans: outline.plans};
+      if (outline) promptInput.writtenChapterEvidence = writtenChapters.filter(c => chapterOrder == null || c.order <= chapterOrder).sort((a,b) => b.order-a.order).slice(0,2);
       const result = await runStructuredPrompt({
-        asset: payoffLedgerSyncPrompt,
+        asset: outline ? outlinePayoffLedgerSyncPrompt : payoffLedgerSyncPrompt,
         promptInput,
         options: {
           provider: options.provider,
@@ -389,10 +399,16 @@ export class PayoffLedgerSyncService {
       const resolvedItemsByKey = new Map<string, typeof result.output.items[number]>();
       for (const rawItem of result.output.items) {
         const sanitizedItem = sanitizePayoffLedgerSyncItem(rawItem);
-        const ledgerKey = resolvePayoffLedgerSyncLedgerKey(sanitizedItem, existingRows);
+        const planned = resolveOutlinePayoffSource(sanitizedItem, outline?.plans ?? [], writtenChapters, chapterOrder);
+        const ledgerKey = planned?.ledgerKey ?? resolvePayoffLedgerSyncLedgerKey(sanitizedItem, existingRows.filter(row => !row.ledgerKey.startsWith("outline:")));
+        if (planned && resolvedItemsByKey.has(ledgerKey)) throw new Error("同一计划伏笔的实际结果重复。");
         resolvedItemsByKey.set(ledgerKey, {
           ...sanitizedItem,
           ledgerKey,
+          ...(planned ? {
+            targetStartChapterOrder: planned.payoffChapterOrders.length ? Math.min(...planned.payoffChapterOrders) : null,
+            targetEndChapterOrder: planned.payoffChapterOrders.length ? Math.max(...planned.payoffChapterOrders) : null,
+          } : {}),
         });
       }
       const resolvedItems = Array.from(resolvedItemsByKey.values());
@@ -418,7 +434,14 @@ export class PayoffLedgerSyncService {
       }));
 
       await prisma.$transaction(async (tx) => {
+        const links = new Map<string,string>();
+        if (outline) await assertOutlineReference(tx, novelId, {bindingId: outline.binding.id, revisionId: outline.binding.revisionId, sourceDocumentHash: outline.binding.sourceDocumentHash, policyVersion: outline.binding.policyVersion});
         for (const item of resolvedItems) {
+          const plan = outline?.plans.find(p => p.ledgerKey === item.ledgerKey);
+          if (plan) {
+            const currentChapters = await tx.chapter.findMany({where: {novelId}, select: {id: true, order: true, content: true}});
+            resolveOutlinePayoffSource(item, outline!.plans, currentChapters, chapterOrder);
+          }
           const previous = existingRows.find((row) => row.ledgerKey === item.ledgerKey);
           const normalizedChapterRefs = normalizePayoffLedgerPromptChapterRefs({
             item,
@@ -432,7 +455,7 @@ export class PayoffLedgerSyncService {
             severity: signal.severity,
             summary: signal.summary,
           }))));
-          await tx.payoffLedgerItem.upsert({
+          const savedItem = await tx.payoffLedgerItem.upsert({
             where: {
               novelId_ledgerKey: {
                 novelId,
@@ -482,6 +505,12 @@ export class PayoffLedgerSyncService {
               updatedAt: now,
             },
           });
+          if (plan) links.set(plan.ledgerKey, savedItem.id);
+        }
+        if (outline && links.size) {
+          const mapping = {...outline.mapping, payoffs: outline.mapping.payoffs.map(p => links.has(p.ledgerKey) ? {...p, ledgerItemId: links.get(p.ledgerKey)!} : p)};
+          const updated = await tx.outlineBookBinding.updateMany({where: {id: outline.binding.id, policyVersion: outline.binding.policyVersion, mappingJson: outline.binding.mappingJson}, data: {mappingJson: JSON.stringify(mapping)}});
+          if (updated.count !== 1) throw new Error("伏笔计划来源在对账期间变化，请重试。");
         }
 
         for (const row of existingRows) {
@@ -530,8 +559,9 @@ export class PayoffLedgerSyncService {
       const rows = await this.loadLedgerRows(novelId);
       const items = rows.map(mapPayoffLedgerRow);
       await this.syncLedgerOpenConflicts(novelId, items);
-      return buildPayoffLedgerResponse(items, chapterOrder);
+      return {...buildPayoffLedgerResponse(items, chapterOrder), ...(outline ? {plans: (await readOutlinePayoffPlans(prisma, novelId))!.plans} : {})};
     } catch (error) {
+      console.warn("[payoff-ledger.sync] rejected", {novelId, code: error && typeof error === "object" && "code" in error ? error.code : "PAYOFF_SYNC_FAILED", errorName: error instanceof Error ? error.name : "unknown"});
       if (existingRows.length > 0) {
         await prisma.$transaction(async (tx) => {
           for (const row of existingRows) {

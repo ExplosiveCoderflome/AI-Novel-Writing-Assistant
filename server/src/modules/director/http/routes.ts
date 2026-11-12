@@ -39,6 +39,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     driver: z.enum(["auto", "assisted"]),
     stepIdsInScope: z.array(nonEmpty).nullable(),
     launchInput: z.object({
+      outlineBinding: z.object({bindingId: nonEmpty, revisionId: nonEmpty, sourceDocumentHash: nonEmpty, policyVersion: z.number().int().positive()}).optional(),
       storyInput: nonEmpty,
       estimatedChapterCount: z.number().int().positive(),
       userPreferredVolumeCount: z.number().int().min(1).max(24).optional(),
