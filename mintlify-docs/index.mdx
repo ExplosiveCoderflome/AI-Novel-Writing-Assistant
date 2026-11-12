@@ -494,9 +494,52 @@ export const BnHome = ({ children }) => {
         .bnh-ring{position:absolute;z-index:5;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%);filter:blur(5px)}
         .bnh-drop{position:absolute;z-index:6;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) scale(.2);opacity:0;animation:bnhDrop 1.1s cubic-bezier(.2,.8,.2,1) forwards}
         .bnh-glyph{position:fixed;left:50%;top:50%;z-index:55;pointer-events:none;font-size:clamp(140px,22vw,300px);font-weight:900;line-height:1;transform:translate(-50%,-50%);animation:bnhGlyph 1.6s ease forwards}
+        .bnh-nav{position:absolute;top:0;left:0;right:0;z-index:40;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,4vw,48px);opacity:0;animation:bnhNavIn .9s ease .5s forwards;transition:background .8s,border-color .8s,color .8s}
+        .bnh-nav::after{content:"";position:absolute;left:clamp(18px,4vw,48px);right:clamp(18px,4vw,48px);bottom:0;height:1px;transition:background .8s}
+        .bnh-brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:.04em}
+        .bnh-seal{width:28px;height:28px;display:grid;place-items:center;border-radius:5px;font-size:15px;font-weight:900;color:#fff;transition:all .8s}
+        .bnh-links{display:flex;align-items:center;gap:clamp(10px,2.4vw,30px)}
+        .bnh-links a{position:relative;text-decoration:none;font-size:14px;padding:6px 2px;transition:color .3s,text-shadow .3s}
+        .bnh-links a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;transform:scaleX(0);transform-origin:left;transition:transform .35s}
+        .bnh-links a:hover::after{transform:scaleX(1)}
+        .bnh-links a.bnh-gh{padding:6px 14px;border-radius:999px}
+        .bnh-links a.bnh-gh::after{display:none}
+        .bnh-nav.ink{background:linear-gradient(180deg,rgba(5,8,10,.85),rgba(5,8,10,.35));backdrop-filter:blur(8px)}
+        .bnh-nav.ink::after{background:linear-gradient(90deg,transparent,rgba(74,222,128,.35),transparent)}
+        .bnh-nav.ink .bnh-brand{color:#e5f6ea}
+        .bnh-nav.ink .bnh-seal{background:#16A34A;box-shadow:0 0 14px rgba(34,197,94,.6)}
+        .bnh-nav.ink .bnh-links a{color:rgba(229,246,234,.72)}
+        .bnh-nav.ink .bnh-links a:hover{color:#86efac;text-shadow:0 0 12px rgba(74,222,128,.7)}
+        .bnh-nav.ink .bnh-links a::after{background:#4ade80}
+        .bnh-nav.ink .bnh-links a.bnh-gh{border:1px solid rgba(134,239,172,.35);color:#86efac}
+        .bnh-nav.ink .bnh-links a.bnh-gh:hover{background:rgba(22,163,74,.18);box-shadow:0 0 18px -4px rgba(34,197,94,.7)}
+        .bnh-nav.paper{background:transparent;font-family:"Noto Serif SC","Songti SC","STSong",serif}
+        .bnh-nav.paper::after{background:linear-gradient(90deg,transparent,rgba(28,26,23,.35) 20%,rgba(28,26,23,.35) 80%,transparent)}
+        .bnh-nav.paper .bnh-brand{color:#1c1a17}
+        .bnh-nav.paper .bnh-seal{background:#b4382a;border-radius:3px;box-shadow:inset 0 0 0 2px rgba(250,246,236,.35);transform:rotate(-4deg)}
+        .bnh-nav.paper .bnh-links a{color:rgba(28,26,23,.72)}
+        .bnh-nav.paper .bnh-links a:hover{color:#b4382a}
+        .bnh-nav.paper .bnh-links a::after{background:#b4382a}
+        .bnh-nav.paper .bnh-links a.bnh-gh{border:1px solid rgba(28,26,23,.45);color:#1c1a17}
+        .bnh-nav.paper .bnh-links a.bnh-gh:hover{background:#1c1a17;color:#faf6ec}
+        @media (max-width:640px){.bnh-links a.bnh-opt{display:none}.bnh-brand span.bnh-name{font-size:14px}}
+        @keyframes bnhNavIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
         @keyframes bnhDrop{0%{opacity:.95;transform:translate(-50%,-50%) scale(.3)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1)}}
         @keyframes bnhGlyph{0%{opacity:0;filter:blur(18px);transform:translate(-50%,-50%) scale(.7)}40%{opacity:.9;filter:blur(0)}100%{opacity:0;filter:blur(10px);transform:translate(-50%,-50%) scale(1.35)}}
       `}</style>
+
+      <nav className={"bnh-nav " + current} aria-label="首页导航">
+        <a className="bnh-brand" href="/">
+          <span className="bnh-seal">{current === "ink" ? "夜" : "墨"}</span>
+          <span className="bnh-name">Biz Novel Studio</span>
+        </a>
+        <div className="bnh-links">
+          <a className="bnh-opt" href="/introduction">文档</a>
+          <a className="bnh-opt" href="/quickstart">快速开始</a>
+          <a className="bnh-opt" href="/features/novels">功能</a>
+          <a className="bnh-gh" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
+        </div>
+      </nav>
 
       {layers.map((L) => {
         const entering = fx && fx.id === L.id;
