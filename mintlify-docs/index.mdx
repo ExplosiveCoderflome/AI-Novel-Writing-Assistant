@@ -370,9 +370,11 @@ export const BnTyping = () => {
 };
 
 export const BnIntro = () => {
-  const WORD = "一句灵感";
+  const IDEA = "普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。";
+  const STAGES = ["起始想法", "导演起始设置", "世界与写法", "模型与生产准备", "方向与自动准备"];
   const [ph, setPh] = useState(0);
   const [k, setK] = useState(0);
+  const [s, setS] = useState(0);
   const [gone, setGone] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -380,11 +382,12 @@ export const BnIntro = () => {
       return;
     }
     const ts = [];
-    for (let i = 1; i <= WORD.length; i++) ts.push(setTimeout(() => setK(i), 350 + i * 220));
-    ts.push(setTimeout(() => setPh(1), 1500));
-    ts.push(setTimeout(() => setPh(2), 2700));
-    ts.push(setTimeout(() => setPh(3), 3700));
-    ts.push(setTimeout(() => setGone(true), 4900));
+    for (let i = 1; i <= IDEA.length; i++) ts.push(setTimeout(() => setK(i), 600 + i * 55));
+    ts.push(setTimeout(() => setPh(1), 2700));
+    ts.push(setTimeout(() => setPh(2), 3300));
+    for (let i = 1; i <= STAGES.length; i++) ts.push(setTimeout(() => setS(i), 3400 + i * 380));
+    ts.push(setTimeout(() => setPh(3), 5900));
+    ts.push(setTimeout(() => setGone(true), 7100));
     return () => ts.forEach(clearTimeout);
   }, []);
   if (gone) return null;
@@ -402,35 +405,73 @@ export const BnIntro = () => {
         .bi-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,#4ade80,transparent);opacity:0;transition:opacity .6s}
         .bi-p2 .bi-spine{opacity:.7}
         .bi-p3 .bi-spine{opacity:0}
-        .bi-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#e7f5ec;transition:opacity .35s}
-        .bi-p3 .bi-c{opacity:0}
-        .bi-w{font-family:"Noto Serif SC",serif;font-size:clamp(34px,6vw,64px);font-weight:700;letter-spacing:.2em;height:1.4em;display:flex;align-items:center;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
-        .bi-p1 .bi-w,.bi-p2 .bi-w{transform:translateY(-28px) scale(.72)}
-        .bi-cur{display:inline-block;width:3px;height:.9em;background:#4ade80;margin-left:8px;animation:biBlink .8s steps(1) infinite}
-        .bi-lines{width:min(380px,70vw);display:flex;flex-direction:column;gap:11px;margin-top:6px}
-        .bi-ln{height:5px;border-radius:3px;background:rgba(231,245,236,.22);transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
-        .bi-p1 .bi-ln,.bi-p2 .bi-ln{transform:scaleX(1)}
-        .bi-ttl{margin-top:26px;font-size:13px;letter-spacing:.5em;color:#86efac;opacity:0;transform:translateY(8px);transition:all .6s}
-        .bi-p2 .bi-ttl{opacity:1;transform:none}
-        .bi-seal{position:absolute;right:calc(50% - min(200px,36vw));bottom:calc(50% - 120px);width:62px;height:62px;border:3px solid #b4382a;color:#b4382a;border-radius:6px;font-family:"Noto Serif SC",serif;font-weight:900;font-size:22px;line-height:1;display:grid;grid-template-columns:1fr 1fr;place-items:center;padding:6px;opacity:0;transform:scale(2.4) rotate(-14deg)}
-        .bi-p2 .bi-seal{animation:biStamp .45s cubic-bezier(.3,1.6,.5,1) forwards}
+        .bi-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;color:#e7f5ec;transition:opacity .4s,transform .6s}
+        .bi-p3 .bi-c{opacity:0;transform:scale(.96)}
+        .bi-eb{font-size:12px;letter-spacing:.35em;color:#4ade80;margin-bottom:14px;animation:biUp .5s both}
+        .bi-h{font-size:clamp(24px,3.6vw,32px);font-weight:600;text-align:center;animation:biUp .5s .05s both}
+        .bi-sub{margin-top:10px;font-size:14px;color:rgba(231,245,236,.55);text-align:center;animation:biUp .5s .1s both}
+        .bi-card{margin-top:26px;width:min(640px,100%);border-radius:10px;background:rgba(255,255,255,.035);padding:16px;box-shadow:0 0 0 2px rgba(74,222,128,.28),0 30px 80px -30px rgba(34,197,94,.45);animation:biUp .55s .15s both}
+        .bi-ta{min-height:96px;font-size:clamp(15px,1.8vw,18px);line-height:1.8;padding:2px 4px}
+        .bi-ph{color:rgba(231,245,236,.3)}
+        .bi-cur{display:inline-block;width:2px;height:1.1em;background:#4ade80;margin-left:2px;vertical-align:-3px;animation:biBlink .8s steps(1) infinite}
+        .bi-hint{font-size:12px;color:rgba(231,245,236,.4);padding:4px 4px 12px}
+        .bi-pref{border-top:1px solid rgba(231,245,236,.08);padding-top:12px}
+        .bi-pl{font-size:12px;color:rgba(231,245,236,.45);margin-bottom:8px}
+        .bi-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .bi-chip{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:6px;font-size:13px;background:rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(231,245,236,.1);transition:all .4s;white-space:nowrap;overflow:hidden}
+        .bi-chip em{font-style:normal;font-size:11px;color:#4ade80;opacity:0;transition:opacity .4s}
+        .bi-p1 .bi-chip,.bi-p2 .bi-chip,.bi-p3 .bi-chip{box-shadow:0 0 0 1px rgba(74,222,128,.45)}
+        .bi-p1 .bi-chip em,.bi-p2 .bi-chip em,.bi-p3 .bi-chip em{opacity:1}
+        .bi-act{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding-top:14px}
+        .bi-ghost{font-size:13px;color:rgba(231,245,236,.5)}
+        .bi-outline{font-size:13px;padding:6px 12px;border-radius:6px;box-shadow:0 0 0 1px rgba(231,245,236,.15);margin-right:12px}
+        .bi-go{font-size:13px;color:rgba(231,245,236,.55);padding:6px 10px;border-radius:6px;transition:all .25s}
+        .bi-p2 .bi-go,.bi-p3 .bi-go{color:#fff;background:rgba(22,163,74,.25);box-shadow:0 0 0 1px #4ade80;transform:scale(.97)}
+        .bi-btn{font-size:13px;padding:7px 14px;border-radius:6px;background:#16A34A;color:#fff;margin-left:6px}
+        .bi-st{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:20px;width:min(640px,100%);min-height:34px}
+        .bi-s{display:flex;align-items:center;gap:6px;font-size:12px;padding:6px 10px;border-radius:6px;color:rgba(231,245,236,.3);box-shadow:0 0 0 1px rgba(231,245,236,.08);transition:all .35s}
+        .bi-s b{width:16px;height:16px;border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px currentColor;font-weight:600}
+        .bi-s.on{color:#86efac;box-shadow:0 0 0 1px rgba(74,222,128,.5);background:rgba(22,163,74,.12)}
+        .bi-s.on b{background:#16A34A;color:#fff;box-shadow:none}
         .bi-skip{position:absolute;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.55);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
         .bi-skip:hover{color:#fff;border-color:#4ade80}
         @keyframes biBlink{50%{opacity:0}}
-        @keyframes biStamp{to{opacity:.92;transform:scale(1) rotate(-8deg)}}
+        @keyframes biUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+        @media (max-width:560px){.bi-chips{grid-template-columns:1fr}.bi-outline,.bi-ghost{display:none}}
       `}</style>
       <div className="bi-door bi-l" />
       <div className="bi-door bi-r" />
       <div className="bi-spine" />
       <div className="bi-c">
-        <div className="bi-w">{WORD.slice(0, k)}<span className="bi-cur" /></div>
-        <div className="bi-lines">
-          {[100, 92, 97, 64, 88, 95, 40].map((w, i) => (
-            <div key={i} className="bi-ln" style={{ width: w + "%", transitionDelay: i * 0.12 + "s" }} />
+        <div className="bi-eb">AI 自动导演创建</div>
+        <div className="bi-h">用一句话，开始你的整本书</div>
+        <div className="bi-sub">写下你想看的故事，AI 会先帮你整理成可选择的整本书方向。</div>
+        <div className="bi-card">
+          <div className="bi-ta">
+            {k === 0 ? <span className="bi-ph">说说你想写的故事…</span> : IDEA.slice(0, k)}
+            {ph < 2 && <span className="bi-cur" />}
+          </div>
+          <div className="bi-hint">填写内容会保存在本机，刷新或重新打开后可以继续。</div>
+          <div className="bi-pref">
+            <div className="bi-pl">创作偏好（可选）</div>
+            <div className="bi-chips">
+              <div className="bi-chip"><span>故事类型：AI 自动匹配</span><em>AI 匹配</em></div>
+              <div className="bi-chip"><span>推进方式：AI 自动搭配</span><em>AI 匹配</em></div>
+            </div>
+          </div>
+          <div className="bi-act">
+            <div><span className="bi-outline">✦ 打开故事星图</span><span className="bi-ghost">直接给我几个想法</span></div>
+            <div>
+              <span className="bi-go">{ph >= 2 ? "生成中..." : "用默认设置直接生成方向"}</span>
+              <span className="bi-btn">继续完善设定 →</span>
+            </div>
+          </div>
+        </div>
+        <div className="bi-st">
+          {ph >= 2 && STAGES.map((t, i) => (
+            <div key={t} className={"bi-s" + (i < s ? " on" : "")}><b>{i < s ? "✓" : i + 1}</b>{t}</div>
           ))}
         </div>
-        <div className="bi-ttl">BIZ NOVEL STUDIO</div>
-        <div className="bi-seal"><span>成</span><span>书</span></div>
       </div>
       {ph < 3 && <button className="bi-skip" onClick={skip}>跳过</button>}
     </div>
