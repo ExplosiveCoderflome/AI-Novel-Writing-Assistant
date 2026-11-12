@@ -133,3 +133,23 @@ test("validateBeatSheetChapterCoverage rejects overlapping spans that inflate ge
   assert.equal(result.plannedChapterCount, 65);
   assert.match(result.message, /合计/);
 });
+
+test("short beat sheet must cover exactly its target and cannot extend beyond it", () => {
+  const oversized = { beats: ["1", "2-3", "4-5", "6-7", "8-9", "10", "11", "12"].map(chapterSpanHint => ({ chapterSpanHint: `${chapterSpanHint}章` })) };
+  assert.equal(validateBeatSheetChapterCoverage({ beatSheet: oversized, targetChapterCount: 4 }).accepted, false);
+  const valid = { beats: ["1章", "2章", "3章", "4章"].map(chapterSpanHint => ({ chapterSpanHint })) };
+  assert.equal(validateBeatSheetChapterCoverage({ beatSheet: valid, targetChapterCount: 4 }).accepted, true);
+});
+
+test("short-volume shared chapters are allowed through target 8 but gaps remain invalid", () => {
+  for (const targetChapterCount of [4, 8]) {
+    const beatSheet = { beats: ["1章", `2-${targetChapterCount}章`, `${targetChapterCount}章`].map(chapterSpanHint => ({ chapterSpanHint })) };
+    const result = validateBeatSheetChapterCoverage({ beatSheet, targetChapterCount });
+    assert.equal(result.accepted, true);
+    assert.equal(result.plannedChapterCount, targetChapterCount);
+  }
+  const disconnected = { beats: ["1章", "3章", "3章", "4章"].map(chapterSpanHint => ({ chapterSpanHint })) };
+  const result = validateBeatSheetChapterCoverage({ beatSheet: disconnected, targetChapterCount: 4 });
+  assert.equal(result.accepted, false);
+  assert.match(result.message, /连续覆盖/);
+});

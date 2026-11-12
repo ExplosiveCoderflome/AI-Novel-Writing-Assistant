@@ -15,11 +15,10 @@ export function deriveChapterBudget(params: {
   if (typeof explicitChapterCount === "number" && Number.isFinite(explicitChapterCount) && explicitChapterCount > 0) {
     return Math.max(1, Math.round(explicitChapterCount));
   }
-  return Math.max(
-    novel.estimatedChapterCount ?? 0,
-    workspace.volumes.flatMap((volume) => volume.chapters).length,
-    12,
-  );
+  const existingChapterCount = workspace.volumes.flatMap((volume) => volume.chapters).length;
+  return novel.estimatedChapterCount != null
+    ? Math.max(novel.estimatedChapterCount, existingChapterCount)
+    : Math.max(existingChapterCount, 12);
 }
 
 /**

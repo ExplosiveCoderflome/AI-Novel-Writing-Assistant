@@ -18,9 +18,13 @@ export function withOutlineOpeningSteps(handlers: Record<ProductionStepId, StepH
       if (id === "volume_beat_sheet") {
         const workspace = await volumes.getVolumes(state.novelId, {hydrateCanonical: false});
         const targetVolumeId = targetVolume(context, workspace);
+        const volumeSlot = [...(state.mapping.runtimeVolumes ?? []), ...state.mapping.volumes].find(v => v.volumeId === targetVolumeId);
+        const confirmedChapterCount = volumeSlot?.chapterQuota
+          ?? state.document.volumes.reduce((sum, volume) => sum + volume.chapterNodeIds.length, 0);
         let sheet = workspace.beatSheets.find(s => s.volumeId === targetVolumeId && s.beats.length);
         if (!sheet) {
           const generated = await volumes.generateVolumes(state.novelId, {...modelOptions(context), scope: "beat_sheet", targetVolumeId,
+            ...(confirmedChapterCount ? {estimatedChapterCount: confirmedChapterCount} : {}),
             draftWorkspace: workspace, taskId: context.runId, entrypoint: "director_next", persistIntermediateDocuments: false});
           const saved = await volumes.updateVolumesWithOptions(state.novelId, generated, {emitEvent: false, syncPayoffLedger: false, syncToChapterExecution: false,
             memoryTelemetry: {entrypoint: "director_next", taskId: context.runId, stage: "structured_outline", scope: "beat_sheet", volumeId: targetVolumeId}});

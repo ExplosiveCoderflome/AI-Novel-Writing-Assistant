@@ -32,6 +32,13 @@ test("deriveChapterBudget 优先使用显式预计章数，不被书级旧值或
   assert.equal(chapterBudget, 6);
 });
 
+test("deriveChapterBudget respects confirmed short and ten-chapter book estimates", () => {
+  assert.equal(deriveChapterBudget({ novel: { estimatedChapterCount: 4 }, workspace: { volumes: [] }, options: {} }), 4);
+  assert.equal(deriveChapterBudget({ novel: { estimatedChapterCount: 10 }, workspace: { volumes: [] }, options: {} }), 10);
+  assert.equal(deriveChapterBudget({ novel: {}, workspace: { volumes: [] }, options: {} }), 12);
+  assert.equal(deriveChapterBudget({ novel: { estimatedChapterCount: 4 }, workspace: { volumes: makeVolumes([5]) }, options: {} }), 5);
+});
+
 test("resolveEvenShareChapterBudget 返回均分份额且不低于 3", () => {
   assert.equal(resolveEvenShareChapterBudget(446, 9), 50);
   assert.equal(resolveEvenShareChapterBudget(10, 9), 3);
@@ -125,4 +132,10 @@ test("resolveBeatSheetTargetChapterCount 保持原有行为：取三者最大", 
     }),
     60,
   );
+});
+
+test("four-chapter confirmed volume gets a four-chapter beat-sheet target", () => {
+  const budget = deriveChapterBudget({ novel: {}, workspace: { volumes: makeVolumes([4]) }, options: { estimatedChapterCount: 4 } });
+  const budgets = allocateChapterBudgets({ volumeCount: 1, chapterBudget: budget, existingVolumes: makeVolumes([4]) });
+  assert.equal(resolveBeatSheetTargetChapterCount({ targetVolumeChapterCount: 4, targetVolumeIndex: 0, volumeCount: 1, chapterBudget: budget, chapterBudgets: budgets }), 4);
 });

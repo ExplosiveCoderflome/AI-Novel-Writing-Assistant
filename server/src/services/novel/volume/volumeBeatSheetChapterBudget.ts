@@ -115,11 +115,15 @@ export function validateBeatSheetChapterCoverage(input: {
   maxTrustedChapterCount: number;
   message: string | null;
 } {
-  const targetChapterCount = Math.max(3, Math.round(input.targetChapterCount || 0));
+  const targetChapterCount = Math.max(1, Math.round(input.targetChapterCount || 0));
   const requiredChapterCount = inferRequiredChapterCountFromBeatSheet(input.beatSheet);
   const continuousChapterCount = inferContinuousChapterCoverageFromBeatSheet(input.beatSheet);
-  const plannedChapterCount = sumBeatSheetChapterSpanCounts(input.beatSheet);
-  const toleranceChapterCount = Math.max(
+  // Short volumes can place several distinct pacing functions in the same chapter.
+  // Coverage and upper-bound checks below still reject gaps and expanded spans.
+  const plannedChapterCount = targetChapterCount <= 8
+    ? continuousChapterCount
+    : sumBeatSheetChapterSpanCounts(input.beatSheet);
+  const toleranceChapterCount = targetChapterCount <= 8 ? 0 : Math.max(
     2,
     Math.round(input.toleranceChapterCount ?? Math.max(3, Math.ceil(targetChapterCount * 0.08))),
   );
@@ -136,6 +140,13 @@ export function validateBeatSheetChapterCoverage(input: {
       minTrustedChapterCount,
       maxTrustedChapterCount,
       message: `当前卷节奏板章节跨度应覆盖约 ${targetChapterCount} 章，实际只覆盖到 ${requiredChapterCount} 章。`,
+    };
+  }
+  if (requiredChapterCount > targetChapterCount) {
+    return {
+      accepted: false, targetChapterCount, requiredChapterCount, continuousChapterCount, plannedChapterCount,
+      minTrustedChapterCount, maxTrustedChapterCount,
+      message: `当前卷节奏板章节跨度不得超过目标 ${targetChapterCount} 章。`,
     };
   }
   if (continuousChapterCount < minTrustedChapterCount) {
