@@ -52,13 +52,15 @@ html:has(.bnh[data-bn-theme="ink"]) body {
 }
 html:has(.bnh[data-bn-theme="ink"]) #navbar,
 html:has(.bnh[data-bn-theme="ink"]) [data-layout-item="topbar"] {
-  background-color: rgba(5, 8, 10, .72) !important;
+  /* 与首屏同一团绿色光晕衔接：光晕中心在 20% 处，从顶栏一直延伸到首屏 */
+  background-color: #05080a !important;
+  background-image: radial-gradient(1200px 420px at 20% 160%, rgba(22, 163, 74, .26), transparent 70%) !important;
   backdrop-filter: blur(12px) saturate(140%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
   color: #e5f6ea !important;
 }
 html:has(.bnh[data-bn-theme="ink"]) #navbar::after {
-  background: linear-gradient(90deg, transparent, rgba(74, 222, 128, .45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(74, 222, 128, .22), transparent);
 }
 html:has(.bnh[data-bn-theme="ink"]) #navbar a,
 html:has(.bnh[data-bn-theme="ink"]) #navbar button,
@@ -108,14 +110,16 @@ html:has(.bnh[data-bn-theme="paper"]) body {
 }
 html:has(.bnh[data-bn-theme="paper"]) #navbar,
 html:has(.bnh[data-bn-theme="paper"]) [data-layout-item="topbar"] {
-  background-color: rgba(243, 237, 225, .86) !important;
+  /* 与首屏同色同纹理：宣纸底色加同一层纸纹噪点 */
+  background-color: #f3ede1 !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>") !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   color: #1c1a17 !important;
   font-family: "Noto Serif SC", "Songti SC", "STSong", serif !important;
 }
 html:has(.bnh[data-bn-theme="paper"]) #navbar::after {
-  background: linear-gradient(90deg, transparent, rgba(28, 26, 23, .35) 20%, rgba(28, 26, 23, .35) 80%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(28, 26, 23, .14) 20%, rgba(28, 26, 23, .14) 80%, transparent);
 }
 html:has(.bnh[data-bn-theme="paper"]) #navbar a,
 html:has(.bnh[data-bn-theme="paper"]) #navbar button,
