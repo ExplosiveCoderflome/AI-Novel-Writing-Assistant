@@ -370,7 +370,13 @@ export const BnTyping = () => {
 };
 
 export const BnIntro = () => {
-  const IDEA = "全民觉醒系统那天，我觉醒的是「系统客服」：全世界的系统出了 bug，都得排队来找我售后。";
+  const IDEAS = [
+    "全民觉醒系统那天，我觉醒的是「系统客服」：全世界的系统出了 bug，都得排队来找我售后。",
+    "修仙界开始内卷考编，我靠一张五百年前的真题卷，成了全宗门唯一的上岸者。",
+    "末日降临，每个人头顶都出现了寿命余额，只有我的是负数：我在花未来的命。",
+    "我穿成了反派的炮灰前妻，却发现弹幕能看见：全书读者都在给我刷礼物。",
+  ];
+  const [IDEA] = useState(() => IDEAS[Math.floor(Math.random() * IDEAS.length)]);
   const STAGES = ["起始想法", "导演起始设置", "世界与写法", "模型与生产准备", "方向与自动准备"];
   const [ph, setPh] = useState(0);
   const [k, setK] = useState(0);
@@ -392,21 +398,21 @@ export const BnIntro = () => {
     ts.push(setTimeout(() => setPh(2), end + 850));
     for (let i = 1; i <= STAGES.length; i++) ts.push(setTimeout(() => setS(i), end + 950 + i * 360));
     ts.push(setTimeout(() => setPh(3), end + 3300));
-    ts.push(setTimeout(() => setGone(true), end + 4500));
+    ts.push(setTimeout(() => setGone(true), end + 4900));
     return () => ts.forEach(clearTimeout);
   }, []);
   if (gone) return null;
-  const skip = () => { setPh(3); setTimeout(() => setGone(true), 1000); };
+  const skip = () => { setPh(3); setTimeout(() => setGone(true), 1500); };
   return (
     <div className={"not-prose bi-wrap bi-p" + ph}>
       <style>{`
         .bi-wrap{position:fixed;inset:0;z-index:9999;perspective:1800px;pointer-events:auto}
         .bi-p3{pointer-events:none}
-        .bi-door{position:absolute;top:0;bottom:0;width:50%;background:#05080a;transition:transform 1.1s cubic-bezier(.7,0,.2,1),filter 1.1s}
+        .bi-door{position:absolute;top:0;bottom:0;width:50%;background:#05080a;transition:transform 1.4s cubic-bezier(.65,0,.25,1),opacity .5s ease .9s;will-change:transform}
         .bi-l{left:0;transform-origin:left center;box-shadow:inset -40px 0 60px -40px rgba(74,222,128,.25)}
         .bi-r{right:0;transform-origin:right center;box-shadow:inset 40px 0 60px -40px rgba(74,222,128,.25)}
-        .bi-p3 .bi-l{transform:rotateY(80deg) translateX(-30%);filter:brightness(.4)}
-        .bi-p3 .bi-r{transform:rotateY(-80deg) translateX(30%);filter:brightness(.4)}
+        .bi-p3 .bi-l{transform:translateX(-102%) rotateY(28deg);opacity:0}
+        .bi-p3 .bi-r{transform:translateX(102%) rotateY(-28deg);opacity:0}
         .bi-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,#4ade80,transparent);opacity:0;transition:opacity .6s}
         .bi-p2 .bi-spine{opacity:.7}
         .bi-p3 .bi-spine{opacity:0}
