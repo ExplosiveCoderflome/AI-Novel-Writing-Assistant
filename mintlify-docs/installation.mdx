@@ -1,0 +1,46 @@
+---
+title: "安装下载"
+description: "桌面版下载与安装、源码运行、手机端说明"
+---
+
+## 桌面版（推荐）
+
+普通写作使用桌面版，无需安装 Node.js、pnpm 或手动启动服务端。到 [最新桌面版下载页](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest) 按你的系统选文件：
+
+| 系统 | 下载文件 | 说明 |
+| --- | --- | --- |
+| Windows | `Biz-Novel-Studio-<版本>-setup-x64.exe` | 安装版，按安装向导完成安装，适合长期使用 |
+| Windows | `Biz-Novel-Studio-<版本>-portable-x64.exe` | 便携版，从独立目录直接启动 |
+| macOS（Apple Silicon） | `Biz-Novel-Studio-<版本>-mac-arm64.dmg` | M 系列芯片 |
+| macOS（Intel） | `Biz-Novel-Studio-<版本>-mac-x64.dmg` | Intel 芯片 |
+| Linux | `Biz-Novel-Studio-<版本>-linux-x86_64.AppImage` | 赋予执行权限后直接运行 |
+
+<Note>
+  当前版本 v0.7.5 已提供 Windows、macOS（Intel 与 Apple Silicon）与 Linux 全平台安装包。macOS 首次打开如被系统拦截，在「系统设置 → 隐私与安全性」中确认打开即可。
+</Note>
+
+## 手机端
+
+目前没有手机 App，手机应用商店里搜不到官方安装包。手机上想用，可以在浏览器里访问你自己在电脑或服务器上部署的 Web 版界面；正式写作仍推荐桌面版，屏幕和操作都更合适。
+
+## 源码运行（开发者）
+
+环境要求：
+
+| 项目 | 要求 |
+| --- | --- |
+| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
+| pnpm | `>=10.6.0`（仓库声明使用 `pnpm@10.6.0`） |
+| 文本模型 | 至少一组可用 API 配置，可在启动后填写 |
+| 数据库 | 默认本地 SQLite；可通过服务端配置使用 PostgreSQL |
+| 知识库检索 | 可选 Qdrant 与 Embedding 模型，不是首次写作的前置条件 |
+
+```bash
+git clone https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
+pnpm install
+cp server/.env.example server/.env   # Windows PowerShell 用 Copy-Item
+pnpm dev
+```
+
+前端默认为 `http://localhost:5173`，服务端为 `http://localhost:3000`。`server/.env` 中确认 `DIRECTOR_NEXT_ENABLED=true`（开放 V2 选择）；尚未配置 Qdrant 时设置 `RAG_ENABLED=false` 先跑通创作。启动后打开系统设置，配置并测试模型（见 [模型配置](/model-configuration)）。
