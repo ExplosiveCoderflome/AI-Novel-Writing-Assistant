@@ -1,29 +1,129 @@
 ---
 title: "安装下载"
-description: "桌面版下载与安装、源码运行、手机端说明"
+description: "桌面版下载与安装、首次启动、数据位置、更新与备份、源码运行"
 keywords:
   - "下载"
   - "安装"
   - "Windows 桌面版"
+  - "macOS"
+  - "Linux"
   - "源码运行"
-  - "手机端"
+  - "数据备份"
 ---
 
 ## 桌面版（推荐）
 
-普通写作使用桌面版，无需安装 Node.js、pnpm 或手动启动服务端。到 [最新桌面版下载页](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest) 按你的系统选文件：
+普通写作使用桌面版，无需安装 Node.js、pnpm 或手动启动服务端。点下面对应系统直接下载 **v0.7.5**：
 
-| 系统 | 下载文件 | 说明 |
-| --- | --- | --- |
-| Windows | `Biz-Novel-Studio-<版本>-setup-x64.exe` | 安装版，按安装向导完成安装，适合长期使用 |
-| Windows | `Biz-Novel-Studio-<版本>-portable-x64.exe` | 便携版，从独立目录直接启动 |
-| macOS（Apple Silicon） | `Biz-Novel-Studio-<版本>-mac-arm64.dmg` | M 系列芯片 |
-| macOS（Intel） | `Biz-Novel-Studio-<版本>-mac-x64.dmg` | Intel 芯片 |
-| Linux | `Biz-Novel-Studio-<版本>-linux-x86_64.AppImage` | 赋予执行权限后直接运行 |
+<CardGroup cols={2}>
+  <Card title="Windows 安装版（推荐）" icon="windows" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.7.5/Biz-Novel-Studio-0.7.5-setup-x64.exe">
+    约 134 MB · 适合长期使用，支持应用内更新
+  </Card>
 
-<Note>
-  当前版本 v0.7.5 已提供 Windows、macOS（Intel 与 Apple Silicon）与 Linux 全平台安装包。macOS 首次打开如被系统拦截，在「系统设置 → 隐私与安全性」中确认打开即可。
-</Note>
+  <Card title="Windows 便携版" icon="windows" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.7.5/Biz-Novel-Studio-0.7.5-portable-x64.exe">
+    约 134 MB · 免安装，数据跟随程序目录
+  </Card>
+
+  <Card title="macOS（Apple Silicon）" icon="apple" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.7.5/Biz-Novel-Studio-0.7.5-mac-arm64.dmg">
+    约 180 MB · M 系列芯片
+  </Card>
+
+  <Card title="macOS（Intel）" icon="apple" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.7.5/Biz-Novel-Studio-0.7.5-mac-x64.dmg">
+    约 184 MB · Intel 芯片
+  </Card>
+
+  <Card title="Linux（AppImage）" icon="linux" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.7.5/Biz-Novel-Studio-0.7.5-linux-x86_64.AppImage">
+    约 204 MB · x86_64，赋予执行权限后直接运行
+  </Card>
+
+  <Card title="所有版本与更新说明" icon="github" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest">
+    在 GitHub Releases 查看最新版本和历史版本
+  </Card>
+</CardGroup>
+
+<Tip>
+  不确定 Mac 是哪种芯片：点左上角苹果菜单 → 关于本机，「芯片」一栏显示 Apple M1/M2/M3/M4 就选 arm64，显示 Intel 就选 x64。
+</Tip>
+
+## 各平台安装步骤
+
+<Tabs>
+  <Tab title="Windows">
+    **安装版**
+
+    1. 双击 `setup-x64.exe`，按向导操作。可以自定义安装目录，默认创建桌面和开始菜单快捷方式。
+    2. 如果出现「Windows 已保护你的电脑」提示，点 **更多信息 → 仍要运行**。
+    3. 安装完成后会自动启动。
+
+    **便携版**
+
+    把 `portable-x64.exe` 放进一个单独的文件夹再运行。数据会保存在同目录下的 `<程序名>-data` 文件夹中，移动时连同这个文件夹一起复制。
+  </Tab>
+  <Tab title="macOS">
+    1. 双击 `.dmg`，把 Biz Novel Studio 拖进「应用程序」。
+    2. 首次打开如果被系统拦截，到 **系统设置 → 隐私与安全性**，在下方找到被阻止的应用，点 **仍要打开**。
+    3. 如果提示「已损坏，无法打开」，在终端执行下面的命令后重新打开：
+
+    ```bash
+    xattr -dr com.apple.quarantine "/Applications/Biz Novel Studio.app"
+    ```
+
+    当前 Mac 安装包未做 Apple 签名与公证，所以首次打开需要手动放行。
+  </Tab>
+  <Tab title="Linux">
+    ```bash
+    chmod +x Biz-Novel-Studio-*-linux-x86_64.AppImage
+    ./Biz-Novel-Studio-*-linux-x86_64.AppImage
+    ```
+
+    部分发行版运行 AppImage 需要先安装 FUSE（例如 Ubuntu 22.04 及以上安装 `libfuse2`）。
+  </Tab>
+</Tabs>
+
+## 首次启动
+
+桌面版启动时会先拉起本地服务，再进入工作台。启动页依次显示「启动本地引擎 → 加载工作区 → 已就绪」，通常几秒到十几秒。
+
+进入工作台后，如果还没有可用的文本模型，会自动弹出 **快捷配置**。填好 API Key、地址和模型并通过检测后，就可以开始创作。详细流程见 [创作向导](/onboarding)。
+
+<Warning>
+  启动页停在「启动受阻」时，先点页面上的日志入口查看原因。常见原因是杀毒软件拦截了本地服务，或上一次进程没有完全退出。完全退出应用后重新打开，仍失败可保存日志包到 [Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues) 反馈。
+</Warning>
+
+## 数据保存在哪里
+
+小说、章节、设定、任务记录和本地数据库都保存在本机，不会上传到项目服务器（调用模型时，相关内容会发给你配置的模型供应商）。
+
+| 版本 | 默认数据目录 |
+| --- | --- |
+| Windows 安装版 | `%LOCALAPPDATA%\AI-Novel-Writing-Assistant-v2` |
+| Windows 便携版 | 程序所在目录下的 `<程序名>-data` |
+| macOS | `~/Library/Application Support/AI-Novel-Writing-Assistant-v2` |
+| Linux | `~/.AI-Novel-Writing-Assistant-v2` |
+
+日志在数据目录下的 `logs` 文件夹。卸载 Windows 安装版**不会**删除数据目录，重装后数据仍在。
+
+## 更新
+
+| 版本 | 怎样更新 |
+| --- | --- |
+| Windows 安装版 | 启动时自动检查新版本。点顶部栏的版本号打开「版本与更新」，可以手动 **检查更新**，下载完成后点 **重启安装** |
+| Windows 便携版 | 不支持应用内更新。下载新版便携包替换旧程序，保留 `-data` 文件夹 |
+| macOS | 不支持应用内更新。下载新版 `.dmg` 覆盖安装，数据不受影响 |
+
+## 备份与迁移
+
+长篇创作的数据很重要，建议定期备份：
+
+1. 完全退出应用（确认没有正在运行的生成任务）。
+2. 复制整个数据目录到安全位置。
+3. 重要作品另外导出一份正文。
+
+迁移到新电脑时，在新电脑安装同一或更新版本，首次启动前把备份的数据目录放回对应位置即可。
+
+<Warning>
+  不要在应用运行时复制或替换数据库，也不要在没有备份的情况下删除数据目录。
+</Warning>
 
 ## 手机端
 
@@ -50,3 +150,15 @@ pnpm dev
 ```
 
 前端默认为 `http://localhost:5173`，服务端为 `http://localhost:3000`。`server/.env` 中确认 `DIRECTOR_NEXT_ENABLED=true`（开放 V2 选择）；尚未配置 Qdrant 时设置 `RAG_ENABLED=false` 先跑通创作。启动后打开系统设置，配置并测试模型（见 [模型配置](/model-configuration)）。
+
+## 下一步
+
+<CardGroup cols={2}>
+  <Card title="创作向导" icon="compass" href="/onboarding">
+    完成快捷配置，从一句灵感走到第一章
+  </Card>
+
+  <Card title="常见问题" icon="circle-question" href="/faq">
+    安装、模型、任务暂停等问题的处理方法
+  </Card>
+</CardGroup>

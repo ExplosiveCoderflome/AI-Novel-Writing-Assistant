@@ -18,9 +18,11 @@
         "pages": [
           "index",
           "introduction",
-          "quickstart",
           "installation",
-          "model-configuration"
+          "onboarding",
+          "quickstart",
+          "model-configuration",
+          "faq"
         ]
       },
       {
