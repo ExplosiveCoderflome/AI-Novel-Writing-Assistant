@@ -17,7 +17,8 @@
               "introduction",
               "quickstart",
               "installation",
-              "model-configuration"
+              "model-configuration",
+              ".mintignore"
             ]
           },
           {
