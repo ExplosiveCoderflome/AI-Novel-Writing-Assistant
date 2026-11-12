@@ -14,11 +14,13 @@ keywords:
   - "AI-Novel-Writing-Assistant"
 ---
 
+<BnIntro />
+
 <BnHome>
   <div>
     <BnHero />
 
-    <BnTyping />
+    <BnChat />
 
     <BnDirector />
 
@@ -360,6 +362,189 @@ export const BnTyping = () => {
                 <div key={i} className="bn-dl" style={{ width: w + "%", transform: writing ? "scaleX(1)" : "scaleX(0)", transitionDelay: i * 0.35 + "s" }} />
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const BnIntro = () => {
+  const WORD = "一句灵感";
+  const [ph, setPh] = useState(0);
+  const [k, setK] = useState(0);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setGone(true);
+      return;
+    }
+    const ts = [];
+    for (let i = 1; i <= WORD.length; i++) ts.push(setTimeout(() => setK(i), 350 + i * 220));
+    ts.push(setTimeout(() => setPh(1), 1500));
+    ts.push(setTimeout(() => setPh(2), 2700));
+    ts.push(setTimeout(() => setPh(3), 3700));
+    ts.push(setTimeout(() => setGone(true), 4900));
+    return () => ts.forEach(clearTimeout);
+  }, []);
+  if (gone) return null;
+  const skip = () => { setPh(3); setTimeout(() => setGone(true), 1000); };
+  return (
+    <div className={"not-prose bi-wrap bi-p" + ph}>
+      <style>{`
+        .bi-wrap{position:fixed;inset:0;z-index:9999;perspective:1800px;pointer-events:auto}
+        .bi-p3{pointer-events:none}
+        .bi-door{position:absolute;top:0;bottom:0;width:50%;background:#05080a;transition:transform 1.1s cubic-bezier(.7,0,.2,1),filter 1.1s}
+        .bi-l{left:0;transform-origin:left center;box-shadow:inset -40px 0 60px -40px rgba(74,222,128,.25)}
+        .bi-r{right:0;transform-origin:right center;box-shadow:inset 40px 0 60px -40px rgba(74,222,128,.25)}
+        .bi-p3 .bi-l{transform:rotateY(80deg) translateX(-30%);filter:brightness(.4)}
+        .bi-p3 .bi-r{transform:rotateY(-80deg) translateX(30%);filter:brightness(.4)}
+        .bi-spine{position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(transparent,#4ade80,transparent);opacity:0;transition:opacity .6s}
+        .bi-p2 .bi-spine{opacity:.7}
+        .bi-p3 .bi-spine{opacity:0}
+        .bi-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#e7f5ec;transition:opacity .35s}
+        .bi-p3 .bi-c{opacity:0}
+        .bi-w{font-family:"Noto Serif SC",serif;font-size:clamp(34px,6vw,64px);font-weight:700;letter-spacing:.2em;height:1.4em;display:flex;align-items:center;transition:transform .8s cubic-bezier(.2,.8,.2,1)}
+        .bi-p1 .bi-w,.bi-p2 .bi-w{transform:translateY(-28px) scale(.72)}
+        .bi-cur{display:inline-block;width:3px;height:.9em;background:#4ade80;margin-left:8px;animation:biBlink .8s steps(1) infinite}
+        .bi-lines{width:min(380px,70vw);display:flex;flex-direction:column;gap:11px;margin-top:6px}
+        .bi-ln{height:5px;border-radius:3px;background:rgba(231,245,236,.22);transform:scaleX(0);transform-origin:left;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+        .bi-p1 .bi-ln,.bi-p2 .bi-ln{transform:scaleX(1)}
+        .bi-ttl{margin-top:26px;font-size:13px;letter-spacing:.5em;color:#86efac;opacity:0;transform:translateY(8px);transition:all .6s}
+        .bi-p2 .bi-ttl{opacity:1;transform:none}
+        .bi-seal{position:absolute;right:calc(50% - min(200px,36vw));bottom:calc(50% - 120px);width:62px;height:62px;border:3px solid #b4382a;color:#b4382a;border-radius:6px;font-family:"Noto Serif SC",serif;font-weight:900;font-size:22px;line-height:1;display:grid;grid-template-columns:1fr 1fr;place-items:center;padding:6px;opacity:0;transform:scale(2.4) rotate(-14deg)}
+        .bi-p2 .bi-seal{animation:biStamp .45s cubic-bezier(.3,1.6,.5,1) forwards}
+        .bi-skip{position:absolute;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.55);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
+        .bi-skip:hover{color:#fff;border-color:#4ade80}
+        @keyframes biBlink{50%{opacity:0}}
+        @keyframes biStamp{to{opacity:.92;transform:scale(1) rotate(-8deg)}}
+      `}</style>
+      <div className="bi-door bi-l" />
+      <div className="bi-door bi-r" />
+      <div className="bi-spine" />
+      <div className="bi-c">
+        <div className="bi-w">{WORD.slice(0, k)}<span className="bi-cur" /></div>
+        <div className="bi-lines">
+          {[100, 92, 97, 64, 88, 95, 40].map((w, i) => (
+            <div key={i} className="bi-ln" style={{ width: w + "%", transitionDelay: i * 0.12 + "s" }} />
+          ))}
+        </div>
+        <div className="bi-ttl">BIZ NOVEL STUDIO</div>
+        <div className="bi-seal"><span>成</span><span>书</span></div>
+      </div>
+      {ph < 3 && <button className="bi-skip" onClick={skip}>跳过</button>}
+    </div>
+  );
+};
+
+export const BnChat = () => {
+  const SCRIPT = [
+    { who: "me", t: "我想写一个落魄修复师在废土城市里修好一台古老机甲的故事" },
+    { who: "ai", stage: 0, t: "已根据灵感生成 3 组书级方向和标题，选一组继续？" },
+    { who: "me", t: "第二组，继续推进" },
+    { who: "ai", stage: 1, t: "世界骨架已生成：规则、势力、地点和冲突张力。" },
+    { who: "ai", stage: 2, t: "角色候选和阵容草案已生成。" },
+    { who: "ai", stage: 3, t: "第 1 批章节任务单和场景卡已就绪。" },
+    { who: "ai", stage: 4, t: "第 1 章正文草稿完成。" },
+    { who: "ai", stage: 5, t: "质量审核完成，角色与伏笔状态已同步。" },
+  ];
+  const TASKS = ["方向候选", "世界搭建", "角色生成", "章节细化", "正文生成", "质量审核"];
+  const [n, setN] = useState(0);
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    if (n >= SCRIPT.length) {
+      const t = setTimeout(() => setN(0), 4200);
+      return () => clearTimeout(t);
+    }
+    if (SCRIPT[n].who === "ai") {
+      setTyping(true);
+      const t = setTimeout(() => { setTyping(false); setN(n + 1); }, 1300);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => setN(n + 1), n === 0 ? 800 : 1100);
+    return () => clearTimeout(t);
+  }, [n]);
+  const shown = SCRIPT.slice(0, n);
+  const done = shown.reduce((m, s) => (s.stage != null ? Math.max(m, s.stage) : m), -1);
+  const lastAi = shown.filter((s) => s.who === "ai").slice(-1)[0];
+  const unread = shown.filter((s) => s.who === "ai").length;
+  return (
+    <div className="not-prose bn-chat">
+      <style>{`
+        .bn-chat{background:#05080a;color:#e7f5ec;padding:70px 24px 90px}
+        .bc-in{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:center}
+        .bc-k{font-size:13px;letter-spacing:.3em;color:#4ade80}
+        .bc-h{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 14px}
+        .bc-p{color:rgba(231,245,236,.65);font-size:16px;line-height:1.75}
+        .bc-note{margin-top:14px;font-size:13px;color:rgba(231,245,236,.4)}
+        .bc-app{display:grid;grid-template-columns:190px minmax(0,1fr);height:440px;border-radius:18px;border:1px solid rgba(134,239,172,.18);background:linear-gradient(180deg,#0b1210,#070b09);box-shadow:0 40px 90px -40px rgba(34,197,94,.55);overflow:hidden;min-width:0}
+        .bc-side{border-right:1px solid rgba(231,245,236,.06);padding:14px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+        .bc-conv{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;background:rgba(22,163,74,.12);border:1px solid rgba(74,222,128,.25);margin-bottom:10px;min-width:0}
+        .bc-av{flex:0 0 32px;height:32px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#4ade80,#14532d);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+        .bc-cv{min-width:0;flex:1}
+        .bc-cn{font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
+        .bc-cl{font-size:11.5px;color:rgba(231,245,236,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+        .bc-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#16A34A;color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;transition:transform .3s}
+        .bc-tl{font-size:11px;letter-spacing:.2em;color:rgba(231,245,236,.35);padding:4px 6px}
+        .bc-task{display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 8px;border-radius:8px;color:rgba(231,245,236,.4);transition:all .4s}
+        .bc-task.ok{color:#86efac}
+        .bc-task.run{color:#fff;background:rgba(255,255,255,.04)}
+        .bc-ic{width:16px;height:16px;border-radius:50%;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex:0 0 16px}
+        .bc-task.ok .bc-ic{background:#16A34A;border-color:#16A34A;color:#fff}
+        .bc-task.run .bc-ic{border-color:#4ade80;border-top-color:transparent;animation:bcSpin 1s linear infinite}
+        .bc-main{display:flex;flex-direction:column;min-width:0}
+        .bc-top{padding:12px 16px;border-bottom:1px solid rgba(231,245,236,.06);font-size:13px;display:flex;justify-content:space-between;gap:8px}
+        .bc-top span{color:rgba(231,245,236,.45);font-size:12px}
+        .bc-body{flex:1;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:16px}
+        .bc-msg{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.6;animation:bcIn .45s cubic-bezier(.2,.8,.2,1)}
+        .bc-msg.me{align-self:flex-end;background:#16A34A;color:#fff;border-bottom-right-radius:4px}
+        .bc-msg.ai{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(134,239,172,.15);border-bottom-left-radius:4px}
+        .bc-who{display:block;font-size:11px;color:#4ade80;margin-bottom:3px}
+        .bc-dots{align-self:flex-start;display:flex;gap:4px;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.05);animation:bcIn .3s}
+        .bc-dots i{width:6px;height:6px;border-radius:50%;background:#86efac;animation:bcDot 1s infinite}
+        .bc-dots i:nth-child(2){animation-delay:.15s}
+        .bc-dots i:nth-child(3){animation-delay:.3s}
+        .bc-input{margin:0 16px 14px;padding:10px 14px;border-radius:12px;border:1px solid rgba(231,245,236,.08);font-size:12.5px;color:rgba(231,245,236,.35)}
+        @keyframes bcIn{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:none}}
+        @keyframes bcDot{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+        @keyframes bcSpin{to{transform:rotate(360deg)}}
+        @media (max-width:640px){.bc-app{grid-template-columns:minmax(0,1fr)}.bc-side{display:none}}
+      `}</style>
+      <div className="bc-in">
+        <div>
+          <div className="bc-k">AUTO DIRECTOR · LIVE</div>
+          <div className="bc-h">像聊天一样，看一本书被推进</div>
+          <div className="bc-p">说出你的灵感，自动导演依次推进方向、世界、角色、章节和正文，每完成一步都会回报进度，左侧任务同步更新。你随时可以停下来确认或修改。</div>
+          <div className="bc-note">演示动画，实际内容取决于你的灵感和所选模型。</div>
+        </div>
+        <div className="bc-app" aria-hidden="true">
+          <div className="bc-side">
+            <div className="bc-conv">
+              <span className="bc-av">导</span>
+              <div className="bc-cv">
+                <div className="bc-cn">自动导演{unread > 0 && <span className="bc-badge" key={unread}>{unread}</span>}</div>
+                <div className="bc-cl">{typing ? "正在推进…" : lastAi ? lastAi.t : "等待你的灵感"}</div>
+              </div>
+            </div>
+            <div className="bc-tl">任务</div>
+            {TASKS.map((t, i) => (
+              <div key={t} className={"bc-task" + (i <= done ? " ok" : typing && i === done + 1 ? " run" : "")}>
+                <span className="bc-ic">{i <= done ? "✓" : ""}</span>{t}
+              </div>
+            ))}
+          </div>
+          <div className="bc-main">
+            <div className="bc-top">新建小说 <span>{done >= 5 ? "第 1 章已保存" : typing ? "推进中" : "在线"}</span></div>
+            <div className="bc-body">
+              {shown.map((m, i) => (
+                <div key={i} className={"bc-msg " + m.who}>
+                  {m.who === "ai" && <span className="bc-who">自动导演 · {TASKS[m.stage]}</span>}
+                  {m.t}
+                </div>
+              ))}
+              {typing && <div className="bc-dots"><i /><i /><i /></div>}
+            </div>
+            <div className="bc-input">说说你想写的故事…</div>
           </div>
         </div>
       </div>
