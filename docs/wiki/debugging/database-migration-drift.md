@@ -45,6 +45,7 @@ Prisma schema 描述应用当前期望的数据结构，但已安装桌面版和
 - 只补 SQLite：服务端 PostgreSQL 部署会继续漂移。
 - 在读取层忽略缺表异常：表面恢复页面，但会隐藏数据不完整并扩大后续诊断成本。
 - 只用完整 Schema 临时库验收：无法证明实际安装或开发数据库具备新增进度表。暂停预算读取可能同时拖垮来源页和运行列表，并掩盖最初的暂停原因。
+- **空 PostgreSQL 上直接 `prisma migrate deploy` 失败**：`server/src/prisma/migrations/` 的首条 `20260328120000_schema_gap_backfill` 含 SQLite `DATETIME` 语法，空库会以 `type "datetime" does not exist` 阻断。即便将该条标记为 applied，后续如 `20260419123000_schema_column_backfill` 仍可能与 `postgresql_baseline` 已建列冲突。因此：**不得把 `db push` 成功说成 migrate deploy 通过**；云端有界验收可用一次性空库 + `db push` 验证当前 schema 行为，但必须在报告中把“新鲜库 migrate deploy”标为未通过/缺陷，交由本机修复迁移链，而不是在验收侧改业务迁移。
 
 ## Related Modules
 
