@@ -17,6 +17,7 @@ export type StructuredOutputErrorCategory =
   | "empty_response"
   | "reasoning_budget_exhausted"
   | "output_budget_exhausted"
+  | "model_unavailable"
   | "transport_error";
 
 export interface StructuredOutputProfile {
@@ -422,6 +423,10 @@ export function classifyStructuredOutputFailure(input: {
   const lowerMessage = message.toLowerCase();
   const trimmedRawContent = rawContent.trim().toLowerCase();
   const haystack = `${message}\n${rawContent}`.toLowerCase();
+  if ((input.error && typeof input.error === "object" && "status" in input.error && input.error.status === 402)
+    || /余额不足|额度不足|quota\s+exhausted|insufficient\s+(?:balance|credits)|payment required/.test(haystack)) {
+    return "model_unavailable";
+  }
 
   if (
     haystack.includes("response_format")
@@ -501,6 +506,7 @@ export function extractStructuredOutputErrorCategory(message?: string | null): S
     "empty_response",
     "reasoning_budget_exhausted",
     "output_budget_exhausted",
+    "model_unavailable",
     "transport_error",
   ].includes(category) ? category : null;
 }
@@ -527,7 +533,7 @@ export class StructuredOutputError extends Error {
   }
 }
 
-export function describeStructuredResponseFailure(reason: StructuredFailureReason): {
+export function describeStructuredResponseFailure(reason: StructuredFailureReason | "model_unavailable"): {
   category: StructuredOutputErrorCategory;
   message: string;
 } {
@@ -546,6 +552,11 @@ export function describeStructuredResponseFailure(reason: StructuredFailureReaso
       return {
         category: "output_budget_exhausted",
         message: "模型输出达到 Token 上限后被截断（finish_reason=length/max_tokens），结果不完整。请提高输出 Token 上限后重试。",
+      };
+    case "model_unavailable":
+      return {
+        category: "model_unavailable",
+        message: "模型余额或可用额度不足。请检查账户额度，或更换可用的模型渠道后重试。",
       };
     case "blocked":
       return { category: "transport_error", message: "模型拒绝或过滤了本次请求，请调整创作要求或核对模型服务提示。" };

@@ -14,6 +14,15 @@ test('unified extraction preserves actual and non-present location evidence for 
   assert.deepEqual(chapterArtifactDeltaOutputSchema.parse(input).characterLocationDeltas, input.characterLocationDeltas);
 });
 
+test('location evidence arrays normalize to a single readable evidence string', () => {
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary:'甲离开牢房。',stateDeltas:{},syncPlan:{reason:'按最终正文回填'},confidence:0.95,
+    characterLocationDeltas:[{characterId:'a',characterName:'甲',fromLocation:'牢房',locationName:'客栈',
+      movementType:'move',timeContext:'present',continuityStatus:'consistent',evidence:['甲推门离开。','随后抵达客栈。']}],
+  });
+  assert.equal(parsed.characterLocationDeltas[0].evidence, '甲推门离开。；随后抵达客栈。');
+});
+
 test('older extraction checkpoints remain reusable without fabricated location changes', () => {
   const parsed = chapterArtifactDeltaOutputSchema.parse({summary:'旧正文',stateDeltas:{},syncPlan:{reason:'无位置记录'},confidence:0.9});
   assert.deepEqual(parsed.characterLocationDeltas, []);

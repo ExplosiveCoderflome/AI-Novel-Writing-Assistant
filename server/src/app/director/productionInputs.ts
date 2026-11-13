@@ -5,6 +5,7 @@ import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacr
 import type { DirectorBookContractPromptInput } from "../../prompting/prompts/novel/directorPlanning.prompts";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
+import { AppError } from "../../middleware/errorHandler";
 
 export function requireLaunch(contract: RunContract) {
   const input = contract.launchInput;
@@ -64,7 +65,8 @@ export function targetVolume(context: Pick<StepContext,"contract">, workspace: V
 }
 export function executionWindow(context: StepContext, workspace: VolumePlanDocument) {
   const range = context.contract.chapterRange;
-  if (!range) throw new Error("准备正文需要明确章节授权范围。");
+  if (!range) throw new AppError("准备正文需要明确章节授权范围。", 400);
+  if (range.from !== range.to) throw new AppError("按大纲写作每次只确认一章，请选择当前章。", 422);
   const matches = workspace.volumes.flatMap(volume => volume.chapters.filter(chapter => chapter.chapterOrder === range.from)
     .map(chapter => ({volumeId: volume.id, chapterId: chapter.id})));
   if (matches.length !== 1) throw new Error("授权起始章节缺少唯一的章节路线。");

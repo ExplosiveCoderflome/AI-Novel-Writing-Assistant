@@ -667,6 +667,7 @@ export function summarizeStructuredOutputFailure(input: {
     empty_response: "模型返回了空内容，没有收到可用正文；请重试，持续出现时检查渠道兼容性、思考设置或更换模型。",
     reasoning_budget_exhausted: "模型只返回了思考内容，输出 Token 已在生成正文前耗尽；请关闭深度思考或提高输出 Token 上限。",
     output_budget_exhausted: "模型输出达到 Token 上限后被截断，结果不完整；请提高输出 Token 上限后重试。",
+    model_unavailable: "模型余额或可用额度不足；请检查账户额度，或更换可用的模型渠道后重试。",
     transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,
   };
   return {

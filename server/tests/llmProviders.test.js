@@ -26,6 +26,7 @@ test("custom provider auth mode replaces the SDK bearer header when requested", 
 });
 const {
   classifyStructuredOutputFailure,
+  describeStructuredResponseFailure,
   resolveStructuredOutputProfile,
   selectStructuredOutputStrategy,
 } = require("../dist/llm/structuredOutput.js");
@@ -412,6 +413,9 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
 });
 
 test("structured failure classification separates native-json, thinking and schema problems", () => {
+  assert.equal(classifyStructuredOutputFailure({ error: { status: 402, message: "Payment required" } }), "model_unavailable");
+  assert.equal(classifyStructuredOutputFailure({ error: new Error("余额不足，请充值") }), "model_unavailable");
+  assert.match(describeStructuredResponseFailure("model_unavailable").message, /余额或可用额度不足.*检查账户额度.*更换可用的模型渠道/);
   assert.equal(
     classifyStructuredOutputFailure({ error: new Error("response_format json_schema is not supported") }),
     "unsupported_native_json",

@@ -64,7 +64,10 @@ test('every production confirmation stays in its own new director workspace', as
 test('opening follows AI volume order and prepares only the first execution contract',()=>{
  const workspace={volumes:[{id:'later',sortOrder:2,chapters:[]},{id:'opening',sortOrder:1,chapters:[{id:'p1',chapterOrder:1},{id:'p2',chapterOrder:2}]}]};
  assert.equal(targetVolume(context,workspace),'opening');
- assert.deepEqual(executionWindow(context,workspace),{targets:[{volumeId:'opening',chapterId:'p1'}],executionRange:{startOrder:1,endOrder:1}});
+  const singleChapterContext={...context,contract:{...contract,chapterRange:{from:1,to:1}}};
+  assert.deepEqual(executionWindow(singleChapterContext,workspace),{targets:[{volumeId:'opening',chapterId:'p1'}],executionRange:{startOrder:1,endOrder:1}});
+  assert.throws(()=>executionWindow({...context,contract:{...contract,chapterRange:null}},workspace),error=>error.statusCode===400);
+  assert.throws(()=>executionWindow({...context,contract:{...contract,chapterRange:{from:1,to:2}}},workspace),error=>error.statusCode===422);
  assert.throws(()=>targetVolume({...context,contract:{...contract,chapterRange:{from:5,to:10}}},workspace),/路线/);
 });
 
@@ -72,7 +75,7 @@ test('new director planning reads cannot hydrate empty execution fields over pre
  const {NovelVolumeService}=require('../../../dist/services/novel/volume/NovelVolumeService');
  const original=NovelVolumeService.prototype.getVolumes,seen=[];
  NovelVolumeService.prototype.getVolumes=async(_id,input)=>{seen.push(input);throw Error('read-boundary-reached');};
- try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')(context),/read-boundary-reached/);
+  try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')({...context,contract:{...contract,chapterRange:{from:1,to:1}}}),/read-boundary-reached/);
   assert.deepEqual(seen,[{hydrateCanonical:false}]);}
  finally {NovelVolumeService.prototype.getVolumes=original;}
 });
@@ -84,7 +87,7 @@ test('new director synchronization keeps the planning source until contracts are
  NovelVolumeService.prototype.getVolumes=async()=>({novelId:'novel',volumes:[{id:'v1',chapters:[{id:'p1',chapterOrder:1,taskSheet:'保存任务',sceneCards:'保存场景'}]}]});
  ChapterService.prototype.listChapters=async()=>[];
  NovelVolumeService.prototype.syncVolumeChaptersWithOptions=async(_id,_input,opts)=>{assert.deepEqual(opts,{emitEvent:false,syncPayoffLedger:false,hydrateCanonical:false});throw Error('sync-boundary-reached');};
- try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')(context),/sync-boundary-reached/);}
+  try {await assert.rejects(()=>options.stepRegistry.get('execution_contract_sync')({...context,contract:{...contract,chapterRange:{from:1,to:1}}}),/sync-boundary-reached/);}
  finally {NovelVolumeService.prototype.getVolumes=originals.read;NovelVolumeService.prototype.syncVolumeChaptersWithOptions=originals.sync;ChapterService.prototype.listChapters=originals.chapters;}
 });
 test('batch result reads structured decisions and current-content closure instead of status alone',async()=>{

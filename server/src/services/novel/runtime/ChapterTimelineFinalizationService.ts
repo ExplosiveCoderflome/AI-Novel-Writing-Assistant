@@ -18,6 +18,7 @@ import {
   chapterGoalFromContext, fallbackTimeLabel, openHookIds, plannedEventIds, forbiddenEventIds,
   type ChapterTimelineFinalizationMode,
 } from "../../../modules/timeline";
+import { AppError } from "../../../middleware/errorHandler";
 
 export type { ChapterTimelineFinalizationMode } from "../../../modules/timeline";
 
@@ -97,11 +98,13 @@ export class ChapterTimelineFinalizationService {
       try {
         const result = await operation();
         if (!result || result.checkpointWritten) return;
+        throw new AppError("章节时间线正在由另一项任务处理，请稍后重试。", 409, { sourceActionLabel: "稍后重试" });
       } catch (error) {
+        if (error instanceof AppError) throw error;
         // A concurrent edit is reloaded on the next attempt, never committed as old context.
         if (!(error instanceof TimelineContentVersionError)) throw error;
       }
-      if (Date.now() >= deadline) throw new Error("前文时间线同步未能完成，请稍后从章节页继续写作。");
+      if (Date.now() >= deadline) throw new AppError("前文时间线同步未能完成，请稍后从章节页继续写作。", 409);
       await new Promise<void>((resolve) => setTimeout(resolve, 1000));
     }
   }
@@ -248,7 +251,9 @@ export class ChapterTimelineFinalizationService {
       };
     }
 
-    const gate = input.timelineGate ?? await this.extractAndCheck({
+    const gate = input.timelineGate ?? await this.withLeaseHeartbeat({
+      novelId: input.novelId, chapterId: input.chapterId, contentHash,
+    }, () => this.extractAndCheck({
       novelId: input.novelId,
       chapterId: input.chapterId,
       chapterIndex,
@@ -258,7 +263,7 @@ export class ChapterTimelineFinalizationService {
       content,
       timelineContext,
       request: input.request,
-    });
+    }));
 
     if (!gate.timelineContext || !gate.extractorSucceeded || gate.result.status === "failed") {
       await this.store.markCheckpointFailed({
@@ -353,6 +358,21 @@ export class ChapterTimelineFinalizationService {
       hookCount: gate.extractedHooks.length,
       checkpointWritten: true,
     };
+  }
+
+  private async withLeaseHeartbeat<T>(
+    input: { novelId: string; chapterId: string; contentHash: string },
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const timer = setInterval(() => {
+      void this.store.refreshRunningCheckpointLease(input).catch(() => undefined);
+    }, Math.max(1000, Math.floor(TIMELINE_FINALIZATION_RUNNING_STALE_MS / 3)));
+    timer.unref?.();
+    try {
+      return await operation();
+    } finally {
+      clearInterval(timer);
+    }
   }
 
   private async extractAndCheck(input: {

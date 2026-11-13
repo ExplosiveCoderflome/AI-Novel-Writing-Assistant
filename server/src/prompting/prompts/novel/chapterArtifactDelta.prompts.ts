@@ -300,8 +300,18 @@ function normalizeSyncPlan(value: unknown): unknown {
 
 function normalizeArtifactDeltaOutput(value: unknown): unknown {
   if (!isRecord(value)) return value;
+  const characterLocationDeltas = Array.isArray(value.characterLocationDeltas)
+    ? value.characterLocationDeltas.map((delta) => {
+      if (!isRecord(delta)) return delta;
+      const evidence = delta.evidence;
+      return {...delta, evidence: Array.isArray(evidence)
+        ? evidence.map((item) => String(item ?? "").trim()).filter(Boolean).join("；")
+        : typeof evidence === "string" ? evidence.trim() : evidence};
+    })
+    : value.characterLocationDeltas;
   return {
     ...value,
+    characterLocationDeltas,
     syncPlan: isRecord(value.syncPlan)
       ? value.syncPlan
       : { stateSnapshot: "write", characterResources: "write", payoffLedger: "delta", characterDynamics: "write", reason: "根据章节正文完成默认同步。" },
@@ -570,6 +580,7 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE = {
     },
   ],
   relationDynamics: [],
+  characterLocationDeltas: [],
   factionUpdates: [],
   characterCandidates: [],
   characterKnowledgeStates: [

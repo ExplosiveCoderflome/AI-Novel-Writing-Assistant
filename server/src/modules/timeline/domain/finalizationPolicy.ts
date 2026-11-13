@@ -2,7 +2,10 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import type { TimelineContextForChapter } from "@ai-novel/shared/types/timeline";
 
 export type ChapterTimelineFinalizationMode = "stable" | "degraded";
-export const TIMELINE_FINALIZATION_RUNNING_STALE_MS = 15 * 60 * 1000;
+// A live worker renews its durable side-effect lease. Two minutes is long enough
+// for a heartbeat gap but short enough that a dead desktop process does not hold
+// the finalization gate for the historical fifteen-minute window.
+export const TIMELINE_FINALIZATION_RUNNING_STALE_MS = 2 * 60 * 1000;
 
 export function uniqueStrings(values: Array<string | null | undefined>): string[] {
   return Array.from(new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value))));

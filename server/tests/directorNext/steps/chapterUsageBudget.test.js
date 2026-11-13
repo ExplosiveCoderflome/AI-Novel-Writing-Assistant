@@ -120,12 +120,25 @@ test('budget authorization covers the next step without resetting consumed usage
  assert.equal(snapshot.chapterUsage[1].startJobTokens,50000);assert.equal(snapshot.chapterUsage[1].totalTokens,89892);
  assert.deepEqual(snapshot.chapterUsage[0],before.chapterUsage[0]);assert.deepEqual(snapshot.decisions,before.decisions);
 });
-test('budget authorization cannot resolve a separate quality-first manual pause',()=>{
+test('budget authorization preserves a separate quality-first manual pause',()=>{
  const {readPausedChapterBudget}=require('../../../dist/services/novel/production/usage');
  const snapshot={runId:'run',decisions:[{issueCode:'runtime.token_budget_exceeded',chapterOrder:1,action:'pause_for_manual'},
   {issueCode:'quality.chapter_below_threshold',chapterOrder:1,action:'pause_for_manual'}],
   chapterUsage:[{chapterId:'c1',chapterOrder:1,startJobTokens:0,totalTokens:100000}]};
- assert.equal(readPausedChapterBudget(snapshot,'job'),null);
+ const view=readPausedChapterBudget(snapshot,'job');
+ assert.ok(view);assert.equal(view.chapterId,'c1');
+});
+
+test('budget entry remains available alongside a separate pause and can extend the chapter limit',()=>{
+ const {readPausedChapterBudget,authorizeChapterBudget}=require('../../../dist/services/novel/production/usage');
+ const snapshot={runId:'run',decisions:[{issueCode:'runtime.token_budget_exceeded',chapterOrder:1,action:'pause_for_manual'},
+  {issueCode:'quality.chapter_below_threshold',chapterOrder:1,action:'pause_for_manual'}],
+  chapterUsage:[{chapterId:'c1',chapterOrder:1,startJobTokens:0,totalTokens:100001}]};
+ const view=readPausedChapterBudget(snapshot,'job');
+ assert.ok(view);assert.equal(view.usedTokens,100001);
+ authorizeChapterBudget(snapshot,'job',{jobId:'job',chapterId:'c1',metric:'raw_tokens_v1',tokenLimit:view.recommendedLimit});
+ assert.equal(snapshot.chapterUsage[0].tokenLimit,view.recommendedLimit);
+ assert.equal(snapshot.decisions[1].issueCode,'quality.chapter_below_threshold');
 });
 
 test('a saved task limit is applied to each new chapter and survives restart',()=>{

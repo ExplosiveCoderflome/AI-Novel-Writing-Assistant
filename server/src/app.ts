@@ -12,6 +12,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { ensureRuntimeDatabaseReady } from "./db/runtimeMigrations";
+import { TimelineFinalizationStore } from "./modules/timeline";
 import { errorHandler } from "./middleware/errorHandler";
 import { authMiddleware, establishAccessSession } from "./middleware/auth";
 import { loadProviderApiKeys } from "./llm/factory";
@@ -406,6 +407,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
 export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
   scheduleLogRetentionCleanup();
   await ensureRuntimeDatabaseReady();
+  await new TimelineFinalizationStore().markPreexistingRunningAsStale();
 
   const ragCompatibilityReport = await initializeRagSettingsCompatibility();
   if (

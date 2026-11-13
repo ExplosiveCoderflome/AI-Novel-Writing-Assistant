@@ -24,8 +24,7 @@ export function chapterBudgetView(jobId: string, row: Checkpoint): DirectorChapt
 export function readPausedChapterBudget(snapshot: PipelineDirectorSnapshot, jobId: string): DirectorChapterBudgetView | null {
   const unresolved = snapshot.decisions.slice(snapshot.resolvedDecisionCount ?? 0);
   const pauses = unresolved.filter(decision => decision.action === "pause_for_manual" || decision.action === "fail_task");
-  if (pauses.some(decision => decision.issueCode !== "runtime.token_budget_exceeded")) return null;
-  const decision = pauses.at(-1);
+  const decision = pauses.filter(decision => decision.issueCode === "runtime.token_budget_exceeded").at(-1);
   if (!decision || decision.issueCode !== "runtime.token_budget_exceeded" || !decision.chapterOrder) return null;
   const row = snapshot.chapterUsage?.find(item => item.chapterOrder === decision.chapterOrder);
   return row ? chapterBudgetView(jobId, row) : null;

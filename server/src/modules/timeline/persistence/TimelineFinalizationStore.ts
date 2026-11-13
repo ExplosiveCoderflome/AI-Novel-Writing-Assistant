@@ -14,8 +14,25 @@ type Checkpoint = {
   syncMode: ChapterTimelineFinalizationMode; sourceStage: string; metadata: Record<string, unknown>;
 };
 
+export const TIMELINE_FINALIZATION_STARTUP_STALE_REASON = "stale_running_at_process_start";
+
 /** Owns checkpoint claims and atomic, body-fenced timeline commits. Never invokes AI. */
 export class TimelineFinalizationStore {
+  async refreshRunningCheckpointLease(input: { novelId: string; chapterId: string; contentHash: string }): Promise<void> {
+    await prisma.chapterArtifactSyncCheckpoint.updateMany({
+      where: { ...input, artifactType: "timeline_finalization", status: "running" },
+      data: { updatedAt: new Date() },
+    });
+  }
+
+  async markPreexistingRunningAsStale(startedAt = new Date()): Promise<number> {
+    const result = await prisma.chapterArtifactSyncCheckpoint.updateMany({
+      where: { artifactType: "timeline_finalization", status: "running", updatedAt: { lt: startedAt } },
+      data: { status: "failed", sourceType: "chapter_runtime", sourceStage: "startup_recovery",
+        metadataJson: JSON.stringify({ reason: TIMELINE_FINALIZATION_STARTUP_STALE_REASON }), updatedAt: new Date() },
+    });
+    return result.count;
+  }
   async captureManuscriptVersion(novelId:string,chapterId:string):Promise<ManuscriptTimelineVersion|null>{
     const project=await prisma.manuscriptProject.findUnique({where:{novelId}});if(!project)return null;
     const unit=await prisma.manuscriptUnit.findFirst({where:{projectId:project.id,chapterId,status:"active"}});

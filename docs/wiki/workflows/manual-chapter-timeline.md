@@ -12,7 +12,7 @@
 4. 同一事务写入当前正文 hash 的 `manual_pending` checkpoint 和 `chapter.timelineFinalization` 持久作业，并登记人物资料的独立修订证明与 `chapter.manualSync` 作业。任一登记失败，正文与两类责任整体回滚。进程退出不应丢失同步责任；保存路径不调用模型或等待派生资料写入。
 5. Worker 读取当前正文，仅处理任务 hash 仍匹配的版本。正文被新编辑替代时跳过旧任务；另一执行者正在同步时延后该作业。耗时抽取期间续期任务租约。
 6. 实际抽取沿用 `ChapterTimelineFinalizationService` 与注册的时间线 Prompt。事件、钩子、锚点、完成 checkpoint 在同一事务提交，并对章节行做条件写入以锁住当前正文。同步不得推进编辑器的保存版本。
-7. `ChapterExecutionPreparationService` 在规划和上下文组装之前检查前文待同步标记，并补齐上一章缺失的时间线。遇到已有同步者时等待其完成，读取到新正文则重新检查，不能把正常并发直接当成章节失败。等待上限与运行中 checkpoint 的 15 分钟失效窗口一致，异常占用不能无限等待。
+7. `ChapterExecutionPreparationService` 在规划和上下文组装之前检查前文待同步标记，并补齐上一章缺失的时间线。遇到已有同步者时，写作请求立即以可重试的 409 返回，不能把 HTTP 请求挂到租约过期；正文版本并发冲突则重新读取并检查。运行中 checkpoint 的残留窗口为 2 分钟，抽取期间 worker 每隔窗口的三分之一续期匹配正文 hash 的 running checkpoint。进程启动时将此前遗留的 running checkpoint 标记为失败以便后续原子抢占；启动后新领取的任务不受该清理影响。
 8. 抽取或局部时间线检查失败沿用明确的 `degraded` 收尾。降级结果可用于继续写作，保留检查记录；它不是全书重规划或质量优先人工暂停的替代决定。
 
 ## 历史与恢复
