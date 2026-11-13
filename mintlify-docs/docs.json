@@ -9,7 +9,60 @@
   "footer": {
     "socials": {
       "github": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
-    }
+    },
+    "links": [
+      {
+        "header": "开始",
+        "items": [
+          {
+            "label": "安装与启动",
+            "href": "/installation"
+          },
+          {
+            "label": "快速开始",
+            "href": "/quickstart"
+          },
+          {
+            "label": "第一本小说实战",
+            "href": "/guides/first-novel-walkthrough"
+          }
+        ]
+      },
+      {
+        "header": "社区",
+        "items": [
+          {
+            "label": "GitHub",
+            "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+          },
+          {
+            "label": "问题反馈",
+            "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues"
+          },
+          {
+            "label": "参与贡献",
+            "href": "/developers/contributing"
+          }
+        ]
+      },
+      {
+        "header": "更新",
+        "items": [
+          {
+            "label": "更新日志",
+            "href": "/changelog"
+          },
+          {
+            "label": "路线图",
+            "href": "/roadmap"
+          },
+          {
+            "label": "下载最新版",
+            "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases"
+          }
+        ]
+      }
+    ]
   },
   "navigation": {
     "groups": [
@@ -28,11 +81,20 @@
         ]
       },
       {
+        "group": "实战手册",
+        "pages": [
+          "guides/first-novel-walkthrough",
+          "guides/recovery-by-phase"
+        ]
+      },
+      {
         "group": "长篇与短篇创作",
         "pages": [
           "features/novels",
+          "features/title-workshop",
           "features/outline-workbench",
           "features/auto-director",
+          "features/director-follow-up",
           "features/short-story",
           "features/token-usage",
           "features/task-center"
@@ -42,9 +104,12 @@
         "group": "世界、角色与写法",
         "pages": [
           "features/world-library",
+          "features/genre-library",
+          "features/progression-modes",
           "features/character-library",
           "features/style-engine",
-          "features/anti-ai-rules"
+          "features/anti-ai-rules",
+          "features/prompt-management"
         ]
       },
       {
@@ -64,9 +129,17 @@
         ]
       },
       {
+        "group": "创作原理",
+        "pages": [
+          "guides/production-pipeline",
+          "guides/chapter-execution"
+        ]
+      },
+      {
         "group": "开发者",
         "pages": [
           "developers/architecture",
+          "developers/deployment",
           "developers/environment-variables",
           "developers/contributing"
         ]
@@ -77,7 +150,8 @@
           "glossary",
           "faq",
           "troubleshooting",
-          "changelog"
+          "changelog",
+          "roadmap"
         ]
       }
     ]
@@ -89,12 +163,40 @@
       "language": "zh-CN",
       "og:locale": "zh_CN",
       "theme-color": "#05080a",
-      "application-name": "Biz Novel Studio"
+      "application-name": "Biz Novel Studio",
+      "og:site_name": "Biz Novel Studio",
+      "twitter:card": "summary_large_image"
     }
   },
   "logo": {
     "light": "/images/logo.svg",
     "dark": "/images/logo.svg"
   },
-  "favicon": "/favicon.svg"
+  "favicon": "/favicon.svg",
+  "navbar": {
+    "links": [
+      {
+        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases",
+        "label": "下载"
+      },
+      {
+        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues",
+        "label": "问题反馈"
+      }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity"
+    ],
+    "display": "header"
+  }
 }

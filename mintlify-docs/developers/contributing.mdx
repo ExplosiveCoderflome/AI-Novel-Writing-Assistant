@@ -13,17 +13,48 @@ keywords:
 
 欢迎参与 Biz Novel Studio 的改进。本文面向希望反馈问题、提交代码或进行二次开发的贡献者。
 
-## 反馈问题
+## 反馈问题的模板
 
-到 [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues) 提交问题时，尽量带上以下信息，方便快速定位：
+到 [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues) 提交问题时，请尽量使用以下模板填写，方便维护者快速复现和定位。
 
-- 应用版本（顶部栏版本号）和操作系统
-- 所选导演版本（V1 或 V2）与运行模式（全自动或按阶段确认）
-- 操作步骤，从哪个入口进入、做了哪些操作
-- 暂停原因或报错原文、截图
-- 桌面版日志包（在「版本与更新」中保存）
+```markdown
+## 版本与环境
+- 应用版本：（顶部栏版本号，如 v0.8.1）
+- 操作系统：（Windows / macOS / Linux，以及版本号）
+- 模型提供商：（OpenAI / Claude / 自定义等）
+
+## 复现步骤
+1. 从哪个入口进入（如「自动导演」「大纲工作台」）
+2. 做了哪些操作（点击了什么、输入了什么）
+3. 触发问题的具体节点
+
+## 期望结果
+（描述你期望应用如何响应）
+
+## 实际结果
+（描述实际出现的异常，如暂停、报错、内容不符合预期等）
+
+## 日志或截图
+- 桌面版日志包：在「版本与更新」中保存并上传
+- 报错原文或截图（可脱敏后粘贴）
+```
+
+<Info>
+  仓库已配置 PR 模板，提交代码时系统会自动加载。Issue 暂无强制模板，但按上述结构填写可显著缩短沟通周期。
+</Info>
 
 更完整的反馈清单见 [常见问题](/faq)。
+
+## 新手可以先做的事
+
+如果你刚接触本项目，以下贡献方式不需要深入代码即可开始：
+
+- **文档勘误与补充**：发现错别字、步骤过时或截图与界面不符，直接在对应页面提交修改
+- **反馈可复现的 Bug**：使用上面的模板在 Issues 中提交带步骤的问题，帮助维护者建立复现清单
+- **Prompt 调优建议**：在「自动导演」「风格引擎」等模块中，如果你发现某类提示词对特定模型输出不稳定，可以在 Issues 中附上模型版本、输入示例和期望输出格式
+- **翻译与术语统一**：界面文案、文档或 Prompt 中的术语不一致时，可提出统一建议
+
+这些贡献同样会被记录在仓库的贡献者列表中。准备好深入代码后，再阅读下方的开发约定与提交规范。
 
 ## 提交 PR 前须知
 
@@ -72,12 +103,16 @@ pnpm test
 - [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues)：问题反馈与功能讨论
 - [LINUX DO 社区讨论帖](https://linux.do/t/topic/2738271)：中文社区交流
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card title="架构与源码" icon="sitemap" href="/developers/architecture">
     技术栈、目录结构与常用命令
   </Card>
 
   <Card title="环境变量" icon="gear" href="/developers/environment-variables">
     服务端与前端配置项说明
+  </Card>
+
+  <Card title="常见问题" icon="circle-question" href="/faq">
+    反馈问题前的自查清单
   </Card>
 </CardGroup>
