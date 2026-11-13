@@ -1546,9 +1546,11 @@ export const HomeFx = ({ children }) => {
     let curTheme = getTheme();
     setTheme(curTheme);
 
+    let check = () => {};
     let praf = 0;
     const prog = () => {
       praf = 0;
+      check();
       const r = root.getBoundingClientRect();
       const span = r.height - window.innerHeight;
       const p = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
@@ -1605,15 +1607,24 @@ export const HomeFx = ({ children }) => {
       }, d + 1600);
     };
     const tracked = new Set();
-    const io = new IntersectionObserver((entries) => {
-      const vis = entries.filter((e) => e.isIntersecting).map((e) => e.target);
+    check = () => {
+      if (!tracked.size) return;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const vis = [];
+      tracked.forEach((el) => {
+        if (!el.isConnected) { tracked.delete(el); return; }
+        const r = el.getBoundingClientRect();
+        if (r.bottom <= 0) {
+          tracked.delete(el);
+          el.classList.remove("hfx-r", "hfx-ri", "hfx-rp", "hfx-on");
+        } else if (r.top < vh * 0.92 && (r.width > 0 || r.height > 0)) vis.push(el);
+      });
       vis.sort((a, b) => (a.compareDocumentPosition(b) & 4 ? -1 : 1));
       vis.forEach((el, i) => {
-        io.unobserve(el);
         tracked.delete(el);
         reveal(el, Math.min(i, 6) * 110);
       });
-    }, { threshold: 0.12, rootMargin: "0px 0px -6% 0px" });
+    };
     const seen = new WeakSet();
     const tag = (el, cls) => {
       if (seen.has(el)) return;
@@ -1621,11 +1632,10 @@ export const HomeFx = ({ children }) => {
       if (el.getBoundingClientRect().bottom < 0) return;
       el.classList.add("hfx-r", cls);
       tracked.add(el);
-      io.observe(el);
     };
     const mags = new Map();
     const scan = () => {
-      tracked.forEach((el) => { if (!el.isConnected) { io.unobserve(el); tracked.delete(el); } });
+      tracked.forEach((el) => { if (!el.isConnected) tracked.delete(el); });
       mags.forEach((s, el) => { if (!el.isConnected) mags.delete(el); });
       root.querySelectorAll(INK_R).forEach((el) => tag(el, "hfx-ri"));
       root.querySelectorAll(PAPER_R).forEach((el) => tag(el, "hfx-rp"));
@@ -1642,7 +1652,7 @@ export const HomeFx = ({ children }) => {
           m.addedNodes.forEach((n) => { if (!need && n.nodeType === 1 && (n.matches(ALL) || n.querySelector(ALL))) need = true; });
         }
       });
-      if (need && !reduce) scan();
+      if (need && !reduce) { scan(); onScroll(); }
     });
     mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-bn-theme"] });
 
@@ -1714,14 +1724,18 @@ export const HomeFx = ({ children }) => {
       setBursts((b) => [...b.slice(-6), { id, th: ink ? "ink" : "paper", x: e.clientX, y: e.clientY, parts }]);
       later(() => setBursts((b) => b.filter((q) => q.id !== id)), ink ? 1000 : 2300);
     };
+    const iv = setInterval(() => { if (tracked.size) onScroll(); }, 400);
     if (!reduce) {
       scan();
+      check();
       root.addEventListener("pointermove", onMove, { passive: true });
       root.addEventListener("pointerleave", onLeave);
       root.addEventListener("click", onClick);
     }
     return () => {
       dead = true;
+      clearInterval(iv);
+      tracked.forEach((el) => el.classList.remove("hfx-r", "hfx-ri", "hfx-rp", "hfx-on"));
       window.removeEventListener("scroll", onScroll, { capture: true });
       window.removeEventListener("resize", onScroll);
       root.removeEventListener("pointermove", onMove);
@@ -1730,7 +1744,6 @@ export const HomeFx = ({ children }) => {
       if (praf) cancelAnimationFrame(praf);
       if (mraf) cancelAnimationFrame(mraf);
       mo.disconnect();
-      io.disconnect();
       timers.forEach((t) => clearTimeout(t));
       mags.forEach((s, el) => { el.style.translate = ""; });
       clearTilt();
