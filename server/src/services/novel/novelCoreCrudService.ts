@@ -22,6 +22,7 @@ import {
 import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
 import { novelEventBus } from "../../events/publisher";
 import { readActiveManuscriptChapters, rejectLegacyManuscriptWrite } from "../../modules/novel/manuscript/application/ManuscriptIsolation";
+import * as novelDeletion from "./lifecycle";
 
 export class NovelCoreCrudService {
   private readonly novelContinuationService = new NovelContinuationService();
@@ -81,6 +82,7 @@ export class NovelCoreCrudService {
       data: {
         id: input.id,
         title: input.title,
+        penName: normalizeOptionalTextForCreate(input.penName),
         directorVersion: input.directorVersion,
         description: input.description,
         targetAudience: normalizeOptionalTextForCreate(input.targetAudience),
@@ -223,6 +225,7 @@ export class NovelCoreCrudService {
     const {
       continuationBookAnalysisSections: _ignoreSectionPatch,
       referenceBookAnalysisSections: _ignoreReferenceSectionPatch,
+      penName: _ignorePenName,
       targetAudience: _ignoreTargetAudience,
       bookSellingPoint: _ignoreBookSellingPoint,
       competingFeel: _ignoreCompetingFeel,
@@ -243,6 +246,7 @@ export class NovelCoreCrudService {
       where: { id },
       data: {
         ...restInput,
+        penName: normalizeOptionalTextForUpdate(input.penName),
         sourceNovelId: nextWritingMode === "continuation" ? nextSourceNovelId : null,
         sourceKnowledgeDocumentId: nextWritingMode === "continuation" ? nextSourceKnowledgeDocumentId : null,
         continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,
@@ -287,7 +291,7 @@ export class NovelCoreCrudService {
   }
 
   async deleteNovel(id: string) {
-    await prisma.$transaction(async (transaction) => {
+    const fileCleanup = await prisma.$transaction(async (transaction) => {
       // Remove Restrict dependents before intent versions cascade from tasks or the novel.
       await transaction.shortStoryRevisionJob.deleteMany({ where: { novelId: id } });
       await transaction.shortStoryPlan.deleteMany({ where: { novelId: id } });
@@ -314,6 +318,7 @@ export class NovelCoreCrudService {
       const agentRunIds = agentRuns.map((task) => task.id);
       const pipelineJobIds = pipelineJobs.map((task) => task.id);
       const imageTaskIds = imageTasks.map((task) => task.id);
+      const fileCleanup = await novelDeletion.prepareNovelDeletion(transaction, id);
 
       if (
         workflowTaskIds.length > 0
@@ -343,8 +348,23 @@ export class NovelCoreCrudService {
         });
       }
 
+      // Keep outline sources while releasing both the Restrict binding and its project projection.
+      await transaction.outlineBookBinding.deleteMany({ where: { novelId: id } });
+      await transaction.outlineProject.updateMany({
+        where: { boundNovelId: id },
+        data: { boundNovelId: null },
+      });
       await transaction.novel.delete({ where: { id } });
+      return fileCleanup;
     });
+    if (fileCleanup) {
+      try {
+        await novelDeletion.finishNovelDeletion(JSON.parse(fileCleanup.payloadJson));
+        await prisma.novelSideEffectJob.deleteMany({ where: { id: fileCleanup.id } });
+      } catch {
+        // The committed receipt is retried by the existing side-effect worker.
+      }
+    }
     queueRagDelete("novel", id);
     queueRagDelete("bible", id);
   }

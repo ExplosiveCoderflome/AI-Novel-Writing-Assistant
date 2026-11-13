@@ -7,6 +7,7 @@ import { prisma } from "../../db/prisma";
 import { chapterTimelineFinalizationService } from "../../services/novel/runtime/ChapterTimelineFinalizationService";
 import { buildTimelineContentHash, TimelineContentVersionError } from "../../modules/timeline";
 import {directorV2CharacterEnrichmentService} from "../../services/novel/characterPrep/deferred";
+import { finishNovelDeletion } from "../../services/novel/lifecycle";
 import {
   type BookContractPayoffSyncPayload,
   type ChapterTimelineFinalizationPayload,
@@ -46,6 +47,11 @@ export class NovelSideEffectJobHandlers {
 
   async execute(job: NovelSideEffectJob): Promise<void | {deferUntil: Date}> {
     switch (job.jobType) {
+      case "novel.deletedFiles": {
+        await finishNovelDeletion(parsePayload(job));
+        await prisma.novelSideEffectJob.updateMany({ where: { id: job.id }, data: { payloadJson: "{}" } });
+        return;
+      }
       case "chapter.manualSync": {
         const payload = parsePayload<ManualChapterSyncPayload>(job);
         if (payload.novelId !== job.novelId || !payload.chapterId || !payload.contentHash || !payload.revision) {
@@ -132,4 +138,3 @@ export class NovelSideEffectJobHandlers {
     }
   }
 }
-

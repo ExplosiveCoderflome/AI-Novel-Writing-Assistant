@@ -9,6 +9,7 @@ export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
   "payoff.bookContractSync",
   "chapter.manualSync",
   "chapter.timelineFinalization",
+  "novel.deletedFiles",
 ] as const;
 
 export type NovelSideEffectJobType = (typeof NOVEL_SIDE_EFFECT_JOB_TYPES)[number];
@@ -73,4 +74,3 @@ export interface NovelSideEffectLeaseOptions {
   leaseMs: number;
   now?: Date;
 }
-
