@@ -3,10 +3,12 @@
  *
  * Scope (intentional):
  * - Requires an already-provisioned disposable DATABASE_URL (postgresql://…).
- * - Does NOT claim `prisma migrate deploy` on a fresh empty cluster succeeds.
+ * - Does not treat raw `prisma migrate deploy` on a historically broken empty-PG
+ *   chain as an official pass. The official empty path is
+ *   `scripts/deploy-prisma-postgres.cjs --fresh-empty-ok`.
  * - Verifies T1/T2 delete + outline reopen, book-scoped cleanup, image retention
  *   on injected rollback, and #233 penName create/update/clear against the
- *   current Prisma schema (typically applied via `prisma db push` in CI/cloud).
+ *   current Prisma schema (applied by the official deploy script in CI/cloud).
  *
  * Safety: refuses non-postgres URLs and refuses known user/dev database names.
  */
@@ -66,7 +68,7 @@ test.before(async () => {
   const novelColumns = await prisma.$queryRawUnsafe(
     `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'Novel' AND column_name = 'penName'`,
   );
-  assert.equal(novelColumns.length, 1, "penName column must exist (db push / migrated schema)");
+  assert.equal(novelColumns.length, 1, "penName column must exist (official migrated schema)");
   const feedback = await prisma.$queryRawUnsafe(
     `SELECT to_regclass('public."OutlineFeedbackRun"')::text AS rel`,
   );

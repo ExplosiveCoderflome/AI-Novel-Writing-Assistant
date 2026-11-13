@@ -14,7 +14,7 @@ Prisma schema 描述应用当前期望的数据结构，但已安装桌面版和
 - `server/src/prisma/schema.sqlite.prisma`：SQLite 当前结构。
 - `server/src/prisma/migrations/` 与 `server/src/prisma/migrations.sqlite/`：从历史版本升级到当前结构的路径。
 
-补漏迁移应保持增量，不重建业务表、不删除字段、不覆盖已有内容。多个可能被用户手工补齐的对象应拆成可独立判定的迁移单元，避免一个重复字段阻断其余缺失对象的修复。
+补漏迁移应保持增量，不重建业务表、不删除字段、不覆盖已有内容。已入库的历史 PostgreSQL 迁移文件不要为了给新鲜空库让路而改写 checksum；新鲜空库走下文的当前 schema 基线登记，存量库走增量 `migrate deploy`。多个可能被用户手工补齐的对象应拆成可独立判定的迁移单元，避免一个重复字段阻断其余缺失对象的修复。
 
 ## Current Rule
 
@@ -41,11 +41,43 @@ Prisma schema 描述应用当前期望的数据结构，但已安装桌面版和
 - 只测试全新开发库：开发库可能经过 `db push` 或手工操作，无法代表安装包从迁移重建的结果。
 - 只检查源码迁移目录：部署或打包规则仍可能漏掉新增迁移，必须核对最终产物中的 SQLite 迁移集合。
 - 把多个补漏对象放进单条 SQLite 迁移：部分对象已存在时，首个重复列会回滚整条迁移。
-- 将开发启动的 `db push` 等同于迁移部署：它可同步表结构，却不会自动补齐 `_prisma_migrations` 的部署历史。表已存在但迁移未登记时，不可直接重放 CREATE TABLE 或猜测标记已应用；先核对历史基线。
+- 将开发启动的 `db push` 等同于迁移部署：它可同步表结构，却不会自动补齐 `_prisma_migrations` 的部署历史。表已存在但迁移未登记时，不可直接重放 CREATE TABLE 或猜测标记已应用；先核对历史基线。新鲜空 PostgreSQL 应使用 `scripts/deploy-prisma-postgres.cjs`，而不是把 `db push` 或直接 `prisma migrate deploy` 当成已通过。
 - 只补 SQLite：服务端 PostgreSQL 部署会继续漂移。
 - 在读取层忽略缺表异常：表面恢复页面，但会隐藏数据不完整并扩大后续诊断成本。
 - 只用完整 Schema 临时库验收：无法证明实际安装或开发数据库具备新增进度表。暂停预算读取可能同时拖垮来源页和运行列表，并掩盖最初的暂停原因。
-- **空 PostgreSQL 上直接 `prisma migrate deploy` 失败**：`server/src/prisma/migrations/` 的首条 `20260328120000_schema_gap_backfill` 含 SQLite `DATETIME` 语法，空库会以 `type "datetime" does not exist` 阻断。即便将该条标记为 applied，后续如 `20260419123000_schema_column_backfill` 仍可能与 `postgresql_baseline` 已建列冲突。因此：**不得把 `db push` 成功说成 migrate deploy 通过**；云端有界验收可用一次性空库 + `db push` 验证当前 schema 行为，但必须在报告中把“新鲜库 migrate deploy”标为未通过/缺陷，交由本机修复迁移链，而不是在验收侧改业务迁移。
+- **空 PostgreSQL 上直接 `prisma migrate deploy` 失败（历史基线流程问题，非 0.8.2 新增 SQL 回归）**：该缺陷在 `origin/main`（`ae11c01c`）已存在。`server/src/prisma/migrations/` 的第一条 `20260328120000_schema_gap_backfill` 含 SQLite `DATETIME`，空库会以 `type "datetime" does not exist` 在进入真正的 `20260413120000_postgresql_baseline` 之前就失败。即便把首条标记为 applied，后续如 `20260419123000_schema_column_backfill` 仍可能与 baseline 已建列冲突，且中间还有其它 SQLite 方言记录（如 `StyleExtractionTask` 的 `DATETIME`）。**禁止为了让空库 deploy 变绿而就地改写这些历史 `migration.sql` 的 checksum。** 也**不得把 `db push` 成功说成 migrate deploy 通过**。
+- **官方空库 / 存量库路径**见下文「PostgreSQL 部署策略」：新鲜空库使用 `scripts/deploy-prisma-postgres.cjs --fresh-empty-ok`（按当前 `schema.prisma` 生成基线 SQL，再 `migrate resolve --applied` 登记现有文件夹，最后 `migrate deploy`）。已有 `_prisma_migrations` 的库存量库只跑 `migrate deploy`。有表但无迁移历史的遗留库必须人工对照 schema 后再决定是否 stamp，脚本拒绝自动 stamp。
+
+
+
+## PostgreSQL 部署策略
+
+这是历史迁移链的基线方案，不是对已应用记录的自动改写。
+
+判定（本仓库 `scripts/deploy-prisma-postgres.cjs`）：
+
+| 数据库状态 | 官方动作 |
+| --- | --- |
+| 空库（`public` 无业务表，且无已应用的 `_prisma_migrations` 行） | 须显式 `--fresh-empty-ok`。用 `prisma migrate diff --from-empty --to-schema=src/prisma/schema.prisma --script` 应用**当前** PostgreSQL schema，再按时间顺序 `migrate resolve --applied` 登记现有迁移文件夹（checksum 取自未改动的历史文件），然后 `migrate deploy` 只处理此后新增的文件夹。 |
+| 已有 `_prisma_migrations` 历史 | 只执行 `prisma migrate deploy`。不重放、不改写已登记记录。0.8.2 的三条增量（`20261111140000` / `20261111150000` / `20261112090000`）若尚未应用，由此路径落下。 |
+| 有业务表、但没有可用的 Prisma 迁移历史（例如只做过 `db push`） | **拒绝自动 stamp**。先备份，再用 `migrate diff --from-config-datasource --to-schema` 核对。diff 非空时先补结构；仅当 diff 为空时，由运维按时间顺序手工 `migrate resolve --applied`，再 `migrate deploy`。 |
+
+命令：
+
+```bash
+AI_NOVEL_DATABASE_MODE=postgresql DATABASE_URL='postgresql://...' \
+  node scripts/deploy-prisma-postgres.cjs --dry-run
+
+AI_NOVEL_DATABASE_MODE=postgresql DATABASE_URL='postgresql://...' \
+  node scripts/deploy-prisma-postgres.cjs --fresh-empty-ok
+```
+
+约束：
+
+- 不要修改已入版本库的历史 `migration.sql` 来“修正”方言，以免已 stamp 或已部分登记的存量 PostgreSQL 出现 checksum 失败。
+- 不要对用户库或默认开发库使用本脚本，除非运维明确指定该 `DATABASE_URL`。
+- 禁止 `migrate reset`、`db push` 作为正式迁移，禁止 drop/truncate 用户数据。
+- 0.8.2 新增的三条 PostgreSQL 迁移本身是 PG 方言（`TIMESTAMP(3)` / `ADD COLUMN "penName"` 等）；空库 `migrate deploy` 失败发生在它们之前，属于既有链不可从空库重放，不是这三条 SQL 写错。
 
 ## Related Modules
 
@@ -56,6 +88,8 @@ Prisma schema 描述应用当前期望的数据结构，但已安装桌面版和
 - `server/src/db/runtimeMigrations.ts`
 - `server/tests/runtimeMigrations.test.js`
 - `server/tests/prismaMigrationCompleteness.test.js`
+- `scripts/deploy-prisma-postgres.cjs`
+- `server/tests/postgresMigrateDeployPath.test.js`
 
 ## Source Documents
 

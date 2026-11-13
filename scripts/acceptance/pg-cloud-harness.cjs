@@ -3,8 +3,10 @@
  * Cloud/CI disposable PostgreSQL acceptance driver for the 0.8.2 candidate.
  *
  * - Creates a unique empty database (never touches default ai_novel / user DBs)
- * - Records that `prisma migrate deploy` fails on a fresh empty PG (known defect)
- * - Applies current schema via `prisma db push` for functional acceptance only
+ * - Records raw `prisma migrate deploy` on a fresh empty PG (historically expected
+ *   to fail; a success is accepted if the historical chain is ever repaired)
+ * - Applies schema via official `scripts/deploy-prisma-postgres.cjs --fresh-empty-ok`
+ *   when raw deploy did not already succeed. Does not fall back to `db push`.
  * - Runs server/tests/pgCloudAcceptance.harness.test.js
  * - Drops the disposable database afterward
  *
@@ -55,7 +57,7 @@ function main() {
   const report = {
     dbName,
     migrateDeployFresh: null,
-    dbPush: null,
+    officialEmptyDeploy: null,
     harness: null,
   };
 
@@ -75,21 +77,29 @@ function main() {
       stderrTail: (migrate.stderr || migrate.stdout || "").split("\n").slice(-12).join("\n"),
     };
     if (migrate.status === 0) {
-      console.log("[pg-cloud-harness] unexpected: migrate deploy succeeded on fresh empty PG");
+      console.log("[pg-cloud-harness] raw prisma migrate deploy succeeded on fresh empty PG");
     } else {
-      console.log("[pg-cloud-harness] confirmed: migrate deploy fails on fresh empty PG (not claimed as pass)");
+      console.log("[pg-cloud-harness] raw prisma migrate deploy failed on fresh empty PG (historical chain; not claimed as official pass)");
     }
 
-    // Functional path: current schema via db push (explicitly not migrate-deploy)
-    const push = run(
-      "pnpm",
-      ["exec", "prisma", "db", "push", "--config", "prisma.config.ts", "--accept-data-loss"],
-      { cwd: serverDir, env: migrateEnv },
-    );
-    report.dbPush = { status: push.status, stdoutTail: (push.stdout || "").split("\n").slice(-8).join("\n") };
-    if (push.status !== 0) {
-      console.error(push.stderr || push.stdout);
-      process.exit(push.status || 1);
+    if (migrate.status !== 0) {
+      const official = run(
+        process.execPath,
+        [path.join(root, "scripts/deploy-prisma-postgres.cjs"), "--fresh-empty-ok"],
+        { cwd: root, env: migrateEnv },
+      );
+      process.stdout.write(official.stdout || "");
+      process.stderr.write(official.stderr || "");
+      report.officialEmptyDeploy = {
+        status: official.status,
+        stderrTail: (official.stderr || official.stdout || "").split("\n").slice(-12).join("\n"),
+      };
+      if (official.status !== 0) {
+        console.error("[pg-cloud-harness] official empty-PG deploy script failed; not falling back to db push");
+        process.exit(official.status || 1);
+      }
+    } else {
+      report.officialEmptyDeploy = { status: 0, skipped: "raw-migrate-deploy-already-succeeded" };
     }
 
     const harness = run(
