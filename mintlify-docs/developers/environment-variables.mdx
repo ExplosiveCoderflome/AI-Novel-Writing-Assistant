@@ -1,0 +1,159 @@
+---
+title: "环境变量"
+description: "服务端与前端的环境变量配置、分组说明与安全部署建议"
+icon: "gear"
+keywords:
+  - "环境变量"
+  - "配置"
+  - ".env"
+  - "部署"
+  - "API Key"
+  - "Qdrant"
+  - "RAG"
+---
+
+本文列出 Biz Novel Studio 源码运行和部署时需要关注的环境变量。阅读前建议先看过 [安装下载](/installation) 中的「源码运行（开发者）」小节。
+
+## 配置文件位置
+
+- 服务端读取 `server/.env`
+- 前端读取 `client/.env` 或 `client/.env.local`
+- 根目录 `.env.example` 只是总览，不能代替子包配置
+
+复制示例文件并修改：
+
+```bash
+# macOS / Linux
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
+```powershell
+# Windows PowerShell
+Copy-Item server/.env.example server/.env
+Copy-Item client/.env.example client/.env
+```
+
+API Key 和模型也可以在系统设置里保存；模型路由用于分别配置规划、正文、审阅和拆书。详见 [模型配置](/model-configuration)。
+
+## 服务端配置（server/.env）
+
+### 基础服务
+
+| 变量 | 默认值 / 示例 | 说明 |
+| --- | --- | --- |
+| `PORT` | `3000` | 服务端监听端口 |
+| `DIRECTOR_NEXT_ENABLED` | `true` | 提供导演 V1/V2 选择；设为 `false` 可关闭 V2。已有小说保留原导演版本 |
+| `HOST` | `0.0.0.0` | 绑定地址。公网或服务器部署时建议改为 `127.0.0.1` |
+| `ALLOW_LAN` | `true` | 是否允许局域网访问。公网部署时建议改为 `false` |
+| `AI_NOVEL_ACCESS_TOKEN` | 空 | 可选访问令牌。公网或局域网共享时建议开启 |
+| `CORS_ORIGIN` | `http://localhost:5173,...` | 跨域来源列表，公网部署时应收窄到实际域名 |
+| `DATABASE_URL` | `file:./dev.db`（SQLite 默认） | 数据库连接串。使用 PostgreSQL 时替换为对应连接串 |
+| `API_JSON_LIMIT` | `20mb` | JSON 请求体大小上限 |
+| `NOVEL_SNAPSHOT_RETENTION_COUNT` | `10` | 每本小说保留的自动版本快照数量；手动保存的快照不受此限制 |
+
+### 图片存储与生成
+
+| 变量 | 默认值 / 示例 | 说明 |
+| --- | --- | --- |
+| `IMAGE_STORAGE_DRIVER` | `local` | 图片资产存储驱动，`local` 或 `minio` |
+| `IMAGE_STORAGE_ROOT` | `storage/generated-images` | 本地存储根目录 |
+| `IMAGE_STORAGE_S3_ENDPOINT` | 空 | MinIO/S3 端点地址 |
+| `IMAGE_STORAGE_S3_REGION` | `us-east-1` | S3 区域 |
+| `IMAGE_STORAGE_S3_BUCKET` | `ai-novel-images` | S3 Bucket 名 |
+| `IMAGE_STORAGE_S3_ACCESS_KEY_ID` | 空 | S3 Access Key |
+| `IMAGE_STORAGE_S3_SECRET_ACCESS_KEY` | 空 | S3 Secret Key |
+| `IMAGE_STORAGE_S3_FORCE_PATH_STYLE` | `true` | 是否使用路径式 S3 地址 |
+| `IMAGE_GENERATION_HTTP_TIMEOUT_MS` | `300000` | 图片生成接口最长等待时间（毫秒） |
+
+### 模型厂商
+
+以下变量按厂商分组。每组通常包含 `*_API_KEY`、`*_BASE_URL` 和 `*_MODEL`，部分厂商还有独立的图像模型或 Embedding 模型变量。
+
+| 厂商前缀 | 默认 BASE_URL | 默认模型（文本） | 图像模型 / Embedding 模型 |
+| --- | --- | --- | --- |
+| `OPENAI_*` | `https://api.openai.com/v1` | `gpt-5-mini` | `gpt-image-1` / `text-embedding-3-small` |
+| `DEEPSEEK_*` | `https://api.deepseek.com/v1` | `deepseek-chat` | 无 |
+| `SILICONFLOW_*` | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` | `black-forest-labs/FLUX.1-schnell` |
+| `ANTHROPIC_*` | `https://api.anthropic.com/v1` | `claude-3-5-sonnet-20241022` | 无 |
+| `XAI_*` | `https://api.x.ai/v1` | `grok-4` | `grok-imagine-image` |
+| `KIMI_*` | `https://api.moonshot.cn/v1` | `moonshot-v1-32k` | 无 |
+| `GLM_*` | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-air` | 无 |
+| `QWEN_*` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | 无 |
+| `GEMINI_*` | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.5-flash` | 无 |
+
+API Key 和模型也可以在系统设置里保存。详见 [模型配置](/model-configuration)。
+
+### 知识库 RAG / Qdrant
+
+| 变量 | 默认值 / 示例 | 说明 |
+| --- | --- | --- |
+| `RAG_ENABLED` | `true` | 是否启用知识库向量检索。尚未配置 Qdrant 时可设为 `false` |
+| `RAG_VERBOSE_LOG` | `false` | 是否输出详细 RAG 日志 |
+| `RAG_DEFAULT_TENANT` | `default` | 默认租户名 |
+| `EMBEDDING_PROVIDER` | `openai` | Embedding 供应商 |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding 模型名 |
+| `EMBEDDING_VERSION` | `1` | Embedding 版本 |
+| `EMBEDDING_BATCH_SIZE` | `64` | Embedding 请求批大小 |
+| `QDRANT_URL` | `http://127.0.0.1:6333` | Qdrant 地址。远程实例替换为对应地址 |
+| `QDRANT_API_KEY` | 空 | Qdrant Cloud 或其他需要认证的实例的 API Key |
+| `QDRANT_COLLECTION` | `ai_novel_chunks_v1` | Qdrant 集合名 |
+| `QDRANT_TIMEOUT_MS` | `120000` | Qdrant 操作超时 |
+| `QDRANT_UPSERT_MAX_BYTES` | `3145728` | 单次 upsert 最大字节数 |
+| `RAG_CHUNK_SIZE` | `800` | 文本分块大小 |
+| `RAG_CHUNK_OVERLAP` | `120` | 分块重叠长度 |
+| `RAG_VECTOR_CANDIDATES` | `40` | 向量候选数 |
+| `RAG_KEYWORD_CANDIDATES` | `40` | 关键词候选数 |
+| `RAG_FINAL_TOP_K` | `8` | 最终返回结果数 |
+| `RAG_WORKER_POLL_MS` | `2500` | Worker 轮询间隔 |
+| `RAG_WORKER_MAX_ATTEMPTS` | `5` | Worker 最大重试次数 |
+| `RAG_WORKER_RETRY_BASE_MS` | `5000` | Worker 重试基础间隔 |
+| `RAG_EMBEDDING_TIMEOUT_MS` | `30000` | Embedding 超时 |
+| `RAG_EMBEDDING_MAX_RETRIES` | `2` | Embedding 最大重试次数 |
+| `RAG_EMBEDDING_RETRY_BASE_MS` | `500` | Embedding 重试基础间隔 |
+| `RAG_HTTP_TIMEOUT_MS` | `30000` | RAG HTTP 超时 |
+
+### 拆书
+
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `BOOK_ANALYSIS_MAX_CONCURRENT_TASKS` | `2` | 拆书最大并发任务数 |
+| `BOOK_ANALYSIS_NOTES_CONCURRENCY` | `2` | 笔记并发数 |
+| `BOOK_ANALYSIS_SECTION_CONCURRENCY` | `2` | 章节并发数 |
+| `BOOK_ANALYSIS_CACHE_SEGMENT_VERSION` | `1` | 缓存段版本 |
+
+## 前端配置（client/.env）
+
+| 变量 | 默认值 / 示例 | 说明 |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | 空（开发环境自动推断） | 只有在明确要固定 API 地址或前后端分开部署时才设置。局域网访问时不要固定成 `localhost`，否则浏览器会请求访问设备自己的 `localhost:3000` |
+| `VITE_API_TIMEOUT_MS` | `600000` | API 超时（毫秒），默认 10 分钟 |
+| `VITE_MANUSCRIPT_REVISION_ENABLED` | 默认关闭 | 原稿修订入口开关。需要时开启，手机端不展示 |
+
+<Info>
+  `VITE_MANUSCRIPT_REVISION_ENABLED` 的具体用法请参照源码中的 release notes 和相关 Wiki 说明。
+</Info>
+
+<Warning>
+  公网或服务器部署时，建议做以下安全调整：
+
+  - `HOST` 改为 `127.0.0.1`
+  - `ALLOW_LAN` 改为 `false`
+  - `CORS_ORIGIN` 收窄到实际域名
+  - `API_JSON_LIMIT` 收窄（如 `5mb`），避免成为大请求体 DoS 攻击面
+  - 开启 `AI_NOVEL_ACCESS_TOKEN` 访问令牌保护
+</Warning>
+
+<Tip>
+  开发环境默认通过 Vite 的同源 `/api` 代理访问服务端，同机与局域网访问通常无需创建 `client/.env`。前后端分开部署或需要指定其他服务端地址时，才设置 `VITE_API_BASE_URL`。
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title="架构与源码" icon="sitemap" href="/developers/architecture">
+    技术栈、目录结构与常用命令
+  </Card>
+
+  <Card title="参与贡献" icon="code-pull-request" href="/developers/contributing">
+    反馈问题、提交 PR 与社区链接
+  </Card>
+</CardGroup>

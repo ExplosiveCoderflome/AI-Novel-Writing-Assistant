@@ -1,0 +1,123 @@
+---
+title: "架构与源码"
+description: "Biz Novel Studio 的技术栈、目录结构、V1/V2 关系、环境要求与常用命令"
+icon: "sitemap"
+keywords:
+  - "架构"
+  - "源码"
+  - "技术栈"
+  - "目录结构"
+  - "V1 V2"
+  - "pnpm workspace"
+  - "测试"
+---
+
+如果你想从源码运行、二次开发或贡献代码，可以从这里了解仓库的技术栈、模块划分和启动方式。阅读前建议先看过 [安装下载](/installation) 中的「源码运行（开发者）」小节，那里有最简启动流程。
+
+## 技术栈
+
+| 层级 | 主要技术 |
+| --- | --- |
+| 客户端 | React 19、Vite、TypeScript、TanStack Query、Plate |
+| 服务端 | Express 5、Prisma、Zod |
+| AI 与工具编排 | LangChain、LangGraph、产品级 Prompt Registry |
+| 桌面端 | Electron |
+| 数据与检索 | SQLite / PostgreSQL、Qdrant |
+| 工程组织 | pnpm workspace |
+
+## 目录结构
+
+仓库采用 pnpm workspace 组织多包，主要目录如下：
+
+| 目录 | 说明 |
+| --- | --- |
+| `client/` | Web 界面、小说工作台与导演台 |
+| `server/` | API、模型调用、导演与章节生产 |
+| `shared/` | 前后端共享类型与运行契约 |
+| `desktop/` | Electron 壳、桌面运行与打包 |
+| `site/` | 公开介绍站与文档导航 |
+| `docs/` | 使用文档、开发 Wiki、设计与发布记录 |
+| `scripts/` | 启动、验证与工程脚本 |
+| `images/` | 功能预览与文档截图 |
+
+完整的目录定义以仓库源码为准。
+
+## V1 与 V2 的关系
+
+V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入。V1 保留自己的编排模块。两者共用已保存的小说资产与底层章节能力，任务、恢复和版本归属独立管理。
+
+| 方面 | V1 | V2 |
+| --- | --- | --- |
+| 位置 | 原导演与章节执行编排 | `server/src/modules/director/` |
+| 资产复用 | 共用小说正文、设定、角色、世界 | 共用小说正文、设定、角色、世界 |
+| 任务与恢复 | 使用自己的任务、检查点与恢复流程 | 使用自己的运行、阶段结果与保存进度 |
+| 版本切换 | 已有小说保留所属版本 | 新书默认优先选择 V2（V2 可用时） |
+
+如需暂时关闭 V2，可在 `server/.env` 设置 `DIRECTOR_NEXT_ENABLED=false`。这会关闭 V2 入口，不会替已有小说更换导演。更多版本隔离规则见 [GitHub 上的开发 Wiki](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/workflows/director-version-isolation.md) 与 [模块边界说明](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/architecture/module-boundaries.md)。
+
+## 环境要求
+
+| 项目 | 要求 |
+| --- | --- |
+| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0`，与根目录 `package.json` 的 `engines.node` 一致 |
+| pnpm | `>=10.6.0`（仓库声明使用 `pnpm@10.6.0`） |
+| 文本模型 | 至少一组可用 API 配置，可在启动后填写 |
+| 数据库 | 默认本地 SQLite；可通过服务端配置使用 PostgreSQL |
+| 知识库检索 | 可选 Qdrant 与 Embedding 模型，不是首次写作的前置条件 |
+
+## 常用命令
+
+以下命令在仓库根目录运行。完整脚本以 [根目录 package.json](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/package.json) 为准。
+
+| 命令 | 用途 |
+| --- | --- |
+| `pnpm dev` | 启动共享包、服务端和 Web 客户端 |
+| `pnpm dev:desktop` | 启动桌面开发环境，首次按需准备 Electron 运行时 |
+| `pnpm dev:site` | 预览公开介绍与文档站 |
+| `pnpm build` | 构建共享包、服务端和 Web 客户端 |
+| `pnpm typecheck` | 检查共享包、服务端、客户端和桌面端类型 |
+| `pnpm test` | 运行服务端快速测试 |
+| `pnpm test:client` | 运行客户端测试 |
+| `pnpm test:all` | 运行后端快速测试、后端集成测试和客户端测试 |
+| `pnpm test:integration` | 运行后端集成测试（真实 Prisma / 迁移等重型测试） |
+| `pnpm check:docs-manifest` | 检查公开文档清单与阶段说明 |
+
+<Tip>
+  桌面开发首次需要下载 Electron 运行时，网络不可用时先处理代理或镜像。也可单独执行 `pnpm run prepare:desktop-runtime`。
+</Tip>
+
+## 测试说明
+
+测试使用 Node 内置的 `node:test` 与 `node:assert/strict`。后端快速测试默认排除真实 SQLite 链路、迁移烟测、RAG 兼容导入、提示词治理扫描等重型文件；这些由 `test:integration` 和 `test:all` 覆盖。
+
+| 测试分组 | 运行方式 | 说明 |
+| --- | --- | --- |
+| 快速测试 | `pnpm test` | 默认 daily 快速测试，最多 4 文件并发 |
+| 集成测试 | `pnpm test:integration` | 真实数据库、迁移与兼容性测试，最多 2 进程并发 |
+| 客户端测试 | `pnpm test:client` | 使用 Node 22 的 `--experimental-strip-types` 直接运行 TypeScript 源测试 |
+| 完整入口 | `pnpm test:all` | fast + integration + client，构建一次后依次运行 |
+
+新增纯函数或状态时，请在 `server/tests/` 下增加对应 `*.test.js`，保持与既有风格一致：先 `pnpm run build`，再 `require("../dist/...")` 引用编译产物。更详细的测试范围与隔离规则见 [后端测试说明](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/architecture/testing.md)。
+
+## 开发 Wiki
+
+项目的稳定知识沉淀在 `docs/wiki/` 下，记录架构决策、工作流边界、模块归属和调试经验，不是发布流水账。目录包括：
+
+- `docs/wiki/architecture/`：模块边界、配置归属、API 访问令牌边界等
+- `docs/wiki/workflows/`：导演运行时、章节生产链、任务状态、拆书工作流等
+- `docs/wiki/prompts/`：Prompt Registry、结构化输出、JSON 修复等
+- `docs/wiki/rag/`：知识库与上下文组装
+- `docs/wiki/debugging/`：重复故障模式、数据库迁移漂移、测试隔离等
+- `docs/wiki/product/`：新手优先与整本完成原则、工作台状态表达等
+
+Wiki 的完整索引见 [docs/wiki/README.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/README.md)。在改动导演、章节生产、Prompt Schema 或任务恢复等核心链路后，应同步更新对应 Wiki。
+
+<CardGroup cols={2}>
+  <Card title="环境变量" icon="gear" href="/developers/environment-variables">
+    服务端与前端配置项说明
+  </Card>
+
+  <Card title="参与贡献" icon="code-pull-request" href="/developers/contributing">
+    反馈问题、提交 PR 与社区链接
+  </Card>
+</CardGroup>

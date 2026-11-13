@@ -22,7 +22,9 @@
           "onboarding",
           "quickstart",
           "creation-flow",
-          "model-configuration"
+          "first-ten-chapters",
+          "model-configuration",
+          "system-settings"
         ]
       },
       {
@@ -62,8 +64,17 @@
         ]
       },
       {
+        "group": "开发者",
+        "pages": [
+          "developers/architecture",
+          "developers/environment-variables",
+          "developers/contributing"
+        ]
+      },
+      {
         "group": "帮助",
         "pages": [
+          "glossary",
           "faq",
           "troubleshooting",
           "changelog"

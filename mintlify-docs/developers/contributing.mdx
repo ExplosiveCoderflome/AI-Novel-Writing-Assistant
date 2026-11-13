@@ -1,0 +1,83 @@
+---
+title: "参与贡献"
+description: "反馈问题、提交代码、开发约定与社区链接"
+icon: "code-pull-request"
+keywords:
+  - "贡献"
+  - "Pull Request"
+  - "GitHub Issues"
+  - "CLA"
+  - "AGPL"
+  - "开发规范"
+---
+
+欢迎参与 Biz Novel Studio 的改进。本文面向希望反馈问题、提交代码或进行二次开发的贡献者。
+
+## 反馈问题
+
+到 [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues) 提交问题时，尽量带上以下信息，方便快速定位：
+
+- 应用版本（顶部栏版本号）和操作系统
+- 所选导演版本（V1 或 V2）与运行模式（全自动或按阶段确认）
+- 操作步骤，从哪个入口进入、做了哪些操作
+- 暂停原因或报错原文、截图
+- 桌面版日志包（在「版本与更新」中保存）
+
+更完整的反馈清单见 [常见问题](/faq)。
+
+## 提交 PR 前须知
+
+### 许可证与 CLA
+
+- 本项目默认基于 GNU Affero General Public License v3.0（AGPL-3.0-only）授权
+- 提交贡献前请阅读 [CONTRIBUTING.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/CONTRIBUTING.md) 与 [CLA.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/CLA.md)
+- 第三方代码、素材、数据需说明来源、许可证和必要归属信息，并补充到 NOTICE 文件
+- 维护者可将贡献纳入单独授权的商业发行
+
+### 开发约定摘要
+
+以下规则摘自仓库的 [AGENTS.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/AGENTS.md)，对贡献者保持代码质量和产品一致性有帮助：
+
+- **数据保护优先。** 执行任何破坏性数据操作前，先完成备份并验证备份文件存在。
+- **AI 优先，不用关键词硬匹配。** 核心行为由 AI 结构化理解实现，不为 AI 失误添加关键词兜底分支。
+- **单文件约 1,200 行上限需拆分。** 超过 1,300 行时强制拆分为职责明确的模块，禁止仅按行数平铺为无归属的 helper / utils 文件。
+- **运行记录（任务中心）只读。** 不在任务中心放置继续、恢复、取消等操作，相关动作放在来源工作台。
+- **界面文案从用户角度写。** 不写「现在/不再/已经升级」这类变更叙述，用「你可以做什么」「下一步是什么」描述。
+- **低边框视觉。** 普通内容分组依赖排版、间距和底色，不套多层带边框的卡片。
+- **维护开发 Wiki。** 涉及导演、章节生产、Prompt Schema、任务恢复等核心链路的改动，同步更新 `docs/wiki/` 中对应页面。
+
+### 提交前自检
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+如果改动涉及导演或 Prisma，大改动后务必本地跑通 `pnpm test` 再提交。
+
+## 优先关注方向
+
+项目 README 中明确提到的优先关注方向包括：
+
+- 连续生成与恢复
+- 新手开书体验
+- 长篇一致性
+- 可追溯的模型用量
+
+如果你计划在这些方向提 PR，可以先在 Issues 中说明方案，减少后续返工。
+
+## 社区链接
+
+- [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues)：问题反馈与功能讨论
+- [LINUX DO 社区讨论帖](https://linux.do/t/topic/2738271)：中文社区交流
+
+<CardGroup cols={2}>
+  <Card title="架构与源码" icon="sitemap" href="/developers/architecture">
+    技术栈、目录结构与常用命令
+  </Card>
+
+  <Card title="环境变量" icon="gear" href="/developers/environment-variables">
+    服务端与前端配置项说明
+  </Card>
+</CardGroup>
