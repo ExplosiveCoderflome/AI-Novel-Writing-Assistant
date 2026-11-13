@@ -68,13 +68,17 @@ test("an expired running timeline claim can be atomically reclaimed", async () =
   assert.equal(reclaim.where.OR[1].updatedAt.lt.getTime() < Date.now() - 60_000, true);
 });
 
-test("a request encountering a live finalization lease returns retryable conflict immediately", async () => {
+test("preflight wait retries a live finalization lease instead of failing the pipeline immediately", async () => {
   const { ChapterTimelineFinalizationService } = require("../dist/services/novel/runtime/ChapterTimelineFinalizationService");
   const service = new ChapterTimelineFinalizationService({});
   const startedAt = Date.now();
-  await assert.rejects(
-    () => service.waitForFinalization(async () => ({ checkpointWritten: false })),
-    (error) => error.statusCode === 409,
-  );
-  assert.ok(Date.now() - startedAt < 1000);
+  let calls = 0;
+  await service.waitForFinalization(async () => {
+    calls += 1;
+    return { checkpointWritten: calls > 1 };
+  });
+  assert.equal(calls, 2);
+  const elapsed = Date.now() - startedAt;
+  assert.ok(elapsed >= 1000, "retries after the one-second wait interval");
+  assert.ok(elapsed < 4000, "does not wait until the two-minute stale deadline");
 });

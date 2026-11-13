@@ -97,8 +97,9 @@ export class ChapterTimelineFinalizationService {
     for (;;) {
       try {
         const result = await operation();
+        // A running background finalizer reports checkpointWritten=false; preflight must
+        // wait and retry until it finishes, not fail the pipeline immediately.
         if (!result || result.checkpointWritten) return;
-        throw new AppError("章节时间线正在由另一项任务处理，请稍后重试。", 409, { sourceActionLabel: "稍后重试" });
       } catch (error) {
         if (error instanceof AppError) throw error;
         // A concurrent edit is reloaded on the next attempt, never committed as old context.
