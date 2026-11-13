@@ -265,7 +265,17 @@
       "application-name": "Biz Novel Studio",
       "og:site_name": "Biz Novel Studio",
       "twitter:card": "summary_large_image"
-    }
+    },
+    "paths": [
+      {
+        "path": "en",
+        "metatags": {
+          "language": "en",
+          "og:locale": "en_US",
+          "keywords": "AI novel writing,AI novel generator,AI story writer,AI fiction writing tool,long-form novel generation,short story generator,open-source AI writing,AI writing assistant,Biz Novel Studio,AI-Novel-Writing-Assistant"
+        }
+      }
+    ]
   },
   "logo": {
     "light": "/images/logo.svg",
