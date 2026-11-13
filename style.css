@@ -1,6 +1,0 @@
-/* 覆盖应用源码样式（client/src/index.css）对文档站的影响：恢复页面主体滚动 */
-html,
-body {
-  height: auto !important;
-  overflow: visible !important;
-}

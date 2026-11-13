@@ -60,4 +60,3 @@ CREATE INDEX "ImageAsset_sceneType_createdAt_idx" ON "ImageAsset"("sceneType", "
 
 -- CreateIndex
 CREATE INDEX "ImageAsset_baseCharacterId_isPrimary_createdAt_idx" ON "ImageAsset"("baseCharacterId", "isPrimary", "createdAt");
-
