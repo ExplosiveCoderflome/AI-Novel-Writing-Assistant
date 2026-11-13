@@ -7,6 +7,9 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   readonly VITE_WORLD_WIZARD_ENABLED?: string;
   readonly VITE_WORLD_VIS_ENABLED?: string;
+  readonly VITE_MANUSCRIPT_REVISION_ENABLED?: string;
+  readonly VITE_OUTLINE_FEEDBACK_ENABLED?: string;
+  readonly VITE_CREATION_STUDIO_ENABLED?: string;
 }
 
 interface Window {

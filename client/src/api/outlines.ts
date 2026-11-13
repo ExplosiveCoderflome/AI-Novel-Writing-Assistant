@@ -1,6 +1,8 @@
 import { apiClient } from "./client";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type { OutlineOpenBookInput, OutlineOpenBookConfirm, OutlineOpenBookPreview, OutlineBookBindingView, OutlineOpenBookResult, OutlinePolicyPatch } from "@ai-novel/shared/types/outlineOpenBook";
+import type { OutlineFeedbackDecisionResult, OutlineFeedbackRunReceipt, OutlineFeedbackSettings, OutlineFeedbackStatus } from "@ai-novel/shared/types/outlineFeedback";
+export type { OutlineFeedbackDecisionResult, OutlineFeedbackRunReceipt, OutlineFeedbackSettings, OutlineFeedbackStatus } from "@ai-novel/shared/types/outlineFeedback";
 export type { OutlineOpenBookInput, OutlineOpenBookConfirm, OutlineOpenBookPreview, OutlineBookBindingView, OutlineOpenBookResult } from "@ai-novel/shared/types/outlineOpenBook";
 
 export interface OutlineProject {
@@ -137,3 +139,17 @@ export const retryOutlineBookSetup = async (id: string, expectedPolicyVersion: n
 export const updateOutlineBookPolicy = async (id: string, input: OutlinePolicyPatch) => (await apiClient.patch(`/outlines/${id}/book-binding/policy`, input, { errorPresentation: "inline" })).data.data;
 export const previewOutlineImport = async (input: { title: string; text: string; format: "markdown" | "text" }) => (await apiClient.post("/outlines/import/preview", input)).data.data as OutlineImportPreview;
 export const confirmOutlineImport = async (token: string, document: OutlineDocument) => (await apiClient.post("/outlines/import/confirm", { token, document })).data.data as { project: OutlineProject };
+export const getOutlineFeedbackStatus = async (id: string) =>
+  (await apiClient.get(`/outlines/${id}/feedback`, { errorPresentation: "inline" })).data.data as OutlineFeedbackStatus;
+export const updateOutlineFeedbackSettings = async (id: string, settings: OutlineFeedbackSettings) =>
+  (await apiClient.patch(`/outlines/${id}/feedback/settings`, settings, { errorPresentation: "inline" })).data.data as OutlineFeedbackSettings;
+export const analyzeOutlineFeedback = async (id: string, input: { chapterId: string; requestKey: string }) =>
+  (await apiClient.post(`/outlines/${id}/feedback/analyze`, input, { errorPresentation: "inline" })).data.data as OutlineFeedbackRunReceipt;
+export const listOutlineFeedbackProposals = async (id: string) =>
+  (await apiClient.get(`/outlines/${id}/feedback/proposals`, { errorPresentation: "inline" })).data.data;
+export const retryOutlineFeedbackRun = async (id: string, runId: string) =>
+  (await apiClient.post(`/outlines/${id}/feedback/${runId}/retry`, {}, { errorPresentation: "inline" })).data.data as OutlineFeedbackRunReceipt;
+export const adoptOutlineFeedback = async (id: string, runId: string, operationIds: string[]) =>
+  (await apiClient.post(`/outlines/${id}/feedback/${runId}/adopt`, { operationIds }, { errorPresentation: "inline" })).data.data as OutlineFeedbackDecisionResult;
+export const rejectOutlineFeedback = async (id: string, runId: string, operationIds: string[]) =>
+  (await apiClient.post(`/outlines/${id}/feedback/${runId}/reject`, { operationIds }, { errorPresentation: "inline" })).data.data as OutlineFeedbackDecisionResult;

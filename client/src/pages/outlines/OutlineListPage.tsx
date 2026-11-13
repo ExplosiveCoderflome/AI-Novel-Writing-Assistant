@@ -11,9 +11,12 @@ import {
   type OutlineImportPreview as OutlineImportPreviewData,
 } from "@/api/outlines";
 import { OutlineImportPreview } from "./OutlineImportPreview";
+import { featureFlags } from "@/config/featureFlags";
+import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 
 export default function OutlineListPage() {
   const navigate = useNavigate();
+  const isMobileViewport = useIsMobileViewport();
   const client = useQueryClient();
   const [importText, setImportText] = useState("");
   const [preview, setPreview] = useState<OutlineImportPreviewData | null>(null);
@@ -95,7 +98,12 @@ export default function OutlineListPage() {
                 <h2 className="font-medium">{item.title}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">修订 v{item.currentVersion} · {new Date(item.updatedAt).toLocaleString()}</p>
               </div>
-              <Button asChild variant="ghost"><Link to={`/outlines/${item.id}`}>继续编辑</Link></Button>
+              <div className="flex items-center gap-2">
+                {featureFlags.outlineFeedbackEnabled && !isMobileViewport && item.boundNovelId ? (
+                  <Button asChild variant="ghost"><Link to={`/outlines/${item.id}#outline-feedback-panel`}>章节反馈</Link></Button>
+                ) : null}
+                <Button asChild variant="ghost"><Link to={`/outlines/${item.id}`}>继续编辑</Link></Button>
+              </div>
             </li>
           ))}
         </ul>

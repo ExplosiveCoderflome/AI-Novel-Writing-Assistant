@@ -45,11 +45,13 @@
 | POST `/:runId/adopt` | `{operationIds: string[]}`；返回逐项状态 |
 | POST `/:runId/reject` | `{operationIds: string[]}`；返回逐项状态 |
 
-共享类型位于 `shared/types/outlineFeedback.ts`。运行记录只供查看；采纳、拒绝、分析与重试入口由大纲来源页承载。客户端交互属于后续阶段。
+共享类型位于 `shared/types/outlineFeedback.ts`。运行记录只供查看；采纳、拒绝、分析与重试入口由大纲来源页承载。
 
 ## 客户端交付边界（验收）
 
-- 当前 `client/` **未交付** `/outlines/:id` 大纲反馈面板（无 pending/completed/failed 列表，无逐项采纳/拒绝控件，也无对应 API 客户端封装）。
+- 产品入口在 `/outlines`（已绑定项目显示「章节反馈」）和 `/outlines/:id#outline-feedback-panel`。面板使用既有 `/api/outlines/:id/feedback` 合同，提供运行列表（pending / running / completed / failed）、设置、手动分析、失败重试和逐项采纳/拒绝。
+- 开关 `VITE_OUTLINE_FEEDBACK_ENABLED` **默认关闭**。未绑定 `OutlineBookBinding`、移动端视口或开关关闭时不显示入口和面板。
+- 面板不会自动改写大纲：只有用户点击采纳才会调用 adopt API 生成新修订；拒绝不创建修订。
 - 章节正文编辑页的「首要问题 / 待处理」属于章节编辑问题区，**不是** A3 大纲反馈；不得用该页截图冒充反馈面板通过。
-- 未绑定 `OutlineBookBinding` 的小说不应出现反馈入口；自动 notify 不得创建 run。
-- 在产品面板交付前，验收可用隔离 API fixture / `outlineFeedback` 单测证明状态机；fixture harness 页面必须标明「非产品 UI」。
+- 自动 notify 仍不得在未绑定时创建 run。隔离 API fixture / harness 页面若仍保留，必须标明「非产品 UI」。
+- 验收时在隔离环境打开已绑定大纲工作区，并显式设置 `VITE_OUTLINE_FEEDBACK_ENABLED=true`；可沿用后端 pending/completed/failed 与 adopt/reject fixture，不必使用用户库或 3100 验收服务。

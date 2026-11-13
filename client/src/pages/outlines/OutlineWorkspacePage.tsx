@@ -17,6 +17,7 @@ import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
+import { OutlineFeedbackPanel } from "./OutlineFeedbackPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
 import "./outlineWorkspace.css";
 import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./outlineNodes";
@@ -143,6 +144,7 @@ export default function OutlineWorkspacePage() {
       </header>
 
       {bindingQuery.data ? <p className="shrink-0 text-xs leading-6 text-muted-foreground">已绑定《{bindingQuery.data.title}》 · 固定采用修订 v{bindingQuery.data.revisionVersion}{bindingQuery.data.currentVersion!==bindingQuery.data.revisionVersion ? ` · 源大纲当前为 v${bindingQuery.data.currentVersion}，本书不会自动同步` : ""}</p> : bindingQuery.isError ? <p role="alert" className="shrink-0 text-xs text-destructive">绑定信息读取失败，请刷新后再开书，避免重复创建。</p> : hasUnsavedChanges ? <p className="shrink-0 text-xs text-muted-foreground">先保存本地修改，再按这份修订开书。</p> : null}
+      <OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} />
       <div className="outline-workspace-grid">
         <nav aria-label="大纲目录" className="outline-directory space-y-5 border-b border-border/50 pb-4 xl:border-b-0 xl:border-r xl:pr-3">
           {directory.map(group => (
