@@ -8,6 +8,7 @@ const testsRoot = path.join(serverRoot, "tests");
 
 const integrationTests = new Set([
   "directorLegacyPauseSqlite.test.js",
+  "directorVolumeStrategyFreshBookSqlite.test.js",
   "shortStoryReviewSqlite.test.js",
   "manualKernelSqlite.test.js",
   "productionKernelProgressSqlite.test.js",

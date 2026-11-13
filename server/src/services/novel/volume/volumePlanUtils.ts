@@ -151,8 +151,12 @@ function normalizeText(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-export const INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX = "legacy-volume-";
-const PLACEHOLDER_VOLUME_TEXT_PREFIX = "待补全";
+import {
+  INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX as SHARED_INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX,
+  isInitializationPlaceholderVolume as sharedIsInitializationPlaceholderVolume,
+} from "@ai-novel/shared/types/volumePlanning";
+
+export const INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX = SHARED_INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX;
 
 interface InitializationPlaceholderVolumeLike {
   id: string;
@@ -166,34 +170,31 @@ interface InitializationPlaceholderVolumeLike {
   nextVolumeHook?: string | null;
 }
 
-function isPlaceholderText(value: string | null | undefined): boolean {
-  const normalized = value?.trim();
-  return !normalized || normalized.startsWith(PLACEHOLDER_VOLUME_TEXT_PREFIX);
-}
-
+/**
+ * Server adapter for the shared initialization placeholder detection.
+ * Delegates to the canonical shared helper.
+ */
 export function isInitializationPlaceholderVolumePlan(
   volume: InitializationPlaceholderVolumeLike,
   input: { volumeCount: number; hasChapterPlans: boolean; hasOpenPayoffs: boolean },
 ): boolean {
-  if (
-    input.volumeCount !== 1
-    || !volume.id.startsWith(INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX)
-    || volume.sortOrder !== 1
-    || (volume.status && volume.status !== "active")
-    || volume.sourceVersionId
-  ) {
+  if (input.volumeCount !== 1) {
     return false;
   }
-  if (input.hasChapterPlans || input.hasOpenPayoffs) {
-    return false;
-  }
-  return [
-    volume.summary,
-    volume.mainPromise,
-    volume.escalationMode,
-    volume.protagonistChange,
-    volume.nextVolumeHook,
-  ].every(isPlaceholderText);
+  // Delegate to the shared helper with appropriate context
+  return sharedIsInitializationPlaceholderVolume({
+    id: volume.id,
+    sortOrder: volume.sortOrder ?? 1,
+    status: volume.status ?? "active",
+    sourceVersionId: volume.sourceVersionId ?? null,
+    chapters: input.hasChapterPlans ? [{ id: "dummy" } as any] : [],
+    openPayoffs: input.hasOpenPayoffs ? ["dummy"] : [],
+    summary: volume.summary ?? null,
+    mainPromise: volume.mainPromise ?? null,
+    escalationMode: volume.escalationMode ?? null,
+    protagonistChange: volume.protagonistChange ?? null,
+    nextVolumeHook: volume.nextVolumeHook ?? null,
+  });
 }
 
 function normalizeNullableNumber(value: number | null | undefined): number | null {
