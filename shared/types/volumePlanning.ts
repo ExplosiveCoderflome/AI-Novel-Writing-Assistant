@@ -3,10 +3,13 @@ import type {
   VolumeCountGuidance,
   VolumeCountRange,
   VolumeScaleProfile,
+  VolumePlan,
 } from "./novel";
 
 export const MIN_TOTAL_CHAPTER_BUDGET = 12;
 export const MAX_VOLUME_COUNT = 24;
+export const INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX = "legacy-volume-";
+export const INITIALIZATION_PLACEHOLDER_VOLUME_TEXT_PREFIX = "待补全";
 export const DEFAULT_VOLUME_CHAPTER_TARGET_RANGE: VolumeChapterTargetRange = {
   min: 40,
   ideal: 55,
@@ -190,4 +193,57 @@ export interface VolumeChapterListProgress {
   completedChapters: number;
   totalChapters: number;
   label: string;
+}
+
+/**
+ * Checks if a single volume is an empty initialization placeholder.
+ * A placeholder volume has id prefix "legacy-volume-", is sortOrder 1,
+ * has no chapters, no openPayoffs, no sourceVersionId, and all key text
+ * fields are either empty or start with "待补全".
+ */
+export function isInitializationPlaceholderVolume(
+  volume: Pick<
+    VolumePlan,
+    | "id"
+    | "sortOrder"
+    | "status"
+    | "sourceVersionId"
+    | "chapters"
+    | "openPayoffs"
+    | "summary"
+    | "mainPromise"
+    | "escalationMode"
+    | "protagonistChange"
+    | "nextVolumeHook"
+  >,
+): boolean {
+  if (!volume.id.startsWith(INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX)) return false;
+  if (volume.sortOrder !== 1) return false;
+  if (volume.status && volume.status !== "active") return false;
+  if (volume.sourceVersionId) return false;
+  if (volume.chapters.length > 0) return false;
+  if (volume.openPayoffs.length > 0) return false;
+  
+  const isPlaceholderText = (value: string | null | undefined) => {
+    const normalized = value?.trim();
+    return !normalized || normalized.startsWith(INITIALIZATION_PLACEHOLDER_VOLUME_TEXT_PREFIX);
+  };
+  
+  return [
+    volume.summary,
+    volume.mainPromise,
+    volume.escalationMode,
+    volume.protagonistChange,
+    volume.nextVolumeHook,
+  ].every(isPlaceholderText);
+}
+
+/**
+ * A single empty initialization volume is not an author-approved volume count (#152, #197).
+ * This prevents a fresh book's placeholder from locking the book to one volume.
+ */
+export function isInitializationPlaceholderVolumeWorkspace(
+  volumes: readonly VolumePlan[],
+): boolean {
+  return volumes.length === 1 && isInitializationPlaceholderVolume(volumes[0]);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { buildVolumeCountGuidance } from "@ai-novel/shared/types/volumePlanning";
+import { buildVolumeCountGuidance, isInitializationPlaceholderVolumeWorkspace } from "@ai-novel/shared/types/volumePlanning";
 import type {
   VolumeBeatSheet,
   VolumeCountGuidance,
@@ -129,15 +129,15 @@ export function useNovelVolumePlanning({
   const [customVolumeCountInput, setCustomVolumeCountInput] = useState("");
   const [userPreferredVolumeCount, setUserPreferredVolumeCount] = useState<number | null>(null);
   const [forceSystemRecommendedVolumeCount, setForceSystemRecommendedVolumeCount] = useState(false);
-  const volumeCountGuidance = useMemo<VolumeCountGuidance>(
-    () => buildVolumeCountGuidance({
+  const volumeCountGuidance = useMemo<VolumeCountGuidance>(() => {
+    const draftIsInitializationPlaceholder = isInitializationPlaceholderVolumeWorkspace(normalizedVolumeDraft);
+    return buildVolumeCountGuidance({
       chapterBudget: Math.max(estimatedChapterCount ?? 0, currentChapterCount, 12),
-      existingVolumeCount: normalizedVolumeDraft.length,
-      respectExistingVolumeCount: !forceSystemRecommendedVolumeCount && normalizedVolumeDraft.length > 0,
+      existingVolumeCount: draftIsInitializationPlaceholder ? 0 : normalizedVolumeDraft.length,
+      respectExistingVolumeCount: !draftIsInitializationPlaceholder && !forceSystemRecommendedVolumeCount && normalizedVolumeDraft.length > 0,
       userPreferredVolumeCount,
-    }),
-    [currentChapterCount, estimatedChapterCount, forceSystemRecommendedVolumeCount, normalizedVolumeDraft.length, userPreferredVolumeCount],
-  );
+    });
+  }, [currentChapterCount, estimatedChapterCount, forceSystemRecommendedVolumeCount, normalizedVolumeDraft, userPreferredVolumeCount]);
 
   useEffect(() => {
     if (userPreferredVolumeCount != null) {

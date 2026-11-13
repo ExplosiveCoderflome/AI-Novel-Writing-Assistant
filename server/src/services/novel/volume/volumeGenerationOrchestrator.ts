@@ -62,6 +62,7 @@ import {
 import {
   MAX_VOLUME_COUNT,
   buildVolumeCountGuidance,
+  isInitializationPlaceholderVolumeWorkspace,
 } from "@ai-novel/shared/types/volumePlanning";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
@@ -103,10 +104,11 @@ async function generateStrategy(params: {
 }): Promise<VolumePlanDocument> {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
+  const placeholderWorkspace = isInitializationPlaceholderVolumeWorkspace(workspace.volumes);
   const volumeCountGuidance = buildVolumeCountGuidance({
     chapterBudget,
-    existingVolumeCount: workspace.volumes.length,
-    respectExistingVolumeCount: options.respectExistingVolumeCount,
+    existingVolumeCount: placeholderWorkspace ? 0 : workspace.volumes.length,
+    respectExistingVolumeCount: placeholderWorkspace ? false : options.respectExistingVolumeCount,
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
@@ -224,10 +226,11 @@ async function generateSkeleton(params: {
     throw new Error("当前卷战略审查为高风险，请先重新生成或修订卷战略，再生成卷骨架。");
   }
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
+  const placeholderWorkspace = isInitializationPlaceholderVolumeWorkspace(workspace.volumes);
   const volumeCountGuidance = buildVolumeCountGuidance({
     chapterBudget,
-    existingVolumeCount: workspace.volumes.length,
-    respectExistingVolumeCount: options.respectExistingVolumeCount,
+    existingVolumeCount: placeholderWorkspace ? 0 : workspace.volumes.length,
+    respectExistingVolumeCount: placeholderWorkspace ? false : options.respectExistingVolumeCount,
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });

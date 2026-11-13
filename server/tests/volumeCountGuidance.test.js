@@ -5,6 +5,8 @@ const {
   buildHardPlannedVolumeRange,
   buildVolumeCountGuidance,
   MAX_VOLUME_COUNT,
+  isInitializationPlaceholderVolume,
+  isInitializationPlaceholderVolumeWorkspace,
 } = require("../../shared/dist/types/volumePlanning.js");
 
 test("volume count guidance derives sane ranges for short, medium, and long projects", () => {
@@ -121,4 +123,65 @@ test("hard planned volume ranges stay constrained to early volumes", () => {
   assert.deepEqual(buildHardPlannedVolumeRange(6), { min: 3, max: 4 });
   assert.deepEqual(buildHardPlannedVolumeRange(9), { min: 3, max: 6 });
   assert.deepEqual(buildHardPlannedVolumeRange(24), { min: 3, max: 6 });
+});
+
+function createPlaceholderVolume() {
+  return {
+    id: "legacy-volume-1",
+    sortOrder: 1,
+    status: "active",
+    sourceVersionId: null,
+    chapters: [],
+    openPayoffs: [],
+    summary: "待补全卷级结构。",
+    mainPromise: "待补全卷级主承诺。",
+    escalationMode: "待补全升级方式。",
+    protagonistChange: "待补全主角变化。",
+    nextVolumeHook: "待补全下卷钩子。",
+  };
+}
+
+test("initialization placeholder detection ignores empty fresh-book volumes only", () => {
+  // A fresh placeholder volume is detected
+  const placeholder = createPlaceholderVolume();
+  assert.equal(isInitializationPlaceholderVolume(placeholder), true);
+  
+  // A workspace with one placeholder is a placeholder workspace
+  assert.equal(isInitializationPlaceholderVolumeWorkspace([placeholder]), true);
+  
+  // Two placeholders are NOT initialization state
+  assert.equal(isInitializationPlaceholderVolumeWorkspace([placeholder, { ...placeholder, id: "legacy-volume-2", sortOrder: 2 }]), false);
+  
+  // Empty array is NOT a placeholder workspace
+  assert.equal(isInitializationPlaceholderVolumeWorkspace([]), false);
+  
+  // Placeholder with chapters is NOT a placeholder
+  assert.equal(isInitializationPlaceholderVolume({ ...placeholder, chapters: [{ id: "ch1" }] }), false);
+  
+  // Placeholder with author summary is NOT a placeholder
+  assert.equal(isInitializationPlaceholderVolume({ ...placeholder, summary: "作者写好的摘要" }), false);
+  
+  // Placeholder with sourceVersionId is NOT a placeholder
+  assert.equal(isInitializationPlaceholderVolume({ ...placeholder, sourceVersionId: "version-1" }), false);
+  
+  // Non-legacy id is NOT a placeholder
+  assert.equal(isInitializationPlaceholderVolume({ ...placeholder, id: "author-volume-1" }), false);
+});
+
+test("a fresh-book placeholder does not lock a long book to one volume", () => {
+  // With the bug: placeholder locks to 1 volume because existingVolumeCount=1, respectExistingVolumeCount=true
+  const buggyGuidance = buildVolumeCountGuidance({
+    chapterBudget: 200,
+    existingVolumeCount: 1,
+    respectExistingVolumeCount: true,
+  });
+  assert.equal(buggyGuidance.recommendedVolumeCount, 1, "documents the lock when placeholder is treated as author intent");
+  
+  // Fixed: placeholder workspace passes existingVolumeCount=0, respectExistingVolumeCount=false
+  const fixedGuidance = buildVolumeCountGuidance({
+    chapterBudget: 200,
+    existingVolumeCount: 0,
+    respectExistingVolumeCount: false,
+  });
+  assert.ok(fixedGuidance.recommendedVolumeCount > 1, "a 200-chapter target recommends multiple volumes when the placeholder is ignored");
 });

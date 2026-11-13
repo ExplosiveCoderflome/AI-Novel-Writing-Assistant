@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { VolumeChapterListProgress } from "@ai-novel/shared/types/volumePlanning";
+import { isInitializationPlaceholderVolumeWorkspace } from "@ai-novel/shared/types/volumePlanning";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   VolumeBeatSheet,
@@ -215,7 +216,7 @@ export function useVolumeGenerationMutation({
           ? estimatedChapterCount
           : undefined,
         userPreferredVolumeCount: userPreferredVolumeCount ?? undefined,
-        respectExistingVolumeCount: !forceSystemRecommendedVolumeCount && requestDraft.length > 0,
+        respectExistingVolumeCount: !isInitializationPlaceholderVolumeWorkspace(requestDraft) && !forceSystemRecommendedVolumeCount && requestDraft.length > 0,
         slimResponse: shouldRequestSlimVolumeGenerationResponse(payload.scope),
       }, payload.scope === "chapter_list" || payload.scope === "volume" ? setChapterListProgress : undefined);
       let nextDocument = generatedResponse.data;
