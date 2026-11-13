@@ -28,6 +28,14 @@ flowchart LR
   J --> K
 ```
 
+不确定从哪开始？回答下面三个问题，生成你的专属路线：
+
+<StartRoute />
+
+<Note>
+  路线里提到的页面：[模型配置](/model-configuration)、[拆书工作台](/features/book-analysis)、[热门题材雷达](/features/market-radar)、[大纲工作台](/features/outline-workbench)、[短篇创作](/features/short-story)、[自动导演](/features/auto-director)。
+</Note>
+
 ## 第一步：快捷配置模型
 
 没有可用文本模型时，网页端和桌面端都会自动弹出快捷配置。你可以先关掉它浏览界面，但开始任何 AI 创作前都需要完成配置。
@@ -163,3 +171,119 @@ flowchart TD
 - 模型检测一直不过：核对 API Key 有没有多余空格、地址是不是 API 地址而不是网页地址、模型名是否和供应商文档一致。
 - 开书或写章节停住了：看向导或本书导演台给出的暂停原因，按提示处理后继续。
 - 其他问题见 [常见问题](/faq)。
+
+export const StartRoute = () => {
+  const Q = [
+    {
+      title: "你已经有能用的文本模型了吗？",
+      options: [
+        { id: "no", label: "还没有" },
+        { id: "yes", label: "已经配好并通过检测" },
+      ],
+    },
+    {
+      title: "你现在手里有什么？",
+      options: [
+        { id: "idea", label: "一句自己的想法" },
+        { id: "none", label: "还没有明确想法" },
+        { id: "continue", label: "一本想续写的作品" },
+        { id: "learn", label: "一本想学习结构和写法的书" },
+        { id: "outline", label: "想先把大纲整理好" },
+        { id: "short", label: "想写一篇有完整结局的短篇" },
+      ],
+    },
+    {
+      title: "你更想怎么推进？",
+      options: [
+        { id: "easy", label: "先看到结果" },
+        { id: "pro", label: "亲自把控细节" },
+      ],
+    },
+  ];
+  const [step, setStep] = useState(0);
+  const [ans, setAns] = useState({});
+  const skipThird = ans[1] === "short";
+  const total = skipThird ? 2 : 3;
+  const done = step >= total;
+
+  const pick = (id) => {
+    const next = { ...ans, [step]: id };
+    setAns(next);
+    setStep(step + 1);
+  };
+  const reset = () => { setAns({}); setStep(0); };
+
+  const route = [];
+  if (done) {
+    if (ans[0] === "no") {
+      route.push({ t: "快捷配置模型", d: "选择厂商，填写 API Key、API 地址和模型，通过普通文本与结构化输出两项检测。推荐 DeepSeek Flash。" });
+    }
+    const start = {
+      idea: { t: "从创作向导进入 AI 自动导演", d: "输入一句灵感，在 AI 给出的两套整书方向中选定一套。" },
+      none: { t: "打开热门题材雷达", d: "选一个市场信号开书，再选定整书方向。" },
+      continue: { t: "先完成拆书，再选「续写原作」", d: "拆书完成后从拆书结果进入开书。" },
+      learn: { t: "先完成拆书，再选「参考创作新书」", d: "学习原作的结构和写法，写一本新书。" },
+      outline: { t: "在大纲工作台建立大纲", d: "空白新建、从想法生成或导入 Markdown/TXT，编辑并保存修订，确认后按大纲开书。" },
+      short: { t: "打开「创作短篇」", d: "输入想法，让 AI 推荐方向与篇幅，选择方向后开始生成。" },
+    }[ans[1]];
+    route.push(start);
+    if (ans[1] === "short") {
+      route.push({ t: "全篇检查与修改", d: "成稿后会进行全篇检查和至多一次必要修复；可以直接编辑或提出修改要求。想继续写可以「发展成长篇」，原短篇保留。" });
+    } else {
+      if (ans[1] !== "outline") {
+        route.push({ t: "等待开书准备", d: "AI 准备好故事、世界、角色、卷战略、节奏和章节执行资源。" });
+      }
+      route.push(ans[2] === "easy"
+        ? { t: "选择简易创作", d: "AI 持续写完整本书，你在只读章节书架里看进度和成稿。" }
+        : { t: "选择专业创作", d: "进入完整工作台，查看和修改规划、角色与章节正文。" });
+      route.push({ t: "第一章成稿", d: "第一章完成写作、审校与必要修复后即可阅读。遇到暂停时查看原因并恢复，不需要重新建书。" });
+    }
+  }
+
+  const btn = {
+    textAlign: "left", padding: "10px 12px", borderRadius: 8, font: "inherit", color: "inherit",
+    cursor: "pointer", border: "1px solid rgba(127,127,127,.3)", background: "transparent",
+  };
+  const small = { ...btn, padding: "6px 12px", fontSize: 13 };
+
+  return (
+    <div className="not-prose" style={{ border: "1px solid rgba(127,127,127,.25)", borderRadius: 12, padding: 16, display: "grid", gap: 12 }}>
+      <div style={{ display: "flex", gap: 6 }}>
+        {Array.from({ length: total }).map((_, i) => (
+          <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < step ? "#16A34A" : "rgba(127,127,127,.25)" }} />
+        ))}
+      </div>
+      {!done && (
+        <>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>问题 {step + 1} / {total}</div>
+          <div style={{ fontWeight: 600, fontSize: 16 }}>{Q[step].title}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+            {Q[step].options.map((o) => (
+              <button key={o.id} type="button" style={btn} onClick={() => pick(o.id)}>{o.label}</button>
+            ))}
+          </div>
+          {step > 0 && (
+            <div><button type="button" style={small} onClick={() => setStep(step - 1)}>上一步</button></div>
+          )}
+        </>
+      )}
+      {done && (
+        <>
+          <div style={{ fontWeight: 600, fontSize: 16 }}>你的路线</div>
+          <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
+            {route.map((r, i) => (
+              <li key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ flex: "0 0 24px", height: 24, borderRadius: 12, background: "#16A34A", color: "#fff", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{r.t}</div>
+                  <div style={{ fontSize: 14, opacity: 0.8 }}>{r.d}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div><button type="button" style={small} onClick={reset}>重新选择</button></div>
+        </>
+      )}
+    </div>
+  );
+};
