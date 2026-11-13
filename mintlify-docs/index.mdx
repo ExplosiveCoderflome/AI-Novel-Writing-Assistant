@@ -688,6 +688,8 @@ export const BnHome = ({ children }) => {
   const busy = useRef(false);
   const [layers, setLayers] = useState([{ id: 0, theme: "ink" }]);
   const [fx, setFx] = useState(null);
+  const [xzIntro, setXzIntro] = useState(0);
+  const xzSeen = useRef(false);
   const current = layers[layers.length - 1].theme;
 
   const kids = (Array.isArray(children) ? children : [children]).filter((c) => c && typeof c === "object");
@@ -698,6 +700,12 @@ export const BnHome = ({ children }) => {
     const to = current === "ink" ? "paper" : "ink";
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) { setLayers([{ id: Date.now(), theme: to }]); return; }
+    if (to === "paper" && !xzSeen.current) {
+      xzSeen.current = true;
+      busy.current = true;
+      setXzIntro(Date.now());
+      return;
+    }
     busy.current = true;
     const wr = wrapRef.current.getBoundingClientRect();
     const b = e.currentTarget.getBoundingClientRect();
@@ -775,10 +783,169 @@ export const BnHome = ({ children }) => {
         <div className="bnh-glyph" style={toPaper ? { color: "#1c1a17", fontFamily: "\"Noto Serif SC\",\"Songti SC\",serif" } : { color: "#4ade80", textShadow: "0 0 40px rgba(34,197,94,.8)" }}>{toPaper ? "墨" : "夜"}</div>
       )}
 
+      {xzIntro > 0 && (
+        <XzIntro key={xzIntro} onSwap={() => setLayers([{ id: Date.now(), theme: "paper" }])} onDone={() => { setXzIntro(0); busy.current = false; }} />
+      )}
+
       <button type="button" className={"bnh-tg " + current} onClick={toggle} aria-label={current === "ink" ? "切换到宣纸水墨主题" : "切换到墨夜书卷主题"}>
         <span className="bnh-orb" style={{ transform: current === "paper" ? "rotate(180deg)" : undefined }}><i /></span>
         <span className="bnh-lab">{current === "ink" ? "切换水墨" : "切换墨夜"}</span>
       </button>
+    </div>
+  );
+};
+
+export const XzIntro = ({ onSwap, onDone }) => {
+  const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
+  const COL_A = "一句灵感".split("");
+  const COL_B = "徐徐展开成书".split("");
+  const [ph, setPh] = useState(0);
+  const [splat] = useState(() => Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2 + Math.random() * 0.5;
+    const d = 150 + Math.random() * 230;
+    return { dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.8, s: 3 + Math.random() * 10, delay: Math.random() * 0.12, red: i % 6 === 0 };
+  }));
+  const timers = useRef([]);
+  const swapped = useRef(false);
+  const swap = () => {
+    if (swapped.current) return;
+    swapped.current = true;
+    if (onSwap) onSwap();
+  };
+  const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
+
+  useEffect(() => {
+    later(700, () => setPh(1));
+    later(1350, () => setPh(2));
+    later(3800, () => setPh(3));
+    later(4600, swap);
+    later(4750, () => setPh(4));
+    later(6150, () => { if (onDone) onDone(); });
+    return () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  }, []);
+
+  const skip = () => {
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    swap();
+    setPh((p) => (p >= 2 ? 4 : 5));
+    later(1450, () => { if (onDone) onDone(); });
+  };
+
+  const show = ph >= 2 && ph < 5;
+
+  return (
+    <div className={"not-prose xzi xzi-p" + ph}>
+      <style>{`
+        .xzi{position:fixed;inset:0;z-index:9999;overflow:hidden;color:#1c1a17;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xzi-p4,.xzi-p5{pointer-events:none}
+        .xzi-half{position:absolute;top:0;bottom:0;width:50.5%;z-index:1;background-color:#f3ede1;animation:xziInL .7s cubic-bezier(.7,0,.3,1) both}
+        .xzi-l{left:0}
+        .xzi-r{right:0;animation-name:xziInR}
+        .xzi-p4 .xzi-l,.xzi-p5 .xzi-l{animation:xziOutL 1.2s .1s cubic-bezier(.7,0,.25,1) both}
+        .xzi-p4 .xzi-r,.xzi-p5 .xzi-r{animation:xziOutR 1.2s .1s cubic-bezier(.7,0,.25,1) both}
+        .xzi-rod{position:absolute;top:-12px;bottom:-12px;width:18px;border-radius:9px;background:linear-gradient(90deg,#4a2e1c,#8a5a37 45%,#5b3a24);box-shadow:0 0 22px rgba(28,26,23,.4);transition:opacity .35s}
+        .xzi-l .xzi-rod{right:-9px}
+        .xzi-r .xzi-rod{left:-9px}
+        .xzi-p1 .xzi-rod,.xzi-p2 .xzi-rod,.xzi-p3 .xzi-rod{opacity:0}
+        .xzi-c{position:absolute;inset:0;z-index:2;transition:opacity .5s ease,transform .8s ease}
+        .xzi-p4 .xzi-c{opacity:0;transform:scale(1.06)}
+        .xzi-drop{position:absolute;left:50%;top:50%;width:16px;height:22px;margin:-11px 0 0 -8px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#1c1a17;animation:xziFall .65s cubic-bezier(.55,0,1,.45) both}
+        .xzi-bloom{position:absolute;left:50%;top:50%;width:min(130vmin,1100px);height:min(130vmin,1100px);overflow:visible;pointer-events:none;animation:xziBloom 2.4s cubic-bezier(.1,.75,.2,1) both}
+        .xzi-sun{position:absolute;left:calc(50% + min(24vmin,200px));top:calc(50% - min(23vmin,190px));width:min(26vmin,210px);height:min(26vmin,210px);border-radius:50%;background:radial-gradient(circle,rgba(180,56,42,.85),rgba(180,56,42,.5) 55%,rgba(180,56,42,0) 72%);animation:xziSun 1.8s .55s cubic-bezier(.2,.7,.2,1) both}
+        .xzi-rip{position:absolute;left:50%;top:50%;width:76vmin;height:76vmin;border-radius:50%;border:2px solid rgba(28,26,23,.5);animation:xziRip 1.5s cubic-bezier(.2,.7,.3,1) both}
+        .xzi-sp{position:absolute;left:50%;top:50%;border-radius:50%;animation:xziSp .9s cubic-bezier(.15,.8,.25,1) both}
+        .xzi-stage{position:absolute;left:50%;top:50%;width:min(72vmin,600px);height:min(72vmin,600px);transform:translate(-50%,-50%)}
+        .xzi-p3 .xzi-stage{animation:xziShake .45s ease}
+        .xzi-enso{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+        .xzi-ring{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-width:13;stroke-dasharray:.9 1;stroke-dashoffset:.9;animation:xziEnso 1.3s .2s cubic-bezier(.6,.05,.25,1) forwards}
+        .xzi-ring.b{stroke-width:5;opacity:.4;stroke-dasharray:.8 1;stroke-dashoffset:.8;animation-delay:.32s}
+        .xzi-title{position:absolute;inset:0;display:flex;flex-direction:row-reverse;justify-content:center;align-items:center;gap:clamp(14px,3vmin,30px)}
+        .xzi-col{writing-mode:vertical-rl;font-size:clamp(26px,5.2vmin,54px);font-weight:900;letter-spacing:.12em;line-height:1}
+        .xzi-col.b{margin-top:1.2em}
+        .xzi-ch{display:inline-block;opacity:0;animation:xziInk 1s cubic-bezier(.2,.7,.2,1) forwards}
+        .xzi-ch.hl{color:#b4382a}
+        .xzi-seal{position:absolute;left:13%;bottom:13%;width:clamp(44px,8vmin,64px);height:clamp(44px,8vmin,64px);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;background:#b4382a;color:#f8f1e4;border-radius:5px;font-weight:900;font-size:clamp(15px,2.6vmin,21px);box-shadow:inset 0 0 0 3px rgba(248,241,228,.35),0 6px 18px -6px rgba(180,56,42,.6);animation:xziStamp .55s cubic-bezier(.3,1.6,.5,1) both}
+        .xzi-seal::after{content:"";position:absolute;inset:-10px;border:2px solid rgba(180,56,42,.5);border-radius:9px;animation:xziSealRing .7s .05s ease-out both}
+        .xzi-cap{position:absolute;left:0;right:0;bottom:max(7vh,44px);text-align:center;animation:xziUp .8s 1.6s both}
+        .xzi-cap b{display:block;font-size:12px;letter-spacing:.5em;color:rgba(28,26,23,.55);font-weight:600}
+        .xzi-cap span{display:block;margin-top:8px;font-size:14px;letter-spacing:.3em;color:rgba(28,26,23,.72)}
+        .xzi-skip{position:absolute;z-index:4;right:22px;bottom:22px;padding:6px 14px;border-radius:999px;border:1px solid rgba(28,26,23,.25);background:rgba(243,237,225,.65);color:rgba(28,26,23,.6);font-family:inherit;font-size:12px;letter-spacing:.2em;cursor:pointer;transition:color .2s,border-color .2s}
+        .xzi-skip:hover{color:#b4382a;border-color:#b4382a}
+        @keyframes xziInL{from{transform:translateX(-102%)}to{transform:none}}
+        @keyframes xziInR{from{transform:translateX(102%)}to{transform:none}}
+        @keyframes xziOutL{from{transform:none}to{transform:translateX(calc(-100% - 48px))}}
+        @keyframes xziOutR{from{transform:none}to{transform:translateX(calc(100% + 48px))}}
+        @keyframes xziFall{0%{opacity:0;transform:translateY(-62vh) scale(.7,1.6)}12%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1,1.2)}}
+        @keyframes xziBloom{0%{opacity:1;transform:translate(-50%,-50%) scale(.03)}40%{opacity:.85}100%{opacity:.2;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziSun{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}100%{opacity:.8;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziRip{0%{opacity:.9;transform:translate(-50%,-50%) scale(.02)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziSp{0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}100%{opacity:.8;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1)}}
+        @keyframes xziEnso{to{stroke-dashoffset:0}}
+        @keyframes xziInk{0%{opacity:0;filter:blur(10px);transform:scale(1.4)}60%{opacity:.9;filter:blur(1.5px)}100%{opacity:1;filter:blur(0);transform:scale(1)}}
+        @keyframes xziStamp{0%{opacity:0;transform:rotate(-14deg) scale(2.4)}100%{opacity:1;transform:rotate(-6deg) scale(1)}}
+        @keyframes xziSealRing{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.7)}}
+        @keyframes xziShake{0%,100%{transform:translate(-50%,-50%)}20%{transform:translate(calc(-50% + 4px),calc(-50% + 2px))}40%{transform:translate(calc(-50% - 3px),calc(-50% - 2px))}60%{transform:translate(calc(-50% + 2px),calc(-50% + 1px))}80%{transform:translate(calc(-50% - 1px),-50%)}}
+        @keyframes xziUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+      `}</style>
+
+      <div className="xzi-half xzi-l" style={{ backgroundImage: PAPER }}><i className="xzi-rod" /></div>
+      <div className="xzi-half xzi-r" style={{ backgroundImage: PAPER }}><i className="xzi-rod" /></div>
+
+      <div className="xzi-c" aria-hidden="true">
+        {show && (
+          <svg className="xzi-bloom" viewBox="-100 -100 200 200">
+            <defs>
+              <radialGradient id="xziInkG">
+                <stop offset="0%" stopColor="#1c1a17" stopOpacity="1" />
+                <stop offset="35%" stopColor="#1c1a17" stopOpacity=".85" />
+                <stop offset="62%" stopColor="#2b2722" stopOpacity=".4" />
+                <stop offset="100%" stopColor="#2b2722" stopOpacity="0" />
+              </radialGradient>
+              <filter id="xziRough" x="-30%" y="-30%" width="160%" height="160%">
+                <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="7" result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </defs>
+            <circle r="62" fill="url(#xziInkG)" filter="url(#xziRough)" />
+            <circle cx="-30" cy="22" r="20" fill="url(#xziInkG)" filter="url(#xziRough)" opacity=".7" />
+          </svg>
+        )}
+        {show && <div className="xzi-sun" />}
+        {show && [0, 1, 2].map((i) => <span key={"r" + i} className="xzi-rip" style={{ animationDelay: i * 0.2 + "s" }} />)}
+        {show && splat.map((d, i) => (
+          <span key={"s" + i} className="xzi-sp" style={{ width: d.s, height: d.s, background: d.red ? "#b4382a" : "#1c1a17", animationDelay: d.delay + "s", "--dx": d.dx + "px", "--dy": d.dy + "px" }} />
+        ))}
+        {show && (
+          <div className="xzi-stage">
+            <svg className="xzi-enso" viewBox="0 0 400 400">
+              <defs>
+                <filter id="xziBrush" x="-10%" y="-10%" width="120%" height="120%">
+                  <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+              </defs>
+              <g filter="url(#xziBrush)">
+                <circle className="xzi-ring" cx="200" cy="200" r="168" pathLength="1" transform="rotate(-78 200 200)" />
+                <circle className="xzi-ring b" cx="201" cy="203" r="160" pathLength="1" transform="rotate(-66 200 200)" />
+              </g>
+            </svg>
+            <div className="xzi-title">
+              <div className="xzi-col">
+                {COL_A.map((c, i) => <span key={i} className="xzi-ch" style={{ animationDelay: 0.4 + i * 0.11 + "s" }}>{c}</span>)}
+              </div>
+              <div className="xzi-col b">
+                {COL_B.map((c, i) => <span key={i} className={"xzi-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 0.4 + (i + 4) * 0.11 + "s" }}>{c}</span>)}
+              </div>
+            </div>
+            {ph >= 3 && <div className="xzi-seal"><span>开</span><span>卷</span></div>}
+          </div>
+        )}
+        {show && <div className="xzi-cap"><b>BIZ NOVEL STUDIO</b><span>开源 AI 小说创作工作台</span></div>}
+        {ph === 1 && <span className="xzi-drop" />}
+      </div>
+
+      {ph < 4 && <button type="button" className="xzi-skip" onClick={skip}>跳过</button>}
     </div>
   );
 };
