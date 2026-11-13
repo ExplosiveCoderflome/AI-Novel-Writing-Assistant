@@ -1,0 +1,123 @@
+---
+title: "Architecture & Source Code"
+description: "Tech stack, directory structure, V1/V2 relationship, environment requirements, and common commands for Biz Novel Studio"
+icon: "sitemap"
+keywords:
+  - "architecture"
+  - "source code"
+  - "tech stack"
+  - "directory structure"
+  - "V1 V2"
+  - "pnpm workspace"
+  - "testing"
+---
+
+If you want to run from source, extend the app, or contribute code, start here to learn the repository's tech stack, module layout, and startup workflow. We recommend first reading the "Run from Source (Developers)" section in [Installation & Download](/en/installation), which covers the quickest startup flow.
+
+## Tech Stack
+
+| Layer | Primary Technologies |
+| --- | --- |
+| Client | React 19, Vite, TypeScript, TanStack Query, Plate |
+| Server | Express 5, Prisma, Zod |
+| AI & Tool Orchestration | LangChain, LangGraph, Production-grade Prompt Registry |
+| Desktop | Electron |
+| Data & Retrieval | SQLite / PostgreSQL, Qdrant |
+| Engineering Organization | pnpm workspace |
+
+## Directory Structure
+
+The repository uses a pnpm workspace to organize multiple packages. Key directories are:
+
+| Directory | Description |
+| --- | --- |
+| `client/` | Web UI, novel workbench, and director console |
+| `server/` | API, model calls, director, and chapter production |
+| `shared/` | Shared types and runtime contracts between frontend and backend |
+| `desktop/` | Electron shell, desktop runtime, and packaging |
+| `site/` | Public landing site and documentation navigation |
+| `docs/` | User docs, dev wiki, design notes, and release records |
+| `scripts/` | Startup, validation, and engineering scripts |
+| `images/` | Feature previews and documentation screenshots |
+
+The full directory definition is in the repository source.
+
+## V1 and V2 Relationship
+
+The V2 core lives in `server/src/modules/director/`. Business capabilities are exposed through the application layer. V1 retains its own orchestration modules. Both versions share saved novel assets and underlying chapter capabilities, while tasks, recovery, and version ownership are managed independently.
+
+| Aspect | V1 | V2 |
+| --- | --- | --- |
+| Location | Original director and chapter execution orchestration | `server/src/modules/director/` |
+| Asset Reuse | Shares novel text, settings, characters, world | Shares novel text, settings, characters, world |
+| Tasks & Recovery | Uses its own tasks, checkpoints, and recovery flow | Uses its own runs, stage results, and save progress |
+| Version Switching | Existing novels keep their assigned version | New books default to V2 when V2 is available |
+
+To temporarily disable V2, set `DIRECTOR_NEXT_ENABLED=false` in `server/.env`. This closes the V2 entry point without switching the director for existing novels. For more version isolation rules, see the [Development Wiki on GitHub](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/workflows/director-version-isolation.md) and the [Module Boundaries note](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/architecture/module-boundaries.md).
+
+## Environment Requirements
+
+| Item | Requirement |
+| --- | --- |
+| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0`, matching `engines.node` in the root `package.json` |
+| pnpm | `>=10.6.0` (the repository declares `pnpm@10.6.0`) |
+| Text Model | At least one usable API configuration; can be filled in after startup |
+| Database | Default local SQLite; PostgreSQL available via server configuration |
+| Knowledge Base Retrieval | Optional Qdrant and Embedding model; not required for first-time writing |
+
+## Common Commands
+
+Run the following commands from the repository root. The full script list is in the [root package.json](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/package.json).
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the shared package, server, and web client |
+| `pnpm dev:desktop` | Start the desktop dev environment; Electron runtime is prepared on first use |
+| `pnpm dev:site` | Preview the public landing and documentation site |
+| `pnpm build` | Build the shared package, server, and web client |
+| `pnpm typecheck` | Type-check the shared package, server, client, and desktop |
+| `pnpm test` | Run server fast tests |
+| `pnpm test:client` | Run client tests |
+| `pnpm test:all` | Run backend fast tests, backend integration tests, and client tests |
+| `pnpm test:integration` | Run backend integration tests (real Prisma / migration heavy tests) |
+| `pnpm check:docs-manifest` | Check the public documentation manifest and stage notes |
+
+<Tip>
+  Desktop development requires downloading the Electron runtime on first launch. If the network is unavailable, configure a proxy or mirror first. You can also run `pnpm run prepare:desktop-runtime` separately.
+</Tip>
+
+## Testing
+
+Tests use Node's built-in `node:test` and `node:assert/strict`. Backend fast tests exclude heavy files such as real SQLite paths, migration smoke tests, RAG-compatible imports, and prompt governance scans by default. These are covered by `test:integration` and `test:all`.
+
+| Test Group | How to Run | Description |
+| --- | --- | --- |
+| Fast tests | `pnpm test` | Default daily fast tests, up to 4 files concurrent |
+| Integration tests | `pnpm test:integration` | Real database, migration, and compatibility tests, up to 2 processes concurrent |
+| Client tests | `pnpm test:client` | Run TypeScript source tests directly using Node 22's `--experimental-strip-types` |
+| Full entry | `pnpm test:all` | fast + integration + client, built once then run in sequence |
+
+When adding pure functions or states, add a corresponding `*.test.js` under `server/tests/`, keeping the existing style: run `pnpm run build` first, then `require("../dist/...")` to reference compiled output. For more detailed test scope and isolation rules, see the [Backend Testing Guide](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/architecture/testing.md).
+
+## Development Wiki
+
+The project's stable knowledge is stored under `docs/wiki/`, covering architecture decisions, workflow boundaries, module ownership, and debugging experience. It is not a release changelog. Directories include:
+
+- `docs/wiki/architecture/`: module boundaries, configuration ownership, API access token boundaries, etc.
+- `docs/wiki/workflows/`: director runtime, chapter production chain, task states, book breakdown workflow, etc.
+- `docs/wiki/prompts/`: Prompt Registry, structured output, JSON repair, etc.
+- `docs/wiki/rag/`: Knowledge Base and context assembly
+- `docs/wiki/debugging/`: recurring failure modes, database migration drift, test isolation, etc.
+- `docs/wiki/product/`: beginner-first and whole-book completion principles, workbench state expression, etc.
+
+The full wiki index is at [docs/wiki/README.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/wiki/README.md). After changes to core chains such as the director, chapter production, Prompt Schema, or task recovery, update the corresponding wiki page.
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/en/developers/environment-variables">
+    Server and frontend configuration reference
+  </Card>
+
+  <Card title="Contributing" icon="code-pull-request" href="/en/developers/contributing">
+    Report issues, submit PRs, and community links
+  </Card>
+</CardGroup>

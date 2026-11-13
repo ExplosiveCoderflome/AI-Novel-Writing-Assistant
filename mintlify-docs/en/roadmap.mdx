@@ -1,0 +1,128 @@
+---
+title: "Roadmap"
+description: "Available capabilities, current development priorities, and future evaluation directions for Biz Novel Studio."
+sidebarTitle: "Roadmap"
+icon: "map"
+keywords:
+  - "roadmap"
+  - "development plan"
+  - "product planning"
+  - "feature progress"
+  - "future direction"
+  - "Biz Novel Studio"
+---
+
+This roadmap explains what the project can already help you accomplish, which areas are being stabilized next, and which capabilities remain under later evaluation. For day-by-day changes, see the [Changelog](/en/changelog) and the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md).
+
+## Currently Available Complete Pipelines
+
+As of v0.8.1, the project's core goal remains helping users with no novel-writing experience move from an idea to an exportable full manuscript. The following five pipelines are all available.
+
+### 1. Finding a Book Direction
+
+You can choose an entry point based on your readiness:
+
+| Entry | Who it's for | Status |
+| --- | --- | --- |
+| Start from an idea | You have a preliminary inspiration | Completed |
+| Start from Trending Genre Radar | You want to reference market signals | Completed |
+| Write like this book | You have a book breakdown reference | Completed |
+| Create manually | You already have a title, synopsis, and basic settings | Completed |
+
+Related pages: [Trending Genre Radar](/en/features/market-radar) · [Book Breakdown workbench](/en/features/book-analysis) · [Novels & Starting a Book](/en/features/novels)
+
+### 2. Full-Book Planning via Auto Director
+
+Auto Director can continuously advance project settings, story macro-planning, character preparation, volume strategy, chapter planning, and body text production. Simple mode highlights reading, progress, and continue creation; Professional mode provides full materials, chapter controls, proofreading, recovery, and export entries.
+
+Starting in v0.8.0, a standalone Outline Workbench is added, supporting outline project creation, Markdown or TXT import, editing and revision, history viewing, and starting a book from an adopted outline. The fully automatic writing path without a bound outline remains unchanged.
+
+Related pages: [Auto Director](/en/features/auto-director) · [Outline Workbench](/en/features/outline-workbench) · [Director Follow-up](/en/features/director-follow-up)
+
+### 3. Per-Chapter Generation, Checking, and Saving
+
+Each chapter goes through execution-contract preparation, body text generation, reception checking, necessary fixes, and saving. When older projects lack chapter goals, chapter briefs, or scene boundaries, the system first fills in the current chapter's execution contract before continuing to write, preventing the whole book from repeatedly getting stuck at the same checkpoint.
+
+Local quality issues are by default treated as visible quality debt at the chapter level, not automatically blocking full-book production; tasks only pause at a saved chapter boundary when there is a clear need for re-planning, body text cannot be safely saved, a runtime safety risk, or the selected rules require human confirmation.
+
+Related pages: [Chapter Execution Chain](/en/guides/chapter-execution) · [Recovery by Phase](/en/guides/recovery-by-phase)
+
+### 4. Managing Styles, Knowledge, and Creative Assets
+
+Book breakdown results, knowledge base, world and character states, and prompt templates all participate in subsequent generation. Body text prompts support selecting a model in the "Body Text Effect Lab" to test the current draft; test results do not directly overwrite already saved chapters.
+
+Related pages: [Prompt Management](/en/features/prompt-management) · [Knowledge Base](/en/features/knowledge-base) · [World Library](/en/features/world-library) · [Character Library](/en/features/character-library)
+
+### 5. Recovering Long Tasks and Exporting Results
+
+Run History preserves stages and error reasons for long tasks such as Auto Director, book breakdown, and batch generation. When model balance or quota is insufficient, or quality-priority rules require confirmation, tasks preserve completed body text and recovery position; after handling model configuration or confirmation issues, you can continue from the unfinished chapter. Professional creation supports exporting the full book TXT body text in chapter order; project assets can still be exported in Markdown or JSON.
+
+Related pages: [Run History](/en/features/task-center) · [System Settings](/en/system-settings)
+
+## Current Development Priorities
+
+Recent development follows this priority order:
+
+<Steps>
+  <Step title="Stabilize Auto Director recovery and chapter production chain">
+    Make pause, retry, resume, and re-planning share clear state boundaries, prioritizing protection of already saved body text.
+  </Step>
+  <Step title="Improve first-time user success rate for completing a full book">
+    Provide clear defaults, recommended entry points, and next-step actions, reducing the need for users to manually fix structure, pacing, or character arcs.
+  </Step>
+  <Step title="Unify runtime, prompt, and task projection contracts">
+    First resolve inconsistencies between actual backend state, run records, and frontend display, before adding new workflow branches.
+  </Step>
+  <Step title="Control creative entry complexity">
+    Market radar, book breakdown, Creative Hub, and Auto Director all serve the novel-completion main chain; do not expand Creative Hub into a general chat tool unrelated to finishing books.
+  </Step>
+</Steps>
+
+## Future Evaluation Directions
+
+These directions have long-term value but will not be prioritized above main-chain stability:
+
+| Direction | Description | Status |
+| --- | --- | --- |
+| Long-range context memory | Keep world rules, character states, timelines, foreshadowing, and writing style stably participating in generation during the later parts of long novels | Planned |
+| Cross-book asset reuse | Reuse genre bases, progression modes, world samples, character profiles, and style assets, while preserving source and applicability boundaries | Planned |
+| Quality report and centralized rework | Aggregate chapter-level quality debt into an understandable, batch-processable full-book report | Planned |
+| Narrative engine workbench | Turn world, character, factions, resources, and events into observable,推演-capable creative assets, but must reduce rather than increase beginner burden | Planned |
+| Visual adaptation pipeline | After the novel main chain stabilizes, continue improving comic, animated comic, and short drama character consistency, shot continuity, and final export | In progress |
+| Desktop install and self-service ops | Continue simplifying model vendor configuration, local knowledge base storage, and common error recovery | In progress |
+
+<Info>
+  Writing kernel v2 remains disabled by default. Outline feedback, more complete original-draft revision follow-up capabilities, short-form adaptation, and creative engagement contracts are not in the current version.
+</Info>
+
+## Version Key Milestones
+
+| Version | Time | Key Deliverable |
+| --- | --- | --- |
+| v0.5.x | Around 2026-11-01 | Short-form length control, body text editor improvements, creation recovery, book breakdown output limit fix |
+| v0.6.x | Around 2026-11-04 | Estimated chapter count constraints, chapter title handling, body text preparation fix, chapter ZIP export, chapter-split progress display |
+| v0.7.x | Around 2026-11-09 | Multi-volume planning and fixed volume counts, chapter-split resume, per-model output limit, optional access token, mobile quick actions, channel notifications, AI call observability |
+| v0.8.0 | 2026-11-13 | Standalone Outline Workbench, start book from outline, outline revision history, Markdown/TXT import, original-draft revision capability (code included, entry disabled by default) |
+| v0.8.1 | 2026-11-13 | Fix new book blank placeholder volume misidentified as user-fixed single volume, enabling long novels to generate multi-volume structure correctly |
+
+## Reading Suggestions
+
+If you are using the app for the first time, start with [First Novel Walkthrough](/en/guides/first-novel-walkthrough); when you need to determine why a current task paused, go directly to [Recovery by Phase](/en/guides/recovery-by-phase). This roadmap only lists publicly available capabilities and stable directions; it does not show internal task lists, temporary checkpoints, or unconfirmed implementation plans.
+
+<Tip>
+  If you would like a direction to be accelerated, or have a specific use case you would like considered for evaluation, feel free to submit feedback via [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues). Please include your creation stage, the problem encountered, or the capability you expect, so we can prioritize by actual impact.
+</Tip>
+
+<CardGroup cols={3}>
+  <Card title="Changelog" icon="clock-rotate-left" href="/en/changelog">
+    View user-facing update summaries for each version.
+  </Card>
+
+  <Card title="Recovery by Phase" icon="rotate-right" href="/en/guides/recovery-by-phase">
+    Determine the current stage when a task pauses and continue from there.
+  </Card>
+
+  <Card title="First Novel Walkthrough" icon="book-open" href="/en/guides/first-novel-walkthrough">
+    A complete demo from idea to full manuscript.
+  </Card>
+</CardGroup>

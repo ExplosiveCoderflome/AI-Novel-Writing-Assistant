@@ -1,0 +1,178 @@
+---
+title: "Trending Genre Radar"
+description: "Extract verifiable market signals from public rankings to provide creation direction and book creation basis for Auto Director."
+sidebarTitle: "Trending Genre Radar"
+icon: "satellite-dish"
+keywords:
+  - "trending genre radar"
+  - "ranking scan"
+  - "market analysis"
+  - "book creation reference"
+  - "genre trends"
+  - "web novel trends"
+  - "auto director"
+  - "creation brief"
+---
+
+The Trending Genre Radar turns public rankings into verifiable, selectable book creation basis. It first displays raw rankings, then lets you decide which works to analyze. AI only extracts signals from the selected range, and finally hands those signals to Auto Director to generate new book directions.
+
+<CardGroup cols={2}>
+  <Card title="View Public Rankings" icon="chart-column" href="#view-public-rankings">
+    Browse public ranking data from Fanqie Novel, Qidian, and Jinjiang Literature City.
+  </Card>
+
+  <Card title="Generate AI Analysis Report" icon="brain" href="#how-to-read-the-ai-analysis-report">
+    Extract genres, protagonists, strengths, openings, and differentiation opportunities from checked works.
+  </Card>
+
+  <Card title="Save Market Signals" icon="bookmark" href="#saving-and-market-briefs">
+    Add agreed signals to the trending genre list, or generate a creation brief to start a book directly.
+  </Card>
+
+  <Card title="Hand to Auto Director" icon="clapperboard" href="#how-signals-enter-auto-director">
+    Bring selected signals into the book creation page, where Auto Director continues advancing world, characters, and chapters.
+  </Card>
+</CardGroup>
+
+## View Public Rankings
+
+Open "Trending Genre Radar" in the left "Creation" group. The page displays public rankings from the following platforms:
+
+- Fanqie Novel: Reading Rankings, New Book Rankings
+- Qidian: Bestseller Rankings, Monthly Ticket Rankings, New Book Rankings
+- Jinjiang Literature City: Monthly Rankings, Quarterly Rankings, New Author Rankings
+
+The scraper only reads a single public page configured per source, retaining at most the first 30 metadata items successfully identified. The page explicitly marks "successfully identified count this time" and the 30-item cap; it does not promise full data.
+
+| Ranking Type | Good for Observing |
+| --- | --- |
+| New Book Rankings / New Author Rankings | Current book creation environment; easier to see recent trends |
+| Mature Rankings (Bestseller, Monthly Ticket) | Long-term genres and stable reader expectations; good for comparison |
+
+<Info>
+  When platform page structures change, the corresponding source is marked as failed while other platforms continue to display. When all fail, rescan rankings instead of directly initiating an empty analysis.
+</Info>
+
+### Scanning Rankings and Existing Data
+
+When the page loads, it first reads the most recent persisted scan containing ranking entries and displays it immediately. When there is no historical data, it automatically initiates the first scan. When rankings already exist, "Rescan" is triggered manually by you.
+
+<Warning>
+  When refreshing rankings, old rankings must not be cleared before the new scan has obtained displayable entries. If the new scan fails, continue retaining old results and explain that this update was unsuccessful.
+</Warning>
+
+## Selecting Works and Analysis Range
+
+Each ranking supports selecting all or checking works one by one. The AI analysis range is exactly these explicitly checked works this time. The default follows the "new book signal priority" principle: when a platform has available New Book Rankings or Jinjiang New Author Rankings, works within these rankings are selected by default; when missing, works within that platform's mature rankings are selected by default.
+
+After selection, click "Start AI Analysis." You cannot repeatedly submit the same round of analysis before analysis completes. During analysis, the page shows real progress, and directly navigates to results upon completion.
+
+<Tip>
+  When a platform read fails, the page retains data successfully obtained from other platforms. Rescan when cross-platform comparison is needed.
+</Tip>
+
+## How to Read the AI Analysis Report
+
+The report organizes signals by purpose. Each signal is accompanied by heat, crowdedness, and ranking evidence:
+
+| Signal | Good for Answering |
+| --- | --- |
+| Trending Genres | Which types of stories are forming clear supply and reader interest |
+| Protagonist Identity | Which protagonist starting points are commonly used in current works |
+| Golden Finger / Core Strength | What the protagonist relies on to form continuous advancement ability |
+| Opening Hook | What pressure or anomaly is typically used in the first few chapters to grab readers |
+| Relationship Appeal | Which types of character relationships easily form long-term tension |
+| Title Patterns | How titles quickly convey genre and core appeal |
+| Differentiation Opportunities | Crowded points to avoid within hot directions |
+| Crowded Patterns | Which combinations are already highly homogenized |
+
+High heat does not mean suitable for direct following. When crowdedness is also high, prioritize checking "Differentiation Opportunities" and evidence before deciding whether to adopt.
+
+### Three Market Influence Modes
+
+When making final signal selections, you need to determine the market influence mode:
+
+| Mode | Suitable For | Impact on Auto Director |
+| --- | --- | --- |
+| Follow Trends | Want to quickly enter a clear track | More obviously retains current hot structure and appeal |
+| Differentiate Within Trends | Most new books | Retains reader familiarity while strengthening differentiation signals |
+| Weaken Market | Already has a clear personal direction | Market serves only as reference, does not dominate the book's positioning |
+
+For first-time book creators, "Differentiate Within Trends" is recommended. The default creation selection is one differentiation opportunity plus up to three supporting signals; users can select at most five.
+
+## Saving and Market Briefs
+
+Individual signals in the report support quick saving. After saving, they are written to an independent trending genre list, **not into the general Genre Library or Progression Modes library**. When saving, the signal name, judgment summary, direction, heat and crowdedness are retained, along with report and signal references.
+
+A single saved signal can directly generate a market creation brief containing only that signal, and enter Auto Director book creation. Multiple selections can also be merged into a single market brief. A market brief contains at least:
+
+- An editable starting idea (protagonist identity, core strength, opening event, and near-term goal)
+- Golden finger or core strength
+- Core appeal
+- First 30 chapters promise
+- Recommended genre base, main progression, and auxiliary progression
+
+<Warning>
+  Market briefs only retain reader satisfaction points, payoff mechanisms, and structural opportunities; they do not copy ranking works' character names, proprietary settings, synopsis expressions, or full titles. Specific naming belongs to subsequent character and world planning stages.
+</Warning>
+
+## How Signals Enter Auto Director
+
+After clicking "Create with These Signals," the system organizes the final selection into a creation brief and brings it into the book creation page:
+
+- An editable starting idea that can be directly modified
+- Golden finger or core strength
+- Core appeal and first 30 chapters promise
+- Recommended genre base, main progression, and auxiliary progression
+- Corresponding market signal summary and evidence sources
+
+Genres and progression modes need to be rematched based on this brief's creative seed, and must not directly reuse the whole report's generic recommendations.
+
+On the book creation page, your manually selected genre or progression mode is retained with priority; radar suggestions are used to fill blanks and do not overwrite explicit selections. When you have already entered a starting idea, core appeal, or other content, only blank starting ideas, core appeals, first 30 chapters promises, and creative bases are supplemented; asynchronous overwriting does not occur.
+
+## Resource Library Hints
+
+Genres and progression modes mentioned in the report may already exist in the resource library, or may need to be newly added:
+
+- "Already in library": can directly enter the resource library to locate and view
+- "Needs to be added": confirm to create the corresponding resource, then use it for the new book after completion
+
+Reusing existing resources first can reduce the accumulation of near-synonymous genres or duplicate progression modes.
+
+## Frequently Asked Questions
+
+<AccordionGroup>
+  <Accordion title="Why do I only see some rankings?">
+    Public pages may be temporarily unavailable or their structure may have changed. First check platform status and use successfully obtained data; rescan when needed.
+  </Accordion>
+
+  <Accordion title="Why is the AI Analysis button unavailable?">
+    First wait for the scan to complete, and check at least one work. You cannot repeatedly submit the same round of analysis during report generation.
+  </Accordion>
+
+  <Accordion title="Can I directly write based on a ranked work?">
+    Not recommended. The radar is for extracting market signals and differentiation opportunities, not for copying specific characters, worlds, or plots. To study a single reference work, use "Book Breakdown"; to start a book from breakdown results, use "Write Like This Book."
+  </Accordion>
+
+  <Accordion title="Will market signals stay bound to this book?">
+    Signals enter project settings and direction generation as the basis for this book creation. You can still adjust genre, appeal, progression mode, and reader promise on the Auto Director book creation page later.
+  </Accordion>
+
+  <Accordion title="Can I reanalyze with different works after analysis completes?">
+    Yes. Re-check works and initiate a new round of analysis. The same scan result can generate multiple reports. Existing reports are not overwritten; saved items and briefs continue to reference the report version at generation time.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={3}>
+  <Card title="Auto Director" icon="wand-magic-sparkles" href="/en/features/auto-director">
+    After starting a book with market signals, let Auto Director continue advancing the entire book.
+  </Card>
+
+  <Card title="Book Breakdown Workbench" icon="book-open" href="/en/features/book-analysis">
+    Use Book Breakdown analysis when deep study of a single reference work is needed.
+  </Card>
+
+  <Card title="Novels and Book Creation" icon="book" href="/en/features/novels">
+    Learn about the three book creation entries and their applicable scenarios.
+  </Card>
+</CardGroup>

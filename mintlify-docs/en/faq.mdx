@@ -1,0 +1,78 @@
+---
+title: "Frequently Asked Questions"
+description: "Common questions about data storage, update methods, fully automatic advancement, director version selection, and Knowledge Base"
+keywords:
+  - "frequently asked questions"
+  - "FAQ"
+  - "data backup"
+  - "Director V1 V2"
+  - "pause"
+---
+
+This page answers "what is it, how to choose, and can it" types of usage questions. For errors, connection failures, generation getting stuck, and other anomalies, please see [Troubleshooting](/en/troubleshooting) directly.
+
+<CardGroup cols={2}>
+  <Card title="I encountered an error or it got stuck" icon="screwdriver-wrench" href="/en/troubleshooting">
+    Troubleshooting steps for installation startup, model connection, generation pause, task records, and Knowledge Base retrieval
+  </Card>
+
+  <Card title="It's my first time using it" icon="route" href="/en/onboarding">
+    Follow the creation wizard from configuring the model to getting Chapter 1 drafted
+  </Card>
+</CardGroup>
+
+## Installation and Data
+
+<AccordionGroup>
+  <Accordion title="Where is data stored, and how to back it up">
+    See [Installation & Download](/en/installation) for "Where data is saved". Before backing up, completely exit the application, then copy the entire data directory.
+  </Accordion>
+
+  <Accordion title="Why can't the portable and Mac versions auto-update">
+    Only the Windows installer version supports in-app updates. For the portable version, download the new version and replace the program while keeping the `-data` folder; for the Mac version, download the new `.dmg` and overwrite the installation, data is unaffected.
+  </Accordion>
+
+  <Accordion title="Do I need to prepare my own model">
+    Yes. The workbench does not include built-in model quotas; it uses your own API configuration, or you can connect a local model. The quick setup will pop up on first open; see [Model Configuration](/en/model-configuration).
+  </Accordion>
+</AccordionGroup>
+
+## Creation Process
+
+<AccordionGroup>
+  <Accordion title="Why does fully automatic also stop">
+    Fully automatic only executes the scope you authorized. For example, if you submit Chapters 1 to 3, it stops after writing them and will not write Chapter 4 on its own; you need to select the next segment.
+
+    Additionally, it will pause when encountering model unavailability, needing to re-plan, reaching the usage protection limit, or data integrity issues. Pause does not equal failure; progress and saved body text are preserved. How to continue, see [Troubleshooting](/en/troubleshooting).
+  </Accordion>
+
+  <Accordion title="There are quality reminders on chapters, should I stop and fix them">
+    The default "prioritize completing the whole book" strategy records ordinary local issues as chapter reminders and continues writing. To be stricter, you can switch to "quality first" in **Settings → Auto Director** (设置 → 自动导演), or set it separately for a particular book.
+  </Accordion>
+
+  <Accordion title="Which should I choose, Director V1 or V2">
+    V2 is recommended for new books. Existing novels can continue using the original version; before switching, you need to first end current creation. Switching only saves the selection and will not automatically start generation. Comparison, see [Quick Start](/en/quickstart).
+  </Accordion>
+
+  <Accordion title="What is the single-chapter usage limit">
+    The V2 single-chapter default limit is 100,000 Tokens, accumulating generation, checking, text repair, and material organization calls for that chapter, used to prevent single-chapter consumption from spiraling out of control. Reaching the limit will pause and preserve progress; you can add more quota to continue. See [AI Usage](/en/features/token-usage) for details.
+  </Accordion>
+</AccordionGroup>
+
+## Knowledge Base
+
+<AccordionGroup>
+  <Accordion title="Can I use it without configuring Qdrant">
+    Yes. Qdrant is only used for Knowledge Base vector retrieval; it is not a prerequisite for starting a book and writing Chapter 1. To first run through the main line, set `RAG_ENABLED=false` when running from source.
+  </Accordion>
+</AccordionGroup>
+
+## Reporting Issues
+
+When submitting to [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues), try to include:
+
+- Application version (version number in the top bar) and system
+- Operation entry point and steps
+- Model provider and model name used
+- Pause reason or original error text, screenshots
+- Desktop version log package (saved in "Version & Updates")

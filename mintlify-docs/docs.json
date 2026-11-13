@@ -65,93 +65,192 @@
     ]
   },
   "navigation": {
-    "groups": [
+    "languages": [
       {
-        "group": "开始使用",
-        "pages": [
-          "index",
-          "introduction",
-          "installation",
-          "onboarding",
-          "quickstart",
-          "creation-flow",
-          "first-ten-chapters",
-          "model-configuration",
-          "system-settings"
+        "language": "zh-Hans",
+        "default": true,
+        "groups": [
+          {
+            "group": "开始使用",
+            "pages": [
+              "index",
+              "introduction",
+              "installation",
+              "onboarding",
+              "quickstart",
+              "creation-flow",
+              "first-ten-chapters",
+              "model-configuration",
+              "system-settings"
+            ]
+          },
+          {
+            "group": "实战手册",
+            "pages": [
+              "guides/first-novel-walkthrough",
+              "guides/recovery-by-phase"
+            ]
+          },
+          {
+            "group": "长篇与短篇创作",
+            "pages": [
+              "features/novels",
+              "features/title-workshop",
+              "features/outline-workbench",
+              "features/auto-director",
+              "features/director-follow-up",
+              "features/short-story",
+              "features/token-usage",
+              "features/task-center"
+            ]
+          },
+          {
+            "group": "世界、角色与写法",
+            "pages": [
+              "features/world-library",
+              "features/genre-library",
+              "features/progression-modes",
+              "features/character-library",
+              "features/style-engine",
+              "features/anti-ai-rules",
+              "features/prompt-management"
+            ]
+          },
+          {
+            "group": "资料与辅助",
+            "pages": [
+              "features/book-analysis",
+              "features/market-radar",
+              "features/knowledge-base",
+              "features/creative-hub"
+            ]
+          },
+          {
+            "group": "衍生创作",
+            "pages": [
+              "features/comic-workspace",
+              "features/short-drama-workspace"
+            ]
+          },
+          {
+            "group": "创作原理",
+            "pages": [
+              "guides/production-pipeline",
+              "guides/chapter-execution"
+            ]
+          },
+          {
+            "group": "开发者",
+            "pages": [
+              "developers/architecture",
+              "developers/deployment",
+              "developers/environment-variables",
+              "developers/contributing"
+            ]
+          },
+          {
+            "group": "帮助",
+            "pages": [
+              "glossary",
+              "faq",
+              "troubleshooting",
+              "changelog",
+              "roadmap"
+            ]
+          }
         ]
       },
       {
-        "group": "实战手册",
-        "pages": [
-          "guides/first-novel-walkthrough",
-          "guides/recovery-by-phase"
-        ]
-      },
-      {
-        "group": "长篇与短篇创作",
-        "pages": [
-          "features/novels",
-          "features/title-workshop",
-          "features/outline-workbench",
-          "features/auto-director",
-          "features/director-follow-up",
-          "features/short-story",
-          "features/token-usage",
-          "features/task-center"
-        ]
-      },
-      {
-        "group": "世界、角色与写法",
-        "pages": [
-          "features/world-library",
-          "features/genre-library",
-          "features/progression-modes",
-          "features/character-library",
-          "features/style-engine",
-          "features/anti-ai-rules",
-          "features/prompt-management"
-        ]
-      },
-      {
-        "group": "资料与辅助",
-        "pages": [
-          "features/book-analysis",
-          "features/market-radar",
-          "features/knowledge-base",
-          "features/creative-hub"
-        ]
-      },
-      {
-        "group": "衍生创作",
-        "pages": [
-          "features/comic-workspace",
-          "features/short-drama-workspace"
-        ]
-      },
-      {
-        "group": "创作原理",
-        "pages": [
-          "guides/production-pipeline",
-          "guides/chapter-execution"
-        ]
-      },
-      {
-        "group": "开发者",
-        "pages": [
-          "developers/architecture",
-          "developers/deployment",
-          "developers/environment-variables",
-          "developers/contributing"
-        ]
-      },
-      {
-        "group": "帮助",
-        "pages": [
-          "glossary",
-          "faq",
-          "troubleshooting",
-          "changelog",
-          "roadmap"
+        "language": "en",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "en/index",
+              "en/introduction",
+              "en/installation",
+              "en/onboarding",
+              "en/quickstart",
+              "en/creation-flow",
+              "en/first-ten-chapters",
+              "en/model-configuration",
+              "en/system-settings"
+            ]
+          },
+          {
+            "group": "Playbooks",
+            "pages": [
+              "en/guides/first-novel-walkthrough",
+              "en/guides/recovery-by-phase"
+            ]
+          },
+          {
+            "group": "Long and short fiction",
+            "pages": [
+              "en/features/novels",
+              "en/features/title-workshop",
+              "en/features/outline-workbench",
+              "en/features/auto-director",
+              "en/features/director-follow-up",
+              "en/features/short-story",
+              "en/features/token-usage",
+              "en/features/task-center"
+            ]
+          },
+          {
+            "group": "Worlds, characters and style",
+            "pages": [
+              "en/features/world-library",
+              "en/features/genre-library",
+              "en/features/progression-modes",
+              "en/features/character-library",
+              "en/features/style-engine",
+              "en/features/anti-ai-rules",
+              "en/features/prompt-management"
+            ]
+          },
+          {
+            "group": "Research and assistance",
+            "pages": [
+              "en/features/book-analysis",
+              "en/features/market-radar",
+              "en/features/knowledge-base",
+              "en/features/creative-hub"
+            ]
+          },
+          {
+            "group": "Adaptations",
+            "pages": [
+              "en/features/comic-workspace",
+              "en/features/short-drama-workspace"
+            ]
+          },
+          {
+            "group": "How it works",
+            "pages": [
+              "en/guides/production-pipeline",
+              "en/guides/chapter-execution"
+            ]
+          },
+          {
+            "group": "Developers",
+            "pages": [
+              "en/developers/architecture",
+              "en/developers/deployment",
+              "en/developers/environment-variables",
+              "en/developers/contributing"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "en/glossary",
+              "en/faq",
+              "en/troubleshooting",
+              "en/changelog",
+              "en/roadmap"
+            ]
+          }
         ]
       }
     ]

@@ -1,0 +1,166 @@
+---
+title: "Installation"
+description: "Desktop download and installation, first launch, data locations, updates and backups, source code run"
+keywords:
+  - "download"
+  - "install"
+  - "Windows desktop"
+  - "macOS"
+  - "Linux"
+  - "source run"
+  - "data backup"
+---
+
+## Desktop Version (Recommended)
+
+For regular writing, use the desktop version. No need to install Node.js, pnpm, or manually start the server. Click the corresponding system below to download **v0.8.1**:
+
+<CardGroup cols={2}>
+  <Card title="Windows Installer (Recommended)" icon="windows" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-setup-x64.exe">
+    Approx. 141 MB · Best for long-term use, supports in-app updates
+  </Card>
+
+  <Card title="Windows Portable" icon="windows" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-portable-x64.exe">
+    Approx. 141 MB · No installation, data follows the program directory
+  </Card>
+
+  <Card title="macOS (Apple Silicon)" icon="apple" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-mac-arm64.dmg">
+    Approx. 189 MB · M series chips
+  </Card>
+
+  <Card title="macOS (Intel)" icon="apple" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-mac-x64.dmg">
+    Approx. 193 MB · Intel chips
+  </Card>
+
+  <Card title="Linux (AppImage)" icon="linux" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-linux-x86_64.AppImage">
+    Approx. 214 MB · x86_64, run directly after granting execute permission
+  </Card>
+
+  <Card title="All Versions and Release Notes" icon="github" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest">
+    View latest and historical versions on GitHub Releases
+  </Card>
+</CardGroup>
+
+<Tip>
+  Not sure which Mac chip you have: click the Apple menu in the top-left corner → About This Mac. If the "Chip" field shows Apple M1/M2/M3/M4, choose arm64. If it shows Intel, choose x64.
+</Tip>
+
+## Installation Steps by Platform
+
+<Tabs>
+  <Tab title="Windows">
+    **Installer**
+
+    1. Double-click `setup-x64.exe` and follow the wizard. You can customize the installation directory; desktop and Start menu shortcuts are created by default.
+    2. If a "Windows protected your PC" prompt appears, click **More info → Run anyway**.
+    3. The app will launch automatically after installation.
+
+    **Portable**
+
+    Place `portable-x64.exe` in a dedicated folder before running. Data will be saved in a `<program-name>-data` folder in the same directory; copy this folder along with the program when moving it.
+  </Tab>
+  <Tab title="macOS">
+    1. Double-click the `.dmg` and drag Biz Novel Studio into "Applications".
+    2. If blocked by the system on first open, go to **System Settings → Privacy & Security**, find the blocked app at the bottom, and click **Still Open**.
+    3. If prompted "damaged, cannot open", execute the following command in Terminal and reopen:
+
+    ```bash
+    xattr -dr com.apple.quarantine "/Applications/Biz Novel Studio.app"
+    ```
+
+    The current Mac installer is not signed or notarized by Apple, so manual approval is required on first open.
+  </Tab>
+  <Tab title="Linux">
+    ```bash
+    chmod +x Biz-Novel-Studio-*-linux-x86_64.AppImage
+    ./Biz-Novel-Studio-*-linux-x86_64.AppImage
+    ```
+
+    Some distributions require FUSE to be installed first to run AppImage (for example, Ubuntu 22.04 and above install `libfuse2`).
+  </Tab>
+</Tabs>
+
+## First Launch
+
+The desktop version starts a local service first, then enters the workbench. The launch screen shows "Starting local engine → Loading workspace → Ready", usually taking a few seconds to a dozen seconds.
+
+After entering the workbench, if no text model is available, **Quick Setup** will pop up automatically. Fill in the API Key, address, and model, and pass the test to start creating. For detailed steps, see [Onboarding](/en/onboarding).
+
+<Warning>
+  When the launch screen stops at "Startup blocked", first click the log entry on the page to check the reason. Common causes are antivirus software blocking the local service, or the previous process not fully exiting. Fully quit the app and reopen; if it still fails, save the log bundle to [Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues) for feedback.
+</Warning>
+
+## Where Data Is Saved
+
+Novels, chapters, settings, task records, and the local database are all saved locally on your machine. They are not uploaded to the project's servers (when calling models, related content is sent to your configured model provider).
+
+| Version | Default Data Directory |
+| --- | --- |
+| Windows Installer | `%LOCALAPPDATA%\AI-Novel-Writing-Assistant-v2` |
+| Windows Portable | `<program-name>-data` in the program directory |
+| macOS | `~/Library/Application Support/AI-Novel-Writing-Assistant-v2` |
+| Linux | `~/.AI-Novel-Writing-Assistant-v2` |
+
+Logs are in the `logs` folder under the data directory. Uninstalling the Windows installer **will not** delete the data directory; data remains after reinstallation.
+
+## Updates
+
+| Version | How to Update |
+| --- | --- |
+| Windows Installer | Automatically checks for new versions on startup. Click the version number in the top bar to open "Version & Update", where you can manually **Check for updates**, and click **Restart to install** after download |
+| Windows Portable | Does not support in-app updates. Download the new portable package to replace the old program, keeping the `-data` folder |
+| macOS | Does not support in-app updates. Download the new `.dmg` and overwrite the installation; data is unaffected |
+
+## Backup and Migration
+
+Long-form creation data is important; regular backups are recommended:
+
+1. Fully quit the app (confirm no generation tasks are running).
+2. Copy the entire data directory to a safe location.
+3. For important works, additionally export a copy of the body text.
+
+When migrating to a new computer, install the same or a newer version on the new computer, and place the backed-up data directory in the corresponding location before first launch.
+
+<Warning>
+  Do not copy or replace the database while the app is running, and do not delete the data directory without a backup.
+</Warning>
+
+## Mobile
+
+There is currently no mobile app; you will not find an official installer in mobile app stores. If you want to use it on your phone, you can access your self-hosted Web interface in a browser from your computer or server. For serious writing, the desktop version is still recommended, with a better screen and controls.
+
+## Source Code Run (Developers)
+
+Environment requirements:
+
+| Item | Requirement |
+| --- | --- |
+| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
+| pnpm | `>=10.6.0` (repository declares using `pnpm@10.6.0`) |
+| Text model | At least one available API configuration; can be filled in after startup |
+| Database | Default local SQLite; PostgreSQL available via server configuration |
+| Knowledge Base retrieval | Optional Qdrant and Embedding model; not a prerequisite for first-time writing |
+
+```bash
+git clone https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
+pnpm install
+cp server/.env.example server/.env   # Windows PowerShell use Copy-Item
+pnpm dev
+```
+
+Frontend defaults to `http://localhost:5173`, server to `http://localhost:3000`. In `server/.env`, confirm `DIRECTOR_NEXT_ENABLED=true` (enables V2 selection); if Qdrant is not yet configured, set `RAG_ENABLED=false` to get creation running first. After startup, open System Settings, configure and test models (see [Model Configuration](/en/model-configuration)).
+
+Full variable descriptions at [Environment Variables](/en/developers/environment-variables), directory structure and common commands at [Architecture and Source](/en/developers/architecture).
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Onboarding" icon="compass" href="/en/onboarding">
+    Complete quick setup, from a spark of inspiration to the first chapter
+  </Card>
+
+  <Card title="FAQ" icon="circle-question" href="/en/faq">
+    Handling installation, model, task pause, and other issues
+  </Card>
+</CardGroup>

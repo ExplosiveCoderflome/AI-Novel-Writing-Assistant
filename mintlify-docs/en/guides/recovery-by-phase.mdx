@@ -1,0 +1,158 @@
+---
+title: "Recovery by Phase"
+description: "List common stuck positions by Auto Director phase: what to check first, recommended recovery entry points, and when to replan."
+sidebarTitle: "Recovery by Phase"
+icon: "life-ring"
+keywords:
+  - "recovery by phase"
+  - "Auto Director"
+  - "stuck task"
+  - "recovery entry"
+  - "Run History"
+  - "Director Follow-up"
+  - "replan"
+  - "chapter execution"
+  - "fault recovery"
+---
+
+Many "stops" are not failures, but Auto Director waiting for confirmation. This page lists common symptoms by phase, where to check first, recommended recovery entry points, and when to replan. Before any operation that may affect data, please back up first.
+
+If the issue relates to installation, startup, model connection, or general errors, first check [Troubleshooting](/en/troubleshooting). Run History is read-only for viewing; continue or resume operations should be handled in Director Follow-up or the corresponding workbench.
+
+## First, Determine Whether It Is a Failure
+
+Auto Director will pause at the following positions to wait for your confirmation. These are normal checkpoints:
+
+- **Waiting for Direction Selection** (等待方向选择): waiting for you to choose a direction.
+- **Waiting for Character Confirmation** (等待角色确认): waiting for you to confirm characters.
+- **Volume Strategy Ready** (卷战略就绪): waiting for you to confirm volume planning.
+- **Chapter Batch Ready** (章节批次就绪): waiting for you to enter chapter execution.
+- **Waiting for Replanning** (等待重新规划): waiting for you to handle quality repair or replanning.
+- **Paused Processing** (暂停处理): the book's issue rules require stopping at a saved chapter boundary.
+
+If the task status is "waiting approval," do not directly delete or rebuild the project. First check Director Follow-up.
+
+## Recovery Matrix
+
+| Phase | Symptom | Check First | Recommended Recovery Entry | When to Replan |
+| --- | --- | --- | --- | --- |
+| Candidate seed alignment | Idea cannot generate candidates | Creative Hub, Run History | Revise idea, switch model, regenerate candidates | Not needed; project is not yet立项. |
+| Direction batch | No candidate satisfies | Direction selection page | Generate next batch, revise candidates, targeted correction | Not needed; continue in candidate phase. |
+| Title candidate | Title unsuitable | Direction selection page | Redo title only | Not needed. |
+| Create novel | Project does not appear after confirmation | Run History, direction selection page | Return to direction selection page and retry **Candidate Confirmation** (候选确认) | Only when repeated data conflicts cannot be repaired. |
+| Story macro | Story direction deviates | Novel story macro page, Director Follow-up | Adjust macro story or return to candidates to redo direction | If core selling point is wrong, return to candidate phase. |
+| Book contract | Promise/audience inaccurate | Book-level info, story macro | Modify book contract and continue | If it will affect all volume planning, rerun subsequent planning. |
+| World building | World rules do not fit | World module | Modify world or re-prepare world | If world rules change the main conflict, rerun characters and volume planning. |
+| Character generation | Characters feel like functional slots, missing identity anchors | Character candidate page, Director Follow-up | Merge, confirm, supplement, or redo character cast | When character goals affect the main line, rerun volume planning. |
+| Character cast application | Characters cannot be written to database | Run History, character page | Return to character page and retry application, or manually confirm characters | Only when data conflicts cannot be repaired. |
+| Volume strategy | Volume goal unclear | Volume planning entry | Redo volume strategy or adjust book contract | When first volume promise is misaligned, rerun chapter splitting. |
+| Volume skeleton | Volume count/span unreasonable | Volume planning entry | Adjust volume skeleton | When it affects chapter span, rerun beat board. |
+| Beat board | Beat nodes do not cover enough | Run History, volume planning | Return to volume planning and regenerate **Beat Board** (节奏板) | When beat goals conflict with volume strategy, return to volume strategy. |
+| Chapter list | Wrong chapter count, titles mixed up | Chapter list | Regenerate **Chapter List** (章节清单) | When beat board itself is wrong, first return to beat board. |
+| Chapter sync | Chapter tasks not written to chapters | Run History, chapter planning | Return to chapter planning and retry **Chapter Sync** (章节同步), or continue structured chapter splitting | Not often needed to replan. |
+| Chapter detailing | Some chapters lack a brief | Run History, Director Follow-up | Continue from the nearest progress in Director Follow-up or chapter planning | If chapter list is wrong, return to chapter list. |
+| Chapter execution | Body text generation fails or is empty | Run History, chapter page | Return to chapter page and retry, switch model, or check context | When chapter tasks conflict with outline, replan locally. |
+| Audit repair | Repair fails or quality debt | Chapter page, Director Follow-up | Light repair, record debt, continue | When explicitly **Waiting for Replanning** and it affects subsequent chapters. |
+| Issue rule pause | Body text usable, but quality priority requires manual confirmation | Director Follow-up, chapter page | Handle issue and explicitly resume | Only when structured results explicitly require it. |
+| Model balance/quota | Execution details show balance, quota, or rate-limit errors | Current execution page, Run History, model settings | Top up quota or switch model, then return to current execution page and resume from the first unfinished chapter | Not needed. |
+
+<Info>
+  Run History is responsible for viewing status and opening source pages; continue, resume, and cancel operations are handled in the source workbench. Do not rely on repeatedly clicking generate as a substitute for recovery.
+</Info>
+
+## Differences Between Recovery Operations
+
+| Operation | Applicable To | Risk |
+| --- | --- | --- |
+| Retry | Same command temporarily failed | Low; usually preserves existing artifacts. |
+| Resume | Stale or checkpoint continuation | Medium; need to confirm which progress to continue from. |
+| Restart phase | Current phase artifact is untrustworthy | Medium-high; may overwrite target phase artifacts. |
+| Replan | Upstream target changed or quality requirement is explicit | High; affects subsequent chain. |
+
+## Stale Task Recovery
+
+DirectorWorker executes commands with leases. When the service restarts, process exits, or there is no heartbeat for a long time, commands may become stale.
+
+Handling steps:
+
+1. Open Run History to confirm task facts.
+2. Check whether there is "background execution interrupted" or "waiting for resume."
+3. If the system auto-recovers, wait for the task to re-enter the queue.
+4. If manual recovery is needed, open the source page and click the resume entry.
+5. Do not simultaneously initiate duplicate tasks for the same range.
+
+Full-book auto-execution and the **Continue** (继续) / **Resume from Checkpoint** (从检查点恢复) commands have auto-recovery counts; after exceeding the count, they switch to manual recovery.
+
+## Resume from Safe Chapter Boundary
+
+Chapter production saves completed body text and the first unfinished chapter. When encountering model balance, quota, service interruption, or quality rule pause, handle in this order:
+
+1. Confirm on the chapter page that the last chapter's body text is saved.
+2. View the real failure reason and first unfinished chapter in Run History.
+3. Fix model connection, quota, or issues requiring manual confirmation.
+4. Execute resume from Director Follow-up.
+5. Confirm the task continues from the unfinished chapter, rather than re-covering already saved body text.
+
+<Warning>
+  A "quality priority" manual pause will not be automatically cleared by backend polling, worker recovery, or app restart. Only after the user explicitly resumes will the main chain continue.
+</Warning>
+
+## When to Replan
+
+Suitable for replanning:
+
+- Book contract, target readers, or core selling point has changed.
+- World rules changed the main conflict.
+- Character cast redo affects volume goals.
+- Beat board cannot cover the target chapter range.
+- Audit explicitly requests **Waiting for Replanning**.
+
+Not suitable for replanning:
+
+- Single chapter has local awkward phrasing.
+- Minor pacing issues can be repaired.
+- Audit service temporarily unavailable.
+- State sync failed but body text is usable.
+- Only one character resource is waiting for confirmation.
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Run History shows failure, but Director Follow-up looks normal. Which should I trust?">
+    Prioritize the pause reason in Director Follow-up, then check the backend status in Run History. In many cases it is just waiting for confirmation rather than failure. Do not judge task status from a single page alone.
+  </Accordion>
+
+  <Accordion title="Will resuming overwrite already written chapters?">
+    Normal resume continues from the first unfinished chapter and will not overwrite saved body text. Before resuming, confirm on the chapter page that the last chapter's body text is saved, then execute resume.
+  </Accordion>
+
+  <Accordion title="Can I resume while simultaneously initiating a duplicate task for the same range?">
+    Not recommended. You should not usually start multiple tasks for the same book and same range simultaneously. When you see "An Auto Director task is already processing the same range," first go to Run History to check the running task.
+  </Accordion>
+
+  <Accordion title="After model quota is exhausted, can I continue directly after topping up?">
+    After topping up quota or switching models, return to the current execution page or Director Follow-up to resume. You do not need to delete the novel or rebuild the project.
+  </Accordion>
+
+  <Accordion title="When is manual intervention needed instead of auto-recovery?">
+    The following situations will not auto-recover: quality priority rule pause, character waiting for confirmation, direction waiting for confirmation, explicit "Waiting for Replanning." These all require explicit user action in the corresponding workbench before continuing.
+  </Accordion>
+
+  <Accordion title="What information should I keep when reporting an issue?">
+    Keep the current taskId, current phase key, checkpointType, Run History error information, related novel and chapter, whether auto-approval is enabled, and whether the app was recently restarted. This information directly corresponds to the command queue, worker lease, and Auto Director runtime.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={3}>
+  <Card title="Troubleshooting" icon="screwdriver-wrench" href="/en/troubleshooting">
+    Troubleshooting steps for installation, startup, model connection, and general errors.
+  </Card>
+
+  <Card title="Director Follow-up" icon="clapperboard" href="/en/features/director-follow-up">
+    View pause reasons, handle waiting confirmations, and explicit resume operation entries.
+  </Card>
+
+  <Card title="Your First Novel Walkthrough" icon="route" href="/en/guides/first-novel-walkthrough">
+    A complete end-to-end case study from idea to completing Volume 1.
+  </Card>
+</CardGroup>
