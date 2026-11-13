@@ -21,17 +21,19 @@
           "installation",
           "onboarding",
           "quickstart",
-          "model-configuration",
-          "faq"
+          "creation-flow",
+          "model-configuration"
         ]
       },
       {
         "group": "长篇与短篇创作",
         "pages": [
           "features/novels",
+          "features/outline-workbench",
           "features/auto-director",
           "features/short-story",
-          "features/token-usage"
+          "features/token-usage",
+          "features/task-center"
         ]
       },
       {
@@ -47,8 +49,24 @@
         "group": "资料与辅助",
         "pages": [
           "features/book-analysis",
+          "features/market-radar",
           "features/knowledge-base",
           "features/creative-hub"
+        ]
+      },
+      {
+        "group": "衍生创作",
+        "pages": [
+          "features/comic-workspace",
+          "features/short-drama-workspace"
+        ]
+      },
+      {
+        "group": "帮助",
+        "pages": [
+          "faq",
+          "troubleshooting",
+          "changelog"
         ]
       }
     ]
