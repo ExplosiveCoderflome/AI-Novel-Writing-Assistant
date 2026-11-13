@@ -1,0 +1,35 @@
+name: Mintlify Release Document Sync
+
+on:
+  workflow_run:
+    workflows: ["Desktop Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  sync-docs:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch != '' && startsWith(github.event.workflow_run.head_branch, 'v') && !contains(github.event.workflow_run.head_branch, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v6
+      - name: Verify release assets and update documentation
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: node scripts/sync-mintlify-release.cjs --tag "$RELEASE_TAG"
+      - name: Commit documentation updates
+        run: |
+          if git diff --quiet -- mintlify-docs/installation.mdx mintlify-docs/index.mdx; then
+            echo "Mintlify release documents already match this release."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mintlify-docs/installation.mdx mintlify-docs/index.mdx
+          git commit -m "优化：同步桌面版下载与首页版本信息"
+          git push
