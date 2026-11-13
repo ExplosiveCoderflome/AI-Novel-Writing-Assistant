@@ -46,3 +46,10 @@
 | POST `/:runId/reject` | `{operationIds: string[]}`；返回逐项状态 |
 
 共享类型位于 `shared/types/outlineFeedback.ts`。运行记录只供查看；采纳、拒绝、分析与重试入口由大纲来源页承载。客户端交互属于后续阶段。
+
+## 客户端交付边界（验收）
+
+- 当前 `client/` **未交付** `/outlines/:id` 大纲反馈面板（无 pending/completed/failed 列表，无逐项采纳/拒绝控件，也无对应 API 客户端封装）。
+- 章节正文编辑页的「首要问题 / 待处理」属于章节编辑问题区，**不是** A3 大纲反馈；不得用该页截图冒充反馈面板通过。
+- 未绑定 `OutlineBookBinding` 的小说不应出现反馈入口；自动 notify 不得创建 run。
+- 在产品面板交付前，验收可用隔离 API fixture / `outlineFeedback` 单测证明状态机；fixture harness 页面必须标明「非产品 UI」。
