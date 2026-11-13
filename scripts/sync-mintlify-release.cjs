@@ -68,20 +68,28 @@ async function fetchRelease(tag, token) {
 async function main(argv) {
   let tag = "";
   let dryRun = false;
+  let releaseFile = "";
+  let root = process.env.DOCS_SYNC_ROOT || path.resolve(__dirname, "..");
   for (let index = 0; index < argv.length; index += 1) {
     if (argv[index] === "--tag") tag = argv[++index] || "";
+    else if (argv[index] === "--release-file") releaseFile = argv[++index] || "";
+    else if (argv[index] === "--root") root = path.resolve(argv[++index] || "");
     else if (argv[index] === "--dry-run") dryRun = true;
     else if (argv[index] === "--help" || argv[index] === "-h") {
-      console.log("Usage: node scripts/sync-mintlify-release.cjs --tag vX.Y.Z [--dry-run]");
+      console.log("Usage: node scripts/sync-mintlify-release.cjs --tag vX.Y.Z [--dry-run] [--release-file fixture.json] [--root docs-root]");
       return;
     } else throw new Error(`Unknown argument: ${argv[index]}`);
   }
   if (!tag) throw new Error("--tag is required.");
-  const token = process.env.GITHUB_TOKEN;
-  if (!token) throw new Error("GITHUB_TOKEN is required to verify uploaded release assets.");
-
-  const version = assertCompleteRelease(await fetchRelease(tag, token), tag);
-  const root = process.env.DOCS_SYNC_ROOT || path.resolve(__dirname, "..");
+  let release;
+  if (releaseFile) {
+    release = JSON.parse(fs.readFileSync(path.resolve(releaseFile), "utf8"));
+  } else {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) throw new Error("GITHUB_TOKEN is required to verify uploaded release assets.");
+    release = await fetchRelease(tag, token);
+  }
+  const version = assertCompleteRelease(release, tag);
   const installationPath = path.join(root, "mintlify-docs", "installation.mdx");
   const homepagePath = path.join(root, "mintlify-docs", "index.mdx");
   const oldInstallation = fs.readFileSync(installationPath, "utf8");
@@ -93,7 +101,16 @@ async function main(argv) {
   for (const [file, before, after] of changes) {
     if (before === after) continue;
     console.log(`${dryRun ? "Would update" : "Updating"} ${path.relative(root, file)} for ${tag}`);
-    if (dryRun) console.log(after.split("\n").filter((line) => line !== before.split("\n").find((oldLine) => oldLine === line)).join("\n"));
+    if (dryRun) {
+      const oldLines = before.split("\n");
+      const newLines = after.split("\n");
+      for (let line = 0; line < Math.max(oldLines.length, newLines.length); line += 1) {
+        if (oldLines[line] !== newLines[line]) {
+          if (oldLines[line] !== undefined) console.log(`- ${oldLines[line]}`);
+          if (newLines[line] !== undefined) console.log(`+ ${newLines[line]}`);
+        }
+      }
+    }
   }
   if (dryRun) return;
   for (const [file, before, after] of changes) if (before !== after) fs.writeFileSync(file, after);
