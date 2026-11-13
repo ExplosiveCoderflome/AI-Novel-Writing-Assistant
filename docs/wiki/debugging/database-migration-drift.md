@@ -56,11 +56,15 @@ Prisma schema 描述应用当前期望的数据结构，但已安装桌面版和
 
 判定（本仓库 `scripts/deploy-prisma-postgres.cjs`）：
 
+安全检查会读取 `DATABASE_URL` 的 `?schema=` 或 `search_path`（默认 `public`），并扫描所有非系统 schema 的表、视图、序列和用户类型。仅有视图/序列、或对象不在 `public` 时不得判为空库。失败历史不得当作已管理库。验收 harness（`scripts/acceptance/pg-cloud-harness.cjs`）使用两个一次性数据库：一个只保留 raw `migrate deploy` 证据，另一个跑官方空库路径。
+
+
 | 数据库状态 | 官方动作 |
 | --- | --- |
-| 空库（`public` 无业务表，且无已应用的 `_prisma_migrations` 行） | 须显式 `--fresh-empty-ok`。用 `prisma migrate diff --from-empty --to-schema=src/prisma/schema.prisma --script` 应用**当前** PostgreSQL schema，再按时间顺序 `migrate resolve --applied` 登记现有迁移文件夹（checksum 取自未改动的历史文件），然后 `migrate deploy` 只处理此后新增的文件夹。 |
-| 已有 `_prisma_migrations` 历史 | 只执行 `prisma migrate deploy`。不重放、不改写已登记记录。0.8.2 的三条增量（`20261111140000` / `20261111150000` / `20261112090000`）若尚未应用，由此路径落下。 |
-| 有业务表、但没有可用的 Prisma 迁移历史（例如只做过 `db push`） | **拒绝自动 stamp**。先备份，再用 `migrate diff --from-config-datasource --to-schema` 核对。diff 非空时先补结构；仅当 diff 为空时，由运维按时间顺序手工 `migrate resolve --applied`，再 `migrate deploy`。 |
+| 空库（目标 schema 与所有非系统 schema 都没有用户对象，且无成功或失败的 `_prisma_migrations` 行） | 须显式 `--fresh-empty-ok`。用 `prisma migrate diff --from-empty --to-schema=src/prisma/schema.prisma --script` 应用**当前** PostgreSQL schema，再按时间顺序 `migrate resolve --applied` 登记现有文件夹（checksum 取自未改动的历史文件），然后 `migrate deploy` 只处理此后新增的文件夹。 |
+| 已有成功的 `_prisma_migrations` 历史，且没有失败/未完成/已回滚行 | 只执行 `prisma migrate deploy`。不重放、不改写已登记记录。0.8.2 的三条增量（`20261111140000` / `20261111150000` / `20261112090000`）若尚未应用，由此路径落下。 |
+| `_prisma_migrations` 含失败、未完成或已回滚行 | **拒绝**自动 resolve、baseline 或 deploy，保留失败证据。官方空库路径必须换一个全新的一次性空库，不得在同一库上接续（避免 P3009）。 |
+| 有用户对象（含表、视图、物化视图、序列、外部/分区表、用户类型；含非 `public` schema），但没有可用的 Prisma 迁移历史（例如只做过 `db push`） | **拒绝自动 stamp**。先备份，再用 `migrate diff --from-config-datasource --to-schema` 核对。diff 非空时先补结构；仅当 diff 为空时，由运维按时间顺序手工 `migrate resolve --applied`，再 `migrate deploy`。 |
 
 命令：
 

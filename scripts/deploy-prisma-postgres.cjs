@@ -15,14 +15,23 @@
  *   - runs `prisma migrate reset`, `db push`, DROP DATABASE, or truncate
  *   - auto-stamps `_prisma_migrations` on a database that already has user tables
  *     but no migration history (legacy db-push / unknown baseline)
+ *   - auto-stamps or `migrate deploy` when `_prisma_migrations` contains failed /
+ *     unfinished / rolled-back rows (P3009 evidence must be kept)
  *
  * Modes (see classifyPostgresState):
- *   empty    → apply current schema via `prisma migrate diff --from-empty --to-schema`
- *              then `migrate resolve --applied` for every existing folder, then
- *              `migrate deploy` (should be a no-op except for future new folders)
- *   managed  → only `prisma migrate deploy` (incremental, including 0.8.2 folders
- *              if they are not yet applied)
- *   legacy   → refuse and print a manual reconcile checklist
+ *   empty          → apply current schema via `prisma migrate diff --from-empty --to-schema`
+ *                    then `migrate resolve --applied` for every existing folder, then
+ *                    `migrate deploy` (should be a no-op except for future new folders)
+ *   managed        → only `prisma migrate deploy` (incremental, including 0.8.2 folders
+ *                    if they are not yet applied). Requires successful applied rows only.
+ *   legacy         → refuse and print a manual reconcile checklist
+ *   failed-history → refuse; do not resolve, baseline, or deploy
+ *
+ * Safety inspect (BUG-1/2/3/6):
+ *   - honors DATABASE_URL `?schema=` / `search_path` as the target schema
+ *   - scans every non-system schema for tables, views, materialized views,
+ *     sequences, foreign / partitioned tables, and user types
+ *   - failed `_prisma_migrations` rows are never classified as managed
  *
  * Usage:
  *   AI_NOVEL_DATABASE_MODE=postgresql DATABASE_URL=postgresql://... \
@@ -62,29 +71,117 @@ function listMigrationNames(migrationsDir = postgresMigrationsDir) {
     .sort((left, right) => left.localeCompare(right));
 }
 
-function classifyPostgresState({ migrationsTableExists, appliedMigrationCount, userTables }) {
-  const tables = [...new Set(userTables || [])].sort();
-  if (migrationsTableExists && appliedMigrationCount > 0) {
-    return { kind: "managed", userTables: tables, appliedMigrationCount };
+function isSystemSchema(name) {
+  const n = String(name || "");
+  return n === "pg_catalog" || n === "information_schema" || n.startsWith("pg_toast") || n.startsWith("pg_temp");
+}
+
+function parseTargetSchema(databaseUrl) {
+  const url = new URL(databaseUrl);
+  const schema = url.searchParams.get("schema");
+  if (schema && schema.trim()) return schema.trim();
+  const searchPath = url.searchParams.get("search_path");
+  if (searchPath && searchPath.trim()) {
+    return searchPath.split(",")[0].trim().replace(/^"+|"+$/g, "");
   }
-  if (tables.length > 0) {
-    return { kind: "legacy", userTables: tables, appliedMigrationCount: appliedMigrationCount || 0 };
+  const options = url.searchParams.get("options") || "";
+  const optMatch = options.match(/search_path\s*=\s*([^,\s]+)/i);
+  if (optMatch) return optMatch[1].replace(/^"+|"+$/g, "");
+  return "public";
+}
+
+function normalizeUserObjects(input, targetSchema) {
+  if (Array.isArray(input.userObjects) && input.userObjects.length > 0) {
+    return input.userObjects.map((entry) => ({
+      schema: entry.schema || targetSchema,
+      kind: entry.kind || "table",
+      name: entry.name,
+    }));
   }
-  return { kind: "empty", userTables: [], appliedMigrationCount: 0 };
+  return (input.userTables || []).map((name) => {
+    if (String(name).includes(".")) {
+      const [schema, rel] = String(name).split(".");
+      return { schema, kind: "table", name: rel };
+    }
+    return { schema: targetSchema, kind: "table", name };
+  });
+}
+
+function classifyPostgresState(input = {}) {
+  const targetSchema = input.targetSchema || "public";
+  const failedMigrations = [...(input.failedMigrations || [])];
+  const userObjects = normalizeUserObjects(input, targetSchema);
+  const userTables = [...new Set(userObjects.filter((entry) => entry.kind === "table").map((entry) => `${entry.schema}.${entry.name}`))].sort();
+  let appliedSuccessfulCount = input.appliedSuccessfulCount;
+  if (appliedSuccessfulCount == null) {
+    appliedSuccessfulCount = failedMigrations.length > 0 ? 0 : Number(input.appliedMigrationCount || 0);
+  }
+  const appliedMigrationCount = Number(
+    input.appliedMigrationCount != null ? input.appliedMigrationCount : appliedSuccessfulCount + failedMigrations.length,
+  );
+  if (failedMigrations.length > 0) {
+    return {
+      kind: "failed-history",
+      targetSchema,
+      failedMigrations,
+      appliedSuccessfulCount,
+      appliedMigrationCount,
+      userObjects,
+      userTables,
+    };
+  }
+  if (input.migrationsTableExists && appliedSuccessfulCount > 0) {
+    return {
+      kind: "managed",
+      targetSchema,
+      failedMigrations: [],
+      appliedSuccessfulCount,
+      appliedMigrationCount,
+      userObjects,
+      userTables,
+    };
+  }
+  if (userObjects.length > 0) {
+    return {
+      kind: "legacy",
+      targetSchema,
+      failedMigrations: [],
+      appliedSuccessfulCount,
+      appliedMigrationCount,
+      userObjects,
+      userTables,
+    };
+  }
+  return {
+    kind: "empty",
+    targetSchema,
+    failedMigrations: [],
+    appliedSuccessfulCount: 0,
+    appliedMigrationCount: 0,
+    userObjects: [],
+    userTables: [],
+  };
 }
 
 function planDeploy(state, flags = {}) {
+  if (state.kind === "failed-history") {
+    return {
+      action: "refuse-failed-history",
+      reason:
+        "failed or unfinished _prisma_migrations rows are present; refuse to auto-resolve, baseline, or deploy (keep the failure evidence)",
+    };
+  }
   if (state.kind === "managed") {
     return {
       action: "migrate-deploy",
-      reason: "database already has _prisma_migrations history; apply only pending incremental migrations",
+      reason: "database already has successful _prisma_migrations history; apply only pending incremental migrations",
     };
   }
   if (state.kind === "legacy") {
     return {
       action: "refuse-legacy",
       reason:
-        "tables exist without a usable Prisma migration history; refuse to auto-stamp or replay historical SQL",
+        "user schema objects exist without a usable Prisma migration history; refuse to auto-stamp or replay historical SQL",
     };
   }
   if (!flags.freshEmptyOk) {
@@ -153,6 +250,9 @@ Flags:
 
 This command is the official empty-PG path. Raw \`pnpm prisma:deploy\` on an empty
 cluster remains historically broken and must not be treated as a pass.
+
+Inspect honors DATABASE_URL ?schema= / search_path, scans all non-system
+schemas for tables/views/sequences/types, and refuses failed migration history.
 `;
 }
 
@@ -175,6 +275,7 @@ function quoteIdent(name) {
 }
 
 function inspectWithPsql(databaseUrl) {
+  const targetSchema = parseTargetSchema(databaseUrl);
   const url = new URL(databaseUrl);
   const env = { ...process.env, PGPASSWORD: decodeURIComponent(url.password || "") };
   const baseArgs = [
@@ -201,19 +302,60 @@ function inspectWithPsql(databaseUrl) {
     return (result.stdout || "").trim();
   };
 
-  const migrationsTableExists =
-    run(
-      "SELECT CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '_prisma_migrations') THEN '1' ELSE '0' END",
-    ) === "1";
-  let appliedMigrationCount = 0;
-  if (migrationsTableExists) {
-    appliedMigrationCount = Number(run(`SELECT COUNT(*) FROM ${quoteIdent("public")}.${quoteIdent("_prisma_migrations")}`));
-  }
-  const userOut = run(
-    "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations' ORDER BY tablename",
+  const migrationSchemasOut = run(
+    "SELECT n.nspname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = '_prisma_migrations' AND c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY CASE WHEN n.nspname = " +
+      quoteLiteral(targetSchema) +
+      " THEN 0 ELSE 1 END, n.nspname",
   );
-  const userTables = userOut ? userOut.split(/\n/).filter(Boolean) : [];
-  return { migrationsTableExists, appliedMigrationCount, userTables };
+  const migrationSchemas = migrationSchemasOut ? migrationSchemasOut.split(/\n/).filter(Boolean) : [];
+  const migrationsTableExists = migrationSchemas.length > 0;
+  const migrationsSchema = migrationSchemas[0] || targetSchema;
+  let appliedSuccessfulCount = 0;
+  let appliedMigrationCount = 0;
+  const failedMigrations = [];
+  if (migrationsTableExists) {
+    const tableRef = `${quoteIdent(migrationsSchema)}.${quoteIdent("_prisma_migrations")}`;
+    appliedMigrationCount = Number(run(`SELECT COUNT(*) FROM ${tableRef}`));
+    appliedSuccessfulCount = Number(
+      run(`SELECT COUNT(*) FROM ${tableRef} WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`),
+    );
+    const failedOut = run(
+      `SELECT migration_name FROM ${tableRef} WHERE finished_at IS NULL OR rolled_back_at IS NOT NULL ORDER BY started_at`,
+    );
+    for (const name of failedOut ? failedOut.split(/\n/).filter(Boolean) : []) {
+      failedMigrations.push({ name, schema: migrationsSchema });
+    }
+  }
+
+  const objectsOut = run(
+    "SELECT n.nspname || ',' || c.relkind || ',' || c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind IN ('r','p','v','m','S','f') AND c.relname <> '_prisma_migrations' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
+  );
+  const kindMap = { r: "table", p: "partitioned-table", v: "view", m: "materialized-view", S: "sequence", f: "foreign-table" };
+  const userObjects = [];
+  for (const line of objectsOut ? objectsOut.split(/\n/).filter(Boolean) : []) {
+    const [schema, relkind, name] = line.split(",");
+    userObjects.push({ schema, kind: kindMap[relkind] || relkind, name });
+  }
+  const typesOut = run(
+    "SELECT n.nspname || ',' || t.typtype || ',' || t.typname FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE t.typtype IN ('e','d') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
+  );
+  for (const line of typesOut ? typesOut.split(/\n/).filter(Boolean) : []) {
+    const [schema, typ, name] = line.split(",");
+    userObjects.push({ schema, kind: typ === "e" ? "enum" : "domain", name });
+  }
+
+  return classifyPostgresState({
+    targetSchema,
+    migrationsTableExists,
+    appliedSuccessfulCount,
+    appliedMigrationCount,
+    failedMigrations,
+    userObjects,
+  });
+}
+
+function quoteLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 function generateCurrentSchemaScript(databaseUrl) {
@@ -274,6 +416,18 @@ function migrateDeploy(databaseUrl) {
   return result;
 }
 
+function printFailedHistoryInstructions(state) {
+  const names = (state.failedMigrations || []).map((row) => row.name).join(", ") || "(unknown)";
+  console.error(`Refusing to auto-stamp, baseline, or migrate deploy on a database with failed Prisma migration history.
+
+Failed/unfinished/rolled-back rows: ${names}
+Target schema: ${state.targetSchema || "public"}
+
+Keep this evidence. Do not prisma migrate resolve, migrate reset, db push, or DROP a user database.
+Official empty-PG baseline must run on a separate, completely empty disposable database.
+`);
+}
+
 function printLegacyInstructions() {
   console.error(`Refusing to auto-stamp or replay history on a non-empty PostgreSQL database without _prisma_migrations.
 
@@ -303,11 +457,12 @@ function main() {
   const inspected = inspectWithPsql(databaseUrl);
   const state = classifyPostgresState(inspected);
   const plan = planDeploy(state, flags);
-  console.log(`[deploy-prisma-postgres] state=${state.kind} applied=${state.appliedMigrationCount} userTables=${state.userTables.length}`);
+  console.log(`[deploy-prisma-postgres] state=${state.kind} schema=${state.targetSchema || "public"} applied=${state.appliedSuccessfulCount ?? state.appliedMigrationCount} failed=${(state.failedMigrations || []).length} objects=${(state.userObjects || state.userTables || []).length}`);
   console.log(`[deploy-prisma-postgres] plan=${plan.action} (${plan.reason})`);
 
-  if (plan.action === "refuse-empty-without-flag" || plan.action === "refuse-legacy") {
+  if (plan.action === "refuse-empty-without-flag" || plan.action === "refuse-legacy" || plan.action === "refuse-failed-history") {
     if (plan.action === "refuse-legacy") printLegacyInstructions();
+    else if (plan.action === "refuse-failed-history") printFailedHistoryInstructions(state);
     else console.error("Pass --fresh-empty-ok to baseline a completely empty database (after confirming it is disposable / intended).");
     process.exit(2);
   }
@@ -347,6 +502,8 @@ module.exports = {
   SQLITE_DIALECT_FINGERPRINT,
   classifyPostgresState,
   planDeploy,
+  parseTargetSchema,
+  isSystemSchema,
   listMigrationNames,
   redactDatabaseUrl,
   requirePostgresUrl,

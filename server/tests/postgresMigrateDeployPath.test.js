@@ -9,6 +9,7 @@ const {
   SQLITE_DIALECT_FINGERPRINT,
   classifyPostgresState,
   planDeploy,
+  parseTargetSchema,
   listMigrationNames,
   requirePostgresUrl,
   generateCurrentSchemaScript,
@@ -187,4 +188,90 @@ test("deploy script CLI help and missing-flag dry-run path do not write", () => 
     env: { ...process.env, DATABASE_URL: "" },
   });
   assert.notEqual(missingUrl.status, 0);
+});
+
+test("parseTargetSchema honors Prisma schema and search_path query params", () => {
+  assert.equal(parseTargetSchema("postgresql://app@127.0.0.1:5432/tmp"), "public");
+  assert.equal(parseTargetSchema("postgresql://app@127.0.0.1:5432/tmp?schema=app"), "app");
+  assert.equal(
+    parseTargetSchema("postgresql://app@127.0.0.1:5432/tmp?schema=writing&sslmode=disable"),
+    "writing",
+  );
+  assert.equal(parseTargetSchema("postgresql://app@127.0.0.1:5432/tmp?search_path=studio,public"), "studio");
+});
+
+test("views, sequences, and non-public objects are not classified as empty", () => {
+  assert.equal(
+    classifyPostgresState({
+      targetSchema: "app",
+      migrationsTableExists: false,
+      appliedSuccessfulCount: 0,
+      userObjects: [{ schema: "app", kind: "view", name: "chapter_overview" }],
+    }).kind,
+    "legacy",
+  );
+  assert.equal(
+    classifyPostgresState({
+      targetSchema: "public",
+      migrationsTableExists: false,
+      appliedSuccessfulCount: 0,
+      userObjects: [{ schema: "public", kind: "sequence", name: "Novel_id_seq" }],
+    }).kind,
+    "legacy",
+  );
+  assert.equal(
+    classifyPostgresState({
+      targetSchema: "app",
+      migrationsTableExists: false,
+      appliedSuccessfulCount: 0,
+      userObjects: [{ schema: "public", kind: "table", name: "Novel" }],
+    }).kind,
+    "legacy",
+  );
+  assert.equal(
+    classifyPostgresState({
+      targetSchema: "app",
+      migrationsTableExists: false,
+      appliedSuccessfulCount: 0,
+      userObjects: [],
+      userTables: [],
+    }).kind,
+    "empty",
+  );
+});
+
+test("failed or rolled-back _prisma_migrations rows refuse deploy and are never managed", () => {
+  const failed = classifyPostgresState({
+    targetSchema: "public",
+    migrationsTableExists: true,
+    appliedMigrationCount: 1,
+    appliedSuccessfulCount: 0,
+    failedMigrations: [{ name: "20260328120000_schema_gap_backfill", schema: "public" }],
+    userObjects: [],
+  });
+  assert.equal(failed.kind, "failed-history");
+  assert.equal(planDeploy(failed, { freshEmptyOk: true }).action, "refuse-failed-history");
+
+  const mixed = classifyPostgresState({
+    targetSchema: "app",
+    migrationsTableExists: true,
+    appliedSuccessfulCount: 10,
+    appliedMigrationCount: 11,
+    failedMigrations: [{ name: "20261111140000_manuscript_short_story", schema: "app" }],
+    userObjects: [{ schema: "app", kind: "table", name: "Novel" }],
+  });
+  assert.equal(mixed.kind, "failed-history");
+  assert.notEqual(planDeploy(mixed, {}).action, "migrate-deploy");
+});
+
+test("pg-cloud-harness uses two disposable databases and never official-deploys on raw failure evidence", () => {
+  const src = fs.readFileSync(path.join(serverDir, "../scripts/acceptance/pg-cloud-harness.cjs"), "utf8");
+  assert.match(src, /rawDbName/);
+  assert.match(src, /officialDbName/);
+  assert.match(src, /ai_novel_cloud_raw_/);
+  assert.match(src, /ai_novel_cloud_official_/);
+  assert.match(src, /BUG-6/);
+  assert.match(src, /DATABASE_URL: officialUrl/);
+  assert.match(src, /DATABASE_URL: rawUrl/);
+  assert.match(src, /env: officialEnv/);
 });
