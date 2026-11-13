@@ -82,8 +82,8 @@
     }
   },
   "logo": {
-    "light": "https://avatars.githubusercontent.com/u/191454658?v=4",
-    "dark": "https://avatars.githubusercontent.com/u/191454658?v=4"
+    "light": "/images/logo.svg",
+    "dark": "/images/logo.svg"
   },
   "favicon": "/favicon.svg"
 }
