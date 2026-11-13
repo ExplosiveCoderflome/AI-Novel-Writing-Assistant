@@ -12,6 +12,27 @@ keywords:
 
 以下汇总近期桌面版本的用户可见更新。如需查看完整历史，可前往源仓库的 [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) 或 GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) 页面。
 
+<Update label="待正式发布" description="v0.8.2">
+
+#### 新增
+
+- 大纲绑定小说可从章节摘要生成后续大纲反馈，并逐项审阅和采纳；反馈不会改写已保存正文或大纲原稿。
+- 小说封面支持显示作者笔名。短篇原稿可按确认后的分节导入修订副本，并逐项采纳或撤回修订。
+- 删除由大纲开书创建的小说后，大纲项目与修订仍可保留并再次开书；本书专属生成图片和关联创作记录按书清理。
+
+#### 修复
+
+- 自动导演开场与章节生成共用明确的章节预算边界，保留用户确认的章节写入结果。
+
+#### 致谢
+
+- 小说封面可展示作者笔名——感谢 @baixiaomo 在 #233 中的提议
+- 短篇原稿可在确认分节后导入为修订副本并逐项采纳或撤回——感谢 @baixiaomo 在 #230 中的提议
+- 删除小说时清理本书关联创作记录与专属生成图片，避免残留历史数据——感谢 @lavakein 在 #168 中的提议
+- 大纲绑定小说可依据章节摘要生成后续大纲反馈并逐项审阅采纳——感谢 @baixiaomo 在 #229 中的提议
+
+</Update>
+
 <Update label="2026-11-13" description="v0.8.1">
 
 桌面版本 v0.8.1 修复新书空白占位卷被误判为用户固定单卷导致长篇小说无法生成多卷的问题。
