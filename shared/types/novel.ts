@@ -228,6 +228,7 @@ export interface Novel {
   directorEpoch?: number;
   id: string;
   title: string;
+  penName?: string | null;
   description?: string | null;
   targetAudience?: string | null;
   bookSellingPoint?: string | null;

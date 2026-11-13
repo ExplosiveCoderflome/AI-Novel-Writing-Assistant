@@ -15,14 +15,44 @@ Object.assign(process.env, {
 const { prisma } = require("../dist/db/prisma");
 const { ensureRuntimeDatabaseReady } = require("../dist/db/runtimeMigrations");
 const { ManuscriptImportService } = require("../dist/modules/novel/manuscript/application/ManuscriptImportService");
+const { detectShortStoryPartition } = require("../dist/modules/novel/manuscript/domain/source");
 const service = new ManuscriptImportService();
 
 test.before(() => ensureRuntimeDatabaseReady());
 test.after(async () => { await prisma.$disconnect(); fs.rmSync(dir, { recursive: true, force: true }); });
 
+test("short-story candidates cover untitled source exactly, including whitespace and CRLF", () => {
+  const text = " \r\n😀无标题开场\r\n\r\n\r\n第二场：雨\r\n正文\r\n \r\n";
+  const units = detectShortStoryPartition(text);
+  assert.ok(units.length > 1);
+  assert.ok(units.every(unit => unit.needsReview === true));
+  assert.deepEqual(units.map(unit => unit.range.start), [0, ...units.slice(0, -1).map(unit => unit.range.end)]);
+  assert.equal(units[0].range.start, 0);
+  assert.equal(units.at(-1).range.end, text.length);
+  let cursor = 0;
+  for (const unit of units) {
+    assert.equal(unit.range.start, cursor);
+    assert.ok(unit.range.end > unit.range.start);
+    assert.ok(unit.range.end <= text.length);
+    cursor = unit.range.end;
+  }
+  assert.equal(cursor, text.length);
+  assert.equal(units.map(unit => text.slice(unit.range.start, unit.range.end)).join(""), text);
+});
+
+test("short-story input without blank-line boundaries remains one complete reviewable segment", () => {
+  const text = " \r\n😀无标题全文\r\n末字 \r\n";
+  const units = detectShortStoryPartition(text);
+  assert.equal(units.length, 1);
+  assert.equal(units[0].title, "全文（短篇分节待确认）");
+  assert.deepEqual(units[0].range, { start: 0, end: text.length });
+  assert.equal(units[0].needsReview, true);
+  assert.equal(text.slice(units[0].range.start, units[0].range.end), text);
+});
+
 async function readyImport(requestKey = `import-${Date.now()}-${Math.random()}`) {
   const text = "\r\n😀第一章\r\n正文\r\n第二章\r\n末尾 sentinel";
-  const imported = await service.create({ bytes: Buffer.from(text), title: "原稿", requestKey });
+  const imported = await service.create({ bytes: Buffer.from(text), title: "原稿", narrativeForm:"long_novel", requestKey });
   const split = await service.split(imported.sessionId, 1, imported.sourceHash, "rules");
   const accepted = split.units.map(unit => ({ ...unit, needsReview: false }));
   const partition = await service.partition(imported.sessionId, split.version, imported.sourceHash, accepted);
@@ -88,9 +118,35 @@ test("same-key replay, changed payload and concurrent confirms cannot create dup
   await assert.rejects(() => service.confirm(...args, "改了payload", session.confirmedRequestKey), /IMPORT_ALREADY_CONFIRMED/);
 });
 
+test("imported short story maps raw divisions to segments and revision edits preserve source and export order", async () => {
+  const text="\r\n😀无标题开场\r\n\r\n第二场：雨\r\n雨落在窗沿。\r\n末尾 sentinel";
+  const imported=await service.create({bytes:Buffer.from(text),title:"短篇原稿",narrativeForm:"short_story",requestKey:`short-${Date.now()}`});
+  const split=await service.split(imported.sessionId,1,imported.sourceHash,"rules");
+  assert.equal(split.units.some(unit=>unit.role==="body"),true);
+  const confirmedUnits=split.units.map(unit=>({...unit,needsReview:false}));
+  const partition=await service.partition(imported.sessionId,split.version,imported.sourceHash,confirmedUnits);
+  const result=await service.confirm(imported.sessionId,partition.version,imported.sourceHash,partition.coverage.coverageHash,"短篇修订副本",`short-confirm-${Date.now()}`);
+  const project=await prisma.manuscriptProject.findUniqueOrThrow({where:{id:result.projectId}});
+  assert.equal(project.narrativeForm,"short_story");
+  const mappings=await prisma.manuscriptUnit.findMany({where:{projectId:result.projectId},orderBy:{displayOrder:"asc"}});
+  const segments=await prisma.shortStorySegment.findMany({where:{novelId:result.novelId},orderBy:{order:"asc"}});
+  assert.equal(mappings.length,segments.length);
+  assert.deepEqual(mappings.map(unit=>unit.segmentId),segments.map(segment=>segment.id));
+  assert.deepEqual(segments.map(segment=>segment.content),confirmedUnits.filter(unit=>unit.role==="body").map(unit=>text.slice(unit.range.start,unit.range.end)));
+  assert.equal(await prisma.novelWorkflowTask.count({where:{novelId:result.novelId}}),0);
+  assert.equal(await prisma.novelIntentVersion.count({where:{novelId:result.novelId}}),0);
+  assert.equal(await prisma.chapter.count({where:{novelId:result.novelId}}),0);
+  const {ManuscriptWorkspaceService,readActiveManuscriptChapters}=require("../dist/modules/novel/manuscript/application/ManuscriptWorkspaceService");
+  const workspace=await new ManuscriptWorkspaceService().byNovel(result.novelId);
+  assert.equal(workspace.currentUnit.content,segments[0].content);
+  assert.equal((await readActiveManuscriptChapters(prisma,result.novelId)).map(unit=>unit.content).join(""),segments.map(segment=>segment.content).join(""));
+  assert.equal((await prisma.manuscriptSource.findUniqueOrThrow({where:{id:imported.sourceId}})).sourceText,text);
+  assert.equal(workspace.currentUnit.originalText,text.slice(confirmedUnits.find(unit=>unit.role==="body").range.start,confirmedUnits.find(unit=>unit.role==="body").range.end));
+});
+
 test("request reuse with another source and cross-source session edits are rejected", async () => {
-  const first = await service.create({ bytes: Buffer.from("第一份全文"), title: "A", requestKey: "shared-import-key" });
-  await assert.rejects(() => service.create({ bytes: Buffer.from("另一份全文"), title: "B", requestKey: "shared-import-key" }), /REQUEST_KEY_CONFLICT/);
-  const second = await service.create({ bytes: Buffer.from("第二份全文"), title: "B", requestKey: "second-import-key" });
+  const first = await service.create({ bytes: Buffer.from("第一份全文"), title: "A", narrativeForm:"long_novel", requestKey: "shared-import-key" });
+  await assert.rejects(() => service.create({ bytes: Buffer.from("另一份全文"), title: "B", narrativeForm:"long_novel", requestKey: "shared-import-key" }), /REQUEST_KEY_CONFLICT/);
+  const second = await service.create({ bytes: Buffer.from("第二份全文"), title: "B", narrativeForm:"long_novel", requestKey: "second-import-key" });
   await assert.rejects(() => service.partition(first.sessionId, 1, second.sourceHash, [{ draftId: "x", range: { start: 0, end: 5 }, role: "body", title: "x", needsReview: false }]), /IMPORT_VERSION_CONFLICT/);
 });

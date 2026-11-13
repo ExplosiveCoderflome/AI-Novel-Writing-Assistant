@@ -3,6 +3,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { renderAdoptedOutlineContext } from "../prompts/outline/adoptedOutlineContext";
 interface RequiredContext { key: string; value: unknown }
 const contexts = new AsyncLocalStorage<RequiredContext>();
+export const withoutRequiredPromptContext = <T>(work: () => T): T => contexts.exit(work);
 export const withRequiredPromptContext = <T>(context: RequiredContext, work: () => Promise<T>) => contexts.run(context, work);
 export function appendRequiredPromptContext(messages: BaseMessage[]): BaseMessage[] {
   const context = contexts.getStore();

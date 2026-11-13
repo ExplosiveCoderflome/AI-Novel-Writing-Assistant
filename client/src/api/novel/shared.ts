@@ -22,6 +22,7 @@ export type NovelListItem = Pick<
   Novel,
   | "id"
   | "title"
+  | "penName"
   | "description"
   | "targetAudience"
   | "bookSellingPoint"

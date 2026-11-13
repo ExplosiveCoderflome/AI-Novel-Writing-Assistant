@@ -32,6 +32,7 @@ export async function listNovels({ page, limit, search, status, narrativeForm, w
         directorVersion: true,
         directorEpoch: true,
         title: true,
+        penName: true,
         description: true,
         targetAudience: true,
         bookSellingPoint: true,

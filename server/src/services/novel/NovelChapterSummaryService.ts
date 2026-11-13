@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { outlineFeedbackService } from "../../modules/planning/outline/feedback";
 import { prisma } from "../../db/prisma";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
@@ -153,6 +154,17 @@ export class NovelChapterSummaryService {
       }
     }
 
+    if (content) {
+      try {
+        outlineFeedbackService.notify(novelId, chapterId);
+      } catch (error) {
+        console.warn("[chapter-summary] outline feedback notify failed", {
+          novelId,
+          chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);
 

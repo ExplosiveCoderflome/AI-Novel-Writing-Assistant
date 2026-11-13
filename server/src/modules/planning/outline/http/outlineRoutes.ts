@@ -1,4 +1,5 @@
 import { Router } from "express";
+import feedbackRoutes from "../feedback/http/feedbackRoutes";
 import { z, ZodError } from "zod";
 import { outlineRetrySetupSchema } from "@ai-novel/shared/types/outlineOpenBook";
 import { OutlineOpenBookError } from "../openBook";
@@ -7,6 +8,7 @@ import { outlineImportPreviewService, outlineProjectService, outlineProposalServ
 import { exportOutlineJson, exportOutlineMarkdown } from "../application/OutlineTransferService";
 
 const router = Router();
+router.use("/:id/feedback", feedbackRoutes);
 router.post("/:id/open-book/preview", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.preview(String(req.params.id), req.body)}); } catch (e) { next(openBookError(e)); } });
 router.post("/:id/open-book", async (req, res, next) => { try { const data = await outlineOpenBookService.confirm(String(req.params.id), req.body); res.status(data.replayed ? 200 : 201).json({success: true, data}); } catch (e) { next(openBookError(e)); } });
 router.patch("/:id/book-binding/policy", async (req, res, next) => { try { res.json({success: true, data: await outlinePolicyService.update(String(req.params.id), req.body)}); } catch (e) { next(openBookError(e)); } });

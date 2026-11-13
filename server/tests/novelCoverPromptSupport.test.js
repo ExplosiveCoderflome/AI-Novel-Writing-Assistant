@@ -1,6 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT } = require("@ai-novel/shared/imagePrompt");
+const {
+  DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT,
+  buildNovelCoverImagePrompt,
+  buildNovelCoverNegativePrompt,
+  buildNovelCoverTitleInstruction,
+} = require("@ai-novel/shared/imagePrompt");
 const {
   DEFAULT_NOVEL_COVER_IMAGE_COUNT,
   DEFAULT_NOVEL_COVER_IMAGE_SIZE,
@@ -201,4 +206,199 @@ test("createNovelCoverTask applies novel-cover defaults without coupling to nove
     prisma.imageGenerationTask.create = originalTaskCreate;
     WorldContextGateway.prototype.getWorldContextBlock = originalGetWorldContextBlock;
   }
+});
+
+
+test("novel cover prompt includes the author pen name when it is configured", async () => {
+  const service = new ImageGenerationService();
+  service.enqueueTask = () => {};
+
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalTaskCreate = prisma.imageGenerationTask.create;
+  const originalGetWorldContextBlock = WorldContextGateway.prototype.getWorldContextBlock;
+  let createdTaskData = null;
+
+  prisma.novel.findUnique = async () => ({
+    id: "novel-cover-1",
+    title: "雾港审判局",
+    penName: "雾港夜行",
+    description: "当黑雾侵城，主角被迫成为审判者。",
+    targetAudience: null,
+    bookSellingPoint: null,
+    competingFeel: null,
+    first30ChapterPromise: null,
+    commercialTagsJson: null,
+    styleTone: null,
+    narrativePov: null,
+    pacePreference: null,
+    emotionIntensity: null,
+    storyWorldSliceJson: null,
+    genre: null,
+    primaryStoryMode: null,
+    secondaryStoryMode: null,
+    world: null,
+  });
+  prisma.imageGenerationTask.create = async ({ data }) => {
+    createdTaskData = data;
+    return {
+      id: "image-task-cover-pen-name",
+      sceneType: data.sceneType,
+      baseCharacterId: data.baseCharacterId,
+      novelId: data.novelId,
+      provider: data.provider,
+      model: data.model,
+      prompt: data.prompt,
+      negativePrompt: data.negativePrompt,
+      stylePreset: data.stylePreset,
+      size: data.size,
+      imageCount: data.imageCount,
+      seed: data.seed ?? null,
+      status: data.status,
+      progress: 0,
+      retryCount: 0,
+      maxRetries: data.maxRetries,
+      heartbeatAt: data.heartbeatAt,
+      currentStage: data.currentStage,
+      currentItemKey: data.currentItemKey,
+      currentItemLabel: data.currentItemLabel,
+      cancelRequestedAt: null,
+      error: null,
+      startedAt: null,
+      finishedAt: null,
+      createdAt: new Date("2026-05-22T10:00:00.000Z"),
+      updatedAt: new Date("2026-05-22T10:00:00.000Z"),
+    };
+  };
+  WorldContextGateway.prototype.getWorldContextBlock = async () => null;
+
+  try {
+    const task = await service.createNovelCoverTask({
+      sceneType: "novel_cover",
+      novelId: "novel-cover-1",
+      prompt: "突出雾港中的审判者主视觉",
+      promptMode: "novel_cover_chain",
+      negativePrompt: "过度拥挤，作者名",
+      provider: "openai",
+      model: "gpt-image-2",
+    });
+
+    assert.ok(task.prompt.includes('书名“雾港审判局”'));
+    assert.ok(task.prompt.includes("作者笔名“雾港夜行”"));
+    assert.ok(task.prompt.includes("Required author pen name text: 雾港夜行"));
+    assert.ok(task.negativePrompt.includes("过度拥挤"));
+    assert.ok(!task.negativePrompt.includes("作者名"));
+    assert.ok(!task.negativePrompt.includes("笔名"));
+    assert.equal(createdTaskData.penName, undefined);
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.imageGenerationTask.create = originalTaskCreate;
+    WorldContextGateway.prototype.getWorldContextBlock = originalGetWorldContextBlock;
+  }
+});
+
+test("novel cover prompt stays title-only when pen name is empty", async () => {
+  const service = new ImageGenerationService();
+  service.enqueueTask = () => {};
+
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalTaskCreate = prisma.imageGenerationTask.create;
+  const originalGetWorldContextBlock = WorldContextGateway.prototype.getWorldContextBlock;
+  let createdTaskData = null;
+
+  prisma.novel.findUnique = async () => ({
+    id: "novel-cover-1",
+    title: "雾港审判局",
+    penName: "   ",
+    description: null,
+    targetAudience: null,
+    bookSellingPoint: null,
+    competingFeel: null,
+    first30ChapterPromise: null,
+    commercialTagsJson: null,
+    styleTone: null,
+    narrativePov: null,
+    pacePreference: null,
+    emotionIntensity: null,
+    storyWorldSliceJson: null,
+    genre: null,
+    primaryStoryMode: null,
+    secondaryStoryMode: null,
+    world: null,
+  });
+  prisma.imageGenerationTask.create = async ({ data }) => {
+    createdTaskData = data;
+    return {
+      id: "image-task-cover-no-pen-name",
+      sceneType: data.sceneType,
+      baseCharacterId: data.baseCharacterId,
+      novelId: data.novelId,
+      provider: data.provider,
+      model: data.model,
+      prompt: data.prompt,
+      negativePrompt: data.negativePrompt,
+      stylePreset: data.stylePreset,
+      size: data.size,
+      imageCount: data.imageCount,
+      seed: data.seed ?? null,
+      status: data.status,
+      progress: 0,
+      retryCount: 0,
+      maxRetries: data.maxRetries,
+      heartbeatAt: data.heartbeatAt,
+      currentStage: data.currentStage,
+      currentItemKey: data.currentItemKey,
+      currentItemLabel: data.currentItemLabel,
+      cancelRequestedAt: null,
+      error: null,
+      startedAt: null,
+      finishedAt: null,
+      createdAt: new Date("2026-05-22T10:00:00.000Z"),
+      updatedAt: new Date("2026-05-22T10:00:00.000Z"),
+    };
+  };
+  WorldContextGateway.prototype.getWorldContextBlock = async () => null;
+
+  try {
+    const task = await service.createNovelCoverTask({
+      sceneType: "novel_cover",
+      novelId: "novel-cover-1",
+      prompt: "突出雾港中的审判者主视觉",
+      promptMode: "novel_cover_chain",
+      provider: "openai",
+      model: "gpt-image-2",
+    });
+
+    assert.ok(task.prompt.includes('书名“雾港审判局”'));
+    assert.ok(!task.prompt.includes("作者笔名"));
+    assert.ok(!task.prompt.includes("Required author pen name text"));
+    assert.ok(task.negativePrompt.includes("作者名"));
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.imageGenerationTask.create = originalTaskCreate;
+    WorldContextGateway.prototype.getWorldContextBlock = originalGetWorldContextBlock;
+  }
+});
+
+test("shared cover prompt helpers keep pen name out of negative constraints", () => {
+  const withPenName = buildNovelCoverImagePrompt({
+    prompt: "雾港中的审判者主视觉",
+    novel: { title: "雾港审判局", penName: "雾港夜行" },
+  });
+  assert.ok(withPenName.includes("Required title text: 雾港审判局"));
+  assert.ok(withPenName.includes("Required author pen name text: 雾港夜行"));
+  assert.ok(withPenName.includes('作者笔名“雾港夜行”'));
+
+  const titleInstructionWithoutPenName = buildNovelCoverTitleInstruction("雾港审判局");
+  assert.ok(titleInstructionWithoutPenName.includes("作者名"));
+
+  const titleInstructionWithPenName = buildNovelCoverTitleInstruction("雾港审判局", "雾港夜行");
+  assert.ok(!titleInstructionWithPenName.includes("作者名"));
+  assert.ok(titleInstructionWithPenName.includes('作者笔名“雾港夜行”'));
+
+  const negativeWithPenName = buildNovelCoverNegativePrompt(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, "雾港夜行");
+  assert.ok(!negativeWithPenName.includes("作者名"));
+  assert.ok(negativeWithPenName.includes("乱码"));
+
+  const negativeWithoutPenName = buildNovelCoverNegativePrompt(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, null);
+  assert.ok(negativeWithoutPenName.includes("作者名"));
 });

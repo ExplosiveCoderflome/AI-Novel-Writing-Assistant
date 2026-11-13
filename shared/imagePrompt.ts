@@ -14,6 +14,7 @@ export interface BuildCharacterImagePromptInput {
 
 export interface NovelCoverImagePromptNovelContext {
   title: string;
+  penName?: string | null;
   description?: string | null;
   targetAudience?: string | null;
   bookSellingPoint?: string | null;
@@ -47,7 +48,28 @@ function joinLabelValues(label: string, values: Array<string | null | undefined>
   return normalized.length > 0 ? `${label}：${normalized.join(" / ")}` : "";
 }
 
-export function buildNovelCoverTitleInstruction(title: string): string {
+const AUTHOR_NAME_NEGATIVE_TOKENS = ["作者名", "笔名", "作者署名"];
+
+export function buildNovelCoverNegativePrompt(
+  input: string | null | undefined,
+  penName?: string | null,
+): string {
+  const normalized = input?.trim() || DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT;
+  if (!penName?.trim()) {
+    return normalized;
+  }
+  const filtered = normalized
+    .split(/[，,]/u)
+    .map((item) => item.trim())
+    .filter((item) => item && !AUTHOR_NAME_NEGATIVE_TOKENS.includes(item));
+  return filtered.join("，");
+}
+
+export function buildNovelCoverTitleInstruction(title: string, penName?: string | null): string {
+  const normalizedPenName = penName?.trim();
+  if (normalizedPenName) {
+    return `必须在画面中清晰呈现唯一书名“${title}”和作者笔名“${normalizedPenName}”，书名和笔名都使用简体中文，禁止改字、漏字、增字或乱码；书名是主视觉，笔名放在书名下方或底部留白区域，清晰可读且不遮挡主体；除书名和笔名外不要生成副标题、宣传语、标签、水印或 Logo。`;
+  }
   return `必须在画面中清晰呈现唯一书名“${title}”，使用简体中文，禁止改字、漏字、增字或乱码；除书名外不要生成副标题、作者名、宣传语、标签、水印或 Logo。`;
 }
 
@@ -97,7 +119,10 @@ export function buildDefaultNovelCoverSourceDescription(novel: NovelCoverImagePr
         : "",
     novel.styleTone?.trim() ? `文风关键词：${novel.styleTone.trim()}` : "",
     joinLabelValues("叙事与节奏", [novel.narrativePovLabel, novel.pacePreferenceLabel, novel.emotionIntensityLabel]),
-    `封面目标：突出这本书最抓人的视觉卖点，生成带有准确书名“${novel.title}”的竖版完整小说封面。`,
+    novel.penName?.trim() ? `作者笔名：${novel.penName.trim()}` : "",
+    novel.penName?.trim()
+      ? `封面目标：突出这本书最抓人的视觉卖点，生成带有准确书名“${novel.title}”和作者笔名“${novel.penName.trim()}”的竖版完整小说封面。`
+      : `封面目标：突出这本书最抓人的视觉卖点，生成带有准确书名“${novel.title}”的竖版完整小说封面。`,
   ];
   return blocks.filter(Boolean).join("\n");
 }
@@ -106,10 +131,13 @@ export function buildNovelCoverImagePrompt(input: BuildNovelCoverImagePromptInpu
   const blocks = [
     input.prompt.trim(),
     input.stylePreset?.trim() ? `Style preset: ${input.stylePreset.trim()}` : "",
-    "Cover goal: vertical Chinese web-novel cover with readable title typography.",
+    input.novel.penName?.trim()
+      ? "Cover goal: vertical Chinese web-novel cover with readable title and author pen-name typography."
+      : "Cover goal: vertical Chinese web-novel cover with readable title typography.",
     `Project title: ${input.novel.title}`,
     `Required title text: ${input.novel.title}`,
-    buildNovelCoverTitleInstruction(input.novel.title),
+    input.novel.penName?.trim() ? `Required author pen name text: ${input.novel.penName.trim()}` : "",
+    buildNovelCoverTitleInstruction(input.novel.title, input.novel.penName),
     `Story premise: ${input.novel.description?.trim() || "Not specified"}`,
     `Target audience: ${input.novel.targetAudience?.trim() || "Not specified"}`,
     `Core selling point: ${input.novel.bookSellingPoint?.trim() || "Not specified"}`,

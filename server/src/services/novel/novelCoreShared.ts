@@ -21,6 +21,7 @@ export interface CreateNovelInput {
   id?: string;
   directorVersion?: "v1" | "v2";
   title: string;
+  penName?: string;
   description?: string;
   targetAudience?: string;
   bookSellingPoint?: string;
@@ -61,6 +62,7 @@ export interface CreateNovelInput {
 
 export interface UpdateNovelInput {
   title?: string;
+  penName?: string | null;
   description?: string;
   targetAudience?: string | null;
   bookSellingPoint?: string | null;

@@ -2,7 +2,7 @@ import type {ChapterEditorCandidate,ChapterEditorDiagnosticCard} from "./novel";
 import type {OutlineDocument} from "./outline";
 import type {LLMProvider} from "./llm";
 export type ManuscriptEncoding = "utf-8" | "utf-16le" | "utf-16be" | "gb18030";
-export type ManuscriptNarrativeForm = "long_novel";
+export type ManuscriptNarrativeForm = "long_novel" | "short_story";
 export type ManuscriptRange = { start: number; end: number };
 export type ManuscriptUnitRole = "body" | "toc" | "front_matter" | "back_matter" | "other_reviewed";
 export type ManuscriptSessionStatus = "uploaded" | "splitting" | "needs_review" | "ready_to_confirm" | "confirmed" | "failed" | "cancelled";

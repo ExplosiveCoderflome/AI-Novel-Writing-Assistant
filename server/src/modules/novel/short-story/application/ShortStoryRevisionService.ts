@@ -37,6 +37,8 @@ export class ShortStoryRevisionService {
   private readonly running = new Set<string>();
 
   async confirm(novelId: string, intentVersionId: string): Promise<{ taskId: string }> {
+    const imported=await prisma.manuscriptProject.findUnique({where:{novelId},select:{narrativeForm:true}});
+    if(imported?.narrativeForm==="short_story")throw new AppError("导入短篇不启动生成工作流，请在原稿修订工作区明确采纳分节候选。",409);
     const existing = await prisma.shortStoryRevisionJob.findUnique({ where: { intentVersionId } });
     if (existing) {
       if (existing.novelId !== novelId) throw new AppError("修改预览不存在。", 404);
@@ -44,6 +46,7 @@ export class ShortStoryRevisionService {
       return { taskId: existing.workflowTaskId };
     }
     const context = await loadRevisionContext(novelId);
+    if(context.imported||!context.task)throw new AppError("导入短篇不启动生成工作流，请在原稿修订工作区明确采纳分节候选。",409);
     const proposed = await prisma.novelIntentVersion.findFirst({
       where: { id: intentVersionId, novelId, workflowTaskId: context.task.id, status: "proposed", source: "revision" },
     });

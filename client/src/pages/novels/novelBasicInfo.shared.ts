@@ -5,6 +5,7 @@ import type { PowerSystemPreference } from "@ai-novel/shared/types/novelResource
 
 export interface NovelBasicFormState {
   title: string;
+  penName: string;
   description: string;
   targetAudience: string;
   bookSellingPoint: string;
@@ -245,6 +246,7 @@ export const PROJECT_STATUS_OPTIONS: Array<{ value: NovelBasicFormState["project
 ];
 
 export const BASIC_INFO_FIELD_HINTS = {
+  penName: "作者笔名会随封面一起生成。留空时封面只出现书名，不会自动编造作者名。",
   writingMode: "决定项目是从零开始，还是基于已有作品继续创作。它会直接影响后续优先使用哪些上下文来源。",
   targetAudience: "说明这本书最主要写给谁看。不会写专业人群画像也没关系，按直觉描述即可。",
   bookSellingPoint: "写清楚这本书最抓人的点，例如关系拉扯、逆袭爽点、悬念推进或设定新鲜感。",
@@ -275,6 +277,7 @@ export const BASIC_INFO_FIELD_HINTS = {
 export function createDefaultNovelBasicFormState(): NovelBasicFormState {
   return {
     title: "",
+    penName: "",
     description: "",
     targetAudience: "",
     bookSellingPoint: "",
@@ -379,6 +382,7 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     title: basicForm.title.trim(),
+    penName: basicForm.penName.trim() || undefined,
     description: basicForm.description.trim() || undefined,
     targetAudience: basicForm.targetAudience.trim() || undefined,
     bookSellingPoint: basicForm.bookSellingPoint.trim() || undefined,
@@ -438,6 +442,7 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
   return {
     title: basicForm.title,
+    penName: basicForm.penName.trim() || null,
     description: basicForm.description,
     targetAudience: basicForm.targetAudience.trim() || null,
     bookSellingPoint: basicForm.bookSellingPoint.trim() || null,

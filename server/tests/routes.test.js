@@ -1253,6 +1253,7 @@ test("novel routes preserve book framing fields through create-get-update cycle"
       },
       body: JSON.stringify({
         title: `book-framing-route-${Date.now()}`,
+        penName: "雾港夜行",
         genreId: genre.id,
         primaryStoryModeId: modes[0].id,
         secondaryStoryModeId: modes[1].id,
@@ -1268,6 +1269,7 @@ test("novel routes preserve book framing fields through create-get-update cycle"
     const createPayload = await createResponse.json();
     assert.equal(createPayload.success, true);
     assert.equal(createPayload.data.targetAudience, "爱看都市高压逆袭的读者");
+    assert.equal(createPayload.data.penName, "雾港夜行");
     assert.deepEqual(createPayload.data.commercialTags, ["逆袭", "强冲突", "职场博弈"]);
     novelId = createPayload.data.id;
 
@@ -1275,6 +1277,7 @@ test("novel routes preserve book framing fields through create-get-update cycle"
     assert.equal(detailResponse.status, 200);
     const detailPayload = await detailResponse.json();
     assert.equal(detailPayload.data.bookSellingPoint, "每次现实困局都会撬动更大的利益链。");
+    assert.equal(detailPayload.data.penName, "雾港夜行");
     assert.equal(detailPayload.data.competingFeel, "现实职场压迫感里带强反压。");
     assert.equal(detailPayload.data.first30ChapterPromise, "前 30 章必须让核心对手浮出水面。");
 
@@ -1284,6 +1287,7 @@ test("novel routes preserve book framing fields through create-get-update cycle"
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        penName: "夜行雾港",
         targetAudience: "爱看现实强冲突和关系拉扯的读者",
         first30ChapterPromise: "前 30 章必须让主角完成第一次强反压。",
         competingFeel: null,
@@ -1293,6 +1297,7 @@ test("novel routes preserve book framing fields through create-get-update cycle"
     assert.equal(updateResponse.status, 200);
     const updatePayload = await updateResponse.json();
     assert.equal(updatePayload.data.targetAudience, "爱看现实强冲突和关系拉扯的读者");
+    assert.equal(updatePayload.data.penName, "夜行雾港");
     assert.equal(updatePayload.data.competingFeel, null);
     assert.deepEqual(updatePayload.data.commercialTags, ["关系拉扯", "现实高压", "持续钩子"]);
 
@@ -1300,7 +1305,26 @@ test("novel routes preserve book framing fields through create-get-update cycle"
     assert.equal(detailAfterUpdateResponse.status, 200);
     const detailAfterUpdatePayload = await detailAfterUpdateResponse.json();
     assert.equal(detailAfterUpdatePayload.data.first30ChapterPromise, "前 30 章必须让主角完成第一次强反压。");
+    assert.equal(detailAfterUpdatePayload.data.penName, "夜行雾港");
     assert.deepEqual(detailAfterUpdatePayload.data.commercialTags, ["关系拉扯", "现实高压", "持续钩子"]);
+
+    const clearPenNameResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        penName: null,
+      }),
+    });
+    assert.equal(clearPenNameResponse.status, 200);
+    const clearPenNamePayload = await clearPenNameResponse.json();
+    assert.equal(clearPenNamePayload.data.penName, null);
+
+    const detailAfterClearResponse = await fetch(`http://127.0.0.1:${port}/api/novels/${novelId}`);
+    assert.equal(detailAfterClearResponse.status, 200);
+    const detailAfterClearPayload = await detailAfterClearResponse.json();
+    assert.equal(detailAfterClearPayload.data.penName, null);
   } finally {
     await safeDeleteNovel(port, novelId);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

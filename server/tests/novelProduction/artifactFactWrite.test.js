@@ -19,7 +19,7 @@ test('V2 summary and fact writes consume AI deltas rather than rerunning legacy 
   const compact={compactText:value=>String(value??'').replace(/\s+/g,' ').trim()};
   const writerPath=path.resolve(__dirname,'../../src/services/novel/runtime/artifactSync/facts/ChapterArtifactFactWriter.ts');
   const writer=fs.existsSync(writerPath)?loadRuntimeSource('artifactSync/facts/ChapterArtifactFactWriter.ts',{
-    '../../../../../db/prisma':{prisma},'../../../characterResource/characterResourceShared':compact,
+    '../../../../../db/prisma':{prisma},'../../../../../modules/planning/outline/feedback':{outlineFeedbackService:{notify:()=>{}}},'../../../characterResource/characterResourceShared':compact,
     '../../../fact/NovelFactService':factService,'../../../novelP0Utils':p0,
     '../ChapterArtifactSyncResult':{ChapterArtifactContentVersionError:class extends Error{}},
     '../ChapterArtifactContentVersion':version,
@@ -52,6 +52,7 @@ test('V2 working drafts do not schedule premature or duplicate embeddings; V1 in
   let legacyFactReads=0;
   const resultModule=loadRuntimeSource('artifactSync/ChapterArtifactSyncResult.ts',{});
   const {ChapterArtifactSyncService}=loadRuntimeSource('ChapterArtifactSyncService.ts',{
+    '../../../modules/planning/outline/feedback':{outlineFeedbackService:{notify:()=>{}}},
     '../../../db/prisma':{prisma:{consistencyFact:{findMany:async()=>{legacyFactReads++;return [];}}}},
     '../../../db/sqliteRetry':{},'../../rag':{ragServices:{ragIndexService:{enqueueUpsert:async(type,id)=>queued.push([type,id])}}},
     '../novelP0Utils':{},'./ChapterArtifactBackgroundSyncService':{},'./ChapterArtifactDeltaService':{buildContentHash:()=> 'hash'},
@@ -68,4 +69,44 @@ test('V2 working drafts do not schedule premature or duplicate embeddings; V1 in
   assert.deepEqual(queued,[['chapter','c'],['chapter_summary','c'],['novel','n']]);
   assert.equal(legacyFactReads,1);
   assert.equal(legacyTimelineWrites,1,'V1 timeline behavior stays independent');
+});
+
+test('notify failures do not block V2 summary and fact persistence',async()=>{
+  const summaries=[];
+  const facts=[];
+  const queued=[];
+  const content='甲交了三百两，肩伤加重。';
+  const prisma={chapter:{findFirst:async()=>({id:'c',order:2,content}),update:async()=>{}},
+    chapterSummary:{upsert:async request=>{summaries.push(request.create);}},
+    $transaction:async callback=>callback(prisma)};
+  const p0={extractFacts:()=>[{category:'plot',content:'旧关键词摘要'}]};
+  const factService={novelFactService:{writeFacts:async(n,order,items)=>{facts.push(...items);}}};
+  const compact={compactText:value=>String(value??'').replace(/\s+/g,' ').trim()};
+  const feedback={notify:()=>{throw new Error('feedback notify failed');}};
+  const writer=loadRuntimeSource('artifactSync/facts/ChapterArtifactFactWriter.ts',{
+    '../../../../../db/prisma':{prisma},'../../../../../modules/planning/outline/feedback':{outlineFeedbackService:feedback},'../../../characterResource/characterResourceShared':compact,
+    '../../../fact/NovelFactService':factService,'../../../novelP0Utils':p0,
+    '../ChapterArtifactSyncResult':{ChapterArtifactContentVersionError:class extends Error{}},
+    '../ChapterArtifactContentVersion':version,
+  });
+  const {ChapterArtifactDeltaService}=loadRuntimeSource('ChapterArtifactDeltaService.ts',{
+    '../characters/appearances':{characterAppearanceService:{applyFinalChapter:async()=>{throw Error('fact writing must not write appearances');}}},
+    '../../../db/prisma':{prisma},'../../../prompting/core/promptRunner':{},
+    '../../../prompting/prompts/novel/chapterArtifactDelta.prompts':{},'../../rag':{ragServices:{ragIndexService:{enqueueUpsert:async(type,id)=>{queued.push([type,id]);}}}},
+    '../../state/StateService':{},'../../payoff/payoffLedgerShared':{},
+    '../characterResource/CharacterResourceLedgerService':{},'../characterMind/CharacterMindService':{},
+    '../characterResource/CharacterResourceStaleScanService':{},'../characterResource/characterResourceShared':compact,
+     '../fact/NovelFactService':factService,'../novelP0Utils':p0,'../state/StateCommitService':{},
+     '../../modules/planning/outline/feedback':{outlineFeedbackService:feedback},
+    '../state/stateProposalSourceQuality':{normalizeContentProvenance:()=> 'confirmed'},
+    './artifactSync/ChapterArtifactSyncResult':{ChapterArtifactContentVersionError:class extends Error{}},
+    './artifactSync/ChapterArtifactContentVersion':version,'./artifactSync/context':{},'./artifactSync/facts':writer,
+    '../characters/locations':{},
+  });
+  const result=await new ChapterArtifactDeltaService().applyChapterArtifactConsumer({novelId:'n',chapterId:'c',content,contentHash:version.buildChapterArtifactContentHash(content),consumer:'summary_facts',artifactSyncPolicy:'director_v2',
+    output:{summary:'甲交易后负伤。',concreteFacts:[{text:'甲已支付三百两。',category:'completed'}],stateDeltas:{characterStates:[{summary:'肩伤加重'}]}}});
+  assert.equal(summaries[0].summary,'甲交易后负伤。');
+  assert.deepEqual(facts,[{text:'甲已支付三百两。',category:'completed',source:'auto'}]);
+  assert.equal(result.concreteFactCount,1);
+  assert.deepEqual(queued,[['chapter','c'],['chapter_summary','c']]);
 });

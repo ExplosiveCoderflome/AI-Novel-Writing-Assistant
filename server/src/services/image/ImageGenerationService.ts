@@ -1,6 +1,7 @@
 import {
   DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT,
   DEFAULT_NOVEL_COVER_STYLE_PRESET,
+  buildNovelCoverNegativePrompt,
   buildNovelCoverTitleInstruction,
 } from "@ai-novel/shared/imagePrompt";
 import {
@@ -86,14 +87,18 @@ function buildBookAnalysisCharacterPrompt(
   });
 }
 
-function mergeNovelCoverNegativePrompt(input: string | null | undefined): string {
-  const normalized = input?.trim();
+function mergeNovelCoverNegativePrompt(
+  input: string | null | undefined,
+  penName?: string | null,
+): string {
+  const normalized = buildNovelCoverNegativePrompt(input, penName);
+  const defaultNegativePrompt = buildNovelCoverNegativePrompt(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, penName);
   if (!normalized) {
-    return DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT;
+    return defaultNegativePrompt;
   }
-  return normalized.includes(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT)
+  return normalized.includes(defaultNegativePrompt)
     ? normalized
-    : `${normalized}，${DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT}`;
+    : `${normalized}，${defaultNegativePrompt}`;
 }
 
 function resolveTaskOwnerKey(task: {
@@ -260,7 +265,7 @@ export class ImageGenerationService {
     const novel = await loadNovelCoverNovel(input.novelId);
     const model = await resolveImageModel(provider, input.model);
     const prompt = input.promptMode === "direct"
-      ? `${input.prompt.trim()}\n${buildNovelCoverTitleInstruction(novel.title)}`
+      ? `${input.prompt.trim()}\n${buildNovelCoverTitleInstruction(novel.title, novel.penName)}`
       : await buildNovelCoverTaskPrompt({
         novelId: novel.id,
         sourcePrompt: input.prompt,
@@ -274,7 +279,7 @@ export class ImageGenerationService {
         provider,
         model,
         prompt,
-        negativePrompt: mergeNovelCoverNegativePrompt(input.negativePrompt),
+        negativePrompt: mergeNovelCoverNegativePrompt(input.negativePrompt, novel.penName),
         stylePreset: input.stylePreset?.trim() || DEFAULT_NOVEL_COVER_STYLE_PRESET,
         referenceImageAssetIdsJson: JSON.stringify(normalizeReferenceImageAssetIds(input.referenceImageAssetIds)),
         size: input.size ?? DEFAULT_NOVEL_COVER_IMAGE_SIZE,

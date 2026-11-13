@@ -27,6 +27,19 @@ export function BookFramingSection(props: BookFramingSectionProps) {
 
       <div className="grid gap-x-4 gap-y-5 md:grid-cols-2">
         <div className="space-y-2">
+          <FieldLabel htmlFor="basic-pen-name" hint={BASIC_INFO_FIELD_HINTS.penName}>
+            作者笔名
+          </FieldLabel>
+          <Input
+            id="basic-pen-name"
+            className={controlClassName}
+            value={basicForm.penName}
+            placeholder="例如：雾港夜行。留空时封面只出书名"
+            onChange={(event) => onFormChange({ penName: event.target.value })}
+          />
+        </div>
+
+        <div className="space-y-2">
           <FieldLabel htmlFor="basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>
             目标读者
           </FieldLabel>

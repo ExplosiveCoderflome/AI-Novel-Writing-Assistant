@@ -46,6 +46,7 @@ export class ShortStoryStudioService {
     if (!novel || novel.narrativeForm !== "short_story") {
       throw new AppError("短篇作品不存在。", 404);
     }
+    const imported=await prisma.manuscriptProject.findUnique({where:{novelId},select:{narrativeForm:true}}).then(value=>value?.narrativeForm==="short_story");
     const intentRow = novel.intentVersions[0] ?? null;
     const interpretation = intentRow
       ? parseJson<CreationIntentInterpretation | null>(intentRow.structuredIntentJson, null)
@@ -100,10 +101,8 @@ export class ShortStoryStudioService {
         qualityResult: parseJson(segment.qualityResultJson, null),
         updatedAt: segment.updatedAt.toISOString(),
       })),
-      continuousContent: (plan?.segments ?? [])
-        .map((segment) => segment.content.trim())
-        .filter(Boolean)
-        .join("\n\n"),
+      continuousContent: imported?(plan?.segments??[]).map(segment=>segment.content).join(""):(plan?.segments ?? [])
+        .map((segment) => segment.content.trim()).filter(Boolean).join("\n\n"),
       production: {
         taskId: task?.id ?? null,
         status: task?.status ?? null,
@@ -159,6 +158,7 @@ export class ShortStoryStudioService {
     segmentId: string,
     input: ShortStorySegmentUpdateRequest,
   ) {
+    if(await prisma.manuscriptProject.findUnique({where:{novelId},select:{narrativeForm:true}}).then(value=>value?.narrativeForm==="short_story"))throw new AppError("请在原稿修订工作区保存当前分节，保留来源对照与版本保护。",409);
     const segment = await prisma.shortStorySegment.findFirst({
       where: { id: segmentId, novelId },
     });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, DEFAULT_NOVEL_COVER_STYLE_PRESET, buildNovelCoverImagePrompt } from "@ai-novel/shared/imagePrompt";
+import { DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, DEFAULT_NOVEL_COVER_STYLE_PRESET, buildNovelCoverImagePrompt, buildNovelCoverNegativePrompt } from "@ai-novel/shared/imagePrompt";
 import {
   DEFAULT_NOVEL_COVER_IMAGE_COUNT,
   DEFAULT_NOVEL_COVER_IMAGE_SIZE,
@@ -152,7 +152,11 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
     setDirectPrompt("");
     setDirectPromptSource(null);
     setOptimizedPromptLanguage("zh");
-  }, [draftInput, props.open]);
+    setImageForm((prev) => ({
+      ...prev,
+      negativePrompt: buildNovelCoverNegativePrompt(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT, promptContext.penName),
+    }));
+  }, [draftInput, props.open, promptContext.penName]);
 
   useEffect(() => {
     if (!props.open) {
@@ -428,6 +432,11 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
               <div className="text-xs leading-5 text-slate-500">
                 这里展示最终会发送给图像模型的 prompt。你可以直接编辑，也可以在 AI 优化后继续做细调。
               </div>
+            </div>
+            <div className="text-xs leading-5 text-slate-500">
+              {promptContext.penName
+                ? `本张封面会写入作者笔名：${promptContext.penName}`
+                : "当前未填写作者笔名，封面只写书名。需要在书级基础信息中填写笔名后，封面才会带上作者名。"}
             </div>
             <textarea
               className="min-h-[240px] max-h-[40vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"

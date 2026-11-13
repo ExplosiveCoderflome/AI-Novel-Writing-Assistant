@@ -62,6 +62,7 @@ const createNovelSchema = z.object({
   directorVersion: z.enum(["v1", "v2"]).optional(),
   narrativeForm: z.enum(["long_novel", "short_story"]).optional(),
   title: z.string().trim().min(1, "标题不能为空。"),
+  penName: z.string().trim().max(40).optional(),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),
   bookSellingPoint: z.string().trim().optional(),
@@ -97,6 +98,7 @@ const createNovelSchema = z.object({
 
 const updateNovelSchema = z.object({
   title: z.string().trim().min(1).optional(),
+  penName: z.string().trim().max(40).nullable().optional(),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().nullable().optional(),
   bookSellingPoint: z.string().trim().nullable().optional(),

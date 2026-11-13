@@ -21,6 +21,7 @@ import { WorldContextGateway, type WorldContextBlock } from "../../novel/worldCo
 interface NovelCoverNovelRecord {
   id: string;
   title: string;
+  penName: string | null;
   description: string | null;
   targetAudience: string | null;
   bookSellingPoint: string | null;
@@ -105,6 +106,7 @@ export function toNovelCoverPromptContext(
   const worldContextSummary = buildWorldSummaryFromContext(worldContext);
   return {
     title: novel.title,
+    penName: normalizeOptionalText(novel.penName),
     description: normalizeOptionalText(novel.description),
     targetAudience: normalizeOptionalText(novel.targetAudience),
     bookSellingPoint: normalizeOptionalText(novel.bookSellingPoint),
@@ -129,6 +131,7 @@ export async function loadNovelCoverNovel(novelId: string): Promise<NovelCoverNo
     select: {
       id: true,
       title: true,
+      penName: true,
       description: true,
       targetAudience: true,
       bookSellingPoint: true,
@@ -214,6 +217,7 @@ export async function optimizeNovelCoverPrompt(
       sourcePrompt: input.sourcePrompt.trim(),
       stylePreset: input.stylePreset?.trim(),
       title: promptContext.title,
+      penName: promptContext.penName,
       description: promptContext.description,
       targetAudience: promptContext.targetAudience,
       bookSellingPoint: promptContext.bookSellingPoint,
@@ -242,6 +246,7 @@ export async function optimizeNovelCoverPrompt(
       stylePreset: input.stylePreset?.trim(),
       outputLanguage: input.outputLanguage,
       title: promptContext.title,
+      penName: promptContext.penName,
       structuredBrief: structured.output,
     },
     options: {

@@ -105,6 +105,7 @@ export function useNovelEditInitialization({
 
     setBasicForm({
       title: detail.title,
+      penName: detail.penName ?? "",
       description: detail.description ?? "",
       targetAudience: detail.targetAudience ?? "",
       bookSellingPoint: detail.bookSellingPoint ?? "",

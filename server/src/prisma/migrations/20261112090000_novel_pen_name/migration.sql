@@ -1,0 +1,2 @@
+ALTER TABLE "Novel"
+ADD COLUMN "penName" TEXT;

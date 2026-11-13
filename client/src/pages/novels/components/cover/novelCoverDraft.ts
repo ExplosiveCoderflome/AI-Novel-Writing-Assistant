@@ -77,6 +77,7 @@ export function buildNovelCoverDraftContext(
 
   return {
     title: normalizeOptionalText(input.basicForm.title) ?? "这本小说",
+    penName: normalizeOptionalText(input.basicForm.penName),
     description: normalizeOptionalText(input.basicForm.description),
     targetAudience: normalizeOptionalText(input.basicForm.targetAudience),
     bookSellingPoint: normalizeOptionalText(input.basicForm.bookSellingPoint),

@@ -28,6 +28,7 @@ export interface NovelCoverBriefPromptInput {
   sourcePrompt: string;
   stylePreset?: string;
   title: string;
+  penName?: string | null;
   description?: string | null;
   targetAudience?: string | null;
   bookSellingPoint?: string | null;
@@ -50,6 +51,7 @@ export interface NovelCoverPromptOptimizeInput {
   stylePreset?: string;
   outputLanguage: ImagePromptOptimizeLanguage;
   title: string;
+  penName?: string | null;
   structuredBrief: z.infer<typeof novelCoverBriefSchema>;
 }
 
@@ -250,7 +252,7 @@ export const imageNovelCoverBriefPrompt: PromptAsset<
       "1. 目标是小说封面主画面，不是海报文案，不是故事简介，不是美术评语。",
       "2. 本阶段只整理视觉意图，不直接写成长 prompt。",
       "3. 必须优先保留小说已知卖点和用户当前希望强调的画面重点，不得脱离原书重新发明题材。",
-      "4. 画面必须是带准确书名的完整竖版小说封面；forbiddenElements 只限制乱码、错误书名、重复文字、副标题、作者名、水印和 logo。",
+      "4. 画面必须是带准确书名的完整竖版小说封面；有笔名时书名与笔名都要准确呈现。forbiddenElements 只限制乱码、错误书名、重复文字、副标题、水印和 logo。",
       "5. 输出必须具体、可视化，避免空泛形容词堆砌。",
       "",
       "字段要求：",
@@ -270,6 +272,7 @@ export const imageNovelCoverBriefPrompt: PromptAsset<
       "请根据以下小说信息和用户当前想法，整理封面 brief。",
       "",
       `书名：${input.title}`,
+      `作者笔名：${input.penName?.trim() || "未提供（封面不出现作者名）"}`,
       `一句话概述：${input.description ?? "未提供"}`,
       `目标读者：${input.targetAudience ?? "未提供"}`,
       `核心卖点：${input.bookSellingPoint ?? "未提供"}`,
@@ -325,8 +328,12 @@ export const imageNovelCoverPromptOptimizePrompt: PromptAsset<
       "",
       "全局要求：",
       "1. 目标是带准确书名的完整竖版小说封面，不是无文字主画面。",
-      `2. 必须在画面中清晰呈现下面的唯一书名：${input.title}。书名使用简体中文，不得改字、漏字、增字或生成乱码。`,
-      "3. 除书名外，不要生成副标题、作者名、宣传语、标签、水印或 Logo；书名放在高对比度留白区域，不遮挡主要人物和关键情节。",
+      input.penName?.trim()
+        ? `2. 必须在画面中清晰呈现下面的唯一书名：${input.title}，以及作者笔名：${input.penName.trim()}。书名和笔名都使用简体中文，不得改字、漏字、增字或生成乱码；书名是主视觉，笔名放在书名下方或底部留白区域，清晰可读。`
+        : `2. 必须在画面中清晰呈现下面的唯一书名：${input.title}。书名使用简体中文，不得改字、漏字、增字或生成乱码。`,
+      input.penName?.trim()
+        ? "3. 除书名和笔名外，不要生成副标题、宣传语、标签、水印或 Logo；书名放在高对比度留白区域，不遮挡主要人物和关键情节。"
+        : "3. 除书名外，不要生成副标题、作者名、宣传语、标签、水印或 Logo；书名放在高对比度留白区域，不遮挡主要人物和关键情节。",
       "4. 画面适合竖版网文封面展示，主体必须清晰、识别度高，缩略图下也能抓到重点。",
       "5. 你可以强化光线、构图、镜头、材质、氛围和视觉符号，但不能背离小说的核心卖点。",
       "6. 如果更适合意象封面，可以突出核心物件、空间或异常规则痕迹，但仍需保留准确书名。",
@@ -346,6 +353,7 @@ export const imageNovelCoverPromptOptimizePrompt: PromptAsset<
       "请基于以下信息，输出最终封面图片 prompt：",
       "",
       `书名：${input.title}`,
+      `作者笔名：${input.penName?.trim() || "未提供（封面不出现作者名）"}`,
       `风格预设：${input.stylePreset?.trim() || "未提供"}`,
       "",
       "结构化 brief：",
