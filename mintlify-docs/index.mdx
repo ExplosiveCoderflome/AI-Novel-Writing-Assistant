@@ -16,6 +16,8 @@ keywords:
 
 <BnIntro />
 
+<XzIntro />
+
 <BnHome>
   <div>
     <BnHero />
@@ -688,9 +690,19 @@ export const BnHome = ({ children }) => {
   const busy = useRef(false);
   const [layers, setLayers] = useState([{ id: 0, theme: "ink" }]);
   const [fx, setFx] = useState(null);
-  const [xzIntro, setXzIntro] = useState(0);
   const xzSeen = useRef(false);
   const current = layers[layers.length - 1].theme;
+
+  useEffect(() => {
+    const onSwap = () => setLayers([{ id: Date.now(), theme: "paper" }]);
+    const onDone = () => { busy.current = false; };
+    window.addEventListener("xzi-swap", onSwap);
+    window.addEventListener("xzi-done", onDone);
+    return () => {
+      window.removeEventListener("xzi-swap", onSwap);
+      window.removeEventListener("xzi-done", onDone);
+    };
+  }, []);
 
   const kids = (Array.isArray(children) ? children : [children]).filter((c) => c && typeof c === "object");
   const renderSet = (t) => (t === "ink" ? kids[0] : kids[1]) || null;
@@ -700,10 +712,11 @@ export const BnHome = ({ children }) => {
     const to = current === "ink" ? "paper" : "ink";
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) { setLayers([{ id: Date.now(), theme: to }]); return; }
-    if (to === "paper" && !xzSeen.current) {
+    if (to === "paper" && !xzSeen.current && window.__xziReady) {
       xzSeen.current = true;
       busy.current = true;
-      setXzIntro(Date.now());
+      window.dispatchEvent(new CustomEvent("xzi-play"));
+      setTimeout(() => { busy.current = false; }, 8000);
       return;
     }
     busy.current = true;
@@ -783,10 +796,6 @@ export const BnHome = ({ children }) => {
         <div className="bnh-glyph" style={toPaper ? { color: "#1c1a17", fontFamily: "\"Noto Serif SC\",\"Songti SC\",serif" } : { color: "#4ade80", textShadow: "0 0 40px rgba(34,197,94,.8)" }}>{toPaper ? "墨" : "夜"}</div>
       )}
 
-      {xzIntro > 0 && (
-        <XzIntro key={xzIntro} onSwap={() => setLayers([{ id: Date.now(), theme: "paper" }])} onDone={() => { setXzIntro(0); busy.current = false; }} />
-      )}
-
       <button type="button" className={"bnh-tg " + current} onClick={toggle} aria-label={current === "ink" ? "切换到宣纸水墨主题" : "切换到墨夜书卷主题"}>
         <span className="bnh-orb" style={{ transform: current === "paper" ? "rotate(180deg)" : undefined }}><i /></span>
         <span className="bnh-lab">{current === "ink" ? "切换水墨" : "切换墨夜"}</span>
@@ -795,41 +804,64 @@ export const BnHome = ({ children }) => {
   );
 };
 
-export const XzIntro = ({ onSwap, onDone }) => {
+export const XzIntro = () => {
   const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
   const COL_A = "一句灵感".split("");
   const COL_B = "徐徐展开成书".split("");
+  const [run, setRun] = useState(0);
   const [ph, setPh] = useState(0);
-  const [splat] = useState(() => Array.from({ length: 16 }, (_, i) => {
+  const splat = useMemo(() => Array.from({ length: 16 }, (_, i) => {
     const a = (i / 16) * Math.PI * 2 + Math.random() * 0.5;
     const d = 150 + Math.random() * 230;
     return { dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.8, s: 3 + Math.random() * 10, delay: Math.random() * 0.12, red: i % 6 === 0 };
-  }));
+  }), [run]);
   const timers = useRef([]);
   const swapped = useRef(false);
+  const emit = (name) => window.dispatchEvent(new CustomEvent(name));
+  const clearAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
   const swap = () => {
     if (swapped.current) return;
     swapped.current = true;
-    if (onSwap) onSwap();
+    emit("xzi-swap");
   };
-  const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
+  const finish = () => {
+    clearAll();
+    setRun(0);
+    setPh(0);
+    emit("xzi-done");
+  };
 
   useEffect(() => {
+    const play = () => setRun(Date.now());
+    window.addEventListener("xzi-play", play);
+    window.__xziReady = true;
+    return () => {
+      window.removeEventListener("xzi-play", play);
+      window.__xziReady = false;
+      clearAll();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!run) return;
+    swapped.current = false;
+    setPh(0);
     later(700, () => setPh(1));
     later(1350, () => setPh(2));
     later(3800, () => setPh(3));
     later(4600, swap);
     later(4750, () => setPh(4));
-    later(6150, () => { if (onDone) onDone(); });
-    return () => { timers.current.forEach(clearTimeout); timers.current = []; };
-  }, []);
+    later(6150, finish);
+  }, [run]);
+
+  if (!run) return null;
 
   const skip = () => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
+    clearAll();
     swap();
     setPh((p) => (p >= 2 ? 4 : 5));
-    later(1450, () => { if (onDone) onDone(); });
+    later(1450, finish);
   };
 
   const show = ph >= 2 && ph < 5;
