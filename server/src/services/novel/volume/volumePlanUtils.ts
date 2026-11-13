@@ -153,7 +153,6 @@ function normalizeText(value: string | null | undefined): string | null {
 
 import {
   INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX as SHARED_INITIALIZATION_PLACEHOLDER_VOLUME_ID_PREFIX,
-  INITIALIZATION_PLACEHOLDER_VOLUME_TEXT_PREFIX,
   isInitializationPlaceholderVolume as sharedIsInitializationPlaceholderVolume,
 } from "@ai-novel/shared/types/volumePlanning";
 
