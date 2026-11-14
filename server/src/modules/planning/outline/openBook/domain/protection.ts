@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { OutlineBookMapping, OutlineBookPolicy } from "@ai-novel/shared/types/outlineOpenBook";
 import { currentOutlinePlanning, readOutlinePlanningState, assertOutlineReference, type OutlinePlanningState } from "../application/OutlinePlanningContext";
 import { canonicalJson } from "./mapping";
 import { OutlineOpenBookError } from "./errors";
@@ -7,6 +8,30 @@ function conflict(field: string): never { throw new OutlineOpenBookError("OUTLIN
 const text = (value: unknown) => typeof value === "string" ? value.trim() : value ?? null;
 const volumeFields: Record<string, string> = {title: "title", summary: "summary", promise: "mainPromise", pressure: "primaryPressureSource", protagonistChange: "protagonistChange", climax: "climax", endingHook: "nextVolumeHook"};
 const chapterFields: Record<string, string> = {title: "title", summary: "summary", purpose: "purpose"};
+/** Guard-pinned chapter fields, keyed by workspace plan chapter id. Read-path hydration
+ *  must leave these untouched: the persisted workspace already carries the preserved
+ *  values, and overwriting them with diverged execution briefs makes the guard reject
+ *  every later write through the same document. Mirrors the chapter-field filter in
+ *  assertOutlineWorkspaceCandidate (same mode exclusion, same field table). */
+export async function readPreservedChapterFields(db: Pick<Prisma.TransactionClient, "outlineBookBinding">, novelId: string): Promise<Map<string, ReadonlySet<string>>> {
+  const preserved = new Map<string, Set<string>>();
+  const binding = await db.outlineBookBinding.findUnique({where: {novelId}});
+  if (!binding) return preserved;
+  const mapping = JSON.parse(binding.mappingJson) as OutlineBookMapping;
+  const policy = JSON.parse(binding.policyJson) as OutlineBookPolicy;
+  const planByNode = new Map(mapping.chapters.map(c => [c.nodeId, c.planId]));
+  for (const rule of policy.rules) {
+    if (rule.mode === "fill_missing") continue;
+    const docField = chapterFields[rule.field];
+    if (!docField) continue;
+    const planId = planByNode.get(rule.nodeId);
+    if (!planId) continue;
+    const fields = preserved.get(planId) ?? new Set<string>();
+    fields.add(docField);
+    preserved.set(planId, fields);
+  }
+  return preserved;
+}
 export function assertOutlineWorkspaceCandidate(state: OutlinePlanningState, candidate: VolumePlanDocument) {
   const {mapping: m, policy} = state;
   for (const mapped of m.volumes) {
