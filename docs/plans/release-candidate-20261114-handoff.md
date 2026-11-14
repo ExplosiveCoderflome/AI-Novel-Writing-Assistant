@@ -28,9 +28,19 @@
 - 父任务操作顺序：打开 URL，查看“章节反馈”，对 `mock-summary` 点拒绝并核对状态；再对另一条建议点采纳。也可刷新确认分析完成后建议仍需逐项处理。
 - 已验证证据：分析前 `/tmp/anw-a3-acceptance/evidence-before.json`；拒绝后 `/tmp/anw-a3-acceptance/evidence-after-reject.json`；采纳后 `/tmp/anw-a3-acceptance/evidence-after-adopt.json`。拒绝阶段修订号和节点值不变；采纳阶段从修订号1变为2，仅后续 `a3-s3.purpose` 变化；第1章正文始终为“已写正文：主角发现钥匙是假的。”。
 
+## PG 脚本修复与隔离验收
+
+- 修复提交：`8286e39e`。官方检查对 `pg_class.relkind`、`pg_type.typtype` 及相关名称显式 cast 为 `text`，并避免对已分类 inspect state 二次分类；未修改历史 migration SQL。
+- `export COREPACK_HOME=/home/box/.local/share/corepack; node --test server/tests/postgresMigrateDeployPath.test.js`：退出码 `0`，14/14 通过。
+- `PG_ADMIN_URL=postgresql://pgaccept@127.0.0.1:45432/postgres node scripts/acceptance/pg-cloud-harness.cjs`：退出码 `0`；raw 裸 `prisma migrate deploy` 仍按历史链失败并保留为证据，official fresh baseline/stamp/deploy 成功（112 个历史目录），官方 PG harness 5/5 通过；两库已清理。
+- `DATABASE_URL=.../ai_novel_cloud_incremental_20261114 node scripts/deploy-prisma-postgres.cjs --fresh-empty-ok`：退出码 `0`；随后再次运行 managed 增量路径：退出码 `0`，`migrate deploy` 幂等完成。
+- 隔离安全负例：已有用户表无迁移历史 + `--fresh-empty-ok` 退出码 `2`；新鲜空库缺少 `--fresh-empty-ok` 退出码 `2`。均未放行自动 stamp/deploy。
+- 期间曾发现候选树 `server/dist` 为旧 SQLite client；按既有 A3 交接约定用 PostgreSQL schema 重新 `prisma generate` 并 `server build` 后复验，未修改 A3 服务（43173/43174/43175）。
+
 ## 传输包与阻塞
 
-- 传输包：`/workspace/anw-release-candidate-20261114-0.8.2-9f5d3c7f.tar.gz`。
-- SHA-256：`42d1c9c7253e54f1fd2a33ebc9a9c1fbfa6a238f359dd25b827d5dbff47bdb4e`，记录于同目录 `.sha256` 文件。
-- 包对应代码提交 `9f5d3c7f`，仅含 Git 跟踪源树；排除 `.git`、node_modules、env、数据库、日志、构建产物和 i18n/ZCode。
+- 旧传输包 `/workspace/anw-release-candidate-20261114-0.8.2-9f5d3c7f.tar.gz` 已过期；应以本轮新包为准。
+- 新包：`/workspace/anw-release-candidate-20261114-0.8.2-8286e39e.tar.gz`；SHA-256 与 `.sha256` 文件在 `/workspace/` 生成。
+- 新包对应本轮修复提交 `8286e39e`，仅含 Git 跟踪源树；排除 `.git`、node_modules、env、数据库、日志、构建产物和 i18n/ZCode。
+- 临时 PG 使用 `127.0.0.1:45432`，验收结束后执行 `pg_ctl -D /workspace/anw-pg-cluster -m fast -w stop`；未连接或占用系统 `5432`。
 - 发布阻塞：需有权限的 GitHub 账号重新核对 `v0.8.2` Release 状态；随后由发布流程决定是否创建匹配 tag 和安装包。本轮已本地提交，未 push、未打 tag、未发布。
