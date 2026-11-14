@@ -22,6 +22,13 @@
 3. 在不连接业务库的受控子进程中复现模块加载副作用，检查模块身份和所需数据库方法是否保留。
 4. 若隔离后仍失败，保留第一条业务错误，分别核对遗漏的数据库桩、真实数据库场景分组及原业务契约。不能把所有剩余失败都归因于缓存污染。
 
+## Prisma provider 与结果通道
+
+- `prisma generate` 会按 schema 覆盖默认 `@prisma/client` 的 provider；数据库 URL 和 adapter 不会把已生成的 PostgreSQL client 自动变成 SQLite client。`test:all` 只构建和运行测试，不负责 generate 或数据库迁移。运行前应确认默认 client 是 SQLite，真实数据库场景通过各自的临时库迁移入口准备表。
+- 新增业务读取后，纯单元测试必须补齐持久化端口。例如普通小说夹具应显式让 `manuscriptProject.findUnique` 返回 `null`；不能通过迁移开发库来掩盖未隔离的查询。共享进程批次中的 `beforeEach` 必须限定在所属 suite 内，避免影响其他文件的数据库替身。
+- `scripts/acceptance/pg-cloud-harness.cjs` 的 `PG_ADMIN_URL` 用于外层创建隔离库；`pgCloudAcceptance.harness.test.js` 直接要求已准备好的 PostgreSQL `DATABASE_URL`。混合测试应让 PG URL 与单独生成的 PG client 仅进入该文件的子进程，SQLite 父进程必须保留自己的 URL 和默认 client。若使用环境 preload，应检查实际入口 `process.argv[1]`，不能搜索整个 argv：父测试运行器的参数列表也包含 PG 测试文件名，误匹配会使其他测试继承 PG URL。
+- 子进程的断言结果须使用专属记录前缀，与业务日志区分。不能从 stdout 中寻找最后一个以 `{` 开头的行再当作 JSON；Node 的多行对象日志也会包含这样的行，且异步日志可能晚于结果输出。`p0bRealPrismaChain.test.js` 使用 `P0B_RESULT=` 标识结果，保留所有业务断言。
+
 ## 验证与证据边界
 
 测试运行器的回归应执行真实脚本，在临时目录创建受控测试文件，验证快速模式不执行数据库场景、集成模式仍执行这些场景，以及文件间全局状态不泄漏。只搜索脚本中的名单或参数不能证明执行行为。

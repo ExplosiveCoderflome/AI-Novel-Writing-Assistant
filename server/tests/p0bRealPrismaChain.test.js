@@ -385,7 +385,7 @@ async function main() {
         ? JSON.parse(refreshedTask.resumeTargetJson)
         : null;
 
-      console.log(JSON.stringify({
+      console.log("P0B_RESULT=" + JSON.stringify({
         scenario,
         workspaceSource: persistedWorkspace.source,
         persistedStrategy: Boolean(persistedWorkspace.strategyPlan),
@@ -407,7 +407,7 @@ async function main() {
 
     await reviewService.auditChapter(novel.id, chapter.id, "plot", {});
 
-    console.log(JSON.stringify({
+    console.log("P0B_RESULT=" + JSON.stringify({
       scenario,
       workspaceSource,
       sourceBeforeMigration,
@@ -460,11 +460,11 @@ function runScenario(scenario) {
       .map((line) => line.trim())
       .filter(Boolean)
       .reverse()
-      .find((line) => line.startsWith("{"));
+      .find((line) => line.startsWith("P0B_RESULT="));
     if (!jsonLine) {
       throw new Error(`Child scenario did not write a JSON result. stdout=${stdout}`);
     }
-    return JSON.parse(jsonLine);
+    return JSON.parse(jsonLine.slice("P0B_RESULT=".length));
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

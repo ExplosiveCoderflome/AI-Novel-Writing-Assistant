@@ -85,7 +85,9 @@ test("production interface selection keeps the same full-book automation", () =>
   }
 });
 
-test("complete-workspace selection starts the same chapter execution", async () => {
+test("complete-workspace selection starts the same chapter execution", async (t) => {
+  const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
+  stubDatabaseMethod(t, prisma.taskCenterArchive, "findUnique", async () => null);
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     transaction: prisma.$transaction,

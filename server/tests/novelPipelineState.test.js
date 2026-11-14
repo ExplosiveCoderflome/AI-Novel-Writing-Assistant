@@ -8,6 +8,13 @@ const reviewService = require("../dist/services/novel/novelCoreReviewService.js"
 const { NovelCorePipelineService } = require("../dist/services/novel/novelCorePipelineService.js");
 const { ChapterEmptyContentError } = require("../dist/services/novel/runtime/chapterEmptyContentError.js");
 const { decoratePipelineJob } = require("../dist/services/novel/pipelineJobState.js");
+const { stubDatabaseMethod } = require("./legacyDirector/databasePorts.js");
+
+test.describe("pipeline state with isolated persistence ports", () => {
+test.beforeEach((t) => {
+  stubDatabaseMethod(t, prisma.manuscriptProject, "findUnique", async () => null);
+  stubDatabaseMethod(t, prisma.chapter, "findFirst", async () => null);
+});
 
 function installSuccessfulExecutionLease(service) {
   const executor = service.pipelineExecutor;
@@ -730,4 +737,5 @@ test("executePipeline records empty chapter output in failed job notice payload"
     prisma.chapter.findMany = original.chapterFindMany;
     novelEventBus.emit = original.emit;
   }
+});
 });
