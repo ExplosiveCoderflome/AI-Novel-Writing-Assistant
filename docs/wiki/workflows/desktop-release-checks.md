@@ -24,6 +24,12 @@
 
 缺少 artifact、来自旧 run 或错 attempt、HEAD/版本不一致、清单缺项、状态不是 `passed`，都必须 fail-closed。PG proof 缺失或不匹配时同样禁止发布。
 
+### Windows Prisma 子进程
+
+Windows 的 `.cmd` 批处理入口不能通过 `spawnSync(..., { shell: false })` 直接运行；典型证据是 `EINVAL` 且 status/signal 均为 null，此时 Prisma 尚未执行。官方 PostgreSQL 部署脚本从 server 工作区解析 `prisma/build/index.js`，用 `process.execPath` 和参数数组启动，避免 shell 解释路径空格与元字符，并保留超时、signal、stdout/stderr 和启动错误诊断。
+
+非发布 Windows probe 必须复用生产 `runPrisma()`，不能另写包管理器启动逻辑。Linux 定向测试通过只能证明可移植路径和迁移断言；真实 Windows runner 的 probe 与后续测试通过才是 Windows 验证证据。`migrate diff --from-empty --to-schema` 不连接数据库，无需启动 PostgreSQL。
+
 ## Related Modules
 
 - `.github/workflows/desktop-release.yml`

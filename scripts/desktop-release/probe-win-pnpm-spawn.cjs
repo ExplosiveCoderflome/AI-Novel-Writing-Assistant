@@ -1,19 +1,13 @@
 #!/usr/bin/env node
 /**
- * Non-publish probe: spawn pnpm(.cmd) with shell:false for prisma migrate diff.
+ * Non-publish probe: use the production Node/Prisma launch path for migrate diff.
  * Used by Windows Publish Path Verify CI only — does not tag or upload.
  */
-const { spawnSync } = require("node:child_process");
-const path = require("node:path");
-
-const repoRoot = path.resolve(__dirname, "../..");
-const serverDir = path.join(repoRoot, "server");
-const cmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const result = spawnSync(
-  cmd,
+const { runPrisma, childProcessFailure } = require("../deploy-prisma-postgres.cjs");
+const cmd = process.execPath;
+const result = runPrisma(
+  "postgresql://prisma_diff:prisma_diff@127.0.0.1:5432/prisma_diff_dummy",
   [
-    "exec",
-    "prisma",
     "migrate",
     "diff",
     "--config",
@@ -22,16 +16,6 @@ const result = spawnSync(
     "--to-schema=src/prisma/schema.prisma",
     "--script",
   ],
-  {
-    cwd: serverDir,
-    encoding: "utf8",
-    shell: false,
-    timeout: 120_000,
-    env: {
-      ...process.env,
-      DATABASE_URL: "postgresql://prisma_diff:prisma_diff@127.0.0.1:5432/prisma_diff_dummy",
-    },
-  },
 );
 
 const report = {
@@ -48,12 +32,12 @@ const report = {
 console.log(JSON.stringify(report, null, 2));
 
 if (result.error) {
-  console.error("[probe-win-pnpm-spawn] spawn failed");
+  console.error(childProcessFailure(result, "production prisma migrate diff probe"));
   process.exit(1);
 }
 if (result.status !== 0) {
   console.error("[probe-win-pnpm-spawn] prisma migrate diff non-zero");
-  console.error(String(result.stderr || result.stdout || ""));
+  console.error(childProcessFailure(result, "production prisma migrate diff probe"));
   process.exit(1);
 }
 if (!String(result.stdout || "").includes("CREATE TABLE")) {

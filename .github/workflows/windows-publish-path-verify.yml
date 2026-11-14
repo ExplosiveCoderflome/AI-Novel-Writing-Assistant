@@ -38,7 +38,7 @@ jobs:
 
       - run: pnpm --filter @ai-novel/server build
 
-      - name: Probe pnpm.cmd non-shell prisma migrate diff on Windows
+      - name: Probe production Node Prisma migrate diff on Windows
         run: node scripts/desktop-release/probe-win-pnpm-spawn.cjs
 
       - name: Targeted Windows server tests (migrate path + runner isolation)

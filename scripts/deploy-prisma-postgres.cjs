@@ -212,7 +212,9 @@ function prismaEnv(databaseUrl) {
 }
 
 function runPrisma(databaseUrl, args, options = {}) {
-  const result = spawnSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", ["exec", "prisma", ...args], {
+  // Resolve from the server workspace; Windows cannot execute .cmd with shell:false.
+  const cli = require.resolve("prisma/build/index.js", { paths: [serverDir] });
+  const result = spawnSync(process.execPath, [cli, ...args], {
     cwd: serverDir,
     encoding: "utf8",
     env: prismaEnv(databaseUrl),
@@ -519,6 +521,7 @@ module.exports = {
   listMigrationNames,
   redactDatabaseUrl,
   requirePostgresUrl,
+  runPrisma,
   generateCurrentSchemaScript,
   childProcessFailure,
   postgresSchemaPath,
