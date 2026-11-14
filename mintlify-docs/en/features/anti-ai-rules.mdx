@@ -1,0 +1,115 @@
+---
+title: "Anti-AI Rules"
+description: "Reduce templated phrasing, over-explanation, and unnatural expressions in AI-written prose with reusable rules that guide generation and post-writing checks."
+icon: "ban"
+keywords:
+  - "anti-ai rules"
+  - "de-ai"
+  - "templated phrasing"
+  - "prose polish"
+---
+
+Anti-AI Rules are used to reduce common templated phrasing, explanatory tone, and unnatural expressions in prose. They are not a mystical switch to make text "completely unlike AI writing," but rather a way to organize expression issues you do not want into inspectable, reusable rules.
+
+<Note>
+  Anti-AI Rules can only handle clearly defined issues. They still need to be combined with style assets, character dialogue rules, chapter briefs, and human review for full adjustment.
+</Note>
+
+## What Anti-AI Rules Can Do for You
+
+- Suppress empty summaries, over-explanation, direct emotional telling, and templated phrasing.
+- Constrain character dialogue so characters speak more like people and less like plot summaries.
+- Provide expression boundaries before prose generation.
+- Provide inspection direction after prose generation for detection and correction.
+- Work with style assets to bring the work closer to your desired narrative flavor.
+
+## When to Use Them
+
+- Chapter content can be written, but it reads with obvious templated phrasing.
+- Character dialogue sounds like narration, lacking the character's own voice.
+- Descriptions frequently contain empty adjectives, slogan-like summaries, or over-explanation.
+- You want to centrally maintain a set of global default rules.
+- You want to prepare dedicated available rules for a particular style.
+
+## Before You Start
+
+First collect the expression issues you encounter most often. Do not write too many rules from the start; excessive rules may conflict with each other and make prose generation stiff.
+
+We recommend starting with these categories:
+
+- **Empty summaries**: for example, only saying "he felt shocked" without specific actions and scenes.
+- **Over-explanation**: directly stating character motivation, theme, and relationship changes.
+- **Unnatural dialogue**: characters speaking like the author explaining setting details.
+- **Repetitive phrasing**: continuously using similar emotional and action expressions.
+- **Modern or internet slang intruding**: anachronistic vocabulary appearing in unsuitable genres.
+
+## Recommended Workflow
+
+<Steps>
+  <Step title="Open Anti-AI Rules">
+    Find the "Anti-AI Rules" (反 AI 规则) entry in the workbench navigation.
+  </Step>
+  <Step title="Review existing rules">
+    Search rules by category or by name and description; expand "Rule details" to view generation instructions, revision suggestions, and detection reference expressions.
+  </Step>
+  <Step title="Create or edit rules">
+    Clearly write the problem to avoid and the recommended correction direction. When needed, you can use AI to help generate or optimize rule drafts.
+  </Step>
+  <Step title="Save after confirmation">
+    Review draft content and confirm it suits your work before saving.
+  </Step>
+  <Step title="Set effective scope">
+    In "Effective scope" select global default or a specific style, expand "View rules," and verify which rules participate in generation and testing.
+  </Step>
+  <Step title="Effect testing">
+    Click **Effect Test** (效果测试) to locate the test area, paste a complete scene, then click **Check expression** (检查表达) or **Preview local revision** (预览局部修订). When comparing other rules, first click **Add to test** (加入测试) in the list; the same rule is only counted once.
+  </Step>
+  <Step title="Verify before actual use">
+    After verifying test results, return to the Style Engine or chapter execution to observe actual prose. Temporary testing does not change rule toggles or novel settings.
+  </Step>
+</Steps>
+
+## How to Enter the Subsequent Creative Chain
+
+Anti-AI Rules can affect subsequent writing in two ways:
+
+- **Global default rules**: suitable for issues that all works should avoid.
+- **Style-specific available rules**: suitable for expression constraints tied to a particular style or genre.
+
+They work together with the Style Engine, chapter generation, prose inspection, and correction. More rules are not always better; the key is accurately describing the issues you want to suppress.
+
+**Effect Test** can temporarily add rules. After pasting a complete scene, view layered alerts and local revision previews. Inspection focuses on expression issues, not author attribution; a single word match does not directly constitute a violation. Suggestions requiring plot adjustments serve only as alerts; when revision protection fails, the original draft is preserved. Previews are not automatically saved to the novel; please verify character voice and setting before adopting.
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="Are stricter Anti-AI Rules always better?">
+    No. Overly strict rules can make prose stiff and even affect character expression. Prioritize the most obvious and most frequently occurring issues.
+  </Accordion>
+
+  <Accordion title="Can AI automatically create rules?">
+    You can let AI generate or optimize rule drafts, but drafts should be confirmed by you before saving. The system should not change writing rules for you without confirmation.
+  </Accordion>
+
+  <Accordion title="What if rules conflict with style assets?">
+    Prioritize whichever better suits the current work. If a style requires emotional elaboration while an Anti-AI Rule prohibits all emotional expression, loosen the rule rather than letting the two pull against each other.
+  </Accordion>
+
+  <Accordion title="Why does prose still feel AI-like after rules take effect?">
+    Anti-AI Rules can only handle clearly defined issues. They still need to be combined with style assets, character dialogue rules, chapter briefs, and human review for full adjustment.
+  </Accordion>
+
+  <Accordion title="Which rules suit global default?">
+    Basic issues suitable for all works, such as avoiding empty summaries, avoiding dialogue that explains setting, and avoiding consecutive repetitive phrasing. Genre-specific or style-specific rules are better placed inside style assets.
+  </Accordion>
+</AccordionGroup>
+
+<CardGroup cols={2}>
+  <Card title="Style Engine" icon="pen-nib" href="/en/features/style-engine">
+    Save, edit, and reuse narrative styles, working with Anti-AI Rules to improve expression stability
+  </Card>
+
+  <Card title="Character Library" icon="users" href="/en/features/character-library">
+    Save reusable character assets to keep character settings consistent
+  </Card>
+</CardGroup>

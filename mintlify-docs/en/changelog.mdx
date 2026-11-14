@@ -1,0 +1,250 @@
+---
+title: "Changelog"
+description: "User-facing updates for each Biz Novel Studio desktop release: new features, fixes, and improvements to the AI novel writing workbench, newest first."
+sidebarTitle: "Changelog"
+icon: "clock-rotate-left"
+keywords:
+  - "changelog"
+  - "release notes"
+  - "version history"
+  - "Biz Novel Studio"
+---
+
+Below is a summary of recent desktop release updates. For the full history, visit the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) or the GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) page.
+
+<Update label="2026-11-13" description="v0.8.1">
+  Desktop v0.8.1 fixes an issue where a new book's blank placeholder volume was incorrectly treated as a user-confirmed single volume, preventing long novels from generating a multi-volume structure.
+
+  #### Fixes
+
+  - The initial blank placeholder volume (`legacy-volume-1`, content "待补全") on a new book is no longer treated as a user-confirmed single-volume plan. Novels targeting 200 chapters can now properly suggest and generate a multi-volume structure instead of being locked to a single volume.
+</Update>
+
+<Update label="2026-11-13" description="v0.8.1">
+  Desktop v0.8.1 fixes an issue where a new book's blank placeholder volume was incorrectly treated as a user-confirmed single volume, preventing long novels from generating a multi-volume structure.
+
+  #### Fixes
+
+  - The initial blank placeholder volume (content "待补全") on a new book is no longer treated as a user-confirmed single-volume plan. Novels targeting 200 chapters can now properly suggest and generate a multi-volume structure instead of being locked to a single volume.
+</Update>
+
+<Update label="2026-11-13" description="v0.8.0">
+  Desktop v0.8.0 merges the outline-based writing workbench and book-start flow into the stable release, keeps the docs site "落笔成书" new homepage, and fixes issues where short-volume chapter outlines were inflated to 12 chapters and beat boards failed to persist due to overlap. The original-draft revision entry is disabled by default.
+
+  #### New
+
+  - Standalone Outline Workbench: create outline projects, import, edit, view revision history, and use AI modification proposals.
+  - Start a book from an adopted outline: supports confirm-to-start, desktop handoff, and per-chapter writing protection; the fully automatic writing path without a bound outline remains unchanged.
+  - Manual saves and AI proposal adoptions in the outline keep independent revisions; AI first drafts and modification suggestions only become current content after confirmation; supports viewing revision history and exporting JSON or Markdown.
+  - Supports parsing Markdown or TXT into a preview outline for confirmation: verify nodes against source snippets, uncategorized content, and coverage gaps before creating the outline.
+  - Supports handing off a saved outline revision as a novel, preserving characters and existing volumes/chapters; preview and creation do not consume model calls, and repeated confirmations can continue the same book.
+
+  **Docs site updates**:
+
+  - Docs homepage "落笔成书" opening animation (with Safari occlusion fix), installation and docs page updates, and a LINUX DO badge on the README page.
+
+  **Original-draft revision capability** (code included, entry disabled by default):
+
+  - Original-draft revision supports adding, deactivating/restoring, and merging adjacent chapters: preview the table of contents and associated impact first, then confirm the change; deactivated chapters keep their body text but exit the working directory, export scope, and bookshelf progress. Revision copies do not enter Auto Director drafting.
+  - Original-draft revision can view suggestions per chapter, compare multiple revision candidates, and explicitly adopt; supports manual save, restore original preview, and undo; after modifying an earlier chapter, old candidates prompt for re-verification without automatically changing later chapters.
+  - Original drafts can reverse-engineer an outline chapter by chapter, verify source evidence and full coverage, then freeze the confirmed revision; author-provided outlines are separately labeled, and subsequent modifications use an independent working outline.
+  - After confirming chapter splits, only one new revision copy is created; per-chapter working drafts precisely map to original slices; refresh or repeated confirmation can continue the same book, with read-only comparison and original file download.
+  - Long original-draft import supports TXT and pasted full text, explicit encoding, and full partition validation; chapters exceeding 24,000 characters at the beginning and at the end are fully preserved, and the original file is not overwritten.
+
+  #### Fixes
+
+  - Short volumes with confirmed chapter counts no longer have their beat boards automatically inflated to 12 chapters, nor are they forced to add a sequel hook.
+  - Short-volume beat boards allow fewer beats and same-chapter overlap, validating against the actual covered chapter count; overlap is no longer summed and incorrectly rejected.
+  - Original-draft revision copies adopt revisions through the revision workspace; the old writing entry no longer consumes AI preparation calls, and deactivated chapters no longer falsely report service exceptions.
+  - Original-draft outline extraction and chapter suggestions re-verify when encountering inaccurate quotes; the full story synopsis retains middle/late sections and endings, with theme and style summarized separately.
+  - When only a story master outline exists, subsequent first-volume beats and chapter routes can still be accurately located and confirmed stage by stage.
+  - Book-start structure errors now display Chinese nodes and fields, allowing direct return to the corresponding node for editing while preserving current settings for retry.
+  - Fixed an issue where preparing the current chapter during outline-based per-chapter writing accidentally triggered subsequent chapter collation and interrupted progress; chapter refinement preserves confirmed writing purpose and foreshadowing arrangements.
+  - Foreshadowing reconciliation first corrects missing source evidence, then associates plans; planned recovery chapters are no longer treated as already fulfilled.
+  - Fixed an issue where creating a new blank outline or creating an outline from an idea failed to enter the corresponding workbench correctly.
+  - After outline content updates, old AI proposals now explicitly prompt for regeneration; avoids accidentally adopting stale content, and allows returning directly to the workbench to generate new suggestions.
+
+  #### Improvements
+
+  - Outline-based writing adopts stage-by-stage confirmation and per-chapter advancement; when filling in preparations needed for the current chapter, existing story, volume/chapter, and fixed settings are preserved.
+  - Outline foreshadowing is independently displayed as plans; body text evidence is associated with actual ledgers after appearing; manual adjustments to this book's plan preserve the source version, and new outline versions only prompt for differences.
+  - Outline AI modification suggestions can be selectively adopted by operation, with before/after content, rationale, impact scope, and dependency prompts; missing prerequisite combinations are explicitly blocked.
+  - Outline revision history supports comparing any two versions for node additions, deletions, field changes, and moves, or restoring old content as a new revision while fully preserving intermediate history.
+  - Before confirming Markdown or TXT import, you can adjust outline and node titles, chapter-to-volume assignments, character appearances, foreshadowing planting and recovery chapters, and fixed setting scope and associated references.
+  - Starting a book from an outline supports confirming estimated chapter counts per volume, full-book chapter sequence, and per-field retention details per volume; unexpanded positions only keep budgets without creating empty chapters.
+  - The novel creation page can view the adopted outline revision, independent foreshadowing plans, and new-version differences; entries for filling preparations, reviewing phase results, and explicitly starting a single chapter's body text are each provided.
+  - The book-start preview's length summary and retention details scroll independently; after completing a chapter you can directly locate the next chapter for confirmation, and knowledge index anomalies can be recovered within this book.
+
+  Writing kernel v2 remains disabled by default. Outline feedback, more complete original-draft revision follow-up capabilities, short-form adaptation, and creative engagement contracts are not in this version.
+</Update>
+
+<Update label="2026-11-11" description="v0.7.5">
+  Desktop v0.7.5 adds task record deletion and running task stop, ships Mac install packages (Intel and Apple Silicon), and speeds up testing and release checks.
+
+  #### New
+
+  - Run History, Director Progress, and Book Breakdown analysis support confirming deletion of finished records one by one, while preserving saved novels, chapters, analysis content, and source materials.
+  - Director Progress, Book Breakdown analysis, style extraction, and cover/character image generation can directly stop running tasks; queued or running records prompt to stop first before deleting.
+
+  #### Fixes
+
+  - Fixed a Mac platform quality isolation test failure caused by inconsistent symbolic link paths in temporary directories, which prevented v0.7.3 and v0.7.4 from producing Mac install packages; from this version onward, Mac install packages for Intel and Apple Silicon are provided.
+
+  #### Improvements
+
+  - Tests reuse processes across batches, reducing per-file startup overhead; default dev tests only run the fast group, with integration tests run separately.
+  - Pre-release checks reuse already-passed test records for the same commit, avoiding re-running the full test suite; they still re-run when the commit changes or the workspace is dirty, and `--force-tests` can force a re-run.
+</Update>
+
+<Update label="2026-11-10" description="v0.7.4">
+  Desktop v0.7.4 fixes short-form revision repeated interruption, comic image loading, reference book breakdown leaving the premise blank, and model connection detection.
+
+  #### Fixes
+
+  - Book Breakdown analysis and image generation stop now interrupt in-flight model requests, preventing continued generation of subsequent content or automatic retries.
+  - Short-form revision now explains the missed body text range within the same correction, avoiding repeated identical retries due to missing patches; when a usable revision draft is retained, stale failure prompts are cleared.
+  - Desktop comic workbench character design sheets, expressions, face references, storyboards, character assets, and scene images can now load via local service cross-origin; regular interfaces keep the original cross-origin restriction.
+  - When "Write like this book" (照这本书写) is selected and reference materials are valid, the one-sentence premise can be left blank; the AI will generate an original short-form direction based on the reference target. Regular original creation still requires filling in the idea.
+  - Model connection detection and capability probing now uniformly verify availability through streaming responses, and distinguish between empty model output, thinking-only output exhausting quota, output length truncation, and network anomalies, providing clear Chinese adjustment suggestions.
+  - Mac install package build memory limit was increased, fixing v0.7.3 build out-of-memory issues; however, Mac install packages were not released in this version and will be provided with v0.7.5.
+</Update>
+
+<Update label="2026-11-10" description="v0.7.3">
+  Desktop v0.7.3 supports multi-volume planning and fixed volume counts, chapter-split resume, per-model output limits, optional access tokens, and mobile quick actions.
+
+  #### New
+
+  - Each model can now have its own output Token limit set in Models & Vendors; body text and structured generation share this quota; leaving it blank uses the task budget.
+  - Web deployment and LAN access support optional token authentication (enabled by configuring `AI_NOVEL_ACCESS_TOKEN`, disabled by default); desktop local run auto-connects, and channel notification callbacks continue using channel credentials.
+  - Desktop packaging supports DMG for Intel and Apple Silicon Mac, and Linux AppImage; Mac updates via downloaded install package.
+
+  #### Improvements
+
+  - Mobile provides novel progress, chapter reading, body text minor edits, Run History, and notifications; tasks can be continued, retried, paused, or canceled within a book, while complex planning and configuration tools are handled on desktop.
+
+  #### Fixes
+
+  - Mobile notifications now open the current task for the corresponding novel; Run History and pause entries display according to this book's actual recovery status, avoiding mis-navigation from old task links.
+  - Desktop install package release now completes required checks before publishing; release is stopped when version identifiers mismatch or checks fail, and manual builds are only for verification.
+  - Auto Director planning-only and manual full-volume chapter splitting now save progress segment by segment, resuming from the unfinished beat after interruption while preserving completed chapter plans and body text.
+  - After an unexpected service exit and restart, previously interrupted full-volume chapter splitting can be continued immediately, without the "generation already in progress" prompt requiring a wait.
+  - Auto Director now builds multi-volume structure in one go based on AI recommendations, with chapters planned gradually per volume budget; book start and director console support optional fixed volume counts from 1 to 24, leaving it blank for AI recommendation, and preserving existing author volume structures.
+  - New books are no longer locked to a single volume by a system-created blank volume: when left blank, volumes are built by AI recommendation; when a count is specified, volumes are built to that count; existing author volume content is still preserved.
+  - When using reference book breakdown for short-form creation, only generated and readable subsections are selected by default, avoiding empty subsections such as ungenerated timelines causing direction generation failure.
+  - When creative direction first generation fails but succeeds on retry within the same task, available directions are displayed immediately without requiring a manual page refresh.
+</Update>
+
+<Update label="2026-11-09" description="v0.7.2">
+  Desktop v0.7.2 improves Auto Director continuation recovery, third-party model compatibility, and the book-start wizard.
+
+  #### Fixes
+
+  - The AI Auto Director book-start wizard can now recover concepts, genres, worlds, styles, book question management, and current step from local drafts; forward/backward navigation and refresh preserve corresponding book-start content.
+  - "Start generating direction" now lists specific reasons when it is not clickable; director version read failures can be retried directly.
+  - After Auto Director generates empty body text, the current writing step can be retried from this book's director console, preserving prior preparations, completed chapters, and cumulative usage; historical empty-body failure records can also continue the original task.
+  - Director V1 book-start candidate generation can resume from saved candidate stages after interruption.
+  - Third-party channels using DeepSeek models with the same name now handle thinking settings according to channel capabilities, avoiding accidentally enabling deep thinking.
+  - Undetected custom channels now default to disabling request-level thinking when generating structured results such as worldviews and chapter plans, reducing empty results caused by thinking consuming the output quota; saved compatibility capabilities still take priority.
+</Update>
+
+<Update label="2026-11-06" description="v0.7.1">
+  Desktop v0.7.1 summarizes channel notifications, model compatibility, and AI call observability improvements.
+
+  #### New
+
+  - Director Follow-up supports Feishu / Lark long-connection notifications; cards support continue execution or retry by task model; desktop does not require configuring a public callback address.
+  - The novel's "AI Token Usage & Call Logs" supports viewing per-call duration, time to first token, output speed, retry count, and output mode, and viewing per-chapter step duration to locate the slowest calls.
+  - After enabling prompt and answer history in "Models & Vendors," each call can be expanded to view, copy messages, model responses, and parsed results, and trace each retry; supports setting retention days and storage capacity, with automatic cleanup of old history.
+
+  #### Improvements
+
+  - Model settings support detecting and viewing structured output and thinking switch compatibility; creative tasks use appropriate calling methods based on detection results.
+  - The official site homepage now presents the creative process with a hand-drawn manuscript unfolding stroke by stroke, clearly providing desktop download, docs, and source code entries; reduced motion still preserves a fully readable view.
+
+  #### Fixes
+
+  - DingTalk custom robots support official notification cards and optional sign secrets; DingTalk and WeCom Work notification delivery can recognize platform-returned failure results.
+  - Director V2 channel callbacks support continue, confirm, and retry; duplicate clicks reuse processing results; historical tasks retain version and creative scope protection.
+  - When Auto Director generates a volume chapter-split list, the current stage on this book's director console directly shows generated chapter count, chapter-split progress bar, and validation/save prompts.
+  - Chapter preparation and AI proofreading can continue after switching structured output methods, preserving original model configuration and usage protection.
+  - Desktop install packages include Feishu notification components, so configured Feishu channels work out of the box.
+</Update>
+
+<Update label="2026-11-05" description="v0.6.3">
+  Desktop v0.6.3 summarizes unfinished short-form deletion, chapter ZIP export, chapter-split progress display, desktop comic image loading, and DeepSeek thinking switch recognition and ZIP compatibility fixes.
+
+  #### New
+
+  - Novel list and edit pages support downloading chapter ZIP archives; long novels save each chapter as a separate TXT for easy organization and distribution.
+
+  #### Improvements
+
+  - Volume chapter-split displays actual generated chapter count and progress bar, updating progress per completed beat and prompting final validation and save status.
+
+  #### Fixes
+
+  - Chapter ZIP export replaces the handwritten ZIP implementation with a mature archive library, preserving per-chapter naming and Chinese body text, and opening correctly with common decompression tools.
+  - Unfinished short forms and novels with run records can now be deleted normally from the list, with associated creation records cleaned up along with the work.
+  - Desktop comic workbench character, expression, scene, and storyboard images now load correctly via local service.
+  - DeepSeek thinking switch now correctly recognizes model names with version numbers or vendor prefixes such as `deepseek-v4.1-flash`; thinking is no longer enabled by default after being turned off.
+</Update>
+
+<Update label="2026-11-04" description="v0.6.1">
+  Desktop v0.6.1 summarizes estimated chapter count constraints, chapter title handling, and body text preparation fixes, retaining v0.6.0 quality reminders and character naming optimizations.
+
+  #### Improvements
+
+  - Chapter quality reminders are consolidated in the left chapter info panel; detailed reasons expand on demand and retain the re-proofreading entry; reminders remain accessible in wide body text, immersive layout, and collapsed sidebar.
+  - Character name generation now references era, region, age, and family background, balancing naturalness and recognizability, and respecting user-specified and confirmed names.
+
+  #### Fixes
+
+  - Auto Director plans the full book scale according to the estimated chapter count entered in the confirmed plan: chapter splitting constrains beat chapter counts within the estimated total, and short works generate chapter lists at short-form scale.
+  - When chapter titles have only mild homogeneity (for example, 4 out of 10 titles in an "X's Y" pattern), chapter splitting accepts the current chapter list and logs a quality reminder, allowing the full book to continue; titles with severe homogeneity or hard flaws such as duplicates or first-person are still blocked for rewrite.
+  - Body text production preparation directly adopts the world slices saved during the planning stage to assemble chapter context; world settings remain consistent between planning and body text, first-chapter preparation completes stably, and full-book generation advances continuously.
+</Update>
+
+<Update label="2026-11-03" description="v0.5.22">
+  Desktop v0.5.22 summarizes book breakdown output limit fixes and writing kernel v2 unknown stage unlock/fix improvements; the new long-form body text flow remains disabled by default.
+
+  #### Improvements
+
+  - After adopting the "Write like this book" book-start plan, creating a long-form novel saves that plan on the work, so the adopted reference can still be traced after page refresh, task recovery, or entering the work.
+
+  #### Fixes
+
+  - Book breakdown and structured knowledge collation now execute according to the model task's configured output limit, instead of being truncated by the default 8192 Token limit, reducing interruptions on long content extraction.
+  - When the new long-form body text flow is enabled and chapter writing, proofreading, revision, or re-verification is interrupted with unconfirmable results, the director console provides a confirmation entry; after checking the body text and confirming, creation can continue, instead of being permanently stuck on the same chapter.
+  - When manually writing or revising a chapter from the body text page encounters a pause, the prompt now directly states which chapter needs confirmation and provides an entry to open this book's director console, instead of showing only a generic error.
+</Update>
+
+<Update label="2026-11-02" description="v0.5.22">
+  The 2026-11-02 entry has been merged into the v0.5.22 desktop release notes.
+</Update>
+
+<Update label="2026-11-01" description="v0.5.21">
+  Desktop v0.5.21 summarizes short-form length, body text editor, and creation recovery improvements. The new long-form body text flow remains disabled by default.
+
+  #### New
+
+  - Select a reference from a completed book breakdown, verify structure, pacing, and style, then create an original short form; the finished draft and subsequent revisions follow the confirmed reference.
+
+  #### Improvements
+
+  - During body text editing, AI write-back, version loading, and background save only update changed paragraphs, preserving cursor position, selection, and undo history.
+  - Selections can be directly optimized, expanded, condensed, or modified by request; body text supports chapter-level find and replace, with undo after replacement.
+  - Editor supports adjusting layout, font size, line spacing, and focus mode; left/right panels can be collapsed while preserving selection; optional gray-text continuation suggestions are disabled by default.
+  - Per-model task output limit can be adjusted manually; defaults to 8192 Tokens when left blank; in-progress creation retains the quota from when it started.
+
+  #### Fixes
+
+  - Short forms organize body text by segment budget; excessive or insufficient length is corrected within bounds based on measured word count; when deviation remains, usable body text is retained with an accurate reminder, and the revised draft is saved only after passing review.
+  - Short-form backward rewriting saves candidates by segment, reuses completed content after interruption, and preserves original draft snapshots and manual modification protection upon full submission.
+  - When creation fails, the reason and diagnostic identifier can be viewed, and progress can be continued from the work page; core structure changes can be previewed and confirmed before applying.
+  - When the new long-form body text flow is enabled, creation can resume from saved progress after insufficient balance or external service interruption, reducing recovery validation conflicts; steps with unknown results can be re-executed after checking the body text and confirming.
+  - When chapter knowledge collation encounters a single foreshadowing evidence lacking an explanation, usable results are retained, avoiding failing the entire chapter.
+</Update>
+
+---
+
+For the full history, see [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) and [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases).

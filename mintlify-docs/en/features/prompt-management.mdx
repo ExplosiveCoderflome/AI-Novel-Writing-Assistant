@@ -1,0 +1,292 @@
+---
+title: "Prompt Management"
+description: "View and maintain product-level AI task prompt assets, with safe-slot editing, advanced template debugging, and version rollback."
+sidebarTitle: "Prompt Management"
+icon: "terminal"
+keywords:
+  - "prompt management"
+  - "prompt template"
+  - "safe slot"
+  - "advanced template"
+  - "prose generation"
+  - "prompt debugging"
+  - "context injection"
+  - "version rollback"
+---
+
+Prompt Management is used to view and maintain the prompt assets used by product-level AI tasks. It is suited for developers, debuggers, and advanced users who need to understand task behavior. Ordinary writing users do not need to visit this page frequently; the main creative chain should be advanced through Auto Director, the novel workbench, and the chapter workbench.
+
+<Info>
+  Prompt Management only affects prompts themselves, not model vendor configuration, API keys, or model routing. For model-related settings, please go to [System Settings](/en/system-settings).
+</Info>
+
+<CardGroup cols={2}>
+  <Card title="Safe-Slot Editing" icon="shield-halved" href="#editing-prose-generation-prompts">
+    Modify local rules in a visual interface without changing the overall prompt structure.
+  </Card>
+
+  <Card title="Advanced Template Debugging" icon="code" href="#visual-reference-tags">
+    Reference context and slots through Chinese labels, with source-code view switching.
+  </Card>
+
+  <Card title="Preview and Test" icon="eye" href="#preview-test-and-save">
+    Generate previews to inspect messages and context, and test output to verify real model effects.
+  </Card>
+
+  <Card title="Version Rollback" icon="clock-rotate-left" href="#versions-and-rollback">
+    Save book-level override versions, and restore official templates or roll back historical versions at any time.
+  </Card>
+</CardGroup>
+
+## When to Open It
+
+Prompt Management is not a daily creative entry point. Only enter in the following scenarios:
+
+- You want to understand how a certain AI task organizes its input.
+- A task's output is persistently unstable and you need to inspect the prompt version.
+- You need to confirm the binding relationship between the prompt and model routing.
+- A developer is preparing to adjust structured output or task contracts.
+
+Ordinary users should prioritize adjusting novel materials, the knowledge base, the Style Engine, and model routing. Only when a task type has been performing abnormally for a long time and both data and model have been checked should you consider the prompt.
+
+## Interface Structure
+
+The Prompt Management page is divided into three main areas:
+
+| Area | Function |
+| --- | --- |
+| Left prompt directory | Lists prompt assets by task type; for example, prose generation corresponds to `novel.chapter.writer` |
+| Middle editing area | View and modify system / human templates, generate previews, and test current draft output |
+| Right context panel | View what materials are injected into this preview, such as book-level contract, chapter brief, character hard facts, timeline, style contract |
+
+The bottom action area is used for generating previews, testing output, saving book-level overrides, resetting modifications, or restoring official templates.
+
+## Prompt Categories
+
+Prompts are usually organized by task family, with each family corresponding to a clear task:
+
+| Task Family | Typical Use |
+| --- | --- |
+| Book starting direction | Auto Director generates new book ideas and directions |
+| World and character preparation | Worldview and character setting generation |
+| Volume planning and chapter scheduling | Volume structure and chapter brief arrangement |
+| Prose generation | Chapter prose writing, corresponding to `novel.chapter.writer` |
+| Review and repair | Prose review and issue fixing |
+| Book breakdown analysis | Reference work structure breakdown |
+| Knowledge base summary | Material summary and retrieval |
+| Style extraction | Extract style rules from sample text |
+
+Each prompt category should correspond to a clear task, rather than piling large amounts of unrelated instructions together.
+
+## Editing Prose Generation Prompts
+
+Prose generation prompts are the most frequently debugged prompts. Entry method:
+
+<Steps>
+  <Step title="Open Prompt Management">
+    Select `novel.chapter.writer` in the left directory.
+  </Step>
+  <Step title="Select scope">
+    Select the book scope, and specify the novel and chapter to preview.
+  </Step>
+  <Step title="Switch editing mode">
+    In the middle area, switch between **Safe Slot** (安全槽位) or **Advanced Template** (高级模板).
+  </Step>
+  <Step title="Generate preview">
+    Click **Generate preview** (生成预览) to check the final messages and right-side context injection results.
+  </Step>
+  <Step title="Test output">
+    When you need to verify effects, click **Test output** (测试产出), select a test model in the popup, and start testing.
+  </Step>
+</Steps>
+
+### Safe Slot
+
+Safe slots are suitable for modifying local rules, such as tone, rhythm, Anti-AI rules, or supplementary writing requirements. They do not change the overall prompt structure and suit most debugging scenarios.
+
+### Advanced Template
+
+Advanced templates are suitable for mature users to fully adjust the system / human templates of `novel.chapter.writer`. They only affect prose generation for the current book and do not open schema, context policy, post-processing validation, or free replacement of other prompts.
+
+## Visual Reference Tags
+
+Advanced templates use visual reference tags by default. In the editor you see labels like **Book-level contract** (书级合约), **Chapter brief** (章节任务), **Character hard facts** (角色硬事实), **Timeline** (时间线), **Chapter title** (章节标题), and **Tone and rhythm** (语气与节奏), rather than requiring users to memorize `{{context.book_contract}}`, `{{input.chapterTitle}}`, or `{{slot.tone_and_pacing}}`.
+
+### How to Use
+
+- In the editor, type `@` and select context, runtime variables, or slots from the reference menu.
+- After selection, a tag is inserted; when saving and previewing, the system still compiles it into underlying template tokens.
+- Hover over a tag to view its key, original token, description, and whether it is required context.
+- Delete a tag and re-insert with `@`, suitable for replacing incorrect references.
+- If the template contains unrecognized tokens, the editor preserves the original content and shows an abnormal status, making it easy to troubleshoot without silently losing text.
+
+### Common Tag Meanings
+
+| Type | Tag Example | Purpose |
+| --- | --- | --- |
+| Context | Book-level contract, Chapter brief, Timeline, Character hard facts | Inject current book and chapter materials into prose generation |
+| Runtime variables | Chapter title, Target word count, Chapter sequence number | Use parameters passed in during this runtime |
+| Slots | Tone and rhythm, Anti-AI rules, Custom supplementary rules | Reuse editable rules from safe slots |
+
+### Source Code View
+
+Advanced templates retain a source code view, suitable for debugging underlying templates:
+
+- The visual view is for daily editing and prioritizes displaying Chinese labels.
+- The source code view displays real template text, such as `{{context.chapter_mission}}`.
+- After switching from source code view back to visual view, registered references are re-displayed as tags.
+
+If you are only adjusting writing effects, prioritize the visual view and the `@` reference menu. Only switch to source code view when troubleshooting tokens, copying templates, or confirming compilation results.
+
+## Context Injection Panel
+
+The right-side context panel is used to confirm what materials the model will actually see:
+
+| Display Item | Description |
+| --- | --- |
+| Context block name and grouping | Clarifies material source |
+| Whether it is required context | Locked by system governance rules, cannot be disabled in the interface |
+| Token estimate | Helps judge context length |
+| Current status | Selected, trimmed, summarized, or missing |
+| Preview content | Checks whether materials come from the current novel and current chapter |
+
+Common required blocks for prose generation include book-level contract, chapter brief, character hard facts, obligation contract, style contract, and timeline. This prevents users from accidentally deleting key materials, causing chapters to deviate from the main plot or violate prior state.
+
+## Preview, Test, and Save
+
+We recommend following this sequence after each modification:
+
+<Steps>
+  <Step title="Generate preview">
+    Check whether system / human messages and context injection are complete.
+  </Step>
+  <Step title="Confirm context">
+    View the right-side context and confirm materials come from the target novel and target chapter.
+  </Step>
+  <Step title="Test output">
+    In the popup, select a test model and view the return under the current draft on the real model.
+  </Step>
+  <Step title="Save override">
+    If it is only a local adjustment, prioritize saving as a book-level override.
+  </Step>
+  <Step title="Version management">
+    When an advanced template is broken, you can roll back to a historical version or restore the official template.
+  </Step>
+</Steps>
+
+### Difference Between Generate Preview and Test Output
+
+| Action | Purpose | Calls Model? |
+| --- | --- | --- |
+| Generate preview | View final messages, context injection, missing materials, and diagnostic info | No |
+| Test output | Use the current draft and selected model to generate one result, judging the effect of changes | Yes |
+
+Test output does not require saving the draft first. Structured prompts display parsed JSON and repair counts; text prompts display model-returned prose. If the test is unsatisfactory, you can continue adjusting before saving.
+
+Saving an advanced template generates a book-level version history. Restoring the official template does not delete historical versions; you can still view and roll back later.
+
+## Prose Effect Lab
+
+The Prose Effect Lab is used to compare "what the writing will look like after template modification." The entry is in the chapter editor and the Style Engine. It automatically locates the prose generation prompt and brings in the current novel and chapter.
+
+Recommended workflow:
+
+<Steps>
+  <Step title="Open the lab">
+    Open the **Prose Effect Lab** (正文效果实验室) from the chapter editor or the Style Engine.
+  </Step>
+  <Step title="Confirm scope">
+    Select the target novel and chapter, and confirm the right-side context comes from the correct project.
+  </Step>
+  <Step title="Adjust draft">
+    Adjust the current draft in safe slots or advanced templates.
+  </Step>
+  <Step title="Start trial writing">
+    Use the real model to generate comparison prose, and continue adjusting based on the streaming display results.
+  </Step>
+  <Step title="Save version">
+    Save the book template version only when satisfied.
+  </Step>
+</Steps>
+
+Trial writing uses the current unsaved template, does not overwrite chapter prose, and does not modify chapter status. It calls the real model and consumes quota; if you only want to check final messages and context, use **Generate preview**.
+
+| Action | Suitable For | Overwrites Prose? |
+| --- | --- | --- |
+| Generate preview | Check whether template, references, and context are complete | No |
+| Start trial writing | Compare reading feel after template modification | No |
+| Save as new version | Make subsequent book prose generation use this template | Only affects subsequent generation |
+
+## Usage Boundaries
+
+Prompt Management does not bypass system governance rules:
+
+- Cannot disable required context.
+- Cannot modify `contextPolicy` in the page.
+- Cannot modify structured output schema.
+- Cannot disable validation, repair, or state synchronization after prose generation.
+- Advanced templates first-priority override prose generation `novel.chapter.writer`; other prompts still focus on safe slots and previews.
+- Test output only executes registered prompts and the current draft, and does not provide an arbitrary system prompt bypass entry.
+
+<Warning>
+  If the issue stems from missing novel materials, incomplete chapter briefs, insufficient model capability, or unstable structured output, simply changing the prompt may not solve it. You should first return to the corresponding module to complete materials or inspect task failure causes.
+</Warning>
+
+## Confirm Before Editing Prompts
+
+Before modifying prompts, we recommend confirming the following:
+
+- Whether the current issue truly comes from the prompt.
+- Whether model routing is appropriate.
+- Whether input data is complete.
+- Whether output schema is being followed.
+- Whether failure can be resolved through retry or switching models.
+
+The prompt is not the first fix for all problems. Structured output, model capability, context materials, and task status can all affect results.
+
+## Versions and Rollback
+
+Prompt adjustments affect subsequent AI tasks. We recommend maintaining version awareness:
+
+- Clearly record the purpose of adjustments.
+- Only modify prompts related to the target task.
+- Validate results with a test novel.
+- Keep revertible versions.
+- Avoid changing model, data, and prompt simultaneously, which makes problem sources hard to identify.
+
+Public product-level prompts should go through unified registration and schema management; we do not recommend temporary inline embedding in business code.
+
+## Binding to Tasks
+
+The value of Prompt Management lies in understanding "which task uses which prompt." When troubleshooting, you can follow this path:
+
+<Steps>
+  <Step title="Confirm task type">
+    Confirm the failed task type in the Task Center.
+  </Step>
+  <Step title="Check model routing">
+    Confirm whether the model used by the current task is appropriate.
+  </Step>
+  <Step title="View prompt">
+    In Prompt Management, confirm the task prompt and output requirements.
+  </Step>
+  <Step title="Test and verify">
+    Return to the test novel to verify modification effects.
+  </Step>
+</Steps>
+
+If the task requires structured output, the prompt and output schema must be considered together.
+
+<CardGroup cols={3}>
+  <Card title="System Settings" icon="sliders" href="/en/system-settings">
+    Configure model vendors, model routing, and Auto Director global preferences.
+  </Card>
+
+  <Card title="Model Configuration" icon="route" href="/en/model-configuration">
+    First-time quick setup, third-party vendor access, and model routing details.
+  </Card>
+
+  <Card title="Style Engine" icon="pen-nib" href="/en/features/style-engine">
+    Extract style rules from sample text, prioritizing writing effect adjustments.
+  </Card>
+</CardGroup>

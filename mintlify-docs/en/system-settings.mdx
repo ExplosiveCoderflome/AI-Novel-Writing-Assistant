@@ -1,0 +1,168 @@
+---
+title: "System Settings"
+description: "Manage global configuration for the creation environment, including models, Auto Director, Knowledge Base, and interface themes"
+icon: "sliders"
+keywords:
+  - "system settings"
+  - "settings overview"
+  - "models and providers"
+  - "model routing"
+  - "auto director"
+  - "knowledge base"
+  - "style engine"
+  - "appearance theme"
+---
+
+System Settings is the central page for managing global configuration of the creation environment. There are seven sections on the left: Settings Overview, Models & Providers, Model Routing Management, Auto Director, Knowledge Base & Style, Desktop & Maintenance, and Appearance & Theme.
+
+New users only need to complete the **Models & Providers** configuration to start creating. The remaining sections are enhancements or preferences that can be adjusted later as needed.
+
+<Info>
+  Settings are only saved on the current device and do not affect already created novel content or server data.
+</Info>
+
+## What New Users Should Configure First
+
+| Section | Must Configure First | Recommendation |
+| --- | --- | --- |
+| **Models & Providers** | Yes | Must add at least one available text model first, otherwise AI creation cannot start |
+| **Model Routing Management** | Recommended | Automatically takes effect after quick setup; come back to fine-tune when you want different tasks to use different models later |
+| **Appearance & Theme** | No | Adjust interface color scheme and density according to screen brightness and personal preference |
+| **Auto Director** | No | The default "prioritize completing the whole book" and 100,000 Tokens single-chapter limit are suitable for most scenarios |
+| **Knowledge Base & Style** | No | Enhancements that do not affect starting a book and chapter production |
+| **Desktop & Maintenance** | No | Only relevant for the desktop version |
+
+## Settings Overview
+
+When you open System Settings, you enter the Settings Overview by default. At the top of the page is the **Creation Availability Check**, which answers "Can I start creating now, and what step is still missing?" If there are incomplete necessary configurations, it will prompt the specific missing items.
+
+Below are entry cards for each section, each displaying a current summary:
+
+- **Models & Providers**: Current provider and model name, or prompt "No available text model configured yet"
+- **Model Routing Management**: Number of task routing entries already set
+- **Knowledge Base & Style**: Whether Knowledge Base is enabled, current vector model
+- **Desktop & Maintenance**: Desktop version displays "Can check desktop updates and local old data"; web version displays "No desktop maintenance needed"
+- **Auto Director**: Default prompt "Set confirmation preferences, issue handling, and notification methods"
+
+Click the "Open" button on a card to enter the corresponding section.
+
+## Models & Providers
+
+Here you add and manage available model providers and models for creation, including API Key, API address, model list, and output limit. For detailed configuration methods, see [Model Configuration](/en/model-configuration).
+
+The same page also contains two independent settings:
+
+### Maximum Single Generation Wait Time
+
+Controls the maximum wait time for model response during world generation. Can be increased when local models are slower; keep at 2 minutes for cloud models. The page displays the currently configurable range. After saving, the next world generation will wait according to this time; if it fails, the system may automatically retry once.
+
+### AI Prompt and Response History
+
+After checking "Save prompts and responses", creation messages and model responses are saved. Saved content can be viewed in the novel's "AI Usage and Call Logs"; it may contain complete body text, so enable as needed.
+
+After enabling, two parameters can be set:
+
+- **Retention days**: 1 to 365 days
+- **Compressed capacity limit**: 1 to 4096 MB
+
+The system automatically cleans expired or over-capacity history records every 15 minutes, prioritizing deletion of the oldest records. After turning off this feature, the system stops saving new content, but already saved call usage data is retained. Regardless of whether it is enabled, time consumption statistics continue to be recorded.
+
+## Model Routing Management
+
+Select models for different creation tasks, and set a fallback model for structured output. When routing is healthy, Auto Director and chapter production will automatically select models by task without requiring you to manually specify each time.
+
+For example, you can have planning steps use a stable long-context model, body text generation use a model with better writing style, and review and text repair use a more cost-effective model. For detailed usage, see the "Model Routing" section in [Model Configuration](/en/model-configuration).
+
+## Auto Director
+
+Set issue handling, auto-confirmation, and creation reminders. After each book starts executing tasks, it will retain its own execution rules according to the current settings; subsequent modifications to global settings will not affect already started tasks.
+
+### Single-Chapter AI Usage Limit
+
+Set the cumulative AI usage limit per chapter for new tasks. Default is 100,000 Tokens, configurable range is 16,001 to 10,000,000. Calculated by uncached input and output cumulative total; different from the model's single maximum output.
+
+After a task starts, it retains its own quota setting. When the limit is reached or the remaining quota is insufficient for the next step, the AI will save progress and ask whether to add more budget. See [AI Usage and Token Cache](/en/features/token-usage) for details.
+
+### Auto Director Pause Notifications
+
+When Auto Director is waiting for confirmation, needs to resume, or is blocked by verification, it reminds you through browser notifications. Only affects the current browser on this computer; requires authorizing notification permissions in the browser. If blocked, please allow this website to send notifications in the address bar permission settings.
+
+### Issue Handling Rules
+
+Choose a preset plan, or adjust handling methods item by item according to issues.
+
+**Two preset plans**:
+
+- **Prioritize completing the whole book**: After handling local issues once, retain body text and continue, leaving unified optimization for later
+- **Quality first**: After handling local issues once and they are still not resolved, pause and wait for your confirmation before continuing
+
+**Optional actions for individual issues**:
+
+- Auto retry
+- Record reminder and continue
+- Pause and wait for handling
+- End current task
+
+Issues are divided into four categories by phase: planning, generation, quality, and runtime. Chapter runtime auto-retry can be set (do not auto-retry, or up to 1 time). When safety protection triggers, the system will still prioritize protecting the work (pause or end task). After saving, it affects subsequent tasks.
+
+### Approval Authorization Preferences
+
+When Auto Director executes by scope, it will first bring in the default authorization from here. Unapproved approval points will still stop and wait for your confirmation.
+
+### Advanced Controls
+
+Collapsed by default; expands to contain two settings.
+
+**Auto-approve pending confirmation status**: After enabling, only process pending confirmation proposals that were generated after the effective baseline time, exceed 14 days, and have no unresolved conflicts with character relationships and information cognition, submitting them as canonical facts. The system will not auto-revoke; if rollback is needed, it requires manual verification based on audit trails. Existing proposals are not included in the auto-approval scope. Enabling requires checking the risk disclaimer and entering confirmation text.
+
+<Warning>
+  Auto-approval will directly submit eligible pending proposals as canonical facts; it is recommended to only enable after understanding the risks.
+</Warning>
+
+**Director Follow-up channel configuration**: Receive creation reminders through DingTalk, WeChat Work, or Feishu / Lark, and continue or retry tasks. Feishu long connection is suitable for the desktop version and does not require a public network callback address. You can fill in the internal access address for jump links in messages, and select the event types to subscribe to.
+
+## Knowledge Base & Style
+
+These enhancements help the AI understand your reference materials and writing preferences, without affecting your ability to start creating first. When Knowledge Base retrieval is not enabled, starting a book and chapter production still proceed normally; Knowledge Base's specific retrieval configuration is maintained on the "Knowledge Base" page. See [Knowledge Base](/en/features/knowledge-base) for details.
+
+### Style Engine Runtime Settings
+
+Control the maximum wait time for model response during style extraction, with three preset levels:
+
+| Level | Applicable Scenario |
+| --- | --- |
+| Quick detection | Suitable for short texts or quickly confirming whether a sample's writing style is extractable |
+| Stable recommendation | Suitable for most style extraction tasks |
+| Long-text extraction | Suitable for long original texts or slower models |
+
+"Advanced Settings" allows filling in specific minutes. After saving, new submitted and retried style extraction tasks will use this wait time.
+
+## Desktop & Maintenance
+
+The desktop version can check for desktop updates and import local old data; these operations do not affect current creation configuration. The web version displays "No desktop maintenance needed" and has no additional configuration items.
+
+## Appearance & Theme
+
+Adjust interface display according to personal preference; does not affect novel content and task status.
+
+**Display mode**: Follow system, light, dark.
+
+**Theme style**:
+
+- **Inkstone**: Restrained blue-gray, suitable for daily creation
+- **Warm Paper**: Soft off-white, suitable for reading and chapter editing
+- **Night Voyage**: Deep indigo and cyan, suitable for AI execution and log viewing
+
+**Interface density**: Comfortable, compact.
+
+When dissatisfied with settings, click "Restore default theme". The theme is only saved on the current device.
+
+<CardGroup cols={2}>
+  <Card title="Model Configuration" icon="route" href="/en/model-configuration">
+    First-time quick setup, third-party provider connection, and model routing details
+  </Card>
+
+  <Card title="Auto Director" icon="wand-magic-sparkles" href="/en/features/auto-director">
+    Long-form auto-advancement flow and approval mechanisms
+  </Card>
+</CardGroup>

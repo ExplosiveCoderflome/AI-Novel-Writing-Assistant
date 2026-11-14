@@ -1,0 +1,118 @@
+---
+title: "Contributing"
+description: "Reporting issues, submitting code, development conventions, and community links for Biz Novel Studio"
+icon: "code-pull-request"
+keywords:
+  - "contributing"
+  - "Pull Request"
+  - "GitHub Issues"
+  - "CLA"
+  - "AGPL"
+  - "development conventions"
+---
+
+Welcome to contributing to Biz Novel Studio. This page is for anyone who wants to report issues, submit code, or extend the app.
+
+## Issue Report Template
+
+When submitting an issue to [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues), please use the following template to help maintainers reproduce and locate the problem quickly.
+
+```markdown
+## Version & Environment
+- App version: (top bar version number, e.g., v0.8.1)
+- Operating system: (Windows / macOS / Linux, and version)
+- Model provider: (OpenAI / Claude / custom, etc.)
+
+## Reproduction Steps
+1. Which entry point (e.g., Auto Director (自动导演), Outline Workbench (大纲工作台))
+2. What actions were taken (what was clicked, what was entered)
+3. The specific node where the issue was triggered
+
+## Expected Result
+(Describe how you expected the app to respond)
+
+## Actual Result
+(Describe the actual anomaly, such as pause, error, or unexpected content)
+
+## Logs or Screenshots
+- Desktop log bundle: save and upload from "Version & Update" (版本与更新)
+- Error text or screenshots (paste after redacting sensitive info)
+```
+
+<Info>
+  The repository has a PR template configured; it loads automatically when you submit code. Issues do not have a mandatory template yet, but following the structure above significantly shortens the feedback cycle.
+</Info>
+
+For a more complete feedback checklist, see [FAQ](/en/faq).
+
+## Good First Contributions
+
+If you are new to the project, the following contributions do not require deep code knowledge:
+
+- **Documentation fixes and additions**: typos, outdated steps, or screenshots that no longer match the interface
+- **Reproducible bug reports**: use the template above to submit step-by-step issues in Issues, helping maintainers build a reproduction list
+- **Prompt tuning suggestions**: if you find that a certain prompt in modules like Auto Director (自动导演) or Style Engine (写法引擎) produces unstable output on a specific model, include the model version, input example, and expected output format in the issue
+- **Translation and terminology consistency**: when UI copy, docs, or prompts use inconsistent terms, propose a unification
+
+These contributions are also recorded in the repository's contributor list. When you are ready to dive into the code, read the development conventions and submission guidelines below.
+
+## Before Submitting a PR
+
+### License & CLA
+
+- This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only) by default
+- Before contributing, please read [CONTRIBUTING.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/CONTRIBUTING.md) and [CLA.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/CLA.md)
+- Third-party code, assets, and data must include source, license, and necessary attribution, and be added to the NOTICE file
+- Maintainers may incorporate contributions into a separately licensed commercial distribution
+
+### Development Conventions Summary
+
+The following rules are excerpted from the repository's [AGENTS.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/AGENTS.md). They help contributors keep code quality and product consistency:
+
+- **Data protection first.** Before any destructive data operation, complete a backup and verify the backup file exists.
+- **AI-first, no keyword hard-matching.** Core behavior is implemented by AI structured understanding; do not add keyword fallback branches for AI mistakes.
+- **Single file limit of about 1,200 lines.** Files exceeding 1,300 lines must be split into modules with clear responsibilities; do not simply spread them into unowned helper / utils files.
+- **Run History (运行记录 / 任务中心) is read-only.** Do not place continue, resume, or cancel actions in the task center; place them in the originating workbench.
+- **UI copy from the user's perspective.** Do not write change narratives like "now / no longer / already upgraded." Describe with "what you can do" and "what's next."
+- **Low-border visuals.** Ordinary content grouping relies on layout, spacing, and background color, not multi-layer bordered cards.
+- **Maintain the development Wiki.** Changes involving core chains such as the director, chapter production, Prompt Schema, or task recovery should be synced to the corresponding page under `docs/wiki/`.
+
+### Pre-Submission Checklist
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+```
+
+If your change involves the director or Prisma, make sure `pnpm test` passes locally after large changes before submitting.
+
+## Priority Focus Areas
+
+The project README lists the following priority focus areas:
+
+- Continuous generation and recovery
+- New-user book-starting experience
+- Long-form consistency
+- Traceable model usage
+
+If you plan to open a PR in these directions, describe your approach in an Issue first to reduce rework.
+
+## Community Links
+
+- [GitHub Issues](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues): bug reports and feature discussions
+- [LINUX DO Community Thread](https://linux.do/t/topic/2738271): Chinese community exchange
+
+<CardGroup cols={3}>
+  <Card title={"Architecture & Source Code"} icon="sitemap" href="/en/developers/architecture">
+    Tech stack, directory structure, and common commands
+  </Card>
+
+  <Card title="Environment Variables" icon="gear" href="/en/developers/environment-variables">
+    Server and frontend configuration reference
+  </Card>
+
+  <Card title="FAQ" icon="circle-question" href="/en/faq">
+    Self-checklist before reporting issues
+  </Card>
+</CardGroup>

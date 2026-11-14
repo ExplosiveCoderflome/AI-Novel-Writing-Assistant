@@ -16,39 +16,43 @@ keywords:
 
 <BnIntro />
 
-<BnHome>
-  <div>
-    <BnHero />
+<XzIntro />
 
-    <BnTyping />
+<HomeFx>
+  <BnHome>
+    <div>
+      <BnHero />
 
-    <BnDirector />
+      <BnTyping />
 
-    <BnStarMap />
+      <BnDirector />
 
-    <BnFeatures />
+      <BnStarMap />
 
-    <RepoPulse theme="ink" />
+      <BnFeatures />
 
-    <BnCta />
-  </div>
+      <RepoPulse theme="ink" />
 
-  <div>
-    <XzHero />
+      <BnCta />
+    </div>
 
-    <XzScroll />
+    <div>
+      <XzHero />
 
-    <XzDirector />
+      <XzScroll />
 
-    <XzWeb />
+      <XzDirector />
 
-    <XzFeatures />
+      <XzWeb />
 
-    <RepoPulse theme="paper" />
+      <XzFeatures />
 
-    <XzCta />
-  </div>
-</BnHome>
+      <RepoPulse theme="paper" />
+
+      <XzCta />
+    </div>
+  </BnHome>
+</HomeFx>
 
 export const BnHero = () => {
   const canvasRef = useRef(null);
@@ -688,7 +692,19 @@ export const BnHome = ({ children }) => {
   const busy = useRef(false);
   const [layers, setLayers] = useState([{ id: 0, theme: "ink" }]);
   const [fx, setFx] = useState(null);
+  const xzSeen = useRef(false);
   const current = layers[layers.length - 1].theme;
+
+  useEffect(() => {
+    const onSwap = () => setLayers([{ id: Date.now(), theme: "paper" }]);
+    const onDone = () => { busy.current = false; };
+    window.addEventListener("xzi-swap", onSwap);
+    window.addEventListener("xzi-done", onDone);
+    return () => {
+      window.removeEventListener("xzi-swap", onSwap);
+      window.removeEventListener("xzi-done", onDone);
+    };
+  }, []);
 
   const kids = (Array.isArray(children) ? children : [children]).filter((c) => c && typeof c === "object");
   const renderSet = (t) => (t === "ink" ? kids[0] : kids[1]) || null;
@@ -698,6 +714,13 @@ export const BnHome = ({ children }) => {
     const to = current === "ink" ? "paper" : "ink";
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) { setLayers([{ id: Date.now(), theme: to }]); return; }
+    if (to === "paper" && !xzSeen.current && window.__xziReady) {
+      xzSeen.current = true;
+      busy.current = true;
+      window.dispatchEvent(new CustomEvent("xzi-play"));
+      setTimeout(() => { busy.current = false; }, 8000);
+      return;
+    }
     busy.current = true;
     const wr = wrapRef.current.getBoundingClientRect();
     const b = e.currentTarget.getBoundingClientRect();
@@ -783,11 +806,218 @@ export const BnHome = ({ children }) => {
   );
 };
 
+export const XzIntro = () => {
+  const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
+  const COL_A = "一句灵感".split("");
+  const COL_B = "徐徐展开成书".split("");
+  const [run, setRun] = useState(0);
+  const [ph, setPh] = useState(0);
+  const splat = useMemo(() => Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2 + Math.random() * 0.5;
+    const d = 150 + Math.random() * 230;
+    return { dx: Math.cos(a) * d, dy: Math.sin(a) * d * 0.8, s: 3 + Math.random() * 10, delay: Math.random() * 0.12, red: i % 6 === 0 };
+  }), [run]);
+  const timers = useRef([]);
+  const swapped = useRef(false);
+  const emit = (name) => window.dispatchEvent(new CustomEvent(name));
+  const clearAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
+  const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
+  const swap = () => {
+    if (swapped.current) return;
+    swapped.current = true;
+    emit("xzi-swap");
+  };
+  const finish = () => {
+    clearAll();
+    setRun(0);
+    setPh(0);
+    emit("xzi-done");
+  };
+
+  useEffect(() => {
+    const play = () => setRun(Date.now());
+    window.addEventListener("xzi-play", play);
+    window.__xziReady = true;
+    return () => {
+      window.removeEventListener("xzi-play", play);
+      window.__xziReady = false;
+      clearAll();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!run) return;
+    swapped.current = false;
+    setPh(0);
+    later(700, () => setPh(1));
+    later(1350, () => setPh(2));
+    later(3800, () => setPh(3));
+    later(4600, swap);
+    later(4750, () => setPh(4));
+    later(6150, finish);
+  }, [run]);
+
+  if (!run) return null;
+
+  const skip = () => {
+    clearAll();
+    swap();
+    setPh((p) => (p >= 2 ? 4 : 5));
+    later(1450, finish);
+  };
+
+  const show = ph >= 2 && ph < 5;
+
+  return (
+    <div className={"not-prose xzi xzi-p" + ph}>
+      <style>{`
+        .xzi{position:fixed;inset:0;z-index:9999;overflow:hidden;color:#1c1a17;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xzi-p4,.xzi-p5{pointer-events:none}
+        .xzi-half{position:absolute;top:0;bottom:0;width:50.5%;z-index:1;background-color:#f3ede1;animation:xziInL .7s cubic-bezier(.7,0,.3,1) both}
+        .xzi-l{left:0}
+        .xzi-r{right:0;animation-name:xziInR}
+        .xzi-p4 .xzi-l,.xzi-p5 .xzi-l{animation:xziOutL 1.2s .1s cubic-bezier(.7,0,.25,1) both}
+        .xzi-p4 .xzi-r,.xzi-p5 .xzi-r{animation:xziOutR 1.2s .1s cubic-bezier(.7,0,.25,1) both}
+        .xzi-rod{position:absolute;top:-12px;bottom:-12px;width:18px;border-radius:9px;background:linear-gradient(90deg,#4a2e1c,#8a5a37 45%,#5b3a24);box-shadow:0 0 22px rgba(28,26,23,.4);transition:opacity .35s}
+        .xzi-l .xzi-rod{right:-9px}
+        .xzi-r .xzi-rod{left:-9px}
+        .xzi-p1 .xzi-rod,.xzi-p2 .xzi-rod,.xzi-p3 .xzi-rod{opacity:0}
+        .xzi-c{position:absolute;inset:0;z-index:2;transition:opacity .5s ease,transform .8s ease}
+        .xzi-p4 .xzi-c{opacity:0;transform:scale(1.06)}
+        .xzi-drop{position:absolute;left:50%;top:50%;width:16px;height:22px;margin:-11px 0 0 -8px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#1c1a17;animation:xziFall .65s cubic-bezier(.55,0,1,.45) both}
+        .xzi-bloom{position:absolute;left:50%;top:50%;width:min(130vmin,1100px);height:min(130vmin,1100px);overflow:visible;pointer-events:none;animation:xziBloom 2.4s cubic-bezier(.1,.75,.2,1) both}
+        .xzi-sun{position:absolute;left:calc(50% + min(24vmin,200px));top:calc(50% - min(23vmin,190px));width:min(26vmin,210px);height:min(26vmin,210px);border-radius:50%;background:radial-gradient(circle,rgba(180,56,42,.85),rgba(180,56,42,.5) 55%,rgba(180,56,42,0) 72%);animation:xziSun 1.8s .55s cubic-bezier(.2,.7,.2,1) both}
+        .xzi-rip{position:absolute;left:50%;top:50%;width:76vmin;height:76vmin;border-radius:50%;border:2px solid rgba(28,26,23,.5);animation:xziRip 1.5s cubic-bezier(.2,.7,.3,1) both}
+        .xzi-sp{position:absolute;left:50%;top:50%;border-radius:50%;animation:xziSp .9s cubic-bezier(.15,.8,.25,1) both}
+        .xzi-stage{position:absolute;left:50%;top:50%;width:min(72vmin,600px);height:min(72vmin,600px);transform:translate(-50%,-50%)}
+        .xzi-p3 .xzi-stage{animation:xziShake .45s ease}
+        .xzi-enso{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+        .xzi-ring{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-width:13;stroke-dasharray:.9 1;stroke-dashoffset:.9;animation:xziEnso 1.3s .2s cubic-bezier(.6,.05,.25,1) forwards}
+        .xzi-ring.b{stroke-width:5;opacity:.4;stroke-dasharray:.8 1;stroke-dashoffset:.8;animation-delay:.32s}
+        .xzi-title{position:absolute;inset:0;display:flex;flex-direction:row-reverse;justify-content:center;align-items:center;gap:clamp(14px,3vmin,30px)}
+        .xzi-col{writing-mode:vertical-rl;font-size:clamp(26px,5.2vmin,54px);font-weight:900;letter-spacing:.12em;line-height:1}
+        .xzi-col.b{margin-top:1.2em}
+        .xzi-ch{display:inline-block;opacity:0;animation:xziInk 1s cubic-bezier(.2,.7,.2,1) forwards}
+        .xzi-ch.hl{color:#b4382a}
+        .xzi-seal{position:absolute;left:13%;bottom:13%;width:clamp(44px,8vmin,64px);height:clamp(44px,8vmin,64px);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;background:#b4382a;color:#f8f1e4;border-radius:5px;font-weight:900;font-size:clamp(15px,2.6vmin,21px);box-shadow:inset 0 0 0 3px rgba(248,241,228,.35),0 6px 18px -6px rgba(180,56,42,.6);animation:xziStamp .55s cubic-bezier(.3,1.6,.5,1) both}
+        .xzi-seal::after{content:"";position:absolute;inset:-10px;border:2px solid rgba(180,56,42,.5);border-radius:9px;animation:xziSealRing .7s .05s ease-out both}
+        .xzi-cap{position:absolute;left:0;right:0;bottom:max(7vh,44px);text-align:center;animation:xziUp .8s 1.6s both}
+        .xzi-cap b{display:block;font-size:12px;letter-spacing:.5em;color:rgba(28,26,23,.55);font-weight:600}
+        .xzi-cap span{display:block;margin-top:8px;font-size:14px;letter-spacing:.3em;color:rgba(28,26,23,.72)}
+        .xzi-skip{position:absolute;z-index:4;right:22px;bottom:22px;padding:6px 14px;border-radius:999px;border:1px solid rgba(28,26,23,.25);background:rgba(243,237,225,.65);color:rgba(28,26,23,.6);font-family:inherit;font-size:12px;letter-spacing:.2em;cursor:pointer;transition:color .2s,border-color .2s}
+        .xzi-skip:hover{color:#b4382a;border-color:#b4382a}
+        @keyframes xziInL{from{transform:translateX(-102%)}to{transform:none}}
+        @keyframes xziInR{from{transform:translateX(102%)}to{transform:none}}
+        @keyframes xziOutL{from{transform:none}to{transform:translateX(calc(-100% - 48px))}}
+        @keyframes xziOutR{from{transform:none}to{transform:translateX(calc(100% + 48px))}}
+        @keyframes xziFall{0%{opacity:0;transform:translateY(-62vh) scale(.7,1.6)}12%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1,1.2)}}
+        @keyframes xziBloom{0%{opacity:1;transform:translate(-50%,-50%) scale(.03)}40%{opacity:.85}100%{opacity:.2;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziSun{0%{opacity:0;transform:translate(-50%,-50%) scale(0)}100%{opacity:.8;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziRip{0%{opacity:.9;transform:translate(-50%,-50%) scale(.02)}100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+        @keyframes xziSp{0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}100%{opacity:.8;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1)}}
+        @keyframes xziEnso{to{stroke-dashoffset:0}}
+        @keyframes xziInk{0%{opacity:0;filter:blur(10px);transform:scale(1.4)}60%{opacity:.9;filter:blur(1.5px)}100%{opacity:1;filter:blur(0);transform:scale(1)}}
+        @keyframes xziStamp{0%{opacity:0;transform:rotate(-14deg) scale(2.4)}100%{opacity:1;transform:rotate(-6deg) scale(1)}}
+        @keyframes xziSealRing{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(1.7)}}
+        @keyframes xziShake{0%,100%{transform:translate(-50%,-50%)}20%{transform:translate(calc(-50% + 4px),calc(-50% + 2px))}40%{transform:translate(calc(-50% - 3px),calc(-50% - 2px))}60%{transform:translate(calc(-50% + 2px),calc(-50% + 1px))}80%{transform:translate(calc(-50% - 1px),-50%)}}
+        @keyframes xziUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+      `}</style>
+
+      <div className="xzi-half xzi-l" style={{ backgroundImage: PAPER }}><i className="xzi-rod" /></div>
+      <div className="xzi-half xzi-r" style={{ backgroundImage: PAPER }}><i className="xzi-rod" /></div>
+
+      <div className="xzi-c" aria-hidden="true">
+        {show && (
+          <svg className="xzi-bloom" viewBox="-100 -100 200 200">
+            <defs>
+              <radialGradient id="xziInkG">
+                <stop offset="0%" stopColor="#1c1a17" stopOpacity="1" />
+                <stop offset="35%" stopColor="#1c1a17" stopOpacity=".85" />
+                <stop offset="62%" stopColor="#2b2722" stopOpacity=".4" />
+                <stop offset="100%" stopColor="#2b2722" stopOpacity="0" />
+              </radialGradient>
+              <filter id="xziRough" x="-30%" y="-30%" width="160%" height="160%">
+                <feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="3" seed="7" result="n" />
+                <feDisplacementMap in="SourceGraphic" in2="n" scale="18" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </defs>
+            <circle r="62" fill="url(#xziInkG)" filter="url(#xziRough)" />
+            <circle cx="-30" cy="22" r="20" fill="url(#xziInkG)" filter="url(#xziRough)" opacity=".7" />
+          </svg>
+        )}
+        {show && <div className="xzi-sun" />}
+        {show && [0, 1, 2].map((i) => <span key={"r" + i} className="xzi-rip" style={{ animationDelay: i * 0.2 + "s" }} />)}
+        {show && splat.map((d, i) => (
+          <span key={"s" + i} className="xzi-sp" style={{ width: d.s, height: d.s, background: d.red ? "#b4382a" : "#1c1a17", animationDelay: d.delay + "s", "--dx": d.dx + "px", "--dy": d.dy + "px" }} />
+        ))}
+        {show && (
+          <div className="xzi-stage">
+            <svg className="xzi-enso" viewBox="0 0 400 400">
+              <defs>
+                <filter id="xziBrush" x="-10%" y="-10%" width="120%" height="120%">
+                  <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" seed="3" result="n" />
+                  <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+              </defs>
+              <g filter="url(#xziBrush)">
+                <circle className="xzi-ring" cx="200" cy="200" r="168" pathLength="1" transform="rotate(-78 200 200)" />
+                <circle className="xzi-ring b" cx="201" cy="203" r="160" pathLength="1" transform="rotate(-66 200 200)" />
+              </g>
+            </svg>
+            <div className="xzi-title">
+              <div className="xzi-col">
+                {COL_A.map((c, i) => <span key={i} className="xzi-ch" style={{ animationDelay: 0.4 + i * 0.11 + "s" }}>{c}</span>)}
+              </div>
+              <div className="xzi-col b">
+                {COL_B.map((c, i) => <span key={i} className={"xzi-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 0.4 + (i + 4) * 0.11 + "s" }}>{c}</span>)}
+              </div>
+            </div>
+            {ph >= 3 && <div className="xzi-seal"><span>开</span><span>卷</span></div>}
+          </div>
+        )}
+        {show && <div className="xzi-cap"><b>BIZ NOVEL STUDIO</b><span>开源 AI 小说创作工作台</span></div>}
+        {ph === 1 && <span className="xzi-drop" />}
+      </div>
+
+      {ph < 4 && <button type="button" className="xzi-skip" onClick={skip}>跳过</button>}
+    </div>
+  );
+};
+
 export const XzHero = () => {
   const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
   const colA = "从一句灵感".split("");
   const colB = "走向一本完整小说".split("");
   const [drops, setDrops] = useState([]);
+  const heroRef = useRef(null);
+  const PETALS = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
+    left: Math.round(Math.random() * 100),
+    delay: -(Math.random() * 16).toFixed(1),
+    dur: (11 + Math.random() * 9).toFixed(1),
+    size: Math.round(7 + Math.random() * 8),
+    dx: Math.round((Math.random() * 2 - 1) * 180),
+    tone: i % 4 === 0 ? "r" : "",
+  })), []);
+  useEffect(() => {
+    const el = heroRef.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const r = el.getBoundingClientRect();
+      if (r.bottom < -50 || r.top > window.innerHeight) return;
+      el.style.setProperty("--sy", Math.max(0, -r.top).toFixed(1));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", onScroll);
+    update();
+    return () => {
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
   const onDrop = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     const id = Date.now() + Math.random();
@@ -795,7 +1025,7 @@ export const XzHero = () => {
     setTimeout(() => setDrops((d) => d.filter((x) => x.id !== id)), 4000);
   };
   return (
-    <div className="not-prose xz-hero" style={{ backgroundImage: PAPER }} onClick={onDrop}>
+    <div ref={heroRef} className="not-prose xz-hero" style={{ backgroundImage: PAPER }} onClick={onDrop}>
       <style>{`
         .xz-hero{position:relative;overflow:hidden;background-color:#f3ede1;color:#1c1a17;padding:96px 24px 220px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;cursor:crosshair}
         .xz-sun{position:absolute;right:12%;top:70px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(180,56,42,.85),rgba(180,56,42,.55) 60%,rgba(180,56,42,0) 72%);filter:blur(1px);animation:xzSun 9s ease-in-out infinite;pointer-events:none}
@@ -836,11 +1066,25 @@ export const XzHero = () => {
         @keyframes xzDrift{to{transform:translateX(-50%)}}
         @keyframes xzMist{50%{transform:translateX(4%);opacity:.6}}
         @keyframes xzSun{50%{transform:translateY(10px);opacity:.85}}
+        .xz-sun{translate:0 calc(var(--sy,0) * .55px)}
+        .xz-bloom{translate:0 calc(var(--sy,0) * .38px)}
+        .xz-m1{translate:0 calc(var(--sy,0) * .46px)}
+        .xz-m2{translate:0 calc(var(--sy,0) * .28px)}
+        .xz-mist{translate:0 calc(var(--sy,0) * .2px)}
+        .xz-m3{translate:0 calc(var(--sy,0) * .08px)}
+        .xz-title{translate:0 calc(var(--sy,0) * .2px)}
+        .xz-left{translate:0 calc(var(--sy,0) * .08px)}
+        .xz-wrap{opacity:calc(1 - var(--sy,0) / 900)}
+        .xz-petal{position:absolute;top:-30px;z-index:1;pointer-events:none;border-radius:70% 0 70% 0;background:radial-gradient(circle at 30% 30%,#fbe3dc,#e7a196 55%,#d07a6c);box-shadow:0 0 1px rgba(120,40,30,.3);opacity:0;animation-name:xzPetal;animation-timing-function:linear;animation-iteration-count:infinite}
+        .xz-petal.r{background:radial-gradient(circle at 30% 30%,#f2b3a8,#c9584a 55%,#b4382a)}
+        @keyframes xzPetal{0%{transform:translate3d(0,0,0) rotate(0deg) rotateY(0deg);opacity:0}8%{opacity:.9}35%{transform:translate3d(calc(var(--dx) * .25 + 30px),38vh,0) rotate(160deg) rotateY(160deg)}65%{transform:translate3d(calc(var(--dx) * .6 - 30px),70vh,0) rotate(320deg) rotateY(300deg)}90%{opacity:.85}100%{transform:translate3d(var(--dx),108vh,0) rotate(520deg) rotateY(480deg);opacity:0}}
+        @media (prefers-reduced-motion: reduce){.xz-petal{display:none}}
       `}</style>
       <div className="xz-sun" />
       <div className="xz-bloom" style={{ left: "6%", top: "18%", width: 240, height: 240 }} />
       <div className="xz-bloom" style={{ left: "44%", top: "8%", width: 180, height: 180, animationDelay: "3s" }} />
       <div className="xz-bloom" style={{ left: "70%", top: "52%", width: 220, height: 220, animationDelay: "6s" }} />
+      {PETALS.map((p, i) => <span key={i} className={"xz-petal " + p.tone} style={{ left: p.left + "%", width: p.size, height: Math.round(p.size * 0.8), animationDuration: p.dur + "s", animationDelay: p.delay + "s", "--dx": p.dx + "px" }} />)}
       {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
       <div className="xz-wrap">
         <div className="xz-title" aria-label="从一句灵感，走向一本完整小说">
@@ -1265,6 +1509,317 @@ export const RepoPulse = ({ theme }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+export const HomeFx = ({ children }) => {
+  const rootRef = useRef(null);
+  const progRef = useRef(null);
+  const [theme, setTheme] = useState("ink");
+  const [marks, setMarks] = useState([]);
+  const [bursts, setBursts] = useState([]);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const INK_R = ".bn-k,.bn-h2,.bn-p,.bn-track,.bn-grid,.bn-detail,.bn-tk,.bn-th,.bn-tp,.bn-win,.bn-smk,.bn-smh,.bn-smp,.bn-svg,.bn-fk,.bn-fh,.bn-aur,.bn-ch2,.bn-cp,.bn-os,.bn-cb,.bn-cm .cm-k,.bn-cm .cm-h,.bn-cm .cm-p,.bn-cm .cm-badges,.bn-cm .cm-chart,.bn-cm .cm-a";
+    const PAPER_R = ".xz-hk,.xz-hh,.xz-hp,.xz-roll,.xz-dk,.xz-dh,.xz-dp,.xz-grid,.xz-note,.xz-wk,.xz-wh,.xz-wp,.xz-svg,.xz-fk,.xz-fh,.xz-card,.xz-ck,.xz-cp,.xz-os,.xz-go,.xz-small,.xz-cm .cm-k,.xz-cm .cm-h,.xz-cm .cm-p,.xz-cm .cm-badges,.xz-cm .cm-chart,.xz-cm .cm-a";
+    const DECODE = ".bn-k,.bn-h2,.bn-tk,.bn-th,.bn-smk,.bn-smh,.bn-fk,.bn-fh,.bn-ch2,.bn-cm .cm-k,.bn-cm .cm-h";
+    const BLOT = ".xz-hh,.xz-dh,.xz-wh,.xz-fh,.xz-cm .cm-h";
+    const TILT = ".bn-aur,.xz-card,.cm-a";
+    const MAG = ".bn-btn,.bn-cb,.xz-btn,.xz-go";
+    const ALL = INK_R + "," + PAPER_R + "," + TILT + "," + MAG;
+    const GL = "!<>-_/[]{}=+*^?#%&01";
+    const GC = "＃＄％＆＊＋／＜＞？＠墨码字章卷书灵光星界";
+    let dead = false;
+    let seq = 0;
+    const timers = new Set();
+    const later = (fn, ms) => {
+      const t = setTimeout(() => { timers.delete(t); if (!dead) fn(); }, ms);
+      timers.add(t);
+    };
+    const getTheme = () => {
+      const h = root.querySelector(".bnh");
+      return (h && h.getAttribute("data-bn-theme")) || "ink";
+    };
+    let curTheme = getTheme();
+    setTheme(curTheme);
+
+    let check = () => {};
+    let praf = 0;
+    const prog = () => {
+      praf = 0;
+      check();
+      const r = root.getBoundingClientRect();
+      const span = r.height - window.innerHeight;
+      const p = span > 0 ? Math.min(1, Math.max(0, -r.top / span)) : 0;
+      if (progRef.current) progRef.current.style.setProperty("--p", p.toFixed(4));
+    };
+    const onScroll = () => { if (!praf) praf = requestAnimationFrame(prog); };
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", onScroll);
+    prog();
+
+    const decode = (el) => {
+      const n = el.firstChild;
+      if (!n || el.childNodes.length !== 1 || n.nodeType !== 3) return;
+      const orig = n.nodeValue;
+      const cs = Array.from(orig);
+      const dur = 650 + cs.length * 30;
+      let t0 = 0;
+      let last = 0;
+      const step = (t) => {
+        if (dead || !n.isConnected) { n.nodeValue = orig; return; }
+        if (!t0) t0 = t;
+        const p = (t - t0) / dur;
+        if (p >= 1) { n.nodeValue = orig; return; }
+        if (t - last > 45) {
+          last = t;
+          const k = Math.floor(p * cs.length);
+          n.nodeValue = cs.map((c, i) => (i < k || c === " " ? c : c.charCodeAt(0) > 255 ? GC[Math.floor(Math.random() * GC.length)] : GL[Math.floor(Math.random() * GL.length)])).join("");
+        }
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    const addMark = (el, kind) => {
+      const r = el.getBoundingClientRect();
+      const R = root.getBoundingClientRect();
+      if (r.width < 4 || r.height < 4) return;
+      const id = ++seq;
+      const m = kind === "s"
+        ? { id, k: "s", x: r.left - R.left, y: r.top - R.top, w: r.width, h: r.height }
+        : { id, k: "b", x: r.left - R.left + Math.min(r.width, 420) * 0.35, y: r.top - R.top + r.height / 2, w: Math.max(180, Math.min(340, r.height * 5)) };
+      setMarks((s) => [...s.slice(-16), m]);
+      later(() => setMarks((s) => s.filter((q) => q.id !== id)), kind === "s" ? 1100 : 2000);
+    };
+    const reveal = (el, d) => {
+      el.style.setProperty("--hfx-d", d + "ms");
+      el.classList.add("hfx-on");
+      if (el.classList.contains("hfx-ri")) {
+        later(() => addMark(el, "s"), d);
+        if (el.matches(DECODE)) later(() => decode(el), d);
+      } else if (el.matches(BLOT)) later(() => addMark(el, "b"), d);
+      later(() => {
+        el.classList.remove("hfx-r", "hfx-ri", "hfx-rp", "hfx-on");
+        el.style.removeProperty("--hfx-d");
+      }, d + 1600);
+    };
+    const tracked = new Set();
+    check = () => {
+      if (!tracked.size) return;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      const vis = [];
+      tracked.forEach((el) => {
+        if (!el.isConnected) { tracked.delete(el); return; }
+        const r = el.getBoundingClientRect();
+        if (r.bottom <= 0) {
+          tracked.delete(el);
+          el.classList.remove("hfx-r", "hfx-ri", "hfx-rp", "hfx-on");
+        } else if (r.top < vh * 0.92 && (r.width > 0 || r.height > 0)) vis.push(el);
+      });
+      vis.sort((a, b) => (a.compareDocumentPosition(b) & 4 ? -1 : 1));
+      vis.forEach((el, i) => {
+        tracked.delete(el);
+        reveal(el, Math.min(i, 6) * 110);
+      });
+    };
+    const seen = new WeakSet();
+    const tag = (el, cls) => {
+      if (seen.has(el)) return;
+      seen.add(el);
+      if (el.getBoundingClientRect().bottom < 0) return;
+      el.classList.add("hfx-r", cls);
+      tracked.add(el);
+    };
+    const mags = new Map();
+    const scan = () => {
+      tracked.forEach((el) => { if (!el.isConnected) tracked.delete(el); });
+      mags.forEach((s, el) => { if (!el.isConnected) mags.delete(el); });
+      root.querySelectorAll(INK_R).forEach((el) => tag(el, "hfx-ri"));
+      root.querySelectorAll(PAPER_R).forEach((el) => tag(el, "hfx-rp"));
+      root.querySelectorAll(TILT).forEach((el) => el.classList.add("hfx-card"));
+      root.querySelectorAll(MAG).forEach((el) => { if (!mags.has(el)) mags.set(el, { x: 0, y: 0 }); });
+    };
+    const mo = new MutationObserver((ms) => {
+      let need = false;
+      ms.forEach((m) => {
+        if (m.type === "attributes") {
+          const t = getTheme();
+          if (t !== curTheme) { curTheme = t; setTheme(t); }
+        } else if (!need) {
+          m.addedNodes.forEach((n) => { if (!need && n.nodeType === 1 && (n.matches(ALL) || n.querySelector(ALL))) need = true; });
+        }
+      });
+      if (need && !reduce) { scan(); onScroll(); }
+    });
+    mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-bn-theme"] });
+
+    let mouse = null;
+    let mraf = 0;
+    const clamp = (v) => Math.max(-12, Math.min(12, v));
+    const magLoop = () => {
+      mraf = 0;
+      let moving = false;
+      mags.forEach((st, el) => {
+        if (!el.isConnected) { mags.delete(el); return; }
+        let tx = 0;
+        let ty = 0;
+        if (mouse) {
+          const r = el.getBoundingClientRect();
+          const dx = mouse.x - (r.left + r.width / 2 - st.x);
+          const dy = mouse.y - (r.top + r.height / 2 - st.y);
+          if (Math.hypot(dx, dy) < Math.max(r.width, r.height) / 2 + 60) { tx = clamp(dx * 0.28); ty = clamp(dy * 0.36); }
+        }
+        st.x += (tx - st.x) * 0.2;
+        st.y += (ty - st.y) * 0.2;
+        if (Math.abs(tx - st.x) > 0.08 || Math.abs(ty - st.y) > 0.08) moving = true;
+        else { st.x = tx; st.y = ty; }
+        el.style.translate = st.x || st.y ? st.x.toFixed(2) + "px " + st.y.toFixed(2) + "px" : "";
+      });
+      if (moving) mraf = requestAnimationFrame(magLoop);
+    };
+    const kick = () => { if (!mraf && mags.size) mraf = requestAnimationFrame(magLoop); };
+    let tiltEl = null;
+    const clearTilt = () => {
+      if (!tiltEl) return;
+      tiltEl.classList.remove("hfx-tilt");
+      tiltEl.style.removeProperty("--hfx-rx");
+      tiltEl.style.removeProperty("--hfx-ry");
+      tiltEl = null;
+    };
+    const onMove = (e) => {
+      if (e.pointerType !== "mouse") return;
+      mouse = { x: e.clientX, y: e.clientY };
+      kick();
+      const c = e.target && e.target.closest ? e.target.closest(TILT) : null;
+      if (c !== tiltEl) {
+        clearTilt();
+        if (c && root.contains(c)) { tiltEl = c; c.classList.add("hfx-card", "hfx-tilt"); }
+      }
+      if (tiltEl) {
+        const r = tiltEl.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width - 0.5;
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        tiltEl.style.setProperty("--hfx-rx", (-py * 9).toFixed(2) + "deg");
+        tiltEl.style.setProperty("--hfx-ry", (px * 11).toFixed(2) + "deg");
+      }
+    };
+    const onLeave = () => { mouse = null; clearTilt(); kick(); };
+    const onClick = (e) => {
+      if (e.button !== 0) return;
+      const t = e.target;
+      if (!t || !t.closest || t.closest("a,button,input,textarea,select,label,svg,[role=button],.xz-hero,.bnh-tg")) return;
+      if (window.getSelection && String(window.getSelection())) return;
+      const th = getTheme();
+      const ink = th !== "paper";
+      const id = ++seq;
+      const N = ink ? 16 : 10;
+      const parts = Array.from({ length: N }, (_, i) => {
+        const a = (i / N) * Math.PI * 2 + Math.random() * 0.5;
+        const d = ink ? 40 + Math.random() * 75 : 16 + Math.random() * 50;
+        return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), s: ink ? 2 + Math.random() * 3 : 3 + Math.random() * 8, r: !ink && Math.random() < 0.2 };
+      });
+      setBursts((b) => [...b.slice(-6), { id, th: ink ? "ink" : "paper", x: e.clientX, y: e.clientY, parts }]);
+      later(() => setBursts((b) => b.filter((q) => q.id !== id)), ink ? 1000 : 2300);
+    };
+    const iv = setInterval(() => { if (tracked.size) onScroll(); }, 400);
+    if (!reduce) {
+      scan();
+      check();
+      root.addEventListener("pointermove", onMove, { passive: true });
+      root.addEventListener("pointerleave", onLeave);
+      root.addEventListener("click", onClick);
+    }
+    return () => {
+      dead = true;
+      clearInterval(iv);
+      tracked.forEach((el) => el.classList.remove("hfx-r", "hfx-ri", "hfx-rp", "hfx-on"));
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("resize", onScroll);
+      root.removeEventListener("pointermove", onMove);
+      root.removeEventListener("pointerleave", onLeave);
+      root.removeEventListener("click", onClick);
+      if (praf) cancelAnimationFrame(praf);
+      if (mraf) cancelAnimationFrame(mraf);
+      mo.disconnect();
+      timers.forEach((t) => clearTimeout(t));
+      mags.forEach((s, el) => { el.style.translate = ""; });
+      clearTilt();
+    };
+  }, []);
+  return (
+    <div ref={rootRef} className="not-prose hfx" data-hfx={theme}>
+      {children}
+      <div className="hfx-layer" aria-hidden="true">
+        {marks.map((m) => (m.k === "s"
+          ? <i key={m.id} className="hfx-scan" style={{ left: m.x, top: m.y, width: m.w, "--h": m.h + "px" }} />
+          : <i key={m.id} className="hfx-blot" style={{ left: m.x, top: m.y, width: m.w, height: m.w }} />))}
+      </div>
+      {bursts.map((b) => (
+        <div key={b.id} className={"hfx-burst " + b.th} style={{ left: b.x, top: b.y }} aria-hidden="true">
+          <i className="hfx-core" />
+          {b.parts.map((p, i) => <i key={i} className={"hfx-pt" + (p.r ? " r" : "")} style={{ width: p.s, height: p.s, "--x": p.x + "px", "--y": p.y + "px" }} />)}
+        </div>
+      ))}
+      <div ref={progRef} className={"hfx-prog " + theme} aria-hidden="true">
+        {theme === "paper" && <i className="hfx-rod t" />}
+        {theme === "paper" && <i className="hfx-paper" />}
+        {theme === "paper" && <i className="hfx-rod b" />}
+        {theme === "paper" && <i className="hfx-sealp">阅</i>}
+        {theme !== "paper" && <i className="hfx-bar" />}
+        {theme !== "paper" && <i className="hfx-head" />}
+      </div>
+      <style>{`
+        .hfx{position:relative}
+        .hfx-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+        .hfx-r.hfx-ri{opacity:0;translate:0 26px;clip-path:inset(0 -150px 100% -150px);filter:brightness(2.4) saturate(1.5)}
+        .hfx-r.hfx-ri.hfx-on{opacity:1;translate:0 0;clip-path:inset(-150px -150px -150px -150px);filter:brightness(1) saturate(1);transition:opacity .45s ease-out var(--hfx-d,0ms),translate .9s cubic-bezier(.2,.8,.2,1) var(--hfx-d,0ms),clip-path .9s cubic-bezier(.65,0,.35,1) var(--hfx-d,0ms),filter 1.3s ease-out var(--hfx-d,0ms)}
+        .hfx-r.hfx-rp{opacity:0;translate:0 16px;scale:1.03;filter:blur(14px)}
+        .hfx-r.hfx-rp.hfx-on{opacity:1;translate:0 0;scale:1;filter:blur(0);transition:opacity 1.1s ease-out var(--hfx-d,0ms),translate 1.3s cubic-bezier(.2,.7,.2,1) var(--hfx-d,0ms),scale 1.4s cubic-bezier(.2,.7,.2,1) var(--hfx-d,0ms),filter 1.4s cubic-bezier(.2,.7,.2,1) var(--hfx-d,0ms)}
+        .hfx-scan{position:absolute;height:2px;margin-top:-1px;background:linear-gradient(90deg,transparent,#4ade80 15%,#ecfdf5 50%,#4ade80 85%,transparent);box-shadow:0 0 12px 2px rgba(34,197,94,.75);opacity:0;animation:hfxScan .9s cubic-bezier(.65,0,.35,1) forwards}
+        @keyframes hfxScan{0%{transform:translateY(0);opacity:0}10%{opacity:1}85%{opacity:1}100%{transform:translateY(var(--h));opacity:0}}
+        .hfx-blot{position:absolute;border-radius:50%;translate:-50% -50%;background:radial-gradient(circle,rgba(28,26,23,.3),rgba(28,26,23,.12) 40%,transparent 68%);filter:blur(6px);mix-blend-mode:multiply;opacity:0;animation:hfxBlot 1.8s cubic-bezier(.2,.7,.2,1) forwards}
+        @keyframes hfxBlot{0%{transform:scale(.1);opacity:0}25%{opacity:1}100%{transform:scale(1.5);opacity:0}}
+        .hfx .hfx-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:4;opacity:0;background-image:linear-gradient(105deg,transparent 35%,var(--hfx-sh,rgba(255,255,255,.3)) 50%,transparent 65%);background-repeat:no-repeat;background-size:250% 100%;background-position:150% 0}
+        .hfx .hfx-card.hfx-tilt::after{animation:hfxSheen .95s cubic-bezier(.3,.6,.3,1) forwards}
+        @keyframes hfxSheen{0%{opacity:1;background-position:150% 0}100%{opacity:1;background-position:-50% 0}}
+        .hfx .bn-aur.hfx-card{--hfx-sh:rgba(167,243,208,.24)}
+        .hfx .xz-card.hfx-card{--hfx-sh:rgba(255,248,232,.55);transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .5s}
+        .hfx .cm-a.hfx-card{position:relative;overflow:hidden}
+        .hfx .bn-cm .cm-a.hfx-card{--hfx-sh:rgba(167,243,208,.18)}
+        .hfx .xz-cm .cm-a.hfx-card{--hfx-sh:rgba(255,255,255,.65)}
+        .hfx .hfx-tilt{transform:perspective(900px) rotateX(var(--hfx-rx,0deg)) rotateY(var(--hfx-ry,0deg)) translateY(-4px) !important;z-index:2}
+        .hfx .bn-aur.hfx-tilt,.hfx .xz-card.hfx-tilt{transition:transform .12s ease-out,box-shadow .4s}
+        .hfx .cm-a.hfx-tilt{transition:all .25s,transform .12s ease-out}
+        .hfx .bn-aur.hfx-tilt{box-shadow:0 30px 60px -30px rgba(34,197,94,.55)}
+        .hfx .xz-card.hfx-tilt{box-shadow:0 30px 50px -28px rgba(28,26,23,.6)}
+        .hfx-burst{position:fixed;width:0;height:0;pointer-events:none;z-index:80}
+        .hfx-burst i{position:absolute;left:0;top:0;border-radius:50%;translate:-50% -50%}
+        .hfx-burst.ink .hfx-core{width:10px;height:10px;border:1.5px solid #4ade80;box-shadow:0 0 14px #22c55e,inset 0 0 6px #22c55e;animation:hfxRing .7s ease-out forwards}
+        .hfx-burst.ink .hfx-pt{background:#d1fae5;box-shadow:0 0 8px 2px #22c55e;animation:hfxSpark .85s cubic-bezier(.15,.7,.3,1) forwards}
+        @keyframes hfxRing{to{transform:scale(7);opacity:0}}
+        @keyframes hfxSpark{0%{transform:translate(0,0) scale(1.4);opacity:1}100%{transform:translate(var(--x),calc(var(--y) + 22px)) scale(.2);opacity:0}}
+        .hfx-burst.paper .hfx-core{width:130px;height:130px;background:radial-gradient(circle,rgba(28,26,23,.78),rgba(28,26,23,.38) 36%,rgba(28,26,23,.1) 58%,transparent 70%);filter:blur(3px);mix-blend-mode:multiply;animation:hfxInk 2.1s cubic-bezier(.2,.7,.2,1) forwards}
+        .hfx-burst.paper .hfx-pt{background:#1c1a17;filter:blur(.6px);mix-blend-mode:multiply;animation:hfxSplat 2s cubic-bezier(.1,.8,.2,1) forwards}
+        .hfx-burst.paper .hfx-pt.r{background:#b4382a}
+        @keyframes hfxInk{0%{transform:scale(.08);opacity:.95}35%{opacity:.85}100%{transform:scale(1.5);opacity:0}}
+        @keyframes hfxSplat{0%{transform:translate(0,0) scale(.3);opacity:.95}22%{transform:translate(var(--x),var(--y)) scale(1);opacity:.9}100%{transform:translate(var(--x),var(--y)) scale(1.7);opacity:0}}
+        .hfx-prog{position:fixed;pointer-events:none;z-index:70;--p:0}
+        .hfx-prog i{position:absolute;display:block;font-style:normal}
+        .hfx-prog.ink{left:0;right:0;top:0;height:3px}
+        .hfx-prog.ink .hfx-bar{inset:0;transform-origin:0 50%;transform:scaleX(var(--p));background:linear-gradient(90deg,#16A34A,#22c55e 60%,#a7f3d0);box-shadow:0 0 10px rgba(74,222,128,.9),0 0 22px rgba(34,197,94,.5)}
+        .hfx-prog.ink .hfx-head{top:50%;left:calc(var(--p) * 100%);width:80px;height:8px;margin:-4px 0 0 -80px;border-radius:50%;background:radial-gradient(ellipse at right,#ecfdf5,rgba(74,222,128,.6) 40%,transparent 70%);filter:blur(1px);opacity:calc(var(--p) * 30)}
+        .hfx-prog.paper{right:5px;top:16vh;height:68vh;width:18px}
+        .hfx-prog.paper::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:2px;background:rgba(28,26,23,.1)}
+        .hfx-prog.paper .hfx-rod{left:0;top:0;width:18px;height:7px;border-radius:4px;background:linear-gradient(180deg,#8a5a36,#4a2c17);box-shadow:0 2px 4px rgba(28,26,23,.35)}
+        .hfx-prog.paper .hfx-rod.b{transform:translateY(calc(var(--p) * (68vh - 7px)))}
+        .hfx-prog.paper .hfx-paper{left:3px;top:4px;width:12px;height:calc(var(--p) * (68vh - 7px));background-color:#f8f2e4;background-image:repeating-linear-gradient(180deg,transparent 0 13px,rgba(28,26,23,.16) 13px 14px);border-left:1px solid rgba(28,26,23,.28);border-right:1px solid rgba(28,26,23,.28);box-shadow:0 0 6px rgba(28,26,23,.15)}
+        .hfx-prog.paper .hfx-sealp{left:1px;top:calc(var(--p) * (68vh - 7px) + 12px);width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;color:#faf6ec;background:#b4382a;border-radius:2px;font-family:"Noto Serif SC","Songti SC",serif;opacity:calc((var(--p) - .97) * 40)}
+        @media (max-width:640px){.hfx-prog.paper{display:none}}
+        @media (prefers-reduced-motion: reduce){.hfx-layer,.hfx-burst{display:none}}
+      `}</style>
     </div>
   );
 };

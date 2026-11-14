@@ -1,0 +1,171 @@
+---
+title: "Deployment Guide"
+description: "Self-host the Biz Novel Studio server and frontend with Docker, including build commands, port mapping, data persistence, and security recommendations."
+sidebarTitle: "Deployment Guide"
+icon: "server"
+keywords:
+  - "Docker deployment"
+  - "self-hosting"
+  - "Dockerfile"
+  - "containerization"
+  - "server deployment"
+  - "data persistence"
+  - "environment variables"
+  - "Qdrant"
+---
+
+Biz Novel Studio provides two independent images: an API server and a Web frontend. You can build and run both on the same machine, or deploy only the API server and continue using the desktop app or dev mode for the frontend.
+
+<Warning>
+  Desktop app users do not need Docker deployment. The following steps are for users and developers who need to self-host the Web service on a server or NAS.
+</Warning>
+
+## Prerequisites
+
+| Item | Requirement |
+| --- | --- |
+| Docker | Installed and able to run `docker build` |
+| Node.js / pnpm | Only needed when running from source on the host; not needed for pure container deployment |
+| Database | The container defaults to PostgreSQL (build stage sets `AI_NOVEL_DATABASE_MODE=postgresql`); the host must provide a PostgreSQL instance |
+| Vector Retrieval | Optional Qdrant; set `RAG_ENABLED` to `false` if not yet configured |
+
+## Image Overview
+
+Two Dockerfiles are provided in the repository root:
+
+| File | Purpose | Exposed Port |
+| --- | --- | --- |
+| `Dockerfile.api` | Build the Node.js server image | `3000` |
+| `Dockerfile.web` | Build the Nginx frontend image | `8080` |
+
+The frontend image is based on `nginxinc/nginx-unprivileged:1.27-alpine` and serves requests as a non-root user (UID 101) at runtime.
+
+## Building Images
+
+Run the following from the repository root:
+
+```bash
+# Build the API image
+docker build -f Dockerfile.api -t ai-novel-api:latest .
+
+# Build the Web image
+docker build -f Dockerfile.web -t ai-novel-web:latest .
+```
+
+You can pin the API address during the frontend build via the `VITE_API_BASE_URL` argument. If both frontend and backend are on the same domain served by a reverse proxy, this is usually unnecessary. To set it explicitly:
+
+```bash
+docker build -f Dockerfile.web \
+  --build-arg VITE_API_BASE_URL=https://your-domain.com/api \
+  -t ai-novel-web:latest .
+```
+
+## Running Containers
+
+### Run the API Server Alone
+
+```bash
+docker run -d \
+  --name ai-novel-api \
+  -p 3000:3000 \
+  -e PORT=3000 \
+  -e HOST=0.0.0.0 \
+  -e DATABASE_URL="postgresql://postgres:postgres@host.docker.internal:5432/ai_novel" \
+  -e AI_NOVEL_ACCESS_TOKEN="your-secure-token" \
+  -e DIRECTOR_NEXT_ENABLED=true \
+  -e ALLOW_LAN=false \
+  -e CORS_ORIGIN="https://your-domain.com" \
+  -v ai-novel-storage:/app/storage/generated-images \
+  ai-novel-api:latest
+```
+
+### Run the Web Frontend Alone
+
+```bash
+docker run -d \
+  --name ai-novel-web \
+  -p 8080:8080 \
+  ai-novel-web:latest
+```
+
+### Common Port Mappings
+
+| Service | Container Port | Recommended Host Mapping |
+| --- | --- | --- |
+| API | `3000` | `3000:3000` or reverse proxy to an internal address |
+| Web | `8080` | `8080:8080` or reverse proxy to 80/443 |
+
+## Data Persistence
+
+The API image stores image assets under `/app/storage/generated-images`. You must mount a volume when running the container, or images will be lost after a rebuild:
+
+```bash
+-v ai-novel-storage:/app/storage/generated-images
+```
+
+The database uses PostgreSQL, and the connection string is passed via `DATABASE_URL`. Make sure the PostgreSQL instance on the host or in another container is reachable by the API container, and complete migrations before the first deployment.
+
+<Warning>
+  Do not copy or replace database files directly while the app is running. Stop the container completely and back up the data volume before migrating.
+</Warning>
+
+## Optional: Qdrant Vector Service
+
+If you need knowledge base vector retrieval, the repository provides a standalone Qdrant service definition in `infra/docker-compose.qdrant.yml`:
+
+```bash
+cd infra
+docker compose -f docker-compose.qdrant.yml up -d
+```
+
+By default it exposes port `6333` (REST) and `6334` (gRPC), with a data volume named `qdrant_storage`. After starting it, point `QDRANT_URL` in `server/.env` to that address and confirm `RAG_ENABLED=true`.
+
+## Security Recommendations
+
+When deploying on the public internet or a shared LAN, we recommend the following adjustments in `server/.env`:
+
+| Variable | Recommended Value | Reason |
+| --- | --- | --- |
+| `HOST` | `127.0.0.1` | Avoid binding directly to a public interface |
+| `ALLOW_LAN` | `false` | Disable LAN-wide open access |
+| `CORS_ORIGIN` | Actual domain | Narrow cross-origin sources |
+| `API_JSON_LIMIT` | `5mb` or smaller | Reduce large request body attack surface |
+| `AI_NOVEL_ACCESS_TOKEN` | Random strong password | Enable access token protection |
+
+For the full variable list and descriptions, see [Environment Variables](/en/developers/environment-variables).
+
+## Upgrades and Backups
+
+### Upgrade Steps
+
+1. Pull the latest source or the corresponding version tag.
+2. Rebuild the API and Web images.
+3. Stop and remove the old containers (data volumes are kept).
+4. Start new containers from the new images, mounting the original data volumes.
+5. If the database schema has changed, run migrations inside the API container (usually via Prisma).
+
+### Backup Checklist
+
+- Back up the PostgreSQL database regularly.
+- Back up image assets in the persistent volume `ai-novel-storage`.
+- Export important works to local files as an extra safeguard.
+
+<Info>
+  The server image already includes the Prisma CLI at build time. For manual migrations, you can enter the running API container and run `prisma migrate deploy`.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Environment Variables" icon="gear" href="/en/developers/environment-variables">
+    View the full server and frontend configuration reference
+  </Card>
+
+  <Card title={"Architecture & Source Code"} icon="sitemap" href="/en/developers/architecture">
+    Learn about the tech stack, directory structure, and common commands
+  </Card>
+
+  <Card title={"Installation & Download"} icon="download" href="/en/installation">
+    Desktop users can download the installer directly
+  </Card>
+</CardGroup>

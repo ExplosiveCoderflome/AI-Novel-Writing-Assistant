@@ -1,0 +1,171 @@
+---
+title: "部署指南"
+description: "使用 Docker 自托管 Biz Novel Studio 服务端与前端，包含构建命令、端口映射、数据持久化与安全建议。"
+sidebarTitle: "部署指南"
+icon: "server"
+keywords:
+  - "Docker 部署"
+  - "自托管"
+  - "Dockerfile"
+  - "容器化"
+  - "服务端部署"
+  - "数据持久化"
+  - "环境变量"
+  - "Qdrant"
+---
+
+Biz Novel Studio 提供两个独立镜像：API 服务端与 Web 前端。你可以在同一台服务器上分别构建并运行，也可以只部署 API 服务端、让前端继续用桌面版或开发模式访问。
+
+<Warning>
+  桌面版用户不需要 Docker 部署。以下步骤面向需要在服务器或 NAS 上自托管 Web 服务的用户与开发者。
+</Warning>
+
+## 前置要求
+
+| 项目 | 要求 |
+| --- | --- |
+| Docker | 已安装并可运行 `docker build` |
+| Node.js / pnpm | 仅在宿主机源码运行时需要；纯容器部署不需要 |
+| 数据库 | 容器内默认使用 PostgreSQL（构建阶段固定 `AI_NOVEL_DATABASE_MODE=postgresql`）；宿主机需额外提供 PostgreSQL 实例 |
+| 向量检索 | 可选 Qdrant；尚未配置时可关闭 `RAG_ENABLED` |
+
+## 镜像说明
+
+仓库根目录提供两个 Dockerfile：
+
+| 文件 | 用途 | 暴露端口 |
+| --- | --- | --- |
+| `Dockerfile.api` | 构建 Node.js 服务端镜像 | `3000` |
+| `Dockerfile.web` | 构建 Nginx 前端镜像 | `8080` |
+
+前端镜像基于 `nginxinc/nginx-unprivileged:1.27-alpine`，运行时以非 root 用户（UID 101）提供服务。
+
+## 构建镜像
+
+在仓库根目录执行：
+
+```bash
+# 构建 API 镜像
+docker build -f Dockerfile.api -t ai-novel-api:latest .
+
+# 构建 Web 镜像
+docker build -f Dockerfile.web -t ai-novel-web:latest .
+```
+
+前端构建时可通过 `VITE_API_BASE_URL` 参数固定 API 地址。若前后端在同一域名下由反向代理分发，通常不需要设置；需要显式指定时：
+
+```bash
+docker build -f Dockerfile.web \
+  --build-arg VITE_API_BASE_URL=https://your-domain.com/api \
+  -t ai-novel-web:latest .
+```
+
+## 运行容器
+
+### 单独运行 API 服务端
+
+```bash
+docker run -d \
+  --name ai-novel-api \
+  -p 3000:3000 \
+  -e PORT=3000 \
+  -e HOST=0.0.0.0 \
+  -e DATABASE_URL="postgresql://postgres:postgres@host.docker.internal:5432/ai_novel" \
+  -e AI_NOVEL_ACCESS_TOKEN="your-secure-token" \
+  -e DIRECTOR_NEXT_ENABLED=true \
+  -e ALLOW_LAN=false \
+  -e CORS_ORIGIN="https://your-domain.com" \
+  -v ai-novel-storage:/app/storage/generated-images \
+  ai-novel-api:latest
+```
+
+### 单独运行 Web 前端
+
+```bash
+docker run -d \
+  --name ai-novel-web \
+  -p 8080:8080 \
+  ai-novel-web:latest
+```
+
+### 常用端口映射
+
+| 服务 | 容器端口 | 建议宿主机映射 |
+| --- | --- | --- |
+| API | `3000` | `3000:3000` 或反向代理内网地址 |
+| Web | `8080` | `8080:8080` 或反向代理到 80/443 |
+
+## 数据持久化
+
+API 镜像把图片资产保存在 `/app/storage/generated-images`。运行时必须挂载卷，否则容器重建后图片会丢失：
+
+```bash
+-v ai-novel-storage:/app/storage/generated-images
+```
+
+数据库使用 PostgreSQL，连接串通过 `DATABASE_URL` 传入。请确保宿主机或另一个容器中的 PostgreSQL 可被 API 容器访问，并在首次部署前完成迁移。
+
+<Warning>
+  不要在应用运行时直接复制或替换数据库文件；迁移前先完整停止容器并备份数据卷。
+</Warning>
+
+## 可选：Qdrant 向量服务
+
+若需要知识库向量检索，仓库 `infra/docker-compose.qdrant.yml` 提供独立的 Qdrant 服务定义：
+
+```bash
+cd infra
+docker compose -f docker-compose.qdrant.yml up -d
+```
+
+默认暴露 `6333`（REST）与 `6334`（gRPC）端口，数据卷为 `qdrant_storage`。启动后在 `server/.env` 中把 `QDRANT_URL` 指向该地址，并确认 `RAG_ENABLED=true`。
+
+## 安全建议
+
+公网或局域网共享部署时，建议在 `server/.env` 中做以下调整：
+
+| 变量 | 建议值 | 原因 |
+| --- | --- | --- |
+| `HOST` | `127.0.0.1` | 避免直接监听公网接口 |
+| `ALLOW_LAN` | `false` | 关闭局域网开放访问 |
+| `CORS_ORIGIN` | 实际域名 | 收窄跨域来源 |
+| `API_JSON_LIMIT` | `5mb` 或更小 | 降低大请求体攻击面 |
+| `AI_NOVEL_ACCESS_TOKEN` | 随机强密码 | 开启访问令牌保护 |
+
+完整变量列表与说明见 [环境变量](/developers/environment-variables)。
+
+## 升级与备份
+
+### 升级步骤
+
+1. 拉取最新源码或对应版本标签。
+2. 重新构建 API 与 Web 镜像。
+3. 停止并删除旧容器（数据卷保留）。
+4. 用新镜像启动容器，挂载原数据卷。
+5. 若数据库 schema 有变更，进入 API 容器执行迁移（通常通过 Prisma）。
+
+### 备份要点
+
+- 定期备份 PostgreSQL 数据库。
+- 备份持久化卷 `ai-novel-storage` 中的图片资产。
+- 重要作品另外导出正文到本地文件。
+
+<Info>
+  服务端镜像在构建阶段已内置 Prisma CLI。需要手动迁移时，可进入运行中的 API 容器执行 `prisma migrate deploy`。
+</Info>
+
+## 下一步
+
+<CardGroup cols={3}>
+  <Card title="环境变量" icon="gear" href="/developers/environment-variables">
+    查看服务端与前端完整配置说明
+  </Card>
+
+  <Card title="架构与源码" icon="sitemap" href="/developers/architecture">
+    了解技术栈、目录结构与常用命令
+  </Card>
+
+  <Card title="安装下载" icon="download" href="/installation">
+    桌面版用户直接下载安装包即可使用
+  </Card>
+</CardGroup>

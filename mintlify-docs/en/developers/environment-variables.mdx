@@ -1,0 +1,159 @@
+---
+title: "Environment Variables"
+description: "Server and frontend environment variable configuration, grouping, and security deployment recommendations for Biz Novel Studio"
+icon: "gear"
+keywords:
+  - "environment variables"
+  - "configuration"
+  - ".env"
+  - "deployment"
+  - "API Key"
+  - "Qdrant"
+  - "RAG"
+---
+
+This page lists the environment variables to know when running or deploying Biz Novel Studio from source. We recommend first reading the "Run from Source (Developers)" section in [Installation & Download](/en/installation).
+
+## Configuration File Locations
+
+- Server reads from `server/.env`
+- Frontend reads from `client/.env` or `client/.env.local`
+- The root `.env.example` is only an overview and cannot replace per-package configuration
+
+Copy the example files and modify:
+
+```bash
+# macOS / Linux
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
+```powershell
+# Windows PowerShell
+Copy-Item server/.env.example server/.env
+Copy-Item client/.env.example client/.env
+```
+
+API keys and models can also be saved in system settings. Model routing is used to separately configure planning, body text, review, and book breakdown. For details, see [Model Configuration](/en/model-configuration).
+
+## Server Configuration (server/.env)
+
+### Basic Service
+
+| Variable | Default / Example | Description |
+| --- | --- | --- |
+| `PORT` | `3000` | Server listening port |
+| `DIRECTOR_NEXT_ENABLED` | `true` | Enables V1/V2 director selection; set to `false` to disable V2. Existing novels keep their original director version |
+| `HOST` | `0.0.0.0` | Bind address. Change to `127.0.0.1` for public internet or server deployment |
+| `ALLOW_LAN` | `true` | Whether to allow LAN access. Change to `false` for public deployment |
+| `AI_NOVEL_ACCESS_TOKEN` | empty | Optional access token. Recommended for public internet or shared LAN |
+| `CORS_ORIGIN` | `http://localhost:5173,...` | Cross-origin list; narrow to the actual domain for public deployment |
+| `DATABASE_URL` | `file:./dev.db` (SQLite default) | Database connection string. Replace with the PostgreSQL connection string when using PostgreSQL |
+| `API_JSON_LIMIT` | `20mb` | JSON request body size limit |
+| `NOVEL_SNAPSHOT_RETENTION_COUNT` | `10` | Number of automatic version snapshots kept per novel; manual snapshots are not limited |
+
+### Image Storage & Generation
+
+| Variable | Default / Example | Description |
+| --- | --- | --- |
+| `IMAGE_STORAGE_DRIVER` | `local` | Image asset storage driver: `local` or `minio` |
+| `IMAGE_STORAGE_ROOT` | `storage/generated-images` | Local storage root directory |
+| `IMAGE_STORAGE_S3_ENDPOINT` | empty | MinIO/S3 endpoint address |
+| `IMAGE_STORAGE_S3_REGION` | `us-east-1` | S3 region |
+| `IMAGE_STORAGE_S3_BUCKET` | `ai-novel-images` | S3 bucket name |
+| `IMAGE_STORAGE_S3_ACCESS_KEY_ID` | empty | S3 access key |
+| `IMAGE_STORAGE_S3_SECRET_ACCESS_KEY` | empty | S3 secret key |
+| `IMAGE_STORAGE_S3_FORCE_PATH_STYLE` | `true` | Whether to use path-style S3 addressing |
+| `IMAGE_GENERATION_HTTP_TIMEOUT_MS` | `300000` | Maximum wait time for image generation API in milliseconds |
+
+### Model Providers
+
+The following variables are grouped by provider. Each group usually includes `*_API_KEY`, `*_BASE_URL`, and `*_MODEL`. Some providers also have separate image model or embedding model variables.
+
+| Provider Prefix | Default BASE_URL | Default Text Model | Image Model / Embedding Model |
+| --- | --- | --- | --- |
+| `OPENAI_*` | `https://api.openai.com/v1` | `gpt-5-mini` | `gpt-image-1` / `text-embedding-3-small` |
+| `DEEPSEEK_*` | `https://api.deepseek.com/v1` | `deepseek-chat` | none |
+| `SILICONFLOW_*` | `https://api.siliconflow.cn/v1` | `Qwen/Qwen2.5-7B-Instruct` | `black-forest-labs/FLUX.1-schnell` |
+| `ANTHROPIC_*` | `https://api.anthropic.com/v1` | `claude-3-5-sonnet-20241022` | none |
+| `XAI_*` | `https://api.x.ai/v1` | `grok-4` | `grok-imagine-image` |
+| `KIMI_*` | `https://api.moonshot.cn/v1` | `moonshot-v1-32k` | none |
+| `GLM_*` | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.5-air` | none |
+| `QWEN_*` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` | none |
+| `GEMINI_*` | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.5-flash` | none |
+
+API keys and models can also be saved in system settings. For details, see [Model Configuration](/en/model-configuration).
+
+### Knowledge Base RAG / Qdrant
+
+| Variable | Default / Example | Description |
+| --- | --- | --- |
+| `RAG_ENABLED` | `true` | Whether to enable knowledge base vector retrieval. Set to `false` if Qdrant is not yet configured |
+| `RAG_VERBOSE_LOG` | `false` | Whether to output verbose RAG logs |
+| `RAG_DEFAULT_TENANT` | `default` | Default tenant name |
+| `EMBEDDING_PROVIDER` | `openai` | Embedding provider |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model name |
+| `EMBEDDING_VERSION` | `1` | Embedding version |
+| `EMBEDDING_BATCH_SIZE` | `64` | Embedding request batch size |
+| `QDRANT_URL` | `http://127.0.0.1:6333` | Qdrant address. Replace with the remote instance address when needed |
+| `QDRANT_API_KEY` | empty | API key for Qdrant Cloud or other authenticated instances |
+| `QDRANT_COLLECTION` | `ai_novel_chunks_v1` | Qdrant collection name |
+| `QDRANT_TIMEOUT_MS` | `120000` | Qdrant operation timeout |
+| `QDRANT_UPSERT_MAX_BYTES` | `3145728` | Maximum bytes per upsert |
+| `RAG_CHUNK_SIZE` | `800` | Text chunk size |
+| `RAG_CHUNK_OVERLAP` | `120` | Chunk overlap length |
+| `RAG_VECTOR_CANDIDATES` | `40` | Number of vector candidates |
+| `RAG_KEYWORD_CANDIDATES` | `40` | Number of keyword candidates |
+| `RAG_FINAL_TOP_K` | `8` | Number of final returned results |
+| `RAG_WORKER_POLL_MS` | `2500` | Worker polling interval |
+| `RAG_WORKER_MAX_ATTEMPTS` | `5` | Worker maximum retry attempts |
+| `RAG_WORKER_RETRY_BASE_MS` | `5000` | Worker retry base interval |
+| `RAG_EMBEDDING_TIMEOUT_MS` | `30000` | Embedding timeout |
+| `RAG_EMBEDDING_MAX_RETRIES` | `2` | Embedding maximum retries |
+| `RAG_EMBEDDING_RETRY_BASE_MS` | `500` | Embedding retry base interval |
+| `RAG_HTTP_TIMEOUT_MS` | `30000` | RAG HTTP timeout |
+
+### Book Breakdown
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `BOOK_ANALYSIS_MAX_CONCURRENT_TASKS` | `2` | Maximum concurrent tasks for book breakdown |
+| `BOOK_ANALYSIS_NOTES_CONCURRENCY` | `2` | Notes concurrency |
+| `BOOK_ANALYSIS_SECTION_CONCURRENCY` | `2` | Section concurrency |
+| `BOOK_ANALYSIS_CACHE_SEGMENT_VERSION` | `1` | Cache segment version |
+
+## Frontend Configuration (client/.env)
+
+| Variable | Default / Example | Description |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | empty (inferred automatically in dev) | Only set when you need to pin the API address or deploy frontend and backend separately. Do not set it to `localhost` for LAN access, or the browser will request `localhost:3000` on the accessing device |
+| `VITE_API_TIMEOUT_MS` | `600000` | API timeout in milliseconds, default 10 minutes |
+| `VITE_MANUSCRIPT_REVISION_ENABLED` | disabled by default | Manuscript revision entry toggle. Enable when needed; not shown on mobile |
+
+<Info>
+  For the specific usage of `VITE_MANUSCRIPT_REVISION_ENABLED`, refer to the release notes and related Wiki notes in the source.
+</Info>
+
+<Warning>
+  For public internet or server deployment, we recommend the following security adjustments:
+
+  - Change `HOST` to `127.0.0.1`
+  - Change `ALLOW_LAN` to `false`
+  - Narrow `CORS_ORIGIN` to the actual domain
+  - Narrow `API_JSON_LIMIT` (e.g., to `5mb`) to reduce large request body DoS attack surface
+  - Enable `AI_NOVEL_ACCESS_TOKEN` access token protection
+</Warning>
+
+<Tip>
+  In development, Vite's same-origin `/api` proxy reaches the server by default, so same-machine and LAN access usually do not need a `client/.env`. Only set `VITE_API_BASE_URL` when deploying frontend and backend separately or when pointing to another server address.
+</Tip>
+
+<CardGroup cols={2}>
+  <Card title={"Architecture & Source Code"} icon="sitemap" href="/en/developers/architecture">
+    Tech stack, directory structure, and common commands
+  </Card>
+
+  <Card title="Contributing" icon="code-pull-request" href="/en/developers/contributing">
+    Report issues, submit PRs, and community links
+  </Card>
+</CardGroup>
