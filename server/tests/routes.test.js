@@ -17,6 +17,7 @@ const { ragServices } = require("../dist/services/rag/index.js");
 const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
 const { STYLE_EXTRACTION_TIMEOUT_MS_KEY } = require("../dist/services/settings/StyleEngineRuntimeSettingsService.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { probeStatus } = require("../dist/llm/compatibility/probing.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -914,9 +915,13 @@ test("PUT /api/settings/api-keys/deepseek persists model controls and validates 
 test("POST /api/settings/custom-providers creates a custom provider entry", async () => {
   const originalFindUnique = prisma.aPIKey.findUnique;
   const originalCreate = prisma.aPIKey.create;
+  const originalSettingFindUnique = prisma.appSetting.findUnique;
+  const originalSettingFindMany = prisma.appSetting.findMany;
+  const originalSettingUpsert = prisma.appSetting.upsert;
   const originalFetch = global.fetch;
   const httpFetch = originalFetch.bind(global);
   let createdData;
+  const settings = new Map();
   prisma.aPIKey.findUnique = async () => null;
   prisma.aPIKey.create = async ({ data }) => {
     createdData = data;
@@ -940,6 +945,13 @@ test("POST /api/settings/custom-providers creates a custom provider entry", asyn
       "Content-Type": "application/json",
     },
   });
+  prisma.appSetting.findUnique = async ({ where }) => (settings.has(where.key) ? { key: where.key, value: settings.get(where.key) } : null);
+  prisma.appSetting.findMany = async ({ where }) => [...settings].filter(([key]) => where.key.in.includes(key)).map(([key, value]) => ({ key, value }));
+  prisma.appSetting.upsert = async ({ where, create, update }) => {
+    const value = settings.has(where.key) ? update.value : create.value;
+    settings.set(where.key, value);
+    return { key: where.key, value };
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -964,9 +976,21 @@ test("POST /api/settings/custom-providers creates a custom provider entry", asyn
     assert.ok(payload.data.provider.startsWith("custom_storyhub_gateway"));
     assert.ok(payload.data.models.includes("story-model"));
     assert.deepEqual(JSON.parse(createdData.availableModels), ["story-model", "story-model-pro"]);
+    // Creation starts a background compatibility probe. Drain it while the
+    // stubbed fetch is still in place; restoring fetch first would leave the
+    // probe hanging on the unreachable example endpoint.
+    const probeDeadline = Date.now() + 15000;
+    for (;;) {
+      const probe = await probeStatus({ provider: payload.data.provider, model: "story-model", baseURL: "https://gateway.example.com/v1" });
+      if (probe.state === "succeeded" || probe.state === "failed" || Date.now() > probeDeadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.create = originalCreate;
+    prisma.appSetting.findUnique = originalSettingFindUnique;
+    prisma.appSetting.findMany = originalSettingFindMany;
+    prisma.appSetting.upsert = originalSettingUpsert;
     global.fetch = originalFetch;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

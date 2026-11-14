@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { probeStatus } = require("../dist/llm/compatibility/probing.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -176,10 +177,13 @@ test("PUT /api/settings/api-keys/openai saves image generation model settings", 
 test("POST /api/settings/custom-providers saves optional image model settings", async () => {
   const originalFindUnique = prisma.aPIKey.findUnique;
   const originalCreate = prisma.aPIKey.create;
+  const originalAppSettingFindUnique = prisma.appSetting.findUnique;
+  const originalAppSettingFindMany = prisma.appSetting.findMany;
   const originalAppSettingUpsert = prisma.appSetting.upsert;
   const originalFetch = global.fetch;
   const httpFetch = originalFetch.bind(global);
   let savedImageModelSetting = null;
+  const settings = new Map();
 
   prisma.aPIKey.findUnique = async () => null;
   prisma.aPIKey.create = async ({ data }) => ({
@@ -196,8 +200,14 @@ test("POST /api/settings/custom-providers saves optional image model settings", 
     createdAt: new Date(),
     updatedAt: new Date(),
   });
+  prisma.appSetting.findUnique = async ({ where }) => (settings.has(where.key) ? { key: where.key, value: settings.get(where.key) } : null);
+  prisma.appSetting.findMany = async ({ where }) => [...settings].filter(([key]) => where.key.in.includes(key)).map(([key, value]) => ({ key, value }));
   prisma.appSetting.upsert = async ({ where, create, update }) => {
-    savedImageModelSetting = { where, create, update };
+    const value = settings.has(where.key) ? update.value : create.value;
+    settings.set(where.key, value);
+    if (where.key === "provider.imageModel.custom_codex") {
+      savedImageModelSetting = { where, create, update };
+    }
     return {
       id: "app-setting-custom-image-model",
       key: create.key,
@@ -243,9 +253,20 @@ test("POST /api/settings/custom-providers saves optional image model settings", 
       create: { key: "provider.imageModel.custom_codex", value: "custom-image-model" },
       update: { value: "custom-image-model" },
     });
+    // Creation starts a background compatibility probe. Drain it while the
+    // stubbed fetch is still in place; restoring fetch first would leave the
+    // probe hanging on the unreachable example endpoint.
+    const probeDeadline = Date.now() + 15000;
+    for (;;) {
+      const probe = await probeStatus({ provider: "custom_codex", model: "gpt-5.5", baseURL: "http://127.0.0.1:43414/v1" });
+      if (probe.state === "succeeded" || probe.state === "failed" || Date.now() > probeDeadline) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;
     prisma.aPIKey.create = originalCreate;
+    prisma.appSetting.findUnique = originalAppSettingFindUnique;
+    prisma.appSetting.findMany = originalAppSettingFindMany;
     prisma.appSetting.upsert = originalAppSettingUpsert;
     global.fetch = originalFetch;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
