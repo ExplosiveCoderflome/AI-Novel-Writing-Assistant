@@ -30,6 +30,7 @@ const {
 } = require("../dist/services/knowledge/DocumentChapterService.js");
 const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
 const { HybridRetrievalService } = require("../dist/services/rag/HybridRetrievalService.js");
+const { ragConfig } = require("../dist/config/rag.js");
 const {
   EMPTY_BOOK_ANALYSIS_RESULT_ERROR,
   reconcileBookAnalysisResultStatus,
@@ -2891,9 +2892,12 @@ test("buildBookAnalysisRagPreChunks turns structured fields into facet chunks", 
 });
 
 test("HybridRetrievalService retrieveByFacet applies facet filters", async () => {
+  const originalEnabled = ragConfig.enabled;
   const originalFindMany = prisma.knowledgeChunk.findMany;
   const originalDocumentFindMany = prisma.knowledgeDocument.findMany;
   let capturedWhere = null;
+  // Facet retrieval short-circuits to [] when RAG is off; pin enabled for this assertion.
+  ragConfig.enabled = true;
   prisma.knowledgeDocument.findMany = async () => [{ id: "doc-1" }];
   prisma.knowledgeChunk.findMany = async ({ where }) => {
     capturedWhere = where;
@@ -2936,6 +2940,7 @@ test("HybridRetrievalService retrieveByFacet applies facet filters", async () =>
       OR: [{ facetKeys: { contains: "|sellingPointTags=身份反转|" } }],
     }]);
   } finally {
+    ragConfig.enabled = originalEnabled;
     prisma.knowledgeChunk.findMany = originalFindMany;
     prisma.knowledgeDocument.findMany = originalDocumentFindMany;
   }

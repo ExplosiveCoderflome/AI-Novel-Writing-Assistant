@@ -109,12 +109,15 @@ test("reindexing while RAG is enabled queues the document for slicing", async ()
 
 test("restoring archived knowledge document queues a rebuild and marks indexing queued", async () => {
   const service = new KnowledgeService();
+  const originalEnabled = ragConfig.enabled;
   const originalFindUnique = prisma.knowledgeDocument.findUnique;
   const originalUpdate = prisma.knowledgeDocument.update;
   const originalEnqueueOwnerJob = ragServices.ragIndexService.enqueueOwnerJob;
   const enqueueCalls = [];
   let updateArgs = null;
 
+  // Queueing assertions require RAG on; do not inherit ambient ragConfig.enabled/env.
+  ragConfig.enabled = true;
   prisma.knowledgeDocument.findUnique = async () => ({
     id: "knowledge-doc-1",
     status: "archived",
@@ -148,6 +151,7 @@ test("restoring archived knowledge document queues a rebuild and marks indexing 
       ["rebuild", "knowledge_document", "knowledge-doc-1"],
     ]);
   } finally {
+    ragConfig.enabled = originalEnabled;
     prisma.knowledgeDocument.findUnique = originalFindUnique;
     prisma.knowledgeDocument.update = originalUpdate;
     ragServices.ragIndexService.enqueueOwnerJob = originalEnqueueOwnerJob;
@@ -156,12 +160,15 @@ test("restoring archived knowledge document queues a rebuild and marks indexing 
 
 test("archiving knowledge document queues index cleanup and leaves document content untouched", async () => {
   const service = new KnowledgeService();
+  const originalEnabled = ragConfig.enabled;
   const originalFindUnique = prisma.knowledgeDocument.findUnique;
   const originalUpdate = prisma.knowledgeDocument.update;
   const originalEnqueueOwnerJob = ragServices.ragIndexService.enqueueOwnerJob;
   const enqueueCalls = [];
   let updateArgs = null;
 
+  // Delete-queue assertions require RAG on; do not inherit ambient ragConfig.enabled/env.
+  ragConfig.enabled = true;
   prisma.knowledgeDocument.findUnique = async () => ({
     id: "knowledge-doc-1",
     status: "enabled",
@@ -195,6 +202,7 @@ test("archiving knowledge document queues index cleanup and leaves document cont
       ["delete", "knowledge_document", "knowledge-doc-1"],
     ]);
   } finally {
+    ragConfig.enabled = originalEnabled;
     prisma.knowledgeDocument.findUnique = originalFindUnique;
     prisma.knowledgeDocument.update = originalUpdate;
     ragServices.ragIndexService.enqueueOwnerJob = originalEnqueueOwnerJob;
