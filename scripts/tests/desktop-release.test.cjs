@@ -13,6 +13,11 @@ function fixture(t, version = "1.2.3") {
   fs.writeFileSync(path.join(directory, "desktop/package.json"), JSON.stringify({ version }));
   fs.mkdirSync(path.join(directory, ".tmp"));
   fs.writeFileSync(path.join(directory, ".tmp/pg-live-gate.json"), JSON.stringify({ schema: 1, status: "passed", head: "tested-head", runId: "run", runAttempt: "1" }));
+  fs.mkdirSync(path.join(directory, ".tmp/release-checks"));
+  fs.writeFileSync(path.join(directory, ".tmp/release-checks/release-checks-run-1.json"), JSON.stringify({
+    schema: 1, status: "passed", head: "tested-head", runId: "run", runAttempt: "1", desktopVersion: version,
+    checks: ["pnpm typecheck", "pnpm --filter @ai-novel/server prisma:deploy", "pnpm test:all", "pnpm --filter @ai-novel/desktop build", "pnpm test:release-guards"],
+  }));
   t.after(() => { assert.equal(path.dirname(directory), os.tmpdir()); fs.rmSync(directory, { recursive: true, force: true }); });
   return directory;
 }
@@ -82,30 +87,34 @@ test("the release tag must point to HEAD and its commit must belong to main", t 
   assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture({ "merge-base --is-ancestor HEAD refs/remotes/origin/main": () => { throw new Error("not main"); } }), runChecks: () => {} }), /contained in main/);
 });
 
-test("an upload cannot proceed when tests fail; only the same clean passing revision can reuse checks", t => {
+test("an upload uses only the same clean passing CI artifact", t => {
   const root = fixture(t);
   let head = "tested-head";
   const git = gitFixture({
     "rev-parse HEAD": () => head,
     "rev-parse refs/tags/v1.2.3^{commit}": () => head,
   });
-  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: () => { throw new Error("tests failed"); } }), /tests failed/);
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks: () => { throw new Error("must not run portable checks"); } }), "v1.2.3");
   let checks = 0;
   const runChecks = () => { checks++; };
   assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
   assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
-  assert.equal(checks, 1);
+  assert.equal(checks, 0);
   assert.equal(verifyUpload(root, { env: ci, git, runChecks, forceTests: true }), "v1.2.3");
-  assert.equal(checks, 2);
+  assert.equal(checks, 0);
   const failChecks = () => { throw new Error("rerun failed"); };
-  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: failChecks, forceTests: true }), /rerun failed/);
-  assert.throws(() => verifyUpload(root, { env: ci, git, runChecks: failChecks }), /rerun failed/);
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks: failChecks, forceTests: true }), "v1.2.3");
+  assert.equal(verifyUpload(root, { env: ci, git, runChecks: failChecks }), "v1.2.3");
   head = "new-head";
   fs.writeFileSync(path.join(root, ".tmp/pg-live-gate.json"), JSON.stringify({ schema: 1, status: "passed", head, runId: "run", runAttempt: "1" }));
+  fs.writeFileSync(path.join(root, ".tmp/release-checks/release-checks-run-1.json"), JSON.stringify({
+    schema: 1, status: "passed", head, runId: "run", runAttempt: "1", desktopVersion: "1.2.3",
+    checks: ["pnpm typecheck", "pnpm --filter @ai-novel/server prisma:deploy", "pnpm test:all", "pnpm --filter @ai-novel/desktop build", "pnpm test:release-guards"],
+  }));
   assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
-  assert.equal(checks, 3);
+  assert.equal(checks, 0);
   assert.throws(() => checkRevision(root, { git: gitFixture({ "status --porcelain": " M file" }), runChecks }), /clean/);
-  assert.equal(checks, 3);
+  assert.equal(checks, 0);
 });
 
 test("local uploads require the matching tag to be pushed before contacting the publisher", t => {
@@ -131,7 +140,7 @@ test("workflow publishes only on pushed version tags and manual dispatch is veri
   const workflow = req("js-yaml").load(fs.readFileSync(path.join(repoRoot, ".github/workflows/desktop-release.yml"), "utf8"));
   assert.deepEqual(workflow.on.push.tags, ["v*"]);
   for (const name of ["publish-release", "publish-mac", "publish-linux"]) {
-    assert.equal(workflow.jobs[name].needs, "pg-live-gate");
+    assert.deepEqual(workflow.jobs[name].needs, ["pg-live-gate", "release-checks"]);
     assert.ok(workflow.jobs[name].steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name.includes("github.run_attempt")));
     assert.match(workflow.jobs[name].if, /event_name == 'push'/);
     assert.match(workflow.jobs[name].if, /ref_type == 'tag'/);
@@ -152,6 +161,25 @@ test("PG gate proof rejects missing, stale, failed and other-run evidence", t =>
   assert.throws(() => assertPgLiveProof(root, ci, "tested-head"), /PG live gate/);
   fs.unlinkSync(path.join(root, ".tmp/pg-live-gate.json"));
   assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => {} }), /PG live gate/);
+});
+
+test("trusted release checks reject missing, stale, failed, incomplete, and mismatched artifacts", t => {
+  const root = fixture(t);
+  const artifact = path.join(root, ".tmp/release-checks/release-checks-run-1.json");
+  const valid = JSON.parse(fs.readFileSync(artifact, "utf8"));
+  for (const mutation of [
+    value => ({ ...value, head: "other" }),
+    value => ({ ...value, runId: "other" }),
+    value => ({ ...value, runAttempt: "2" }),
+    value => ({ ...value, desktopVersion: "1.2.4" }),
+    value => ({ ...value, status: "failed" }),
+    value => ({ ...value, checks: value.checks.slice(0, -1) }),
+  ]) {
+    fs.writeFileSync(artifact, JSON.stringify(mutation(valid)));
+    assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => {} }), /Trusted release checks artifact/);
+  }
+  fs.unlinkSync(artifact);
+  assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => {} }), /artifact is missing/);
 });
 
 test("PG suite fails without explicit configuration without touching the release proof", t => {
@@ -196,14 +224,27 @@ test("every desktop workflow requires provisioned PG and downloads its run-scope
   assert.match(upload.with.name, /github.run_attempt/);
   for (const workflow of [load("desktop-release"), load("desktop-beta-release")]) {
     assert.equal(workflow.jobs["pg-live-gate"].uses, "./.github/workflows/pg-live-gate.yml");
+    assert.equal(workflow.jobs["release-checks"].needs, "pg-live-gate");
+    const releaseUpload = workflow.jobs["release-checks"].steps.find(step => step.uses?.startsWith("actions/upload-artifact"));
+    assert.match(releaseUpload.with.name, /github.run_id/);
+    assert.match(releaseUpload.with.name, /github.run_attempt/);
+    assert.match(releaseUpload.with.path, /release-checks-/);
     for (const [name, job] of Object.entries(workflow.jobs)) {
       if (name === "pg-live-gate") continue;
-      assert.equal(job.needs, "pg-live-gate");
+      if (name === "release-checks") continue;
+      if (name.startsWith("publish")) assert.deepEqual(job.needs, ["pg-live-gate", "release-checks"]);
+      else assert.equal(job.needs, "pg-live-gate");
       assert.ok(!job["continue-on-error"]);
       const download = job.steps.find(step => step.uses?.startsWith("actions/download-artifact"));
       assert.equal(download.with.name, upload.with.name);
       assert.equal(download.with.path, ".tmp");
       assert.ok(!download.with["run-id"], "artifact must come from the current run");
+      if (name.startsWith("publish")) {
+        assert.ok(job.needs.includes("release-checks"));
+        assert.ok(job.steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name === releaseUpload.with.name));
+        assert.ok(job.steps.some(step => step.run === "node scripts/desktop-release/verify-proof.cjs"));
+        assert.ok(!job.steps.some(step => step.run === "pnpm typecheck"), "portable typecheck must not be repeated in publish jobs");
+      }
     }
   }
 });

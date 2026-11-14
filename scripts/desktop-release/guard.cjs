@@ -3,6 +3,15 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
+const releaseChecksArtifactSchema = 1;
+const releaseChecks = [
+  "pnpm typecheck",
+  "pnpm --filter @ai-novel/server prisma:deploy",
+  "pnpm test:all",
+  "pnpm --filter @ai-novel/desktop build",
+  "pnpm test:release-guards",
+];
+
 function readVersion(repoRoot) {
   const version = JSON.parse(fs.readFileSync(path.join(repoRoot, "desktop/package.json"), "utf8")).version;
   if (typeof version !== "string" || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
@@ -32,6 +41,45 @@ function assertPgLiveProof(repoRoot, env, head) {
     || !env.GITHUB_RUN_ATTEMPT || proof.runAttempt !== env.GITHUB_RUN_ATTEMPT) {
     throw new Error("Required PG live gate proof must match this revision and workflow run attempt.");
   }
+}
+
+function releaseChecksArtifactPath(repoRoot, env) {
+  if (!env.GITHUB_RUN_ID || !env.GITHUB_RUN_ATTEMPT) {
+    throw new Error("Release checks artifact requires the current GitHub run and attempt.");
+  }
+  return path.join(repoRoot, ".tmp", "release-checks", `release-checks-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}.json`);
+}
+
+function assertTrustedReleaseChecks(repoRoot, env, head, version) {
+  let artifact;
+  try { artifact = JSON.parse(fs.readFileSync(releaseChecksArtifactPath(repoRoot, env), "utf8")); }
+  catch { throw new Error("Trusted release checks artifact is missing; no publication is allowed."); }
+  if (artifact.schema !== releaseChecksArtifactSchema
+    || artifact.status !== "passed"
+    || artifact.head !== head
+    || artifact.runId !== env.GITHUB_RUN_ID
+    || artifact.runAttempt !== env.GITHUB_RUN_ATTEMPT
+    || artifact.desktopVersion !== version
+    || JSON.stringify(artifact.checks) !== JSON.stringify(releaseChecks)) {
+    throw new Error("Trusted release checks artifact must match this revision, version, workflow run attempt, and check scope.");
+  }
+  return artifact;
+}
+
+function writeTrustedReleaseChecks(repoRoot, env, head, version) {
+  const artifactPath = releaseChecksArtifactPath(repoRoot, env);
+  fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+  fs.writeFileSync(artifactPath, `${JSON.stringify({
+    schema: releaseChecksArtifactSchema,
+    status: "passed",
+    head,
+    runId: env.GITHUB_RUN_ID,
+    runAttempt: env.GITHUB_RUN_ATTEMPT,
+    desktopVersion: version,
+    checks: releaseChecks,
+    passedAt: new Date().toISOString(),
+  }, null, 2)}\n`, "utf8");
+  return artifactPath;
 }
 
 /** All test writes belong to a fresh disposable workspace, never the user's database. */
@@ -95,6 +143,7 @@ function checkRevision(repoRoot, {
   git = args => gitAt(repoRoot, args),
   runChecks = () => runReleaseChecks(repoRoot),
   forceTests = false,
+  recordMarker = true,
 } = {}) {
   if (git(["status", "--porcelain"])) throw new Error("Working tree must be clean before release checks.");
   const head = git(["rev-parse", "HEAD"]);
@@ -110,7 +159,7 @@ function checkRevision(repoRoot, {
   if (git(["rev-parse", "HEAD"]) !== head || readVersion(repoRoot) !== version || git(["status", "--porcelain"])) {
     throw new Error("The tested revision changed. Run release checks again before tagging or uploading.");
   }
-  if (!reusePassingCheck) recordPassingReleaseCheck(repoRoot, head, version);
+  if (!reusePassingCheck && recordMarker) recordPassingReleaseCheck(repoRoot, head, version);
   return { head, version };
 }
 
@@ -139,8 +188,17 @@ function verifyUpload(repoRoot, {
   }
   try { git(["merge-base", "--is-ancestor", "HEAD", env.GITHUB_ACTIONS === "true" ? "refs/remotes/origin/main" : "refs/heads/main"]); }
   catch (cause) { throw new Error("Public desktop uploads require a release commit contained in main.", { cause }); }
-  checkRevision(repoRoot, { git, runChecks, forceTests });
+  if (env.GITHUB_ACTIONS === "true") {
+    assertTrustedReleaseChecks(repoRoot, env, head, version);
+    checkRevision(repoRoot, { git, runChecks: () => {}, forceTests: false, recordMarker: false });
+  } else {
+    checkRevision(repoRoot, { git, runChecks, forceTests });
+  }
   return tag;
 }
 
-module.exports = { readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload, assertPgLiveProof };
+module.exports = {
+  readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload,
+  assertPgLiveProof, assertTrustedReleaseChecks, writeTrustedReleaseChecks,
+  releaseChecks, releaseChecksArtifactPath,
+};

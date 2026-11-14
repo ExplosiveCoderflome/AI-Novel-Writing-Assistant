@@ -13,8 +13,38 @@ jobs:
   pg-live-gate:
     uses: ./.github/workflows/pg-live-gate.yml
 
-  publish-release:
+  release-checks:
     needs: pg-live-gate
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - name: Run portable release checks
+        run: node scripts/desktop-release/run.cjs
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/release-checks/release-checks-${{ github.run_id }}-${{ github.run_attempt }}.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish-release:
+    needs: [pg-live-gate, release-checks]
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: windows-latest
     env:
@@ -54,6 +84,12 @@ jobs:
         with:
           name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/release-checks
+      - name: Verify release proofs
+        run: node scripts/desktop-release/verify-proof.cjs
 
       - name: Build and stage desktop app
         run: pnpm stage:desktop
@@ -74,7 +110,7 @@ jobs:
         run: node scripts/update-desktop-release-notes.cjs
 
   publish-mac:
-    needs: pg-live-gate
+    needs: [pg-live-gate, release-checks]
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: macos-latest
     strategy:
@@ -107,6 +143,12 @@ jobs:
         with:
           name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/release-checks
+      - name: Verify release proofs
+        run: node scripts/desktop-release/verify-proof.cjs
       - run: pnpm stage:desktop
       - name: Verify packaging contracts
         run: node --test desktop/tests/*.test.cjs
@@ -114,7 +156,7 @@ jobs:
         run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish always
 
   publish-linux:
-    needs: pg-live-gate
+    needs: [pg-live-gate, release-checks]
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     env:
@@ -141,6 +183,12 @@ jobs:
         with:
           name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp
+      - uses: actions/download-artifact@v6
+        with:
+          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/release-checks
+      - name: Verify release proofs
+        run: node scripts/desktop-release/verify-proof.cjs
       - run: pnpm stage:desktop
       - name: Verify packaging contracts
         run: node --test desktop/tests/*.test.cjs
