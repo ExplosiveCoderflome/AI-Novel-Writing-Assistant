@@ -23,14 +23,18 @@ function runFixture(spawnResult = {status: 0}, {batch = false} = {}) {
   let invocation, exitCode;
   const invocations = [];
   const errors = [];
+  const fixtureModule = {exports: {}};
+  function fixtureRequire(name) {
+    if (name === 'node:child_process') return {spawnSync(...args) {invocation = args; invocations.push(args); return spawnResult;}};
+    return require(name);
+  }
+  fixtureRequire.main = fixtureModule;
   vm.runInNewContext(source, {
     __dirname: path.join(root, 'scripts'),
+    module: fixtureModule,
     process: {argv: ['node', 'runner', 'all'], execPath: process.execPath, env: {}, exit(code) {exitCode = code;}},
     console: {error(message) {errors.push(message);}},
-    require(name) {
-      if (name === 'node:child_process') return {spawnSync(...args) {invocation = args; invocations.push(args); return spawnResult;}};
-      return require(name);
-    },
+    require: fixtureRequire,
   });
   return {root, invocation, invocations, exitCode, errors};
 }
