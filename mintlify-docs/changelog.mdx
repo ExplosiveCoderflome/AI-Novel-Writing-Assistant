@@ -12,6 +12,21 @@ keywords:
 
 以下汇总近期桌面版本的用户可见更新。如需查看完整历史，可前往源仓库的 [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) 或 GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) 页面。
 
+<Update label="2026-11-14" description="v0.8.5">
+
+桌面版本 v0.8.5 修复 Windows 正式打包，并加快发布检查：可移植全量检查在 Ubuntu 完成一次后复用，Windows 保留迁移、生产数据库探测与平台打包验收。`v0.8.4` 已有 Linux / macOS 安装包但缺 Windows；完整五平台请下载本版。
+
+#### 优化
+
+- 桌面发布等待更短：全量可移植检查只在 Ubuntu 跑一遍，各平台打包复用同一通过记录。
+- Windows 发布路径只保留必要的迁移、生产数据库探测、质量与平台产物检查。
+
+#### 修复
+
+- Windows 安装包可走完正式打包。
+
+</Update>
+
 <Update label="候选已准备" description="v0.8.2">
 
 #### 新增
