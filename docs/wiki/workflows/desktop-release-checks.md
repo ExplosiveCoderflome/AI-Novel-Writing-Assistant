@@ -30,6 +30,17 @@ Windows 的 `.cmd` 批处理入口不能通过 `spawnSync(..., { shell: false })
 
 非发布 Windows probe 必须复用生产 `runPrisma()`，不能另写包管理器启动逻辑。Linux 定向测试通过只能证明可移植路径和迁移断言；真实 Windows runner 的 probe 与后续测试通过才是 Windows 验证证据。`migrate diff --from-empty --to-schema` 不连接数据库，无需启动 PostgreSQL。
 
+
+### Windows runnerIsolation fixture（已知限制）
+
+`server/tests/testInfrastructure/runnerIsolation.test.js` 中「runner initializes separate SQLite databases…」在 Windows GitHub Actions 上可能因 30s fixture 超时失败。这是测试基础设施自测，不是生产 Prisma/迁移/打包路径。
+
+规则：
+
+- 不得删除该测试或放宽断言来“变绿”；
+- 不得把它塞进桌面打包验收或 `Windows Publish Path Verify` 的阻塞清单；
+- 保留在常规 server 测试 CI；打包路径只验证生产 probe、`postgresMigrateDeployPath`、必要 quality/布局与平台产物。
+
 ## Related Modules
 
 - `.github/workflows/desktop-release.yml`
