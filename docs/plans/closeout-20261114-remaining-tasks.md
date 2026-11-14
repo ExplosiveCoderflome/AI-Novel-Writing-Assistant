@@ -20,24 +20,23 @@
 - 每个子阶段跑对应 client/server typecheck 与既有定向测试，并人工核对初学者主路径的缺失键、变量插值和中文默认值。
 - 验收：默认中文路径无缺失键；导演、开书、短篇、运行记录、恢复入口的关键按钮和错误提示均能切换语言；不改变 default-off 特性和运行时合同。
 
-### 2. 更新说明单源
+### 2. 更新说明单源（阶段2已实现）
 
 - 目标目录：`docs/releases/release-notes.md`、根 `README.md` 的 `## 最新更新`、必要时 `docs/README.md`/站点 manifest。
 - 保持 `docs/releases/release-notes.md` 为完整历史；同一日期合并到同一日期块；README 只保留最新日期块和历史链接。
-- 当前需先处理的是既有候选标题中仍出现 `v0.8.2` 与 date-based 规则的口径冲突，并确认 README/发布说明没有重复历史块；不要在本阶段顺手修改。
-- 验收：发布说明只有一份完整用户可见历史；README 最新区不累积旧日期；`pnpm check:docs-manifest`（若涉及公开文档）通过；内容从用户结果表述，不写实现过程。
+- 阶段2由应用内更新说明直接读取完整更新历史；`test:release-guards` 中的发布说明合同测试会在桌面 package version 缺少日期条目时失败。
+- `v0.8.2` 明确标记为待正式发布候选；`v0.8.1` 保留为当前正式桌面版本。以后提升 package version 时需在完整历史补入同版本日期条目。
 
-### 3. README 精简
+### 3. README 精简（阶段2已实现）
 
-- 目标文件：`README.md`，只整理重复的入口、短篇/长篇说明和历史更新入口；保留新手第一次使用路径、下载/源码运行和完整更新记录链接。
-- 删除重复的历史/实现叙述，不改产品流程、不改默认开关、不加入版本 bump。
-- 验收：README 仍能从一句灵感引导到长篇/短篇主路径；`## 最新更新` 只显示最新合并日期块；完整历史链接可达；文案不描述内部迁移过程。
+- 保留新手写作入口、长短篇主路径、正式发行状态和完整更新记录链接；将细节指向现存文档与项目文档站，移除过长的缓存实现说明。
+- `v0.8.2` 是候选而非已发布版本，正式桌面版当前为 `v0.8.1`。
 
 ### 4. 收尾前置验证
 
-- 修复或明确隔离 `server/tests/production/manualKernelSqlite.test.js` 的 acceptance fixture：复现 `acceptance_invocation_failed` 后，保证 3 个跨进程用例按原断言通过。
-- 修复或补齐短篇恢复测试 fixture 的 `AppSetting` schema 初始化，使 `shortStoryRevisionRecovery.test.js` 两个输出额度用例可以运行；不得放宽断言。
-- 父任务安排 A3 GUI/截图验收；本阶段已有合同和服务端证据不足以替代界面验收。
+- 已修复 `manualKernelSqlite.test.js` acceptance transport fixture；阶段2相关命令退出码 `0`，原三项断言通过。
+- 已在短篇 recovery 的隔离 SQLite fixture 补齐 `AppSetting` 并统一 SDK compatibility store 所用 client；阶段2相关命令退出码 `0`，两个额度用例按原断言通过。
+- 父任务安排 A3 GUI/截图验收；启动方式和操作标准见阶段2结果文档。
 - 父任务安排真实隔离 PG 双库 live 验证；没有 `DATABASE_URL` 时不要伪造通过。
 
 ## 明确禁止扩展

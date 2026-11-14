@@ -1,4 +1,5 @@
 import { APP_VERSION } from "@/lib/constants";
+import releaseNotes from "../../../../docs/releases/release-notes.md?raw";
 
 export interface DesktopReleaseNotes {
   version: string;
@@ -7,12 +8,16 @@ export interface DesktopReleaseNotes {
   items: string[];
 }
 
-export const CURRENT_DESKTOP_RELEASE_NOTES: DesktopReleaseNotes = {
-  version: APP_VERSION,
-  title: "本次更新介绍",
-  summary: "这次更新修复了新书空白占位卷被误判为单卷规划的问题。",
-  items: [
-    "新书初始化时的空白占位卷不再被当作作者已确认的单卷规划。",
-    "200 章目标可以正常建议并生成多卷结构，不会被固定为 1 卷。",
-  ],
-};
+function currentRelease(markdown: string): DesktopReleaseNotes {
+  const version = APP_VERSION;
+  const heading = new RegExp(`^###\\s+\\d{4}-\\d{2}-\\d{2}\\s+·\\s+v${version.replaceAll(".", "\\.")}\\s*$`, "m");
+  const match = heading.exec(markdown);
+  if (!match) return { version, title: "本次更新介绍", summary: "查看完整更新说明。", items: [] };
+  const block = markdown.slice(match.index + match[0].length).split(/^###\s/m, 1)[0];
+  const content = block.split(/\r?\n/).map(line => line.trim());
+  const summary = content.find(line => line && !line.startsWith("#") && !line.startsWith("-")) ?? "查看完整更新说明。";
+  const items = content.filter(line => line.startsWith("- ")).map(line => line.slice(2));
+  return { version, title: "本次更新介绍", summary, items };
+}
+
+export const CURRENT_DESKTOP_RELEASE_NOTES: DesktopReleaseNotes = currentRelease(releaseNotes);

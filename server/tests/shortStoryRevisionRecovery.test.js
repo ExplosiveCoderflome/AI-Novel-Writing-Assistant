@@ -24,6 +24,8 @@ test.before(async () => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "short-story-recovery-"));
   const url = initializeTemporarySqliteDatabase(tempDir, "fixture.db");
   prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) });
+  await prisma.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "AppSetting" ("key" TEXT NOT NULL PRIMARY KEY, "value" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)');
+  require("../dist/db/prisma").prisma = prisma;
 });
 test.after(async () => {
   await prisma?.$disconnect();

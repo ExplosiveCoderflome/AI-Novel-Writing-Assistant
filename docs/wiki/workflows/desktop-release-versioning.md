@@ -7,6 +7,8 @@
 ## Current Rule
 
 - `desktop/package.json` 的 `version` 是桌面客户端唯一版本源。
+- `docs/releases/release-notes.md` 是完整更新历史的唯一内容源；应用内说明按当前 package version 读取同版本日期条目。发版说明测试要求版本号有对应条目，版本升级不能只改 package version。
+- 项目仍使用日期作为更新标识；尚未正式发布的版本必须明确标为候选，不能让候选号看起来像可下载版本。
 - 前端网页开发态从 Vite 注入的 `VITE_APP_VERSION` 读取该版本，桌面运行态优先读取 Electron runtime 提供的 `appVersion`。
 - 正式发布 tag 必须是 `vX.Y.Z`，并且 `X.Y.Z` 必须等于 `desktop/package.json` 的 `version`。
 - 不在 UI、README 或发布脚本中硬编码另一个客户端版本号。
@@ -57,6 +59,7 @@ Windows 保留 x64 NSIS 和便携包；Mac 通过 macos-latest 的独立 x64/arm
 - 如果界面顶部显示版本和安装包文件名不一致，先检查打包所用 commit 的 `desktop/package.json`，不要在前端组件里补一个临时版本。
 - 如果 GitHub Release tag 已存在，不能复用同一个版本重新上传；应继续 bump 到新的 `X.Y.Z`。
 - 如果发版前只更新 release notes 但没有 bump 桌面版本，自动更新链路会把新包识别成旧版本，必须先修正版本源再发布。
+- 如果应用内没有显示对应更新，先核对完整更新历史是否存在当前版本的日期条目；不要再复制一份独立的应用内说明对象。
 - 如果 GitHub Actions 提示某个 action 仍在使用 Node 20，应优先升级该 action 的 major 版本，而不是重新加入强制运行时环境变量。
 
 ## Related Modules

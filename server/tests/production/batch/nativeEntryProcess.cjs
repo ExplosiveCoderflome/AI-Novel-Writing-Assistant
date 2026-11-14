@@ -22,8 +22,8 @@ async function prepareNativeFixture(){
   key:'opening',label:'开篇',title:'线索推进',summary:'核对线索后推进调查。',chapterSpanHint:'1-3',mustDeliver:['核实线索来源']}]}];
  await db.volumePlanVersion.create({data:{id:'version-1',novelId:'novel-1',version:1,status:'active',contentJson:JSON.stringify(document)}});
  await db.$transaction(tx=>require('../../../dist/services/novel/volume/volumeWorkspacePersistence').persistActiveVolumeWorkspace(tx,'novel-1',document,'version-1'));
- const chapter=await db.chapter.update({where:{id:'chapter-1'},data:{content:'',taskSheet:target.taskSheet,sceneCards:target.sceneCards,
-  targetWordCount:target.targetWordCount,conflictLevel:target.conflictLevel,revealLevel:target.revealLevel,mustAvoid:target.mustAvoid}});
+  const chapter=await db.chapter.update({where:{id:'chapter-1'},data:{content:'',taskSheet:target.taskSheet,sceneCards:target.sceneCards,
+   targetWordCount:target.targetWordCount,conflictLevel:target.conflictLevel,revealLevel:target.revealLevel,mustAvoid:target.mustAvoid}});
  const hash=require('../../../dist/services/planner/plannerPersistence').buildChapterExecutionContractHash(chapter);
  await db.storyPlan.create({data:{id:'saved-plan',novelId:'novel-1',chapterId:'chapter-1',level:'chapter',title:'本章规划',objective:'核实证据',
   rawPlanJson:JSON.stringify({executionContractHash:hash}),scenes:{create:{sortOrder:1,title:'城门',objective:'交出钥匙'}}}});
@@ -34,7 +34,7 @@ function installNativeTransport(respond){
  const factory=require('../../../dist/llm/factory'),route=require('../../../dist/llm/modelRouter');
  const execution=require('../../../dist/platform/llm/execution'),usage=require('../../../dist/llm/usageTracking');
  const clients=new WeakMap(),calls=[];
- route.resolveModel=async(task,options)=>({provider:options.provider??'openai',model:options.model??'fixture-model',temperature:options.temperature??0.2,
+  route.resolveModel=async(task,options={})=>({provider:options.provider??'openai',model:options.model??'fixture-model',temperature:options.temperature??0.2,
   maxTokens:options.maxTokens??8192,requestProtocol:'openai_compatible',structuredResponseFormat:'auto',routeKey:task,routeDegraded:false});
  factory.setProviderSecretCache('openai',{key:'fixture-key',baseURL:'https://models.invalid/v1',reasoningEnabled:false});
  const make=configuration=>{
@@ -49,7 +49,7 @@ function installNativeTransport(respond){
     else if(text.includes('ledgerKey')&&text.includes('items'))output={items:[]};
     else if(configuration.taskType==='review')output={...require('../application/assessmentFixture.cjs').assessmentResult(process.env.KERNEL_TEST_CASE==='quality'?{
       status:'needs_manual_review',repairability:'rewrite_needed',continuePolicy:'pause',blockingIssues:[{code:'plot-unresolved',category:'plot',severity:'high',evidence:'约定尚待核对',fixSuggestion:'人工核对约定'}]}:{}).assessment,
-      styleReview:{riskScore:0,summary:'已核对写法',observations:[],perspectiveCheck:{observed:'third_person',evidence:'主角在城门交出钥匙'}}};
+       styleReview:{riskScore:0,summary:'已核对写法',observations:[],perspectiveCheck:{observed:'third_person',evidence:'主角在城门把唯一的铜钥匙交给守卫。'}}};
     else if(configuration.taskType==='planner'&&respond)output=require('../planning/chapterFixture.cjs').fixture().output;
     else if(configuration.taskType==='repair'&&respond)output={};
     else throw Error(`Unexpected native request ${configuration.taskType}: ${text.slice(0,200)}`);
