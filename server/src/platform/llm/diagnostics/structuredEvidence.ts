@@ -31,6 +31,7 @@ export function classifyResponseEvidence(
   evidence: StructuredResponseEvidence, error?: unknown, category?: string, cancelled = false,
 ): StructuredFailureReason | null {
   if (cancelled) return "cancelled";
+  const rootMessage = error instanceof Error ? error.message : typeof error === "string" ? error : "";
   const seen = new Set<unknown>();
   let current = error;
   while (current && !seen.has(current) && seen.size < 6) {
@@ -49,6 +50,14 @@ export function classifyResponseEvidence(
       if (Number.isFinite(delay) && delay >= 0) evidence.retryAfterMs ??= Math.ceil(delay);
     }
     current = item.cause;
+  }
+  // Some providers surface the HTTP status only inside the error message
+  // ("400 inference request is invalid"). Recover it so downstream retry and
+  // fallback decisions see the real status instead of retrying blindly.
+  if (evidence.httpStatus == null && rootMessage) {
+    const stripped = rootMessage.replace(/^\[STRUCTURED_OUTPUT:[a-z_]+\]\s*/i, "");
+    const match = stripped.match(/^\s*(\d{3})\b/) ?? rootMessage.match(/\bstatus(?: code)?\s*(\d{3})\b/i);
+    if (match) evidence.httpStatus ??= status(Number(match[1]));
   }
   if (evidence.refused || evidence.finishReason === "content_filter" || evidence.finishReason === "refusal") return "blocked";
   if (evidence.httpStatus === 429) return "rate_limited";
