@@ -23,6 +23,17 @@ function runPnpm(args, options) {
   execFileSync(process.platform === "win32" ? "pnpm.cmd" : "pnpm", args, { ...options, shell: process.platform === "win32", stdio: "inherit" });
 }
 
+function assertPgLiveProof(repoRoot, env, head) {
+  let proof;
+  try { proof = JSON.parse(fs.readFileSync(path.join(repoRoot, ".tmp/pg-live-gate.json"), "utf8")); }
+  catch { throw new Error("Required PG live gate proof is missing; no publication is allowed."); }
+  if (proof.schema !== 1 || proof.status !== "passed" || proof.head !== head
+    || !env.GITHUB_RUN_ID || proof.runId !== env.GITHUB_RUN_ID
+    || !env.GITHUB_RUN_ATTEMPT || proof.runAttempt !== env.GITHUB_RUN_ATTEMPT) {
+    throw new Error("Required PG live gate proof must match this revision and workflow run attempt.");
+  }
+}
+
 /** All test writes belong to a fresh disposable workspace, never the user's database. */
 function runReleaseChecks(repoRoot, { run = runPnpm, env = process.env } = {}) {
   const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "anw-release-check-"));
@@ -40,9 +51,16 @@ function runReleaseChecks(repoRoot, { run = runPnpm, env = process.env } = {}) {
     try { run(args, options); }
     catch (cause) { throw new Error(`Release checks failed: pnpm ${args.join(" ")}. No publication is allowed.`, { cause }); }
   }
+  if (env.GITHUB_ACTIONS === "true") {
+    assertPgLiveProof(repoRoot, env, gitAt(repoRoot, ["rev-parse", "HEAD"]));
+  } else {
+    // The PG URL belongs only to this suite, never to the portable SQLite tests.
+    try { run(["test:pg-live"], { cwd: repoRoot, env: { ...env } }); }
+    catch (cause) { throw new Error("Release checks failed: pnpm test:pg-live. No publication is allowed.", { cause }); }
+  }
 }
 
-const releaseCheckMarkerSchema = 1;
+const releaseCheckMarkerSchema = 2;
 
 function releaseCheckMarkerPath(repoRoot, head) {
   return path.join(repoRoot, ".tmp", "desktop-release", `${encodeURIComponent(head)}.json`);
@@ -112,6 +130,7 @@ function verifyUpload(repoRoot, {
     if (env.GITHUB_REF !== `refs/tags/${tag}`) throw new Error("GitHub release ref does not match the package version.");
   }
   const head = git(["rev-parse", "HEAD"]);
+  if (env.GITHUB_ACTIONS === "true") assertPgLiveProof(repoRoot, env, head);
   if (git(["rev-parse", `refs/tags/${tag}^{commit}`]) !== head) throw new Error(`${tag} must point to the current release commit.`);
   if (env.GITHUB_ACTIONS !== "true") {
     const refs = git(["ls-remote", "--tags", "origin", `refs/tags/${tag}`, `refs/tags/${tag}^{}`]).split(/\r?\n/).filter(Boolean).map(line => line.split(/\s+/));
@@ -124,4 +143,4 @@ function verifyUpload(repoRoot, {
   return tag;
 }
 
-module.exports = { readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload };
+module.exports = { readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload, assertPgLiveProof };

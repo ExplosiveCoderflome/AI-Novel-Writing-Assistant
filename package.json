@@ -52,6 +52,7 @@
     "test": "pnpm --filter @ai-novel/server test",
     "test:client": "pnpm --filter @ai-novel/client test",
     "test:all": "pnpm --filter @ai-novel/server test:all && pnpm --filter @ai-novel/client test",
+    "test:pg-live": "node scripts/acceptance/pg-cloud-harness.cjs",
     "test:release-guards": "node --test desktop/tests/*.test.cjs scripts/tests/*.test.cjs",
     "lint": "pnpm --filter @ai-novel/shared lint && pnpm --filter @ai-novel/server lint && pnpm --filter @ai-novel/client lint",
     "prisma:deploy:postgres": "node scripts/deploy-prisma-postgres.cjs"

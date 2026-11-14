@@ -83,6 +83,15 @@ AI_NOVEL_DATABASE_MODE=postgresql DATABASE_URL='postgresql://...' \
 - 禁止 `migrate reset`、`db push` 作为正式迁移，禁止 drop/truncate 用户数据。
 - 0.8.2 新增的三条 PostgreSQL 迁移本身是 PG 方言（`TIMESTAMP(3)` / `ADD COLUMN "penName"` 等）；空库 `migrate deploy` 失败发生在它们之前，属于既有链不可从空库重放，不是这三条 SQL 写错。
 
+## 跨平台 checksum 与独立 PG 发版门禁
+
+- 迁移 checksum 以 Git blob 原始字节为准。`.gitattributes` 对两条迁移链的 `migration.sql` 使用 `-text`，禁止 `core.autocrlf` 在检出/写入时转换换行；不要对历史文件执行 renormalize。已有 Windows 工作区应先保存改动，再以该属性重新检出干净迁移文件；也可在首次检出前使用 `git -c core.autocrlf=false clone ...`。
+- `20260328120000_schema_gap_backfill` 的 PG 文件原始 LF 为 24,338 字节，SHA256 `5bf4956aa923295d6f409a85c41bf35f14a41b609024c8828fae154a5c1d4c09`。仅转换 474 个 LF 为 CRLF 后为 24,812 字节，SHA256 `6375cbbd24723b81cf43cda7d261a83d85fd51da98b3a1b180a09b03e2a3dec5`。出现此对 checksum 时先核查检出字节，不改历史 SQL 或数据库台账。
+- checksum 换行证据不能解释独立的 `migrate diff` 失败；须取得该次 Windows 子进程完整 stderr、退出码及命令后再定位。
+- 普通 `fast`、`integration`、`all` catalog 排除需要真实 PG 的 `pgCloudAcceptance.harness`。独立 `pg-live` catalog 由官方 `scripts/acceptance/pg-cloud-harness.cjs` 调用；缺 `PG_ADMIN_URL` 必须失败。
+- 桌面 release/beta workflow 必须依赖可复用 PG job 成功；只下载当前 workflow run/attempt 的 artifact。上传守卫核对 proof 的 SHA、run ID、attempt，拒绝缺失、失败、过期或其他运行的证明。可信来源是 required job 的实际执行和 Actions artifact 传递；本地手写 JSON 不能充当 CI 验收。
+- 原始迁移链失败只作诊断证据，官方空库部署与 5 项 PG harness 均成功才能生成 proof；一次性数据库保留，验收后停止其隔离集群。
+
 ## Related Modules
 
 - `server/src/prisma/schema.prisma`

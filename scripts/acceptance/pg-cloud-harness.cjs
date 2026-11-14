@@ -10,7 +10,7 @@
  *   migration). A success is accepted if the historical chain is ever repaired.
  * - Official path never runs on the raw-failure database (BUG-6 / P3009).
  * - Does not fall back to `db push`.
- * - Drops both disposable databases afterward.
+ * - Retains disposable databases for diagnosis; the owning CI service is ephemeral.
  *
  * Does not bump versions, tag, or trigger releases.
  */
@@ -21,9 +21,14 @@ const { randomBytes } = require("node:crypto");
 
 const root = path.resolve(__dirname, "../..");
 const serverDir = path.join(root, "server");
-const adminUrl =
-  process.env.PG_ADMIN_URL ||
-  "postgresql://ai_novel_cloud:cloud_accept_only@127.0.0.1:5432/postgres";
+const proofPath = path.join(root, ".tmp/pg-live-gate.json");
+// Even an invalid invocation must invalidate a previous pass.
+fs.rmSync(proofPath, { force: true });
+const adminUrl = process.env.PG_ADMIN_URL;
+if (!adminUrl || !/^postgres(ql)?:\/\//.test(adminUrl)) {
+  console.error("[pg-cloud-harness] PG_ADMIN_URL is required and must be PostgreSQL; no live gate pass recorded.");
+  process.exit(1);
+}
 const suffix = randomBytes(4).toString("hex");
 const rawDbName = `ai_novel_cloud_raw_${suffix}`;
 const officialDbName = `ai_novel_cloud_official_${suffix}`;
@@ -38,7 +43,7 @@ const officialUrl = urlFor(officialDbName);
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: "inherit",
     ...options,
   });
   return result;
@@ -54,19 +59,6 @@ function psql(sql, database = "postgres") {
   );
 }
 
-function dropDisposable(dbName) {
-  psql(
-    `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${dbName}' AND pid <> pg_backend_pid();`,
-  );
-  const drop = psql(`DROP DATABASE IF EXISTS ${dbName};`);
-  if (drop.status !== 0) {
-    console.error(`[pg-cloud-harness] failed to drop disposable database ${dbName}:`, drop.stderr || drop.stdout);
-    return false;
-  }
-  console.log(`[pg-cloud-harness] dropped disposable database ${dbName}`);
-  return true;
-}
-
 function main() {
   console.log(`[pg-cloud-harness] creating disposable databases ${rawDbName} (raw evidence) and ${officialDbName} (official path)`);
   const owner = new URL(adminUrl).username || "ai_novel_cloud";
@@ -74,9 +66,7 @@ function main() {
     const created = psql(`CREATE DATABASE ${dbName} OWNER ${owner};`);
     if (created.status !== 0) {
       console.error(created.stderr || created.stdout);
-      dropDisposable(rawDbName);
-      dropDisposable(officialDbName);
-      process.exit(created.status || 1);
+      throw new Error(`Unable to create ${dbName}`);
     }
   }
 
@@ -99,6 +89,9 @@ function main() {
       ...rawEnv,
       DATABASE_URL: officialUrl,
     };
+    for (const args of [["--filter", "@ai-novel/server", "prisma:generate"], ["--filter", "@ai-novel/shared", "build"], ["--filter", "@ai-novel/server", "build"]]) {
+      if (run("pnpm", args, { cwd: root, env: officialEnv }).status !== 0) throw new Error(`PG preparation failed: ${args.join(" ")}`);
+    }
 
     const migrate = run("pnpm", ["exec", "prisma", "migrate", "deploy", "--config", "prisma.config.ts"], {
       cwd: serverDir,
@@ -129,12 +122,23 @@ function main() {
     };
     if (official.status !== 0) {
       console.error("[pg-cloud-harness] official empty-PG deploy script failed on the official database; not falling back to db push; raw-failure evidence left intact");
-      process.exit(official.status || 1);
+      throw new Error("Official empty-PG deploy failed");
     }
+
+    const backupPath = path.join(root, ".tmp", `pg-cloud-before-tests-${suffix}.dump`);
+    fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+    const backupUrl = new URL(officialUrl);
+    const backup = run("pg_dump", ["-h", backupUrl.hostname, "-p", backupUrl.port || "5432", "-U", backupUrl.username, "-d", officialDbName, "-Fc", "-f", backupPath], {
+      env: { ...officialEnv, PGPASSWORD: decodeURIComponent(backupUrl.password || "") },
+    });
+    if (backup.status !== 0 || !fs.existsSync(backupPath) || fs.statSync(backupPath).size === 0) {
+      throw new Error("PG harness backup failed; tests will not run");
+    }
+    console.log(`[pg-cloud-harness] verified pre-test backup ${backupPath} (${fs.statSync(backupPath).size} bytes)`);
 
     const harness = run(
       process.execPath,
-      ["--test", path.join(serverDir, "tests", "pgCloudAcceptance.harness.test.js")],
+      [path.join(serverDir, "scripts/run-tests.cjs"), "pg-live"],
       {
         cwd: serverDir,
         env: {
@@ -150,11 +154,19 @@ function main() {
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
     fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log(`[pg-cloud-harness] report ${reportPath}`);
-    if (harness.status !== 0) process.exit(harness.status || 1);
+    if (harness.status !== 0) throw new Error("PG live harness failed");
+    const revision = run("git", ["rev-parse", "HEAD"], { cwd: root, stdio: ["ignore", "pipe", "inherit"] });
+    if (revision.status !== 0) throw new Error("Cannot identify PG-tested revision");
+    if (process.env.GITHUB_ACTIONS === "true") {
+      if (revision.stdout.trim() !== process.env.GITHUB_SHA || !process.env.GITHUB_RUN_ID || !process.env.GITHUB_RUN_ATTEMPT) {
+        throw new Error("PG-tested revision must match the current Actions SHA and run attempt");
+      }
+      fs.writeFileSync(proofPath, JSON.stringify({ schema: 1, status: "passed", head: revision.stdout.trim(), runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT }));
+    }
+    console.log("[pg-cloud-harness] PG live gate passed");
   } finally {
-    dropDisposable(rawDbName);
-    dropDisposable(officialDbName);
+    console.log(`[pg-cloud-harness] retained disposable databases ${rawDbName}, ${officialDbName}; stop the owning temporary cluster after verification`);
   }
 }
 
-main();
+try { main(); } catch (error) { console.error(`[pg-cloud-harness] ${error.message}`); process.exitCode = 1; }

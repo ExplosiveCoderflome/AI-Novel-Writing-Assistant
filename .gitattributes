@@ -1,0 +1,3 @@
+# Migration checksums use repository bytes; never apply checkout newline conversion.
+server/src/prisma/migrations/**/migration.sql -text
+server/src/prisma/migrations.sqlite/**/migration.sql -text

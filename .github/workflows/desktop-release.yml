@@ -10,7 +10,11 @@ permissions:
   contents: write
 
 jobs:
+  pg-live-gate:
+    uses: ./.github/workflows/pg-live-gate.yml
+
   publish-release:
+    needs: pg-live-gate
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: windows-latest
     env:
@@ -46,6 +50,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+
       - name: Build and stage desktop app
         run: pnpm stage:desktop
 
@@ -65,6 +74,7 @@ jobs:
         run: node scripts/update-desktop-release-notes.cjs
 
   publish-mac:
+    needs: pg-live-gate
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: macos-latest
     strategy:
@@ -93,6 +103,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
       - run: pnpm stage:desktop
       - name: Verify packaging contracts
         run: node --test desktop/tests/*.test.cjs
@@ -100,6 +114,7 @@ jobs:
         run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish always
 
   publish-linux:
+    needs: pg-live-gate
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     env:
@@ -122,6 +137,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
       - run: pnpm stage:desktop
       - name: Verify packaging contracts
         run: node --test desktop/tests/*.test.cjs
@@ -129,6 +148,7 @@ jobs:
         run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish always
 
   verify-only:
+    needs: pg-live-gate
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     steps:
@@ -144,6 +164,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
       - name: Verify release checks without uploading
         run: node scripts/desktop-release/check.cjs
       - run: pnpm stage:desktop

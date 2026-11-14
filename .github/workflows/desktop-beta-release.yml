@@ -10,7 +10,11 @@ permissions:
   contents: write
 
 jobs:
+  pg-live-gate:
+    uses: ./.github/workflows/pg-live-gate.yml
+
   publish-beta:
+    needs: pg-live-gate
     runs-on: windows-latest
     env:
       AI_NOVEL_RELEASE_CHANNEL: beta
@@ -41,6 +45,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
 
       - name: Install desktop icon tooling
         run: python -m pip install --disable-pip-version-check pillow

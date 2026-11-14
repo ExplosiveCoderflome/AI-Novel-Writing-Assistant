@@ -1,0 +1,45 @@
+name: Required PG live gate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pg-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pgaccept
+          POSTGRES_PASSWORD: ci_accept_only
+          POSTGRES_DB: postgres
+        ports:
+          - 45432:5432
+        options: >-
+          --health-cmd "pg_isready -U pgaccept -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - run: pnpm install --frozen-lockfile
+      - name: Official isolated PostgreSQL acceptance
+        env:
+          PG_ADMIN_URL: postgresql://pgaccept:ci_accept_only@127.0.0.1:45432/postgres
+        run: pnpm test:pg-live
+      - uses: actions/upload-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/pg-live-gate.json
+          include-hidden-files: true
+          if-no-files-found: error
