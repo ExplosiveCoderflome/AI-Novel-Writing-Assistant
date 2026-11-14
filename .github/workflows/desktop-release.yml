@@ -7,17 +7,16 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   pg-live-gate:
     uses: ./.github/workflows/pg-live-gate.yml
 
   release-checks:
-    needs: pg-live-gate
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:
@@ -30,10 +29,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v6
-        with:
-          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp
       - name: Run portable release checks
         run: node scripts/desktop-release/run.cjs
       - uses: actions/upload-artifact@v6
@@ -43,76 +38,56 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  publish-release:
-    needs: [pg-live-gate, release-checks]
+  build-windows:
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: windows-latest
+    permissions:
+      contents: read
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
       AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
-      AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
-      AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
       CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.6.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - uses: actions/download-artifact@v6
-        with:
-          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp
-      - uses: actions/download-artifact@v6
-        with:
-          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp/release-checks
-      - name: Verify release proofs
-        run: node scripts/desktop-release/verify-proof.cjs
-
-      - name: Build and stage desktop app
-        run: pnpm stage:desktop
-
-      - name: Verify database migrations
-        run: pnpm --filter @ai-novel/server exec node --test tests/prismaMigrationCompleteness.test.js tests/runtimeMigrations.test.js
-
-      - name: Verify server production and architecture boundaries
-        run: pnpm --filter @ai-novel/server test:quality
-
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Pack Windows installers without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --win --x64 --publish never
       - name: Verify packaged desktop layout
-        run: pnpm verify:desktop-package:reuse-stage
+        run: node desktop/scripts/verify-desktop-package.cjs
+      - name: Write Windows build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform win-x64 --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-build-win-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-setup-x64.exe
+            desktop/build/dist/*-setup-x64.exe.blockmap
+            desktop/build/dist/*-portable-x64.exe
+            desktop/build/dist/latest.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
 
-      - name: Publish desktop release to GitHub Releases
-        run: pnpm publish:desktop:release:reuse-stage
-
-      - name: Update GitHub release notes
-        run: node scripts/update-desktop-release-notes.cjs
-
-  publish-mac:
-    needs: [pg-live-gate, release-checks]
+  build-mac:
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: macos-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -123,7 +98,6 @@ jobs:
       DATABASE_URL: file:./dev.db
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
       NODE_OPTIONS: --max-old-space-size=6144
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -139,31 +113,32 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v6
-        with:
-          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp
-      - uses: actions/download-artifact@v6
-        with:
-          name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp/release-checks
-      - name: Verify release proofs
-        run: node scripts/desktop-release/verify-proof.cjs
       - run: pnpm stage:desktop
       - name: Verify packaging contracts
         run: node --test desktop/tests/*.test.cjs
-      - name: Publish unsigned DMG
-        run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish always
+      - name: Pack macOS DMG without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish never
+      - name: Write macOS build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform mac-${{ matrix.arch }} --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-build-mac-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-mac-${{ matrix.arch }}.dmg
+            desktop/build/dist/*-mac-${{ matrix.arch }}.dmg.blockmap
+            desktop/build/dist/latest-mac.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
 
-  publish-linux:
-    needs: [pg-live-gate, release-checks]
+  build-linux:
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       AI_NOVEL_RELEASE_CHANNEL: release
       AI_NOVEL_DATABASE_MODE: sqlite
       DATABASE_URL: file:./dev.db
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -179,6 +154,45 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Verify packaging contracts
+        run: node --test desktop/tests/*.test.cjs
+      - name: Pack Linux AppImage without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish never
+      - name: Write Linux build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform linux-x64 --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-build-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-linux-x86_64.AppImage
+            desktop/build/dist/latest-linux.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
+
+  publish-release:
+    needs: [pg-live-gate, release-checks, build-windows, build-mac, build-linux]
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_GITHUB_OWNER: ExplosiveCoderflome
+      AI_NOVEL_GITHUB_REPO: AI-Novel-Writing-Assistant
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - uses: actions/download-artifact@v6
         with:
           name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
@@ -187,18 +201,33 @@ jobs:
         with:
           name: release-checks-${{ github.run_id }}-${{ github.run_attempt }}
           path: .tmp/release-checks
-      - name: Verify release proofs
-        run: node scripts/desktop-release/verify-proof.cjs
-      - run: pnpm stage:desktop
-      - name: Verify packaging contracts
-        run: node --test desktop/tests/*.test.cjs
-      - name: Publish AppImage
-        run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish always
+      - uses: actions/download-artifact@v6
+        with:
+          name: desktop-build-win-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/win-x64
+      - uses: actions/download-artifact@v6
+        with:
+          name: desktop-build-mac-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/mac-x64
+      - uses: actions/download-artifact@v6
+        with:
+          name: desktop-build-mac-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/mac-arm64
+      - uses: actions/download-artifact@v6
+        with:
+          name: desktop-build-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/linux-x64
+      - name: Verify proofs and upload existing artifacts
+        run: node scripts/desktop-release/publish-artifacts.cjs
+      - name: Update GitHub release notes
+        run: node scripts/update-desktop-release-notes.cjs
 
   verify-only:
     needs: pg-live-gate
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6

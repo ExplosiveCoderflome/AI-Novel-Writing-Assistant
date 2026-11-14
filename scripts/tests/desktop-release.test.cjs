@@ -4,8 +4,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { createRequire } = require("node:module");
-const { readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload, assertPgLiveProof } = require("../desktop-release/guard.cjs");
+const {
+  readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload, assertPgLiveProof,
+  releaseChecks, writeBuildManifest, assertBuildManifest, assertAllBuildManifests, assertSafeArtifactName,
+} = require("../desktop-release/guard.cjs");
 const { resolvePublishMode, normalizeBuildEnvironment } = require("../../desktop/scripts/run-electron-builder.cjs");
+const { mergeMacLatestYml, collectUploadPlan } = require("../desktop-release/publish-artifacts.cjs");
 
 function fixture(t, version = "1.2.3") {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "anw-release-guard-test-"));
@@ -16,7 +20,7 @@ function fixture(t, version = "1.2.3") {
   fs.mkdirSync(path.join(directory, ".tmp/release-checks"));
   fs.writeFileSync(path.join(directory, ".tmp/release-checks/release-checks-run-1.json"), JSON.stringify({
     schema: 1, status: "passed", head: "tested-head", runId: "run", runAttempt: "1", desktopVersion: version,
-    checks: ["pnpm typecheck", "pnpm --filter @ai-novel/server prisma:deploy", "pnpm test:all", "pnpm --filter @ai-novel/desktop build", "pnpm test:release-guards"],
+    checks: releaseChecks,
   }));
   t.after(() => { assert.equal(path.dirname(directory), os.tmpdir()); fs.rmSync(directory, { recursive: true, force: true }); });
   return directory;
@@ -56,10 +60,39 @@ test("a failed check stops the release sequence and all test writes use isolated
   }
 });
 
-test("successful checks include typecheck, all server/client tests and desktop/script contracts", t => {
+test("successful checks include typecheck, all server/client tests, quality and desktop/script contracts", t => {
   const calls = [];
   runReleaseChecks(fixture(t), { env: {}, run: args => calls.push(args.join(" ")) });
-  assert.deepEqual(calls, ["typecheck", "--filter @ai-novel/server prisma:deploy", "test:all", "--filter @ai-novel/desktop build", "test:release-guards", "test:pg-live"]);
+  assert.deepEqual(calls, [
+    "typecheck",
+    "--filter @ai-novel/server prisma:deploy",
+    "test:all",
+    "--filter @ai-novel/server test:quality",
+    "--filter @ai-novel/desktop build",
+    "test:release-guards",
+    "test:pg-live",
+  ]);
+});
+
+test("CI portable release checks do not require PG proof while checkRevision still does", t => {
+  const root = fixture(t);
+  const calls = [];
+  runReleaseChecks(root, { env: { GITHUB_ACTIONS: "true" }, run: args => calls.push(args.join(" ")) });
+  assert.deepEqual(calls, [
+    "typecheck",
+    "--filter @ai-novel/server prisma:deploy",
+    "test:all",
+    "--filter @ai-novel/server test:quality",
+    "--filter @ai-novel/desktop build",
+    "test:release-guards",
+  ]);
+  assert.equal(calls.includes("test:pg-live"), false);
+  fs.unlinkSync(path.join(root, ".tmp/pg-live-gate.json"));
+  assert.throws(() => checkRevision(root, {
+    env: { GITHUB_ACTIONS: "true", GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
+    git: gitFixture(),
+    runChecks: () => {},
+  }), /PG live gate/);
 });
 
 test("a dirty tree never runs checks and an edited or replaced tested revision is rejected", t => {
@@ -109,7 +142,7 @@ test("an upload uses only the same clean passing CI artifact", t => {
   fs.writeFileSync(path.join(root, ".tmp/pg-live-gate.json"), JSON.stringify({ schema: 1, status: "passed", head, runId: "run", runAttempt: "1" }));
   fs.writeFileSync(path.join(root, ".tmp/release-checks/release-checks-run-1.json"), JSON.stringify({
     schema: 1, status: "passed", head, runId: "run", runAttempt: "1", desktopVersion: "1.2.3",
-    checks: ["pnpm typecheck", "pnpm --filter @ai-novel/server prisma:deploy", "pnpm test:all", "pnpm --filter @ai-novel/desktop build", "pnpm test:release-guards"],
+    checks: releaseChecks,
   }));
   assert.equal(verifyUpload(root, { env: ci, git, runChecks }), "v1.2.3");
   assert.equal(checks, 0);
@@ -139,16 +172,27 @@ test("workflow publishes only on pushed version tags and manual dispatch is veri
   const req = createRequire(require.resolve("electron-builder/package.json", { paths: [path.join(repoRoot, "desktop")] }));
   const workflow = req("js-yaml").load(fs.readFileSync(path.join(repoRoot, ".github/workflows/desktop-release.yml"), "utf8"));
   assert.deepEqual(workflow.on.push.tags, ["v*"]);
-  for (const name of ["publish-release", "publish-mac", "publish-linux"]) {
-    assert.deepEqual(workflow.jobs[name].needs, ["pg-live-gate", "release-checks"]);
-    assert.ok(workflow.jobs[name].steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name.includes("github.run_attempt")));
+  assert.equal(workflow.permissions.contents, "read");
+  assert.equal(workflow.jobs["release-checks"].needs, undefined);
+  assert.ok(!workflow.jobs["release-checks"].steps.some(step => step.uses?.startsWith("actions/download-artifact")));
+  for (const name of ["build-windows", "build-mac", "build-linux"]) {
     assert.match(workflow.jobs[name].if, /event_name == 'push'/);
     assert.match(workflow.jobs[name].if, /ref_type == 'tag'/);
-    assert.equal(workflow.jobs[name].steps.find(step => step.uses?.startsWith("actions/checkout")).with["fetch-depth"], 0);
-    assert.ok(!workflow.jobs[name].steps.some(step => step.run?.includes("generate-desktop-icons")));
+    assert.equal(workflow.jobs[name].permissions?.contents, "read");
+    assert.ok(workflow.jobs[name].steps.some(step => step.run?.includes("--publish never")));
+    assert.ok(!workflow.jobs[name].steps.some(step => /\bGH_TOKEN\b/.test(JSON.stringify(step)) && step.run?.includes("publish always")));
+    assert.ok(!Object.keys(workflow.jobs[name].env || {}).includes("GH_TOKEN"));
   }
+  const publish = workflow.jobs["publish-release"];
+  assert.deepEqual(publish.needs, ["pg-live-gate", "release-checks", "build-windows", "build-mac", "build-linux"]);
+  assert.equal(publish.permissions.contents, "write");
+  assert.ok(publish.steps.some(step => step.run === "node scripts/desktop-release/publish-artifacts.cjs"));
+  assert.ok(!publish.steps.some(step => step.run?.includes("stage:desktop")));
+  assert.ok(!publish.steps.some(step => step.run?.includes("run-electron-builder")));
+  assert.ok(!publish.steps.some(step => step.run?.includes("publish:desktop:release")));
   assert.match(workflow.jobs["verify-only"].if, /workflow_dispatch/);
   assert.ok(!workflow.jobs["verify-only"].steps.some(step => step.run?.includes("--publish always")));
+  assert.equal(workflow.jobs["verify-only"].needs, "pg-live-gate");
 });
 
 test("PG gate proof rejects missing, stale, failed and other-run evidence", t => {
@@ -207,7 +251,7 @@ test("PG suite fails without explicit configuration without touching the release
   assert.deepEqual(selectTestFiles("pg-live").map(file => path.basename(file)), ["pgCloudAcceptance.harness.test.js"]);
 });
 
-test("every desktop workflow requires provisioned PG and downloads its run-scoped proof", () => {
+test("every desktop workflow requires provisioned PG and fail-closed upload proofs", () => {
   const root = path.resolve(__dirname, "../..");
   const req = createRequire(require.resolve("electron-builder/package.json", { paths: [path.join(root, "desktop")] }));
   const load = name => req("js-yaml").load(fs.readFileSync(path.join(root, `.github/workflows/${name}.yml`), "utf8"));
@@ -222,29 +266,130 @@ test("every desktop workflow requires provisioned PG and downloads its run-scope
   assert.equal(upload.with["if-no-files-found"], "error");
   assert.match(upload.with.name, /github.run_id/);
   assert.match(upload.with.name, /github.run_attempt/);
-  for (const workflow of [load("desktop-release"), load("desktop-beta-release")]) {
-    assert.equal(workflow.jobs["pg-live-gate"].uses, "./.github/workflows/pg-live-gate.yml");
-    assert.equal(workflow.jobs["release-checks"].needs, "pg-live-gate");
-    const releaseUpload = workflow.jobs["release-checks"].steps.find(step => step.uses?.startsWith("actions/upload-artifact"));
-    assert.match(releaseUpload.with.name, /github.run_id/);
-    assert.match(releaseUpload.with.name, /github.run_attempt/);
-    assert.match(releaseUpload.with.path, /release-checks-/);
-    for (const [name, job] of Object.entries(workflow.jobs)) {
-      if (name === "pg-live-gate") continue;
-      if (name === "release-checks") continue;
-      if (name.startsWith("publish")) assert.deepEqual(job.needs, ["pg-live-gate", "release-checks"]);
-      else assert.equal(job.needs, "pg-live-gate");
-      assert.ok(!job["continue-on-error"]);
-      const download = job.steps.find(step => step.uses?.startsWith("actions/download-artifact"));
-      assert.equal(download.with.name, upload.with.name);
-      assert.equal(download.with.path, ".tmp");
-      assert.ok(!download.with["run-id"], "artifact must come from the current run");
-      if (name.startsWith("publish")) {
-        assert.ok(job.needs.includes("release-checks"));
-        assert.ok(job.steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name === releaseUpload.with.name));
-        assert.ok(job.steps.some(step => step.run === "node scripts/desktop-release/verify-proof.cjs"));
-        assert.ok(!job.steps.some(step => step.run === "pnpm typecheck"), "portable typecheck must not be repeated in publish jobs");
-      }
+
+  const release = load("desktop-release");
+  assert.equal(release.jobs["pg-live-gate"].uses, "./.github/workflows/pg-live-gate.yml");
+  assert.equal(release.jobs["release-checks"].needs, undefined);
+  const releaseUpload = release.jobs["release-checks"].steps.find(step => step.uses?.startsWith("actions/upload-artifact"));
+  assert.match(releaseUpload.with.name, /github.run_id/);
+  assert.match(releaseUpload.with.name, /github.run_attempt/);
+  assert.match(releaseUpload.with.path, /release-checks-/);
+  const publish = release.jobs["publish-release"];
+  assert.ok(publish.needs.includes("pg-live-gate"));
+  assert.ok(publish.needs.includes("release-checks"));
+  assert.ok(publish.steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name === upload.with.name));
+  assert.ok(publish.steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name === releaseUpload.with.name));
+  assert.ok(publish.steps.some(step => step.run === "node scripts/desktop-release/publish-artifacts.cjs"));
+  assert.ok(!publish.steps.some(step => step.run === "pnpm typecheck"));
+  assert.equal(release.jobs["verify-only"].needs, "pg-live-gate");
+  assert.ok(release.jobs["verify-only"].steps.some(step => step.uses?.startsWith("actions/download-artifact") && step.with.name === upload.with.name));
+
+  const beta = load("desktop-beta-release");
+  assert.equal(beta.jobs["pg-live-gate"].uses, "./.github/workflows/pg-live-gate.yml");
+  assert.equal(beta.jobs["release-checks"].needs, undefined);
+  assert.deepEqual(beta.jobs["publish-beta"].needs, ["pg-live-gate", "release-checks"]);
+  assert.ok(beta.jobs["publish-beta"].steps.some(step => step.run === "node scripts/desktop-release/verify-proof.cjs"));
+});
+
+function writeFakeBuildTree(root, version = "1.2.3") {
+  const buildsRoot = path.join(root, ".tmp", "desktop-builds");
+  const filesByPlatform = {
+    "win-x64": [
+      `Biz-Novel-Studio-${version}-setup-x64.exe`,
+      `Biz-Novel-Studio-${version}-setup-x64.exe.blockmap`,
+      `Biz-Novel-Studio-${version}-portable-x64.exe`,
+      "latest.yml",
+    ],
+    "mac-x64": [
+      `Biz-Novel-Studio-${version}-mac-x64.dmg`,
+      `Biz-Novel-Studio-${version}-mac-x64.dmg.blockmap`,
+      "latest-mac.yml",
+    ],
+    "mac-arm64": [
+      `Biz-Novel-Studio-${version}-mac-arm64.dmg`,
+      `Biz-Novel-Studio-${version}-mac-arm64.dmg.blockmap`,
+      "latest-mac.yml",
+    ],
+    "linux-x64": [
+      `Biz-Novel-Studio-${version}-linux-x86_64.AppImage`,
+      "latest-linux.yml",
+    ],
+  };
+  for (const [platformKey, names] of Object.entries(filesByPlatform)) {
+    const distDir = path.join(buildsRoot, platformKey);
+    fs.mkdirSync(distDir, { recursive: true });
+    for (const name of names) {
+      const body = name.endsWith(".yml")
+        ? `version: ${version}\nfiles:\n  - url: ${names[0]}\n    sha512: dummy\n    size: 1\npath: ${names[0]}\nsha512: dummy\n`
+        : `${platformKey}:${name}:payload`;
+      fs.writeFileSync(path.join(distDir, name), body);
     }
+    if (platformKey.startsWith("mac-")) {
+      const dmg = names.find((name) => name.endsWith(".dmg"));
+      fs.writeFileSync(path.join(distDir, "latest-mac.yml"), [
+        `version: ${version}`,
+        "files:",
+        `  - url: ${dmg}`,
+        "    sha512: dummy-sha",
+        "    size: 12",
+        `path: ${dmg}`,
+        "sha512: dummy-sha",
+        "releaseDate: '2026-01-01T00:00:00.000Z'",
+        "",
+      ].join("\n"));
+    }
+    writeBuildManifest(root, {
+      env: { GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
+      git: () => "tested-head",
+      platformKey,
+      distDir,
+    });
   }
+  return buildsRoot;
+}
+
+test("build manifests bind run identity and reject digest or path tampering", t => {
+  const root = fixture(t);
+  const buildsRoot = writeFakeBuildTree(root);
+  const manifests = assertAllBuildManifests(root, ci, "tested-head", "1.2.3", buildsRoot);
+  assert.equal(Object.keys(manifests).length, 4);
+
+  const winDir = path.join(buildsRoot, "win-x64");
+  const setup = path.join(winDir, "Biz-Novel-Studio-1.2.3-setup-x64.exe");
+  fs.writeFileSync(setup, "tampered");
+  assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /digest mismatch/);
+  fs.writeFileSync(setup, "win-x64:Biz-Novel-Studio-1.2.3-setup-x64.exe:payload");
+
+  assert.throws(() => assertSafeArtifactName("../escape.exe"), /unsafe/);
+  assert.throws(() => assertSafeArtifactName("sub/dir.exe"), /unsafe/);
+  fs.symlinkSync(setup, path.join(winDir, "link-setup.exe"));
+  const manifest = JSON.parse(fs.readFileSync(path.join(winDir, "build-manifest.json"), "utf8"));
+  manifest.files.push({
+    name: "link-setup.exe",
+    size: 1,
+    sha256: "x",
+    sha512: "y",
+  });
+  fs.writeFileSync(path.join(winDir, "build-manifest.json"), JSON.stringify(manifest));
+  assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /regular file|unexpected file/);
+});
+
+test("publish artifact planner merges mac metadata and never rebuilds packages", t => {
+  const root = fixture(t);
+  const buildsRoot = writeFakeBuildTree(root);
+  const manifests = assertAllBuildManifests(root, ci, "tested-head", "1.2.3", buildsRoot);
+  const plan = collectUploadPlan(buildsRoot, manifests);
+  assert.ok(plan.some((item) => item.name === "latest-mac.yml" && item.platformKey === "mac-merged"));
+  assert.equal(plan.filter((item) => item.name === "latest-mac.yml").length, 1);
+  const merged = fs.readFileSync(path.join(buildsRoot, "latest-mac.yml"), "utf8");
+  assert.match(merged, /mac-x64\.dmg/);
+  assert.match(merged, /mac-arm64\.dmg/);
+  assert.equal(plan.some((item) => item.source.includes("electron-builder")), false);
+
+  const onlyArm = mergeMacLatestYml(
+    path.join(buildsRoot, "mac-x64"),
+    path.join(buildsRoot, "mac-arm64"),
+  );
+  assert.match(onlyArm, /mac-x64\.dmg/);
+  assert.match(onlyArm, /mac-arm64\.dmg/);
 });

@@ -14,9 +14,8 @@ jobs:
     uses: ./.github/workflows/pg-live-gate.yml
 
   release-checks:
-    needs: pg-live-gate
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,10 +28,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v6
-        with:
-          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp
       - name: Run portable release checks
         run: node scripts/desktop-release/run.cjs
       - uses: actions/upload-artifact@v6
