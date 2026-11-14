@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - cursor/win-publish-fix-speedup-54f3
+      - cursor/desktop-release-parallel-pack-54f3
       - main
       - beta
 
