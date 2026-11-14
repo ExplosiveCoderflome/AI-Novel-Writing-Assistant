@@ -40,6 +40,8 @@ Windows 的 `.cmd` 批处理入口不能通过 `spawnSync(..., { shell: false })
 - 不得删除该测试或放宽断言来“变绿”；
 - 不得把它塞进桌面打包验收或 `Windows Publish Path Verify` 的阻塞清单；
 - 保留在常规 server 测试 CI；打包路径只验证生产 probe、`postgresMigrateDeployPath`、必要 quality/布局与平台产物。
+`Windows Publish Path Verify` 只覆盖生产 Prisma probe、`postgresMigrateDeployPath` 与 desktop build。可移植 `test:release-guards`（含 Mintlify 路径断言）由 Ubuntu `release-checks` 执行，避免把可移植测试的路径分隔符差异误判为 Windows 打包阻塞。
+
 
 ## Related Modules
 

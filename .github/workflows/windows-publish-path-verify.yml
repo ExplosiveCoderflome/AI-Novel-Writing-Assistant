@@ -48,5 +48,4 @@ jobs:
         run: node --test tests/postgresMigrateDeployPath.test.js
 
       - run: pnpm --filter @ai-novel/desktop build
-
-      - run: pnpm test:release-guards
+      # Portable release-guards / Mintlify sync tests run on Ubuntu release-checks, not Windows packaging-path verify.
