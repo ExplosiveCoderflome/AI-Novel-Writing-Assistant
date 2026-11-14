@@ -1,10 +1,30 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Biz Novel Studio",
   "description": "AI 小说创作工作台官方文档：从一句灵感，走向一本完整小说",
   "colors": {
     "primary": "#16A34A"
+  },
+  "logo": {
+    "light": "/images/logo.svg",
+    "dark": "/images/logo.svg"
+  },
+  "favicon": "/favicon.svg",
+  "navbar": {
+    "links": [
+      {
+        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases",
+        "label": "下载"
+      },
+      {
+        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues",
+        "label": "问题反馈"
+      }
+    ],
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+    }
   },
   "footer": {
     "socials": {
@@ -64,6 +84,39 @@
       }
     ]
   },
+  "seo": {
+    "metatags": {
+      "author": "ExplosiveCoderflome",
+      "keywords": "AI 小说,AI 写小说,AI 小说创作,长篇小说生成,短篇小说,小说写作助手,开源,Biz Novel Studio,AI-Novel-Writing-Assistant,AI Novel Writing Assistant,AI novel writing assistant",
+      "language": "zh-CN",
+      "og:locale": "zh_CN",
+      "theme-color": "#05080a",
+      "application-name": "Biz Novel Studio",
+      "og:site_name": "Biz Novel Studio",
+      "twitter:card": "summary_large_image"
+    },
+    "paths": [
+      {
+        "path": "en",
+        "metatags": {
+          "language": "en",
+          "og:locale": "en_US",
+          "keywords": "AI novel writing,AI novel generator,AI story writer,AI fiction writing tool,long-form novel generation,short story generator,open-source AI writing,AI writing assistant,Biz Novel Studio,AI-Novel-Writing-Assistant"
+        }
+      }
+    ]
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity"
+    ],
+    "display": "header"
+  },
+  "$schema": "https://mintlify.com/docs.json",
   "navigation": {
     "languages": [
       {
@@ -162,6 +215,80 @@
       },
       {
         "language": "en",
+        "navbar": {
+          "links": [
+            {
+              "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases",
+              "label": "Download"
+            },
+            {
+              "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues",
+              "label": "Report an issue"
+            }
+          ],
+          "primary": {
+            "type": "github",
+            "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+          }
+        },
+        "footer": {
+          "socials": {
+            "github": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+          },
+          "links": [
+            {
+              "header": "Get started",
+              "items": [
+                {
+                  "label": "Installation",
+                  "href": "/en/installation"
+                },
+                {
+                  "label": "Quick start",
+                  "href": "/en/quickstart"
+                },
+                {
+                  "label": "Your first novel",
+                  "href": "/en/guides/first-novel-walkthrough"
+                }
+              ]
+            },
+            {
+              "header": "Community",
+              "items": [
+                {
+                  "label": "GitHub",
+                  "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+                },
+                {
+                  "label": "Report an issue",
+                  "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues"
+                },
+                {
+                  "label": "Contributing",
+                  "href": "/en/developers/contributing"
+                }
+              ]
+            },
+            {
+              "header": "Updates",
+              "items": [
+                {
+                  "label": "Changelog",
+                  "href": "/en/changelog"
+                },
+                {
+                  "label": "Roadmap",
+                  "href": "/en/roadmap"
+                },
+                {
+                  "label": "Download latest release",
+                  "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases"
+                }
+              ]
+            }
+          ]
+        },
         "groups": [
           {
             "group": "Get started",
@@ -254,58 +381,5 @@
         ]
       }
     ]
-  },
-  "seo": {
-    "metatags": {
-      "author": "ExplosiveCoderflome",
-      "keywords": "AI 小说,AI 写小说,AI 小说创作,长篇小说生成,短篇小说,小说写作助手,开源,Biz Novel Studio,AI-Novel-Writing-Assistant,AI Novel Writing Assistant,AI novel writing assistant",
-      "language": "zh-CN",
-      "og:locale": "zh_CN",
-      "theme-color": "#05080a",
-      "application-name": "Biz Novel Studio",
-      "og:site_name": "Biz Novel Studio",
-      "twitter:card": "summary_large_image"
-    },
-    "paths": [
-      {
-        "path": "en",
-        "metatags": {
-          "language": "en",
-          "og:locale": "en_US",
-          "keywords": "AI novel writing,AI novel generator,AI story writer,AI fiction writing tool,long-form novel generation,short story generator,open-source AI writing,AI writing assistant,Biz Novel Studio,AI-Novel-Writing-Assistant"
-        }
-      }
-    ]
-  },
-  "logo": {
-    "light": "/images/logo.svg",
-    "dark": "/images/logo.svg"
-  },
-  "favicon": "/favicon.svg",
-  "navbar": {
-    "links": [
-      {
-        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases",
-        "label": "下载"
-      },
-      {
-        "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues",
-        "label": "问题反馈"
-      }
-    ],
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
-    }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity"
-    ],
-    "display": "header"
   }
 }
