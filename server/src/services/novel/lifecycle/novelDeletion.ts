@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../db/prisma";
 import { removeOwnedNovelImageFiles, type NovelImageFile } from "../../image/novelImageCleanup";
 import { VectorStoreService } from "../../rag/VectorStoreService";
+import { deleteLegacyDirectorRuntime } from "../director/infrastructure/legacyRuntime";
 
 export interface NovelDeletionFiles {
   images: NovelImageFile[];
@@ -29,10 +30,7 @@ export async function prepareNovelDeletion(tx: Prisma.TransactionClient, novelId
   await tx.directorRun.deleteMany({ where: taskScope });
   await tx.creationStudioConfirmation.deleteMany({ where: { novelId } });
 
-  const runtimeScope = { OR: [{ novelId }, { workflowTaskId: { in: taskIds } }] };
-  // Child runtime rows cascade from the instance. Keep the legacy cleanup in the
-  // deletion boundary while avoiding four independent legacy-table entry points.
-  await tx.directorRuntimeInstance.deleteMany({ where: runtimeScope });
+  await deleteLegacyDirectorRuntime(tx, novelId, taskIds);
   await tx.directorNextArtifact.deleteMany({ where: { novelId } });
   await tx.directorNextRun.deleteMany({ where: { novelId } });
   await tx.characterConversationSession.deleteMany({ where: { scopeKind: "novel", scopeId: novelId } });

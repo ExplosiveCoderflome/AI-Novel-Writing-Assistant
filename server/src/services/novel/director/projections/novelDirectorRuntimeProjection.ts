@@ -7,6 +7,7 @@ import type {
   DirectorRuntimeSnapshot,
 } from "@ai-novel/shared/types/directorRuntime";
 import { prisma } from "../../../../db/prisma";
+import { readLegacyDirectorRuntime } from "../infrastructure/legacyRuntime";
 import { buildDefaultDirectorPolicy } from "../runtime/directorRuntimeDefaults";
 import { DirectorEventProjectionService, parseDirectorIssueEventMetadata } from "../runtime/DirectorEventProjectionService";
 import { directorUsageTelemetryQueryService } from "../runtime/DirectorUsageTelemetryQueryService";
@@ -38,15 +39,6 @@ function parseRiskHistory(rows: Array<{
     const parsed = parsePersistedDirectorRiskAssessment(metadata?.riskAssessment);
     return parsed ? [{ ...parsed, eventId: row.id }] : [];
   });
-}
-
-function isDirectorRuntimeTableUnavailable(error: unknown): boolean {
-  return Boolean(
-    error
-      && typeof error === "object"
-      && "code" in error
-      && ((error as { code?: unknown }).code === "P2021" || (error as { code?: unknown }).code === "P2022"),
-  );
 }
 
 type ActiveRuntimeCommand = {
@@ -434,7 +426,7 @@ export async function loadPersistentDirectorRuntimeProjection(
   projectionService = new DirectorEventProjectionService(),
 ): Promise<DirectorRuntimeProjection | null> {
   const TERMINAL_TASK_STATUSES = ["succeeded", "cancelled", "failed"];
-  const [run, activeCommand, taskRow, riskEventRows] = await Promise.all([
+  const [run, activeCommand, runtime, taskRow, riskEventRows] = await Promise.all([
     prisma.directorRun.findUnique({
       where: { taskId },
       select: {
@@ -496,6 +488,7 @@ export async function loadPersistentDirectorRuntimeProjection(
         updatedAt: true,
       },
     }) as Promise<ActiveRuntimeCommand | null>,
+    readLegacyDirectorRuntime(prisma, taskId),
     prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
       select: { status: true },
@@ -521,7 +514,18 @@ export async function loadPersistentDirectorRuntimeProjection(
     : false;
 
   if (!run) {
-    return null;
+    if (!runtime) return null;
+    const chapterExecutionProgress = runtime.novelId
+      ? await new ChapterExecutionProgressInspector().inspectNovel(runtime.novelId).catch(() => null)
+      : null;
+    return {
+      ...buildRuntimeOnlyProjection(taskId, runtime),
+      startupPreparation,
+      latestRiskAssessment,
+      riskHistory,
+      riskHistoryTotal: riskHistory.length,
+      chapterExecutionProgress,
+    };
   }
 
   const snapshot: DirectorRuntimeSnapshot = {
@@ -579,7 +583,7 @@ export async function loadPersistentDirectorRuntimeProjection(
     ? await new ChapterExecutionProgressInspector().inspectNovel(run.novelId).catch(() => null)
     : null;
   return {
-    ...overlayActiveCommand(projection, commandToOverlay),
+    ...overlayRuntimeInstance(overlayActiveCommand(projection, commandToOverlay), isTaskTerminal ? null : runtime),
     startupPreparation,
     latestRiskAssessment,
     riskHistory,

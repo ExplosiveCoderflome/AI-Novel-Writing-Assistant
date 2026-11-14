@@ -9,6 +9,40 @@ const {
   directorUsageTelemetryQueryService,
 } = require("../dist/services/novel/director/runtime/DirectorUsageTelemetryQueryService.js");
 
+for (const expired of [false, true]) {
+  test(`legacy runtime without DirectorRun preserves ${expired ? "expired lease recovery" : "active worker lease"}`, async () => {
+    const restore = mockProjectionData(null);
+    const now = new Date();
+    prisma.directorRun.findUnique = async () => null;
+    prisma.directorRuntimeInstance.findFirst = async ({ where }) => {
+      assert.equal(where.workflowTaskId, "task-1");
+      return {
+        id: "legacy-only-runtime", novelId: null, runId: null,
+        status: "waiting_worker", currentStep: "resume_from_checkpoint",
+        checkpointVersion: 1, workerMessage: null, lastErrorMessage: null,
+        lastHeartbeatAt: now, updatedAt: now, executions: [], checkpoints: [],
+        commands: [{
+          id: "legacy-only-command", commandType: "continue", status: "leased",
+          leaseOwner: "legacy-worker:slot-3",
+          leaseExpiresAt: new Date(now.getTime() + (expired ? -60_000 : 60_000)),
+          createdAt: now, updatedAt: now,
+        }],
+      };
+    };
+    try {
+      const projection = await loadPersistentDirectorRuntimeProjection("task-1");
+      assert.equal(projection.runtimeId, "legacy-only-runtime");
+      assert.equal(projection.workerHealth.currentWorkerId, "legacy-worker");
+      assert.equal(projection.workerHealth.currentSlotId, "slot-3");
+      assert.equal(projection.workerHealth.derivedState, expired ? "auto_recovering" : "leased_starting");
+      assert.equal(projection.workerHealth.staleCommandCount, expired ? 1 : 0);
+      assert.equal(projection.workerHealth.nextAction, expired ? "recover_stale_command" : "wait_for_lease_start");
+    } finally {
+      restore();
+    }
+  });
+}
+
 function buildRun() {
   return {
     id: "task-1",

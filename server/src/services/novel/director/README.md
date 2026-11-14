@@ -71,4 +71,6 @@ import {
 
 新代码不应新增 `DirectorRuntimeCommand` / `DirectorRuntimeExecution` 写入路径。需要展示旧任务历史时，可以通过 runtime projection 读取这些历史行；需要排队执行时，必须通过 `DirectorCommandService` 创建 `DirectorRunCommand`。
 
+旧表访问统一经 `infrastructure/legacyRuntime` 门面：投影保留历史 worker lease、过期命令恢复状态，以及缺少 `DirectorRun` 时的 runtime-only 结果。已有终态任务不得被旧运行时覆盖。仅缺表/缺列（P2021/P2022）可忽略，其他读取错误必须透出。小说删除将调用者的事务客户端传给同一门面，父实例删除与子行级联必须和小说删除一起提交或回滚；不能捕获删除错误后继续，也不能提前清理本地图片。
+
 问题治理动作必须由真实执行边界确认后再登记 `issue_action_applied`。命令租约恢复负责重新排队、人工恢复或失败终态，流水线和熔断器分别负责自己的控制流；这些模块不能只记录策略决定后继续使用旧分支。
