@@ -37,7 +37,7 @@ function runSelectionFixture(mode) {
     fs.writeFileSync(path.join(root, "tests/directorNext/application", name),
       `require("node:fs").appendFileSync(${JSON.stringify(output)}, ${JSON.stringify(name + "\n")});\n`);
   }
-  const env = { ...process.env };
+  const env = { ...process.env, ANW_TEST_SKIP_SQLITE_PRELOAD: "1" };
   delete env.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ["scripts/run-tests.cjs", mode], {
     cwd: root, encoding: "utf8", timeout: 30_000, env,
@@ -63,7 +63,7 @@ test("fast mode isolates module state between test files", () => {
     'global.directorTestFixture = "leaked"; require("node:test")("first file", () => {});\n');
   fs.writeFileSync(path.join(root, "tests/b.test.js"),
     'require("node:test")("second file", () => require("node:assert/strict").equal(global.directorTestFixture, undefined));\n');
-  const env = { ...process.env };
+  const env = { ...process.env, ANW_TEST_SKIP_SQLITE_PRELOAD: "1" };
   delete env.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ["scripts/run-tests.cjs", "fast"], {
     cwd: root, encoding: "utf8", timeout: 30_000, env,

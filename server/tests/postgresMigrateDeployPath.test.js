@@ -13,6 +13,7 @@ const {
   listMigrationNames,
   requirePostgresUrl,
   generateCurrentSchemaScript,
+  childProcessFailure,
   postgresSchemaPath,
   postgresMigrationsDir,
 } = require("../../scripts/deploy-prisma-postgres.cjs");
@@ -160,6 +161,17 @@ test("deploy script rejects SQLite URLs and requires DATABASE_URL", () => {
   assert.throws(() => requirePostgresUrl("file:./dev.db"), /not SQLite/);
   assert.throws(() => requirePostgresUrl("sqlite:foo"), /not SQLite/);
   assert.equal(requirePostgresUrl("postgresql://app@127.0.0.1:5432/tmp"), "postgresql://app@127.0.0.1:5432/tmp");
+});
+
+test("child process failures retain Windows status, signal, and captured output", () => {
+  assert.match(
+    childProcessFailure({ status: null, signal: "SIGTERM", stderr: "prisma\nerror", stdout: "out" }, "prisma migrate diff"),
+    /status=null, signal=SIGTERM[\s\S]*prisma[\s\S]*error/,
+  );
+  assert.match(
+    childProcessFailure({ status: null, signal: null, error: { code: "ENOENT", message: "spawn pnpm.cmd ENOENT" } }, "prisma migrate diff"),
+    /ENOENT: spawn pnpm\.cmd ENOENT/,
+  );
 });
 
 test("prisma migrate diff from empty to current PG schema is dialect-safe and includes 0.8.2 objects", () => {
