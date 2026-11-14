@@ -154,13 +154,26 @@ test("PG gate proof rejects missing, stale, failed and other-run evidence", t =>
   assert.throws(() => verifyUpload(root, { env: ci, git: gitFixture(), runChecks: () => {} }), /PG live gate/);
 });
 
-test("PG suite fails without explicit configuration and stays outside portable suites", () => {
+test("PG suite fails without explicit configuration without touching the release proof", t => {
   const { spawnSync } = require("node:child_process");
   const env = { ...process.env };
   delete env.PG_ADMIN_URL;
+  const repoRoot = path.resolve(__dirname, "../..");
+  const defaultProof = path.join(repoRoot, ".tmp/pg-live-gate.json");
+  const before = fs.existsSync(defaultProof)
+    ? { bytes: fs.readFileSync(defaultProof), mtimeMs: fs.statSync(defaultProof).mtimeMs }
+    : null;
+  const isolatedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "anw-pg-proof-negative-"));
+  t.after(() => { assert.equal(path.dirname(isolatedDirectory), os.tmpdir()); fs.rmSync(isolatedDirectory, { recursive: true, force: true }); });
+  env.PG_LIVE_PROOF_PATH = path.join(isolatedDirectory, "pg-live-gate.json");
   const result = spawnSync(process.execPath, [path.resolve(__dirname, "../acceptance/pg-cloud-harness.cjs")], { env, encoding: "utf8" });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /PG_ADMIN_URL is required/);
+  assert.equal(fs.existsSync(defaultProof), before !== null);
+  if (before) {
+    assert.deepEqual(fs.readFileSync(defaultProof), before.bytes);
+    assert.equal(fs.statSync(defaultProof).mtimeMs, before.mtimeMs);
+  }
   const { selectTestFiles } = require("../../server/scripts/run-tests.cjs");
   for (const mode of ["fast", "integration", "all"]) assert.ok(!selectTestFiles(mode).some(file => file.endsWith("pgCloudAcceptance.harness.test.js")));
   assert.deepEqual(selectTestFiles("pg-live").map(file => path.basename(file)), ["pgCloudAcceptance.harness.test.js"]);

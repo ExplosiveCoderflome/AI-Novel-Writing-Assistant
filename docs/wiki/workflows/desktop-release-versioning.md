@@ -32,6 +32,8 @@
 
 正式上传再次核对版本 tag 指向当前 HEAD，且提交属于 main；GitHub 必须提供匹配的 tag ref。不能将旧 SHA 的成功结果、任意环境布尔值、其他分支的验证或不干净工作区当作本次通过证据。
 
+PostgreSQL live gate proof (`.tmp/pg-live-gate.json`) is run-scoped release evidence. `pg-cloud-harness.cjs` invalidates its selected proof path before validating configuration, so an invalid invocation cannot leave a previous pass reusable. Tests and other intentional negative invocations must set `PG_LIVE_PROOF_PATH` to a dedicated temporary file; they must never run against the repository default path, which may contain the real proof downloaded by a release job. The override changes only the cleanup/write target and does not weaken proof validation or the production default.
+
 本地上传还须读取 origin 的已推送 tag（注解 tag 取 peeled commit）并与本次 HEAD 比较，避免发布器在远端缺少 tag 时替旧 main 自动创建发布标识。
 
 `run-electron-builder.cjs` 默认添加 `--publish never`，避免 CI 环境隐式上传。显式 `--publish`、`--publish=...` 与 `-p` 共用同一验证入口，失败不调用上传；重复 publish 参数被拒绝。两种既有发布脚本都经过此入口，不能另建绕过守卫的上传路径。

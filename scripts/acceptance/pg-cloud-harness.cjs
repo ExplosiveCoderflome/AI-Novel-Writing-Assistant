@@ -21,7 +21,9 @@ const { randomBytes } = require("node:crypto");
 
 const root = path.resolve(__dirname, "../..");
 const serverDir = path.join(root, "server");
-const proofPath = path.join(root, ".tmp/pg-live-gate.json");
+const proofPath = process.env.PG_LIVE_PROOF_PATH
+  ? path.resolve(process.env.PG_LIVE_PROOF_PATH)
+  : path.join(root, ".tmp/pg-live-gate.json");
 // Even an invalid invocation must invalidate a previous pass.
 fs.rmSync(proofPath, { force: true });
 const adminUrl = process.env.PG_ADMIN_URL;
