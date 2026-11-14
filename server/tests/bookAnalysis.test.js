@@ -1236,6 +1236,7 @@ test("BookAnalysisCharacterMediaService promotes a profile to BaseCharacter with
 test("NovelExportService exports generated chapters as a knowledge document for diagnosis", async () => {
   const original = {
     novelFindUnique: prisma.novel.findUnique,
+    manuscriptProjectFindUnique: prisma.manuscriptProject.findUnique,
   };
   const createdDocuments = [];
   prisma.novel.findUnique = async ({ where }) => {
@@ -1251,6 +1252,7 @@ test("NovelExportService exports generated chapters as a knowledge document for 
       ],
     };
   };
+  prisma.manuscriptProject.findUnique = async () => null;
 
   const service = new NovelExportService();
   service.knowledgeService = {
@@ -1283,6 +1285,7 @@ test("NovelExportService exports generated chapters as a knowledge document for 
     assert.match(createdDocuments[0].content, /同伴隐瞒关键证词/);
   } finally {
     prisma.novel.findUnique = original.novelFindUnique;
+    prisma.manuscriptProject.findUnique = original.manuscriptProjectFindUnique;
   }
 });
 

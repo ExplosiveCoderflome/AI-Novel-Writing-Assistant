@@ -30,9 +30,8 @@ export async function prepareNovelDeletion(tx: Prisma.TransactionClient, novelId
   await tx.creationStudioConfirmation.deleteMany({ where: { novelId } });
 
   const runtimeScope = { OR: [{ novelId }, { workflowTaskId: { in: taskIds } }] };
-  await tx.directorRuntimeEvent.deleteMany({ where: runtimeScope });
-  await tx.directorRuntimeExecution.deleteMany({ where: runtimeScope });
-  await tx.directorRuntimeCommand.deleteMany({ where: runtimeScope });
+  // Child runtime rows cascade from the instance. Keep the legacy cleanup in the
+  // deletion boundary while avoiding four independent legacy-table entry points.
   await tx.directorRuntimeInstance.deleteMany({ where: runtimeScope });
   await tx.directorNextArtifact.deleteMany({ where: { novelId } });
   await tx.directorNextRun.deleteMany({ where: { novelId } });

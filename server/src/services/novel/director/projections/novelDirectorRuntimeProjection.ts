@@ -434,7 +434,7 @@ export async function loadPersistentDirectorRuntimeProjection(
   projectionService = new DirectorEventProjectionService(),
 ): Promise<DirectorRuntimeProjection | null> {
   const TERMINAL_TASK_STATUSES = ["succeeded", "cancelled", "failed"];
-  const [run, activeCommand, runtime, taskRow, riskEventRows] = await Promise.all([
+  const [run, activeCommand, taskRow, riskEventRows] = await Promise.all([
     prisma.directorRun.findUnique({
       where: { taskId },
       select: {
@@ -496,68 +496,6 @@ export async function loadPersistentDirectorRuntimeProjection(
         updatedAt: true,
       },
     }) as Promise<ActiveRuntimeCommand | null>,
-    prisma.directorRuntimeInstance.findFirst({
-      where: { workflowTaskId: taskId },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        novelId: true,
-        runId: true,
-        status: true,
-        currentStep: true,
-        checkpointVersion: true,
-        workerMessage: true,
-        lastErrorMessage: true,
-        lastHeartbeatAt: true,
-        updatedAt: true,
-        executions: {
-          where: { status: { in: ["leased", "running"] } },
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          take: 1,
-          select: {
-            id: true,
-            stepType: true,
-            resourceClass: true,
-            workerId: true,
-            slotId: true,
-            status: true,
-            startedAt: true,
-            leaseExpiresAt: true,
-            errorMessage: true,
-          },
-        },
-        checkpoints: {
-          orderBy: [{ version: "desc" }, { createdAt: "desc" }],
-          take: 1,
-          select: {
-            summary: true,
-            createdAt: true,
-          },
-        },
-        commands: {
-          orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-          take: 20,
-          select: {
-            id: true,
-            commandType: true,
-            status: true,
-            leaseOwner: true,
-            leaseExpiresAt: true,
-            errorMessage: true,
-            runAfter: true,
-            startedAt: true,
-            finishedAt: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-      },
-    }).catch((error) => {
-      if (isDirectorRuntimeTableUnavailable(error)) {
-        return null;
-      }
-      throw error;
-    }) as Promise<RuntimeInstanceProjectionRow | null>,
     prisma.novelWorkflowTask.findUnique({
       where: { id: taskId },
       select: { status: true },
@@ -583,20 +521,7 @@ export async function loadPersistentDirectorRuntimeProjection(
     : false;
 
   if (!run) {
-    if (!runtime) {
-      return null;
-    }
-    const chapterExecutionProgress = runtime.novelId
-      ? await new ChapterExecutionProgressInspector().inspectNovel(runtime.novelId).catch(() => null)
-      : null;
-    return {
-      ...buildRuntimeOnlyProjection(taskId, runtime),
-      startupPreparation,
-      latestRiskAssessment,
-      riskHistory,
-      riskHistoryTotal: riskHistory.length,
-      chapterExecutionProgress,
-    };
+    return null;
   }
 
   const snapshot: DirectorRuntimeSnapshot = {
@@ -650,12 +575,11 @@ export async function loadPersistentDirectorRuntimeProjection(
     snapshot.steps,
   );
   const commandToOverlay = isTaskTerminal ? null : activeCommand;
-  const runtimeToOverlay = isTaskTerminal ? null : runtime;
   const chapterExecutionProgress = run.novelId
     ? await new ChapterExecutionProgressInspector().inspectNovel(run.novelId).catch(() => null)
     : null;
   return {
-    ...overlayRuntimeInstance(overlayActiveCommand(projection, commandToOverlay), runtimeToOverlay),
+    ...overlayActiveCommand(projection, commandToOverlay),
     startupPreparation,
     latestRiskAssessment,
     riskHistory,
