@@ -150,6 +150,21 @@ function selectFastGroups(files) {
   return groups;
 }
 
+function runTestGroup(group, mode = "fast") {
+  return spawnSync(process.execPath, [
+    "--test",
+    ...(mode === "pg-live" ? ["--test-timeout=120000"] : [
+      "--require", path.join(__dirname, "testing/sqlite-preload.cjs"),
+    ]),
+    `--test-isolation=${group.isolation}`,
+    `--test-concurrency=${group.concurrency}`,
+    ...group.files.map((file) => path.relative(serverRoot, file)),
+  ], {
+    cwd: serverRoot,
+    stdio: "inherit",
+  });
+}
+
 function main() {
   const requestedMode = process.argv[2] ?? "fast";
   if (!new Set(["fast", "integration", "all", "pg-live"]).has(requestedMode)) {
@@ -171,16 +186,7 @@ function main() {
   for (const group of groups) {
     // Only reviewed side-effect-free batches share a process. Every other file,
     // including all SQLite scenarios, keeps its own process; integration is capped at two.
-    const result = spawnSync(process.execPath, [
-      "--test",
-      ...(requestedMode === "pg-live" ? ["--test-timeout=120000"] : []),
-      `--test-isolation=${group.isolation}`,
-      `--test-concurrency=${group.concurrency}`,
-      ...group.files.map((file) => path.relative(serverRoot, file)),
-    ], {
-      cwd: serverRoot,
-      stdio: "inherit",
-    });
+    const result = runTestGroup(group, requestedMode);
 
     if (result.error) {
       console.error(`Unable to start tests: ${result.error.message}`);
@@ -191,4 +197,4 @@ function main() {
 }
 
 if (require.main === module) process.exit(main());
-module.exports = { selectTestFiles };
+module.exports = { selectTestFiles, runTestGroup };

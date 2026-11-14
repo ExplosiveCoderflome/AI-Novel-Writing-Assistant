@@ -11,7 +11,9 @@
 - 清单中的 `serialFiles` 是有子进程超时或严格耗时断言的敏感文件清单。这些文件保持独立进程并串行执行，避免并行负载把既有 60/90 秒子进程超时或毫秒级性能断言变成偶发失败。
 - 文件参数以服务端工作目录为基准传相对路径。Windows 命令行存在长度限制，较长的 worktree 路径会使完整套件的绝对路径参数无法启动；启动失败必须输出 `spawnSync.error`，不能只返回一个空日志的失败码。
 - 需要真实 SQLite、执行迁移或启动数据库夹具的场景必须进入 `integrationTests`。是否属于集成测试取决于实际副作用；`gateService.test.js` 这类无 SQLite 后缀的文件也可能属于集成测试。
-- 快速测试中的数据库调用必须通过测试端口隔离；不能用开发库补齐遗漏的桩。Prisma 模块加载本身可能初始化 SQLite 文件和运行参数，运行验证前应显式指定临时 `DATABASE_URL` 与运行目录。
+- 快速测试中的预期外部读写应通过测试端口隔离；不能用开发库补齐遗漏的桩。官方 runner 在加载测试模块前，通过 `scripts/testing/sqlite-preload.cjs` 为每个执行进程创建新的临时 SQLite 库，并复用 `initializeTemporarySqliteDatabase` / `ensureRuntimeDatabaseReady` 准备 schema。初始化只接受新临时目录中的不存在文件，绝不迁移继承的 `DATABASE_URL`。这为兼用替身与真实读取的测试提供确定的空表环境，不代替业务夹具或断言。
+- 进程隔离不等于数据库隔离：并发文件若继承同一个 URL，仍会共享写入和锁。每个文件进程使用自己的临时库；已审查的 `isolation=none` 批次共用该批次进程的库。协调进程也有独立临时库，绝不让默认 `dev.db` 成为隐式写入目标。临时路径通过 `[test-sqlite]` 输出，库保留供失败诊断。
+- preload 仅在官方普通 runner 的命令参数中启用，不通过 `NODE_OPTIONS` 扩散到任意子进程，不进入 `pg-live`。测试模块随后可显式设置自己的 `DATABASE_URL`，因此空库、迁移兼容性与损坏库 fixture 保留自己的前置条件。直接 `node --test` 不自动启用公共初始化；需要官方默认环境的定向运行可使用 runner 导出的 `runTestGroup`。
 - Prisma delegate 方法是代理对象，使用 `tests/legacyDirector/databasePorts.js` 的 `stubDatabaseMethod` 保存原方法并通过 `t.after` 恢复。普通模块导出的函数可使用 `t.mock.method`，禁止在文件顶层永久修改模块缓存或导出。
 - 替身仅隔离外部读写，业务断言仍应验证真实服务的结果、调用范围及内容保护。不能删除断言或把集成测试移出所有测试分组来获得通过。
 
@@ -24,7 +26,7 @@
 
 ## Prisma provider 与结果通道
 
-- `prisma generate` 会按 schema 覆盖默认 `@prisma/client` 的 provider；数据库 URL 和 adapter 不会把已生成的 PostgreSQL client 自动变成 SQLite client。`test:all` 会先执行 generate，但不负责数据库迁移。运行前应确认所选 schema 是 SQLite，真实数据库场景通过各自的临时库迁移入口准备表。
+- `prisma generate` 会按 schema 覆盖默认 `@prisma/client` 的 provider；数据库 URL 和 adapter 不会把已生成的 PostgreSQL client 自动变成 SQLite client。`test:all` 会先执行 generate，普通 runner 随后为进程私有新库初始化 schema。运行前应确认所选 schema 是 SQLite；真实数据库场景仍可通过各自的临时库迁移入口准备表。
 - 新增业务读取后，纯单元测试必须补齐持久化端口。例如普通小说夹具应显式让 `manuscriptProject.findUnique` 返回 `null`；不能通过迁移开发库来掩盖未隔离的查询。共享进程批次中的 `beforeEach` 必须限定在所属 suite 内，避免影响其他文件的数据库替身。
 - `scripts/acceptance/pg-cloud-harness.cjs` 的 `PG_ADMIN_URL` 用于外层创建隔离库；`pgCloudAcceptance.harness.test.js` 直接要求已准备好的 PostgreSQL `DATABASE_URL`。混合测试应让 PG URL 与单独生成的 PG client 仅进入该文件的子进程，SQLite 父进程必须保留自己的 URL 和默认 client。若使用环境 preload，应检查实际入口 `process.argv[1]`，不能搜索整个 argv：父测试运行器的参数列表也包含 PG 测试文件名，误匹配会使其他测试继承 PG URL。
 - 子进程的断言结果须使用专属记录前缀，与业务日志区分。不能从 stdout 中寻找最后一个以 `{` 开头的行再当作 JSON；Node 的多行对象日志也会包含这样的行，且异步日志可能晚于结果输出。`p0bRealPrismaChain.test.js` 使用 `P0B_RESULT=` 标识结果，保留所有业务断言。
@@ -34,6 +36,10 @@
 默认环境与预迁移环境的全量结果不能直接归为版本回归。比较结果时必须核对 `DATABASE_URL`、`AI_NOVEL_RUNTIME`、独立生成的 client 与 preload，以及库是否预先建表。`dddef5cb` 的历史成功验收使用提前迁移的临时 SQLite 库和 desktop 模式；`0adfd5ba` 的默认验收没有这项前置准备。两个 tip 的普通测试分组、子进程环境继承、Prisma 初始化与运行时迁移入口未改变。
 
 `createApp()` 只装配应用，`startServer()` 才调用 `ensureRuntimeDatabaseReady()`，且该函数在 web 模式直接返回；导入 Prisma 只配置 adapter 和 pragmas，不建业务表。不能期待路由单元测试自动迁移空库。`autoDirectorChannelCallbacks.test.js` 的普通小说夹具必须隔离 `manuscriptProject.findUnique`；预迁移库上的空表会让遗漏的查询返回 `null`，掩盖隔离缺陷。应在未迁移的独立空库验证此类修复，且保留原有业务断言。
+
+发版 guard 与普通 runner 的职责不同：`scripts/desktop-release/guard.cjs` 创建隔离目录，向检查命令统一传入 SQLite URL，并在 `test:all` 前执行 `prisma:deploy`；普通 runner 的每个测试进程仍必须获得自己的新库，不能把 guard 的迁移当作并发隔离。测试初始化通过短生命周期 desktop 子进程复用运行时迁移，测试进程本身保留原有 runtime 模式；禁止为测试需要而修改 `createApp()` 或 web 启动的迁移策略。
+
+公共初始化解决的是普通套件的 schema 前置条件，不证明所有失败都是缺表。维护者应同时保留进程私有 schema、显式空库 fixture、继承 URL 不变和原业务断言的证据。`autoDirectorFollowUpActionExecutor.test.js` 与 `directorRunCommandService.test.js` 在相同编译产物、原测试代码下可用于比较空库与公共初始化环境；全量性能和 routes 超时仍需独立验收。
 
 测试运行器的回归应执行真实脚本，在临时目录创建受控测试文件，验证快速模式不执行数据库场景、集成模式仍执行这些场景，以及文件间全局状态不泄漏。只搜索脚本中的名单或参数不能证明执行行为。
 
