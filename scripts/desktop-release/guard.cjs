@@ -3,14 +3,49 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
+const crypto = require("node:crypto");
+
 const releaseChecksArtifactSchema = 1;
+const buildManifestSchema = 1;
 const releaseChecks = [
   "pnpm typecheck",
   "pnpm --filter @ai-novel/server prisma:deploy",
   "pnpm test:all",
+  "pnpm --filter @ai-novel/server test:quality",
   "pnpm --filter @ai-novel/desktop build",
   "pnpm test:release-guards",
 ];
+
+const platformBuildRequirements = {
+  "win-x64": {
+    os: "win",
+    arch: "x64",
+    requiredSuffixes: [
+      "-setup-x64.exe",
+      "-setup-x64.exe.blockmap",
+      "-portable-x64.exe",
+    ],
+    updateFile: "latest.yml",
+  },
+  "mac-x64": {
+    os: "mac",
+    arch: "x64",
+    requiredSuffixes: ["-mac-x64.dmg", "-mac-x64.dmg.blockmap"],
+    updateFile: "latest-mac.yml",
+  },
+  "mac-arm64": {
+    os: "mac",
+    arch: "arm64",
+    requiredSuffixes: ["-mac-arm64.dmg", "-mac-arm64.dmg.blockmap"],
+    updateFile: "latest-mac.yml",
+  },
+  "linux-x64": {
+    os: "linux",
+    arch: "x64",
+    requiredSuffixes: ["-linux-x86_64.AppImage"],
+    updateFile: "latest-linux.yml",
+  },
+};
 
 function readVersion(repoRoot) {
   const version = JSON.parse(fs.readFileSync(path.join(repoRoot, "desktop/package.json"), "utf8")).version;
@@ -82,7 +117,7 @@ function writeTrustedReleaseChecks(repoRoot, env, head, version) {
   return artifactPath;
 }
 
-/** All test writes belong to a fresh disposable workspace, never the user's database. */
+/** Portable checks only. PG live proof is asserted at upload / verify-proof / CI checkRevision. */
 function runReleaseChecks(repoRoot, { run = runPnpm, env = process.env } = {}) {
   const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), "anw-release-check-"));
   const options = { cwd: repoRoot, env: { ...env, NODE_ENV: "test", AI_NOVEL_RUNTIME: "web", AI_NOVEL_ACCESS_TOKEN: "",
@@ -93,15 +128,14 @@ function runReleaseChecks(repoRoot, { run = runPnpm, env = process.env } = {}) {
     ["typecheck"],
     ["--filter", "@ai-novel/server", "prisma:deploy"],
     ["test:all"],
+    ["--filter", "@ai-novel/server", "test:quality"],
     ["--filter", "@ai-novel/desktop", "build"],
     ["test:release-guards"],
   ]) {
     try { run(args, options); }
     catch (cause) { throw new Error(`Release checks failed: pnpm ${args.join(" ")}. No publication is allowed.`, { cause }); }
   }
-  if (env.GITHUB_ACTIONS === "true") {
-    assertPgLiveProof(repoRoot, env, gitAt(repoRoot, ["rev-parse", "HEAD"]));
-  } else {
+  if (env.GITHUB_ACTIONS !== "true") {
     // The PG URL belongs only to this suite, never to the portable SQLite tests.
     try { run(["test:pg-live"], { cwd: repoRoot, env: { ...env } }); }
     catch (cause) { throw new Error("Release checks failed: pnpm test:pg-live. No publication is allowed.", { cause }); }
@@ -144,6 +178,7 @@ function checkRevision(repoRoot, {
   runChecks = () => runReleaseChecks(repoRoot),
   forceTests = false,
   recordMarker = true,
+  env = process.env,
 } = {}) {
   if (git(["status", "--porcelain"])) throw new Error("Working tree must be clean before release checks.");
   const head = git(["rev-parse", "HEAD"]);
@@ -158,6 +193,10 @@ function checkRevision(repoRoot, {
   }
   if (git(["rev-parse", "HEAD"]) !== head || readVersion(repoRoot) !== version || git(["status", "--porcelain"])) {
     throw new Error("The tested revision changed. Run release checks again before tagging or uploading.");
+  }
+  // workflow_dispatch / CI check entry still require the current run's PG proof.
+  if (env.GITHUB_ACTIONS === "true") {
+    assertPgLiveProof(repoRoot, env, head);
   }
   if (!reusePassingCheck && recordMarker) recordPassingReleaseCheck(repoRoot, head, version);
   return { head, version };
@@ -197,8 +236,204 @@ function verifyUpload(repoRoot, {
   return tag;
 }
 
+function sha2File(filePath, algorithm) {
+  const hash = crypto.createHash(algorithm);
+  hash.update(fs.readFileSync(filePath));
+  return hash.digest(algorithm === "sha512" ? "base64" : "hex");
+}
+
+function assertSafeArtifactName(name) {
+  if (typeof name !== "string" || !name || name !== path.basename(name) || name.includes("\0")
+    || name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+    throw new Error(`Release artifact name is unsafe: ${String(name)}`);
+  }
+}
+
+function resolveArtifactFile(directory, name) {
+  assertSafeArtifactName(name);
+  const target = path.resolve(directory, name);
+  const root = path.resolve(directory);
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`Release artifact path escapes the build directory: ${name}`);
+  }
+  const stat = fs.lstatSync(target);
+  if (stat.isSymbolicLink() || !stat.isFile()) {
+    throw new Error(`Release artifact must be a regular file: ${name}`);
+  }
+  return { target, stat };
+}
+
+function listRequiredBuildFiles(distDir, platformKey, version) {
+  const requirement = platformBuildRequirements[platformKey];
+  if (!requirement) throw new Error(`Unknown desktop build platform key: ${platformKey}`);
+  const names = fs.readdirSync(distDir).filter((name) => {
+    try {
+      return fs.lstatSync(path.join(distDir, name)).isFile();
+    } catch {
+      return false;
+    }
+  });
+  const matched = [];
+  for (const suffix of requirement.requiredSuffixes) {
+    const found = names.filter((name) => name.endsWith(suffix) && name.includes(version));
+    if (found.length !== 1) {
+      throw new Error(`Expected exactly one ${suffix} artifact for ${version} in ${distDir}; found ${found.length}.`);
+    }
+    matched.push(found[0]);
+  }
+  if (!names.includes(requirement.updateFile)) {
+    throw new Error(`Missing update metadata ${requirement.updateFile} in ${distDir}.`);
+  }
+  matched.push(requirement.updateFile);
+  return { requirement, files: matched };
+}
+
+function writeBuildManifest(repoRoot, {
+  env = process.env,
+  git = args => gitAt(repoRoot, args),
+  platformKey,
+  distDir,
+} = {}) {
+  if (!env.GITHUB_RUN_ID || !env.GITHUB_RUN_ATTEMPT) {
+    throw new Error("Build manifest requires the current GitHub run and attempt.");
+  }
+  const head = git(["rev-parse", "HEAD"]);
+  const version = readVersion(repoRoot);
+  const { requirement, files } = listRequiredBuildFiles(distDir, platformKey, version);
+  const fileEntries = files.map((name) => {
+    const { target, stat } = resolveArtifactFile(distDir, name);
+    return {
+      name,
+      size: stat.size,
+      sha256: sha2File(target, "sha256"),
+      sha512: sha2File(target, "sha512"),
+    };
+  });
+  const manifest = {
+    schema: buildManifestSchema,
+    status: "passed",
+    head,
+    runId: env.GITHUB_RUN_ID,
+    runAttempt: env.GITHUB_RUN_ATTEMPT,
+    desktopVersion: version,
+    os: requirement.os,
+    arch: requirement.arch,
+    platformKey,
+    updateFile: requirement.updateFile,
+    files: fileEntries,
+    passedAt: new Date().toISOString(),
+  };
+  // Fail in the build job if electron-builder metadata drifted from signed/packed bytes.
+  assertUpdateMetadataMatchesManifest(distDir, manifest);
+  const manifestPath = path.join(distDir, "build-manifest.json");
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return manifestPath;
+}
+
+function readBuildManifest(manifestPath) {
+  return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+}
+
+function loadUpdateMetadataDocument(distDir, updateFile) {
+  const { createRequire } = require("node:module");
+  const repoRoot = path.resolve(__dirname, "../..");
+  const yaml = createRequire(require.resolve("electron-builder/package.json", {
+    paths: [path.join(repoRoot, "desktop"), repoRoot],
+  }))("js-yaml");
+  const { target } = resolveArtifactFile(distDir, updateFile);
+  const document = yaml.load(fs.readFileSync(target, "utf8"));
+  if (!document || typeof document !== "object" || !Array.isArray(document.files) || document.files.length < 1) {
+    throw new Error(`Update metadata ${updateFile} is missing package file entries.`);
+  }
+  return document;
+}
+
+/** Bind latest*.yml sha512/size to already-hashed package bytes; never trust metadata alone. */
+function assertUpdateMetadataMatchesManifest(distDir, manifest) {
+  const document = loadUpdateMetadataDocument(distDir, manifest.updateFile);
+  if (document.version && document.version !== manifest.desktopVersion) {
+    throw new Error(`Update metadata version must match desktop version ${manifest.desktopVersion}.`);
+  }
+  for (const entry of document.files) {
+    assertSafeArtifactName(entry.url);
+    const file = manifest.files.find((candidate) => candidate.name === entry.url);
+    if (!file) {
+      throw new Error(`Update metadata ${manifest.updateFile} references unknown artifact ${entry.url}.`);
+    }
+    if (file.name === manifest.updateFile) {
+      throw new Error(`Update metadata must not self-reference ${manifest.updateFile}.`);
+    }
+    if (Number(entry.size) !== file.size || entry.sha512 !== file.sha512) {
+      throw new Error(`Update metadata digest mismatch for ${entry.url}; no publication is allowed.`);
+    }
+  }
+}
+
+function assertBuildManifest(repoRoot, env, head, version, platformKey, distDir) {
+  const manifestPath = path.join(distDir, "build-manifest.json");
+  let manifest;
+  try { manifest = readBuildManifest(manifestPath); }
+  catch { throw new Error(`Trusted build manifest is missing for ${platformKey}; no publication is allowed.`); }
+  const requirement = platformBuildRequirements[platformKey];
+  if (manifest.schema !== buildManifestSchema
+    || manifest.status !== "passed"
+    || manifest.head !== head
+    || manifest.runId !== env.GITHUB_RUN_ID
+    || manifest.runAttempt !== env.GITHUB_RUN_ATTEMPT
+    || manifest.desktopVersion !== version
+    || manifest.platformKey !== platformKey
+    || manifest.os !== requirement.os
+    || manifest.arch !== requirement.arch
+    || manifest.updateFile !== requirement.updateFile) {
+    throw new Error(`Trusted build manifest for ${platformKey} must match this revision, version, workflow run attempt, and platform.`);
+  }
+  const expectedNames = new Set([
+    ...requirement.requiredSuffixes.map((suffix) => {
+      const hit = manifest.files.find((file) => file.name.endsWith(suffix));
+      if (!hit) throw new Error(`Trusted build manifest for ${platformKey} is missing ${suffix}.`);
+      return hit.name;
+    }),
+    requirement.updateFile,
+  ]);
+  if (manifest.files.length !== expectedNames.size) {
+    throw new Error(`Trusted build manifest for ${platformKey} has unexpected file entries.`);
+  }
+  for (const file of manifest.files) {
+    if (!expectedNames.has(file.name)) {
+      throw new Error(`Trusted build manifest for ${platformKey} lists unexpected file ${file.name}.`);
+    }
+    const { target, stat } = resolveArtifactFile(distDir, file.name);
+    if (stat.size !== file.size
+      || sha2File(target, "sha256") !== file.sha256
+      || sha2File(target, "sha512") !== file.sha512) {
+      throw new Error(`Build artifact digest mismatch for ${platformKey}/${file.name}; no publication is allowed.`);
+    }
+  }
+  assertUpdateMetadataMatchesManifest(distDir, manifest);
+  return manifest;
+}
+
+function assertAllBuildManifests(repoRoot, env, head, version, buildsRoot) {
+  const manifests = {};
+  for (const platformKey of Object.keys(platformBuildRequirements)) {
+    manifests[platformKey] = assertBuildManifest(
+      repoRoot,
+      env,
+      head,
+      version,
+      platformKey,
+      path.join(buildsRoot, platformKey),
+    );
+  }
+  return manifests;
+}
+
 module.exports = {
   readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload,
   assertPgLiveProof, assertTrustedReleaseChecks, writeTrustedReleaseChecks,
   releaseChecks, releaseChecksArtifactPath,
+  buildManifestSchema, platformBuildRequirements,
+  writeBuildManifest, assertBuildManifest, assertAllBuildManifests,
+  assertUpdateMetadataMatchesManifest,
+  resolveArtifactFile, assertSafeArtifactName, sha2File,
 };
