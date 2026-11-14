@@ -1,5 +1,22 @@
 const test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {PrismaClient}=require('@prisma/client');
+const {PrismaBetterSqlite3}=require('@prisma/adapter-better-sqlite3');
+const {initializeTemporarySqliteDatabase}=require('../../testInfrastructure/tempSqliteDatabase.cjs');
 const budget=require('../../../dist/platform/llm/retries');
+let prisma,tempDir,originalPrisma;
+test.before(async()=>{
+ tempDir=fs.mkdtempSync(path.join(os.tmpdir(),'production-physical-request-'));
+ const url=initializeTemporarySqliteDatabase(tempDir,'fixture.db');
+ prisma=new PrismaClient({adapter:new PrismaBetterSqlite3({url})});
+ await prisma.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "AppSetting" ("key" TEXT NOT NULL PRIMARY KEY, "value" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)');
+ const db=require('../../../dist/db/prisma');originalPrisma=db.prisma;db.prisma=prisma;
+});
+test.after(async()=>{
+ const db=require('../../../dist/db/prisma');if(originalPrisma)db.prisma=originalPrisma;
+ await prisma?.$disconnect();
+ if(tempDir){assert.equal(fs.realpathSync(path.dirname(tempDir)),fs.realpathSync(os.tmpdir()));assert.ok(path.basename(tempDir).startsWith('production-physical-request-'));fs.rmSync(tempDir,{recursive:true,force:true});}
+});
 test('physical request metadata remains available through nested review-budget callbacks and is cleared afterwards',async()=>{
  assert.equal(typeof budget.currentModelRequestDescription,'function','physical budget reservation requires the actual request');
  const request={input:[{role:'user',content:'完整原文'}],options:{response_format:{type:'json_object'}},configuration:{provider:'openai',model:'fixture',maxTokens:4200}};
@@ -31,7 +48,7 @@ test('native structured invocation and JSON correction expose each complete requ
  const slots=require('../../../dist/prompting/slots/PromptSlotOverrideService').promptSlotOverrideService;
  const saved={resolve:route.resolveModel,create:factory.createLLMFromResolvedOptions,get:factory.getLLM,metadata:factory.getResolvedLLMClientOptionsFromInstance,slots:slots.resolveForRuntime};
  const seen=[],clients=new WeakMap();let dispatched=0;
- route.resolveModel=async(_task,options)=>({provider:options.provider??'openai',model:options.model??'fixture-model',temperature:options.temperature??0.2,maxTokens:options.maxTokens,requestProtocol:'openai_compatible',structuredResponseFormat:'auto',routeKey:'fixture',routeDegraded:false});
+  route.resolveModel=async(_task,options={})=>({provider:options.provider??'openai',model:options.model??'fixture-model',temperature:options.temperature??0.2,maxTokens:options.maxTokens,requestProtocol:'openai_compatible',structuredResponseFormat:'auto',routeKey:'fixture',routeDegraded:false});
  factory.setProviderSecretCache('openai',{key:'fixture-key',baseURL:'https://models.invalid/v1',reasoningEnabled:false});
  slots.resolveForRuntime=async()=>({appendBlocks:[]});
  const make=configuration=>{

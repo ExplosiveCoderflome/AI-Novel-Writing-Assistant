@@ -1,7 +1,24 @@
 const test = require('node:test'), assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const { PrismaClient } = require('@prisma/client');
+const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
+const { initializeTemporarySqliteDatabase } = require('../../testInfrastructure/tempSqliteDatabase.cjs');
 const api = require('../../../dist/app/director/productionKernel');
 const common = require('../../../dist/modules/production/common');
 const { request } = require('./harness.cjs');
+let prisma, tempDir, originalPrisma;
+test.before(async () => {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'production-resume-candidate-'));
+  const url = initializeTemporarySqliteDatabase(tempDir, 'fixture.db');
+  prisma = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) });
+  await prisma.$executeRawUnsafe('CREATE TABLE IF NOT EXISTS "AppSetting" ("key" TEXT NOT NULL PRIMARY KEY, "value" TEXT NOT NULL, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)');
+  const db = require('../../../dist/db/prisma'); originalPrisma = db.prisma; db.prisma = prisma;
+});
+test.after(async () => {
+  const db = require('../../../dist/db/prisma'); if (originalPrisma) db.prisma = originalPrisma;
+  await prisma?.$disconnect();
+  if (tempDir) { assert.equal(fs.realpathSync(path.dirname(tempDir)), fs.realpathSync(os.tmpdir())); assert.ok(path.basename(tempDir).startsWith('production-resume-candidate-')); fs.rmSync(tempDir, { recursive: true, force: true }); }
+});
 
 // Regression: resuming a preparation whose upstream contract was regenerated
 // (new task sheet / word count) must give the downstream quality request its
@@ -17,7 +34,7 @@ test('preparation quality request keyed by its full candidate, not only round fe
   const usage = require('../../../dist/llm/usageTracking');
   const repository = require('../../../dist/platform/llm/usage').PrismaInvocationUsageRepository;
   const originalRecord = repository.prototype.record; repository.prototype.record = async () => {};
-  route.resolveModel = async (_task, options) => ({ provider: options.provider ?? 'openai', model: options.model ?? 'fixture-model',
+  route.resolveModel = async (_task, options = {}) => ({ provider: options.provider ?? 'openai', model: options.model ?? 'fixture-model',
     temperature: options.temperature ?? 0.2, maxTokens: options.maxTokens, requestProtocol: 'openai_compatible',
     structuredResponseFormat: 'auto', routeKey: 'fixture', routeDegraded: false });
   factory.setProviderSecretCache('openai', { key: 'fixture-key', baseURL: 'https://models.invalid/v1', reasoningEnabled: false });

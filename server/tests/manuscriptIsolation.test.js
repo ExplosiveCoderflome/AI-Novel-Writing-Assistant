@@ -8,6 +8,7 @@ function dbFor(project, units = [], chapters = []) {
     manuscriptProject: { findUnique: async () => project },
     manuscriptUnit: { findMany: async ({ where }) => units.filter(unit => (!where.status || unit.status === where.status)).sort((left, right) => left.displayOrder - right.displayOrder) },
     chapter: { findMany: async ({ where }) => chapters.filter(chapter => chapter.novelId === where.novelId && where.id.in.includes(chapter.id)) },
+    shortStorySegment: { findMany: async () => [] },
   };
 }
 
