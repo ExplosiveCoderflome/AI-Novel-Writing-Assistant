@@ -323,6 +323,8 @@ function writeBuildManifest(repoRoot, {
     files: fileEntries,
     passedAt: new Date().toISOString(),
   };
+  // Fail in the build job if electron-builder metadata drifted from signed/packed bytes.
+  assertUpdateMetadataMatchesManifest(distDir, manifest);
   const manifestPath = path.join(distDir, "build-manifest.json");
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   return manifestPath;
@@ -330,6 +332,41 @@ function writeBuildManifest(repoRoot, {
 
 function readBuildManifest(manifestPath) {
   return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+}
+
+function loadUpdateMetadataDocument(distDir, updateFile) {
+  const { createRequire } = require("node:module");
+  const repoRoot = path.resolve(__dirname, "../..");
+  const yaml = createRequire(require.resolve("electron-builder/package.json", {
+    paths: [path.join(repoRoot, "desktop"), repoRoot],
+  }))("js-yaml");
+  const { target } = resolveArtifactFile(distDir, updateFile);
+  const document = yaml.load(fs.readFileSync(target, "utf8"));
+  if (!document || typeof document !== "object" || !Array.isArray(document.files) || document.files.length < 1) {
+    throw new Error(`Update metadata ${updateFile} is missing package file entries.`);
+  }
+  return document;
+}
+
+/** Bind latest*.yml sha512/size to already-hashed package bytes; never trust metadata alone. */
+function assertUpdateMetadataMatchesManifest(distDir, manifest) {
+  const document = loadUpdateMetadataDocument(distDir, manifest.updateFile);
+  if (document.version && document.version !== manifest.desktopVersion) {
+    throw new Error(`Update metadata version must match desktop version ${manifest.desktopVersion}.`);
+  }
+  for (const entry of document.files) {
+    assertSafeArtifactName(entry.url);
+    const file = manifest.files.find((candidate) => candidate.name === entry.url);
+    if (!file) {
+      throw new Error(`Update metadata ${manifest.updateFile} references unknown artifact ${entry.url}.`);
+    }
+    if (file.name === manifest.updateFile) {
+      throw new Error(`Update metadata must not self-reference ${manifest.updateFile}.`);
+    }
+    if (Number(entry.size) !== file.size || entry.sha512 !== file.sha512) {
+      throw new Error(`Update metadata digest mismatch for ${entry.url}; no publication is allowed.`);
+    }
+  }
 }
 
 function assertBuildManifest(repoRoot, env, head, version, platformKey, distDir) {
@@ -372,6 +409,7 @@ function assertBuildManifest(repoRoot, env, head, version, platformKey, distDir)
       throw new Error(`Build artifact digest mismatch for ${platformKey}/${file.name}; no publication is allowed.`);
     }
   }
+  assertUpdateMetadataMatchesManifest(distDir, manifest);
   return manifest;
 }
 
@@ -396,5 +434,6 @@ module.exports = {
   releaseChecks, releaseChecksArtifactPath,
   buildManifestSchema, platformBuildRequirements,
   writeBuildManifest, assertBuildManifest, assertAllBuildManifests,
+  assertUpdateMetadataMatchesManifest,
   resolveArtifactFile, assertSafeArtifactName, sha2File,
 };

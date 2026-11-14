@@ -40,7 +40,7 @@
 - 磁盘字节摘要与清单一致；
 - 现网所需安装包、blockmap（如有）与 `latest*.yml` 齐全。
 
-构建 job 权限为 `contents: read`，不提供发布用 GH token。上传 job 只上传已校验字节，不得改写安装包后再传。
+构建 job 权限为 `contents: read`，不提供发布用 GH token。签名／打包字节在写入 `build-manifest.json` 之前固定；manifest 与 `latest*.yml` 的 sha512／size 必须一致。上传 job 只上传已校验字节，不得改写安装包后再传；先传安装包与 blockmap，再传更新元数据。Mac 双架构在上传前合并为完整 `latest-mac.yml`，并与两侧 manifest 摘要核对。各平台各自 `stage:desktop`，不得跨 OS／arch 共用 native stage 产物。
 
 ### 平台专属保留
 
