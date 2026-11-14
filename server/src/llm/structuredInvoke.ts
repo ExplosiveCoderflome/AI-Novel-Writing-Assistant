@@ -1,4 +1,5 @@
 import { implicatesStructuredMode, recordFailedMode, runWithInvocationChain, observeInvocationParse } from "./compatibility";
+import { ProductionBudgetExceededError } from "../modules/production/common";
 import { declarePromptCacheBoundary, getPromptCacheBoundary } from "../platform/llm/cache";
 import { toJSONSchema } from "zod";
 import { randomUUID } from "node:crypto";
@@ -390,6 +391,16 @@ async function invokeStructuredAttempt<T>(input: {
     return parsed;
   } catch (error) {
     liveSession.fail(error);
+    // A budget refusal raised inside beforeRequest proves no provider dispatch
+    // happened. It must reach the production kernel typed so the run pauses with
+    // the budget grant flow instead of an "unknown claims" pause; classifying it
+    // as a transport error would destroy that signal and burn a transport retry
+    // on a request that can never be dispatched.
+    if (error instanceof ProductionBudgetExceededError) {
+      evidence.durationMs = Date.now() - startedAt;
+      await finishStructuredDiagnostic(diagnosticId, "failed", evidence);
+      throw error;
+    }
     const category = error instanceof StructuredOutputError
       ? error.category
       : classifyStructuredOutputFailure({ error });
@@ -478,6 +489,9 @@ async function tryStructuredStrategies<T>(input: {
         fallbackUsed: input.fallbackUsed,
       }), value => value.data);
     } catch (error) {
+      // Keep a typed budget refusal typed: strategy fallback and transport
+      // retries must never run against a request the budget refused to dispatch.
+      if (error instanceof ProductionBudgetExceededError) throw error;
       lastError = wrapStructuredInvokeError({
         label: input.baseInput.label,
         error,
