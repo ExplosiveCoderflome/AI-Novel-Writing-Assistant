@@ -178,7 +178,7 @@ export class NovelCoreCrudService {
       },
     });
     if (!existing) {
-      throw new Error("小说不存在");
+      throw new AppError("小说不存在。", 404);
     }
 
     const nextWritingMode = input.writingMode ?? (existing.writingMode === "continuation" ? "continuation" : "original");
