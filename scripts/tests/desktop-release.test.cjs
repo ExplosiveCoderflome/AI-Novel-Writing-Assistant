@@ -7,6 +7,7 @@ const { createRequire } = require("node:module");
 const {
   readVersion, assertReleaseTag, runReleaseChecks, checkRevision, verifyUpload, assertPgLiveProof,
   releaseChecks, writeBuildManifest, assertBuildManifest, assertAllBuildManifests, assertSafeArtifactName,
+  assertUpdateMetadataMatchesManifest,
 } = require("../desktop-release/guard.cjs");
 const { resolvePublishMode, normalizeBuildEnvironment } = require("../../desktop/scripts/run-electron-builder.cjs");
 const { mergeMacLatestYml, collectUploadPlan } = require("../desktop-release/publish-artifacts.cjs");
@@ -291,53 +292,64 @@ test("every desktop workflow requires provisioned PG and fail-closed upload proo
   assert.ok(beta.jobs["publish-beta"].steps.some(step => step.run === "node scripts/desktop-release/verify-proof.cjs"));
 });
 
+function writeUpdateYml(distDir, version, updateFile, packageName) {
+  const packagePath = path.join(distDir, packageName);
+  const size = fs.statSync(packagePath).size;
+  const sha512 = require("node:crypto").createHash("sha512").update(fs.readFileSync(packagePath)).digest("base64");
+  fs.writeFileSync(path.join(distDir, updateFile), [
+    `version: ${version}`,
+    "files:",
+    `  - url: ${packageName}`,
+    `    sha512: ${sha512}`,
+    `    size: ${size}`,
+    `path: ${packageName}`,
+    `sha512: ${sha512}`,
+    "releaseDate: '2026-01-01T00:00:00.000Z'",
+    "",
+  ].join("\n"));
+}
+
 function writeFakeBuildTree(root, version = "1.2.3") {
   const buildsRoot = path.join(root, ".tmp", "desktop-builds");
   const filesByPlatform = {
-    "win-x64": [
-      `Biz-Novel-Studio-${version}-setup-x64.exe`,
-      `Biz-Novel-Studio-${version}-setup-x64.exe.blockmap`,
-      `Biz-Novel-Studio-${version}-portable-x64.exe`,
-      "latest.yml",
-    ],
-    "mac-x64": [
-      `Biz-Novel-Studio-${version}-mac-x64.dmg`,
-      `Biz-Novel-Studio-${version}-mac-x64.dmg.blockmap`,
-      "latest-mac.yml",
-    ],
-    "mac-arm64": [
-      `Biz-Novel-Studio-${version}-mac-arm64.dmg`,
-      `Biz-Novel-Studio-${version}-mac-arm64.dmg.blockmap`,
-      "latest-mac.yml",
-    ],
-    "linux-x64": [
-      `Biz-Novel-Studio-${version}-linux-x86_64.AppImage`,
-      "latest-linux.yml",
-    ],
+    "win-x64": {
+      packages: [
+        `Biz-Novel-Studio-${version}-setup-x64.exe`,
+        `Biz-Novel-Studio-${version}-setup-x64.exe.blockmap`,
+        `Biz-Novel-Studio-${version}-portable-x64.exe`,
+      ],
+      updateFile: "latest.yml",
+      updatePackage: `Biz-Novel-Studio-${version}-setup-x64.exe`,
+    },
+    "mac-x64": {
+      packages: [
+        `Biz-Novel-Studio-${version}-mac-x64.dmg`,
+        `Biz-Novel-Studio-${version}-mac-x64.dmg.blockmap`,
+      ],
+      updateFile: "latest-mac.yml",
+      updatePackage: `Biz-Novel-Studio-${version}-mac-x64.dmg`,
+    },
+    "mac-arm64": {
+      packages: [
+        `Biz-Novel-Studio-${version}-mac-arm64.dmg`,
+        `Biz-Novel-Studio-${version}-mac-arm64.dmg.blockmap`,
+      ],
+      updateFile: "latest-mac.yml",
+      updatePackage: `Biz-Novel-Studio-${version}-mac-arm64.dmg`,
+    },
+    "linux-x64": {
+      packages: [`Biz-Novel-Studio-${version}-linux-x86_64.AppImage`],
+      updateFile: "latest-linux.yml",
+      updatePackage: `Biz-Novel-Studio-${version}-linux-x86_64.AppImage`,
+    },
   };
-  for (const [platformKey, names] of Object.entries(filesByPlatform)) {
+  for (const [platformKey, spec] of Object.entries(filesByPlatform)) {
     const distDir = path.join(buildsRoot, platformKey);
     fs.mkdirSync(distDir, { recursive: true });
-    for (const name of names) {
-      const body = name.endsWith(".yml")
-        ? `version: ${version}\nfiles:\n  - url: ${names[0]}\n    sha512: dummy\n    size: 1\npath: ${names[0]}\nsha512: dummy\n`
-        : `${platformKey}:${name}:payload`;
-      fs.writeFileSync(path.join(distDir, name), body);
+    for (const name of spec.packages) {
+      fs.writeFileSync(path.join(distDir, name), `${platformKey}:${name}:payload`);
     }
-    if (platformKey.startsWith("mac-")) {
-      const dmg = names.find((name) => name.endsWith(".dmg"));
-      fs.writeFileSync(path.join(distDir, "latest-mac.yml"), [
-        `version: ${version}`,
-        "files:",
-        `  - url: ${dmg}`,
-        "    sha512: dummy-sha",
-        "    size: 12",
-        `path: ${dmg}`,
-        "sha512: dummy-sha",
-        "releaseDate: '2026-01-01T00:00:00.000Z'",
-        "",
-      ].join("\n"));
-    }
+    writeUpdateYml(distDir, version, spec.updateFile, spec.updatePackage);
     writeBuildManifest(root, {
       env: { GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
       git: () => "tested-head",
@@ -348,48 +360,155 @@ function writeFakeBuildTree(root, version = "1.2.3") {
   return buildsRoot;
 }
 
-test("build manifests bind run identity and reject digest or path tampering", t => {
+test("build manifest negative matrix rejects identity, digest, update-file and path failures", t => {
   const root = fixture(t);
   const buildsRoot = writeFakeBuildTree(root);
-  const manifests = assertAllBuildManifests(root, ci, "tested-head", "1.2.3", buildsRoot);
-  assert.equal(Object.keys(manifests).length, 4);
+  assert.equal(Object.keys(assertAllBuildManifests(root, ci, "tested-head", "1.2.3", buildsRoot)).length, 4);
 
   const winDir = path.join(buildsRoot, "win-x64");
+  const manifestPath = path.join(winDir, "build-manifest.json");
+  const valid = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   const setup = path.join(winDir, "Biz-Novel-Studio-1.2.3-setup-x64.exe");
+  const originalSetup = fs.readFileSync(setup);
+
+  for (const mutation of [
+    value => ({ ...value, head: "other" }),
+    value => ({ ...value, runId: "other" }),
+    value => ({ ...value, runAttempt: "2" }),
+    value => ({ ...value, desktopVersion: "9.9.9" }),
+    value => ({ ...value, os: "linux" }),
+    value => ({ ...value, arch: "arm64" }),
+    value => ({ ...value, status: "failed" }),
+  ]) {
+    fs.writeFileSync(manifestPath, JSON.stringify(mutation(valid)));
+    assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /build manifest/);
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(valid));
+
   fs.writeFileSync(setup, "tampered");
   assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /digest mismatch/);
-  fs.writeFileSync(setup, "win-x64:Biz-Novel-Studio-1.2.3-setup-x64.exe:payload");
+  fs.writeFileSync(setup, originalSetup);
+
+  fs.writeFileSync(path.join(winDir, "latest.yml"), "version: 1.2.3\nfiles: []\n");
+  assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /Update metadata|digest mismatch|missing package/);
+  writeUpdateYml(winDir, "1.2.3", "latest.yml", "Biz-Novel-Studio-1.2.3-setup-x64.exe");
+  const mismatched = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const ymlEntry = mismatched.files.find((file) => file.name === "latest.yml");
+  const ymlStat = fs.statSync(path.join(winDir, "latest.yml"));
+  ymlEntry.size = ymlStat.size;
+  ymlEntry.sha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(path.join(winDir, "latest.yml"))).digest("hex");
+  ymlEntry.sha512 = require("node:crypto").createHash("sha512").update(fs.readFileSync(path.join(winDir, "latest.yml"))).digest("base64");
+  const setupEntry = mismatched.files.find((file) => file.name.endsWith("-setup-x64.exe"));
+  fs.writeFileSync(path.join(winDir, "latest.yml"), [
+    "version: 1.2.3",
+    "files:",
+    `  - url: ${setupEntry.name}`,
+    "    sha512: intentionally-wrong",
+    `    size: ${setupEntry.size}`,
+    `path: ${setupEntry.name}`,
+    "sha512: intentionally-wrong",
+    "",
+  ].join("\n"));
+  ymlEntry.size = fs.statSync(path.join(winDir, "latest.yml")).size;
+  ymlEntry.sha256 = require("node:crypto").createHash("sha256").update(fs.readFileSync(path.join(winDir, "latest.yml"))).digest("hex");
+  ymlEntry.sha512 = require("node:crypto").createHash("sha512").update(fs.readFileSync(path.join(winDir, "latest.yml"))).digest("base64");
+  fs.writeFileSync(manifestPath, JSON.stringify(mismatched));
+  assert.throws(() => assertUpdateMetadataMatchesManifest(winDir, mismatched), /Update metadata digest mismatch/);
+  assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /Update metadata digest mismatch/);
+  writeUpdateYml(winDir, "1.2.3", "latest.yml", "Biz-Novel-Studio-1.2.3-setup-x64.exe");
+  writeBuildManifest(root, {
+    env: { GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
+    git: () => "tested-head",
+    platformKey: "win-x64",
+    distDir: winDir,
+  });
+  assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir);
+
+  fs.unlinkSync(path.join(winDir, "latest.yml"));
+  assert.throws(() => writeBuildManifest(root, {
+    env: { GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
+    git: () => "tested-head",
+    platformKey: "win-x64",
+    distDir: winDir,
+  }), /Missing update metadata/);
+  writeUpdateYml(winDir, "1.2.3", "latest.yml", "Biz-Novel-Studio-1.2.3-setup-x64.exe");
+  writeBuildManifest(root, {
+    env: { GITHUB_RUN_ID: "run", GITHUB_RUN_ATTEMPT: "1" },
+    git: () => "tested-head",
+    platformKey: "win-x64",
+    distDir: winDir,
+  });
 
   assert.throws(() => assertSafeArtifactName("../escape.exe"), /unsafe/);
   assert.throws(() => assertSafeArtifactName("sub/dir.exe"), /unsafe/);
   fs.symlinkSync(setup, path.join(winDir, "link-setup.exe"));
-  const manifest = JSON.parse(fs.readFileSync(path.join(winDir, "build-manifest.json"), "utf8"));
-  manifest.files.push({
-    name: "link-setup.exe",
-    size: 1,
-    sha256: "x",
-    sha512: "y",
-  });
-  fs.writeFileSync(path.join(winDir, "build-manifest.json"), JSON.stringify(manifest));
+  const mutated = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  mutated.files.push({ name: "link-setup.exe", size: 1, sha256: "x", sha512: "y" });
+  fs.writeFileSync(manifestPath, JSON.stringify(mutated));
   assert.throws(() => assertBuildManifest(root, ci, "tested-head", "1.2.3", "win-x64", winDir), /regular file|unexpected file/);
 });
 
-test("publish artifact planner merges mac metadata and never rebuilds packages", t => {
+test("publish artifact planner merges both mac arches, packages before metadata, and never rebuilds", t => {
   const root = fixture(t);
   const buildsRoot = writeFakeBuildTree(root);
   const manifests = assertAllBuildManifests(root, ci, "tested-head", "1.2.3", buildsRoot);
   const plan = collectUploadPlan(buildsRoot, manifests);
   assert.ok(plan.some((item) => item.name === "latest-mac.yml" && item.platformKey === "mac-merged"));
   assert.equal(plan.filter((item) => item.name === "latest-mac.yml").length, 1);
+  const firstMetadataIndex = plan.findIndex((item) => item.name.endsWith(".yml"));
+  assert.ok(firstMetadataIndex > 0);
+  assert.ok(plan.slice(0, firstMetadataIndex).every((item) => !item.name.endsWith(".yml")));
+  assert.ok(plan.slice(firstMetadataIndex).every((item) => item.name.endsWith(".yml")));
   const merged = fs.readFileSync(path.join(buildsRoot, "latest-mac.yml"), "utf8");
   assert.match(merged, /mac-x64\.dmg/);
   assert.match(merged, /mac-arm64\.dmg/);
   assert.equal(plan.some((item) => item.source.includes("electron-builder")), false);
 
-  const onlyArm = mergeMacLatestYml(
+  const both = mergeMacLatestYml(
     path.join(buildsRoot, "mac-x64"),
     path.join(buildsRoot, "mac-arm64"),
+    manifests,
   );
-  assert.match(onlyArm, /mac-x64\.dmg/);
-  assert.match(onlyArm, /mac-arm64\.dmg/);
+  assert.match(both, /mac-x64\.dmg/);
+  assert.match(both, /mac-arm64\.dmg/);
+
+  const armManifest = JSON.parse(JSON.stringify(manifests["mac-arm64"]));
+  armManifest.files = armManifest.files.map((file) => (
+    file.name.endsWith(".dmg") ? { ...file, sha512: "tampered-sha512" } : file
+  ));
+  assert.throws(() => mergeMacLatestYml(
+    path.join(buildsRoot, "mac-x64"),
+    path.join(buildsRoot, "mac-arm64"),
+    { ...manifests, "mac-arm64": armManifest },
+  ), /digest mismatch/);
+});
+
+test("local trigger/check keep PG gate and Windows probe remains outside removed quality step", () => {
+  const root = path.resolve(__dirname, "../..");
+  const trigger = fs.readFileSync(path.join(root, "scripts/trigger-desktop-release.cjs"), "utf8");
+  const check = fs.readFileSync(path.join(root, "scripts/desktop-release/check.cjs"), "utf8");
+  assert.match(trigger, /checkRevision/);
+  assert.match(check, /checkRevision/);
+  const req = createRequire(require.resolve("electron-builder/package.json", { paths: [path.join(root, "desktop")] }));
+  const release = req("js-yaml").load(fs.readFileSync(path.join(root, ".github/workflows/desktop-release.yml"), "utf8"));
+  const verifyOnly = release.jobs["verify-only"];
+  assert.equal(verifyOnly.needs, "pg-live-gate");
+  assert.ok(verifyOnly.steps.some(step => step.run === "node scripts/desktop-release/check.cjs"));
+  assert.ok(!verifyOnly.steps.some(step => step.run?.includes("--publish always")));
+  const win = release.jobs["build-windows"];
+  const winSteps = win.steps.map(step => step.run || step.uses || step.name).join("\n");
+  assert.match(winSteps, /run-electron-builder\.cjs --win --x64 --publish never/);
+  assert.match(winSteps, /write-build-manifest\.cjs/);
+  assert.ok(winSteps.indexOf("run-electron-builder.cjs --win") < winSteps.indexOf("write-build-manifest.cjs"));
+  assert.ok(!winSteps.includes("test:quality"));
+  assert.ok(release.jobs["release-checks"].steps.some(step => step.run === "node scripts/desktop-release/run.cjs"));
+  assert.ok(releaseChecks.includes("pnpm --filter @ai-novel/server test:quality"));
+  for (const name of ["build-windows", "build-mac", "build-linux"]) {
+    assert.ok(release.jobs[name].steps.some(step => step.run === "pnpm stage:desktop"));
+    assert.ok(!release.jobs[name].steps.some(step => step.uses?.startsWith("actions/download-artifact")));
+  }
+  const winProbe = req("js-yaml").load(fs.readFileSync(path.join(root, ".github/workflows/windows-publish-path-verify.yml"), "utf8"));
+  assert.ok(winProbe.jobs["windows-publish-path"].steps.some(step => (
+    step.run === "node scripts/desktop-release/probe-win-pnpm-spawn.cjs"
+  )));
 });

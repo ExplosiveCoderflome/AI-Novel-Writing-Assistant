@@ -40,7 +40,7 @@ function parseCli(argv) {
   };
 }
 
-function mergeMacLatestYml(macX64Dir, macArm64Dir) {
+function mergeMacLatestYml(macX64Dir, macArm64Dir, manifests = null) {
   const yaml = loadYaml();
   const x64Path = path.join(macX64Dir, "latest-mac.yml");
   const arm64Path = path.join(macArm64Dir, "latest-mac.yml");
@@ -60,6 +60,16 @@ function mergeMacLatestYml(macX64Dir, macArm64Dir) {
   if (files.length < 2) {
     throw new Error("Merged latest-mac.yml must include both macOS architectures.");
   }
+  if (manifests) {
+    const packageFiles = [...(manifests["mac-x64"]?.files || []), ...(manifests["mac-arm64"]?.files || [])]
+      .filter((file) => file.name.endsWith(".dmg"));
+    for (const entry of files) {
+      const match = packageFiles.find((file) => file.name === entry.url);
+      if (!match || match.sha512 !== entry.sha512 || match.size !== Number(entry.size)) {
+        throw new Error(`Merged latest-mac.yml digest mismatch for ${entry.url}; no publication is allowed.`);
+      }
+    }
+  }
   const primary = files.find((entry) => String(entry.url).includes("arm64")) || files[0];
   return `${yaml.dump({
     version: arm64Doc.version,
@@ -71,7 +81,8 @@ function mergeMacLatestYml(macX64Dir, macArm64Dir) {
 }
 
 function collectUploadPlan(buildsRoot, manifests) {
-  const plan = [];
+  const packagePlan = [];
+  const metadataPlan = [];
   for (const [platformKey, manifest] of Object.entries(manifests)) {
     const distDir = path.join(buildsRoot, platformKey);
     for (const file of manifest.files) {
@@ -79,26 +90,31 @@ function collectUploadPlan(buildsRoot, manifests) {
         continue;
       }
       const { target } = resolveArtifactFile(distDir, file.name);
-      plan.push({
+      const item = {
         source: target,
         name: file.name,
         platformKey,
         sha256: file.sha256,
-      });
+      };
+      if (file.name.endsWith(".yml")) metadataPlan.push(item);
+      else packagePlan.push(item);
     }
   }
   const mergedMacYml = mergeMacLatestYml(
     path.join(buildsRoot, "mac-x64"),
     path.join(buildsRoot, "mac-arm64"),
+    manifests,
   );
   const mergedPath = path.join(buildsRoot, "latest-mac.yml");
   fs.writeFileSync(mergedPath, mergedMacYml, "utf8");
-  plan.push({
+  metadataPlan.push({
     source: mergedPath,
     name: "latest-mac.yml",
     platformKey: "mac-merged",
     sha256: null,
   });
+  // Packages first, then update metadata, so published yml never precedes its bytes.
+  const plan = [...packagePlan, ...metadataPlan];
   const names = new Set();
   for (const item of plan) {
     if (names.has(item.name)) {
