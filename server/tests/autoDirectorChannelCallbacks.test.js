@@ -2,15 +2,21 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { prisma } = require("../dist/db/prisma.js");
-const { stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
+const { stubDatabaseMethod, stubLegacyTaskOwnership } = require("./legacyDirector/databasePorts.js");
 
 const { createApp } = require("../dist/app.js");
 const { AutoDirectorFollowUpActionExecutor } = require("../dist/services/task/autoDirectorFollowUps/AutoDirectorFollowUpActionExecutor.js");
 const { signWeComMarkdownCallback } = require("../dist/services/task/autoDirectorFollowUps/wecomMarkdownCallback.js");
 
-test.beforeEach((t) => stubLegacyTaskOwnership(t, prisma, {
-  task_1: "novel_dingtalk", task_wecom_1: "novel_wecom", task_wecom_link_1: "novel_wecom_link",
-}));
+test.beforeEach((t) => {
+  stubLegacyTaskOwnership(t, prisma, {
+    task_1: "novel_dingtalk", task_wecom_1: "novel_wecom", task_wecom_link_1: "novel_wecom_link",
+  });
+  // These callbacks belong to ordinary novels, not manuscript revision copies.
+  stubDatabaseMethod(t, prisma.manuscriptProject, "findUnique", async () => null);
+  // Callback credentials in these scenarios come from the environment.
+  stubDatabaseMethod(t, prisma.appSetting, "findMany", async () => []);
+});
 
 function listen(server) {
   return new Promise((resolve) => {

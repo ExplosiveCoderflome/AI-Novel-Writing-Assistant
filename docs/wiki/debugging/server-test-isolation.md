@@ -24,12 +24,16 @@
 
 ## Prisma provider 与结果通道
 
-- `prisma generate` 会按 schema 覆盖默认 `@prisma/client` 的 provider；数据库 URL 和 adapter 不会把已生成的 PostgreSQL client 自动变成 SQLite client。`test:all` 只构建和运行测试，不负责 generate 或数据库迁移。运行前应确认默认 client 是 SQLite，真实数据库场景通过各自的临时库迁移入口准备表。
+- `prisma generate` 会按 schema 覆盖默认 `@prisma/client` 的 provider；数据库 URL 和 adapter 不会把已生成的 PostgreSQL client 自动变成 SQLite client。`test:all` 会先执行 generate，但不负责数据库迁移。运行前应确认所选 schema 是 SQLite，真实数据库场景通过各自的临时库迁移入口准备表。
 - 新增业务读取后，纯单元测试必须补齐持久化端口。例如普通小说夹具应显式让 `manuscriptProject.findUnique` 返回 `null`；不能通过迁移开发库来掩盖未隔离的查询。共享进程批次中的 `beforeEach` 必须限定在所属 suite 内，避免影响其他文件的数据库替身。
 - `scripts/acceptance/pg-cloud-harness.cjs` 的 `PG_ADMIN_URL` 用于外层创建隔离库；`pgCloudAcceptance.harness.test.js` 直接要求已准备好的 PostgreSQL `DATABASE_URL`。混合测试应让 PG URL 与单独生成的 PG client 仅进入该文件的子进程，SQLite 父进程必须保留自己的 URL 和默认 client。若使用环境 preload，应检查实际入口 `process.argv[1]`，不能搜索整个 argv：父测试运行器的参数列表也包含 PG 测试文件名，误匹配会使其他测试继承 PG URL。
 - 子进程的断言结果须使用专属记录前缀，与业务日志区分。不能从 stdout 中寻找最后一个以 `{` 开头的行再当作 JSON；Node 的多行对象日志也会包含这样的行，且异步日志可能晚于结果输出。`p0bRealPrismaChain.test.js` 使用 `P0B_RESULT=` 标识结果，保留所有业务断言。
 
 ## 验证与证据边界
+
+默认环境与预迁移环境的全量结果不能直接归为版本回归。比较结果时必须核对 `DATABASE_URL`、`AI_NOVEL_RUNTIME`、独立生成的 client 与 preload，以及库是否预先建表。`dddef5cb` 的历史成功验收使用提前迁移的临时 SQLite 库和 desktop 模式；`0adfd5ba` 的默认验收没有这项前置准备。两个 tip 的普通测试分组、子进程环境继承、Prisma 初始化与运行时迁移入口未改变。
+
+`createApp()` 只装配应用，`startServer()` 才调用 `ensureRuntimeDatabaseReady()`，且该函数在 web 模式直接返回；导入 Prisma 只配置 adapter 和 pragmas，不建业务表。不能期待路由单元测试自动迁移空库。`autoDirectorChannelCallbacks.test.js` 的普通小说夹具必须隔离 `manuscriptProject.findUnique`；预迁移库上的空表会让遗漏的查询返回 `null`，掩盖隔离缺陷。应在未迁移的独立空库验证此类修复，且保留原有业务断言。
 
 测试运行器的回归应执行真实脚本，在临时目录创建受控测试文件，验证快速模式不执行数据库场景、集成模式仍执行这些场景，以及文件间全局状态不泄漏。只搜索脚本中的名单或参数不能证明执行行为。
 
