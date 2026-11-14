@@ -1,0 +1,50 @@
+# Non-publish Windows verification for the desktop release check path.
+# Does not tag, upload packages, or invoke Desktop Release.
+name: Windows Publish Path Verify
+
+on:
+  pull_request:
+    branches: [main, beta]
+  push:
+    branches:
+      - cursor/win-publish-fix-speedup-54f3
+      - main
+      - beta
+
+permissions:
+  contents: read
+
+jobs:
+  windows-publish-path:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @ai-novel/shared build
+
+      - run: pnpm --filter @ai-novel/server prisma:generate
+
+      - run: pnpm --filter @ai-novel/server build
+
+      - name: Probe pnpm.cmd non-shell prisma migrate diff on Windows
+        run: node scripts/desktop-release/probe-win-pnpm-spawn.cjs
+
+      - name: Targeted Windows server tests (migrate path + runner isolation)
+        working-directory: server
+        run: node --test tests/postgresMigrateDeployPath.test.js tests/testInfrastructure/runnerIsolation.test.js
+
+      - run: pnpm --filter @ai-novel/desktop build
+
+      - run: pnpm test:release-guards
