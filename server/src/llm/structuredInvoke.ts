@@ -171,10 +171,12 @@ async function resolveAttemptTarget(input: {
   requestProtocol?: ModelRouteRequestProtocol;
   structuredStrategy?: StructuredOutputStrategy;
 }): Promise<StructuredAttemptTarget> {
+  // The route preference applies whenever the caller did not pick a strategy
+  // explicitly. An explicit provider/model must not hide it: callers such as
+  // the director always pass the launch identity, and the identity match below
+  // already confines the route to calls targeting the same provider/model.
   const shouldResolveRoutePreference = Boolean(
     input.taskType
-      && input.provider == null
-      && input.model == null
       && input.structuredStrategy == null,
   );
   const route = shouldResolveRoutePreference ? await resolveModel(input.taskType!) : null;
