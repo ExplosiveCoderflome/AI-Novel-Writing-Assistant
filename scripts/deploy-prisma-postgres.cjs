@@ -328,7 +328,7 @@ function inspectWithPsql(databaseUrl) {
   }
 
   const objectsOut = run(
-    "SELECT n.nspname || ',' || c.relkind || ',' || c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind IN ('r','p','v','m','S','f') AND c.relname <> '_prisma_migrations' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
+    "SELECT n.nspname::text || ',' || c.relkind::text || ',' || c.relname::text FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind IN ('r','p','v','m','S','f') AND c.relname <> '_prisma_migrations' AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
   );
   const kindMap = { r: "table", p: "partitioned-table", v: "view", m: "materialized-view", S: "sequence", f: "foreign-table" };
   const userObjects = [];
@@ -337,7 +337,7 @@ function inspectWithPsql(databaseUrl) {
     userObjects.push({ schema, kind: kindMap[relkind] || relkind, name });
   }
   const typesOut = run(
-    "SELECT n.nspname || ',' || t.typtype || ',' || t.typname FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE t.typtype IN ('e','d') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
+    "SELECT n.nspname::text || ',' || t.typtype::text || ',' || t.typname::text FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE t.typtype IN ('e','d') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\\_toast%' AND n.nspname NOT LIKE 'pg\\_temp%' ORDER BY 1",
   );
   for (const line of typesOut ? typesOut.split(/\n/).filter(Boolean) : []) {
     const [schema, typ, name] = line.split(",");
@@ -454,8 +454,7 @@ function main() {
   const databaseUrl = requirePostgresUrl(process.env.DATABASE_URL);
   console.log(`[deploy-prisma-postgres] target ${redactDatabaseUrl(databaseUrl)}`);
 
-  const inspected = inspectWithPsql(databaseUrl);
-  const state = classifyPostgresState(inspected);
+  const state = inspectWithPsql(databaseUrl);
   const plan = planDeploy(state, flags);
   console.log(`[deploy-prisma-postgres] state=${state.kind} schema=${state.targetSchema || "public"} applied=${state.appliedSuccessfulCount ?? state.appliedMigrationCount} failed=${(state.failedMigrations || []).length} objects=${(state.userObjects || state.userTables || []).length}`);
   console.log(`[deploy-prisma-postgres] plan=${plan.action} (${plan.reason})`);

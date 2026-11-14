@@ -240,6 +240,16 @@ test("views, sequences, and non-public objects are not classified as empty", () 
   );
 });
 
+test("PostgreSQL object inspection casts relkind before concatenation", () => {
+  const deployScript = fs.readFileSync(path.join(serverDir, "../scripts/deploy-prisma-postgres.cjs"), "utf8");
+  assert.match(deployScript, /n\.nspname::text \|\| ',' \|\| c\.relkind::text \|\| ',' \|\| c\.relname::text/);
+  assert.match(deployScript, /n\.nspname::text \|\| ',' \|\| t\.typtype::text \|\| ',' \|\| t\.typname::text/);
+  assert.doesNotMatch(deployScript, /n\.nspname \|\| ',' \|\| c\.relkind \|\| ',' \|\| c\.relname/);
+  assert.doesNotMatch(deployScript, /n\.nspname \|\| ',' \|\| t\.typtype \|\| ',' \|\| t\.typname/);
+  assert.match(deployScript, /const state = inspectWithPsql\(databaseUrl\);/);
+  assert.doesNotMatch(deployScript, /const state = classifyPostgresState\(inspected\);/);
+});
+
 test("failed or rolled-back _prisma_migrations rows refuse deploy and are never managed", () => {
   const failed = classifyPostgresState({
     targetSchema: "public",
