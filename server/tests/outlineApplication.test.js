@@ -212,3 +212,119 @@ test('a top-level category heading is not mistaken for a book title', async t =>
   assert.equal(preview.document.story.title, '原书名');
   assert.equal(preview.document.characters[0].name, '苏禾');
 });
+
+test('edit apply rejects dependsOn that use node ids instead of operation ids with 400', async () => {
+  const document = createEmptyOutlineDocument('已有大纲');
+  document.volumes = [{ nodeId: 'vol-1', title: '第一卷', summary: '已有', order: 0, planningDepth: 'detailed', chapterNodeIds: [] }];
+  document.chapters = [];
+  const operations = [{
+    operationId: 'op-1',
+    kind: 'add_node',
+    nodeType: 'chapter',
+    clientRef: 'chapter-new',
+    fields: { title: '新章', summary: '补充', volumeNodeId: 'vol-1' },
+    reason: '补章',
+    affectedNodeIds: [],
+    dependsOn: ['vol-1'],
+    risks: [],
+  }];
+  const repository = {
+    findProposal: async () => ({ id: 'proposal-edit', projectId: 'project-1', baseVersion: 1, kind: 'edit', status: 'pending', proposalJson: JSON.stringify({ operations }) }),
+    getCurrent: async () => ({ project: { currentVersion: 1 }, revision: { documentJson: JSON.stringify(document) } }),
+    applyOutlineProposal: async () => { throw new Error('must not apply'); },
+  };
+  await assert.rejects(
+    new OutlineProposalService(repository).apply('project-1', 'proposal-edit', ['op-1']),
+    error => error instanceof AppError && error.statusCode === 400 && /操作编号|依赖/.test(error.message),
+  );
+});
+
+test('edit apply rejects chapter add without volumeNodeId and never writes', async () => {
+  const document = createEmptyOutlineDocument('已有大纲');
+  document.volumes = [{ nodeId: 'vol-1', title: '第一卷', summary: '已有', order: 0, planningDepth: 'detailed', chapterNodeIds: [] }];
+  let applied = false;
+  const operations = [{
+    operationId: 'op-1',
+    kind: 'add_node',
+    nodeType: 'chapter',
+    clientRef: 'chapter-new',
+    fields: { title: '新章', summary: '补充' },
+    reason: '补章',
+    affectedNodeIds: [],
+    dependsOn: [],
+    risks: [],
+  }];
+  const repository = {
+    findProposal: async () => ({ id: 'proposal-edit', projectId: 'project-1', baseVersion: 1, kind: 'edit', status: 'pending', proposalJson: JSON.stringify({ operations }) }),
+    getCurrent: async () => ({ project: { currentVersion: 1 }, revision: { documentJson: JSON.stringify(document) } }),
+    applyOutlineProposal: async () => { applied = true; return {}; },
+  };
+  await assert.rejects(
+    new OutlineProposalService(repository).apply('project-1', 'proposal-edit', ['op-1']),
+    error => error instanceof AppError && error.statusCode === 400 && /所属卷|volumeNodeId|章节列表/.test(error.message),
+  );
+  assert.equal(applied, false);
+});
+
+test('edit apply accepts seven chapter adds with volumeNodeId and selected dependencies', async () => {
+  const document = createEmptyOutlineDocument('三卷大纲');
+  document.volumes = [
+    { nodeId: 'vol-1', title: '第一卷', summary: 'A', order: 0, planningDepth: 'detailed', chapterNodeIds: ['ch-1'] },
+    { nodeId: 'vol-2', title: '第二卷', summary: 'B', order: 1, planningDepth: 'detailed', chapterNodeIds: [] },
+    { nodeId: 'vol-3', title: '第三卷', summary: 'C', order: 2, planningDepth: 'detailed', chapterNodeIds: [] },
+  ];
+  document.chapters = [
+    { nodeId: 'ch-1', volumeNodeId: 'vol-1', title: '第一章', summary: '已有', order: 0, planningDepth: 'detailed', characterNodeIds: [], payoffNodeIds: [] },
+  ];
+  const operations = Array.from({ length: 7 }, (_, index) => ({
+    operationId: `op-${index + 1}`,
+    kind: 'add_node',
+    nodeType: 'chapter',
+    clientRef: `chapter-new-${index + 1}`,
+    fields: { title: `新章${index + 1}`, summary: `补充${index + 1}`, volumeNodeId: index < 3 ? 'vol-2' : 'vol-3' },
+    reason: '补后几卷章节',
+    affectedNodeIds: [],
+    dependsOn: index === 0 ? [] : [`op-${index}`],
+    risks: [],
+  }));
+  let applied;
+  const repository = {
+    findProposal: async () => ({ id: 'proposal-edit', projectId: 'project-1', baseVersion: 1, kind: 'edit', status: 'pending', proposalJson: JSON.stringify({ operations }) }),
+    getCurrent: async () => ({ project: { currentVersion: 1 }, revision: { documentJson: JSON.stringify(document) } }),
+    applyOutlineProposal: async (projectId, proposalId, baseVersion, selected, source, ops) => {
+      applied = { projectId, proposalId, baseVersion, selected: [...selected], opsCount: ops.length };
+      return { revision: { version: baseVersion + 1 }, document: source };
+    },
+  };
+  const all = await new OutlineProposalService(repository).apply('project-1', 'proposal-edit', operations.map((item) => item.operationId));
+  assert.equal(all.revision.version, 2);
+  assert.equal(applied.selected.length, 7);
+  await assert.rejects(
+    new OutlineProposalService(repository).apply('project-1', 'proposal-edit', ['op-7']),
+    error => error instanceof AppError && error.statusCode === 400 && /未勾选的操作/.test(error.message),
+  );
+});
+
+test('edit apply rejects volume chapterNodeIds update shortcut with 400', async () => {
+  const document = createEmptyOutlineDocument('已有大纲');
+  document.volumes = [{ nodeId: 'vol-1', title: '第一卷', summary: '已有', order: 0, planningDepth: 'detailed', chapterNodeIds: [] }];
+  const operations = [{
+    operationId: 'op-1',
+    kind: 'update_fields',
+    nodeId: 'vol-1',
+    fields: { chapterNodeIds: ['ghost'] },
+    reason: '误用',
+    affectedNodeIds: ['vol-1'],
+    dependsOn: [],
+    risks: [],
+  }];
+  const repository = {
+    findProposal: async () => ({ id: 'proposal-edit', projectId: 'project-1', baseVersion: 1, kind: 'edit', status: 'pending', proposalJson: JSON.stringify({ operations }) }),
+    getCurrent: async () => ({ project: { currentVersion: 1 }, revision: { documentJson: JSON.stringify(document) } }),
+    applyOutlineProposal: async () => { throw new Error('must not apply'); },
+  };
+  await assert.rejects(
+    new OutlineProposalService(repository).apply('project-1', 'proposal-edit', ['op-1']),
+    error => error instanceof AppError && error.statusCode === 400 && /章节列表|新增章节/.test(error.message),
+  );
+});
