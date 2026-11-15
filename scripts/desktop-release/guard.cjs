@@ -229,9 +229,10 @@ function verifyUpload(repoRoot, {
   catch (cause) { throw new Error("Public desktop uploads require a release commit contained in main.", { cause }); }
   if (env.GITHUB_ACTIONS === "true") {
     assertTrustedReleaseChecks(repoRoot, env, head, version);
-    checkRevision(repoRoot, { git, runChecks: () => {}, forceTests: false, recordMarker: false });
+    // Forward the same env object so injected test fixtures and CI proofs stay aligned.
+    checkRevision(repoRoot, { git, runChecks: () => {}, forceTests: false, recordMarker: false, env });
   } else {
-    checkRevision(repoRoot, { git, runChecks, forceTests });
+    checkRevision(repoRoot, { git, runChecks, forceTests, env });
   }
   return tag;
 }
