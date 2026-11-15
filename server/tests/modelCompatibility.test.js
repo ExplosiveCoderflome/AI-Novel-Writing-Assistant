@@ -196,12 +196,12 @@ test("probes require opt-in, use cheap-first trials, save supported modes and ve
   mockClients(t, (resolved, messages, options) => {
     calls.push(options.response_format?.type ?? (options.tools ? "tool_calling" : "prompt_only"));
     assert.deepEqual(resolved.modelKwargs, { thinking: { type: "disabled" } });
-    assert.equal(resolved.maxTokens, 128);
+    assert.equal(resolved.maxTokens, 512);
     return stream(options.tools ? fixtures.tool : fixtures.ok);
   });
   await assert.rejects(probeModel(input, { allowNetwork: false }), /opt-in/);
   assert.equal(calls.length, 0);
-  const result = await probeModel(input, { allowNetwork: true });
+  const result = await probeModel(input, { allowNetwork: true, requestDelayMs: 0 });
   assert.deepEqual(calls, ["json_object", "json_schema", "tool_calling", "prompt_only"]);
   assert.deepEqual(result.structuredModes, ["json_schema", "json_object", "tool_calling", "prompt_only"]);
   assert.equal(result.thinkingToggle.supported, true);
@@ -212,7 +212,7 @@ test("probes require opt-in, use cheap-first trials, save supported modes and ve
 test("unknown service thinking control is learned from reasoning-on/off fixture evidence", async (t) => {
   const input = identity("thinking-discovery");
   mockClients(t, (resolved, messages, options) => stream(options.tools ? fixtures.tool : resolved.modelKwargs?.enable_thinking === false ? fixtures.ok : fixtures.thinking));
-  const result = await probeModel(input, { allowNetwork: true });
+  const result = await probeModel(input, { allowNetwork: true, requestDelayMs: 0 });
   assert.equal(result.thinkingToggle.supported, true);
   assert.equal(result.thinkingToggle.control, "enable_thinking");
   assert.equal(result.reasoningField, "reasoning_content");
@@ -259,7 +259,7 @@ test("raw LangChain deltas preserve reasoning evidence during a probe", async (t
     if (options.tools) return stream(fixtures.tool);
     return stream([{ content: '{"ok":true}', additional_kwargs: { __raw_response: { choices: [{ delta: { reasoning_content: "Still thinking despite the flag." } }] } } }]);
   });
-  const result = await probeModel(input, { allowNetwork: true });
+  const result = await probeModel(input, { allowNetwork: true, requestDelayMs: 0 });
   assert.equal(result.thinkingToggle.supported, false);
   assert.equal(result.reasoningField, "reasoning_content");
 });
@@ -276,7 +276,7 @@ test("a transient probe network error preserves the last successful profile", as
 test("unusable native probe results select prompt-only after a valid plain response", async (t) => {
   const input = identity("probe-native-empty");
   mockClients(t, (resolved, messages, options) => stream(options.response_format || options.tools ? [] : fixtures.ok));
-  const result = await probeModel(input, { allowNetwork: true });
+  const result = await probeModel(input, { allowNetwork: true, requestDelayMs: 0 });
   assert.deepEqual(result.structuredModes, ["prompt_only"]);
   assert.deepEqual(result.failedModes, ["json_object", "json_schema", "tool_calling"]);
 });

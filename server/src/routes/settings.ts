@@ -630,7 +630,7 @@ router.put(
       const nextDisplayName = !isBuiltInProvider(provider)
         ? normalizeOptionalText(body.displayName) ?? normalizeOptionalText(existingRecord?.displayName) ?? provider
         : undefined;
-      const nextReasoningEnabled = body.reasoningEnabled ?? existingRecord?.reasoningEnabled ?? true;
+      const nextReasoningEnabled = body.reasoningEnabled ?? existingRecord?.reasoningEnabled ?? false;
       const nextReasoningEffort = normalizeReasoningEffort(body.reasoningEffort ?? existingRecord?.reasoningEffort);
       const nextHiddenModels = body.hiddenModels ?? parseHiddenModels(existingRecord?.hiddenModels);
       const nextConcurrencyLimit = body.concurrencyLimit ?? normalizeProviderLimit(existingRecord?.concurrencyLimit);

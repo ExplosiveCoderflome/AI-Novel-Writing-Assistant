@@ -761,7 +761,7 @@ test("PUT /api/settings/api-keys/ollama saves custom baseURL without requiring a
     assert.equal(payload.data.provider, "ollama");
     assert.equal(payload.data.model, "qwen3:8b");
     assert.equal(payload.data.baseURL, "http://127.0.0.1:11434/v1");
-    assert.equal(payload.data.reasoningEnabled, true);
+    assert.equal(payload.data.reasoningEnabled, false);
     assert.equal(payload.data.concurrencyLimit, 2);
     assert.equal(payload.data.requestIntervalMs, 3000);
     assert.ok(payload.data.models.includes("qwen3:8b"));
