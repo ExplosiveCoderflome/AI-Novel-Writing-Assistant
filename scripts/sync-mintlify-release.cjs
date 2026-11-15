@@ -45,7 +45,12 @@ function updateInstallation(source, version) {
   if (found.size !== assetPatterns.length) {
     throw new Error("Installation page must contain exactly one link for each of the five supported assets.");
   }
-  return result;
+  // Keep the visible "download **vX.Y.Z**" copy aligned with the five asset hrefs.
+  const withVersionCopy = result.replace(/下载 \*\*v\d+\.\d+\.\d+\*\*/g, `下载 **v${version}**`);
+  if (withVersionCopy === result && !new RegExp(`下载 \\*\\*v${version.replaceAll(".", "\\.")}\\*\\*`).test(result)) {
+    throw new Error("Installation page download version copy was not found.");
+  }
+  return withVersionCopy;
 }
 
 function updateHomepage(source, version) {
