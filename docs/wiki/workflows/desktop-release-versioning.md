@@ -36,9 +36,9 @@ PostgreSQL live gate proof (`.tmp/pg-live-gate.json`) is run-scoped release evid
 
 本地上传还须读取 origin 的已推送 tag（注解 tag 取 peeled commit）并与本次 HEAD 比较，避免发布器在远端缺少 tag 时替旧 main 自动创建发布标识。
 
-`run-electron-builder.cjs` 默认添加 `--publish never`，避免 CI 环境隐式上传。显式 `--publish`、`--publish=...` 与 `-p` 共用同一验证入口，失败不调用上传；重复 publish 参数被拒绝。两种既有发布脚本都经过此入口，不能另建绕过守卫的上传路径。
+`run-electron-builder.cjs` 默认添加 `--publish never`，避免 CI 环境隐式上传。显式 `--publish`、`--publish=...` 与 `-p` 共用同一验证入口，失败不调用上传；重复 publish 参数被拒绝。本地发布脚本仍经过此入口；CI 正式上传改走 `publish-artifacts.cjs`，只上传已校验的既有产物，不得再次 stage／重建。
 
-发布 workflow 仅允许 push 的版本 tag 进入上传任务。手动 workflow_dispatch 只执行检查与目录打包，不上传 GitHub Release。构建使用已提交的图标；品牌图标应在开发时生成、审核并提交，避免发布检查期间改写受版本控制的素材。发布说明更新脚本也必须拒绝与 package 版本不符的 tag。
+发布 workflow 仅允许 push 的版本 tag 进入上传任务。手动 workflow_dispatch 只执行检查与目录打包，不上传 GitHub Release。构建使用已提交的图标；品牌图标应在开发时生成、审核并提交，避免发布检查期间改写受版本控制的素材。发布说明更新脚本也必须拒绝与 package 版本不符的 tag。并行构建、双证明与构建清单规则见 [桌面发布检查证明边界](desktop-release-checks.md)。
 
 ## 平台与原生运行时
 

@@ -1,0 +1,192 @@
+# Non-publish three-platform desktop pack verification.
+# Builds real Win setup+portable, Mac x64/arm64 DMG, and Linux AppImage with
+# --publish never, then re-validates manifests and merged latest-mac.yml.
+# contents:read only — no Release upload, no tag, no GH_TOKEN publish path.
+name: Desktop Pack Verify
+
+on:
+  pull_request:
+    branches: [main, beta]
+    paths:
+      - ".github/workflows/desktop-pack-verify.yml"
+      - ".github/workflows/desktop-release.yml"
+      - ".github/workflows/windows-publish-path-verify.yml"
+      - "desktop/**"
+      - "scripts/desktop-release/**"
+      - "scripts/tests/desktop-release.test.cjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  push:
+    branches:
+      - cursor/desktop-release-parallel-pack-54f3
+
+permissions:
+  contents: read
+
+jobs:
+  pack-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_ALLOW_UNSIGNED_RELEASE: "true"
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Pack Windows installers without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --win --x64 --publish never
+      - name: Verify packaged desktop layout
+        run: node desktop/scripts/verify-desktop-package.cjs
+      - name: Write Windows build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform win-x64 --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: pack-verify-win-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-setup-x64.exe
+            desktop/build/dist/*-setup-x64.exe.blockmap
+            desktop/build/dist/*-portable-x64.exe
+            desktop/build/dist/latest.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
+
+  pack-mac:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Pack macOS DMG without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --mac dmg --${{ matrix.arch }} --publish never
+      - name: Write macOS build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform mac-${{ matrix.arch }} --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: pack-verify-mac-${{ matrix.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-mac-${{ matrix.arch }}.dmg
+            desktop/build/dist/*-mac-${{ matrix.arch }}.dmg.blockmap
+            desktop/build/dist/latest-mac.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
+
+  pack-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      AI_NOVEL_RELEASE_CHANNEL: release
+      AI_NOVEL_DATABASE_MODE: sqlite
+      DATABASE_URL: file:./dev.db
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm stage:desktop
+      - name: Pack Linux AppImage without uploading
+        run: node desktop/scripts/run-electron-builder.cjs --linux AppImage --x64 --publish never
+      - name: Write Linux build manifest
+        run: node scripts/desktop-release/write-build-manifest.cjs --platform linux-x64 --dist desktop/build/dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: pack-verify-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            desktop/build/dist/*-linux-x86_64.AppImage
+            desktop/build/dist/latest-linux.yml
+            desktop/build/dist/build-manifest.json
+          if-no-files-found: error
+
+  verify-pack-contracts:
+    needs: [pack-windows, pack-mac, pack-linux]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run portable release contract and negative-matrix tests
+        run: node --test scripts/tests/desktop-release.test.cjs
+      - uses: actions/download-artifact@v6
+        with:
+          name: pack-verify-win-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/win-x64
+      - uses: actions/download-artifact@v6
+        with:
+          name: pack-verify-mac-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/mac-x64
+      - uses: actions/download-artifact@v6
+        with:
+          name: pack-verify-mac-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/mac-arm64
+      - uses: actions/download-artifact@v6
+        with:
+          name: pack-verify-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/desktop-builds/linux-x64
+      - name: Re-validate manifests, digests, and merged latest-mac.yml
+        run: node scripts/desktop-release/verify-pack-artifacts.cjs --builds-root .tmp/desktop-builds
