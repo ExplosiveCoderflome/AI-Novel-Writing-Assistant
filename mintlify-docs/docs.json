@@ -195,6 +195,16 @@
             ]
           },
           {
+            "group": "题材展厅",
+            "pages": [
+              "showcase/xianxia",
+              "showcase/wasteland",
+              "showcase/mystery",
+              "showcase/romance",
+              "showcase/urban"
+            ]
+          },
+          {
             "group": "创作原理",
             "pages": [
               "guides/production-pipeline",

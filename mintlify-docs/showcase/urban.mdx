@@ -1,0 +1,1038 @@
+---
+title: "都市异能 · 题材展厅"
+sidebarTitle: "都市异能"
+description: "一部可以解锁的手机：送了三年外卖的陆川，午夜零点忽然能看见身边手机草稿箱里没发出去的消息。滑开锁屏，看一本都市异能小说怎样借热门题材雷达、推进模式和标题工坊一步步成形。"
+mode: "custom"
+icon: "mobile-screen"
+keywords:
+  - "AI 写都市小说"
+  - "都市异能"
+  - "手机界面"
+  - "热门题材雷达"
+  - "推进模式"
+  - "标题工坊"
+  - "题材展厅"
+  - "Biz Novel Studio"
+---
+
+<UbLock />
+
+<UbRadar />
+
+<UbChat />
+
+<UbTitle />
+
+<UbCall />
+
+export const UbLock = () => {
+  const NOTES = [
+    { g: "骑", n: "骑手", t: "刚刚", m: "本单超时 4 分钟，扣款 50.00 元。", c: "#f59e0b" },
+    { g: "银", n: "银行", t: "刚刚", m: "您尾号 0721 的账户余额为 37.21 元。", c: "#10b981" },
+    { g: "稿", n: "草稿", t: "00:00", m: "附近 1 部手机有一条未发送的消息：「如果有人看到这条，救我。」", c: "#8b5cf6", hot: true },
+  ];
+  const APPS = [
+    { g: "榜", n: "热榜", href: "#ur-radar", c: "linear-gradient(135deg,#f43f5e,#f97316)" },
+    { g: "信", n: "消息", href: "#uc-chat", c: "linear-gradient(135deg,#34d399,#059669)" },
+    { g: "书", n: "书城", href: "#ut-title", c: "linear-gradient(135deg,#38bdf8,#6366f1)" },
+  ];
+  const DOCK = ["话", "摄", "图", "设"];
+  const LIT = ["rgba(250,204,21,.34)", "rgba(167,139,250,.42)", "rgba(34,211,238,.32)"];
+  const BLD = Array.from({ length: 22 }, (_, i) => ({
+    w: 3 + ((i * 7) % 5),
+    h: 80 + ((i * 53) % 230),
+    c: LIT[i % 3],
+  }));
+  const [un, setUn] = useState(false);
+  const [v, setV] = useState(0);
+  const [sheet, setSheet] = useState(false);
+  const slide = (e) => {
+    const n = Number(e.target.value);
+    setV(n);
+    if (n >= 96) setUn(true);
+  };
+  const release = () => {
+    if (!un) setV(0);
+  };
+  const lock = () => {
+    setUn(false);
+    setV(0);
+    setSheet(false);
+  };
+  return (
+    <div className="not-prose ul">
+      <style>{`
+.ul{position:relative;overflow:hidden;min-height:100vh;padding:0 24px 80px;color:#ede9fe;background:radial-gradient(ellipse 45% 40% at 75% 42%,rgba(139,92,246,.3),transparent 70%),radial-gradient(ellipse 60% 45% at 8% 8%,rgba(34,211,238,.12),transparent 70%),linear-gradient(180deg,#06040f 0%,#0d0820 60%,#140b2e 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.ul-city{position:absolute;left:0;right:0;bottom:0;height:330px;display:flex;align-items:flex-end;gap:3px;pointer-events:none;opacity:.75;-webkit-mask-image:linear-gradient(180deg,transparent,#000 45%);mask-image:linear-gradient(180deg,transparent,#000 45%)}
+.ul-city i{flex-basis:0;min-width:18px;background-color:#0c0a1d;background-size:9px 100%,100% 11px}
+.ul-cars{position:absolute;left:0;right:0;bottom:0;height:40px;overflow:hidden;pointer-events:none}
+.ul-cars i{position:absolute;left:-160px;width:140px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,#f472b6);animation:ulCar 7s linear infinite}
+.ul-cars i:nth-child(even){background:linear-gradient(90deg,transparent,#67e8f9);animation-duration:9.5s}
+@keyframes ulCar{to{transform:translateX(calc(100vw + 340px))}}
+.ul-top{position:relative;z-index:2;max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:22px 0;font-size:13px;letter-spacing:.25em;color:#a78bfa}
+.ul-top a{color:#c4b5fd;text-decoration:none;letter-spacing:.1em}
+.ul-top a:hover{color:#f0abfc}
+.ul-grid{position:relative;z-index:2;max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;min-height:calc(100vh - 150px)}
+.ul-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#67e8f9}
+.ul-h1{margin:18px 0 0;font-weight:900;font-size:clamp(56px,9vw,112px);letter-spacing:.1em;line-height:1.1;color:#f5f3ff}
+.ul-neon{color:#f5d0fe;text-shadow:0 0 8px #e879f9,0 0 24px #a855f7,0 0 48px #7c3aed;animation:ulFlick 5s linear infinite}
+@keyframes ulFlick{0%,17%,21%,61%,64%,100%{opacity:1}19%,62.5%{opacity:.4}}
+.ul-sub{margin:24px 0 0;max-width:480px;font-size:17px;line-height:1.95;color:rgba(237,233,254,.8)}
+.ul-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.ul-btn{display:inline-flex;align-items:center;padding:12px 22px;font-size:15px;color:#ddd6fe;text-decoration:none;background:rgba(76,29,149,.25);border:1px solid rgba(167,139,250,.45);border-radius:12px;transition:background .2s,translate .2s}
+.ul-btn:hover{background:rgba(124,58,237,.35);translate:0 -2px}
+.ul-pri{color:#fff;font-weight:700;background:linear-gradient(135deg,#7c3aed,#c026d3);border-color:transparent;box-shadow:0 12px 30px -12px rgba(192,38,211,.8)}
+.ul-pri:hover{background:linear-gradient(135deg,#8b5cf6,#d946ef)}
+.ul-demo{margin-top:22px;font-size:12.5px;color:rgba(196,181,253,.6)}
+.ul-desk{display:flex;flex-direction:column;align-items:center;gap:20px;padding:20px 0}
+.ul-ph{position:relative;width:300px;height:610px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #2e2a48,0 0 0 6px #120e22,0 40px 90px -30px rgba(124,58,237,.75),0 0 80px -20px rgba(192,38,211,.45);rotate:-3deg}
+.ul-sc{position:relative;height:100%;overflow:hidden;border-radius:40px;background:radial-gradient(ellipse 80% 50% at 30% 20%,rgba(192,38,211,.55),transparent 70%),radial-gradient(ellipse 70% 50% at 80% 80%,rgba(14,165,233,.45),transparent 70%),linear-gradient(180deg,#1e1048,#0a0618)}
+.ul-isl{position:absolute;z-index:6;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.ul-sb{position:absolute;z-index:5;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#fff}
+.ul-bat{color:#fca5a5}
+.ul-lock,.ul-home{position:absolute;inset:0;transition:opacity .5s ease,translate .5s ease,scale .5s ease}
+.ul-lock{display:flex;flex-direction:column;align-items:center;padding:56px 14px 0}
+.ul-on .ul-lock{opacity:0;translate:0 -50px;pointer-events:none}
+.ul-date{font-size:14px;letter-spacing:.12em;color:rgba(255,255,255,.8)}
+.ul-time{font-family:system-ui,-apple-system,"Helvetica Neue",sans-serif;font-size:72px;font-weight:200;line-height:1.05;color:#fff}
+.ul-ns{list-style:none;width:100%;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ul-n{display:flex;gap:10px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);animation:ulIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes ulIn{from{opacity:0;transform:translateY(-14px) scale(.96)}}
+.ul-hot{background:rgba(139,92,246,.3);box-shadow:0 0 0 1px rgba(196,181,253,.6),0 0 24px rgba(168,85,247,.55)}
+.ul-ic{flex:0 0 30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;font-weight:700;color:#fff}
+.ul-nb{flex:1;min-width:0}
+.ul-nh{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.65)}
+.ul-nh b{font-weight:600;color:#fff}
+.ul-nb p{margin:2px 0 0;font-size:13px;line-height:1.5;color:#fff}
+.ul-sl{position:absolute;left:18px;right:18px;bottom:26px;height:56px;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.ul-slt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font-size:15px;letter-spacing:.3em;color:transparent;background:linear-gradient(90deg,rgba(255,255,255,.45) 30%,#fff 50%,rgba(255,255,255,.45) 70%) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;animation:ulShine 2.4s linear infinite;pointer-events:none}
+@keyframes ulShine{from{background-position:100% 0}to{background-position:-100% 0}}
+.ul-rg{-webkit-appearance:none;appearance:none;position:absolute;top:0;left:4px;width:calc(100% - 8px);height:100%;margin:0;background:transparent;cursor:grab}
+.ul-rg::-webkit-slider-runnable-track{height:56px;background:transparent}
+.ul-rg::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:48px;height:48px;margin-top:4px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9d5ff);box-shadow:0 0 0 3px rgba(167,139,250,.6),0 6px 16px rgba(0,0,0,.4)}
+.ul-rg::-moz-range-track{height:56px;background:transparent}
+.ul-rg::-moz-range-thumb{width:48px;height:48px;border:none;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9d5ff);box-shadow:0 0 0 3px rgba(167,139,250,.6),0 6px 16px rgba(0,0,0,.4)}
+.ul-rg:focus-visible{outline:2px solid #67e8f9;outline-offset:4px;border-radius:999px}
+.ul-home{padding:58px 18px 0;opacity:0;scale:1.08;pointer-events:none}
+.ul-on .ul-home{opacity:1;scale:1;pointer-events:auto}
+.ul-wd{padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.12);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 0 0 1px rgba(196,181,253,.35)}
+.ul-wd span{display:block;font-size:11.5px;letter-spacing:.15em;color:#c4b5fd}
+.ul-wd b{display:block;margin-top:6px;font-size:18px;color:#fff}
+.ul-wd i{display:block;margin-top:6px;font-style:normal;font-size:13px;color:rgba(255,255,255,.78)}
+.ul-apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px;margin-top:22px}
+.ul-app{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;font-family:inherit;font-size:11.5px;color:#fff;text-decoration:none;background:none;border:none;cursor:pointer}
+.ul-ai{display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:16px;font-size:22px;font-weight:800;color:#fff;box-shadow:0 8px 18px -8px rgba(0,0,0,.6);transition:scale .2s}
+.ul-app:hover .ul-ai{scale:1.08}
+.ul-app:focus-visible{outline:2px solid #67e8f9;outline-offset:4px;border-radius:12px}
+.ul-ad{background:linear-gradient(135deg,#7c3aed,#c026d3);box-shadow:0 0 0 2px rgba(240,171,252,.6),0 0 22px rgba(217,70,239,.7);animation:ulPulse 2s ease-in-out infinite}
+@keyframes ulPulse{50%{box-shadow:0 0 0 2px rgba(240,171,252,.2),0 0 8px rgba(217,70,239,.3)}}
+.ul-hint{margin:22px 0 0;text-align:center;font-size:12px;color:rgba(255,255,255,.62)}
+.ul-dock{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;padding:11px 8px;border-radius:30px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.ul-dock span{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;font-size:18px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.18)}
+.ul-sheet{position:absolute;left:10px;right:10px;bottom:10px;z-index:7;padding:20px 18px 16px;border-radius:26px;background:rgba(20,12,40,.95);box-shadow:0 0 0 1px rgba(196,181,253,.35),0 -20px 40px rgba(0,0,0,.5);animation:ulUp .35s ease both}
+@keyframes ulUp{from{opacity:0;transform:translateY(40px)}}
+.ul-sheet b{font-size:15px;color:#f5d0fe}
+.ul-sheet p{margin:10px 0 0;font-size:13.5px;line-height:1.8;color:rgba(255,255,255,.86)}
+.ul-sheet button{width:100%;margin-top:14px;padding:10px;font-family:inherit;font-size:14px;color:#fff;background:linear-gradient(135deg,#7c3aed,#c026d3);border:none;border-radius:14px;cursor:pointer}
+.ul-re{padding:9px 20px;font-family:inherit;font-size:13.5px;color:#c4b5fd;background:rgba(76,29,149,.2);border:1px solid rgba(167,139,250,.4);border-radius:999px;cursor:pointer}
+.ul-re:hover{color:#fff;border-color:#c4b5fd}
+.ul-btn:focus-visible,.ul-re:focus-visible,.ul-top a:focus-visible,.ul-sheet button:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
+@media (max-width:900px){.ul-grid{grid-template-columns:1fr;gap:24px;padding-top:20px}.ul-ph{rotate:0deg}}
+@media (max-width:360px){.ul-ph{width:280px;height:590px}}
+@media (prefers-reduced-motion:reduce){.ul-cars{display:none}.ul *{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="ul-city" aria-hidden="true">
+        {BLD.map((b, i) => (
+          <i key={i} style={{ flexGrow: b.w, height: b.h + "px", backgroundImage: "linear-gradient(90deg,#0c0a1d 55%,transparent 55%),linear-gradient(#0c0a1d 50%," + b.c + " 50%)" }} />
+        ))}
+      </div>
+      <div className="ul-cars" aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((n) => (
+          <i key={n} style={{ animationDelay: "-" + n * 1.7 + "s", bottom: 8 + (n % 3) * 9 + "px" }} />
+        ))}
+      </div>
+      <div className="ul-top">
+        <span>题材展厅 · 伍　都市异能</span>
+        <a href="/">← 返回首页</a>
+      </div>
+      <div className="ul-grid">
+        <div>
+          <div className="ul-k">凌晨 00:00 · 一部手机</div>
+          <h1 className="ul-h1">都市<span className="ul-neon">异能</span></h1>
+          <p className="ul-sub">这间展厅是一部手机。送了三年外卖的陆川，在午夜零点多了一项能力：他能看见身边每一部手机草稿箱里，那条没发出去的消息。解锁它，看一本都市异能小说怎样从榜单、推进方式到书名一步步成形。</p>
+          <div className="ul-btns">
+            <a className="ul-btn ul-pri" href="#ur-radar">打开热榜 ↓</a>
+            <a className="ul-btn" href="/quickstart">直接开书 →</a>
+          </div>
+          <div className="ul-demo">演示：人物、剧情和手机里的内容都是虚构示例。</div>
+        </div>
+        <div className="ul-desk">
+          <div className={"ul-ph" + (un ? " ul-on" : "")}>
+            <div className="ul-sc">
+              <span className="ul-isl" aria-hidden="true" />
+              <div className="ul-sb" aria-hidden="true">
+                <span>5G</span>
+                <span className="ul-bat">12%</span>
+              </div>
+              <div className="ul-lock" aria-hidden={un}>
+                <div className="ul-date">周五 · 夜班</div>
+                <div className="ul-time">00:00</div>
+                <ul className="ul-ns">
+                  {NOTES.map((n, i) => (
+                    <li key={i} className={"ul-n" + (n.hot ? " ul-hot" : "")} style={{ animationDelay: 0.8 + i * 1.1 + "s" }}>
+                      <span className="ul-ic" style={{ background: n.c }}>{n.g}</span>
+                      <div className="ul-nb">
+                        <div className="ul-nh">
+                          <b>{n.n}</b>
+                          <span>{n.t}</span>
+                        </div>
+                        <p>{n.m}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div className="ul-sl">
+                  <span className="ul-slt" style={{ opacity: Math.max(0, 1 - v / 60) }}>滑动解锁</span>
+                  <input className="ul-rg" type="range" min="0" max="100" value={v} disabled={un} aria-label="滑动解锁手机" onChange={slide} onPointerUp={release} onTouchEnd={release} onBlur={release} onKeyDown={(e) => { if (e.key === "Enter") setUn(true); }} />
+                </div>
+              </div>
+              <div className="ul-home" aria-hidden={!un}>
+                <div className="ul-wd">
+                  <span>草稿 · 附近 3 米</span>
+                  <b>1 条未发送的消息</b>
+                  <i>「如果有人看到这条，救我。」</i>
+                </div>
+                <div className="ul-apps">
+                  {APPS.map((a) => (
+                    <a key={a.n} className="ul-app" href={a.href} tabIndex={un ? 0 : -1}>
+                      <span className="ul-ai" style={{ background: a.c }}>{a.g}</span>
+                      {a.n}
+                    </a>
+                  ))}
+                  <button type="button" className="ul-app" tabIndex={un ? 0 : -1} onClick={() => setSheet(true)}>
+                    <span className="ul-ai ul-ad">稿</span>
+                    草稿
+                  </button>
+                </div>
+                <p className="ul-hint">点图标，去往对应的展区</p>
+                <div className="ul-dock" aria-hidden="true">
+                  {DOCK.map((d) => (
+                    <span key={d}>{d}</span>
+                  ))}
+                </div>
+                {sheet && (
+                  <div className="ul-sheet" role="dialog" aria-label="草稿 App">
+                    <b>草稿（演示）</b>
+                    <p>零点自己出现的 App，删不掉。打开后只有一行字：三米之内，所有没发出去的话，你都看得见。</p>
+                    <button type="button" onClick={() => setSheet(false)}>知道了</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <button type="button" className="ul-re" onClick={un ? lock : () => setUn(true)}>{un ? "↻ 重新锁屏" : "不想滑？点这里解锁"}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbRadar = () => {
+  const SG = [
+    { ty: "热门题材", t: "都市异能 · 能力觉醒", h: 5, c: 4 },
+    { ty: "主角身份", t: "被生活压着的打工人", h: 4, c: 4 },
+    { ty: "金手指", t: "很小、但有代价的能力", h: 3, c: 2 },
+    { ty: "开局爆点", t: "第一章撞见不该看的秘密", h: 4, c: 3 },
+    { ty: "关系卖点", t: "知道对方的秘密，却不能说", h: 3, c: 2 },
+    { ty: "差异化机会", t: "把异能绑进手机日常", h: 3, c: 1, diff: true },
+    { ty: "拥挤套路", t: "觉醒系统 + 每日签到", h: 5, c: 5, crowd: true },
+  ];
+  const MD = [
+    { k: "跟随热门", who: "想快速进入明确赛道", fx: "更明显地保留当前热门结构与卖点", idea: "送了三年外卖的陆川，在午夜觉醒异能，从城市最底层一路逆袭。" },
+    { k: "热门中求差异", who: "大多数新书", fx: "保留读者熟悉感，同时强化差异化信号", idea: "送了三年外卖的陆川，忽然能看见身边每一部手机草稿箱里，那条没发出去的消息。", rec: true },
+    { k: "弱化市场", who: "已经有清晰的个人方向", fx: "市场只作参考，不主导整书定位", idea: "一座城市里所有说不出口的话。异能只是引子，故事写的是人。" },
+  ];
+  const [mode, setMode] = useState(1);
+  const [sel, setSel] = useState([5, 2, 3, 4]);
+  const [view, setView] = useState("list");
+  const [tip, setTip] = useState("");
+  const toggle = (i) => {
+    if (SG[i].crowd) {
+      setTip("这一条拥挤度很高。热度高不等于适合直接跟随，雷达会先建议你看差异化机会。");
+      return;
+    }
+    if (sel.includes(i)) {
+      setSel(sel.filter((x) => x !== i));
+      setTip("");
+      return;
+    }
+    if (sel.length >= 5) {
+      setTip("最多选择五项信号，先取消一项再选。");
+      return;
+    }
+    setSel(sel.concat(i));
+    setTip("");
+  };
+  const bars = (n, cls) => (
+    <span className={"ur-bar " + cls} aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((x) => (
+        <i key={x} className={x <= n ? "ur-f" : ""} />
+      ))}
+    </span>
+  );
+  return (
+    <div className="not-prose ur" id="ur-radar">
+      <style>{`
+.ur{position:relative;padding:110px 24px 120px;color:#ede9fe;background:radial-gradient(ellipse 50% 40% at 20% 30%,rgba(244,63,94,.12),transparent 70%),linear-gradient(180deg,#140b2e 0%,#0d0a22 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.ur-in{max-width:1160px;margin:0 auto}
+.ur-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#fb7185}
+.ur-h2{margin:14px 0 0;font-size:clamp(30px,4.4vw,46px);font-weight:900;letter-spacing:.06em;color:#fff}
+.ur-p{max-width:680px;margin:16px 0 0;font-size:16px;line-height:1.9;color:rgba(237,233,254,.75)}
+.ur-grid{display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:start;margin-top:48px}
+.ur-ph{position:relative;width:310px;height:640px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #2e2a48,0 0 0 6px #120e22,0 40px 90px -30px rgba(244,63,94,.45)}
+.ur-sc{position:relative;height:100%;overflow:hidden;border-radius:40px;background:#f8f7fb;color:#1f1b2e}
+.ur-isl{position:absolute;z-index:6;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.ur-sb{display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#111}
+.ur-sb em{font-style:normal;color:#dc2626}
+.ur-app{padding:16px 16px 10px;background:linear-gradient(135deg,#f43f5e,#f97316);color:#fff;margin-top:10px}
+.ur-app b{display:block;font-size:17px;letter-spacing:.04em}
+.ur-app small{display:block;margin-top:2px;font-size:11.5px;opacity:.85}
+.ur-chip{display:inline-block;margin-top:8px;padding:3px 10px;font-size:11px;border-radius:999px;background:rgba(255,255,255,.22)}
+.ur-body{position:absolute;top:126px;left:0;right:0;bottom:74px;overflow-y:auto;padding:10px 12px}
+.ur-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.ur-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;font-family:inherit;text-align:left;color:inherit;background:#fff;border:1px solid #ece9f3;border-radius:14px;cursor:pointer;transition:border-color .2s,background .2s}
+.ur-row:hover{border-color:#fda4af}
+.ur-row:focus-visible{outline:2px solid #f43f5e;outline-offset:2px}
+.ur-on{background:#fff1f2;border-color:#fb7185}
+.ur-diff{box-shadow:inset 3px 0 0 #8b5cf6}
+.ur-crowd{background:#f4f4f5;color:#71717a;cursor:not-allowed}
+.ur-ck{flex:0 0 18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;border:1.5px solid #d4d4d8;border-radius:6px}
+.ur-on .ur-ck{background:#f43f5e;border-color:#f43f5e}
+.ur-crowd .ur-ck{background:#a1a1aa;border-color:#a1a1aa}
+.ur-rt{flex:1;min-width:0}
+.ur-rt em{display:block;font-style:normal;font-size:10.5px;letter-spacing:.08em;color:#a1a1aa}
+.ur-diff .ur-rt em{color:#7c3aed;font-weight:700}
+.ur-rt b{display:block;margin-top:1px;font-size:12.5px;font-weight:600;line-height:1.4}
+.ur-ms{display:flex;flex-direction:column;gap:3px;font-size:10px;color:#a1a1aa}
+.ur-ms>span{display:flex;align-items:center;gap:4px}
+.ur-bar{display:flex;gap:2px}
+.ur-bar i{width:5px;height:8px;border-radius:1px;background:#e4e4e7}
+.ur-bh i.ur-f{background:#f43f5e}
+.ur-bc i.ur-f{background:#71717a}
+.ur-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.ur-tip{position:absolute;left:12px;right:12px;bottom:80px;z-index:4;padding:10px 12px;font-size:12px;line-height:1.6;color:#fff;background:rgba(24,24,27,.92);border-radius:12px;animation:urIn .25s ease both}
+@keyframes urIn{from{opacity:0;transform:translateY(8px)}}
+.ur-foot{position:absolute;left:0;right:0;bottom:0;padding:12px 14px 22px;background:#fff;border-top:1px solid #ece9f3}
+.ur-use{width:100%;padding:12px;font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg,#f43f5e,#f97316);border:none;border-radius:14px;cursor:pointer}
+.ur-use:disabled{opacity:.45;cursor:not-allowed}
+.ur-use:focus-visible,.ur-back:focus-visible,.ur-go:focus-visible{outline:2px solid #7c3aed;outline-offset:2px}
+.ur-back{padding:0;font-family:inherit;font-size:13px;color:#e11d48;background:none;border:none;cursor:pointer}
+.ur-bt{margin-top:8px;font-size:17px;font-weight:800}
+.ur-bt em{margin-left:8px;padding:2px 8px;font-style:normal;font-size:10.5px;font-weight:500;color:#7c3aed;background:#ede9fe;border-radius:999px;vertical-align:middle}
+.ur-brief dl{margin:10px 0 0}
+.ur-brief dt{margin-top:10px;font-size:11px;letter-spacing:.1em;color:#a1a1aa}
+.ur-brief dd{margin:3px 0 0;font-size:13px;line-height:1.65}
+.ur-tags{display:flex;flex-wrap:wrap;gap:5px}
+.ur-tags span{padding:2px 8px;font-size:11px;color:#9f1239;background:#ffe4e6;border-radius:999px}
+.ur-go{display:block;margin-top:12px;padding:12px;font-size:14px;font-weight:700;text-align:center;color:#fff;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#c026d3);border-radius:14px}
+.ur-side{padding-top:6px}
+.ur-st{font-size:13px;letter-spacing:.2em;color:#fda4af}
+.ur-md{display:block;width:100%;margin-top:10px;padding:14px 18px;font-family:inherit;text-align:left;color:#ede9fe;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.25);border-radius:16px;cursor:pointer;transition:border-color .2s,background .2s}
+.ur-md:hover{border-color:rgba(251,113,133,.6)}
+.ur-md:focus-visible{outline:2px solid #fb7185;outline-offset:2px}
+.ur-mon{background:rgba(244,63,94,.12);border-color:#fb7185}
+.ur-md b{display:flex;align-items:center;gap:8px;font-size:16px}
+.ur-md b em{padding:2px 8px;font-style:normal;font-size:11px;font-weight:500;color:#fff;background:#e11d48;border-radius:999px}
+.ur-md span{display:block;margin-top:5px;font-size:13.5px;line-height:1.6;color:rgba(237,233,254,.7)}
+.ur-rules{margin:22px 0 0;padding:0 0 0 18px;font-size:14px;line-height:1.85;color:rgba(237,233,254,.72)}
+.ur-rules li{margin-top:6px}
+.ur-lk{display:inline-block;margin-top:18px;font-size:15px;color:#fda4af;text-decoration:none;border-bottom:1px solid rgba(253,164,175,.4)}
+.ur-lk:hover{color:#fff}
+.ur-lk:focus-visible{outline:2px solid #fb7185;outline-offset:3px}
+.ur-dis{margin-top:16px;font-size:12.5px;color:rgba(196,181,253,.55)}
+@media (max-width:900px){.ur{padding:80px 20px 90px}.ur-grid{grid-template-columns:1fr;gap:36px;justify-items:center}.ur-side{width:100%}}
+@media (max-width:360px){.ur-ph{width:290px}}
+@media (prefers-reduced-motion:reduce){.ur *{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="ur-in">
+        <div className="ur-k">热榜 · 热门题材雷达（演示）</div>
+        <h2 className="ur-h2">先看榜，再开书</h2>
+        <p className="ur-p">开书之前，可以先让雷达扫一遍公开榜单，提炼出题材、主角身份、金手指、开局爆点这类信号。勾选你认同的几条，选一种市场影响方式，再点「用这些信号创作」，看看一份市场简报长什么样。</p>
+        <div className="ur-grid">
+          <div className="ur-ph">
+            <div className="ur-sc">
+              <span className="ur-isl" aria-hidden="true" />
+              <div className="ur-sb" aria-hidden="true">
+                <span>00:05</span>
+                <em>12%</em>
+              </div>
+              <div className="ur-app">
+                <b>热门题材雷达</b>
+                <small>AI 分析报告 · 演示</small>
+                <span className="ur-chip">影响方式 · {MD[mode].k}</span>
+              </div>
+              {view === "list" ? (
+                <>
+                  <div className="ur-body">
+                    <ul className="ur-list">
+                      {SG.map((s, i) => {
+                        const on = sel.includes(i);
+                        return (
+                          <li key={i}>
+                            <button type="button" className={"ur-row" + (on ? " ur-on" : "") + (s.crowd ? " ur-crowd" : "") + (s.diff ? " ur-diff" : "")} aria-pressed={s.crowd ? undefined : on} onClick={() => toggle(i)}>
+                              <span className="ur-ck" aria-hidden="true">{s.crowd ? "!" : on ? "✓" : ""}</span>
+                              <span className="ur-rt">
+                                <em>{s.ty}</em>
+                                <b>{s.t}</b>
+                              </span>
+                              <span className="ur-ms">
+                                <span>热{bars(s.h, "ur-bh")}</span>
+                                <span>挤{bars(s.c, "ur-bc")}</span>
+                              </span>
+                              <span className="ur-sr">热度 {s.h}/5，拥挤度 {s.c}/5</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                  {tip && (
+                    <div className="ur-tip" role="status">{tip}</div>
+                  )}
+                  <div className="ur-foot">
+                    <button type="button" className="ur-use" disabled={sel.length === 0} onClick={() => { setView("brief"); setTip(""); }}>用这些信号创作（{sel.length}）</button>
+                  </div>
+                </>
+              ) : (
+                <div className="ur-body ur-brief" style={{ bottom: 0 }}>
+                  <button type="button" className="ur-back" onClick={() => setView("list")}>‹ 返回报告</button>
+                  <div className="ur-bt">市场简报<em>演示</em></div>
+                  <dl>
+                    <dt>起始想法</dt>
+                    <dd>{MD[mode].idea}</dd>
+                    <dt>金手指 / 核心优势</dt>
+                    <dd>三米之内，任何一部手机草稿箱里的未发送消息，他都看得见。代价：每看一条，他会忘掉自己的一件小事。</dd>
+                    <dt>核心卖点</dt>
+                    <dd>每个人都有一句没发出去的话。他全看得见，却一句都不能说破。</dd>
+                    <dt>前 30 章承诺</dt>
+                    <dd>查清第一条求救草稿的主人；能力从三米扩到一整栋楼；靠它赚到第一笔真正的钱。</dd>
+                    <dt>推荐组合</dt>
+                    <dd className="ur-tags">
+                      <span>题材基底 · 都市异能</span>
+                      <span>主推进 · 升级变强</span>
+                      <span>辅助 · 解谜推进</span>
+                      <span>辅助 · 关系拉扯</span>
+                    </dd>
+                    <dt>用到的信号</dt>
+                    <dd className="ur-tags">
+                      {sel.map((i) => (
+                        <span key={i}>{SG[i].ty}</span>
+                      ))}
+                    </dd>
+                  </dl>
+                  <a className="ur-go" href="/features/auto-director">交给自动导演开书 →</a>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="ur-side">
+            <div className="ur-st">市场影响方式</div>
+            {MD.map((d, i) => (
+              <button key={d.k} type="button" className={"ur-md" + (mode === i ? " ur-mon" : "")} aria-pressed={mode === i} onClick={() => setMode(i)}>
+                <b>
+                  {d.k}
+                  {d.rec && <em>首次开书推荐</em>}
+                </b>
+                <span>适合：{d.who}</span>
+                <span>对开书的影响：{d.fx}</span>
+              </button>
+            ))}
+            <ul className="ur-rules">
+              <li>真实的雷达读取番茄小说、起点中文网和晋江文学城的公开榜单，每条信号都带着热度、拥挤度和榜单证据。</li>
+              <li>热度高不等于适合直接跟随。拥挤度也高时，先看「差异化机会」和证据。</li>
+              <li>默认选择一项差异化机会，再加最多三项支撑信号；最多选五项。</li>
+              <li>简报只保留读者满足点、爽点机制和结构机会，不复制榜单作品的人名、专有设定、简介表达和完整书名。</li>
+            </ul>
+            <a className="ur-lk" href="/features/market-radar">了解热门题材雷达 →</a>
+            <div className="ur-dis">演示：信号、热度、拥挤度与简报内容均为虚构示例，不代表真实榜单数据。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbChat = () => {
+  const EN = [
+    {
+      k: "升级变强", ch: "能力下一级，能看见什么", who: "未知号码", sub: "号码已隐藏", av: "?",
+      msgs: [["l", "你今天在 18 楼，看见了不该看的。"], ["r", "你是谁？"], ["l", "能看草稿箱，是一级。能看已经删掉的消息，是二级。"], ["l", "想知道三级能看见什么，明晚十点，老城区天桥。"], ["s", "能力范围：3 米 → 5 米（演示）"]],
+      hook: "第 2 章 · 三级，能看见什么？",
+      why: "主角每隔几章就有新变化：能力范围变大，能看见的东西变多。",
+      risk: "重复升级：每次只是数字变大，读者会腻。",
+    },
+    {
+      k: "经营扩张", ch: "小生意怎样一步步做大", who: "便利店王姐", sub: "楼下便利店老板", av: "王",
+      msgs: [["l", "听说你能帮人找出背后搞事的人？"], ["r", "五十块。找不出来，不要钱。"], ["m", "王姐 向你转账", "50.00 元"], ["r", "收到。明早给你答复。"], ["s", "余额：37.21 → 87.21（演示）"]],
+      hook: "第 2 章 · 第二单的客户，是全城最大的物业公司",
+      why: "一单接一单，生意越做越大，客户一个比一个难缠。",
+      risk: "冲突变弱：生意一顺，故事也就没劲了。",
+    },
+    {
+      k: "解谜推进", ch: "谜底什么时候揭开", who: "幸福里 3 栋业主群", sub: "32 人", av: "群",
+      msgs: [["l", "有人见过 1803 的林小满吗？三天没回家了。", "林阿姨"], ["l", "刚刚小满给我发消息了，说在同学家，没事。", "林阿姨"], ["l", "那就好那就好", "物业小刘"], ["r", "阿姨，她的手机壳是什么颜色？"], ["s", "陆川手里，正握着一部白色手机壳的手机（演示）"]],
+      hook: "第 2 章 · 那条「没事」，是谁发的？",
+      why: "读者最想知道的事，被一层一层揭开。",
+      risk: "谜题拖太久：一直不揭，读者会走。",
+    },
+    {
+      k: "关系拉扯", ch: "那句话什么时候说出口", who: "沈知夏", sub: "上次聊天：三年前", av: "沈",
+      msgs: [["l", "这么晚还在送单？"], ["r", "最后一单。"], ["d", "那年如果我没走，你会不会……", "她的草稿 · 未发送 · 只有你看得见"], ["l", "早点休息。"], ["s", "对方删除了一条草稿（演示）"]],
+      hook: "第 2 章 · 她删掉的那句话，他看见了",
+      why: "两个人之间那句没说出口的话，到底什么时候说出口。",
+      risk: "关系停滞：拉扯了二十章，两个人还在原地。",
+    },
+  ];
+  const ref = useRef(null);
+  const [m, setM] = useState(0);
+  const [n, setN] = useState(0);
+  const [seen, setSeen] = useState(false);
+  const [run, setRun] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver((es) => {
+      if (es[0].isIntersecting) {
+        setSeen(true);
+        io.disconnect();
+      }
+    }, { threshold: 0.3 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!seen) return;
+    const total = EN[m].msgs.length + 1;
+    const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setN(total);
+      return;
+    }
+    setN(0);
+    const ts = [];
+    for (let i = 1; i <= total; i++) ts.push(setTimeout(() => setN(i), 500 + i * 750));
+    return () => ts.forEach(clearTimeout);
+  }, [m, seen, run]);
+  const e = EN[m];
+  const len = e.msgs.length;
+  const nx = e.msgs[n];
+  const typing = seen && nx && (nx[0] === "l" || nx[0] === "m");
+  return (
+    <div className="not-prose uc" id="uc-chat" ref={ref}>
+      <style>{`
+.uc{position:relative;padding:110px 24px 120px;color:#ede9fe;background:radial-gradient(ellipse 50% 40% at 80% 30%,rgba(16,185,129,.1),transparent 70%),linear-gradient(180deg,#0d0a22 0%,#07060f 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.uc-in{max-width:1160px;margin:0 auto}
+.uc-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#6ee7b7}
+.uc-h2{margin:14px 0 0;font-size:clamp(30px,4.4vw,46px);font-weight:900;letter-spacing:.06em;color:#fff}
+.uc-p{max-width:680px;margin:16px 0 0;font-size:16px;line-height:1.9;color:rgba(237,233,254,.75)}
+.uc-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:40px}
+.uc-tab{padding:14px 16px;font-family:inherit;text-align:left;color:#ede9fe;background:rgba(255,255,255,.04);border:1px solid rgba(110,231,183,.2);border-radius:16px;cursor:pointer;transition:border-color .2s,background .2s}
+.uc-tab:hover{border-color:rgba(110,231,183,.55)}
+.uc-tab:focus-visible{outline:2px solid #6ee7b7;outline-offset:2px}
+.uc-ton{background:rgba(16,185,129,.14);border-color:#34d399}
+.uc-tab b{display:block;font-size:16px}
+.uc-tab span{display:block;margin-top:4px;font-size:12.5px;color:rgba(237,233,254,.6)}
+.uc-grid{display:grid;grid-template-columns:auto 1fr;gap:56px;align-items:center;margin-top:40px}
+.uc-ph{position:relative;width:300px;height:610px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #2a2e3f,0 0 0 6px #0f121c,0 40px 90px -30px rgba(16,185,129,.4)}
+.uc-sc{position:relative;height:100%;overflow:hidden;border-radius:40px;background:#0e0e16}
+.uc-isl{position:absolute;z-index:8;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.uc-sb{display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#fff}
+.uc-sb em{font-style:normal;color:#fca5a5}
+.uc-hd{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.uc-bk{font-size:22px;color:#34d399}
+.uc-av{flex:0 0 34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg,#6366f1,#a855f7);border-radius:50%}
+.uc-hd b{display:block;font-size:14px;color:#fff}
+.uc-hd small{display:block;font-size:11px;color:rgba(255,255,255,.5)}
+.uc-msgs{position:absolute;top:104px;left:0;right:0;bottom:60px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px}
+.uc-row{display:flex;animation:ucIn .35s ease both}
+@keyframes ucIn{from{opacity:0;transform:translateY(8px)}}
+.uc-r{justify-content:flex-end}
+.uc-bub{max-width:78%;padding:8px 12px;font-size:13.5px;line-height:1.55;color:#f4f4f5;background:#26233a;border-radius:16px 16px 16px 4px}
+.uc-bub em{display:block;margin-bottom:2px;font-style:normal;font-size:10.5px;color:#a5b4fc}
+.uc-r .uc-bub{color:#fff;background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:16px 16px 4px 16px}
+.uc-pay{width:72%;padding:10px 14px;color:#fff;background:linear-gradient(135deg,#f59e0b,#ea580c);border-radius:14px}
+.uc-pay b{display:block;font-size:18px}
+.uc-pay span{display:block;margin-top:2px;font-size:11.5px;opacity:.9}
+.uc-draft{max-width:80%;padding:8px 12px;font-size:13.5px;line-height:1.55;color:#f5d0fe;background:rgba(168,85,247,.12);border:1px dashed rgba(232,121,249,.7);border-radius:16px 16px 16px 4px;box-shadow:0 0 18px rgba(217,70,239,.35)}
+.uc-draft em{display:block;margin-bottom:2px;font-style:normal;font-size:10.5px;color:#e879f9}
+.uc-sys{align-self:center;padding:3px 10px;font-size:11px;color:#6ee7b7;background:rgba(16,185,129,.12);border-radius:999px;animation:ucIn .35s ease both}
+.uc-typing{display:flex;gap:4px;padding:12px 14px;background:#26233a;border-radius:16px 16px 16px 4px}
+.uc-typing i{width:6px;height:6px;border-radius:50%;background:#a1a1aa;animation:ucDot 1s ease-in-out infinite}
+.uc-typing i:nth-child(2){animation-delay:.15s}
+.uc-typing i:nth-child(3){animation-delay:.3s}
+@keyframes ucDot{50%{opacity:.3;transform:translateY(-3px)}}
+.uc-input{position:absolute;left:12px;right:12px;bottom:16px;padding:9px 14px;font-size:12.5px;color:rgba(255,255,255,.35);background:#1c1b27;border-radius:999px}
+.uc-hook{position:absolute;z-index:7;top:44px;left:10px;right:10px;padding:10px 14px;border-radius:18px;background:rgba(39,30,70,.96);box-shadow:0 0 0 1px rgba(196,181,253,.45),0 10px 30px rgba(0,0,0,.55),0 0 24px rgba(168,85,247,.45);animation:ucDrop .5s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes ucDrop{from{opacity:0;transform:translateY(-60px)}}
+.uc-hook span{display:block;font-size:10.5px;letter-spacing:.15em;color:#c4b5fd}
+.uc-hook b{display:block;margin-top:3px;font-size:13.5px;color:#fff}
+.uc-info{padding:26px 28px;background:rgba(255,255,255,.04);border:1px solid rgba(110,231,183,.22);border-radius:20px}
+.uc-it span{font-size:12.5px;letter-spacing:.2em;color:#6ee7b7}
+.uc-it b{display:block;margin-top:4px;font-size:28px;font-weight:900;color:#fff}
+.uc-info dl{margin:14px 0 0}
+.uc-info dt{margin-top:14px;font-size:12.5px;letter-spacing:.12em;color:rgba(237,233,254,.5)}
+.uc-info dd{margin:4px 0 0;font-size:15.5px;line-height:1.75;color:#ede9fe}
+.uc-note{margin:18px 0 0;font-size:14px;line-height:1.85;color:rgba(237,233,254,.68)}
+.uc-note a{color:#6ee7b7;text-decoration:none;border-bottom:1px solid rgba(110,231,183,.4)}
+.uc-note a:hover{color:#fff}
+.uc-again{margin-top:18px;padding:9px 20px;font-family:inherit;font-size:13.5px;color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(110,231,183,.4);border-radius:999px;cursor:pointer}
+.uc-again:focus-visible,.uc-note a:focus-visible{outline:2px solid #6ee7b7;outline-offset:3px}
+@media (max-width:900px){.uc{padding:80px 20px 90px}.uc-tabs{grid-template-columns:1fr 1fr}.uc-grid{grid-template-columns:1fr;gap:32px;justify-items:center}.uc-side{width:100%}}
+@media (max-width:360px){.uc-ph{width:284px}}
+@media (prefers-reduced-motion:reduce){.uc *{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="uc-in">
+        <div className="uc-k">消息 · 同一个开局，四种推进</div>
+        <h2 className="uc-h2">换一种推进，故事就拐进另一条街</h2>
+        <p className="uc-p">第 1 章结尾，陆川的手机亮了。主推进不同，发消息来的人不同，读者追下去的理由不同，最怕出的问题也不同。切换主推进，看同一个开局走向四条街。</p>
+        <div className="uc-tabs">
+          {EN.map((x, i) => (
+            <button key={x.k} type="button" className={"uc-tab" + (m === i ? " uc-ton" : "")} aria-pressed={m === i} onClick={() => setM(i)}>
+              <b>{x.k}</b>
+              <span>{x.ch}</span>
+            </button>
+          ))}
+        </div>
+        <div className="uc-grid">
+          <div className="uc-ph">
+            <div className="uc-sc">
+              <span className="uc-isl" aria-hidden="true" />
+              <div className="uc-sb" aria-hidden="true">
+                <span>00:13</span>
+                <em>11%</em>
+              </div>
+              {n > len && (
+                <div className="uc-hook" key={"h" + m + "-" + run}>
+                  <span>章末钩子</span>
+                  <b>{e.hook}</b>
+                </div>
+              )}
+              <div className="uc-hd">
+                <span className="uc-bk" aria-hidden="true">‹</span>
+                <span className="uc-av" aria-hidden="true">{e.av}</span>
+                <div>
+                  <b>{e.who}</b>
+                  <small>{e.sub}</small>
+                </div>
+              </div>
+              <div className="uc-msgs" aria-live="polite">
+                {e.msgs.slice(0, n).map((x, i) => {
+                  if (x[0] === "s") return <div key={m + "-" + i} className="uc-sys">{x[1]}</div>;
+                  if (x[0] === "m") return (
+                    <div key={m + "-" + i} className="uc-row">
+                      <div className="uc-pay"><b>{x[2]}</b><span>{x[1]}</span></div>
+                    </div>
+                  );
+                  if (x[0] === "d") return (
+                    <div key={m + "-" + i} className="uc-row">
+                      <div className="uc-draft"><em>{x[2]}</em>{x[1]}</div>
+                    </div>
+                  );
+                  return (
+                    <div key={m + "-" + i} className={"uc-row" + (x[0] === "r" ? " uc-r" : "")}>
+                      <div className="uc-bub">{x[2] && <em>{x[2]}</em>}{x[1]}</div>
+                    </div>
+                  );
+                })}
+                {typing && (
+                  <div className="uc-row">
+                    <div className="uc-typing" aria-label="对方正在输入"><i /><i /><i /></div>
+                  </div>
+                )}
+              </div>
+              <div className="uc-input" aria-hidden="true">发消息…</div>
+            </div>
+          </div>
+          <div className="uc-side">
+            <div className="uc-info">
+              <div className="uc-it">
+                <span>主推进</span>
+                <b>{e.k}</b>
+              </div>
+              <dl>
+                <dt>读者为什么追</dt>
+                <dd>{e.why}</dd>
+                <dt>章末钩子（演示）</dt>
+                <dd>{e.hook}</dd>
+                <dt>最怕出的问题</dt>
+                <dd>{e.risk}</dd>
+              </dl>
+            </div>
+            <p className="uc-note">一本书可以先定一个主推进，再补一两个辅助推进。比如都市异能：主推进「升级变强」，辅助「关系拉扯」和「经营扩张」。主推进负责稳定追读，辅助推进用于增加变化。</p>
+            <p className="uc-note">推进模式只参与规划判断，不会直接生成正文；演示里的消息只是示意方向。<a href="/features/progression-modes">推进模式库 →</a></p>
+            <button type="button" className="uc-again" onClick={() => setRun(run + 1)}>↻ 再看一遍</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbTitle = () => {
+  const DIM = ["题材感", "卖点感", "情绪强度", "识别度"];
+  const TT = [
+    { t: "我送外卖，看见了全城没发出去的话", dir: "从主角身份入手", s: [5, 5, 4, 4], g: "linear-gradient(160deg,#7c3aed,#db2777 60%,#f59e0b)", ok: true, note: "一眼能看出主角是谁、金手指是什么、故事在哪里发生。四个维度都不弱，适合当首选。" },
+    { t: "全城草稿箱", dir: "从金手指入手", s: [3, 4, 3, 5], g: "linear-gradient(160deg,#0f172a,#0e7490 70%,#22d3ee)", note: "短、好记、识别度高，但光看书名，读者不一定知道这是一本都市异能。" },
+    { t: "那些没说出口的话", dir: "从情绪承诺入手", s: [1, 2, 5, 2], g: "linear-gradient(160deg,#fda4af,#c4b5fd 70%,#e0e7ff)", note: "很好听，但看不出这本书讲什么。标题只好听却看不出内容，通常不是最优选择。" },
+    { t: "我能看穿全世界的秘密", dir: "夸大卖点", s: [3, 4, 5, 2], g: "linear-gradient(160deg,#111827,#b91c1c 65%,#fbbf24)", warn: true, note: "主角其实只能看见三米之内的草稿。过度夸张会让读者期待错误，后续章节更难承接。" },
+  ];
+  const CH = [
+    { t: "第 1 章　一条求救草稿", a: "陆川确认自己真的看得见别人的草稿。", b: "草稿的主人就在 18 楼，而他只是来送餐的。", c: "那条草稿被删掉了，删掉它的人不是机主。" },
+    { t: "第 2 章　18 楼没有人住", a: "找到写下求救草稿的人。", b: "物业说，18 楼已经空了两年。", c: "他自己的手机里，多了一条他没写过的草稿。" },
+    { t: "第 3 章　五十块的第一单", a: "用能力赚到第一笔钱，先把房租交上。", b: "王姐要找的内鬼，是她亲弟弟。", c: "王姐弟弟的草稿箱里，也躺着那句「救我」。" },
+  ];
+  const [p, setP] = useState(0);
+  const [c, setC] = useState(0);
+  const tt = TT[p];
+  return (
+    <div className="not-prose ut" id="ut-title">
+      <style>{`
+.ut{position:relative;padding:110px 24px 120px;color:#1e1b4b;background:radial-gradient(ellipse 50% 40% at 85% 20%,rgba(56,189,248,.18),transparent 70%),linear-gradient(180deg,#f5f3ff 0%,#ede9fe 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.ut-in{max-width:1160px;margin:0 auto}
+.ut-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#4f46e5}
+.ut-h2{margin:14px 0 0;font-size:clamp(30px,4.4vw,46px);font-weight:900;letter-spacing:.06em;color:#1e1b4b}
+.ut-p{max-width:680px;margin:16px 0 0;font-size:16px;line-height:1.9;color:#4c4a6b}
+.ut-grid{display:grid;grid-template-columns:1fr auto;gap:56px;align-items:start;margin-top:48px}
+.ut-cl{font-size:13px;letter-spacing:.2em;color:#6366f1}
+.ut-cand{display:block;width:100%;margin-top:10px;padding:14px 18px;font-family:inherit;text-align:left;color:#1e1b4b;background:#fff;border:1px solid #ddd6fe;border-radius:16px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.ut-cand:hover{border-color:#a5b4fc}
+.ut-cand:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+.ut-on{border-color:#6366f1;box-shadow:0 10px 30px -14px rgba(79,70,229,.6)}
+.ut-cand em{display:block;font-style:normal;font-size:12px;letter-spacing:.1em;color:#8b8aa8}
+.ut-cand b{display:block;margin-top:3px;font-size:16.5px}
+.ut-dims{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin-top:22px;padding:18px 20px;background:rgba(255,255,255,.7);border-radius:16px}
+.ut-dim{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.ut-dots{display:flex;gap:4px}
+.ut-dots i{width:10px;height:10px;border-radius:50%;background:#e0e7ff;transition:background .25s}
+.ut-dots i.ut-f{background:#6366f1}
+.ut-note{margin:14px 0 0;padding:12px 16px;font-size:14.5px;line-height:1.8;color:#3f3d5c;background:#fff;border-left:3px solid #a5b4fc;border-radius:0 12px 12px 0}
+.ut-ok{border-left-color:#10b981}
+.ut-warn{color:#7f1d1d;background:#fef2f2;border-left-color:#ef4444}
+.ut-small{margin:16px 0 0;font-size:13.5px;line-height:1.85;color:#6b6990}
+.ut-small a{color:#4f46e5;text-decoration:none;border-bottom:1px solid rgba(79,70,229,.35)}
+.ut-small a:focus-visible{outline:2px solid #4f46e5;outline-offset:3px}
+.ut-ph{position:relative;width:300px;height:620px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #c7c3e0,0 0 0 6px #e7e4f5,0 40px 80px -30px rgba(79,70,229,.55)}
+.ut-sc{position:relative;height:100%;overflow:hidden;border-radius:40px;background:#fff}
+.ut-isl{position:absolute;z-index:6;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.ut-sb{display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#111}
+.ut-sb em{font-style:normal;color:#dc2626}
+.ut-nav{display:flex;justify-content:space-between;margin-top:12px;padding:6px 16px;font-size:13px;color:#4f46e5}
+.ut-body{position:absolute;top:80px;left:0;right:0;bottom:66px;overflow-y:auto;padding:4px 16px 12px}
+.ut-book{display:flex;gap:12px}
+.ut-cv{flex:0 0 92px;height:126px;display:flex;align-items:flex-end;padding:8px;border-radius:6px 10px 10px 6px;box-shadow:inset 4px 0 0 rgba(0,0,0,.18),0 8px 18px -8px rgba(0,0,0,.5);animation:utIn .45s ease both}
+.ut-cv span{font-size:12px;font-weight:800;line-height:1.35;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+@keyframes utIn{from{opacity:0;transform:translateY(6px) scale(.97)}}
+.ut-bi{min-width:0}
+.ut-bi b{display:block;font-size:15px;line-height:1.45;color:#111}
+.ut-bi small{display:block;margin-top:5px;font-size:11.5px;color:#8b8aa8}
+.ut-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.ut-tags span{padding:2px 7px;font-size:10.5px;color:#4338ca;background:#eef2ff;border-radius:6px}
+.ut-blurb{margin:12px 0 0;padding:10px 12px;font-size:12.5px;line-height:1.7;color:#3f3d5c;background:#f5f3ff;border-radius:10px}
+.ut-toc{margin-top:14px;font-size:12px;font-weight:700;color:#111}
+.ut-chs{list-style:none;margin:6px 0 0;padding:0}
+.ut-chs li{border-bottom:1px solid #f0eff7}
+.ut-chs button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 0;font-family:inherit;font-size:13px;text-align:left;color:#1e1b4b;background:none;border:none;cursor:pointer}
+.ut-chs button:focus-visible{outline:2px solid #4f46e5;outline-offset:2px}
+.ut-chs button i{font-style:normal;color:#a5b4fc}
+.ut-chs dl{margin:0 0 10px;padding:8px 10px;background:#fafaff;border-radius:10px;animation:utIn .3s ease both}
+.ut-chs dt{font-size:10.5px;letter-spacing:.1em;color:#6366f1}
+.ut-chs dt:not(:first-child){margin-top:6px}
+.ut-chs dd{margin:2px 0 0;font-size:12px;line-height:1.6;color:#3f3d5c}
+.ut-cta{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;padding:10px 14px 20px;background:#fff;border-top:1px solid #f0eff7}
+.ut-cta span,.ut-cta b{flex:1;padding:9px;font-size:13px;text-align:center;border-radius:12px}
+.ut-cta span{color:#4f46e5;background:#eef2ff}
+.ut-cta b{color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+@media (max-width:900px){.ut{padding:80px 20px 90px}.ut-grid{grid-template-columns:1fr;gap:36px;justify-items:center}.ut-left{width:100%}}
+@media (max-width:420px){.ut-dims{grid-template-columns:1fr}}
+@media (max-width:360px){.ut-ph{width:284px}}
+@media (prefers-reduced-motion:reduce){.ut *{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="ut-in">
+        <div className="ut-k">书城 · 标题工坊（演示）</div>
+        <h2 className="ut-h2">一眼看懂，才会点开</h2>
+        <p className="ut-p">书名要在一眼之内说清题材、卖点和主角的处境。下面四个候选来自不同的命名方向。点一个，看它摆进书城是什么样子；再点开目录，看章节标题怎样提示本章的任务、冲突和钩子。</p>
+        <div className="ut-grid">
+          <div className="ut-left">
+            <div className="ut-cl">书名候选 · 选一个</div>
+            {TT.map((x, i) => (
+              <button key={x.t} type="button" className={"ut-cand" + (p === i ? " ut-on" : "")} aria-pressed={p === i} onClick={() => setP(i)}>
+                <em>{x.dir}</em>
+                <b>《{x.t}》</b>
+              </button>
+            ))}
+            <div className="ut-dims">
+              {DIM.map((d, j) => (
+                <div key={d} className="ut-dim">
+                  <span>{d}</span>
+                  <span className="ut-dots" role="img" aria-label={d + " " + tt.s[j] + " 分（满分 5）"}>
+                    {[1, 2, 3, 4, 5].map((x) => (
+                      <i key={x} className={x <= tt.s[j] ? "ut-f" : ""} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className={"ut-note" + (tt.warn ? " ut-warn" : tt.ok ? " ut-ok" : "")}>{tt.note}</p>
+            <p className="ut-small">比较维度来自标题工坊：题材感、卖点感、情绪强度、识别度；这里的分数是演示。章节标题不必每章都追求强标题党，可以提示本章的冲突、反转、收获或悬念。标题工坊只生成候选，最终书名需要你在小说创建页或项目设定里手动确认和替换。<a href="/features/title-workshop">了解标题工坊 →</a></p>
+          </div>
+          <div className="ut-ph">
+            <div className="ut-sc">
+              <span className="ut-isl" aria-hidden="true" />
+              <div className="ut-sb" aria-hidden="true">
+                <span>00:27</span>
+                <em>9%</em>
+              </div>
+              <div className="ut-nav" aria-hidden="true">
+                <span>‹ 书城</span>
+                <span>···</span>
+              </div>
+              <div className="ut-body">
+                <div className="ut-book">
+                  <div className="ut-cv" key={"c" + p} style={{ background: tt.g }} aria-hidden="true">
+                    <span>{tt.t}</span>
+                  </div>
+                  <div className="ut-bi">
+                    <b>{tt.t}</b>
+                    <small>演示作者 · 都市异能 · 连载中</small>
+                    <div className="ut-tags">
+                      <span>都市异能</span>
+                      <span>升级变强</span>
+                      <span>解谜</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="ut-blurb">三米之内，所有没发出去的话，他都看得见。</p>
+                <div className="ut-toc">目录 · 共 3 章（演示）</div>
+                <ul className="ut-chs">
+                  {CH.map((ch, i) => (
+                    <li key={ch.t}>
+                      <button type="button" aria-expanded={c === i} onClick={() => setC(c === i ? -1 : i)}>
+                        {ch.t}
+                        <i aria-hidden="true">{c === i ? "−" : "+"}</i>
+                      </button>
+                      {c === i && (
+                        <dl>
+                          <dt>本章任务</dt>
+                          <dd>{ch.a}</dd>
+                          <dt>核心冲突</dt>
+                          <dd>{ch.b}</dd>
+                          <dt>结尾钩子</dt>
+                          <dd>{ch.c}</dd>
+                        </dl>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="ut-cta" aria-hidden="true">
+                <span>加入书架</span>
+                <b>开始阅读</b>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbCall = () => {
+  const LINES = ["喂？是下一位作者吗？", "我的故事，只写到第 3 章。", "18 楼那条草稿是谁写的，我也还不知道。", "后面的路，你来写。"];
+  const ref = useRef(null);
+  const [seen, setSeen] = useState(false);
+  const [st, setSt] = useState("ring");
+  const [sec, setSec] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver((es) => {
+      if (es[0].isIntersecting) {
+        setSeen(true);
+        io.disconnect();
+      }
+    }, { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (st !== "on") return;
+    const t = setInterval(() => setSec((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [st]);
+  const fmt = (s) => String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  const redial = () => {
+    setSec(0);
+    setSt("ring");
+  };
+  const CHIPS = [
+    ["仙侠修真", "/showcase/xianxia", "uk-cx"],
+    ["末世求生", "/showcase/wasteland", "uk-cw"],
+    ["悬疑推理", "/showcase/mystery", "uk-cm"],
+    ["穿书女频", "/showcase/romance", "uk-cr"],
+  ];
+  return (
+    <div className={"not-prose uk" + (seen ? " uk-seen" : "")} ref={ref}>
+      <style>{`
+.uk{position:relative;overflow:hidden;padding:120px 24px 110px;color:#ede9fe;background:radial-gradient(ellipse 45% 45% at 25% 50%,rgba(124,58,237,.35),transparent 70%),radial-gradient(ellipse 40% 40% at 90% 90%,rgba(34,211,238,.12),transparent 70%),linear-gradient(180deg,#120a26 0%,#05030a 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.uk-in{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:64px;align-items:center}
+.uk-ph{position:relative;width:300px;height:610px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #2e2a48,0 0 0 6px #120e22,0 40px 90px -30px rgba(124,58,237,.8);opacity:0;translate:0 30px;transition:opacity .8s ease,translate .8s ease}
+.uk-seen .uk-ph{opacity:1;translate:0 0}
+.uk-sc{position:relative;height:100%;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:60px 22px 40px;border-radius:40px;background:radial-gradient(ellipse 90% 60% at 50% 0%,rgba(139,92,246,.55),transparent 70%),linear-gradient(180deg,#1b1238,#07050f)}
+.uk-isl{position:absolute;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.uk-sb{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#fff}
+.uk-sb em{font-style:normal;color:#fca5a5}
+.uk-st{margin-top:24px;font-size:13px;letter-spacing:.15em;color:rgba(255,255,255,.65)}
+.uk-nm{margin-top:6px;font-size:30px;font-weight:600;color:#fff}
+.uk-avw{position:relative;margin-top:34px;width:110px;height:110px}
+.uk-av{position:relative;z-index:2;width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;color:#fff;background:linear-gradient(135deg,#7c3aed,#c026d3);border-radius:50%}
+.uk-ring{position:absolute;inset:0;border:2px solid rgba(232,121,249,.6);border-radius:50%;animation:ukRing 2s ease-out infinite}
+.uk-ring:nth-child(2){animation-delay:1s}
+@keyframes ukRing{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(1.8)}}
+.uk-acts{display:flex;justify-content:space-between;width:100%;margin-top:auto;padding:0 14px}
+.uk-act{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.8)}
+.uk-btn{width:64px;height:64px;display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:24px;color:#fff;border:none;border-radius:50%;cursor:pointer;transition:scale .2s}
+.uk-btn:hover{scale:1.08}
+.uk-btn:focus-visible{outline:2px solid #67e8f9;outline-offset:4px}
+.uk-no{background:#ef4444}
+.uk-yes{background:#22c55e;animation:ukShake 1.6s ease-in-out infinite}
+@keyframes ukShake{0%,60%,100%{rotate:0deg}65%,75%,85%{rotate:-12deg}70%,80%,90%{rotate:12deg}}
+.uk-lines{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:28px}
+.uk-line{padding:10px 14px;font-size:14px;line-height:1.6;color:#fff;background:rgba(255,255,255,.1);border-radius:14px;animation:ukIn .5s ease both}
+@keyframes ukIn{from{opacity:0;transform:translateY(8px)}}
+.uk-end{margin-top:40px;text-align:center;font-size:14px;line-height:1.9;color:rgba(255,255,255,.75)}
+.uk-end b{display:block;font-size:18px;color:#fff}
+.uk-re{margin-top:auto;padding:12px 28px;font-family:inherit;font-size:14px;color:#fff;background:#22c55e;border:none;border-radius:999px;cursor:pointer}
+.uk-re:focus-visible{outline:2px solid #67e8f9;outline-offset:4px}
+.uk-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#67e8f9}
+.uk-h{margin:16px 0 0;font-size:clamp(34px,5vw,56px);font-weight:900;letter-spacing:.06em;color:#fff}
+.uk-h span{color:#f5d0fe;text-shadow:0 0 10px #e879f9,0 0 30px #a855f7}
+.uk-p{max-width:540px;margin:20px 0 0;font-size:16.5px;line-height:1.95;color:rgba(237,233,254,.78)}
+.uk-bs{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.uk-b{display:inline-flex;align-items:center;padding:10px 18px;font-size:14.5px;color:#ddd6fe;text-decoration:none;background:rgba(76,29,149,.22);border:1px solid rgba(167,139,250,.4);border-radius:12px;transition:background .2s,translate .2s}
+.uk-b:hover{background:rgba(124,58,237,.35);translate:0 -2px}
+.uk-pri{padding:12px 24px;font-size:15.5px;font-weight:700;color:#fff;background:linear-gradient(135deg,#7c3aed,#c026d3);border-color:transparent;box-shadow:0 12px 30px -12px rgba(192,38,211,.8)}
+.uk-ct{margin-top:34px;font-size:12.5px;letter-spacing:.2em;color:rgba(196,181,253,.6)}
+.uk-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.uk-chips a{padding:6px 14px;font-size:13px;text-decoration:none;border-radius:999px}
+.uk-cx{color:#99f6e4;border:1px solid rgba(45,212,191,.45);background:rgba(20,184,166,.1)}
+.uk-cw{color:#fed7aa;border:1px solid rgba(251,146,60,.45);background:rgba(234,88,12,.1)}
+.uk-cm{color:#bfdbfe;border:1px solid rgba(96,165,250,.45);background:rgba(37,99,235,.1)}
+.uk-cr{color:#fbcfe8;border:1px solid rgba(244,114,182,.45);background:rgba(219,39,119,.1)}
+.uk-home{display:inline-block;margin-top:26px;font-size:14px;color:#c4b5fd;text-decoration:none}
+.uk-home:hover{color:#fff}
+.uk-dis{margin-top:14px;font-size:12.5px;color:rgba(196,181,253,.5)}
+.uk-b:focus-visible,.uk-chips a:focus-visible,.uk-home:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
+@media (max-width:900px){.uk{padding:90px 20px 80px}.uk-in{grid-template-columns:1fr;gap:40px;justify-items:center}.uk-copy{width:100%}}
+@media (max-width:360px){.uk-ph{width:284px}}
+@media (prefers-reduced-motion:reduce){.uk *{animation:none!important;transition:none!important}.uk-ph{opacity:1;translate:0 0}}
+`}</style>
+      <div className="uk-in">
+        <div className="uk-ph">
+          <div className="uk-sc" aria-live="polite">
+            <span className="uk-isl" aria-hidden="true" />
+            <div className="uk-sb" aria-hidden="true">
+              <span>00:41</span>
+              <em>8%</em>
+            </div>
+            {st === "ring" && (
+              <>
+                <div className="uk-st">都市异能 · 来电</div>
+                <div className="uk-nm">陆川</div>
+                <div className="uk-avw" aria-hidden="true">
+                  <span className="uk-ring" />
+                  <span className="uk-ring" />
+                  <div className="uk-av">陆</div>
+                </div>
+                <div className="uk-acts">
+                  <div className="uk-act">
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断来电" onClick={() => setSt("miss")}>✕</button>
+                    挂断
+                  </div>
+                  <div className="uk-act">
+                    <button type="button" className="uk-btn uk-yes" aria-label="接听来电" onClick={() => { setSec(0); setSt("on"); }}>✆</button>
+                    接听
+                  </div>
+                </div>
+              </>
+            )}
+            {st === "on" && (
+              <>
+                <div className="uk-st">通话中 · {fmt(sec)}</div>
+                <div className="uk-nm">陆川</div>
+                <div className="uk-lines">
+                  {LINES.map((l, i) => (
+                    <div key={l} className="uk-line" style={{ animationDelay: 0.6 + i * 1.5 + "s" }}>{l}</div>
+                  ))}
+                </div>
+                <div className="uk-acts" style={{ justifyContent: "center" }}>
+                  <div className="uk-act">
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断通话" onClick={() => setSt("end")}>✕</button>
+                    挂断
+                  </div>
+                </div>
+              </>
+            )}
+            {st === "end" && (
+              <>
+                <div className="uk-st">通话结束 · {fmt(sec)}</div>
+                <div className="uk-nm">陆川</div>
+                <div className="uk-end">
+                  <b>他把第 4 章留给了你。</b>
+                  草稿箱里那句「救我」，还在等一个结局。
+                </div>
+                <button type="button" className="uk-re" onClick={redial}>↻ 再打一次</button>
+              </>
+            )}
+            {st === "miss" && (
+              <>
+                <div className="uk-st">未接来电</div>
+                <div className="uk-nm">陆川</div>
+                <div className="uk-end">
+                  <b>他还会再打来的。</b>
+                  故事停在第 3 章，等人接着写。
+                </div>
+                <button type="button" className="uk-re" onClick={redial}>✆ 回拨</button>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="uk-copy">
+          <div className="uk-k">来电 · 写给下一位作者</div>
+          <h2 className="uk-h">第 4 章，<span>由你来写</span></h2>
+          <p className="uk-p">在开书页写下灵感，故事类型和推进方式可以自己挑，也可以交给 AI 自动匹配；想先看看市场，就去热门题材雷达扫一遍榜，把选中的信号交给自动导演开书。比如用升级变强做主推进，再配关系拉扯和经营扩张。</p>
+          <div className="uk-bs">
+            <a className="uk-b uk-pri" href="/quickstart">开始写第一本 →</a>
+            <a className="uk-b" href="/features/market-radar">热门题材雷达</a>
+            <a className="uk-b" href="/features/title-workshop">标题工坊</a>
+            <a className="uk-b" href="/features/progression-modes">推进模式库</a>
+            <a className="uk-b" href="/features/auto-director">自动导演</a>
+          </div>
+          <div className="uk-ct">其他题材展厅</div>
+          <div className="uk-chips">
+            {CHIPS.map((c) => (
+              <a key={c[1]} className={c[2]} href={c[1]}>{c[0]} · 已开放</a>
+            ))}
+          </div>
+          <a className="uk-home" href="/">← 回到首页书架</a>
+          <div className="uk-dis">演示：人物、剧情、信号与文字均为示意。</div>
+        </div>
+      </div>
+    </div>
+  );
+};
