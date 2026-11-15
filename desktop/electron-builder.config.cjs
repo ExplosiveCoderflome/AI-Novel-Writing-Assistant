@@ -34,6 +34,10 @@ if (isWindowsTarget && !isBetaRelease && !hasWindowsSigningMaterial && !allowUns
   );
 }
 
+// Installer / DMG / AppImage basenames must match GitHub Release + latest*.yml urls.
+// Do not use ${productName} here: spaces become disk names that diverge from hyphenated update metadata.
+const artifactBasename = "Biz-Novel-Studio";
+
 module.exports = {
   appId: "com.ai-novel.desktop",
   productName: "Biz Novel Studio",
@@ -104,17 +108,17 @@ module.exports = {
     identity: null,
     notarize: false,
     target: [{ target: "dmg", arch: ["x64", "arm64"] }],
-    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    artifactName: `${artifactBasename}-\${version}-mac-\${arch}.\${ext}`,
     category: "public.app-category.productivity",
   },
   linux: {
     icon: "builder/app-icon.png",
     target: [{ target: "AppImage", arch: ["x64"] }],
-    artifactName: "${productName}-${version}-linux-${arch}.${ext}",
+    artifactName: `${artifactBasename}-\${version}-linux-\${arch}.\${ext}`,
     category: "Office",
   },
   nsis: {
-    artifactName: "${productName}-${version}-setup-${arch}.${ext}",
+    artifactName: `${artifactBasename}-\${version}-setup-\${arch}.\${ext}`,
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
@@ -128,6 +132,6 @@ module.exports = {
     installerHeaderIcon: builderIconPath,
   },
   portable: {
-    artifactName: "${productName}-${version}-portable-${arch}.${ext}",
+    artifactName: `${artifactBasename}-\${version}-portable-\${arch}.\${ext}`,
   },
 };
