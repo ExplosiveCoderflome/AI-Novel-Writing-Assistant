@@ -8,6 +8,10 @@
 <p align="center"><sub>Open-source AI novel writing assistant and long-form production studio.</sub></p>
 
 <p align="center">
+  <a href="https://ai-novel-writing-assistant.mintlify.app"><strong>🌐 项目官网｜使用文档、下载安装与更新说明</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><img src="https://img.shields.io/github/v/release/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=flat-square&amp;label=Windows%20%E6%A1%8C%E9%9D%A2%E7%89%88&amp;color=17556b" alt="最新桌面版本" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-17556b?style=flat-square" alt="AGPL-3.0 许可证" /></a>
   <a href="https://linux.do/"><img src="https://img.shields.io/badge/LINUX%20DO-%E7%A4%BE%E5%8C%BA-FDD835?style=flat-square&amp;labelColor=222" alt="LINUX DO 社区" /></a>
@@ -34,7 +38,7 @@
 
 <p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><strong>下载 Windows 桌面版</strong></a> ·
-  <a href="https://ai-novel-writing-assistant.mintlify.site">项目介绍与文档</a> ·
+  <a href="https://ai-novel-writing-assistant.mintlify.app">项目官网与文档</a> ·
   <a href="#快速开始">第一次使用</a> ·
   <a href="#源码运行">源码运行</a> ·
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues">问题反馈</a>
