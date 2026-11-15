@@ -1,7 +1,7 @@
 ---
 title: "穿书女频 · 题材展厅"
 sidebarTitle: "穿书女频"
-description: "一份可以动手批改的原著剧本：你穿成第 36 章就要饮毒酒的恶毒女配，用红笔改写剧情又不让人设崩塌，看书契约、角色库、反 AI 规则、写法引擎、推进模式和状态回流怎样参与其中。"
+description: "你穿成了古早虐文里第 36 章就要饮毒酒的恶毒女配，睁眼却看见满天弹幕。有些是剧透，有些是谎言，有一条来自作者本人。用红笔改写剧本，截图存证，找出作者小号，在弹幕的迷雾里改写结局。"
 mode: "custom"
 icon: "feather"
 keywords:
@@ -20,6 +20,8 @@ keywords:
 
 <TsEdit />
 
+<TsRemix />
+
 <TsCta />
 
 export const TsOpen = () => {
@@ -33,6 +35,15 @@ export const TsOpen = () => {
     s: (i * 1.7) % 12,
     z: 9 + (i % 4) * 4,
   }));
+  const DANMU = [
+    { t: "姐妹快跑，男主才是下毒的人", x: 12, y: 18, d: 9 },
+    { t: "别信弹幕，弹幕有一半是作者小号", x: 62, y: 28, d: 11 },
+    { t: "原著第 36 章她必死，别挣扎了", x: 28, y: 42, d: 8 },
+    { t: "剧透：下毒的是老太君身边的嬷嬷", x: 55, y: 56, d: 10 },
+    { t: "前方高能，第 12 章赏花宴有反转", x: 8, y: 70, d: 12 },
+    { t: "只有我注意到女配指甲上有毒粉吗", x: 72, y: 14, d: 7 },
+    { t: "作者小号在此，你们猜是哪条", x: 38, y: 82, d: 13 },
+  ];
   const [k, setK] = useState(0);
   return (
     <div className="not-prose to">
@@ -40,7 +51,10 @@ export const TsOpen = () => {
 .to{position:relative;overflow:hidden;min-height:100vh;padding:0 24px 70px;color:#3b1d24;background:radial-gradient(ellipse 55% 45% at 76% 45%,rgba(244,114,182,.22),transparent 70%),radial-gradient(ellipse 60% 50% at 8% 95%,rgba(251,207,232,.7),transparent 70%),linear-gradient(180deg,#fdf2f4 0%,#f9e4e8 60%,#f6dfe3 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
 .to-petals{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .to-petals i{position:absolute;top:-40px;border-radius:100% 0 100% 0;background:linear-gradient(135deg,#fde2ec,#f472b6);opacity:.65;animation:toFall linear infinite}
-@keyframes toFall{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(70px,620px) rotate(210deg)}100%{transform:translate(-30px,1300px) rotate(440deg)}}
+@keyframes toFall{0%{translate:0 0;rotate:0}50%{translate:70px 620px;rotate:210deg}100%{translate:-30px 1300px;rotate:440deg}}
+.to-dm{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1}
+.to-dm span{position:absolute;white-space:nowrap;font-size:13px;padding:4px 12px;border-radius:999px;background:rgba(255,255,255,.78);border:1px solid rgba(244,114,182,.35);color:#9d174d;box-shadow:0 2px 8px rgba(244,114,182,.15);animation:toDm linear infinite}
+@keyframes toDm{0%{translate:120vw 0}100%{translate:-120vw 0}}
 .to-top{position:relative;z-index:2;max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:22px 0;font-size:13px;letter-spacing:.25em;color:#9d174d}
 .to-top a{color:#9d174d;text-decoration:none;letter-spacing:.1em}
 .to-top a:hover{color:#be123c}
@@ -59,7 +73,7 @@ export const TsOpen = () => {
 .to-demo{margin-top:18px;font-size:12.5px;color:rgba(59,29,36,.55)}
 .to-desk{display:flex;flex-direction:column;align-items:center;gap:20px;padding:30px 0}
 .to-page{position:relative;width:100%;max-width:440px;padding:46px 34px 34px 58px;background:#fffdfa;border-radius:3px;box-shadow:0 30px 60px -28px rgba(157,23,77,.5),0 2px 0 rgba(157,23,77,.08);rotate:1.5deg;font-family:"Noto Serif SC","Songti SC","STSong",serif;animation:toPage .8s ease both}
-@keyframes toPage{from{opacity:0;transform:translateY(24px)}}
+@keyframes toPage{from{opacity:0;translate:0 24px}}
 .to-page::before{content:"";position:absolute;left:40px;top:0;bottom:0;width:1px;background:rgba(190,18,60,.35)}
 .to-tape{position:absolute;top:-12px;left:50%;width:120px;height:26px;translate:-50% 0;rotate:-3deg;background:rgba(244,114,182,.35);border-left:2px dashed rgba(255,255,255,.7);border-right:2px dashed rgba(255,255,255,.7)}
 .to-ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding-bottom:12px;border-bottom:2px solid #3b1d24}
@@ -74,20 +88,25 @@ export const TsOpen = () => {
 .to-n1,.to-n2{display:block;font-style:normal;font-weight:400;font-family:"Kaiti SC","STKaiti","KaiTi",serif;color:#be123c;animation:toIn .5s ease both}
 .to-n1{margin-top:2px;font-size:14px;animation-delay:1.6s}
 .to-n2{margin-top:6px;font-size:19px;rotate:-2deg;animation-delay:2.8s}
-@keyframes toIn{from{opacity:0;transform:translateY(-4px)}}
+@keyframes toIn{from{opacity:0;translate:0 -4px}}
 .to-st{text-decoration:none;background:linear-gradient(#be123c,#be123c) no-repeat 0 58%/100% 2px;animation:toStrike .5s ease 2.2s both}
 @keyframes toStrike{from{background-size:0% 2px}}
 .to-foot{margin:18px 0 0;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:14px;line-height:1.8;color:rgba(59,29,36,.6)}
 .to-stamp{position:absolute;right:20px;bottom:74px;padding:5px 12px;border:3px solid #be123c;border-radius:4px;color:#be123c;font-family:"Noto Sans SC",sans-serif;font-size:19px;font-weight:900;letter-spacing:.2em;opacity:.85;rotate:-14deg;animation:toStamp .45s cubic-bezier(.3,1.6,.5,1) 3.4s both}
-@keyframes toStamp{from{opacity:0;transform:scale(1.8)}to{opacity:.85;transform:scale(1)}}
+@keyframes toStamp{from{opacity:0;scale:1.8}to{opacity:.85;scale:1}}
 .to-re{font-family:inherit;font-size:13px;letter-spacing:.15em;color:#9d174d;background:none;border:1px dashed rgba(157,23,77,.4);border-radius:999px;padding:7px 16px;cursor:pointer}
 .to-re:hover{background:rgba(255,255,255,.6)}
 @media (max-width:900px){.to-grid{grid-template-columns:1fr;gap:20px;padding-top:20px}.to-page{padding:40px 20px 28px 44px}.to-page::before{left:30px}}
-@media (prefers-reduced-motion:reduce){.to-petals{display:none}.to *{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.to-petals{display:none}.to-dm{display:none}.to *{animation:none!important}}
       `}</style>
       <div className="to-petals" aria-hidden="true">
         {PETALS.map((p, i) => (
           <i key={i} style={{ left: p.l + "%", width: p.z + "px", height: p.z + "px", animationDuration: p.d + "s", animationDelay: "-" + p.s + "s" }} />
+        ))}
+      </div>
+      <div className="to-dm" aria-hidden="true">
+        {DANMU.map((d, i) => (
+          <span key={i} style={{ left: d.x + "%", top: d.y + "%", animationDuration: d.d + "s", animationDelay: "-" + (i * 2.3) + "s" }}>{d.t}</span>
         ))}
       </div>
       <div className="to-top">
@@ -98,7 +117,7 @@ export const TsOpen = () => {
         <div>
           <div className="to-k">原著剧本 · 第一卷</div>
           <h1 className="to-h1">穿书<span className="to-hh">女频</span></h1>
-          <p className="to-sub">这间展厅是一份原著剧本。你穿成了第 36 章就要饮毒酒的恶毒女配，手里只有一支红笔：剧本可以改，人设不能崩。</p>
+          <p className="to-sub">你穿成了古早虐文里第 36 章就要饮毒酒的恶毒女配。睁眼那一刻，满天弹幕飘过：有些是剧透，有些是谎言，有一条来自作者本人。剧本可以改，人设不能崩。</p>
           <div className="to-btns">
             <a className="to-btn to-pri" href="#ts-script">拿起红笔 ↓</a>
             <a className="to-btn" href="/quickstart">直接开书 →</a>
@@ -130,11 +149,11 @@ export const TsOpen = () => {
                 <div>
                   <em>恶毒女配</em>
                   <p>第 3 章推女主落水，<s className="to-st">第 36 章饮毒酒而亡</s>。</p>
-                  <i className="to-n2">不喝。这一章，我来改。</i>
+                  <i className="to-n2">弹幕说男主才是下毒的人。我不信，但我截图了。</i>
                 </div>
               </li>
             </ul>
-            <p className="to-foot">昨夜 02:13，读到第 36 章，留下一条一星差评：「女配死得太冤。」</p>
+            <p className="to-foot">昨夜 02:13，读到第 36 章，留下一条一星差评：「女配死得太冤。」一睁眼，弹幕淹没了整间屋子。</p>
             <span className="to-stamp">已穿书</span>
           </div>
           <button type="button" className="to-re" onClick={() => setK(k + 1)}>↻ 再批一次</button>
@@ -145,26 +164,41 @@ export const TsOpen = () => {
 };
 
 export const TsScript = () => {
+  const DANMU_ALL = [
+    { id: "d0", t: "姐妹快跑，男主才是下毒的人", ch: 3, true: true },
+    { id: "d1", t: "别信弹幕，弹幕有一半是作者小号", ch: 3, true: false },
+    { id: "d2", t: "原著第 36 章她必死，别挣扎了", ch: 3, true: false },
+    { id: "d3", t: "赏花宴上老太君会点名《折柳》", ch: 12, true: true },
+    { id: "d4", t: "前方高能，第 12 章赏花宴有反转", ch: 12, true: false },
+    { id: "d5", t: "雨夜书房密信是假的，刺客是真的", ch: 24, true: true },
+    { id: "d6", t: "萧景珩早就知道她是穿书的", ch: 24, true: false },
+    { id: "d7", t: "毒酒是嬷嬷下的，但男主默许了", ch: 36, true: true },
+    { id: "d8", t: "作者小号在此，你们猜是哪条", ch: 36, true: false, author: true },
+  ];
   const SC = [
     { ch: "第 3 章", place: "荷花池", l: [["△", "荷花池边，姜晚伸手，把苏清婉推进了池里。"], ["姜晚", "（冷笑）这身衣裳，你也配穿？"]], o: [
       { t: "不推了。转身就走，离她三丈远。", k: "pass", r: "能过。可这一场没有了冲突，读者为什么要看下一章？推进模式会提醒：冲突是否逐步升级。", ev: "姜晚绕开了荷花池" },
       { t: "她落水时，姜晚第一个跳下去，把人捞了上来。", k: "ok", r: "过。原著的第一个死亡节点松动了，萧景珩第一次正眼看她。", ev: "苏清婉欠姜晚一命" },
       { t: "当场跪下坦白：我是从书外面穿进来的。", k: "bad", r: "书契约里写着硬约束「穿书身份不对书中人说出口」。这一笔会把整本书的前提改掉。" },
+      { t: "推她入水，但提前在池底铺了软垫。（弹幕剧透解锁）", k: "ok", r: "过。弹幕说「只有我注意到女配指甲上有毒粉吗」是假的，但弹幕也让你注意到池底有暗流。你利用这条假剧透反向操作：推人下水，却铺软垫保她不死。萧景珩看见的是推人，没看见的是救人。", ev: "苏清婉落水无恙，萧景珩目睹推人", unlockDm: "d2" },
     ] },
     { ch: "第 12 章", place: "赏花宴", l: [["△", "赏花宴上，姜晚当众弹错了曲子，满座哄笑。"], ["萧景珩", "（皱眉）侯府的脸，都被你丢尽了。"]], o: [
-      { t: "她弹奏的不是错曲，是失传多年的《折柳》，满座只有老太君听了出来。", k: "ok", r: "过。打脸有铺垫：原著第 5 章写过，老太君年轻时最爱《折柳》。", ev: "老太君记住了姜晚" },
+      { t: "她弹奏的不是错曲，是失传多年的《折柳》，满座只有老太君听了出来。", k: "ok", r: "过。打脸有铺垫：弹幕剧透「赏花宴上老太君会点名《折柳》」是真的。你提前知道了老太君的喜好。", ev: "老太君记住了姜晚" },
       { t: "姜晚抬手，弹了一曲《卡农》。", k: "bad", r: "这个世界没有《卡农》。现代词误入古代题材，是反 AI 规则会盯住的违和表达，世界规则也不认这首曲子。" },
       { t: "借口手伤，干脆不弹。", k: "pass", r: "能过。可萧景珩对她的看法一点没变。关系拉扯最怕关系长期停滞。", ev: "姜晚称病没弹" },
+      { t: "弹错后当众跪下：臣女初学，愿献丑再弹一曲《折柳》。（弹幕剧透解锁）", k: "ok", r: "过。弹幕剧透「赏花宴上老太君会点名《折柳》」是真的。你故意先弹错，再借请罪之名献上老太君真正想听的曲子。一错一正，满堂目光都变了。", ev: "老太君当众赐玉镯", unlockDm: "d3" },
     ] },
     { ch: "第 24 章", place: "雨夜书房", l: [["△", "雨夜，姜晚翻进书房，想偷看萧景珩的密信，被当场抓住。"], ["萧景珩", "拖出去。"]], o: [
       { t: "萧景珩一见她就红了眼：原来你就是我找了十年的人。", k: "bad", r: "萧景珩的角色资料里写着「多疑，从不轻信任何人」。这一笔让他像换了一个人。" },
-      { t: "她不是来偷信的，是来送信：三日后，西角门有刺客。", k: "ok", r: "过。她拿原著剧情换来一次被相信的机会，也埋下一条要回收的线：刺客是谁派的？", ev: "埋下伏笔「西角门刺客」" },
+      { t: "她不是来偷信的，是来送信：三日后，西角门有刺客。", k: "ok", r: "过。弹幕剧透「雨夜书房密信是假的，刺客是真的」是真的。她拿真正的危险换一次被相信的机会，也埋下一条要回收的线：刺客是谁派的？", ev: "埋下伏笔「西角门刺客」" },
       { t: "她转身翻窗，逃回了自己院里。", k: "pass", r: "能过。人是跑掉了，可原著的误会又深了一层。", ev: "姜晚翻窗逃走" },
+      { t: "把密信原样放回，在窗外留下一柄断簪：三日后，别走西角门。（弹幕剧透解锁）", k: "ok", r: "过。弹幕说「雨夜书房密信是假的，刺客是真的」。她没偷信，也没解释，只留一个警告和一个信物。萧景珩的多疑让他会查这柄簪子，而查簪子的过程，就是他第一次主动走向她。", ev: "萧景珩开始查簪子来历", unlockDm: "d5" },
     ] },
     { ch: "第 36 章", place: "毒酒", l: [["△", "冷宫。内侍端来一杯毒酒。"], ["姜晚", "（含泪饮下）景珩，我只是太喜欢你了。"], ["△", "姜晚，卒。"]], o: [
       { t: "原地掏出解药：其实我早就是神医了。", k: "bad", r: "前 35 章里，姜晚从没碰过医术。没有铺垫的爽点站不住，推进模式正是帮系统判断「爽点是否有铺垫和兑现」。" },
       { t: "含泪饮下。", k: "orig", r: "照原著走了。姜晚，卒。红笔还在你手里，要不要重来？", ev: "照原著饮下毒酒" },
       { t: "把酒杯推回去：这杯酒，该给真正下毒的人。", k: "ok", r: null, ev: "毒酒被推了回去" },
+      { t: "举杯一饮而尽，却在袖中扣住银针抵住咽喉：我死了，嬷嬷下毒的事就没人知道了。（弹幕剧透解锁）", k: "ok", r: null, ev: "以死相胁逼出真相", unlockDm: "d7" },
     ] },
   ];
   const LV = ["厌恶", "提防", "好奇", "半信半疑", "站在她这边"];
@@ -173,18 +207,22 @@ export const TsScript = () => {
     be: ["照原著", "结局（演示）：照原著", "姜晚饮下毒酒，故事回到了原著的轨道。红笔还在你手里。"],
     win: ["改写成功", "结局（演示）：春深", "毒酒被推了回去。萧景珩只说了一个字：「查。」原著里从没露过面的下毒人，第一次有了影子。"],
     half: ["暂时活着", "结局（演示）：缓刑", "她活下来了，可萧景珩还不信她，死亡节点只是往后挪了几章。回到前面，把「能过」的那几笔换成更好的一笔试试。"],
+    author: ["作者看见了你", "结局（演示）：作者小号", "你举报了作者小号。弹幕安静了一瞬，然后炸开：「？？？这还是原著吗」「女配支棱起来了」。书契约还在：作者可以写弹幕，但不能改结局。你改的结局，才是真的。"],
   };
   const [step, setStep] = useState(0);
   const [picks, setPicks] = useState([]);
   const [rej, setRej] = useState([]);
   const [note, setNote] = useState(null);
+  const [savedDm, setSavedDm] = useState([]);
+  const [showDm, setShowDm] = useState(true);
+  const [authorFound, setAuthorFound] = useState(false);
   const kindOf = (i) => SC[i].o[picks[i]].k;
   const okN = picks.filter((p, i) => SC[i].o[p].k === "ok").length;
   const trust = Math.min(okN, 4);
   const prevOk = picks.length >= 3 && [0, 1, 2].every((i) => kindOf(i) === "ok");
-  const end = step < 4 ? null : kindOf(3) === "orig" ? "be" : prevOk ? "win" : "half";
+  const end = step < 4 ? null : kindOf(3) === "orig" ? "be" : authorFound ? "author" : prevOk ? "win" : "half";
   const reason = (i, j) => SC[i].o[j].r || (prevOk ? "过。萧景珩挡在她身前：三日前西角门的刺客，和这杯酒出自同一个人。第 36 章的死亡节点，划掉了。" : "过，但萧景珩还不够信她。酒杯推了回去，人却被押回冷宫：死亡节点只是往后挪了，没有划掉。");
-  const fate = end === "be" ? ["照原著", "ts-fr"] : end === "win" ? ["划掉", "ts-fg"] : end === "half" ? ["后移", "ts-fw"] : okN > 0 ? ["松动", "ts-fw"] : ["未改", ""];
+  const fate = end === "be" ? ["照原著", "ts-fr"] : end === "win" ? ["划掉", "ts-fg"] : end === "half" ? ["后移", "ts-fw"] : end === "author" ? ["作者", "ts-fa"] : okN > 0 ? ["松动", "ts-fw"] : ["未改", ""];
   let lv = 0;
   const log = picks.map((p, i) => {
     const o = SC[i].o[p];
@@ -212,7 +250,17 @@ export const TsScript = () => {
     setPicks([]);
     setRej([]);
     setNote(null);
+    setSavedDm([]);
+    setAuthorFound(false);
   };
+  const saveDm = (dm) => {
+    if (!savedDm.includes(dm.id)) setSavedDm(savedDm.concat(dm.id));
+  };
+  const reportAuthor = (dm) => {
+    if (dm.author) setAuthorFound(true);
+  };
+  const dmForScene = (i) => DANMU_ALL.filter((d) => d.ch === (i === 0 ? 3 : i === 1 ? 12 : i === 2 ? 24 : 36));
+  const isUnlocked = (op, i) => !op.unlockDm || savedDm.includes(op.unlockDm);
   return (
     <div className="not-prose ts" id="ts-script">
       <style>{`
@@ -246,13 +294,30 @@ export const TsScript = () => {
 .ts-op:focus-visible,.ts-reset:focus-visible,.ts-in a:focus-visible{outline:2px solid #be123c;outline-offset:2px}
 .ts-op.ts-out{cursor:not-allowed;color:rgba(59,29,36,.4);background:#f3eded;border-left-color:#d6c4c8;translate:0 0}
 .ts-op.ts-out span{text-decoration:line-through}
+.ts-op.ts-lock2{cursor:not-allowed;color:rgba(59,29,36,.4);background:#f3eded;border-left-color:#d6c4c8;translate:0 0}
+.ts-op.ts-lock2 span{opacity:.5}
 .ts-back{position:absolute;right:14px;top:50%;translate:0 -50%;rotate:-8deg;padding:2px 8px;border:2px solid #be123c;border-radius:3px;font-style:normal;font-family:"Noto Sans SC",sans-serif;font-size:12px;font-weight:900;letter-spacing:.2em;color:#be123c}
 .ts-msg p{margin:12px 0 0;padding:12px 14px;font-size:14px;line-height:1.8;background:#fff1f2;border:1px solid rgba(190,18,60,.3);border-radius:6px;color:#881337;animation:tsIn .3s ease both}
 .ts-res{margin-top:14px}
 .ts-pen{margin:0;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:19px;line-height:1.6;color:#be123c;rotate:-.6deg;animation:tsIn .4s ease both}
 .ts-pen i{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-right:8px;border:1.5px solid #be123c;border-radius:50%;font-style:normal;font-size:13px;vertical-align:3px}
-@keyframes tsIn{from{opacity:0;transform:translateY(-4px)}}
+@keyframes tsIn{from{opacity:0;translate:0 -4px}}
 .ts-why{margin:10px 0 0;font-family:"Noto Sans SC","PingFang SC",sans-serif;font-size:14px;line-height:1.85;color:rgba(59,29,36,.8)}
+.ts-dm{position:relative;margin-top:14px;padding:12px 14px;background:rgba(255,255,255,.6);border:1px dashed rgba(244,114,182,.4);border-radius:8px}
+.ts-dm-t{font-size:12px;letter-spacing:.2em;color:#be185d;margin-bottom:8px}
+.ts-dm-list{display:flex;flex-wrap:wrap;gap:8px}
+.ts-dm-chip{font-family:inherit;font-size:13px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.85);border:1px solid rgba(244,114,182,.3);color:#9d174d;cursor:pointer;transition:background .2s}
+.ts-dm-chip:hover{background:#fde7ef}
+.ts-dm-chip.ts-dm-saved{background:#fde7ef;border-color:#be123c;color:#be123c}
+.ts-dm-chip.ts-dm-author{border-color:#e11d48;color:#e11d48}
+.ts-dm-chip:focus-visible{outline:2px solid #be123c;outline-offset:2px}
+.ts-dm-tray{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:28px}
+.ts-dm-tray span{font-size:12px;padding:4px 10px;border-radius:999px;background:#fde7ef;border:1px solid rgba(190,24,93,.25);color:#881337}
+.ts-dm-tray span.ts-dm-at{border-color:#e11d48;color:#e11d48;background:#ffe4e6}
+.ts-dm-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+.ts-dm-bar button{font-family:inherit;font-size:12px;padding:6px 12px;border-radius:999px;background:none;border:1px solid rgba(157,23,77,.35);color:#9d174d;cursor:pointer}
+.ts-dm-bar button:hover{background:rgba(255,255,255,.6)}
+.ts-dm-bar button:focus-visible{outline:2px solid #be123c;outline-offset:2px}
 .ts-side{position:sticky;top:90px;display:flex;flex-direction:column;gap:16px}
 .ts-card{padding:18px 18px 16px;background:rgba(255,253,250,.88);border:1px solid rgba(190,24,93,.18);border-radius:10px;box-shadow:0 14px 30px -24px rgba(157,23,77,.5)}
 .ts-ct{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700;letter-spacing:.15em;color:#9d174d}
@@ -264,7 +329,7 @@ export const TsScript = () => {
 .ts-meter i.ts-f{background:linear-gradient(90deg,#f472b6,#be185d)}
 .ts-fate{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px dashed rgba(59,29,36,.2);font-size:13px}
 .ts-fate b{padding:2px 10px;border-radius:999px;background:#f3e8eb;color:#6b2e3a}
-.ts-fate b.ts-fg{background:#d1fae5;color:#065f46}.ts-fate b.ts-fw{background:#fef3c7;color:#92400e}.ts-fate b.ts-fr{background:#ffe4e6;color:#9f1239}
+.ts-fate b.ts-fg{background:#d1fae5;color:#065f46}.ts-fate b.ts-fw{background:#fef3c7;color:#92400e}.ts-fate b.ts-fr{background:#ffe4e6;color:#9f1239}.ts-fate b.ts-fa{background:#fce7f3;color:#9d174d}
 .ts-log{list-style:none;margin:10px 0 0;padding:0;font-size:13px;line-height:1.7}
 .ts-log li{position:relative;padding:6px 0 6px 14px;border-bottom:1px dashed rgba(59,29,36,.12);color:rgba(59,29,36,.85);animation:tsIn .35s ease both}
 .ts-log li::before{content:"";position:absolute;left:0;top:14px;width:6px;height:6px;border-radius:50%;background:#f472b6}
@@ -293,7 +358,7 @@ export const TsScript = () => {
         <div className="ts-hd">
           <div className="ts-k">红笔批注 · 演示剧本</div>
           <h2 className="ts-h2">改剧本，但别改崩</h2>
-          <p>你穿成了原著里的恶毒女配姜晚。下面是原著的四场戏，每一场都把她往第 36 章的毒酒推近一步。在页边选一条红笔批注改写它：改得好，人物关系跟着变；改崩了，批注会被退回。</p>
+          <p>你穿成了原著里的恶毒女配姜晚。下面是原著的四场戏，每一场都把她往第 36 章的毒酒推近一步。页边飘过读者弹幕：有些是真的剧透，有些是谎言，有一条来自作者本人。截图存证有用的弹幕，它们会解锁隐藏的红笔选项。</p>
           <div className="ts-lg">
             <span><em className="ts-b ts-b-ok">过</em>改得好，关系会变</span>
             <span><em className="ts-b ts-b-pass">能过</em>不违规，但没推动故事</span>
@@ -305,6 +370,7 @@ export const TsScript = () => {
             {SC.map((s, i) => {
               const st = i < step ? "done" : i === step ? "cur" : "lock";
               const o = st === "done" ? s.o[picks[i]] : null;
+              const dms = dmForScene(i);
               return (
                 <section key={i} className={"ts-sc ts-" + st}>
                   <div className="ts-sh">
@@ -325,10 +391,12 @@ export const TsScript = () => {
                       <div className="ts-ol">红笔批注候选 · 选一条</div>
                       {s.o.map((op, j) => {
                         const out = rej.includes(i + "-" + j);
+                        const locked = !isUnlocked(op, i);
                         return (
-                          <button key={j} type="button" className={"ts-op" + (out ? " ts-out" : "")} disabled={out} onClick={() => choose(j)}>
+                          <button key={j} type="button" className={"ts-op" + (out ? " ts-out" : locked ? " ts-lock2" : "")} disabled={out || locked} onClick={() => choose(j)}>
                             <span>{op.t}</span>
                             {out && <em className="ts-back">退回</em>}
+                            {locked && <em className="ts-back">锁定</em>}
                           </button>
                         );
                       })}
@@ -340,6 +408,53 @@ export const TsScript = () => {
                           </p>
                         )}
                       </div>
+                      {showDm && dms.length > 0 && (
+                        <div className="ts-dm">
+                          <div className="ts-dm-t">原著读者弹幕 · 点弹幕截图存证</div>
+                          <div className="ts-dm-list">
+                            {dms.map((dm) => (
+                              <button
+                                key={dm.id}
+                                type="button"
+                                className={"ts-dm-chip" + (savedDm.includes(dm.id) ? " ts-dm-saved" : "") + (dm.author ? " ts-dm-author" : "")}
+                                onClick={() => saveDm(dm)}
+                                onKeyDown={(e) => { if (e.key === "Enter") saveDm(dm); }}
+                                aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
+                              >
+                                {dm.t}
+                                {dm.author && " 👤"}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="ts-dm-bar">
+                            <span>已存证：{savedDm.length} 条</span>
+                            <button type="button" onClick={() => setShowDm(false)}>关闭弹幕</button>
+                          </div>
+                        </div>
+                      )}
+                      {!showDm && (
+                        <div className="ts-dm">
+                          <div className="ts-dm-t">弹幕已关闭 · 静态列表</div>
+                          <div className="ts-dm-list">
+                            {dms.map((dm) => (
+                              <button
+                                key={dm.id}
+                                type="button"
+                                className={"ts-dm-chip" + (savedDm.includes(dm.id) ? " ts-dm-saved" : "") + (dm.author ? " ts-dm-author" : "")}
+                                onClick={() => saveDm(dm)}
+                                aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
+                              >
+                                {dm.t}
+                                {dm.author && " 👤"}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="ts-dm-bar">
+                            <span>已存证：{savedDm.length} 条</span>
+                            <button type="button" onClick={() => setShowDm(true)}>打开弹幕</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {o && (
@@ -365,7 +480,13 @@ export const TsScript = () => {
                 <h3>{END[end][1]}</h3>
                 <p>{END[end][2]}</p>
                 {end === "win" && <p className="ts-q">可原著只写到第 36 章。往后的故事，没有剧本了。</p>}
-                <p className="ts-endn">这一场改写，用的是关系拉扯配合复仇推进：关系一步一步变，旧账一笔一笔算。推进模式会参与故事规划、卷节奏和章节执行，帮系统判断「角色关系或谜题是否长期停滞」「爽点是否有铺垫和兑现」。<a href="/features/progression-modes">推进模式库 →</a></p>
+                {end === "author" && (
+                  <>
+                    <p className="ts-q">弹幕炸开了：「？？？这还是原著吗」「女配支棱起来了」「作者小号被举报了哈哈哈哈」。</p>
+                    <p className="ts-endn">书契约还在：作者可以写弹幕，但不能改结局。你改的结局，才是真的。<a href="/features/anti-ai-rules">反 AI 规则 →</a></p>
+                  </>
+                )}
+                {end !== "author" && <p className="ts-endn">这一场改写，用的是关系拉扯配合复仇推进：关系一步一步变，旧账一笔一笔算。推进模式会参与故事规划、卷节奏和章节执行，帮系统判断「角色关系或谜题是否长期停滞」「爽点是否有铺垫和兑现」。<a href="/features/progression-modes">推进模式库 →</a></p>}
                 <button type="button" className="ts-reset" onClick={reset}>↻ 重新拿起红笔</button>
               </div>
             )}
@@ -386,6 +507,24 @@ export const TsScript = () => {
                 <span>第 36 章 · 毒酒</span>
                 <b className={fate[1]}>{fate[0]}</b>
               </div>
+            </div>
+            <div className="ts-card">
+              <div className="ts-ct">弹幕存证箱<em>演示</em></div>
+              <div className="ts-dm-tray">
+                {savedDm.length === 0 && <span style={{ opacity: 0.5 }}>暂无存证</span>}
+                {savedDm.map((id) => {
+                  const dm = DANMU_ALL.find((d) => d.id === id);
+                  return <span key={id} className={dm && dm.author ? "ts-dm-at" : ""}>{dm ? dm.t : id}</span>;
+                })}
+              </div>
+              <div className="ts-dm-bar">
+                {DANMU_ALL.filter((d) => d.author).map((dm) => (
+                  <button key={dm.id} type="button" onClick={() => reportAuthor(dm)} aria-label={"举报弹幕：" + dm.t}>
+                    {savedDm.includes(dm.id) ? "举报作者小号" : "先存证再举报"}
+                  </button>
+                ))}
+              </div>
+              <p className="ts-fn">存证弹幕可解锁隐藏红笔选项。找出作者小号，可触发特殊结局。</p>
             </div>
             <div className="ts-card">
               <div className="ts-ct">状态回流<em>演示</em></div>
@@ -412,10 +551,10 @@ export const TsScript = () => {
 
 export const TsEdit = () => {
   const SEG = [
-    { a: "姜晚心中充满了愤怒和委屈，她感到前所未有的绝望。", b: "姜晚把指甲掐进掌心，掐到发白，才没让那声哽咽漏出来。", tag: "情绪直说", why: "只说她「感到绝望」，没有具体动作和场景。读者没看见她怎样难受，也就跟着难受不起来。" },
-    { a: "萧景珩冷冷地看着她，眼神中闪过一丝复杂的情绪。", b: "萧景珩看了她很久，把手里的伞往她那边偏了一寸。", tag: "套路化句式", why: "「眼神中闪过一丝复杂的情绪」读者见过太多次。换成一个只有他此刻会做的动作。" },
-    { a: "「我只是想保护你，」她说，「因为我知道你会有危险。」", b: "「三日后，别走西角门。」她说，「信不信由你。」", tag: "台词不自然", why: "角色在替作者解释动机，说话像剧情说明。台词只说她此刻会说、也敢说的话。" },
-    { a: "这一刻，她终于明白，命运是可以改变的。", b: "伞沿的水，一滴一滴落在两人中间。", tag: "过度解释", why: "把主题直接讲了出来。删掉总结，留一个画面，让读者自己明白。" },
+    { a: "姜晚心中充满了愤怒和委屈，她感到前所未有的绝望。", b: "姜晚把指甲掐进掌心，掐到发白，才没让那声哽咽漏出来。弹幕飘过：「女配支棱起来了」。", tag: "情绪直说", why: "只说她「感到绝望」，没有具体动作和场景。读者没看见她怎样难受，也就跟着难受不起来。" },
+    { a: "萧景珩冷冷地看着她，眼神中闪过一丝复杂的情绪。", b: "萧景珩看了她很久，把手里的伞往她那边偏了一寸。弹幕飘过：「？？？这还是原著吗」。", tag: "套路化句式", why: "「眼神中闪过一丝复杂的情绪」读者见过太多次。换成一个只有他此刻会做的动作。" },
+    { a: "「我只是想保护你，」她说，「因为我知道你会有危险。」", b: "「三日后，别走西角门。」她说，「信不信由你。」弹幕飘过：「这台词对味了」。", tag: "台词不自然", why: "角色在替作者解释动机，说话像剧情说明。台词只说她此刻会说、也敢说的话。" },
+    { a: "这一刻，她终于明白，命运是可以改变的。", b: "伞沿的水，一滴一滴落在两人中间。弹幕飘过：「别解释，留画面」。", tag: "过度解释", why: "把主题直接讲了出来。删掉总结，留一个画面，让读者自己明白。" },
   ];
   const [rev, setRev] = useState(false);
   const [on, setOn] = useState(1);
@@ -473,14 +612,14 @@ export const TsEdit = () => {
         <div className="te-hd">
           <div className="te-k">第二支笔 · 修订模式</div>
           <h2 className="te-h2">剧情改对了，句子也要改对</h2>
-          <p>穿书女频最吃情绪，而情绪最怕被直接说出来。下面是一段初稿（演示），点开带颜色的句子看页边批注，再切到修订稿对照着读。</p>
+          <p>穿书女频最吃情绪，而情绪最怕被直接说出来。下面是一段初稿（演示），点开带颜色的句子看页边批注，再切到修订稿对照着读。修订稿里还飘着弹幕反应：改得好，弹幕会炸。</p>
         </div>
         <div className="te-bar">
           <div className="te-tabs">
             <button type="button" className="te-tab" aria-pressed={!rev} onClick={() => setRev(false)}>初稿 · 带批注</button>
             <button type="button" className="te-tab" aria-pressed={rev} onClick={() => setRev(true)}>修订稿</button>
           </div>
-          <div className="te-tip">{rev ? "修订稿：四处批注都已改写" : "点带颜色的句子，看对应批注"}</div>
+          <div className="te-tip">{rev ? "修订稿：四处批注都已改写，弹幕已更新" : "点带颜色的句子，看对应批注"}</div>
         </div>
         <div className="te-body">
           <div className="te-paper">
@@ -529,6 +668,85 @@ export const TsEdit = () => {
   );
 };
 
+export const TsRemix = () => {
+  const A = ["侯府弃妃", "冷宫废后", "修仙文炮灰", "真假千金里的假千金", "替身文学白月光", "权谋文棋子公主"];
+  const B = ["被赐毒酒", "被男主一剑穿心", "被亲哥推下诛仙台", "被真千金当众揭穿身世", "被白月光本人亲手毁容", "被权臣当作礼物送人"];
+  const C = ["能听见读者弹幕", "手握原著全文但缺了结局章", "每死一次就回到三天前", "能修改书中任意一个字但只改一次", "可以和作者后台私信但作者已读不回", "能附身到任意配角身上十分钟"];
+  const [a, setA] = useState(0);
+  const [b, setB] = useState(1);
+  const [c, setC] = useState(0);
+  const [lk, setLk] = useState([false, false, false]);
+  const roll = () => {
+    const next = [];
+    if (!lk[0]) next.push(Math.floor(Math.random() * A.length));
+    else next.push(a);
+    if (!lk[1]) next.push(Math.floor(Math.random() * B.length));
+    else next.push(b);
+    if (!lk[2]) next.push(Math.floor(Math.random() * C.length));
+    else next.push(c);
+    setA(next[0]);
+    setB(next[1]);
+    setC(next[2]);
+  };
+  const card = (label, items, idx, setIdx, lockIdx) => (
+    <div style={{ flex: 1, minWidth: 200, padding: 18, borderRadius: 10, border: "1px solid rgba(190,24,93,.2)", background: "rgba(255,253,250,.85)", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, letterSpacing: ".2em", color: "#be185d" }}>{label}</span>
+        <button
+          type="button"
+          aria-label={lk[lockIdx] ? "解锁" : "锁定"}
+          onClick={() => { const n = [...lk]; n[lockIdx] = !n[lockIdx]; setLk(n); }}
+          style={{ fontSize: 12, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: lk[lockIdx] ? "#be185d" : "transparent", color: lk[lockIdx] ? "#fff" : "#9d174d", cursor: "pointer" }}
+        >
+          {lk[lockIdx] ? "🔒" : "🔓"}
+        </button>
+      </div>
+      <div style={{ fontFamily: "\"Kaiti SC\",\"STKaiti\",\"KaiTi\",serif", fontSize: 20, color: "#be123c", lineHeight: 1.5, minHeight: 60, display: "flex", alignItems: "center" }}>
+        {items[idx]}
+      </div>
+    </div>
+  );
+  return (
+    <div className="not-prose tr">
+      <style>{`
+.tr{padding:60px 24px 60px;color:#3b1d24;background:linear-gradient(180deg,#f8e6ea 0%,#fdf2f4 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.tr-in{max-width:1160px;margin:0 auto}
+.tr-k{font-size:13px;letter-spacing:.35em;color:#be185d}
+.tr-h2{margin:14px 0 0;font-family:"Noto Serif SC","Songti SC",serif;font-size:clamp(26px,3.6vw,38px);font-weight:900;letter-spacing:.06em;line-height:1.3}
+.tr-in>p{margin:14px 0 0;font-size:15px;line-height:1.85;color:rgba(59,29,36,.78);max-width:640px}
+.tr-cards{display:flex;flex-wrap:wrap;gap:14px;margin-top:24px}
+.tr-res{margin-top:20px;padding:16px 20px;background:rgba(255,253,250,.9);border:1px solid rgba(190,24,93,.25);border-radius:10px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:18px;color:#be123c;line-height:1.7}
+.tr-res b{font-family:"Noto Sans SC",sans-serif;font-size:12px;letter-spacing:.1em;color:#9d174d;margin-right:6px}
+.tr-act{display:flex;gap:10px;margin-top:16px}
+.tr-act button{font-family:inherit;font-size:14px;letter-spacing:.1em;padding:10px 22px;border-radius:999px;border:1px solid rgba(157,23,77,.35);background:#be185d;color:#fff;cursor:pointer;transition:background .2s}
+.tr-act button:hover{background:#9d174d}
+.tr-act button:focus-visible{outline:2px solid #be123c;outline-offset:2px}
+.tr-demo{margin-top:10px;font-size:12px;color:rgba(59,29,36,.45)}
+@media (max-width:900px){.tr-cards{flex-direction:column}}
+@media (prefers-reduced-motion:reduce){.tr *{animation:none!important;transition:none!important}}
+      `}</style>
+      <div className="tr-in">
+        <div className="tr-k">脑洞拼装 · 抽人设卡</div>
+        <h2 className="tr-h2">三张卡，拼一个穿书脑洞</h2>
+        <p>翻三张卡：穿成谁、原著结局、金手指。锁上喜欢的，再抽一次。拼出来的脑洞不是产品功能，是给你带去开书页的灵感。</p>
+        <div className="tr-cards">
+          {card("穿成谁", A, a, setA, 0)}
+          {card("原著结局", B, b, setB, 1)}
+          {card("金手指", C, c, setC, 2)}
+        </div>
+        <div className="tr-res">
+          <b>脑洞：</b>你穿成了{A[a]}，原著结局是{B[b]}，但你的金手指是「{C[c]}」。
+        </div>
+        <div className="tr-act">
+          <button type="button" onClick={roll}>🎲 再抽一次</button>
+          <a href="/quickstart" style={{ display: "inline-flex", alignItems: "center", padding: "10px 22px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: "rgba(255,253,250,.7)", color: "#9d174d", textDecoration: "none", fontSize: 14, letterSpacing: ".1em" }}>去开书页写下灵感 →</a>
+        </div>
+        <div className="tr-demo">演示：随机拼出的脑洞，拿去开书页写成你的灵感。</div>
+      </div>
+    </div>
+  );
+};
+
 export const TsCta = () => {
   const COLS = ["致下一位执笔人：", "原著写到第三十六章，", "就再没有下文了。", "后面的故事，", "没有剧本，", "由你来写。"];
   const ref = useRef(null);
@@ -565,7 +783,7 @@ export const TsCta = () => {
 .tc-cols p.tc-sig{text-align:end;color:#9f1239}
 .tc-seal{position:absolute;left:-18px;bottom:-18px;display:flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e11d48,#9f1239 60%,#6b0f2a);box-shadow:0 6px 14px rgba(0,0,0,.45),inset 0 0 0 4px rgba(255,255,255,.12);font-family:"Noto Serif SC","Songti SC",serif;font-size:28px;font-weight:900;color:#ffe4e6;opacity:0;rotate:-8deg}
 .tc-seen .tc-seal{animation:tcSeal .5s cubic-bezier(.3,1.6,.5,1) 3s both}
-@keyframes tcSeal{from{opacity:0;transform:scale(1.6)}to{opacity:1;transform:scale(1)}}
+@keyframes tcSeal{from{opacity:0;scale:1.6}to{opacity:1;scale:1}}
 .tc-h{margin:0;font-family:"Noto Serif SC","Songti SC",serif;font-size:clamp(32px,4.6vw,52px);font-weight:900;letter-spacing:.08em;line-height:1.3;color:#fff}
 .tc-p{margin:20px 0 0;max-width:560px;font-size:16px;line-height:1.95;color:rgba(253,231,239,.8)}
 .tc-btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}

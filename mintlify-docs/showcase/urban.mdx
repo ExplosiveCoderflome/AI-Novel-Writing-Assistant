@@ -1,12 +1,14 @@
 ---
 title: "都市异能 · 题材展厅"
 sidebarTitle: "都市异能"
-description: "一部可以解锁的手机：送了三年外卖的陆川，午夜零点忽然能看见身边手机草稿箱里没发出去的消息。滑开锁屏，看一本都市异能小说怎样借热门题材雷达、推进模式和标题工坊一步步成形。"
+description: "一部可以解锁的手机：外卖骑手陆川的 App 里多了一个「未送达」频道，专送别人没发出去的消息，哪怕是三年前的。滑开锁屏，看一本都市异能小说怎样借热门题材雷达、推进模式和标题工坊一步步成形。"
 mode: "custom"
 icon: "mobile-screen"
 keywords:
   - "AI 写都市小说"
   - "都市异能"
+  - "未送达"
+  - "都市脑洞"
   - "手机界面"
   - "热门题材雷达"
   - "推进模式"
@@ -23,13 +25,15 @@ keywords:
 
 <UbTitle />
 
+<UbShake />
+
 <UbCall />
 
 export const UbLock = () => {
   const NOTES = [
     { g: "骑", n: "骑手", t: "刚刚", m: "本单超时 4 分钟，扣款 50.00 元。", c: "#f59e0b" },
     { g: "银", n: "银行", t: "刚刚", m: "您尾号 0721 的账户余额为 37.21 元。", c: "#10b981" },
-    { g: "稿", n: "草稿", t: "00:00", m: "附近 1 部手机有一条未发送的消息：「如果有人看到这条，救我。」", c: "#8b5cf6", hot: true },
+    { g: "递", n: "未送达", t: "00:00", m: "新订单：配送一条三年前没发出去的消息。收件人在 3.2 公里外，备注：一定要送到。", c: "#8b5cf6", hot: true, late: true },
   ];
   const APPS = [
     { g: "榜", n: "热榜", href: "#ur-radar", c: "linear-gradient(135deg,#f43f5e,#f97316)" },
@@ -46,10 +50,20 @@ export const UbLock = () => {
   const [un, setUn] = useState(false);
   const [v, setV] = useState(0);
   const [sheet, setSheet] = useState(false);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (tick) return;
+    const t = setTimeout(() => setTick(1), 2800);
+    return () => clearTimeout(t);
+  }, [tick]);
+  const open = () => {
+    setUn(true);
+    setTick(1);
+  };
   const slide = (e) => {
     const n = Number(e.target.value);
     setV(n);
-    if (n >= 96) setUn(true);
+    if (n >= 96) open();
   };
   const release = () => {
     if (!un) setV(0);
@@ -58,6 +72,7 @@ export const UbLock = () => {
     setUn(false);
     setV(0);
     setSheet(false);
+    setTick(0);
   };
   return (
     <div className="not-prose ul">
@@ -119,6 +134,9 @@ export const UbLock = () => {
 .ul-wd span{display:block;font-size:11.5px;letter-spacing:.15em;color:#c4b5fd}
 .ul-wd b{display:block;margin-top:6px;font-size:18px;color:#fff}
 .ul-wd i{display:block;margin-top:6px;font-style:normal;font-size:13px;color:rgba(255,255,255,.78)}
+.ul-wd i.ul-wt{margin-top:4px;font-size:11px;letter-spacing:.12em;color:#f0abfc}
+.ul-gl{animation:ulGl .7s steps(2,end) 1}
+@keyframes ulGl{0%{translate:0 0;text-shadow:3px 0 #f0abfc,-3px 0 #67e8f9;opacity:.4}20%{translate:-4px 1px}40%{translate:4px -2px;text-shadow:-4px 0 #f0abfc,4px 0 #67e8f9;opacity:.75}60%{translate:-2px 0;opacity:.5}80%{translate:2px 1px;text-shadow:2px 0 #f0abfc,-2px 0 #67e8f9}100%{translate:0 0;text-shadow:none;opacity:1}}
 .ul-apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 6px;margin-top:22px}
 .ul-app{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;font-family:inherit;font-size:11.5px;color:#fff;text-decoration:none;background:none;border:none;cursor:pointer}
 .ul-ai{display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:16px;font-size:22px;font-weight:800;color:#fff;box-shadow:0 8px 18px -8px rgba(0,0,0,.6);transition:scale .2s}
@@ -157,9 +175,9 @@ export const UbLock = () => {
       </div>
       <div className="ul-grid">
         <div>
-          <div className="ul-k">凌晨 00:00 · 一部手机</div>
+          <div className="ul-k">23:59 → 00:00 · 一部骑手的手机</div>
           <h1 className="ul-h1">都市<span className="ul-neon">异能</span></h1>
-          <p className="ul-sub">这间展厅是一部手机。送了三年外卖的陆川，在午夜零点多了一项能力：他能看见身边每一部手机草稿箱里，那条没发出去的消息。解锁它，看一本都市异能小说怎样从榜单、推进方式到书名一步步成形。</p>
+          <p className="ul-sub">这间展厅是一部手机。送了三年外卖的陆川，在午夜零点的骑手 App 里刷出一个删不掉的频道：「未送达」。它只派一种单：别人写好却没发出去的消息，哪怕是三年前的。每送达一单，这座城市就有什么东西悄悄改了。解锁它，看一本都市异能小说怎样从榜单、推进方式到书名一步步成形。</p>
           <div className="ul-btns">
             <a className="ul-btn ul-pri" href="#ur-radar">打开热榜 ↓</a>
             <a className="ul-btn" href="/quickstart">直接开书 →</a>
@@ -176,10 +194,10 @@ export const UbLock = () => {
               </div>
               <div className="ul-lock" aria-hidden={un}>
                 <div className="ul-date">周五 · 夜班</div>
-                <div className="ul-time">00:00</div>
+                <div key={tick} className={"ul-time" + (tick ? " ul-gl" : "")} aria-live="polite">{tick ? "00:00" : "23:59"}</div>
                 <ul className="ul-ns">
-                  {NOTES.map((n, i) => (
-                    <li key={i} className={"ul-n" + (n.hot ? " ul-hot" : "")} style={{ animationDelay: 0.8 + i * 1.1 + "s" }}>
+                  {NOTES.filter((n) => !n.late || tick).map((n, i) => (
+                    <li key={n.n} className={"ul-n" + (n.hot ? " ul-hot" : "")} style={{ animationDelay: n.late ? "0.5s" : 0.8 + i * 1.1 + "s" }}>
                       <span className="ul-ic" style={{ background: n.c }}>{n.g}</span>
                       <div className="ul-nb">
                         <div className="ul-nh">
@@ -193,14 +211,15 @@ export const UbLock = () => {
                 </ul>
                 <div className="ul-sl">
                   <span className="ul-slt" style={{ opacity: Math.max(0, 1 - v / 60) }}>滑动解锁</span>
-                  <input className="ul-rg" type="range" min="0" max="100" value={v} disabled={un} aria-label="滑动解锁手机" onChange={slide} onPointerUp={release} onTouchEnd={release} onBlur={release} onKeyDown={(e) => { if (e.key === "Enter") setUn(true); }} />
+                  <input className="ul-rg" type="range" min="0" max="100" value={v} disabled={un} aria-label="滑动解锁手机" onChange={slide} onPointerUp={release} onTouchEnd={release} onBlur={release} onKeyDown={(e) => { if (e.key === "Enter") open(); }} />
                 </div>
               </div>
               <div className="ul-home" aria-hidden={!un}>
                 <div className="ul-wd">
-                  <span>草稿 · 附近 3 米</span>
-                  <b>1 条未发送的消息</b>
-                  <i>「如果有人看到这条，救我。」</i>
+                  <span>未送达 · 待配送 1 单</span>
+                  <b>收件人：林晚 · 3.2 km</b>
+                  <i>「对不起，那天我没去车站。」</i>
+                  <i className="ul-wt">写于三年前 · 从未发出</i>
                 </div>
                 <div className="ul-apps">
                   {APPS.map((a) => (
@@ -210,8 +229,8 @@ export const UbLock = () => {
                     </a>
                   ))}
                   <button type="button" className="ul-app" tabIndex={un ? 0 : -1} onClick={() => setSheet(true)}>
-                    <span className="ul-ai ul-ad">稿</span>
-                    草稿
+                    <span className="ul-ai ul-ad">递</span>
+                    未送达
                   </button>
                 </div>
                 <p className="ul-hint">点图标，去往对应的展区</p>
@@ -221,16 +240,16 @@ export const UbLock = () => {
                   ))}
                 </div>
                 {sheet && (
-                  <div className="ul-sheet" role="dialog" aria-label="草稿 App">
-                    <b>草稿（演示）</b>
-                    <p>零点自己出现的 App，删不掉。打开后只有一行字：三米之内，所有没发出去的话，你都看得见。</p>
+                  <div className="ul-sheet" role="dialog" aria-label="未送达频道">
+                    <b>未送达（演示）</b>
+                    <p>零点准时出现在骑手 App 里的频道，删不掉。这里只接一种单：别人写好了、却没发出去的话。送到了，它就算真的送达过；城市里，会有什么东西跟着悄悄改掉。</p>
                     <button type="button" onClick={() => setSheet(false)}>知道了</button>
                   </div>
                 )}
               </div>
             </div>
           </div>
-          <button type="button" className="ul-re" onClick={un ? lock : () => setUn(true)}>{un ? "↻ 重新锁屏" : "不想滑？点这里解锁"}</button>
+          <button type="button" className="ul-re" onClick={un ? lock : open}>{un ? "↻ 重新锁屏" : "不想滑？点这里解锁"}</button>
         </div>
       </div>
     </div>
@@ -242,15 +261,15 @@ export const UbRadar = () => {
     { ty: "热门题材", t: "都市异能 · 能力觉醒", h: 5, c: 4 },
     { ty: "主角身份", t: "被生活压着的打工人", h: 4, c: 4 },
     { ty: "金手指", t: "很小、但有代价的能力", h: 3, c: 2 },
-    { ty: "开局爆点", t: "第一章撞见不该看的秘密", h: 4, c: 3 },
+    { ty: "开局爆点", t: "第一章接到一单不可能的订单", h: 4, c: 3 },
     { ty: "关系卖点", t: "知道对方的秘密，却不能说", h: 3, c: 2 },
     { ty: "差异化机会", t: "把异能绑进手机日常", h: 3, c: 1, diff: true },
     { ty: "拥挤套路", t: "觉醒系统 + 每日签到", h: 5, c: 5, crowd: true },
   ];
   const MD = [
     { k: "跟随热门", who: "想快速进入明确赛道", fx: "更明显地保留当前热门结构与卖点", idea: "送了三年外卖的陆川，在午夜觉醒异能，从城市最底层一路逆袭。" },
-    { k: "热门中求差异", who: "大多数新书", fx: "保留读者熟悉感，同时强化差异化信号", idea: "送了三年外卖的陆川，忽然能看见身边每一部手机草稿箱里，那条没发出去的消息。", rec: true },
-    { k: "弱化市场", who: "已经有清晰的个人方向", fx: "市场只作参考，不主导整书定位", idea: "一座城市里所有说不出口的话。异能只是引子，故事写的是人。" },
+    { k: "热门中求差异", who: "大多数新书", fx: "保留读者熟悉感，同时强化差异化信号", idea: "送了三年外卖的陆川，在骑手 App 里刷出一个「未送达」频道：专送别人没发出去的消息，哪怕是三年前的。", rec: true },
+    { k: "弱化市场", who: "已经有清晰的个人方向", fx: "市场只作参考，不主导整书定位", idea: "一座城市里所有没发出去的话。异能只是引子，故事写的是人。" },
   ];
   const [mode, setMode] = useState(1);
   const [sel, setSel] = useState([5, 2, 3, 4]);
@@ -411,11 +430,11 @@ export const UbRadar = () => {
                     <dt>起始想法</dt>
                     <dd>{MD[mode].idea}</dd>
                     <dt>金手指 / 核心优势</dt>
-                    <dd>三米之内，任何一部手机草稿箱里的未发送消息，他都看得见。代价：每看一条，他会忘掉自己的一件小事。</dd>
+                    <dd>接「未送达」频道的单：把别人写好却没发出去的消息送到收件人手里，最远能送回三年前。代价：每送一单，他自己手机里就少一条记录，连同那段记忆。</dd>
                     <dt>核心卖点</dt>
-                    <dd>每个人都有一句没发出去的话。他全看得见，却一句都不能说破。</dd>
+                    <dd>每个人都有一句没发出去的话。他能替人送到，可每一次送达，这座城市都会跟着改掉一点。</dd>
                     <dt>前 30 章承诺</dt>
-                    <dd>查清第一条求救草稿的主人；能力从三米扩到一整栋楼；靠它赚到第一笔真正的钱。</dd>
+                    <dd>送出第一单三年前的道歉，看它改掉了什么；查清是谁在频道里给他派单；靠它赚到第一笔真正的钱。</dd>
                     <dt>推荐组合</dt>
                     <dd className="ur-tags">
                       <span>题材基底 · 都市异能</span>
@@ -465,37 +484,61 @@ export const UbRadar = () => {
 export const UbChat = () => {
   const EN = [
     {
-      k: "升级变强", ch: "能力下一级，能看见什么", who: "未知号码", sub: "号码已隐藏", av: "?",
-      msgs: [["l", "你今天在 18 楼，看见了不该看的。"], ["r", "你是谁？"], ["l", "能看草稿箱，是一级。能看已经删掉的消息，是二级。"], ["l", "想知道三级能看见什么，明晚十点，老城区天桥。"], ["s", "能力范围：3 米 → 5 米（演示）"]],
-      hook: "第 2 章 · 三级，能看见什么？",
+      k: "升级变强", ch: "频道下一级，能送多远", who: "未送达 · 频道", sub: "频道等级 Lv.1", av: "递",
+      msgs: [["l", "首单完成。频道等级 Lv.1：只能送 24 小时内的草稿。"], ["r", "再往前呢？"], ["l", "送得越多，送得越远。到 Lv.9，你能给三年前的任何人送一句话。"], ["d", "如果明天还是没人来，我就把店关了。", "城西面馆老板的草稿 · 写给女儿 · 未发送"], ["s", "试单已派发，送达可得频道经验（演示）"]],
+      hook: "第 2 章 · 送不送？这一单能让他升到 Lv.2",
+      t: [
+        { hot: "城西一家老面馆凌晨排起长队", hook: "第 2 章 · Lv.2：他能把话送到昨天了" },
+        { hot: "城西面馆老板昨夜接到女儿电话，哭了很久", hook: "第 2 章 · 送得越远，经验翻倍" },
+        { hot: "城西面馆三年前没关门，如今开成了连锁", hook: "第 2 章 · 一单跳到 Lv.5，频道开始派他看不懂的单" },
+      ],
       why: "主角每隔几章就有新变化：能力范围变大，能看见的东西变多。",
       risk: "重复升级：每次只是数字变大，读者会腻。",
     },
     {
       k: "经营扩张", ch: "小生意怎样一步步做大", who: "便利店王姐", sub: "楼下便利店老板", av: "王",
-      msgs: [["l", "听说你能帮人找出背后搞事的人？"], ["r", "五十块。找不出来，不要钱。"], ["m", "王姐 向你转账", "50.00 元"], ["r", "收到。明早给你答复。"], ["s", "余额：37.21 → 87.21（演示）"]],
+      msgs: [["l", "听说你能把没发出去的话，替人送到？"], ["r", "五十一单。送不到，不要钱。"], ["m", "王姐 向你转账", "50.00 元"], ["d", "老周，那块招牌我替你留着，别搬走。", "王姐的草稿 · 写给隔壁老周 · 未发送"], ["s", "余额：37.21 → 87.21（演示）"]],
       hook: "第 2 章 · 第二单的客户，是全城最大的物业公司",
+      t: [
+        { hot: "老城区两家便利店连夜合并", hook: "第 2 章 · 王姐给他在店里开了个工位，挂牌「代送」" },
+        { hot: "老周昨天没搬走，那块招牌今早又亮了", hook: "第 2 章 · 整条街的老板都来排队下单" },
+        { hot: "老城区那条街三年前没拆，成了网红街", hook: "第 2 章 · 拆迁办找上门：你改了我们的规划" },
+      ],
       why: "一单接一单，生意越做越大，客户一个比一个难缠。",
       risk: "冲突变弱：生意一顺，故事也就没劲了。",
     },
     {
       k: "解谜推进", ch: "谜底什么时候揭开", who: "幸福里 3 栋业主群", sub: "32 人", av: "群",
-      msgs: [["l", "有人见过 1803 的林小满吗？三天没回家了。", "林阿姨"], ["l", "刚刚小满给我发消息了，说在同学家，没事。", "林阿姨"], ["l", "那就好那就好", "物业小刘"], ["r", "阿姨，她的手机壳是什么颜色？"], ["s", "陆川手里，正握着一部白色手机壳的手机（演示）"]],
+      msgs: [["l", "有人见过 1803 的林小满吗？三天没回家了。", "林阿姨"], ["l", "刚刚小满给我发消息了，说在同学家，没事。", "林阿姨"], ["l", "那就好那就好", "物业小刘"], ["r", "阿姨，她的手机壳是什么颜色？"], ["d", "妈，我在老城区天桥下面，手机快没电了。", "林小满的草稿 · 三天前 · 未发送"], ["s", "这条草稿出现在陆川的派单列表里（演示）"]],
       hook: "第 2 章 · 那条「没事」，是谁发的？",
+      t: [
+        { hot: "老城区天桥下，凌晨有人报警", hook: "第 2 章 · 警察到了，那条「没事」还挂在群里" },
+        { hot: "幸福里一女孩昨天被家人接回", hook: "第 2 章 · 女孩回家了，却不记得这三天去过哪" },
+        { hot: "幸福里 1803，三年前就没人住了", hook: "第 2 章 · 显示送达成功，可收件人三年前就搬走了" },
+      ],
       why: "读者最想知道的事，被一层一层揭开。",
       risk: "谜题拖太久：一直不揭，读者会走。",
     },
     {
       k: "关系拉扯", ch: "那句话什么时候说出口", who: "沈知夏", sub: "上次聊天：三年前", av: "沈",
-      msgs: [["l", "这么晚还在送单？"], ["r", "最后一单。"], ["d", "那年如果我没走，你会不会……", "她的草稿 · 未发送 · 只有你看得见"], ["l", "早点休息。"], ["s", "对方删除了一条草稿（演示）"]],
-      hook: "第 2 章 · 她删掉的那句话，他看见了",
+      msgs: [["l", "这么晚还在送单？"], ["r", "最后一单。"], ["d", "那年在车站，我等过你。", "她的草稿 · 写于三年前 · 收件人：你"], ["l", "早点休息。"], ["s", "这条草稿可以送达，收件人是你自己（演示）"]],
+      hook: "第 2 章 · 那句话，要不要替她送出去？",
+      t: [
+        { hot: "滨江路凌晨，有人站着打了很久电话", hook: "第 2 章 · 她发现，那句话被人送出去了" },
+        { hot: "昨天，有人退掉了一张出国的机票", hook: "第 2 章 · 她改了主意，却说不清为什么" },
+        { hot: "三年前那趟末班车，晚点了十分钟", hook: "第 2 章 · 三年前的他收到了，今天的他多了一段不记得的回忆" },
+      ],
       why: "两个人之间那句没说出口的话，到底什么时候说出口。",
       risk: "关系停滞：拉扯了二十章，两个人还在原地。",
     },
   ];
+  const HOT = ["地铁 4 号线今晚延长运营", "城南夜市新开一条美食街", "本周末气温骤降 10 度", "老城区天桥下月起封闭维修", "外卖平台调整夜间配送费"];
+  const WHEN = ["10 分钟前", "昨天", "三年前"];
   const ref = useRef(null);
   const [m, setM] = useState(0);
   const [n, setN] = useState(0);
+  const [when, setWhen] = useState(2);
+  const [sent, setSent] = useState(false);
   const [seen, setSeen] = useState(false);
   const [run, setRun] = useState(0);
   useEffect(() => {
@@ -530,6 +573,10 @@ export const UbChat = () => {
   const len = e.msgs.length;
   const nx = e.msgs[n];
   const typing = seen && nx && (nx[0] === "l" || nx[0] === "m");
+  const done = n > len;
+  const cur = e.t[when];
+  const hook = sent ? cur.hook : e.hook;
+  const rows = (sent ? [{ t: cur.hot, nw: true }] : []).concat(HOT.map((t) => ({ t: t })));
   return (
     <div className="not-prose uc" id="uc-chat" ref={ref}>
       <style>{`
@@ -590,17 +637,45 @@ export const UbChat = () => {
 .uc-note a:hover{color:#fff}
 .uc-again{margin-top:18px;padding:9px 20px;font-family:inherit;font-size:13.5px;color:#6ee7b7;background:rgba(16,185,129,.1);border:1px solid rgba(110,231,183,.4);border-radius:999px;cursor:pointer}
 .uc-again:focus-visible,.uc-note a:focus-visible{outline:2px solid #6ee7b7;outline-offset:3px}
+.uc-drow{position:relative;flex-direction:column;align-items:flex-start}
+.uc-send{display:block;margin-top:8px;padding:5px 12px;font-family:inherit;font-size:12px;font-weight:700;color:#fff;background:linear-gradient(135deg,#a855f7,#db2777);border:none;border-radius:999px;cursor:pointer;box-shadow:0 0 14px rgba(217,70,239,.6);animation:ucIn .35s ease both}
+.uc-send:hover{scale:1.05}
+.uc-fly{position:absolute;top:0;left:0;pointer-events:none;animation:ucFly .9s cubic-bezier(.5,0,.8,.4) forwards}
+@keyframes ucFly{0%{translate:0 0;rotate:0deg;scale:1;opacity:1}30%{translate:-6px 6px;rotate:-2deg;scale:1.02;opacity:1}100%{translate:220px -260px;rotate:14deg;scale:.3;opacity:0}}
+.uc-sent{display:flex;align-items:center;gap:8px;padding:5px 6px 5px 12px;font-size:12px;color:#f5d0fe;background:rgba(168,85,247,.16);border:1px solid rgba(232,121,249,.5);border-radius:999px;animation:ucIn .35s .55s ease both}
+.uc-undo{padding:3px 10px;font-family:inherit;font-size:11.5px;color:#e9d5ff;background:rgba(0,0,0,.3);border:1px solid rgba(232,121,249,.5);border-radius:999px;cursor:pointer}
+.uc-undo:hover{color:#fff;border-color:#f0abfc}
+.uc-hk2{box-shadow:0 0 0 1px rgba(240,171,252,.75),0 10px 30px rgba(0,0,0,.55),0 0 30px rgba(236,72,153,.55)}
+.uc-hs{margin-top:16px;padding:20px 22px;background:rgba(255,255,255,.04);border:1px solid rgba(232,121,249,.28);border-radius:20px}
+.uc-hst{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px}
+.uc-hst b{font-size:16px;color:#fff}
+.uc-hst span{font-size:12px;color:rgba(240,171,252,.75)}
+.uc-when{display:flex;gap:4px;margin-top:12px;padding:4px;background:rgba(0,0,0,.3);border-radius:12px}
+.uc-when button{flex:1;padding:8px 6px;font-family:inherit;font-size:13px;color:rgba(237,233,254,.7);background:transparent;border:none;border-radius:9px;cursor:pointer;transition:background .2s,color .2s}
+.uc-when button:hover{color:#fff}
+.uc-when .uc-won{color:#fff;font-weight:700;background:linear-gradient(135deg,#7c3aed,#c026d3)}
+.uc-hl{position:relative;height:170px;margin:14px 0 0;padding:0;list-style:none;overflow:hidden}
+.uc-hl li{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;height:30px;padding:0 10px;font-size:13.5px;color:#ede9fe;background:rgba(255,255,255,.03);border-radius:8px;transition:translate .6s cubic-bezier(.2,.8,.2,1),opacity .4s}
+.uc-hl li i{flex:0 0 18px;font-style:normal;font-weight:800;text-align:center;color:rgba(237,233,254,.45)}
+.uc-hl li:nth-child(-n+3) i{color:#fb7185}
+.uc-hl li span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.uc-hl li b{padding:1px 6px;font-size:11px;color:#fff;background:#e11d48;border-radius:5px}
+.uc-hl .uc-new{color:#fff;background:rgba(219,39,119,.22);box-shadow:inset 0 0 0 1px rgba(244,114,182,.6);animation:ucRise .9s .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ucRise{from{translate:0 170px;opacity:0}to{translate:0 0;opacity:1}}
+.uc-hl .uc-out{opacity:0}
+.uc-hsn{margin:10px 0 0;font-size:12.5px;line-height:1.7;color:rgba(237,233,254,.6)}
+.uc-send:focus-visible,.uc-undo:focus-visible,.uc-when button:focus-visible{outline:2px solid #6ee7b7;outline-offset:2px}
 @media (max-width:900px){.uc{padding:80px 20px 90px}.uc-tabs{grid-template-columns:1fr 1fr}.uc-grid{grid-template-columns:1fr;gap:32px;justify-items:center}.uc-side{width:100%}}
 @media (max-width:360px){.uc-ph{width:284px}}
-@media (prefers-reduced-motion:reduce){.uc *{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){.uc *{animation:none!important;transition:none!important}.uc-fly{display:none}}
 `}</style>
       <div className="uc-in">
         <div className="uc-k">消息 · 同一个开局，四种推进</div>
         <h2 className="uc-h2">换一种推进，故事就拐进另一条街</h2>
-        <p className="uc-p">第 1 章结尾，陆川的手机亮了。主推进不同，发消息来的人不同，读者追下去的理由不同，最怕出的问题也不同。切换主推进，看同一个开局走向四条街。</p>
+        <p className="uc-p">第 1 章结尾，陆川的手机亮了。主推进不同，发消息来的人不同，读者追下去的理由不同，最怕出的问题也不同。每条对话里都藏着一条没发出去的草稿：选一个送达时间，替人送出去，再看城市热搜和章末钩子怎么跟着改。</p>
         <div className="uc-tabs">
           {EN.map((x, i) => (
-            <button key={x.k} type="button" className={"uc-tab" + (m === i ? " uc-ton" : "")} aria-pressed={m === i} onClick={() => setM(i)}>
+            <button key={x.k} type="button" className={"uc-tab" + (m === i ? " uc-ton" : "")} aria-pressed={m === i} onClick={() => { setM(i); setSent(false); }}>
               <b>{x.k}</b>
               <span>{x.ch}</span>
             </button>
@@ -614,10 +689,10 @@ export const UbChat = () => {
                 <span>00:13</span>
                 <em>11%</em>
               </div>
-              {n > len && (
-                <div className="uc-hook" key={"h" + m + "-" + run}>
-                  <span>章末钩子</span>
-                  <b>{e.hook}</b>
+              {done && (
+                <div className={"uc-hook" + (sent ? " uc-hk2" : "")} key={"h" + m + "-" + run + "-" + (sent ? when : "x")}>
+                  <span>{sent ? "章末钩子 · 已送达至" + WHEN[when] : "章末钩子"}</span>
+                  <b>{hook}</b>
                 </div>
               )}
               <div className="uc-hd">
@@ -637,8 +712,22 @@ export const UbChat = () => {
                     </div>
                   );
                   if (x[0] === "d") return (
-                    <div key={m + "-" + i} className="uc-row">
-                      <div className="uc-draft"><em>{x[2]}</em>{x[1]}</div>
+                    <div key={m + "-" + i} className="uc-row uc-drow">
+                      {sent ? (
+                        <>
+                          <div className="uc-draft uc-fly" aria-hidden="true"><em>{x[2]}</em>{x[1]}</div>
+                          <div className="uc-sent" role="status">
+                            ✓ 已送达至「{WHEN[when]}」
+                            <button type="button" className="uc-undo" onClick={() => setSent(false)}>撤回</button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="uc-draft">
+                          <em>{x[2]}</em>
+                          {x[1]}
+                          {done && <button type="button" className="uc-send" onClick={() => setSent(true)}>送达（演示）↗</button>}
+                        </div>
+                      )}
                     </div>
                   );
                   return (
@@ -666,14 +755,35 @@ export const UbChat = () => {
                 <dt>读者为什么追</dt>
                 <dd>{e.why}</dd>
                 <dt>章末钩子（演示）</dt>
-                <dd>{e.hook}</dd>
+                <dd>{hook}</dd>
                 <dt>最怕出的问题</dt>
                 <dd>{e.risk}</dd>
               </dl>
             </div>
+            <div className="uc-hs">
+              <div className="uc-hst">
+                <b>城市热搜</b>
+                <span>演示 · 每送达一单，城市就改一点</span>
+              </div>
+              <div className="uc-when" role="group" aria-label="把草稿送达到什么时候">
+                {WHEN.map((w, i) => (
+                  <button key={w} type="button" className={when === i ? "uc-won" : ""} aria-pressed={when === i} onClick={() => setWhen(i)}>{w}</button>
+                ))}
+              </div>
+              <ol className="uc-hl" aria-live="polite">
+                {rows.map((r, i) => (
+                  <li key={r.t} className={(r.nw ? "uc-new" : "") + (i >= 5 ? " uc-out" : "")} style={{ translate: "0 " + Math.min(i, 5) * 34 + "px" }} aria-hidden={i >= 5}>
+                    <i>{i + 1}</i>
+                    <span>{r.t}</span>
+                    {r.nw && <b>沸</b>}
+                  </li>
+                ))}
+              </ol>
+              <p className="uc-hsn">{sent ? "改动来自那条送达的草稿。换一个送达时间，看城市怎么跟着变。" : done ? "先选一个送达时间，再点手机里草稿上的「送达（演示）」。" : "等对话放完，草稿上会出现「送达」按钮。"}</p>
+            </div>
             <p className="uc-note">一本书可以先定一个主推进，再补一两个辅助推进。比如都市异能：主推进「升级变强」，辅助「关系拉扯」和「经营扩张」。主推进负责稳定追读，辅助推进用于增加变化。</p>
             <p className="uc-note">推进模式只参与规划判断，不会直接生成正文；演示里的消息只是示意方向。<a href="/features/progression-modes">推进模式库 →</a></p>
-            <button type="button" className="uc-again" onClick={() => setRun(run + 1)}>↻ 再看一遍</button>
+            <button type="button" className="uc-again" onClick={() => { setRun(run + 1); setSent(false); }}>↻ 再看一遍</button>
           </div>
         </div>
       </div>
@@ -684,15 +794,15 @@ export const UbChat = () => {
 export const UbTitle = () => {
   const DIM = ["题材感", "卖点感", "情绪强度", "识别度"];
   const TT = [
-    { t: "我送外卖，看见了全城没发出去的话", dir: "从主角身份入手", s: [5, 5, 4, 4], g: "linear-gradient(160deg,#7c3aed,#db2777 60%,#f59e0b)", ok: true, note: "一眼能看出主角是谁、金手指是什么、故事在哪里发生。四个维度都不弱，适合当首选。" },
-    { t: "全城草稿箱", dir: "从金手指入手", s: [3, 4, 3, 5], g: "linear-gradient(160deg,#0f172a,#0e7490 70%,#22d3ee)", note: "短、好记、识别度高，但光看书名，读者不一定知道这是一本都市异能。" },
-    { t: "那些没说出口的话", dir: "从情绪承诺入手", s: [1, 2, 5, 2], g: "linear-gradient(160deg,#fda4af,#c4b5fd 70%,#e0e7ff)", note: "很好听，但看不出这本书讲什么。标题只好听却看不出内容，通常不是最优选择。" },
-    { t: "我能看穿全世界的秘密", dir: "夸大卖点", s: [3, 4, 5, 2], g: "linear-gradient(160deg,#111827,#b91c1c 65%,#fbbf24)", warn: true, note: "主角其实只能看见三米之内的草稿。过度夸张会让读者期待错误，后续章节更难承接。" },
+    { t: "我送的外卖，能送到三年前", dir: "从主角身份入手", s: [5, 5, 4, 4], g: "linear-gradient(160deg,#7c3aed,#db2777 60%,#f59e0b)", ok: true, note: "一眼能看出主角是谁、金手指是什么、钩子在哪。四个维度都不弱，适合当首选。" },
+    { t: "未送达", dir: "从金手指入手", s: [3, 4, 3, 5], g: "linear-gradient(160deg,#0f172a,#0e7490 70%,#22d3ee)", note: "短、好记、识别度高，但光看书名，读者不一定知道这是一本都市异能。" },
+    { t: "那些没发出去的话", dir: "从情绪承诺入手", s: [1, 2, 5, 2], g: "linear-gradient(160deg,#fda4af,#c4b5fd 70%,#e0e7ff)", note: "很好听，但看不出这本书讲什么。标题只好听却看不出内容，通常不是最优选择。" },
+    { t: "我能改写全世界的过去", dir: "夸大卖点", s: [3, 4, 5, 2], g: "linear-gradient(160deg,#111827,#b91c1c 65%,#fbbf24)", warn: true, note: "主角其实只能替人送出一条写好的草稿，城市也只跟着改一点点。过度夸张会让读者期待错误，后续章节更难承接。" },
   ];
   const CH = [
-    { t: "第 1 章　一条求救草稿", a: "陆川确认自己真的看得见别人的草稿。", b: "草稿的主人就在 18 楼，而他只是来送餐的。", c: "那条草稿被删掉了，删掉它的人不是机主。" },
-    { t: "第 2 章　18 楼没有人住", a: "找到写下求救草稿的人。", b: "物业说，18 楼已经空了两年。", c: "他自己的手机里，多了一条他没写过的草稿。" },
-    { t: "第 3 章　五十块的第一单", a: "用能力赚到第一笔钱，先把房租交上。", b: "王姐要找的内鬼，是她亲弟弟。", c: "王姐弟弟的草稿箱里，也躺着那句「救我」。" },
+    { t: "第 1 章　一单三年前的配送", a: "陆川确认「未送达」频道是真的：他送出的话，收件人真的会收到。", b: "第一单的收件地址，是一栋三年前就拆掉的楼。", c: "送达之后，城市热搜第一条，变成了一件他从没听说过的事。" },
+    { t: "第 2 章　城西面馆没有关门", a: "弄清第一单到底改掉了什么。", b: "面馆还开着，可老板的女儿说，她从没收到过什么消息。", c: "他自己的手机里，少了一段三年前的聊天记录。" },
+    { t: "第 3 章　五十块的第一单", a: "用频道赚到第一笔钱，先把房租交上。", b: "王姐要送的那句话，收件人早已不在这座城市。", c: "派单列表里，出现了一条写给他自己的草稿。" },
   ];
   const [p, setP] = useState(0);
   const [c, setC] = useState(0);
@@ -814,7 +924,7 @@ export const UbTitle = () => {
                     </div>
                   </div>
                 </div>
-                <p className="ut-blurb">三米之内，所有没发出去的话，他都看得见。</p>
+                <p className="ut-blurb">别人没发出去的话，他都能送到，哪怕是三年前。</p>
                 <div className="ut-toc">目录 · 共 3 章（演示）</div>
                 <ul className="ut-chs">
                   {CH.map((ch, i) => (
@@ -850,7 +960,7 @@ export const UbTitle = () => {
 };
 
 export const UbCall = () => {
-  const LINES = ["喂？是下一位作者吗？", "我的故事，只写到第 3 章。", "18 楼那条草稿是谁写的，我也还不知道。", "后面的路，你来写。"];
+  const LINES = ["喂？是下一位作者吗？", "我的故事，只写到第 3 章。", "派单列表里有一条写给我自己的草稿，我还没敢送。", "送不送，你来写。"];
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
   const [st, setSt] = useState("ring");
@@ -994,7 +1104,7 @@ export const UbCall = () => {
                 <div className="uk-nm">陆川</div>
                 <div className="uk-end">
                   <b>他把第 4 章留给了你。</b>
-                  草稿箱里那句「救我」，还在等一个结局。
+                  「未送达」里还躺着一单，收件人是他自己。
                 </div>
                 <button type="button" className="uk-re" onClick={redial}>↻ 再打一次</button>
               </>
@@ -1004,7 +1114,7 @@ export const UbCall = () => {
                 <div className="uk-st">未接来电</div>
                 <div className="uk-nm">陆川</div>
                 <div className="uk-end">
-                  <b>他还会再打来的。</b>
+                  <b>这通电话，进了「未送达」。</b>
                   故事停在第 3 章，等人接着写。
                 </div>
                 <button type="button" className="uk-re" onClick={redial}>✆ 回拨</button>
@@ -1031,6 +1141,121 @@ export const UbCall = () => {
           </div>
           <a className="uk-home" href="/">← 回到首页书架</a>
           <div className="uk-dis">演示：人物、剧情、信号与文字均为示意。</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbShake = () => {
+  const SETS = [
+    { k: "普通职业", c: "#67e8f9", v: ["外卖骑手", "夜班保安", "房产中介", "驾校教练", "便利店店员", "殡仪馆化妆师"] },
+    { k: "异能", c: "#f0abfc", v: ["能把没发出去的话，送到三年前", "能看见每个人头顶的剩余电量", "摸过的钥匙，能打开主人最想回去的那扇门", "每晚零点，能把这一天倒带十分钟", "听得懂全城流浪猫的情报网", "能向陌生人借一小时的运气"] },
+    { k: "代价", c: "#fda4af", v: ["每用一次，忘掉一个熟人的名字", "手机电量和自己的体力绑在一起", "用过之后，到天亮前一句谎都不能撒", "改掉的每件事，都得有人替他记住", "每用一次，城里就有一盏路灯永远熄灭", "借来的时间，会从自己的生日里扣"] },
+  ];
+  const [idx, setIdx] = useState([0, 0, 0]);
+  const [lock, setLock] = useState([false, false, false]);
+  const [go, setGo] = useState(0);
+  const all = lock.every(Boolean);
+  const pick = (cur, n) => {
+    let x = Math.floor(Math.random() * (n - 1));
+    if (x >= cur) x += 1;
+    return x;
+  };
+  const shake = () => {
+    if (all) return;
+    setIdx(idx.map((cur, i) => (lock[i] ? cur : pick(cur, SETS[i].v.length))));
+    setGo(go + 1);
+  };
+  const flip = (i) => setLock(lock.map((b, j) => (j === i ? !b : b)));
+  const val = (i) => SETS[i].v[idx[i]];
+  return (
+    <div className="not-prose us">
+      <style>{`
+.us{position:relative;overflow:hidden;padding:110px 24px 120px;color:#ede9fe;background:radial-gradient(ellipse 45% 40% at 78% 50%,rgba(217,70,239,.16),transparent 70%),linear-gradient(180deg,#07060f 0%,#130a28 100%);font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.us-in{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1fr auto;gap:64px;align-items:center}
+.us-k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#f0abfc}
+.us-h2{margin:14px 0 0;font-size:clamp(30px,4.4vw,46px);font-weight:900;letter-spacing:.06em;color:#fff}
+.us-p{max-width:560px;margin:16px 0 0;font-size:16px;line-height:1.9;color:rgba(237,233,254,.75)}
+.us-out{max-width:560px;margin:28px 0 0;padding:20px 22px;font-size:18px;line-height:1.85;color:#fff;background:rgba(255,255,255,.05);border:1px solid rgba(240,171,252,.35);border-radius:18px;box-shadow:0 0 40px -16px rgba(217,70,239,.6)}
+.us-out b{font-weight:800}
+.us-dm{margin:12px 0 0;font-size:12.5px;color:rgba(240,171,252,.7)}
+.us-bs{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.us-b{display:inline-flex;align-items:center;padding:11px 20px;font-family:inherit;font-size:14.5px;color:#ddd6fe;text-decoration:none;background:rgba(76,29,149,.25);border:1px solid rgba(167,139,250,.45);border-radius:12px;cursor:pointer;transition:background .2s,translate .2s}
+.us-b:hover{background:rgba(124,58,237,.35);translate:0 -2px}
+.us-pri{color:#fff;font-weight:700;background:linear-gradient(135deg,#7c3aed,#c026d3);border-color:transparent}
+.us-pri:disabled{opacity:.5;cursor:not-allowed;translate:none}
+.us-ph{position:relative;width:300px;height:610px;padding:10px;border-radius:50px;background:#05040b;box-shadow:0 0 0 2px #2e2a48,0 0 0 6px #120e22,0 40px 90px -30px rgba(192,38,211,.6)}
+.us-shA{animation:usShA .6s ease}
+.us-shB{animation:usShB .6s ease}
+@keyframes usShA{0%,100%{rotate:0deg;translate:0 0}15%{rotate:-7deg;translate:-8px 0}30%{rotate:6deg;translate:8px 0}45%{rotate:-5deg;translate:-6px 0}60%{rotate:4deg;translate:5px 0}80%{rotate:-2deg;translate:-2px 0}}
+@keyframes usShB{0%,100%{rotate:0deg;translate:0 0}15%{rotate:-7deg;translate:-8px 0}30%{rotate:6deg;translate:8px 0}45%{rotate:-5deg;translate:-6px 0}60%{rotate:4deg;translate:5px 0}80%{rotate:-2deg;translate:-2px 0}}
+.us-sc{position:relative;height:100%;overflow:hidden;display:flex;flex-direction:column;padding:50px 14px 18px;border-radius:40px;background:radial-gradient(ellipse 80% 40% at 50% 12%,rgba(192,38,211,.4),transparent 70%),linear-gradient(180deg,#1a0f3d,#0a0618)}
+.us-isl{position:absolute;top:10px;left:50%;width:92px;height:26px;translate:-50% 0;border-radius:999px;background:#000}
+.us-sb{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:14px 26px 0;font-size:12px;font-weight:600;color:#fff}
+.us-sb em{font-style:normal;color:#fca5a5}
+.us-tt{text-align:center;font-size:13px;letter-spacing:.2em;color:#e9d5ff}
+.us-wave{position:relative;width:86px;height:86px;margin:14px auto 6px}
+.us-wave i{position:absolute;inset:0;border:2px solid rgba(240,171,252,.55);border-radius:50%;animation:usWave 2.4s ease-out infinite}
+.us-wave i:nth-child(2){animation-delay:.8s}
+.us-wave i:nth-child(3){animation-delay:1.6s}
+@keyframes usWave{from{scale:.4;opacity:1}to{scale:1.25;opacity:0}}
+.us-wave b{position:absolute;inset:22px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:50%}
+.us-cards{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.us-cd{padding:11px 12px;border-radius:16px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:box-shadow .2s,background .2s}
+.us-on{background:rgba(124,58,237,.22);box-shadow:inset 0 0 0 1px rgba(240,171,252,.7)}
+.us-ch{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.us-ch span{font-size:11px;letter-spacing:.18em}
+.us-lk{padding:3px 10px;font-family:inherit;font-size:11px;color:#e9d5ff;background:rgba(0,0,0,.3);border:1px solid rgba(196,181,253,.4);border-radius:999px;cursor:pointer}
+.us-on .us-lk{color:#fff;background:linear-gradient(135deg,#7c3aed,#c026d3);border-color:transparent}
+.us-v{display:block;min-height:42px;margin-top:6px;font-size:14px;font-weight:700;line-height:1.5;color:#fff;animation:usPop .45s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes usPop{from{opacity:0;translate:0 10px;scale:.96}}
+.us-go{margin-top:auto;padding:12px;font-family:inherit;font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,#7c3aed,#db2777);border:none;border-radius:16px;cursor:pointer}
+.us-go:disabled{opacity:.5;cursor:not-allowed}
+.us-lk:focus-visible,.us-go:focus-visible,.us-b:focus-visible{outline:2px solid #67e8f9;outline-offset:3px}
+@media (max-width:900px){.us{padding:80px 20px 90px}.us-in{grid-template-columns:1fr;gap:36px;justify-items:center}.us-copy{width:100%}}
+@media (max-width:360px){.us-ph{width:284px}}
+@media (prefers-reduced-motion:reduce){.us *{animation:none!important;transition:none!important}}
+`}</style>
+      <div className="us-in">
+        <div className="us-copy">
+          <div className="us-k">摇一摇 · 脑洞拼装（演示）</div>
+          <h2 className="us-h2">普通职业 × 异能 × 代价</h2>
+          <p className="us-p">都市异能好看的地方，往往是一份很普通的工作，配上一项很小、却要付出代价的能力。锁住喜欢的那张，摇掉不喜欢的，拼出一个你自己的开头。</p>
+          <p className="us-out" aria-live="polite">你是一名<b style={{ color: SETS[0].c }}>{val(0)}</b>，<b style={{ color: SETS[1].c }}>{val(1)}</b>；代价是：<b style={{ color: SETS[2].c }}>{val(2)}</b>。</p>
+          <p className="us-dm">演示：随机拼出的脑洞，拿去开书页写成你的灵感</p>
+          <div className="us-bs">
+            <button type="button" className="us-b us-pri" disabled={all} onClick={shake}>{all ? "三张都锁住了" : "摇一摇 ↻"}</button>
+            <a className="us-b" href="/quickstart">拿去开书 →</a>
+          </div>
+        </div>
+        <div className={"us-ph" + (go ? (go % 2 ? " us-shA" : " us-shB") : "")}>
+          <div className="us-sc">
+            <span className="us-isl" aria-hidden="true" />
+            <div className="us-sb" aria-hidden="true">
+              <span>00:59</span>
+              <em>7%</em>
+            </div>
+            <div className="us-tt">摇一摇 · 异能匹配</div>
+            <div className="us-wave" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <b>摇</b>
+            </div>
+            <div className="us-cards">
+              {SETS.map((s, i) => (
+                <div key={s.k} className={"us-cd" + (lock[i] ? " us-on" : "")}>
+                  <div className="us-ch">
+                    <span style={{ color: s.c }}>{s.k}</span>
+                    <button type="button" className="us-lk" aria-pressed={lock[i]} aria-label={(lock[i] ? "解锁" : "锁住") + s.k} onClick={() => flip(i)}>{lock[i] ? "已锁住" : "锁住"}</button>
+                  </div>
+                  <span className="us-v" key={idx[i]}>{val(i)}</span>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="us-go" disabled={all} onClick={shake}>{all ? "三张都锁住了" : "摇一摇"}</button>
+          </div>
         </div>
       </div>
     </div>

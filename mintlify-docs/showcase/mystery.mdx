@@ -1,7 +1,7 @@
 ---
 title: "悬疑推理 · 题材展厅"
 sidebarTitle: "悬疑推理"
-description: "一面可以动手的线索墙：把证物用红线连成推论，看伏笔怎样埋设、怎样回收，以及 Biz Novel Studio 如何在大纲、章节任务和状态回流里替你记住每一条线。"
+description: "一面可以动手的线索墙：书店店主发现自己只是小说角色，在被作者删稿前留下了一面墙。紫外灯照出作者批注，翻过来就是大纲伏笔图。"
 mode: "custom"
 icon: "magnifying-glass"
 keywords:
@@ -20,6 +20,8 @@ keywords:
 
 <MxFlip />
 
+<MxTypewriter />
+
 <MxCta />
 
 export const MxFile = () => {
@@ -28,7 +30,7 @@ export const MxFile = () => {
     ["地点", "半页书店，梧桐巷 7 号"],
     ["失踪", "店主沈砚，四十一岁"],
     ["现场", "店门从里面插着插销"],
-    ["遗留", "一张便签：第七页"],
+    ["遗留", "一张便签：我不是失踪，是被删稿了"],
   ];
   const DROPS = Array.from({ length: 70 }, (_, i) => i);
   const [open, setOpen] = useState(false);
@@ -109,11 +111,11 @@ export const MxFile = () => {
       </div>
       <div className="mf-grid">
         <div>
-          <div className="mf-k">CASE No.1017 · 雨夜</div>
+          <div className="mf-k">CASE No.1017 · META</div>
           <h1 className="mf-h1">
             悬疑推<span className="mf-mk">理<svg viewBox="0 0 100 100" aria-hidden="true"><path pathLength="1" d="M18 30 C38 6, 92 10, 92 50 C92 88, 30 96, 12 64 C2 44, 22 20, 52 16" /></svg></span>
           </h1>
-          <p className="mf-sub">这间展厅是一面线索墙。读者负责破案，作者负责埋线，工作台负责记住：每一条线埋在哪一章，又该在哪一章收回来。</p>
+          <p className="mf-sub">这间展厅是一面线索墙。但这次的案子不在现实里：书店店主沈砚发现自己只是一本悬疑小说中的角色，而作者正在删稿。他留下一面墙，等你来翻。</p>
           <div className="mf-btns">
             {open ? (
               <a className="mf-btn mf-pri" href="#mx-board">把证物钉上墙 ↓</a>
@@ -148,7 +150,7 @@ export const MxFile = () => {
               <span className="mf-ft">档案袋</span>
               <span className="mf-tb">
                 <span><em>卷宗号</em>1017</span>
-                <span><em>案　由</em>半页书店失踪案</span>
+                <span><em>案　由</em>半页书店删稿案</span>
                 <span><em>状　态</em>待侦破</span>
               </span>
               {!open && <span className="mf-fh">点一下，拆开卷宗</span>}
@@ -164,37 +166,41 @@ export const MxFile = () => {
 
 export const MxBoard = () => {
   const CL = [
-    { id: "note", no: "01", t: "便签「第七页」", d: "压在柜台的茶杯下，字迹很急。", k: "note", x: 12, y: 6, r: -4 },
-    { id: "latch", no: "02", t: "插销上的新划痕", d: "一圈细细的勒痕，像被什么绕过。", k: "photo", x: 37, y: 9, r: 2 },
-    { id: "cups", no: "03", t: "两只茶杯", d: "一只还温着；另一只洗过，倒扣在后厨。", k: "photo", x: 63, y: 5, r: -2 },
-    { id: "mud", no: "04", t: "窗台上的泥脚印", d: "鞋尖朝外，像有人翻窗走了。", k: "photo", x: 88, y: 9, r: 4 },
-    { id: "cctv", no: "05", t: "巷口监控 23:40", d: "一把黑伞离开书店，伞下的人回了一次头。", k: "photo", x: 13, y: 55, r: 3 },
-    { id: "book", no: "06", t: "缺页的《雨夜旅馆》", d: "书架第三层，第七页被齐根撕掉。", k: "paper", x: 38, y: 58, r: -3 },
+    { id: "note", no: "01", t: "便签「我不是失踪，是被删稿了」", d: "压在柜台的茶杯下，字迹很急。", k: "note", x: 12, y: 6, r: -4 },
+    { id: "striked", no: "02", t: "被划掉的《雨夜旅馆》第七页", d: "书页上有红色删除线，旁边是作者批注。", k: "paper", x: 37, y: 9, r: 2 },
+    { id: "margin", no: "03", t: "页边空白的手写批注", d: "「这里埋一下，第 9 章收」。字迹和便签不同。", k: "paper", x: 63, y: 5, r: -2 },
+    { id: "stamp", no: "04", t: "墙上的章节编号章", d: "「第 7 章」的铅字印，像出版社的校对章。", k: "photo", x: 88, y: 9, r: 4 },
+    { id: "comment", no: "05", t: "读者评论纸条", d: "「作者是不是忘了沈砚？三章没出场了。」", k: "paper", x: 13, y: 55, r: 3 },
+    { id: "latch", no: "06", t: "插销上的新划痕", d: "一圈细细的勒痕，像被什么绕过。", k: "photo", x: 38, y: 58, r: -3 },
     { id: "line", no: "07", t: "一截透明鱼线", d: "在门口垃圾桶里，两头打着活结。", k: "paper", x: 63, y: 54, r: 2 },
-    { id: "poster", no: "08", t: "三年前的寻人启事", d: "钉在书店墙角，边角已经发黄。", k: "poster", x: 87, y: 57, r: -2 },
+    { id: "poster", no: "08", t: "第二稿的寻人启事", d: "「第二稿已删除角色：林小满。」钉在墙角。", k: "poster", x: 87, y: 57, r: -2 },
   ];
   const PAIRS = [
     { a: "latch", b: "line", h: "推论一 · 密室是做出来的", t: "插销上那圈新划痕，正是鱼线勒出来的。有人站在门外，用鱼线把插销拉上，再把线抽走。沈砚不是自己锁的门。", w: "伏笔「插销划痕」：第 1 章埋设，第 3 章回收。" },
-    { a: "cups", b: "cctv", h: "推论二 · 来的是熟人", t: "第二只杯子被洗过、倒扣回架上。23:40，一把黑伞离开书店，伞下的人回头像在道别。沈砚给这个人泡了茶：他们认识。", w: "伏笔「第二只茶杯」：第 2 章埋设，第 4 章回收。" },
-    { a: "note", b: "book", h: "推论三 · 便签是一条索引", t: "「第七页」不是遗言。店里那本《雨夜旅馆》恰好缺了第七页，有人把它撕走了。沈砚在告诉后来的人：答案就在那一页上。", w: "伏笔「便签·第七页」：第 1 章埋设，第 6 章回收。" },
+    { a: "comment", b: "striked", h: "推论二 · 读者的抱怨成了证据", t: "「三章没出场」的读者评论，和第七页被划掉的删除线对上了。沈砚不是失踪，是被作者从稿子里一笔一笔划掉了。", w: "伏笔「读者评论」：第 2 章埋设，第 4 章回收。" },
+    { a: "note", b: "stamp", h: "推论三 · 第七页是唯一的锚", t: "「第七页」不是遗言，是章节编号。沈砚把自己藏进了第 7 章：这是全书唯一作者不能删的章节，因为后面每一章都引用了这一页。", w: "伏笔「便签·第七页」：第 1 章埋设，第 6 章回收。" },
   ];
+  const BONUS = { a: "margin", b: "poster", h: "隐藏推论 · 作者也怕删错", t: "页边批注「这里埋一下，第 9 章收」和第二稿删除的林小满，笔迹出自同一人。作者不是无情，她只是不敢删有伏笔的角色。", w: "伏笔「页边批注」：第 3 章埋设，第 9 章回收。" };
   const LED = [
     { pi: 0, n: "插销划痕", a: "第 1 章", b: "第 3 章" },
-    { pi: 1, n: "第二只茶杯", a: "第 2 章", b: "第 4 章" },
+    { pi: 1, n: "读者评论", a: "第 2 章", b: "第 4 章" },
     { pi: 2, n: "便签「第七页」", a: "第 1 章", b: "第 6 章" },
-    { pi: -1, n: "三年前的寻人启事", a: "第 5 章", b: "第 3 卷" },
+    { pi: -1, n: "页边批注 / 林小满", a: "第 3 章", b: "第 9 章" },
   ];
-  const MUD = "窗台的锁早就锈死了，根本推不开。这串鞋尖朝外的泥脚印，是有人故意留下的障眼法。";
-  const POSTER = "寻人启事上的人，三年前在梧桐巷失踪。它和今晚的案子有关吗？现在还连不上，先留着。";
+  const MUD = "墙上的铅字章是校对用的，不是凶器。它指向的是章节，不是时间。";
+  const POSTER = "林小满在第二稿被删了，但寻人启事还钉在这里。这说明删除不是终结，被遗忘才是。";
   const NONE = "这两件证物之间，还差一个能互相解释的理由。换一件试试。";
   const [sel, setSel] = useState(null);
   const [done, setDone] = useState([]);
   const [msg, setMsg] = useState(null);
   const [bad, setBad] = useState([]);
   const [last, setLast] = useState(-1);
+  const [uv, setUv] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const byId = (id) => CL.find((c) => c.id === id);
   const used = (id) => done.some((pi) => PAIRS[pi].a === id || PAIRS[pi].b === id);
   const all = done.length === PAIRS.length;
+  const bonusDone = done.includes(3);
   const pick = (id) => {
     if (!sel) { setSel(id); setMsg(null); return; }
     if (sel === id) { setSel(null); setMsg(null); return; }
@@ -206,33 +212,51 @@ export const MxBoard = () => {
       const nd = done.concat(pi);
       setDone(nd);
       setLast(pi);
-      setMsg({ k: "ok", t: nd.length === PAIRS.length ? "三根红线都连上了。往下看，案子初步结了。" : "红线连上了：" + PAIRS[pi].h + "。" });
+      setMsg({ k: "ok", t: nd.length === PAIRS.length ? "三根红线都连上了。打开紫外灯，也许还有隐藏线索。" : "红线连上了：" + PAIRS[pi].h + "。" });
+      return;
+    }
+    if (uv && ((a === "margin" && id === "poster") || (a === "poster" && id === "margin"))) {
+      if (bonusDone) { setMsg({ k: "no", t: "隐藏推论已经发现了。" }); return; }
+      const nd = done.concat(3);
+      setDone(nd);
+      setLast(3);
+      setMsg({ k: "ok", t: "紫外灯下出现了第四条红线：" + BONUS.h + "。" });
       return;
     }
     const pair = [a, id];
-    setMsg({ k: "no", t: pair.includes("mud") ? MUD : pair.includes("poster") ? POSTER : NONE });
+    setMsg({ k: "no", t: pair.includes("stamp") ? MUD : pair.includes("poster") ? POSTER : NONE });
     setBad(pair);
     setTimeout(() => setBad([]), 600);
   };
   const hint = () => {
     const pi = PAIRS.findIndex((_, i) => !done.includes(i));
-    if (pi < 0) return;
+    if (pi < 0) {
+      if (uv && !bonusDone) { setSel("margin"); setMsg({ k: "hint", t: "提示：紫外灯已经打开。已选中「页边批注」，找另一件带作者痕迹的证物。" }); return; }
+      setMsg({ k: "no", t: "三条主线都连完了。试试打开紫外灯。" });
+      return;
+    }
     setSel(PAIRS[pi].a);
     setMsg({ k: "hint", t: "提示：已经替你选中「" + byId(PAIRS[pi].a).t + "」。想想哪件证物能解释它。" });
   };
-  const reset = () => { setSel(null); setDone([]); setMsg(null); setLast(-1); setBad([]); };
+  const reset = () => { setSel(null); setDone([]); setMsg(null); setLast(-1); setBad([]); setUv(false); setFlipped(false); };
   const bar = msg ? msg : sel ? { k: "sel", t: "已选中「" + byId(sel).t + "」，再点一件和它有关的证物。" } : { k: "idle", t: "先点一件证物，再点另一件：把能互相解释的两件用红线连起来。" };
   const pic = (id) => {
     if (id === "latch") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#2a2f37" /><rect x="14" y="20" width="74" height="24" rx="3" fill="#5b6370" /><rect x="34" y="27" width="70" height="10" rx="5" fill="#a3aab5" /><circle cx="50" cy="32" r="5.5" fill="#d7dbe1" /><path d="M62 20Q69 32 62 44M70 20Q77 32 70 44" stroke="#f87171" strokeWidth="1.3" fill="none" /></svg>);
-    if (id === "cups") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#3a2e28" /><rect y="50" width="120" height="14" fill="#5a4636" /><path d="M20 28h26v14a8 8 0 0 1-8 8h-10a8 8 0 0 1-8-8z" fill="#ece8e1" /><path d="M46 32a6 6 0 0 1 0 11" stroke="#ece8e1" strokeWidth="3" fill="none" /><path d="M28 24q-4-6 0-12M37 24q4-6 0-12" stroke="#b8b2a8" strokeWidth="1.4" fill="none" /><path d="M72 50h28v-12a8 8 0 0 0-8-8h-12a8 8 0 0 0-8 8z" fill="#cfcac2" /></svg>);
-    if (id === "mud") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#24303a" /><rect x="10" y="6" width="100" height="34" fill="#35485a" /><line x1="60" y1="6" x2="60" y2="40" stroke="#1b252e" strokeWidth="3" /><rect y="40" width="120" height="24" fill="#6b6259" /><ellipse cx="44" cy="52" rx="5" ry="8" fill="#3b2a1e" transform="rotate(-8 44 52)" /><ellipse cx="66" cy="49" rx="5" ry="8" fill="#3b2a1e" transform="rotate(6 66 49)" /></svg>);
-    if (id === "cctv") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#1c2628" /><path d="M0 64L40 30h40l40 34z" fill="#26322f" /><text x="5" y="11" fontSize="8" fill="#86efac" fontFamily="monospace">CAM-02 23:40:12</text><path d="M46 36a16 11 0 0 1 32 0z" fill="#06090a" /><rect x="56" y="36" width="12" height="18" rx="2" fill="#0d1314" /><circle cx="110" cy="8" r="2.5" fill="#ef4444" /></svg>);
+    if (id === "stamp") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#2a2f37" /><rect x="20" y="12" width="80" height="40" rx="2" fill="#3a3f47" /><text x="60" y="38" fontSize="14" fill="#93c5fd" textAnchor="middle" fontFamily="monospace">第 7 章</text><circle cx="100" cy="52" r="3" fill="#ef4444" /></svg>);
+    if (id === "comment") return (<svg className="mb-pic" viewBox="0 0 120 64" aria-hidden="true"><rect width="120" height="64" fill="#fbfaf7" /><rect x="8" y="8" width="104" height="48" rx="2" fill="#fff" stroke="#d1d5db" strokeWidth="1" /><text x="14" y="24" fontSize="9" fill="#6b7280">读者 墨池：</text><text x="14" y="40" fontSize="10" fill="#1f2937">作者是不是忘了沈砚？</text><text x="14" y="52" fontSize="10" fill="#1f2937">三章没出场了。</text></svg>);
     return null;
   };
   return (
-    <div id="mx-board" className="not-prose mb">
+    <div id="mx-board" className={"not-prose mb" + (uv ? " mb-uv" : "") + (flipped ? " mb-flip" : "")}>
       <style>{`
 .mb{background:#0b1220;color:#e5e9f0;padding:110px 24px 120px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.mb-uv .mb-wall{background:radial-gradient(circle at 20% 30%,rgba(0,0,0,.09) 0 2px,transparent 3px) 0 0/17px 19px,radial-gradient(circle at 70% 60%,rgba(255,255,255,.07) 0 1.5px,transparent 2.5px) 0 0/23px 21px,linear-gradient(135deg,#2a1a5a,#1a0f3e 50%,#0f0820)}
+.mb-uv .mb-card.mb-uv-glow{box-shadow:0 0 0 3px #a855f7,0 18px 30px -10px rgba(0,0,0,.7)}
+.mb-uv .mb-card .mb-uv-text{display:block}
+.mb-flip .mb-frame{perspective:1400px}
+.mb-flip .mb-wall{transition:rotate .9s cubic-bezier(.45,.1,.2,1);rotate:y 180deg}
+.mb-backface{display:none}
+.mb-flip .mb-backface{display:block;position:absolute;inset:0;rotate:y 180deg;backface-visibility:hidden;padding:22px 26px;background:#0f172a;color:#e2e8f0;border:14px solid #3b2a1c}
 .mb-in{max-width:1180px;margin:0 auto}
 .mb-head{text-align:center;max-width:720px;margin:0 auto 34px}
 .mb-k{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;letter-spacing:.35em;color:#fca5a5}
@@ -243,14 +267,14 @@ export const MxBoard = () => {
 .mb-bar-ok{border-color:#22c55e;color:#bbf7d0}
 .mb-bar-no{border-color:#f59e0b;color:#fde68a}
 .mb-bar-sel,.mb-bar-hint{border-color:#ef4444;color:#fecaca}
-.mb-tb{display:flex;gap:8px;align-items:center}
+.mb-tb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .mb-cnt{font-family:ui-monospace,Menlo,monospace;font-size:13px;color:#93c5fd;letter-spacing:.1em;margin-right:6px}
 .mb-sb{padding:9px 14px;font-size:13.5px;font-family:inherit;color:#cbd5e1;background:transparent;border:1px solid rgba(148,163,184,.4);cursor:pointer;transition:background .2s,color .2s}
 .mb-sb:hover{background:rgba(148,163,184,.12);color:#fff}
 .mb-sb:disabled{opacity:.4;cursor:default}
-.mb-sb:focus-visible,.mb-card:focus-visible,.mb-re:focus-visible{outline:2px solid #fbbf24;outline-offset:3px}
+.mb-sb:focus-visible,.mb-card:focus-visible,.mb-re:focus-visible,.mb-uv-btn:focus-visible,.mb-flip-btn:focus-visible{outline:2px solid #fbbf24;outline-offset:3px}
 .mb-scroll{overflow-x:auto;border-radius:6px;box-shadow:0 30px 70px -30px rgba(0,0,0,.9)}
-.mb-frame{min-width:840px;border:14px solid #3b2a1c;background:#3b2a1c}
+.mb-frame{min-width:840px;border:14px solid #3b2a1c;position:relative}
 .mb-wall{position:relative;aspect-ratio:16/10;background:radial-gradient(circle at 20% 30%,rgba(0,0,0,.09) 0 2px,transparent 3px) 0 0/17px 19px,radial-gradient(circle at 70% 60%,rgba(255,255,255,.07) 0 1.5px,transparent 2.5px) 0 0/23px 21px,linear-gradient(135deg,#a8784a,#9a6a3e 50%,#8d5f36);box-shadow:inset 0 0 60px rgba(0,0,0,.45)}
 .mb-card{position:absolute;width:18%;translate:-50% -12px;transform-origin:50% 12px;padding:18px 10px 10px;border:0;text-align:left;cursor:pointer;font-family:inherit;background:#f4efe3;color:#292524;box-shadow:0 10px 18px -8px rgba(0,0,0,.65);transition:scale .2s,box-shadow .2s;z-index:1}
 .mb-card:hover{scale:1.05;z-index:3}
@@ -267,6 +291,7 @@ export const MxBoard = () => {
 .mb-k-note .mb-t{font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:17px}
 .mb-k-poster .mb-t{color:#991b1b}
 .mb-d{display:block;margin-top:4px;font-size:12px;line-height:1.55;color:#57534e}
+.mb-uv-text{display:none;margin-top:6px;font-size:11.5px;color:#7c3aed;font-weight:700}
 .mb-tag{position:absolute;top:-8px;right:-6px;rotate:6deg;font-size:10.5px;padding:1px 6px;background:#16a34a;color:#fff;letter-spacing:.1em}
 .mb-str{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5}
 .mb-line{fill:none;stroke:#c81e1e;stroke-width:.45;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:mbDraw .9s ease forwards}
@@ -309,41 +334,56 @@ export const MxBoard = () => {
 .mb-re{margin-top:16px;padding:10px 18px;font-size:14px;font-family:inherit;color:#fff;background:#1e3a8a;border:0;cursor:pointer}
 .mb-re:hover{background:#1d4ed8}
 .mb-dis{margin-top:24px;text-align:center;font-size:12.5px;color:#64748b}
-@media (max-width:900px){.mb-low{grid-template-columns:1fr}}
+.mb-uv-btn{padding:9px 14px;font-size:13.5px;font-family:inherit;color:#e9d5ff;background:rgba(126,34,206,.25);border:1px solid rgba(168,85,247,.5);cursor:pointer;transition:background .2s}
+.mb-uv-btn:hover{background:rgba(126,34,206,.45)}
+.mb-uv-btn.mb-uv-on{background:rgba(168,85,247,.45);color:#fff;box-shadow:0 0 12px rgba(168,85,247,.4)}
+.mb-flip-btn{padding:9px 14px;font-size:13.5px;font-family:inherit;color:#bfdbfe;background:rgba(30,58,138,.35);border:1px solid rgba(147,197,253,.4);cursor:pointer;transition:background .2s}
+.mb-flip-btn:hover{background:rgba(30,58,138,.55)}
+.mb-back-h{font-family:"Noto Serif SC","Songti SC",serif;font-size:18px;color:#93c5fd;margin-bottom:14px}
+.mb-back-g{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.mb-back-c{padding:10px;background:rgba(15,23,42,.8);border:1px solid rgba(96,165,250,.2);font-size:12.5px}
+.mb-back-c b{display:block;color:#e2e8f0;margin-bottom:4px}
+.mb-back-c span{display:block;color:#94a3b8;font-size:11px}
+@media (max-width:900px){.mb-low{grid-template-columns:1fr}.mb-back-g{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:800px){.mb-swipe{display:block}}
-@media (max-width:560px){.mb{padding:80px 16px 90px}.mb-end{padding:26px 18px 22px}.mb-stamp{position:static;display:inline-block;margin-bottom:12px}.mb-tb{flex-wrap:wrap}}
-@media (prefers-reduced-motion:reduce){.mb-line{animation:none;stroke-dashoffset:0}.mb-card.mb-bad,.mb-ded.mb-new,.mb-end,.mb-stamp{animation:none}}
+@media (max-width:560px){.mb{padding:80px 16px 90px}.mb-end{padding:26px 18px 22px}.mb-stamp{position:static;display:inline-block;margin-bottom:12px}.mb-tb{flex-wrap:wrap}.mb-back-g{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){.mb-line{animation:none;stroke-dashoffset:0}.mb-card.mb-bad,.mb-ded.mb-new,.mb-end,.mb-stamp{animation:none}.mb-flip .mb-wall{transition:none}}
       `}</style>
       <div className="mb-in">
         <div className="mb-head">
           <div className="mb-k">线索墙 · 演示案件</div>
           <h2 className="mb-h">三根红线，连出一个真相</h2>
-          <p className="mb-p">墙上钉着八件证物。有的能互相解释，有的是障眼法，还有一件，这一卷都用不上。先点一件，再点另一件，用红线把它们连起来。</p>
+          <p className="mb-p">墙上钉着八件证物。有的能互相解释，有的是障眼法，还有一件，这一卷都用不上。先点一件，再点另一件，用红线把它们连起来。全部连完后，试试紫外灯和翻墙。</p>
         </div>
         <div className="mb-tools">
           <div className={"mb-bar mb-bar-" + bar.k} aria-live="polite">{bar.t}</div>
           <div className="mb-tb">
-            <span className="mb-cnt">红线 {done.length} / 3</span>
-            <button type="button" className="mb-sb" onClick={hint} disabled={all}>给点提示</button>
+            <span className="mb-cnt">红线 {done.length} / {all ? (bonusDone ? 4 : 3) : 3}</span>
+            <button type="button" className="mb-sb" onClick={hint} disabled={all && bonusDone}>给点提示</button>
             <button type="button" className="mb-sb" onClick={reset}>重新布置</button>
+            <button type="button" className={"mb-uv-btn" + (uv ? " mb-uv-on" : "")} onClick={() => setUv(!uv)} aria-pressed={uv}>{uv ? "关闭紫外灯" : "紫外灯"}</button>
+            {all && <button type="button" className="mb-flip-btn" onClick={() => setFlipped(!flipped)}>{flipped ? "翻回正面" : "把整面墙翻过来"}</button>}
           </div>
         </div>
         <div className="mb-scroll">
           <div className="mb-frame">
             <div className="mb-wall">
               {CL.map((c) => (
-                <button key={c.id} type="button" className={"mb-card mb-k-" + c.k + (sel === c.id ? " mb-on" : "") + (bad.includes(c.id) ? " mb-bad" : "")} style={{ left: c.x + "%", top: c.y + "%", rotate: c.r + "deg" }} onClick={() => pick(c.id)} aria-pressed={sel === c.id}>
-                  {c.k === "photo" && pic(c.id)}
+                <button key={c.id} type="button" className={"mb-card mb-k-" + c.k + (sel === c.id ? " mb-on" : "") + (bad.includes(c.id) ? " mb-bad" : "") + (uv && (c.id === "margin" || c.id === "poster") ? " mb-uv-glow" : "")} style={{ left: c.x + "%", top: c.y + "%", rotate: c.r + "deg" }} onClick={() => pick(c.id)} aria-pressed={sel === c.id}>
+                  {(c.k === "photo" || c.id === "comment") && pic(c.id)}
                   <span className="mb-num">证物 {c.no}</span>
                   <span className="mb-t">{c.t}</span>
                   <span className="mb-d">{c.d}</span>
+                  {uv && c.id === "margin" && <span className="mb-uv-text">紫外可见：「这里埋一下，第 9 章收」</span>}
+                  {uv && c.id === "poster" && <span className="mb-uv-text">紫外可见：作者批注「不敢删」</span>}
                   {used(c.id) && <span className="mb-tag">已关联</span>}
                 </button>
               ))}
               <svg className="mb-str" viewBox="0 0 160 100" preserveAspectRatio="none" aria-hidden="true">
                 {done.map((pi) => {
-                  const a = byId(PAIRS[pi].a);
-                  const b = byId(PAIRS[pi].b);
+                  const src = pi === 3 ? BONUS : PAIRS[pi];
+                  const a = byId(src.a);
+                  const b = byId(src.b);
                   const x1 = a.x * 1.6;
                   const x2 = b.x * 1.6;
                   const mx = (x1 + x2) / 2;
@@ -356,6 +396,22 @@ export const MxBoard = () => {
                   <i key={c.id} className={sel === c.id ? "mb-pin-on" : ""} style={{ left: c.x + "%", top: c.y + "%" }} />
                 ))}
               </div>
+              <div className="mb-backface">
+                <div className="mb-back-h">作者的大纲 · 伏笔地图（演示）</div>
+                <div className="mb-back-g">
+                  {["第1章","第2章","第3章","第4章","第5章","第6章"].map((ch, i) => (
+                    <div key={ch} className="mb-back-c">
+                      <b>{ch}</b>
+                      <span>
+                        {i === 0 ? "埋：插销划痕、便签" : i === 1 ? "埋：读者评论" : i === 2 ? "埋：页边批注 / 收：插销划痕" : i === 3 ? "收：读者评论" : i === 4 ? "跨卷：寻人启事" : "收：便签第七页"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.8, color: "#94a3b8" }}>
+                  这就是工作台里的大纲伏笔图：每一根红线，都是作者预先写好的「埋设 → 回收」计划。读者的线索墙，本质上是作者的伏笔地图。
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -363,13 +419,16 @@ export const MxBoard = () => {
         <div className="mb-low">
           <div className="mb-deds">
             {done.length === 0 && <div className="mb-empty">推论会钉在这里。连上第一根红线试试。</div>}
-            {done.map((pi) => (
-              <div key={pi} className={"mb-ded" + (pi === last ? " mb-new" : "")}>
-                <b>{PAIRS[pi].h}</b>
-                <p>{PAIRS[pi].t}</p>
-                <small>{PAIRS[pi].w}</small>
-              </div>
-            ))}
+            {done.map((pi) => {
+              const src = pi === 3 ? BONUS : PAIRS[pi];
+              return (
+                <div key={pi} className={"mb-ded" + (pi === last ? " mb-new" : "")}>
+                  <b>{src.h}</b>
+                  <p>{src.t}</p>
+                  <small>{src.w}</small>
+                </div>
+              );
+            })}
           </div>
           <div className="mb-led">
             <div className="mb-led-h"><span>伏笔台账</span><em>演示</em></div>
@@ -394,8 +453,8 @@ export const MxBoard = () => {
           <div className="mb-end">
             <div className="mb-stamp">初步结案</div>
             <h3>真相（演示）</h3>
-            <p>撑黑伞的熟客那晚来过。沈砚给他泡了茶；他撕走了《雨夜旅馆》的第七页，离开时用鱼线从门外拉上插销，把书店做成了一间密室。</p>
-            <p className="mb-end-q">可还有两件事没有答案：第七页上到底写了什么？墙角那张三年前的寻人启事，为什么偏偏钉在这里？</p>
+            <p>沈砚不是失踪，是正在被作者从稿子里删除。他发现了这个真相，于是把自己藏进了第 7 章：全书唯一作者不敢删的章节，因为后面每一章都引用了这一页。</p>
+            <p className="mb-end-q">可还有两件事没有答案：页边批注里「第 9 章收」的伏笔，和第二稿被删的林小满，为什么笔迹出自同一人？作者到底在怕什么？</p>
             <div className="mb-end-n">这就是解谜推进想要的章末：真相揭开一层，再留下一个新问题。推进模式会参与故事规划、卷节奏和章节执行，帮系统判断「角色关系或谜题是否长期停滞」「章节结尾是否有继续阅读的理由」。<a href="/features/progression-modes">推进模式库 →</a></div>
             <button type="button" className="mb-re" onClick={reset}>↻ 重新布置线索墙</button>
           </div>
@@ -408,16 +467,16 @@ export const MxBoard = () => {
 
 export const MxFlip = () => {
   const CH = [
-    { t: "反锁的门", r: "书店店主失踪，店门却从里面插着插销。柜台上压着一张便签：第七页。", q: "门是谁锁上的？", task: "交代失踪，立住密室。", f: [["埋", "插销划痕"], ["埋", "便签「第七页」"]], hook: "便签上只有三个字。" },
-    { t: "两只茶杯", r: "警方说他是自己离开的。可后厨架上，多倒扣着一只刚洗过的杯子。", q: "那天晚上，谁来过？", task: "让官方结论和现场细节打架。", f: [["埋", "第二只茶杯"]], hook: "有人来过，还替他洗了杯子。" },
+    { t: "反锁的门", r: "书店店主失踪，店门却从里面插着插销。柜台上压着一张便签：我不是失踪，是被删稿了。", q: "被删稿是什么意思？", task: "交代失踪，立住密室，抛出 meta 钩子。", f: [["埋", "插销划痕"], ["埋", "便签「第七页」"]], hook: "便签上的字不像遗言，像警告。" },
+    { t: "读者的抱怨", r: "警方说他是自己离开的。可书架缝里掉出一张读者评论：作者是不是忘了沈砚？三章没出场了。", q: "读者怎么会知道角色要出场？", task: "让官方结论和 meta 证据打架。", f: [["埋", "读者评论"]], hook: "这不是现实里的读者，是小说世界里的读者。" },
     { t: "一截鱼线", r: "门口垃圾桶里翻出一截鱼线。门，是有人从外面锁上的。", q: "谁会这么熟悉这扇门？", task: "回收第一条伏笔，推翻密室。", f: [["收", "插销划痕"]], hook: "做得到这一步的人，常来这家店。" },
-    { t: "黑伞", r: "监控里，23:40，一把黑伞离开书店。伞下的人在门口回头，像在道别。", q: "三个熟客，是哪一个？", task: "回收茶杯，把嫌疑收窄到熟人。", f: [["收", "第二只茶杯"]], hook: "常来的熟客，只有三个。" },
-    { t: "寻人启事", r: "墙角翻出一张三年前的寻人启事。失踪的人，也住在梧桐巷。", q: "两起失踪，有关系吗？", task: "抛出跨卷谜题，拉长期待。", f: [["埋", "寻人启事（跨卷）"]], hook: "三年前，也是一个雨夜。" },
+    { t: "被划掉的第七页", r: "《雨夜旅馆》第七页被红色删除线划掉，旁边是作者批注：「这里埋一下，第 9 章收。」", q: "删除线和批注，哪个在前？", task: "回收读者评论，把嫌疑收窄到作者本人。", f: [["收", "读者评论"], ["埋", "页边批注"]], hook: "作者不是想删他，是想记住他。" },
+    { t: "第二稿的寻人启事", r: "墙角翻出一张第二稿的寻人启事。被删除的角色：林小满。笔迹和页边批注一样。", q: "林小满是谁？为什么也被删？", task: "抛出跨卷谜题，拉长期待。", f: [["埋", "寻人启事（跨卷）"]], hook: "作者不敢删有伏笔的角色。" },
     { t: "第七页", r: "在另一本《雨夜旅馆》里，第七页终于被翻开。上面只有一行字：一个地址。", q: "这个地址通向哪里？", task: "回收「第七页」，揭开本卷真相，留下新问题。", f: [["收", "便签「第七页」"], ["待", "寻人启事"]], hook: "地址指向梧桐巷，三年前那户人家。" },
   ];
   const ARCS = [
     { n: "插销划痕", a: 1, b: 3, o: -6, h: 46, c: "#f59e0b" },
-    { n: "第二只茶杯", a: 2, b: 4, o: 0, h: 34, c: "#38bdf8" },
+    { n: "读者评论", a: 2, b: 4, o: 0, h: 34, c: "#38bdf8" },
     { n: "便签「第七页」", a: 1, b: 6, o: 6, h: 92, c: "#f43f5e" },
     { n: "寻人启事 → 第 3 卷", a: 5, b: 7, o: 0, h: 40, c: "#a78bfa" },
   ];
@@ -565,11 +624,81 @@ export const MxFlip = () => {
   );
 };
 
+export const MxTypewriter = () => {
+  const A = ["门从里面反锁的书店", "尸体凭空消失的停尸房", "所有人同时失忆的会议室", "监控只录到一半的电梯", "读者留言板上的凶案预告", "作者正在修改的文档页面"];
+  const B = ["被作者从稿子里一笔一笔划掉", "在下一章开头自动复活", "变成了另一个角色的记忆", "藏进了唯一不能删的章节", "被读者的评论钉在原地", "在修订痕迹里留下求救信号"];
+  const C = ["页边空白处的手写批注", "一章开头重复出现的句子", "角色名单上被涂掉的名字", "书脊里夹着的另一份大纲", "读者评论区的一条差评", "作者忘删的备用结尾"];
+  const [ia, setIa] = useState(0);
+  const [ib, setIb] = useState(1);
+  const [ic, setIc] = useState(2);
+  const [la, setLa] = useState(false);
+  const [lb, setLb] = useState(false);
+  const [lc, setLc] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [display, setDisplay] = useState("");
+  const full = A[ia] + "，" + B[ib] + "，" + "唯一的线索是" + C[ic] + "。";
+  useEffect(() => {
+    setTyping(true);
+    setDisplay("");
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      setDisplay(full.slice(0, i));
+      if (i >= full.length) { clearInterval(t); setTyping(false); }
+    }, 45);
+    return () => clearInterval(t);
+  }, [ia, ib, ic]);
+  const roll = () => {
+    const na = la ? ia : Math.floor(Math.random() * A.length);
+    const nb = lb ? ib : Math.floor(Math.random() * B.length);
+    const nc = lc ? ic : Math.floor(Math.random() * C.length);
+    setIa(na); setIb(nb); setIc(nc);
+  };
+  return (
+    <div className="not-prose mt">
+      <style>{`
+.mt{background:#0b1220;color:#e5e9f0;padding:90px 24px 40px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+.mt-in{max-width:720px;margin:0 auto;text-align:center}
+.mt-k{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;letter-spacing:.35em;color:#fca5a5}
+.mt-h{margin:14px 0 8px;font-family:"Noto Serif SC","Songti SC",serif;font-weight:900;font-size:clamp(24px,3.6vw,36px);letter-spacing:.06em;color:#f1f5f9}
+.mt-p{margin:0 0 28px;font-size:15.5px;line-height:1.9;color:rgba(229,233,240,.72)}
+.mt-machine{position:relative;max-width:640px;margin:0 auto;padding:28px 26px 22px;background:#1a1a1a;border:2px solid #444;border-radius:4px;box-shadow:0 20px 50px -20px rgba(0,0,0,.9)}
+.mt-screen{min-height:72px;font-family:"Courier New",monospace;font-size:16px;line-height:1.7;color:#86efac;text-align:left;white-space:pre-wrap;word-break:break-word}
+.mt-cursor{display:inline-block;width:8px;height:18px;background:#86efac;vertical-align:middle;margin-left:2px;animation:mtBlink 1s step-end infinite}
+@keyframes mtBlink{50%{opacity:0}}
+.mt-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:22px}
+.mt-lock{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-family:inherit;color:#cbd5e1;background:#111a2e;border:1px solid rgba(148,163,184,.3);cursor:pointer;border-radius:4px;transition:background .2s}
+.mt-lock:hover{background:rgba(148,163,184,.15)}
+.mt-lock.on{background:rgba(34,197,94,.15);color:#86efac;border-color:rgba(34,197,94,.5)}
+.mt-roll{padding:10px 22px;font-size:14.5px;font-family:inherit;color:#0b1220;background:#fde68a;border:0;cursor:pointer;font-weight:700;letter-spacing:.1em;border-radius:4px;transition:background .2s}
+.mt-roll:hover{background:#fbbf24}
+.mt-roll:focus-visible,.mt-lock:focus-visible{outline:2px solid #fbbf24;outline-offset:2px}
+.mt-dis{margin-top:18px;font-size:12px;color:#64748b}
+      `}</style>
+      <div className="mt-in">
+        <div className="mt-k">脑洞拼装 · 演示玩具</div>
+        <h2 className="mt-h">打字机抽档案卡</h2>
+        <p className="mt-p">三个碎片拼成一句悬疑 premise。锁上喜欢的，再抽剩下的。</p>
+        <div className="mt-machine">
+          <div className="mt-screen" aria-live="polite">{display}{typing && <span className="mt-cursor" />}</div>
+        </div>
+        <div className="mt-bar">
+          <button type="button" className={"mt-lock" + (la ? " on" : "")} onClick={() => setLa(!la)} aria-pressed={la}>🔒 {A[ia]}</button>
+          <button type="button" className={"mt-lock" + (lb ? " on" : "")} onClick={() => setLb(!lb)} aria-pressed={lb}>🔒 {B[ib]}</button>
+          <button type="button" className={"mt-lock" + (lc ? " on" : "")} onClick={() => setLc(!lc)} aria-pressed={lc}>🔒 {C[ic]}</button>
+          <button type="button" className="mt-roll" onClick={roll}>再抽一张</button>
+        </div>
+        <div className="mt-dis">演示：随机拼出的脑洞，拿去开书页写成你的灵感。</div>
+      </div>
+    </div>
+  );
+};
+
 export const MxCta = () => {
   const ROWS = [
-    ["案件", "半页书店失踪案"],
+    ["案件", "半页书店删稿案"],
     ["已回收伏笔", "3 条"],
-    ["待回收伏笔", "1 条 · 寻人启事（第 3 卷）"],
+    ["待回收伏笔", "2 条 · 页边批注、寻人启事"],
     ["下一案", "由你来写"],
   ];
   const LINKS = [
