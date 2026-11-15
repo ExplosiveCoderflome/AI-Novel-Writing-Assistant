@@ -159,3 +159,123 @@ html:has(.bnh[data-bn-theme="paper"]) #navbar #search-bar-entry:hover,
 html:has(.bnh[data-bn-theme="paper"]) #navbar #assistant-entry:hover {
   border-color: #b4382a !important;
 }
+
+/* ---------- English: Arcane Academy ---------- */
+html:has(.bnh[data-bn-theme="arcane"]),
+html:has(.bnh[data-bn-theme="arcane"]) body {
+  background-color: #1a0b0f !important;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar,
+html:has(.bnh[data-bn-theme="arcane"]) [data-layout-item="topbar"] {
+  background-color: rgba(26, 11, 15, .85) !important;
+  background-image: none !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  color: #f1e6cc !important;
+  font-family: "Cinzel", Georgia, serif !important;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar::after {
+  background: linear-gradient(90deg, transparent, rgba(201, 162, 74, .55) 30%, rgba(201, 162, 74, .55) 70%, transparent);
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar button,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar span,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar svg {
+  color: rgba(241, 230, 204, .78) !important;
+  font-family: "Cinzel", Georgia, serif !important;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar svg path[fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a:hover,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar button:hover,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a:hover span,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar button:hover svg {
+  color: #ecd08a !important;
+  text-shadow: 0 0 12px rgba(236, 208, 138, .55);
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a[href="/"],
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a[href="/"] *,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a[href="/en"],
+html:has(.bnh[data-bn-theme="arcane"]) #navbar a[href="/en"] * {
+  color: #ecd08a !important;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar [data-search-item="trigger"],
+html:has(.bnh[data-bn-theme="arcane"]) #navbar #search-bar-entry,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar #assistant-entry,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar [data-layout-item="search-entry"],
+html:has(.bnh[data-bn-theme="arcane"]) #navbar [data-layout-item="assistant-entry"] {
+  background-color: rgba(122, 20, 36, .25) !important;
+  border: 1px solid rgba(201, 162, 74, .4) !important;
+  color: rgba(241, 230, 204, .7) !important;
+  box-shadow: none !important;
+}
+html:has(.bnh[data-bn-theme="arcane"]) #navbar [data-search-item="trigger"]:hover,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar #search-bar-entry:hover,
+html:has(.bnh[data-bn-theme="arcane"]) #navbar #assistant-entry:hover {
+  border-color: rgba(236, 208, 138, .75) !important;
+  box-shadow: 0 0 18px -4px rgba(201, 162, 74, .75) !important;
+}
+
+/* ---------- English: Xianxia Cultivation ---------- */
+html:has(.bnh[data-bn-theme="xian"]),
+html:has(.bnh[data-bn-theme="xian"]) body {
+  background-color: #07090d !important;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar,
+html:has(.bnh[data-bn-theme="xian"]) [data-layout-item="topbar"] {
+  background-color: rgba(7, 9, 13, .85) !important;
+  background-image: none !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  color: #ede6d6 !important;
+  font-family: "Cormorant Garamond", Georgia, serif !important;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar::after {
+  background: linear-gradient(90deg, transparent, rgba(200, 50, 30, .55) 20%, rgba(255, 207, 90, .5) 50%, rgba(200, 50, 30, .55) 80%, transparent);
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar a,
+html:has(.bnh[data-bn-theme="xian"]) #navbar button,
+html:has(.bnh[data-bn-theme="xian"]) #navbar span,
+html:has(.bnh[data-bn-theme="xian"]) #navbar svg {
+  color: rgba(237, 230, 214, .78) !important;
+  font-family: "Cormorant Garamond", Georgia, serif !important;
+  font-weight: 600;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar svg path[fill]:not([fill="none"]) {
+  fill: currentColor !important;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar a:hover,
+html:has(.bnh[data-bn-theme="xian"]) #navbar button:hover,
+html:has(.bnh[data-bn-theme="xian"]) #navbar a:hover span,
+html:has(.bnh[data-bn-theme="xian"]) #navbar button:hover svg {
+  color: #ffcf5a !important;
+  text-shadow: 0 0 12px rgba(255, 160, 60, .5);
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/"],
+html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/"] *,
+html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/en"],
+html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/en"] * {
+  color: #ffcf5a !important;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar [data-search-item="trigger"],
+html:has(.bnh[data-bn-theme="xian"]) #navbar #search-bar-entry,
+html:has(.bnh[data-bn-theme="xian"]) #navbar #assistant-entry,
+html:has(.bnh[data-bn-theme="xian"]) #navbar [data-layout-item="search-entry"],
+html:has(.bnh[data-bn-theme="xian"]) #navbar [data-layout-item="assistant-entry"] {
+  background-color: rgba(200, 50, 30, .12) !important;
+  border: 1px solid rgba(255, 207, 90, .35) !important;
+  border-radius: 4px !important;
+  color: rgba(237, 230, 214, .7) !important;
+  box-shadow: none !important;
+}
+html:has(.bnh[data-bn-theme="xian"]) #navbar [data-search-item="trigger"]:hover,
+html:has(.bnh[data-bn-theme="xian"]) #navbar #search-bar-entry:hover,
+html:has(.bnh[data-bn-theme="xian"]) #navbar #assistant-entry:hover {
+  border-color: #ffcf5a !important;
+  box-shadow: 0 0 16px -4px rgba(200, 50, 30, .9) !important;
+}

@@ -93,7 +93,8 @@
       "theme-color": "#05080a",
       "application-name": "Biz Novel Studio",
       "og:site_name": "Biz Novel Studio",
-      "twitter:card": "summary_large_image"
+      "twitter:card": "summary_large_image",
+      "google-site-verification": "7ZnhzjjvdxyHnejrlJHVmVlXFoVNyhCmH3j5GZO8_Qc"
     },
     "paths": [
       {
@@ -104,7 +105,15 @@
           "keywords": "AI novel writing,AI novel generator,AI story writer,AI fiction writing tool,long-form novel generation,short story generator,open-source AI writing,AI writing assistant,Biz Novel Studio,AI-Novel-Writing-Assistant"
         }
       }
-    ]
+    ],
+    "organization": {
+      "name": "Biz Novel Studio",
+      "url": "https://ai-novel-writing-assistant.mintlify.app",
+      "logo": "https://ai-novel-writing-assistant.mintlify.app/images/logo.svg",
+      "sameAs": [
+        "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
+      ]
+    }
   },
   "contextual": {
     "options": [
@@ -183,6 +192,16 @@
             "pages": [
               "features/comic-workspace",
               "features/short-drama-workspace"
+            ]
+          },
+          {
+            "group": "题材展厅",
+            "pages": [
+              "showcase/xianxia",
+              "showcase/wasteland",
+              "showcase/mystery",
+              "showcase/romance",
+              "showcase/urban"
             ]
           },
           {

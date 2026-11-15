@@ -1,0 +1,498 @@
+---
+title: "末世求生 · 题材展厅"
+sidebarTitle: "末世求生"
+description: "一场由你做选择的末世互动故事：每个选择对应 Biz Novel Studio 的一个创作环节，从方向候选、世界搭建、角色生成、推进模式，一路走到章节样张。"
+mode: "custom"
+icon: "radiation"
+keywords:
+  - "AI 写末世小说"
+  - "AI 末世小说"
+  - "末世求生"
+  - "末世文创作"
+  - "互动故事"
+  - "题材展厅"
+  - "Biz Novel Studio"
+---
+
+<MsOpen />
+
+<MsStory />
+
+<MsCta />
+
+export const MsOpen = () => {
+  const ref = useRef(null);
+  const pos = useRef({ x: -1, y: -1, tx: 0, ty: 0, last: -1e9 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const p = pos.current;
+    if (reduce) {
+      el.style.setProperty("--mx", el.clientWidth / 2 + "px");
+      el.style.setProperty("--my", el.clientHeight * 0.4 + "px");
+      return;
+    }
+    let raf = 0;
+    const tick = (t) => {
+      const w = el.clientWidth, h = el.clientHeight;
+      if (p.x < 0) { p.x = w / 2; p.y = h * 0.4; }
+      if (performance.now() - p.last > 3500) {
+        p.tx = w * (0.5 + 0.33 * Math.sin(t / 2600));
+        p.ty = h * (0.4 + 0.16 * Math.sin(t / 1900 + 1));
+      }
+      p.x += (p.tx - p.x) * 0.1;
+      p.y += (p.ty - p.y) * 0.1;
+      el.style.setProperty("--mx", p.x.toFixed(1) + "px");
+      el.style.setProperty("--my", p.y.toFixed(1) + "px");
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const move = (cx, cy) => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const p = pos.current;
+    p.tx = cx - r.left; p.ty = cy - r.top; p.last = performance.now();
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.style.setProperty("--mx", p.tx + "px");
+      el.style.setProperty("--my", p.ty + "px");
+    }
+  };
+  const BOT = [];
+  [238, 348, 458].forEach((y, r) => [110, 145, 180, 215, 250, 285].forEach((x, c) => { if ((r * 6 + c) % 4 !== 3) BOT.push([x, y]); }));
+  const DAYS = Array.from({ length: 21 }, (_, i) => i + 1);
+  return (
+    <div ref={ref} className="not-prose mo" onMouseMove={(e) => move(e.clientX, e.clientY)} onTouchMove={(e) => { if (e.touches[0]) move(e.touches[0].clientX, e.touches[0].clientY); }}>
+      <style>{`
+        .mo{position:relative;overflow:hidden;min-height:min(100vh,920px);display:flex;flex-direction:column;justify-content:flex-end;align-items:center;background:#040302;color:#e8dfd2;padding:130px 24px 84px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;--lr:240px}
+        .mo-svg{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+        .mo-warm{position:absolute;inset:0;z-index:1;pointer-events:none;mix-blend-mode:screen;background:radial-gradient(circle var(--lr) at var(--mx,50%) var(--my,40%),rgba(255,214,150,.24),rgba(255,214,150,0) 72%)}
+        .mo-dark{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(circle var(--lr) at var(--mx,50%) var(--my,40%),rgba(4,3,2,0) 0%,rgba(4,3,2,.3) 45%,rgba(4,3,2,.9) 82%,#040302 100%)}
+        .mo-flick{position:absolute;inset:0;z-index:3;pointer-events:none;background:#040302;opacity:0;animation:moFlick 7s steps(1) infinite}
+        .mo-fade{position:absolute;left:0;right:0;bottom:0;height:45%;z-index:4;pointer-events:none;background:linear-gradient(transparent,rgba(4,3,2,.75))}
+        .mo-top{position:absolute;z-index:6;top:86px;left:24px;right:24px;display:flex;justify-content:space-between;gap:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;letter-spacing:.2em;color:rgba(253,186,116,.75)}
+        .mo-top a{color:rgba(232,223,210,.6);text-decoration:none;font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;letter-spacing:.1em}
+        .mo-top a:hover{color:#fff}
+        .mo-txt{position:relative;z-index:6;max-width:760px;text-align:center}
+        .mo-l{font-size:clamp(15px,2vw,19px);letter-spacing:.3em;line-height:2.1;color:#d9cfc0;text-shadow:0 2px 12px #000;opacity:0;animation:moIn 1s forwards}
+        .mo-h1{display:inline-block;margin:18px 0 0;padding-left:.1em;font-size:clamp(64px,13vw,150px);font-weight:900;letter-spacing:.1em;line-height:1.08;background:radial-gradient(circle at 30% 40%,#fdba74,#f97316 35%,#c2410c 70%,#7c2d12);-webkit-background-clip:text;background-clip:text;color:transparent;rotate:-2deg;opacity:0;animation:moSpray 1.2s 2.3s forwards}
+        .mo-sub{font-size:16.5px;line-height:1.9;color:rgba(232,223,210,.78);margin:18px auto 0;max-width:560px;text-shadow:0 2px 12px #000;opacity:0;animation:moIn 1s 2.9s forwards}
+        .mo-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:30px;opacity:0;animation:moIn 1s 3.3s forwards}
+        .mo-go{padding:13px 28px;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-weight:800;font-size:15px;letter-spacing:.12em;text-decoration:none;box-shadow:0 0 30px -6px rgba(249,115,22,.8);transition:transform .25s}
+        .mo-go:hover{transform:translateY(-2px)}
+        .mo-alt{padding:13px 22px;color:#fdba74;font-size:15px;letter-spacing:.1em;text-decoration:none;box-shadow:inset 0 0 0 1px rgba(251,146,60,.45);transition:background .25s}
+        .mo-alt:hover{background:rgba(249,115,22,.12)}
+        .mo-hint{margin-top:22px;font-size:12.5px;letter-spacing:.3em;color:rgba(232,223,210,.45);opacity:0;animation:moIn 1s 3.6s forwards}
+        .mo-shh{animation:moShh 2.2s steps(1) infinite}
+        @keyframes moIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+        @keyframes moSpray{from{opacity:0;filter:blur(14px);transform:scale(1.08)}to{opacity:1;filter:blur(0) drop-shadow(0 0 18px rgba(234,88,12,.55));transform:none}}
+        @keyframes moFlick{0%,100%{opacity:0}61%{opacity:.85}62%{opacity:0}64%{opacity:.55}65%{opacity:0}}
+        @keyframes moShh{50%{opacity:.15}}
+        @media (prefers-reduced-motion:reduce){.mo-flick{display:none}.mo-l,.mo-h1,.mo-sub,.mo-btns,.mo-hint{animation-duration:.01s;animation-delay:0s}}
+        @media (max-width:640px){.mo{--lr:170px;padding:120px 18px 70px}.mo-top{left:18px;right:18px}}
+      `}</style>
+      <svg className="mo-svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <pattern id="moBrick" width="80" height="40" patternUnits="userSpaceOnUse"><path d="M0 1H80M0 21H80M1 1V21M41 21V41" stroke="#1a1510" strokeWidth="2" fill="none" /></pattern>
+        </defs>
+        <rect width="1200" height="560" fill="#3a2f25" />
+        <rect width="1200" height="560" fill="url(#moBrick)" />
+        <rect y="560" width="1200" height="140" fill="#1f1913" />
+        <path d="M0 560H1200" stroke="#120e0a" strokeWidth="4" />
+        <path d="M600 0V70" stroke="#15110d" strokeWidth="2" />
+        <rect x="588" y="70" width="24" height="10" fill="#4a4036" />
+        <path d="M600 80c-16 0-22 14-22 24 0 12 10 18 14 26h16c4-8 14-14 14-26 0-10-6-24-22-24z" fill="#5d564c" />
+        <path d="M90 200V560M330 200V560" stroke="#2a2018" strokeWidth="6" />
+        <rect x="84" y="296" width="252" height="10" fill="#5a4636" />
+        <rect x="84" y="406" width="252" height="10" fill="#5a4636" />
+        <rect x="84" y="516" width="252" height="10" fill="#5a4636" />
+        {BOT.map((b, i) => (
+          <g key={i}><rect x={b[0]} y={b[1]} width="24" height="58" rx="6" fill="#47606b" /><rect x={b[0] + 7} y={b[1] - 8} width="10" height="9" fill="#7c939c" /></g>
+        ))}
+        <g transform="rotate(-2 485 190)">
+          <rect x="420" y="110" width="130" height="160" fill="#cfc3ab" />
+          <rect x="420" y="110" width="130" height="28" fill="#8b2b1f" />
+          {DAYS.map((d, i) => <text key={d} x={432 + (i % 7) * 17} y={166 + Math.floor(i / 7) * 30} fontSize="11" fill="#3a2f25" textAnchor="middle">{d}</text>)}
+          <path d="M425 155l14 15M439 155l-14 15M442 155l14 15M456 155l-14 15" stroke="#b91c1c" strokeWidth="2" />
+          <circle cx="466" cy="162" r="9" fill="none" stroke="#b91c1c" strokeWidth="2" />
+        </g>
+        <text x="425" y="330" fontSize="20" fill="#d6cbb5" opacity=".75" fontFamily="Kaiti SC, STKaiti, KaiTi, serif">水 · 还剩 4 桶</text>
+        <rect x="700" y="190" width="190" height="370" fill="#45413c" stroke="#5c5750" strokeWidth="4" />
+        <rect x="716" y="206" width="158" height="150" fill="none" stroke="#35322e" strokeWidth="3" />
+        <rect x="716" y="380" width="158" height="160" fill="none" stroke="#35322e" strokeWidth="3" />
+        {[[712, 202], [878, 202], [712, 548], [878, 548], [712, 368], [878, 368]].map((c, i) => <circle key={i} cx={c[0]} cy={c[1]} r="4" fill="#6b655d" />)}
+        <rect x="834" y="300" width="64" height="12" fill="#6f695f" />
+        <rect x="850" y="360" width="26" height="12" rx="3" fill="#7a7369" />
+        <g transform="rotate(5 985 293)">
+          <rect x="915" y="250" width="140" height="86" fill="#e9dfc9" />
+          <rect x="960" y="242" width="50" height="16" fill="rgba(250,204,21,.6)" />
+          <text x="985" y="288" fontSize="21" fill="#9f1d1d" textAnchor="middle" fontFamily="Kaiti SC, STKaiti, KaiTi, serif">不要给</text>
+          <text x="985" y="318" fontSize="21" fill="#9f1d1d" textAnchor="middle" fontFamily="Kaiti SC, STKaiti, KaiTi, serif">陌生人开门</text>
+        </g>
+        <rect x="960" y="470" width="170" height="90" fill="#5b4330" />
+        <path d="M960 500H1130M960 530H1130" stroke="#3f2e21" strokeWidth="3" />
+        <rect x="980" y="405" width="130" height="65" rx="8" fill="#3b3029" />
+        <circle cx="1015" cy="437" r="20" fill="none" stroke="#5e5046" strokeWidth="3" strokeDasharray="3 3" />
+        <rect x="1048" y="422" width="48" height="12" rx="2" fill="#c08a4a" opacity=".7" />
+        <circle cx="1082" cy="452" r="7" fill="#5e5046" />
+        <path d="M1092 405L1132 330" stroke="#5e5046" strokeWidth="3" />
+        <text className="mo-shh" x="1048" y="390" fontSize="15" fill="#fdba74">沙沙……</text>
+        <path d="M500 606H700L730 666H470Z" fill="#15110c" stroke="#2c231a" strokeWidth="3" />
+        <path d="M566 606L560 666M634 606L640 666" stroke="#2c231a" strokeWidth="3" />
+        <circle cx="600" cy="638" r="8" fill="none" stroke="#5e5046" strokeWidth="3" />
+      </svg>
+      <div className="mo-warm" />
+      <div className="mo-dark" />
+      <div className="mo-flick" />
+      <div className="mo-fade" />
+      <div className="mo-top"><span>题材展厅 · 贰　末世求生</span><a href="/">← 返回首页</a></div>
+      <div className="mo-txt">
+        <div className="mo-l" style={{ animationDelay: ".2s" }}>凌晨 03:17。</div>
+        <div className="mo-l" style={{ animationDelay: ".9s" }}>全城断电的第三天。</div>
+        <div className="mo-l" style={{ animationDelay: "1.6s" }}>你叫周野，手电只剩一格电。</div>
+        <h1 className="mo-h1">末世求生</h1>
+        <p className="mo-sub">一场由你来做选择的末世。你在这里做的每一个选择，都对应着工作台里的一次创作决定。</p>
+        <div className="mo-btns">
+          <a className="mo-go" href="#ms-story">拿起手电，开始 ↓</a>
+          <a className="mo-alt" href="/quickstart">直接开书 →</a>
+        </div>
+        <div className="mo-hint">移动鼠标或手指，用手电照一照这间地下室</div>
+      </div>
+    </div>
+  );
+};
+
+export const MsStory = () => {
+  const STEPS = ["方向候选", "世界搭建", "角色生成", "推进模式", "章节细化", "成章"];
+  const GLOW = ["rgba(249,115,22,.2)", "rgba(148,163,184,.18)", "rgba(251,191,36,.16)", "rgba(249,115,22,.18)", "rgba(239,68,68,.24)", "rgba(253,224,71,.18)"];
+  const DIRS = [
+    { c: "撬开地板，看看下面藏着什么", r: "撬棍卡进缝里，地板被掀开。下面是一道往深处延伸的铁梯，梯子上没有灰。", t: "地下第七层", m: "经营扩张" },
+    { c: "爬上楼顶，看清这座城为什么一夜熄灭", r: "楼顶上，整座城黑成一片。只有城北的一座塔，还亮着一盏红灯。", t: "断电第三天", m: "解谜推进" },
+    { c: "翻出那张清单：这一切，你经历过一次", r: "清单是你上一世死前写下的。最后一行，只写着一个名字。", t: "重来一次的囤货", m: "复仇推进" },
+  ];
+  const RULES = [
+    { c: "黑暗里有东西，它们怕光", r: "你把手电往楼道一照，有什么东西缩回了阴影里。从这一刻起，电池比食物还金贵。", k: "黑暗里的东西怕光", l: "门缝下面透进来的不是光，是一片比夜还浓的黑。" },
+    { c: "夜里会起雾，走进雾里的人都没回来", r: "白雾贴着窗玻璃流动。对面楼有人推门出去，再也没有回来。", k: "夜雾吞人", l: "白雾从门缝底下一点点渗进来，贴着地面爬到他脚边。" },
+    { c: "外面没有怪物，最危险的是人", r: "楼下传来砸车窗的声音。断电第三天，已经有人开始抢了。", k: "最危险的是人", l: "门外不止一个人在呼吸。" },
+  ];
+  const ALLIES = [
+    { c: "三楼的林医生：话不多，手很稳", r: "林医生只问了一句：「药够几天？」然后提着药箱，跟你下了楼。", k: "林医生" },
+    { c: "隔壁的高中生小满：跑得快，会修收音机", r: "小满抱着一台拆开的收音机冲进来：「给我一晚，我能让它收到更远的台。」", k: "小满" },
+    { c: "谁也不带：末世里，信任最贵", r: "你给地下室的门又加了一道锁。那天，门外的敲门声你一次也没应。", k: "独行" },
+  ];
+  const AUXS = [
+    { m: "经营扩张", c: "把这里变成真正的据点", r: "第二天一早，你们开始往地下第二层搬物资。" },
+    { m: "解谜推进", c: "查清这座城为什么熄灭", r: "你在本子第一页写下：城北那盏红灯，到底是什么？" },
+    { m: "关系拉扯", c: "守住身边这几个人", r: "那天晚上你第一次觉得，有些人比物资更难守住。" },
+    { m: "升级变强", c: "变得更强，强到没人敢来抢", r: "你把发电机拆开又装上。第二天，铁门上多了一道通电的网。" },
+  ];
+  const DOORS = [
+    { c: "开门", r: "你拉开门闩。楼道里空无一人，只有一串湿脚印，一直通向楼下。", s: "他拉开门闩。楼道里空无一人，只有一串湿脚印，一直通向楼下。", k: "开门" },
+    { c: "屏住呼吸，不出声", r: "你一动不动。很久以后，脚步声又响了，这一次，是往楼上去的。", s: "他屏住呼吸，一动不动。很久以后，脚步声又响了，这一次，是往楼上去的。", k: "沉默" },
+    { c: "隔着门，问一个只有她知道答案的问题", r: "「阿姨，你家饺子是什么馅的？」门外安静了很久，然后传来一声轻轻的笑。", s: "「阿姨，你家饺子是什么馅的？」门外安静了很久，然后，传来一声轻轻的笑。", k: "盘问" },
+  ];
+  const NOTES = [
+    { t: "方向候选", d: "你刚刚做的，就是开书时的「方向候选」。写下一句灵感后，自动导演会整理出几条书级方向和标题组，由你挑定一条；故事类型和推进方式可以自己选，也可以交给 AI 自动匹配。", h: "/features/auto-director", l: "自动导演" },
+    { t: "世界搭建", d: "你定下的是这个世界的「规则」。世界资料分为规则、势力、地点和冲突张力，保存在这本书里；之后每一章写正文，都会从这里取资料。", h: "/features/auto-director", l: "自动导演" },
+    { t: "角色生成", d: "这就是「角色生成」：自动导演给出角色候选和阵容草案，你来挑、来改。人物的性格与能力、彼此的关系，以及每一章之后的状态，都会被记录下来。", h: "/features/auto-director", l: "自动导演" },
+    { t: "推进模式", d: "题材决定这本书放在哪个货架，推进模式决定读者为什么继续看。一本书有一个主推进，再配一到两个辅助推进；它们会进入卷规划、章节任务和质量审核。", h: "/features/progression-modes", l: "推进模式库" },
+    { t: "章节细化", d: "这一夜会被拆成一章的「章节任务」和几张「场景卡」，还埋下一条「伏笔」：门外到底是谁？伏笔会被记录，交给后面的章节回收。", h: "/features/auto-director", l: "自动导演" },
+    { t: "正文生成 · 质量审核", d: "正文按章节任务生成。写完后检查是否满足任务与写法要求，再局部修文、保存正文，并同步角色与伏笔状态，下一章从这里接着写。", h: "/features/auto-director", l: "自动导演" },
+  ];
+  const CHECKS = ["满足本章任务", "冲突逐步升级", "章末留下继续阅读的理由"];
+  const rootRef = useRef(null);
+  const sceneRef = useRef(null);
+  const resRef = useRef(null);
+  const [step, setStep] = useState(0);
+  const [picks, setPicks] = useState([]);
+  const [n, setN] = useState(0);
+  const [ph, setPh] = useState(0);
+  const P = (i) => (picks[i] == null ? 0 : picks[i]);
+  const auxOpts = AUXS.filter((a) => a.m !== DIRS[P(0)].m).slice(0, 3);
+  const asker = P(2) === 2 ? "你对着那盏灯，问自己" : ALLIES[P(2)].k + "问你";
+  const SC = [
+    { time: "第三天 · 03:17", p: ["全城断电的第三天，你缩在自家地下室里，手电只剩一格电。", "脚下的水泥地忽然传来一声空响，像下面还有一层。楼顶方向，直升机的声音越飞越远。", "口袋里，还有一张你不记得什么时候写下的清单。", "这一次，要怎么活？"], opts: DIRS, chip: (o) => "《" + o.t + "》 · 主推进 " + o.m },
+    { time: "第三天 · 05:40", p: ["天快亮了。收音机里有个沙哑的声音，一遍遍重复同一句话：「天黑以后，不要出门。」", "你得先弄清楚，这个世界现在的规矩是什么。"], opts: RULES, chip: (o) => "规则 · " + o.k },
+    { time: "第三天 · 07:10", p: ["天亮了。楼里还有几户人家没走。", "一个人撑不了多久。你得决定，带谁一起下去。"], opts: ALLIES, chip: (o) => "同伴 · " + o.k },
+    { time: "第四天 · 21:30", p: ["夜里，地下室亮着一盏充电灯。", asker + "：「接下来，我们图什么？」"], opts: auxOpts, chip: (o) => "主推进 · " + DIRS[P(0)].m + "　辅助 · " + o.m },
+    { time: "第五夜 · 03:17", p: ["停电后的第五个晚上。楼道里传来脚步声，很慢，一层一层往下走。", "然后停在了门外。", RULES[P(1)].l.replace("他", "你"), "「小周，开开门，」是三楼那个总给你送饺子的阿姨，「阿姨就借一点水。」", "可你记得清清楚楚：她们一家，前天就已经搬走了。"], hit: "然后停在了门外。", opts: DOORS, chip: () => "伏笔 · 门外的声音" },
+  ];
+  const sample = ["停电后的第五个晚上，整栋楼安静得像一口井。", "脚步声从楼上下来，很慢，一层一层，最后停在了地下室门外。", RULES[P(1)].l, "「小周，开开门，阿姨就借一点水。」", "周野记得清清楚楚，三楼那一家，前天就已经搬走了。", DOORS[P(4)].s].join("\n");
+  const ROWS = [["书级方向", "《" + DIRS[P(0)].t + "》"], ["推进方式", "主推进 · " + DIRS[P(0)].m + "　辅助 · " + auxOpts[P(3)].m], ["世界规则", RULES[P(1)].k], ["同伴", ALLIES[P(2)].k], ["本章任务", "断电第五夜，决定要不要给门外的人开门。"], ["场景卡", "脚步 · 敲门 · " + DOORS[P(4)].k], ["伏笔", "门外的声音"]];
+  const chosen = picks[step];
+  const has = chosen != null;
+  const choose = (i) => { if (has) return; const np = picks.slice(0, step); np[step] = i; setPicks(np); };
+  const next = () => { setN(0); setPh(0); setStep(step + 1); };
+  const restart = () => {
+    setPicks([]); setStep(0); setN(0); setPh(0);
+    const el = rootRef.current;
+    if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: "smooth" });
+  };
+  useEffect(() => {
+    if (step === 0) return;
+    const el = sceneRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 80 || r.top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + r.top - 110, behavior: "smooth" });
+  }, [step]);
+  useEffect(() => {
+    if (!has) return;
+    const t = setTimeout(() => {
+      const el = resRef.current;
+      if (!el) return;
+      const b = el.getBoundingClientRect();
+      if (b.bottom > window.innerHeight - 24) window.scrollBy({ top: b.bottom - window.innerHeight + 80, behavior: "smooth" });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [has, step]);
+  useEffect(() => {
+    if (step !== 5) return;
+    let i = 0;
+    const ts = [];
+    const iv = setInterval(() => {
+      i += 1;
+      setN(i);
+      if (i >= sample.length) {
+        clearInterval(iv);
+        ts.push(setTimeout(() => setPh(1), 400));
+        ts.push(setTimeout(() => setPh(2), 400 + CHECKS.length * 450 + 400));
+      }
+    }, 36);
+    return () => { clearInterval(iv); ts.forEach(clearTimeout); };
+  }, [step]);
+  const N = NOTES[step];
+  const chip = step < 5 && has ? SC[step].chip(SC[step].opts[chosen]) : null;
+  const noteEl = has || step === 5 ? (
+    <div className="mq-note" key={"n" + step}>
+      <div className="mq-nh">导演批注</div>
+      <div className="mq-nt"><span>{N.t}</span></div>
+      <p>{N.d}</p>
+      {chip && <div className="mq-nc">{chip}</div>}
+      <a href={N.h}>了解{N.l} →</a>
+    </div>
+  ) : <div className="mq-wait">做出选择后，导演会在这里写下批注：这一步，在工作台里叫什么。</div>;
+  const sc = SC[Math.min(step, 4)];
+  const paras = sample.slice(0, n).split("\n");
+  return (
+    <div ref={rootRef} id="ms-story" className="not-prose mq" style={{ "--glow": GLOW[step] }}>
+      <style>{`
+        .mq{position:relative;background:radial-gradient(900px 420px at 50% 0,var(--glow),transparent 70%),#0b0a08;color:#ece4d8;padding:96px 24px 90px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;transition:background .8s;scroll-margin-top:70px}
+        .mq-in{max-width:1080px;margin:0 auto}
+        .mq-hd{max-width:700px}
+        .mq-k{display:flex;align-items:center;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.4em;color:#fb923c}
+        .mq-k i{width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:mqBlink 1.2s steps(1) infinite}
+        .mq-h{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:.04em;line-height:1.3;margin:12px 0 14px;color:#f5efe6}
+        .mq-p{font-size:16px;line-height:1.9;color:rgba(236,228,216,.66)}
+        .mq-steps{display:flex;gap:6px;margin:34px 0 0;padding:0;list-style:none;overflow-x:auto}
+        .mq-steps li{flex:1;min-width:96px;display:flex;align-items:center;gap:8px;padding:9px 10px;border-top:3px solid rgba(236,228,216,.1);font-size:13px;color:rgba(236,228,216,.35);transition:all .5s}
+        .mq-steps b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;border-radius:50%;font-size:11px;background:rgba(236,228,216,.08)}
+        .mq-steps li.done{border-color:#f97316;color:#fdba74}
+        .mq-steps li.done b{background:#f97316;color:#1a0c04}
+        .mq-steps li.cur{border-color:#fde047;color:#fde047}
+        .mq-steps li.cur b{background:#fde047;color:#1a0c04;animation:mqPulse 1.6s ease-in-out infinite}
+        .mq-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:44px;margin-top:30px}
+        .mq-log{display:grid;gap:6px;margin-bottom:24px}
+        .mq-lr{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(249,115,22,.5)}
+        .mq-lr span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:rgba(236,228,216,.45)}
+        .mq-lr b{font-weight:500;color:rgba(236,228,216,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .mq-lr em{font-style:normal;font-size:11.5px;color:#fdba74}
+        .mq-time{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.25em;color:#f87171;margin-bottom:16px}
+        .mq-scene p{margin:0 0 14px;font-size:18px;line-height:1.95;color:#efe6d8;opacity:0;animation:mqIn .7s forwards}
+        .mq-scene p.mq-hit{font-size:26px;font-weight:900;letter-spacing:.3em;color:#f87171;text-shadow:0 0 18px rgba(239,68,68,.55);margin:20px 0}
+        .mq-opts{display:grid;gap:10px;margin-top:24px;opacity:0;animation:mqIn .6s forwards}
+        .mq-opt{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 18px;border:1px solid rgba(251,146,60,.25);background:rgba(255,255,255,.02);color:#ece4d8;font-family:inherit;font-size:16px;line-height:1.6;cursor:pointer;transition:border-color .25s,background .25s,translate .25s,opacity .4s}
+        .mq-opt b{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;border:1px solid rgba(251,146,60,.5);color:#fdba74}
+        .mq-opt:hover:not(:disabled){border-color:#fb923c;background:rgba(249,115,22,.08);translate:6px 0}
+        .mq-opt:focus-visible{outline:2px solid #fde047;outline-offset:2px}
+        .mq-opt:disabled{cursor:default}
+        .mq-opt.on{border-color:#fde047;background:rgba(253,224,71,.08)}
+        .mq-opt.on b{background:#fde047;border-color:#fde047;color:#1a0c04}
+        .mq-opt.off{opacity:.3}
+        .mq-res{margin-top:22px;padding:16px 18px;border-left:3px solid #fde047;background:rgba(253,224,71,.05);font-size:17px;line-height:1.9;color:#f5efe6;animation:mqIn .6s both}
+        .mq-next{margin-top:20px;padding:13px 26px;border:none;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:mqIn .6s .3s both}
+        .mq-next:hover{transform:translateY(-2px)}
+        .mq-next:focus-visible{outline:2px solid #fde047;outline-offset:3px}
+        .mq-aside{position:sticky;top:96px;align-self:start}
+        .mq-nm{display:none;margin-top:22px}
+        .mq-note{position:relative;padding:28px 22px 20px;background:#ede2c6;color:#2a221a;rotate:-1.2deg;box-shadow:0 24px 50px -24px rgba(0,0,0,.9);font-family:"Kaiti SC","STKaiti","KaiTi","Noto Serif SC",serif;animation:mqNote .55s cubic-bezier(.2,1.2,.4,1) both}
+        .mq-note::before{content:"";position:absolute;left:50%;top:-10px;width:90px;height:22px;margin-left:-45px;background:rgba(250,204,21,.7);rotate:-3deg}
+        .mq-nh{font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:12px;font-weight:800;letter-spacing:.3em;color:#b91c1c}
+        .mq-nt{margin-top:6px;font-size:23px;font-weight:800;color:#1c1712}
+        .mq-nt span{background:linear-gradient(transparent 62%,rgba(239,68,68,.35) 62%)}
+        .mq-note p{margin:10px 0 0;font-size:15.5px;line-height:1.85;color:#2a221a;opacity:1;animation:none}
+        .mq-nc{display:inline-block;margin-top:12px;padding:3px 10px;background:#2a221a;color:#fde047;font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:12.5px}
+        .mq-note a{display:block;margin-top:12px;font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:13.5px;color:#b45309;text-decoration:none}
+        .mq-note a:hover{text-decoration:underline}
+        .mq-wait{padding:22px;border:1px dashed rgba(236,228,216,.2);font-size:14px;line-height:1.8;color:rgba(236,228,216,.45)}
+        .mq-endh{font-size:clamp(24px,3.2vw,32px);font-weight:900;color:#f5efe6;margin-bottom:20px}
+        .mq-eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+        .mq-card{padding:20px;border:1px solid rgba(251,146,60,.25);background:rgba(255,255,255,.02)}
+        .mq-ct{font-size:12px;letter-spacing:.25em;color:#fb923c;margin-bottom:6px}
+        .mq-row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px dashed rgba(236,228,216,.1);font-size:14px}
+        .mq-row span{color:rgba(236,228,216,.45)}
+        .mq-row b{font-weight:600;color:#f5efe6}
+        .mq-paper{position:relative;padding:34px 24px 22px;background:#e9e1d2;color:#2a221a}
+        .mq-badge{position:absolute;top:10px;right:12px;font-size:11px;letter-spacing:.2em;padding:2px 8px;border:1px solid #b45309;color:#b45309}
+        .mq-pt{font-size:18px;font-weight:900;letter-spacing:.12em;margin-bottom:12px}
+        .mq-paper p{margin:0 0 8px;text-indent:2em;font-size:15px;line-height:1.95;font-family:"Noto Serif SC","Songti SC",serif}
+        .mq-cur{display:inline-block;width:2px;height:1em;margin-left:2px;background:#b45309;vertical-align:-2px;animation:mqBlink .8s steps(1) infinite}
+        .mq-checks{display:grid;gap:4px;margin-top:14px}
+        .mq-checks span{font-size:13.5px;color:rgba(42,34,26,.3);transition:color .4s}
+        .mq-checks span.on{color:#c2410c;font-weight:700}
+        .mq-saved{margin-top:12px;padding:7px 12px;font-size:13px;background:#2a221a;color:#fde047;opacity:0;transform:translateY(6px);transition:all .5s}
+        .mq-saved.on{opacity:1;transform:none}
+        .mq-acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+        .mq-again{padding:12px 22px;border:1px solid rgba(251,146,60,.45);background:none;color:#fdba74;font-family:inherit;font-size:15px;letter-spacing:.1em;cursor:pointer}
+        .mq-again:hover{background:rgba(249,115,22,.12)}
+        .mq-start{padding:12px 24px;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-weight:800;font-size:15px;letter-spacing:.1em;text-decoration:none}
+        .mq-foot{margin-top:36px;font-size:12.5px;line-height:1.7;color:rgba(236,228,216,.4)}
+        @keyframes mqIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        @keyframes mqNote{from{opacity:0;transform:translateX(24px) rotate(4deg)}to{opacity:1;transform:none}}
+        @keyframes mqBlink{50%{opacity:0}}
+        @keyframes mqPulse{50%{box-shadow:0 0 0 6px rgba(253,224,71,.2)}}
+        @media (max-width:900px){.mq-grid{grid-template-columns:1fr}.mq-aside{display:none}.mq-nm{display:block}}
+        @media (max-width:520px){.mq{padding:80px 18px}.mq-lr{grid-template-columns:1fr auto}.mq-lr span{display:none}.mq-scene p{font-size:16.5px}}
+      `}</style>
+      <div className="mq-in">
+        <div className="mq-hd">
+          <div className="mq-k"><i />互动求生</div>
+          <div className="mq-h">五个选择，写出一章</div>
+          <div className="mq-p">每做一次选择，剧情往下走一步；右边的导演批注会告诉你，这一步在 Biz Novel Studio 里对应哪个创作环节。走完五步，这一夜会写成一章。</div>
+        </div>
+        <ol className="mq-steps" aria-label="创作环节进度">
+          {STEPS.map((s, i) => <li key={s} className={i < step ? "done" : i === step ? "cur" : ""}><b>{i + 1}</b><span>{i <= step ? s : "？？？"}</span></li>)}
+        </ol>
+        <div className="mq-grid">
+          <div>
+            {step > 0 && (
+              <div className="mq-log">
+                {SC.slice(0, Math.min(step, 5)).map((s, i) => <div key={i} className="mq-lr"><span>{s.time}</span><b>{s.opts[P(i)].c}</b><em>{STEPS[i]}</em></div>)}
+              </div>
+            )}
+            {step < 5 ? (
+              <div className="mq-scene" key={"s" + step} ref={sceneRef}>
+                <div className="mq-time">● {sc.time}</div>
+                {sc.p.map((t, i) => <p key={i} className={t === sc.hit ? "mq-hit" : ""} style={{ animationDelay: i * 0.45 + "s" }}>{t}</p>)}
+                <div className="mq-opts" style={{ animationDelay: sc.p.length * 0.45 + 0.2 + "s" }}>
+                  {sc.opts.map((o, i) => (
+                    <button type="button" key={o.c} className={"mq-opt" + (chosen === i ? " on" : has ? " off" : "")} disabled={has} onClick={() => choose(i)}><b>{i + 1}</b><span>{o.c}</span></button>
+                  ))}
+                </div>
+                {has && (
+                  <div ref={resRef}>
+                    <div className="mq-res">{sc.opts[chosen].r}</div>
+                    <div className="mq-nm">{noteEl}</div>
+                    <button type="button" className="mq-next" onClick={next}>{step < 4 ? "继续 →" : "看这一夜写成一章 →"}</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mq-end" key="end" ref={sceneRef}>
+                <div className="mq-time">● 天亮之前 · 成章</div>
+                <div className="mq-endh">这一夜，写成了一章</div>
+                <div className="mq-eg">
+                  <div className="mq-card">
+                    <div className="mq-ct">本书设定 · 来自你的选择</div>
+                    {ROWS.map((r) => <div key={r[0]} className="mq-row"><span>{r[0]}</span><b>{r[1]}</b></div>)}
+                  </div>
+                  <div className="mq-paper">
+                    <div className="mq-badge">演示样张</div>
+                    <div className="mq-pt">第五章　门外的声音</div>
+                    {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="mq-cur" />}</p>)}
+                    <div className="mq-checks">
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                    </div>
+                    <div className={"mq-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
+                  </div>
+                </div>
+                <div className="mq-nm">{noteEl}</div>
+                <div className="mq-acts">
+                  <button type="button" className="mq-again" onClick={restart}>↻ 再活一次</button>
+                  <a className="mq-start" href="/quickstart">用自己的灵感开书 →</a>
+                </div>
+              </div>
+            )}
+          </div>
+          <aside className="mq-aside">{noteEl}</aside>
+        </div>
+        <div className="mq-foot">演示：剧情、选项和样张都是示意，用来说明创作流程；实际内容由你的灵感、设定和所选模型生成。</div>
+      </div>
+    </div>
+  );
+};
+
+export const MsCta = () => {
+  const LINKS = [
+    { t: "快速开始 →", h: "/quickstart", pri: true },
+    { t: "题材基础库", h: "/features/genre-library" },
+    { t: "推进模式库", h: "/features/progression-modes" },
+    { t: "自动导演", h: "/features/auto-director" },
+  ];
+  const BARS = Array.from({ length: 32 }, (_, i) => i);
+  const rootRef = useRef(null);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setSeen(true); return; }
+    const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold: 0.25 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div ref={rootRef} className={"not-prose mr" + (seen ? " on" : "")}>
+      <style>{`
+        .mr{position:relative;overflow:hidden;background:linear-gradient(180deg,#0b0a08 0%,#1a120d 40%,#5c2410 80%,#b4410f 100%);color:#ece4d8;padding:120px 24px 150px;text-align:center;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
+        .mr-sun{position:absolute;left:50%;bottom:-230px;width:460px;height:460px;margin-left:-230px;border-radius:50%;background:radial-gradient(circle,#fde68a,#fb923c 42%,rgba(234,88,12,0) 70%);opacity:0;transform:translateY(140px);transition:transform 3s cubic-bezier(.2,.8,.2,1),opacity 3s}
+        .mr.on .mr-sun{opacity:.75;transform:none}
+        .mr-in{position:relative;max-width:760px;margin:0 auto}
+        .mr-fm{display:inline-flex;align-items:center;gap:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.3em;color:#fdba74}
+        .mr-fm i{width:7px;height:7px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:mrBlink 1.2s steps(1) infinite}
+        .mr-eq{display:flex;justify-content:center;align-items:flex-end;gap:4px;height:44px;margin:18px auto 0}
+        .mr-eq i{width:5px;height:100%;background:linear-gradient(0deg,#ea580c,#fde047);transform-origin:bottom;animation:mrEq .9s ease-in-out infinite alternate}
+        .mr-q{margin-top:22px;font-size:clamp(16px,2.2vw,20px);line-height:1.8;letter-spacing:.06em;color:#fed7aa;font-family:"Kaiti SC","STKaiti","KaiTi","Noto Serif SC",serif}
+        .mr-h{font-size:clamp(30px,4.6vw,48px);font-weight:900;letter-spacing:.05em;line-height:1.3;margin:22px 0 16px;color:#f5efe6;text-shadow:0 0 30px rgba(249,115,22,.45)}
+        .mr-p{font-size:16px;line-height:1.9;color:rgba(236,228,216,.74)}
+        .mr-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:32px}
+        .mr-btn{display:inline-flex;align-items:center;padding:12px 24px;font-size:15px;letter-spacing:.08em;text-decoration:none;color:#fed7aa;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(251,146,60,.45);transition:all .25s}
+        .mr-btn:hover{background:rgba(249,115,22,.2);transform:translateY(-2px)}
+        .mr-btn.pri{background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-weight:800;box-shadow:0 10px 30px -10px rgba(249,115,22,.8)}
+        .mr-more{margin-top:52px;font-size:13px;letter-spacing:.2em;color:rgba(236,228,216,.55)}
+        .mr-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
+        .mr-chips span,.mr-chips a{font-size:13px;padding:6px 14px;text-decoration:none}
+        .mr-chips span{border:1px dashed rgba(236,228,216,.25);color:rgba(236,228,216,.6)}
+        .mr-chips a{border:1px solid rgba(94,234,212,.6);color:#99f6e4;background:rgba(0,0,0,.2);transition:background .25s}
+        .mr-chips a:hover{background:rgba(45,212,191,.15)}
+        .mr-back{display:inline-block;margin-top:28px;font-size:14px;letter-spacing:.2em;color:#fde68a;text-decoration:none}
+        .mr-back:hover{color:#fff}
+        @keyframes mrEq{from{transform:scaleY(.15)}to{transform:scaleY(1)}}
+        @keyframes mrBlink{50%{opacity:0}}
+        @media (prefers-reduced-motion:reduce){.mr-eq i{animation:none;transform:scaleY(.5)}.mr-sun{transition:none}}
+        @media (max-width:520px){.mr{padding:100px 18px 120px}.mr-eq{gap:3px}.mr-eq i{width:4px}}
+      `}</style>
+      <div className="mr-sun" />
+      <div className="mr-in">
+        <div className="mr-fm"><i />FM 87.5　幸存者广播</div>
+        <div className="mr-eq" aria-hidden="true">
+          {BARS.map((i) => <i key={i} style={{ animationDuration: 0.5 + ((i * 13) % 7) / 10 + "s", animationDelay: -((i * 37) % 90) / 100 + "s" }} />)}
+        </div>
+        <div className="mr-q">「这里是幸存者广播。我们在招募：一位想写末世的作者。」</div>
+        <div className="mr-h">天亮了。现在，写你自己的末世</div>
+        <div className="mr-p">在开书页写下灵感，把故事类型选为末世求生，推进方式自己挑，或者交给 AI 自动匹配；自动导演会把方向、世界、角色和章节一路推进到正文。</div>
+        <div className="mr-btns">
+          {LINKS.map((l) => <a key={l.h} className={"mr-btn" + (l.pri ? " pri" : "")} href={l.h}>{l.t}</a>)}
+        </div>
+        <div className="mr-more">其他题材展厅</div>
+        <div className="mr-chips">
+          <a href="/showcase/xianxia">仙侠修真 · 已开放</a>
+          <a href="/showcase/mystery">悬疑推理 · 已开放</a>
+          <a href="/showcase/romance">穿书女频 · 已开放</a>
+          <a href="/showcase/urban">都市异能 · 已开放</a>
+        </div>
+        <a className="mr-back" href="/">← 回到首页书架</a>
+      </div>
+    </div>
+  );
+};

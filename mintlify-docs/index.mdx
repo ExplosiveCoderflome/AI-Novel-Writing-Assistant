@@ -25,6 +25,8 @@ keywords:
 
       <BnTyping />
 
+      <BnShelf />
+
       <BnDirector />
 
       <BnStarMap />
@@ -40,6 +42,8 @@ keywords:
       <XzHero />
 
       <XzScroll />
+
+      <XzShelf />
 
       <XzDirector />
 
@@ -296,6 +300,100 @@ export const BnCta = () => (
     <a className="bn-cb" href="/installation">下载与安装 →</a>
   </div>
 );
+
+export const BnShelf = () => {
+  const BOOKS = [
+    { t: "仙侠修真", e: "XIANXIA", c: "#0f766e", tc: "#fde68a", g: "#2dd4bf", h: 262, on: true, href: "/showcase/xianxia" },
+    { t: "末世求生", e: "WASTELAND", c: "#9a3412", tc: "#fed7aa", g: "#fb923c", h: 232, on: true, href: "/showcase/wasteland" },
+    { t: "都市异能", e: "URBAN", c: "#5b21b6", tc: "#ddd6fe", g: "#a78bfa", h: 246, on: true, href: "/showcase/urban" },
+    { t: "穿书女频", e: "ROMANCE", c: "#9d174d", tc: "#fbcfe8", g: "#f472b6", h: 224, on: true, href: "/showcase/romance" },
+    { t: "悬疑推理", e: "MYSTERY", c: "#1e3a8a", tc: "#bfdbfe", g: "#60a5fa", h: 240, on: true, href: "/showcase/mystery" },
+  ];
+  const [open, setOpen] = useState(null);
+  const ob = BOOKS.find((x) => x.t === open) || BOOKS[0];
+  const pass = useRef(false);
+  const go = (e, b) => {
+    if (pass.current) { pass.current = false; return; }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    setOpen(b.t);
+    setTimeout(() => { pass.current = true; el.click(); }, 720);
+    setTimeout(() => setOpen(null), 1800);
+  };
+  const inner = (b) => (
+    <>
+      {b.on && <i className="bn-shine" />}
+      <span className="bn-be">{b.e}</span>
+      <span className="bn-bt" style={{ color: b.tc }}>{b.t}</span>
+      <span className={"bn-bb" + (b.on ? " on" : "")}>{b.on ? "已开放" : "筹备中"}</span>
+    </>
+  );
+  const sty = (b) => ({ "--h": b.h + "px", "--g": b.g, background: "linear-gradient(90deg,rgba(0,0,0,.45),rgba(255,255,255,.1) 28%,rgba(0,0,0,0) 62%,rgba(0,0,0,.5))," + b.c });
+  return (
+    <div className="not-prose bn-sh">
+      <style>{`
+        .bn-sh{background:#05080a;color:#e7f5ec;padding:90px 24px 100px;border-top:1px solid rgba(134,239,172,.08)}
+        .bn-shin{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:end}
+        .bn-shk{font-size:13px;letter-spacing:.3em;color:#4ade80}
+        .bn-shh{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 18px}
+        .bn-shp{font-size:15.5px;line-height:1.85;color:rgba(231,245,236,.62);max-width:470px}
+        .bn-shgos{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:24px}
+        .bn-shgo{display:inline-block;font-size:15px;color:#86efac;text-decoration:none;transition:transform .3s}
+        .bn-shgo:hover{transform:translateX(6px);color:#bbf7d0}
+        .bn-shelf{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:12px;height:320px;padding:0 18px 18px;perspective:900px}
+        .bn-shelf::after{content:"";position:absolute;left:0;right:0;bottom:0;height:18px;border-radius:4px;background:linear-gradient(180deg,#1c2b24,#0a130f);box-shadow:0 0 44px -6px rgba(34,197,94,.45),0 18px 30px -12px rgba(0,0,0,.9)}
+        .bn-bk{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-sizing:border-box;width:58px;height:var(--h);padding:16px 0 14px;border-radius:5px 5px 2px 2px;text-decoration:none;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),6px 0 14px -6px rgba(0,0,0,.8);transform-origin:bottom left;transition:transform .45s cubic-bezier(.3,1.4,.5,1),box-shadow .4s,filter .4s}
+        .bn-bk::before,.bn-bk::after{content:"";position:absolute;left:0;right:0;height:2px;background:rgba(255,255,255,.2)}
+        .bn-bk::before{top:9px}
+        .bn-bk::after{bottom:44px}
+        .bn-bk.on{cursor:pointer}
+        .bn-bk.on:hover,.bn-bk.on:focus-visible{outline:none;transform:translateY(-24px) rotate(-3deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2),0 0 36px -4px var(--g)}
+        .bn-bk.off{filter:saturate(.35) brightness(.6);cursor:default}
+        .bn-bk.off:hover{filter:saturate(.6) brightness(.75)}
+        .bn-bk.opening{transform:translateY(-30px) rotateY(-75deg) scale(1.12) !important;transition:transform .7s cubic-bezier(.6,0,.3,1)}
+        .bn-be{writing-mode:vertical-rl;font-size:9.5px;letter-spacing:.3em;color:rgba(255,255,255,.55);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+        .bn-bt{writing-mode:vertical-rl;font-size:19px;font-weight:800;letter-spacing:.3em;font-family:"Noto Serif SC","Songti SC",serif;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+        .bn-bb{font-size:10px;line-height:1.5;width:42px;text-align:center;border-radius:3px;background:rgba(0,0,0,.35);color:rgba(255,255,255,.55)}
+        .bn-bb.on{background:#16A34A;color:#fff}
+        .bn-shine{position:absolute;left:-80%;top:0;bottom:0;width:60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);transform:skewX(-18deg);animation:bnShine 3.6s ease-in-out infinite;pointer-events:none}
+        .bn-shflash{position:fixed;inset:0;z-index:70;pointer-events:none;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 55%,rgba(45,212,191,.35),#05080a 70%);opacity:0;animation:bnShFlash .75s ease-in forwards}
+        .bn-shflash span{font-size:clamp(48px,9vw,110px);font-weight:900;letter-spacing:.2em;color:#fde68a;font-family:"Noto Serif SC","Songti SC",serif;text-shadow:0 0 40px rgba(45,212,191,.7)}
+        @keyframes bnShine{0%,55%{left:-80%}100%{left:140%}}
+        @keyframes bnShFlash{to{opacity:1}}
+        @media (max-width:520px){.bn-shelf{gap:7px;height:270px;padding:0 6px 16px}.bn-bk{width:48px;height:calc(var(--h)*.82)}.bn-bt{font-size:16px}.bn-bb{width:38px}}
+        @media (prefers-reduced-motion:reduce){.bn-shine{animation:none;display:none}}
+      `}</style>
+      <div className="bn-shin">
+        <div>
+          <div className="bn-shk">GENRE SHOWCASE</div>
+          <div className="bn-shh">按题材，走进一本书</div>
+          <div className="bn-shp">每个题材一间展厅：从一句灵感、推进方式、世界星图到章节样张，沉浸式地看看用工作台写这一类小说是什么样子。已经开放：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
+          <div className="bn-shgos">
+            <a className="bn-shgo" href="/showcase/xianxia">走进仙侠修真展厅 →</a>
+            <a className="bn-shgo" href="/showcase/wasteland">走进末世求生展厅 →</a>
+            <a className="bn-shgo" href="/showcase/mystery">走进悬疑推理展厅 →</a>
+            <a className="bn-shgo" href="/showcase/romance">走进穿书女频展厅 →</a>
+            <a className="bn-shgo" href="/showcase/urban">走进都市异能展厅 →</a>
+          </div>
+        </div>
+        <div className="bn-shelf">
+          {BOOKS.map((b) => b.on ? (
+            <a key={b.t} className={"bn-bk on" + (open === b.t ? " opening" : "")} href={b.href} style={sty(b)} aria-label={b.t + " 题材展厅"} onClick={(e) => go(e, b)}>{inner(b)}</a>
+          ) : (
+            <div key={b.t} className="bn-bk off" style={sty(b)} title="筹备中">{inner(b)}</div>
+          ))}
+        </div>
+      </div>
+      {open && (
+        <div className="bn-shflash" style={{ background: "radial-gradient(circle at 50% 55%," + ob.g + "59,#05080a 70%)" }}>
+          <span style={{ color: ob.tc, textShadow: "0 0 40px " + ob.g }}>{open}</span>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const BnTyping = () => {
   const STEPS = [
@@ -1396,6 +1494,88 @@ export const XzFeatures = () => {
   );
 };
 
+export const XzShelf = () => {
+  const BOOKS = [
+    { t: "仙侠修真", c: "#24435a", h: 262, on: true, href: "/showcase/xianxia" },
+    { t: "末世求生", c: "#5b4636", h: 234, on: true, href: "/showcase/wasteland" },
+    { t: "都市异能", c: "#3a3a42", h: 248, on: true, href: "/showcase/urban" },
+    { t: "穿书女频", c: "#6b2e2a", h: 226, on: true, href: "/showcase/romance" },
+    { t: "悬疑推理", c: "#3f4f3a", h: 242, on: true, href: "/showcase/mystery" },
+  ];
+  const [open, setOpen] = useState(null);
+  const pass = useRef(false);
+  const go = (e, b) => {
+    if (pass.current) { pass.current = false; return; }
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    setOpen(b.t);
+    setTimeout(() => { pass.current = true; el.click(); }, 760);
+    setTimeout(() => setOpen(null), 1800);
+  };
+  const inner = (b) => (
+    <>
+      <span className="xz-sig">{b.t}</span>
+      {b.on ? <span className="xz-seal2">开</span> : <span className="xz-bs">待刊</span>}
+    </>
+  );
+  const sty = (b) => ({ "--h": b.h + "px", background: "linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.08) 30%,rgba(0,0,0,0) 65%,rgba(0,0,0,.3))," + b.c });
+  return (
+    <div className="not-prose xz-sh">
+      <style>{`
+        .xz-sh{background:#f3ede1;color:#1c1a17;padding:90px 24px 100px;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
+        .xz-shin{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:end}
+        .xz-shk{font-size:13px;letter-spacing:.5em;color:#b4382a}
+        .xz-shh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 18px}
+        .xz-shp{font-size:15.5px;line-height:1.95;color:rgba(28,26,23,.65);max-width:470px}
+        .xz-shgos{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+        .xz-shgo{display:inline-block;padding:10px 22px;background:#b4382a;color:#faf6ec;text-decoration:none;font-size:15px;letter-spacing:.2em;border-radius:4px;box-shadow:0 12px 26px -12px rgba(180,56,42,.8);transition:transform .3s}
+        .xz-shgo:hover{transform:translateY(-2px)}
+        .xz-shelf{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:14px;height:320px;padding:0 18px 20px;perspective:900px}
+        .xz-shelf::after{content:"";position:absolute;left:0;right:0;bottom:0;height:20px;border-radius:3px;background:linear-gradient(180deg,#7a5234,#4a2e1c);box-shadow:0 16px 26px -14px rgba(28,26,23,.7)}
+        .xz-bk{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-sizing:border-box;width:60px;height:var(--h);padding:16px 0 14px 6px;border-radius:2px;text-decoration:none;color:#faf6ec;box-shadow:inset 0 0 0 1px rgba(250,246,236,.08),5px 0 12px -6px rgba(28,26,23,.7);transform-origin:bottom left;transition:transform .45s cubic-bezier(.3,1.4,.5,1),filter .4s}
+        .xz-bk::before{content:"";position:absolute;left:10px;top:0;bottom:0;border-left:1.5px dashed rgba(250,246,236,.45)}
+        .xz-bk.on{cursor:pointer}
+        .xz-bk.on:hover,.xz-bk.on:focus-visible{outline:none;transform:translateY(-22px) rotate(-3deg)}
+        .xz-bk.off{filter:sepia(.35) brightness(.85);cursor:default}
+        .xz-bk.opening{transform:translateY(-28px) rotateY(-75deg) scale(1.1) !important;transition:transform .75s cubic-bezier(.6,0,.3,1)}
+        .xz-sig{writing-mode:vertical-rl;background:#f6f1e6;color:#1c1a17;padding:12px 5px;font-size:16px;font-weight:800;letter-spacing:.25em;box-shadow:0 0 0 1px rgba(28,26,23,.25),inset 0 0 0 3px #f6f1e6,inset 0 0 0 4px rgba(28,26,23,.35)}
+        .xz-seal2{display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:#b4382a;color:#faf6ec;font-size:15px;font-weight:900;border-radius:3px;transform:rotate(-6deg);box-shadow:inset 0 0 0 2px rgba(250,246,236,.5)}
+        .xz-bs{writing-mode:vertical-rl;font-size:11px;letter-spacing:.3em;color:rgba(250,246,236,.6)}
+        .xz-shflash{position:fixed;inset:0;z-index:70;pointer-events:none;display:flex;align-items:center;justify-content:center;overflow:hidden}
+        .xz-shflash i{position:absolute;left:50%;top:55%;width:60vmax;height:60vmax;margin:-30vmax 0 0 -30vmax;border-radius:50%;background:radial-gradient(circle,#1c1a17 45%,rgba(28,26,23,.85) 60%,rgba(28,26,23,0) 72%);filter:blur(10px);transform:scale(0);animation:xzShInk .8s cubic-bezier(.5,0,.3,1) forwards}
+        .xz-shflash span{position:relative;font-size:clamp(48px,9vw,110px);font-weight:900;letter-spacing:.2em;color:#f3ede1;opacity:0;animation:xzShTxt .8s .25s ease forwards}
+        @keyframes xzShInk{to{transform:scale(3)}}
+        @keyframes xzShTxt{to{opacity:1}}
+        @media (max-width:520px){.xz-shelf{gap:8px;height:270px;padding:0 6px 18px}.xz-bk{width:50px;height:calc(var(--h)*.82)}.xz-sig{font-size:14px}}
+      `}</style>
+      <div className="xz-shin">
+        <div>
+          <div className="xz-shk">五 · 书架</div>
+          <div className="xz-shh">按题材，抽一卷来读</div>
+          <div className="xz-shp">每个题材一间展厅：一句灵感、推进方式、山河星图与章节样张，一卷读尽这一类小说怎样写成。已开五卷：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
+          <div className="xz-shgos">
+            <a className="xz-shgo" href="/showcase/xianxia">展卷 · 仙侠修真</a>
+            <a className="xz-shgo" href="/showcase/wasteland">展卷 · 末世求生</a>
+            <a className="xz-shgo" href="/showcase/mystery">展卷 · 悬疑推理</a>
+            <a className="xz-shgo" href="/showcase/romance">展卷 · 穿书女频</a>
+            <a className="xz-shgo" href="/showcase/urban">展卷 · 都市异能</a>
+          </div>
+        </div>
+        <div className="xz-shelf">
+          {BOOKS.map((b) => b.on ? (
+            <a key={b.t} className={"xz-bk on" + (open === b.t ? " opening" : "")} href={b.href} style={sty(b)} aria-label={b.t + " 题材展厅"} onClick={(e) => go(e, b)}>{inner(b)}</a>
+          ) : (
+            <div key={b.t} className="xz-bk off" style={sty(b)} title="待刊">{inner(b)}</div>
+          ))}
+        </div>
+      </div>
+      {open && <div className="xz-shflash"><i /><span>{open}</span></div>}
+    </div>
+  );
+};
+
 export const XzCta = () => (
   <div className="not-prose xz-cta">
     <style>{`
@@ -1413,7 +1593,7 @@ export const XzCta = () => (
       .xz-small{position:relative;margin-top:22px;font-size:13px;color:rgba(28,26,23,.45);letter-spacing:.2em}
       @keyframes xzSlow{to{transform:rotate(380deg)}}
     `}</style>
-    <div className="xz-ck">六 · 落款</div>
+    <div className="xz-ck">七 · 落款</div>
     <h2 className="xz-ch">现在开始写你的第一本书</h2>
     <p className="xz-cp">桌面版适合直接开始写作，源码版适合开发和自行部署。模型使用你自己的 API 配置。</p>
     <div className="xz-os"><span>Windows</span><span>macOS · Intel</span><span>macOS · Apple Silicon</span><span>Linux</span></div>
@@ -1485,7 +1665,7 @@ export const RepoPulse = ({ theme }) => {
         @media (max-width:520px){.cm-acts{grid-template-columns:1fr}}
       `}</style>
       <div className="cm-in">
-        <div className="cm-k">{ink ? "COMMUNITY" : "五 · 同道"}</div>
+        <div className="cm-k">{ink ? "COMMUNITY" : "六 · 同道"}</div>
         <div className="cm-h">{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</div>
         <div className="cm-p">Star 数和趋势实时来自 GitHub。遇到问题或有想法，直接在下面提交 Issue；附上使用版本、所选导演与模式、操作步骤和相关日志，会更容易定位问题。</div>
         <div className="cm-badges">
@@ -1523,10 +1703,10 @@ export const HomeFx = ({ children }) => {
     const root = rootRef.current;
     if (!root) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const INK_R = ".bn-k,.bn-h2,.bn-p,.bn-track,.bn-grid,.bn-detail,.bn-tk,.bn-th,.bn-tp,.bn-win,.bn-smk,.bn-smh,.bn-smp,.bn-svg,.bn-fk,.bn-fh,.bn-aur,.bn-ch2,.bn-cp,.bn-os,.bn-cb,.bn-cm .cm-k,.bn-cm .cm-h,.bn-cm .cm-p,.bn-cm .cm-badges,.bn-cm .cm-chart,.bn-cm .cm-a";
-    const PAPER_R = ".xz-hk,.xz-hh,.xz-hp,.xz-roll,.xz-dk,.xz-dh,.xz-dp,.xz-grid,.xz-note,.xz-wk,.xz-wh,.xz-wp,.xz-svg,.xz-fk,.xz-fh,.xz-card,.xz-ck,.xz-cp,.xz-os,.xz-go,.xz-small,.xz-cm .cm-k,.xz-cm .cm-h,.xz-cm .cm-p,.xz-cm .cm-badges,.xz-cm .cm-chart,.xz-cm .cm-a";
+    const INK_R = ".bn-k,.bn-h2,.bn-p,.bn-track,.bn-grid,.bn-detail,.bn-tk,.bn-th,.bn-tp,.bn-win,.bn-smk,.bn-smh,.bn-smp,.bn-svg,.bn-fk,.bn-fh,.bn-aur,.bn-shk,.bn-shh,.bn-shp,.bn-shelf,.bn-ch2,.bn-cp,.bn-os,.bn-cb,.bn-cm .cm-k,.bn-cm .cm-h,.bn-cm .cm-p,.bn-cm .cm-badges,.bn-cm .cm-chart,.bn-cm .cm-a";
+    const PAPER_R = ".xz-hk,.xz-hh,.xz-hp,.xz-roll,.xz-dk,.xz-dh,.xz-dp,.xz-grid,.xz-note,.xz-wk,.xz-wh,.xz-wp,.xz-svg,.xz-fk,.xz-fh,.xz-card,.xz-shk,.xz-shh,.xz-shp,.xz-shelf,.xz-ck,.xz-cp,.xz-os,.xz-go,.xz-small,.xz-cm .cm-k,.xz-cm .cm-h,.xz-cm .cm-p,.xz-cm .cm-badges,.xz-cm .cm-chart,.xz-cm .cm-a";
     const DECODE = ".bn-k,.bn-h2,.bn-tk,.bn-th,.bn-smk,.bn-smh,.bn-fk,.bn-fh,.bn-ch2,.bn-cm .cm-k,.bn-cm .cm-h";
-    const BLOT = ".xz-hh,.xz-dh,.xz-wh,.xz-fh,.xz-cm .cm-h";
+    const BLOT = ".xz-hh,.xz-dh,.xz-wh,.xz-fh,.xz-shh,.xz-cm .cm-h";
     const TILT = ".bn-aur,.xz-card,.cm-a";
     const MAG = ".bn-btn,.bn-cb,.xz-btn,.xz-go";
     const ALL = INK_R + "," + PAPER_R + "," + TILT + "," + MAG;
