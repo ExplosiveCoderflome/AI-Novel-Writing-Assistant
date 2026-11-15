@@ -8,6 +8,13 @@ export interface DesktopReleaseNotes {
   items: string[];
 }
 
+/**
+ * In-app desktop update popup. Bound to the current package version via APP_VERSION
+ * (from desktop/package.json at build time) and the matching
+ * `### YYYY-MM-DD · vX.Y.Z` block in docs/releases/release-notes.md.
+ * For v0.8.6 that block covers the BLG celebration egg, default-off reasoning for
+ * new providers, probe rate-limit retries, and the publish-pipeline packaging update.
+ */
 function currentRelease(markdown: string): DesktopReleaseNotes {
   const version = APP_VERSION;
   const heading = new RegExp(`^###\\s+\\d{4}-\\d{2}-\\d{2}\\s+·\\s+v${version.replaceAll(".", "\\.")}\\s*$`, "m");
