@@ -512,3 +512,36 @@ test("local trigger/check keep PG gate and Windows probe remains outside removed
     step.run === "node scripts/desktop-release/probe-win-pnpm-spawn.cjs"
   )));
 });
+
+test("non-publish desktop pack verify builds three platforms without Release upload", () => {
+  const root = path.resolve(__dirname, "../..");
+  const req = createRequire(require.resolve("electron-builder/package.json", { paths: [path.join(root, "desktop")] }));
+  const pack = req("js-yaml").load(fs.readFileSync(path.join(root, ".github/workflows/desktop-pack-verify.yml"), "utf8"));
+  assert.equal(pack.permissions.contents, "read");
+  assert.ok(!pack.on.workflow_dispatch);
+  for (const name of ["pack-windows", "pack-mac", "pack-linux", "verify-pack-contracts"]) {
+    assert.equal(pack.jobs[name].permissions?.contents, "read");
+    assert.ok(!Object.keys(pack.jobs[name].env || {}).includes("GH_TOKEN"));
+    assert.ok(!pack.jobs[name].steps?.some(step => step.run?.includes("--publish always")));
+    assert.ok(!pack.jobs[name].steps?.some(step => step.run?.includes("publish-artifacts.cjs")));
+  }
+  assert.ok(pack.jobs["pack-windows"].steps.some(step => step.run?.includes("--win --x64 --publish never")));
+  assert.ok(pack.jobs["pack-windows"].steps.some(step => step.run === "node desktop/scripts/verify-desktop-package.cjs"));
+  assert.ok(pack.jobs["pack-windows"].steps.some(step => step.run?.includes("write-build-manifest.cjs --platform win-x64")));
+  assert.deepEqual(pack.jobs["pack-mac"].strategy.matrix.arch, ["x64", "arm64"]);
+  assert.ok(pack.jobs["pack-mac"].steps.some(step => step.run?.includes("--mac dmg --${{ matrix.arch }} --publish never")));
+  assert.ok(pack.jobs["pack-linux"].steps.some(step => step.run?.includes("--linux AppImage --x64 --publish never")));
+  assert.deepEqual(pack.jobs["verify-pack-contracts"].needs, ["pack-windows", "pack-mac", "pack-linux"]);
+  assert.ok(pack.jobs["verify-pack-contracts"].steps.some(step => (
+    step.run === "node scripts/desktop-release/verify-pack-artifacts.cjs --builds-root .tmp/desktop-builds"
+  )));
+  assert.ok(pack.jobs["verify-pack-contracts"].steps.some(step => (
+    step.run === "node --test scripts/tests/desktop-release.test.cjs"
+  )));
+  const verifySource = fs.readFileSync(path.join(root, "scripts/desktop-release/verify-pack-artifacts.cjs"), "utf8");
+  assert.match(verifySource, /assertAllBuildManifests/);
+  assert.match(verifySource, /collectUploadPlan/);
+  assert.match(verifySource, /AI_NOVEL_PACK_VERIFY_ALLOW_UPLOAD/);
+  assert.ok(!verifySource.includes("gh release"));
+  assert.ok(!verifySource.includes("publish always"));
+});

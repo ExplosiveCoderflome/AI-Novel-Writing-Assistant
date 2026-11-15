@@ -48,9 +48,19 @@
 - 已在 Ubuntu `test:all`／`test:quality` 覆盖的迁移与 quality 门禁不在 Windows 发布路径重复执行。
 - macOS／Linux：本平台打包契约与原生构建检查保留在对应 `build-*` job。
 
+### 非发布三平台打包验收
+
+`Desktop Pack Verify`（`.github/workflows/desktop-pack-verify.yml`）在 PR／指定分支上以 `contents: read` 真实打包 Win setup+portable、Mac x64／arm64 DMG、Linux AppImage（一律 `--publish never`），再由 `verify-pack-artifacts.cjs` 重算摘要、绑定 `latest*.yml`，并合并双架构 `latest-mac.yml`。该路径：
+
+- 不创建 tag、不上传 GitHub Release、不提供发布用 `GH_TOKEN`；
+- 不替代正式 tag 发布的双证明（PG + release-checks）；
+- 与 `windows-publish-path-verify` 并行保留：后者继续覆盖 Windows Prisma 生产 probe，本 workflow 的 Windows job 保留 PE／布局验证。
+
+手动 `workflow_dispatch` Desktop Release 若因集成权限返回 403，属于正常授权缺口；不得用其他身份或内部 API 绕权，应改走本非发布打包验收或正式 tag 路径。
+
 ## Failure Modes
 
-缺少 PG proof、缺少 checks 证明、失败状态、错误 head／run／attempt／version／os／arch／hash、缺更新文件、路径逃逸或符号链接，都必须拒绝上传。`workflow_dispatch` 不得进入上传。`publish-artifacts.cjs --dry-run` 可验证计划但不上传。
+缺少 PG proof、缺少 checks 证明、失败状态、错误 head／run／attempt／version／os／arch／hash、缺更新文件、路径逃逸或符号链接，都必须拒绝上传。`workflow_dispatch` 不得进入上传。`publish-artifacts.cjs --dry-run` 可验证计划但不上传。非发布 pack verify 在摘要／双架构／所需包名失败时同样 fail-closed，且不得开启上传开关。
 
 ### Windows Prisma 子进程
 
@@ -72,9 +82,12 @@ Windows 的 `.cmd` 批处理入口不能通过 `spawnSync(..., { shell: false })
 ## Related Modules
 
 - `.github/workflows/desktop-release.yml`
+- `.github/workflows/desktop-pack-verify.yml`
 - `.github/workflows/desktop-beta-release.yml`
+- `.github/workflows/windows-publish-path-verify.yml`
 - `scripts/desktop-release/guard.cjs`
 - `scripts/desktop-release/run.cjs`
 - `scripts/desktop-release/verify-proof.cjs`
 - `scripts/desktop-release/write-build-manifest.cjs`
+- `scripts/desktop-release/verify-pack-artifacts.cjs`
 - `scripts/desktop-release/publish-artifacts.cjs`

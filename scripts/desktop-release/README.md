@@ -7,6 +7,7 @@
 - `run.cjs` / `runReleaseChecks`：只生成可移植检查证明，不依赖 PG live proof。
 - `pg-live-gate`：独立生成 PG proof。
 - 各平台 `build-*`：`--publish never` 打包一次，签名在构建阶段完成，并写入 `build-manifest.json`（head／run／attempt／version／os／arch／文件摘要）。
+- `Desktop Pack Verify` / `verify-pack-artifacts.cjs`：PR／分支上非发布三平台真实打包验收；只校验清单与合并后的 `latest-mac.yml`，不创建 tag、不上传 Release。
 - `verify-proof.cjs` / `verifyUpload` / `publish-artifacts.cjs`：上传前 fail-closed 校验双证明；`publish-artifacts.cjs` 额外校验构建清单与字节摘要，合并 `latest-mac.yml`，再上传既有文件。
 - `check.cjs`（含 workflow_dispatch）：仍要求当前 run 的 PG proof；本地非 CI 仍跑 `test:pg-live`。
 
