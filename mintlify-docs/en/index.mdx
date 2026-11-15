@@ -176,13 +176,88 @@ export const Motes = ({ rgb, count }) => {
   return <canvas ref={ref} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />;
 };
 
+export const Parallax = () => {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current && ref.current.parentElement;
+    if (!el) return;
+    const mv = (e) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", ((e.clientX - r.left) / r.width - 0.5).toFixed(3));
+      el.style.setProperty("--my", ((e.clientY - r.top) / r.height - 0.5).toFixed(3));
+    };
+    el.addEventListener("mousemove", mv);
+    return () => el.removeEventListener("mousemove", mv);
+  }, []);
+  return <span ref={ref} aria-hidden="true" style={{ display: "none" }} />;
+};
+
+export const C = "#13070b";
+
+export const RIM = "rgba(236,208,138,.3)";
+
+export const STARS = Array.from({ length: 80 }, (_, i) => [(i * 197 + 31) % 1600, (i * 113 + 17) % 440, 0.5 + ((i * 7) % 4) * 0.35, (i % 5) * 0.7]);
+
+export const CANDLES = [[640, 190], [720, 310], [800, 150], [880, 260], [960, 120], [1040, 220], [1120, 90], [1200, 320], [1460, 140], [1540, 250], [1010, 360], [700, 420], [1570, 390], [860, 400]];
+
+export const BACK = [[1000, 652, 38, 140, 70, null], [1250, 652, 40, 210, 92, null], [1515, 652, 42, 170, 80, "#14533f"]];
+
+export const FRONT = [[930, 652, 48, 190, 92, "#7a1424"], [1150, 652, 74, 262, 124, "#14533f"], [1425, 652, 56, 240, 112, "#7a1424"], [1325, 652, 88, 372, 176, "#c9a24a"]];
+
+export const win = (x, y, k) => <path key={k} className="ac-win" style={{ animationDelay: ((x * 7 + y * 3) % 50) / 10 + "s" }} d={"M" + (x - 4) + "," + y + " v-12 a4,4 0 0 1 8,0 v12 z"} fill="#ffcf7a" />;
+
+export const tower = (t, k) => {
+  const x = t[0], base = t[1], w = t[2], h = t[3], rh = t[4], flag = t[5];
+  const top = base - h;
+  const fracs = [0.2, 0.42, 0.64];
+  return (
+    <g key={k}>
+      <rect x={x - w / 2} y={top} width={w} height={h} fill={C} stroke={RIM} strokeWidth="1" />
+      <rect x={x - w / 2 - 4} y={top - 6} width={w + 8} height="8" fill={C} stroke={RIM} strokeWidth="1" />
+      <polygon points={(x - w / 2 - 6) + "," + (top - 6) + " " + (x + w / 2 + 6) + "," + (top - 6) + " " + x + "," + (top - 6 - rh)} fill="#2a0d12" stroke={RIM} strokeWidth="1.2" />
+      <line x1={x} y1={top - 6 - rh} x2={x} y2={top - 32 - rh} stroke="#c9a24a" strokeWidth="2" />
+      {flag ? <path className="ac-flag" d={"M" + x + "," + (top - 32 - rh) + " l28,6 l-28,8 z"} fill={flag} /> : null}
+      {fracs.map((f, i) => {
+        const yy = top + h * f + 16;
+        if (yy >= base - 12) return null;
+        return w > 60 ? <g key={i}>{win(x - 12, yy, "a")}{win(x + 12, yy, "b")}</g> : win(x, yy, i);
+      })}
+    </g>
+  );
+};
+
 export const AcHero = () => (
   <div className="not-prose ac-hero">
+    <Parallax />
     <style>{`
-      .ac-hero{position:relative;overflow:hidden;background:radial-gradient(1000px 600px at 15% -10%,rgba(163,31,51,.45),transparent 60%),radial-gradient(800px 500px at 100% 110%,rgba(20,83,63,.4),transparent 60%),#1a0b0f;color:#f1e6cc;padding:110px 24px 110px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
-      .ac-frame{position:absolute;inset:22px;border:1px solid rgba(236,208,138,.28);pointer-events:none}
+      .ac-hero{position:relative;overflow:hidden;min-height:min(94vh,920px);display:flex;align-items:center;background:#1a0b0f;color:#f1e6cc;padding:120px 24px 150px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
+      .ac-scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+      .ac-shade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(26,11,15,.94) 0%,rgba(26,11,15,.74) 30%,rgba(26,11,15,0) 60%),linear-gradient(0deg,#1a0b0f 0%,rgba(26,11,15,0) 22%)}
+      .ac-l1,.ac-l2,.ac-l3,.ac-l4{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+      .ac-l1{transform:translate(calc(var(--mx,0) * -6px),calc(var(--my,0) * -4px))}
+      .ac-l2{transform:translate(calc(var(--mx,0) * -14px),calc(var(--my,0) * -6px))}
+      .ac-l3{transform:translate(calc(var(--mx,0) * -24px),calc(var(--my,0) * -10px))}
+      .ac-l4{transform:translate(calc(var(--mx,0) * -44px),calc(var(--my,0) * -16px))}
+      .ac-win{animation:acWin 5s ease-in-out infinite}
+      .ac-flag{transform-box:fill-box;transform-origin:left center;animation:acFlag 2.4s ease-in-out infinite}
+      .ac-cdl{animation:acCdl 7s ease-in-out infinite}
+      .ac-flame{transform-box:fill-box;transform-origin:center bottom;animation:acFl .9s ease-in-out infinite alternate}
+      .ac-tw{animation:acTw 3.5s ease-in-out infinite}
+      .ac-mist{animation:acDrift 22s ease-in-out infinite alternate}
+      .ac-shim{animation:acShim 3s ease-in-out infinite}
+      @keyframes acWin{0%,100%{opacity:1}45%{opacity:.55}55%{opacity:.9}}
+      @keyframes acFlag{0%,100%{transform:skewY(0deg) scaleX(1)}50%{transform:skewY(6deg) scaleX(.86)}}
+      @keyframes acCdl{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+      @keyframes acFl{from{transform:scale(1,1)}to{transform:scale(.8,1.25)}}
+      @keyframes acTw{0%,100%{opacity:.9}50%{opacity:.25}}
+      @keyframes acDrift{from{transform:translateX(-60px)}to{transform:translateX(60px)}}
+      @keyframes acShim{0%,100%{opacity:.2}50%{opacity:.8}}
+      .ac-frame{position:absolute;z-index:2;inset:22px;border:1px solid rgba(236,208,138,.28);pointer-events:none}
       .ac-frame::before{content:"";position:absolute;inset:6px;border:1px solid rgba(236,208,138,.14)}
-      .ac-wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:56px;align-items:center}
+      .ac-wrap{position:relative;z-index:3;max-width:1200px;width:100%;margin:0 auto}
+      .ac-copy{max-width:580px}
+      @media (max-width:820px){.ac-hero{align-items:flex-end;padding:90px 20px 70px}.ac-shade{background:linear-gradient(0deg,#1a0b0f 0%,rgba(26,11,15,.9) 45%,rgba(26,11,15,.2) 80%)}}
+      @media (prefers-reduced-motion:reduce){.ac-hero *{animation:none !important}}
       .ac-tag{display:inline-block;font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.2em;padding:7px 16px;border:1px solid rgba(236,208,138,.4);color:#ecd08a;background:rgba(122,20,36,.35)}
       .ac-h1{font-family:"Cinzel",Georgia,serif;font-size:clamp(36px,5.6vw,64px);line-height:1.1;font-weight:700;margin:26px 0 0}
       .ac-foil{background:linear-gradient(100deg,#9c7425,#ecd08a 30%,#fff3cf 48%,#ecd08a 66%,#9c7425);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:acFoil 6s linear infinite;font-weight:900}
@@ -193,20 +268,71 @@ export const AcHero = () => (
       .ac-pri:hover{transform:translateY(-2px);box-shadow:0 16px 36px -8px rgba(236,208,138,.85)}
       .ac-sec{border:1px solid rgba(236,208,138,.35);color:#f1e6cc}
       .ac-sec:hover{border-color:#ecd08a;color:#ecd08a;transform:translateY(-2px)}
-      .ac-crest{justify-self:center;width:min(420px,100%);animation:acFloat 7s ease-in-out infinite;filter:drop-shadow(0 30px 50px rgba(0,0,0,.6))}
-      .ac-crest svg{width:100%;height:auto;display:block}
-      .ac-spin{transform-origin:200px 200px;animation:acSpin 60s linear infinite}
-      .ac-glint{animation:acGlint 3.2s ease-in-out infinite}
       @keyframes acFoil{to{background-position:-220% 0}}
-      @keyframes acFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-      @keyframes acSpin{to{transform:rotate(360deg)}}
-      @keyframes acGlint{50%{opacity:.35}}
       @media (max-width:640px){.ac-frame{inset:10px}}
     `}</style>
-    <Motes rgb="236,208,138" count={90} />
+    <svg className="ac-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="acSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#0b0408" /><stop offset=".55" stopColor="#24090f" /><stop offset="1" stopColor="#40131b" /></linearGradient>
+        <radialGradient id="acMoonHalo"><stop offset="0" stopColor="rgba(255,236,190,.55)" /><stop offset=".35" stopColor="rgba(236,208,138,.16)" /><stop offset="1" stopColor="rgba(236,208,138,0)" /></radialGradient>
+        <radialGradient id="acCandle"><stop offset="0" stopColor="rgba(255,214,130,.7)" /><stop offset="1" stopColor="rgba(255,214,130,0)" /></radialGradient>
+        <linearGradient id="acLake" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#220b11" /><stop offset="1" stopColor="#0b0407" /></linearGradient>
+        <filter id="acBlur" x="-20%" y="-60%" width="140%" height="220%"><feGaussianBlur stdDeviation="16" /></filter>
+        <mask id="acArches"><rect x="530" y="680" width="400" height="170" fill="#fff" />{[0, 1, 2, 3, 4].map((i) => <ellipse key={i} cx={598 + i * 66} cy="805" rx="24" ry="70" fill="#000" />)}</mask>
+      </defs>
+      <rect width="1600" height="900" fill="url(#acSky)" />
+      <g className="ac-l1">
+        {STARS.map((s, i) => <circle key={i} className="ac-tw" style={{ animationDelay: s[3] + "s" }} cx={s[0]} cy={s[1]} r={s[2]} fill="#f6e7c1" />)}
+        <circle cx="1325" cy="200" r="320" fill="url(#acMoonHalo)" />
+        <circle cx="1325" cy="200" r="90" fill="#f6e7c1" />
+        <circle cx="1296" cy="178" r="16" fill="rgba(190,160,110,.22)" />
+        <circle cx="1352" cy="230" r="11" fill="rgba(190,160,110,.2)" />
+        <circle cx="1350" cy="168" r="7" fill="rgba(190,160,110,.2)" />
+      </g>
+      <g className="ac-l2">
+        <path d="M0,900 L0,690 Q120,610 260,672 Q380,598 520,662 Q640,618 780,684 L780,900 Z" fill="#1c080e" />
+        <path d="M860,900 L860,640 Q1080,560 1300,612 Q1460,570 1600,604 L1600,900 Z" fill="#1c080e" />
+      </g>
+      <g className="ac-l3">
+        <path d="M640,900 L700,800 L770,760 L820,706 L880,670 L905,654 L1600,654 L1600,900 Z" fill="#0e0508" />
+        <path d="M700,800 L770,760 L820,706 L880,670 L905,654" fill="none" stroke={RIM} strokeWidth="1.5" />
+        <rect x="530" y="690" width="400" height="160" fill={C} mask="url(#acArches)" />
+        <line x1="530" y1="690" x2="905" y2="690" stroke={RIM} strokeWidth="1.5" />
+        {[600, 666, 732, 798, 864].map((lx) => <g key={lx}><line x1={lx} y1="690" x2={lx} y2="672" stroke="#c9a24a" strokeWidth="2" /><circle cx={lx} cy="668" r="4" fill="#ffcf7a" className="ac-win" /></g>)}
+        {tower([555, 770, 46, 160, 76, "#7a1424"], "gh")}
+        <rect x="890" y="562" width="650" height="92" fill={C} stroke={RIM} strokeWidth="1" />
+        {Array.from({ length: 33 }, (_, i) => <rect key={i} x={892 + i * 20} y="552" width="10" height="10" fill={C} />)}
+        {BACK.map((t, i) => tower(t, "b" + i))}
+        <rect x="965" y="520" width="160" height="134" fill={C} stroke={RIM} strokeWidth="1" />
+        <polygon points="955,520 1135,520 1110,462 980,462" fill="#2a0d12" stroke={RIM} strokeWidth="1.2" />
+        {[990, 1020, 1050, 1080, 1100].map((wx, i) => <rect key={i} className="ac-win" style={{ animationDelay: i * 0.5 + "s" }} x={wx - 5} y="548" width="10" height="44" rx="5" fill="#ffcf7a" />)}
+        <circle cx="1045" cy="492" r="12" fill="none" stroke="#ffcf7a" strokeWidth="3" className="ac-win" />
+        {FRONT.map((t, i) => tower(t, "f" + i))}
+        <rect y="792" width="1600" height="108" fill="url(#acLake)" />
+        {[[1325, 806, 60], [1325, 822, 44], [1325, 840, 70], [1325, 858, 36], [1325, 876, 54]].map((r, i) => <ellipse key={i} className="ac-shim" style={{ animationDelay: i * 0.4 + "s" }} cx={r[0]} cy={r[1]} rx={r[2]} ry="2" fill="rgba(246,231,193,.45)" />)}
+        {[[1040, 812, 26], [1150, 832, 20], [1430, 818, 22], [930, 846, 18]].map((r, i) => <ellipse key={i} className="ac-shim" style={{ animationDelay: i * 0.7 + "s" }} cx={r[0]} cy={r[1]} rx={r[2]} ry="1.6" fill="rgba(255,207,122,.4)" />)}
+      </g>
+      <g className="ac-l4">
+        <g className="ac-mist" filter="url(#acBlur)">
+          <ellipse cx="400" cy="790" rx="420" ry="34" fill="rgba(241,230,204,.1)" />
+          <ellipse cx="1150" cy="780" rx="480" ry="30" fill="rgba(241,230,204,.09)" />
+        </g>
+        {CANDLES.map((c, i) => (
+          <g key={i} transform={"translate(" + c[0] + "," + c[1] + ")"}>
+            <g className="ac-cdl" style={{ animationDelay: -(i * 0.7) + "s" }}>
+              <circle cy="-6" r="20" fill="url(#acCandle)" />
+              <rect x="-3" y="0" width="6" height="20" rx="1" fill="#f1e6cc" />
+              <ellipse className="ac-flame" cx="0" cy="-5" rx="3" ry="6" fill="#ffcf5a" />
+            </g>
+          </g>
+        ))}
+      </g>
+    </svg>
+    <Motes rgb="236,208,138" count={60} />
+    <div className="ac-shade" />
     <div className="ac-frame" />
     <div className="ac-wrap">
-      <div>
+      <div className="ac-copy">
         <span className="ac-tag">ADMISSIONS OPEN · v0.8.5 · AGPL-3.0</span>
         <h1 className="ac-h1">Welcome to the<br /><span className="ac-foil">Academy of Story</span></h1>
         <p className="ac-sub">Biz Novel Studio is an open-source AI novel writing workbench. Enrol with a single spark of inspiration, and graduate with a complete long novel or short story.</p>
@@ -219,30 +345,6 @@ export const AcHero = () => (
         <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Stars">
           <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=1a0b0f&color=7a1424" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
         </a>
-      </div>
-      <div className="ac-crest" aria-hidden="true">
-        <svg viewBox="0 0 400 400">
-          <defs>
-            <path id="acRing" d="M200,200 m-172,0 a172,172 0 1,1 344,0 a172,172 0 1,1 -344,0" />
-            <linearGradient id="acShield" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#a31f33" /><stop offset="100%" stopColor="#4a0f1a" /></linearGradient>
-            <linearGradient id="acGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#fff3cf" /><stop offset="50%" stopColor="#ecd08a" /><stop offset="100%" stopColor="#9c7425" /></linearGradient>
-          </defs>
-          <g className="ac-spin">
-            <text fontFamily="Cinzel, Georgia, serif" fontSize="14" letterSpacing="5" fill="#ecd08a"><textPath href="#acRing">ACADEMIA FABULARUM · THE SCHOOL OF STORYCRAFT · ACADEMIA FABULARUM · THE SCHOOL OF STORYCRAFT ·</textPath></text>
-          </g>
-          <circle cx="200" cy="200" r="152" fill="none" stroke="rgba(236,208,138,.45)" />
-          <circle cx="200" cy="200" r="146" fill="none" stroke="rgba(236,208,138,.2)" strokeDasharray="2 6" />
-          <path d="M200 92 L288 124 L288 206 Q288 276 200 318 Q112 276 112 206 L112 124 Z" fill="url(#acShield)" stroke="url(#acGold)" strokeWidth="4" />
-          <path d="M200 96 V314 M114 196 H286" stroke="rgba(236,208,138,.55)" strokeWidth="2" />
-          <path d="M200 96 L286 127 L286 196 L200 196 Z" fill="rgba(20,83,63,.85)" />
-          <path d="M200 196 L114 196 L114 206 Q114 274 200 314 Z" fill="rgba(20,83,63,.85)" />
-          <text x="156" y="170" textAnchor="middle" fontSize="40" fill="url(#acGold)">✒</text>
-          <text x="244" y="172" textAnchor="middle" fontSize="38" fill="url(#acGold)" className="ac-glint">✦</text>
-          <text x="156" y="258" textAnchor="middle" fontSize="38" fill="url(#acGold)">☾</text>
-          <text x="244" y="258" textAnchor="middle" fontSize="38" fill="url(#acGold)">❦</text>
-          <path d="M84 322 L316 322 L300 346 L316 370 L84 370 L100 346 Z" fill="#14533f" stroke="url(#acGold)" strokeWidth="2" />
-          <text x="200" y="351" textAnchor="middle" fontFamily="Cinzel, Georgia, serif" fontSize="13" letterSpacing="3" fill="#ecd08a">SCRIBE · STRUE · PERFICE</text>
-        </svg>
       </div>
     </div>
   </div>
@@ -679,15 +781,142 @@ export const AcCta = () => (
   </div>
 );
 
+export const xnRoof = (w, y, h) => "M" + (-w) + "," + (y - 7) + " Q" + (-w * 0.72) + "," + (y + 2) + " " + (-w * 0.5) + "," + (y - h) + " L" + (w * 0.5) + "," + (y - h) + " Q" + (w * 0.72) + "," + (y + 2) + " " + w + "," + (y - 7) + " L" + (w * 0.84) + "," + (y + 4) + " L" + (-w * 0.84) + "," + (y + 4) + " Z";
+
+export const xnKarst = (arr, base) => arr.map((p) => "M" + (p[0] - p[2]) + "," + base + " C" + (p[0] - p[2]) + "," + p[1] + " " + (p[0] + p[2]) + "," + p[1] + " " + (p[0] + p[2]) + "," + base + " Z").join(" ");
+
+export const XnHall = ({ x, y, s }) => {
+  const D = "#0c1017";
+  const RM = "rgba(255,207,90,.35)";
+  return (
+    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
+      <rect x="-92" y="-6" width="184" height="6" fill={D} stroke={RM} strokeWidth="1" />
+      <rect x="-82" y="-16" width="164" height="10" fill={D} stroke={RM} strokeWidth="1" />
+      <rect x="-76" y="-54" width="152" height="40" fill={D} stroke={RM} strokeWidth="1" />
+      {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} className="xn-win" style={{ animationDelay: i * 0.6 + "s" }} x={-62 + i * 24} y="-46" width="8" height="24" fill="#ffcf5a" />)}
+      <path d={xnRoof(112, -58, 34)} fill="#141a24" stroke={RM} strokeWidth="1.2" />
+      <rect x="-36" y="-112" width="72" height="26" fill={D} stroke={RM} strokeWidth="1" />
+      {[0, 1, 2].map((i) => <rect key={i} className="xn-win" style={{ animationDelay: i * 0.9 + "s" }} x={-21 + i * 18} y="-106" width="6" height="14" fill="#ffcf5a" />)}
+      <path d={xnRoof(66, -112, 28)} fill="#141a24" stroke={RM} strokeWidth="1.2" />
+      <circle cx="0" cy="-144" r="4" fill="#ffcf5a" />
+    </g>
+  );
+};
+
+export const XnPagoda = ({ x, y, s }) => {
+  const RM = "rgba(255,207,90,.35)";
+  return (
+    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
+      <rect x="-50" y="-10" width="100" height="10" fill="#0c1017" stroke={RM} strokeWidth="1" />
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+        const w = 44 - i * 4.6;
+        const b = -10 - i * 30;
+        return (
+          <g key={i}>
+            <rect x={-w * 0.62} y={b - 22} width={w * 1.24} height="22" fill="#0c1017" stroke={RM} strokeWidth="1" />
+            <rect className="xn-win" style={{ animationDelay: i * 0.7 + "s" }} x="-3" y={b - 18} width="6" height="11" fill="#ffcf5a" />
+            <path d={xnRoof(w, b - 20, 10)} fill="#141a24" stroke={RM} strokeWidth="1" />
+          </g>
+        );
+      })}
+      <line x1="0" y1="-220" x2="0" y2="-264" stroke="#ffcf5a" strokeWidth="2" />
+      {[-232, -242, -252].map((cy) => <circle key={cy} cx="0" cy={cy} r="3" fill="#ffcf5a" />)}
+    </g>
+  );
+};
+
+export const XnIsle = ({ x, y, s, d }) => (
+  <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
+    <g className="xn-bob" style={{ animationDelay: -d + "s" }}>
+      <line className="xn-fall" x1="96" y1="10" x2="96" y2="300" stroke="rgba(214,228,250,.55)" strokeWidth="7" strokeDasharray="18 10" />
+      <ellipse cx="96" cy="300" rx="46" ry="12" fill="rgba(214,228,250,.18)" filter="url(#xnBlur)" />
+      <path d="M-140,0 Q-70,-16 0,-10 Q70,-18 140,0 L110,24 L70,44 L36,96 L10,170 L-12,104 L-52,56 L-108,26 Z" fill="#111722" stroke="rgba(255,207,90,.22)" strokeWidth="1" />
+      <path d="M-140,0 Q-70,-16 0,-10 Q70,-18 140,0" fill="none" stroke="#3f8f6b" strokeWidth="4" />
+      <XnHall x={-10} y={-8} s={0.6} />
+      <ellipse cx="-104" cy="-14" rx="16" ry="11" fill="#163025" />
+      <ellipse cx="-86" cy="-20" rx="11" ry="14" fill="#1b3a2d" />
+      <ellipse cx="86" cy="-18" rx="14" ry="12" fill="#163025" />
+      <ellipse cx="108" cy="-12" rx="10" ry="9" fill="#1b3a2d" />
+    </g>
+  </g>
+);
+
+export const XnGate = ({ x, y, s }) => {
+  const D = "#0b0f16";
+  const RM = "rgba(255,207,90,.4)";
+  return (
+    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
+      <rect x="-136" y="-196" width="18" height="196" fill={D} stroke={RM} strokeWidth="1" />
+      <rect x="118" y="-196" width="18" height="196" fill={D} stroke={RM} strokeWidth="1" />
+      <rect x="-68" y="-160" width="16" height="160" fill={D} stroke={RM} strokeWidth="1" />
+      <rect x="52" y="-160" width="16" height="160" fill={D} stroke={RM} strokeWidth="1" />
+      {[-142, -74, 46, 112].map((px) => <rect key={px} x={px} y="-12" width={px === -142 || px === 112 ? 30 : 28} height="12" fill={D} stroke={RM} strokeWidth="1" />)}
+      <rect x="-150" y="-150" width="300" height="9" fill="#7a1a10" stroke={RM} strokeWidth="1" />
+      <rect x="-158" y="-208" width="316" height="14" fill="#7a1a10" stroke={RM} strokeWidth="1" />
+      <path d={xnRoof(186, -208, 40)} fill="#141a24" stroke={RM} strokeWidth="1.4" />
+      <path d="M-93,-248 q-8,-14 4,-20 M93,-248 q8,-14 -4,-20" fill="none" stroke="#ffcf5a" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="0" cy="-254" r="6" fill="#ffcf5a" />
+      <rect x="-46" y="-192" width="92" height="38" fill="#c8321e" stroke="#ffcf5a" strokeWidth="2" />
+      <text x="0" y="-164" textAnchor="middle" fontFamily="Ma Shan Zheng, Noto Serif SC, serif" fontSize="26" fill="#ffcf5a">问道宗</text>
+      {[-94, 94].map((lx) => (
+        <g key={lx} transform={"translate(" + lx + ",-141)"}>
+          <g className="xn-lan" style={{ animationDelay: (lx > 0 ? -1.3 : 0) + "s" }}>
+            <line x1="0" y1="0" x2="0" y2="16" stroke="#ffcf5a" strokeWidth="1.5" />
+            <circle cx="0" cy="30" r="26" fill="url(#xnLanGlow)" />
+            <ellipse cx="0" cy="30" rx="10" ry="13" fill="#c8321e" stroke="#ffcf5a" strokeWidth="1" />
+          </g>
+        </g>
+      ))}
+    </g>
+  );
+};
+
+export const XN_STARS = Array.from({ length: 70 }, (_, i) => [(i * 211 + 47) % 1600, (i * 89 + 23) % 420, 0.5 + ((i * 5) % 4) * 0.3, (i % 6) * 0.6]);
+
+export const XN_CLOUDS = [[80, 770, 240, 46], [360, 800, 280, 54], [660, 770, 260, 50], [960, 790, 320, 58], [1260, 770, 280, 52], [1540, 800, 260, 48], [220, 860, 340, 50], [820, 870, 380, 54], [1380, 865, 320, 50]];
+
 export const XnHero = () => (
   <div className="not-prose xn-hero">
     <style>{`
-      .xn-hero{position:relative;overflow:hidden;background:radial-gradient(900px 500px at 75% -5%,rgba(255,207,90,.14),transparent 60%),radial-gradient(800px 600px at -5% 105%,rgba(200,50,30,.22),transparent 60%),#07090d;color:#ede6d6;padding:110px 24px 120px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
-      .xn-bg{position:absolute;right:2%;top:4%;writing-mode:vertical-rl;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:clamp(160px,22vw,300px);line-height:1;color:rgba(237,230,214,.045);pointer-events:none;user-select:none}
-      .xn-bolt{position:absolute;left:58%;top:0;width:160px;height:62%;opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
+      .xn-hero{position:relative;overflow:hidden;min-height:min(94vh,920px);display:flex;align-items:center;background:#07090d;color:#ede6d6;padding:120px 24px 150px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
+      .xn-scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+      .xn-shade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(7,9,13,.94) 0%,rgba(7,9,13,.72) 30%,rgba(7,9,13,0) 60%),linear-gradient(0deg,#07090d 0%,rgba(7,9,13,0) 20%)}
+      .xn-l1,.xn-l2,.xn-l3,.xn-l4{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+      .xn-l1{transform:translate(calc(var(--mx,0) * -6px),calc(var(--my,0) * -4px))}
+      .xn-l2{transform:translate(calc(var(--mx,0) * -14px),calc(var(--my,0) * -6px))}
+      .xn-l3{transform:translate(calc(var(--mx,0) * -24px),calc(var(--my,0) * -10px))}
+      .xn-l4{transform:translate(calc(var(--mx,0) * -44px),calc(var(--my,0) * -16px))}
+      .xn-rays{animation:xnSpin 120s linear infinite}
+      .xn-tw{animation:xnTw 3.5s ease-in-out infinite}
+      .xn-win{animation:xnWin 5s ease-in-out infinite}
+      .xn-bob{animation:xnBob 8s ease-in-out infinite}
+      .xn-fall{animation:xnFall .9s linear infinite}
+      .xn-crane{animation:xnCrane 46s linear infinite}
+      .xn-flap{transform-box:fill-box;transform-origin:center bottom;animation:xnFlap 1.1s ease-in-out infinite}
+      .xn-sw{animation:xnSw 9s ease-in infinite}
+      .xn-cloudA{animation:xnCA 26s ease-in-out infinite alternate}
+      .xn-cloudB{animation:xnCB 32s ease-in-out infinite alternate}
+      .xn-lan{transform-box:fill-box;transform-origin:center top;animation:xnLan 4s ease-in-out infinite}
+      .xn-cue{position:absolute;z-index:3;left:50%;bottom:26px;transform:translateX(-50%);font-family:"Cinzel",Georgia,serif;font-size:11px;letter-spacing:.3em;color:rgba(255,207,90,.7);text-align:center;pointer-events:none}
+      .xn-cue i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(#ffcf5a,transparent);animation:xnCue 2s ease-in-out infinite}
+      .xn-bolt{position:absolute;z-index:1;left:66%;top:0;width:160px;height:52%;opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
       .xn-bolt polyline{fill:none;stroke:#fff3c4;stroke-width:3;filter:drop-shadow(0 0 8px #ffcf5a) drop-shadow(0 0 22px #ffcf5a)}
-      .xn-flash{position:absolute;inset:0;background:rgba(255,236,180,.1);opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
-      .xn-wrap{position:relative;z-index:2;max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:center}
+      .xn-flash{position:absolute;z-index:1;inset:0;background:rgba(255,236,180,.08);opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
+      .xn-wrap{position:relative;z-index:3;max-width:1200px;width:100%;margin:0 auto}
+      .xn-copy{max-width:580px}
+      @keyframes xnTw{0%,100%{opacity:.9}50%{opacity:.25}}
+      @keyframes xnWin{0%,100%{opacity:1}45%{opacity:.5}55%{opacity:.9}}
+      @keyframes xnBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+      @keyframes xnFall{to{stroke-dashoffset:-28}}
+      @keyframes xnCrane{from{transform:translateX(-200px)}to{transform:translateX(1800px)}}
+      @keyframes xnFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-.4)}}
+      @keyframes xnSw{0%{stroke-dashoffset:1600;opacity:0}5%{opacity:1}22%{stroke-dashoffset:0;opacity:0}100%{stroke-dashoffset:0;opacity:0}}
+      @keyframes xnCA{from{transform:translateX(-50px)}to{transform:translateX(50px)}}
+      @keyframes xnCB{from{transform:translateX(50px)}to{transform:translateX(-50px)}}
+      @keyframes xnLan{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+      @keyframes xnCue{0%,100%{opacity:.3;transform:scaleY(.6)}50%{opacity:1;transform:scaleY(1)}}
+      @media (max-width:820px){.xn-hero{align-items:flex-end;padding:90px 20px 80px}.xn-shade{background:linear-gradient(0deg,#07090d 0%,rgba(7,9,13,.9) 45%,rgba(7,9,13,.2) 80%)}.xn-cue{display:none}}
+      @media (prefers-reduced-motion:reduce){.xn-hero *{animation:none !important}}
       .xn-tag{display:inline-flex;align-items:center;gap:10px;font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.2em;color:#ffcf5a}
       .xn-tag i{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#c8321e;color:#fff1dd;font-style:normal;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:17px;letter-spacing:0}
       .xn-h1{font-family:"Cinzel",Georgia,serif;font-size:clamp(36px,5.6vw,64px);line-height:1.1;font-weight:700;margin:24px 0 0}
@@ -699,23 +928,80 @@ export const XnHero = () => (
       .xn-pri:hover{background:#e0412a;transform:translateY(-2px);box-shadow:0 0 0 1px #ffcf5a,0 0 36px rgba(255,140,60,.7)}
       .xn-sec{border:1px solid rgba(255,207,90,.35);color:#ede6d6}
       .xn-sec:hover{border-color:#ffcf5a;color:#ffcf5a;transform:translateY(-2px)}
-      .xn-enso{justify-self:center;width:min(400px,100%);position:relative}
-      .xn-enso svg{width:100%;height:auto;display:block;overflow:visible}
-      .xn-stroke{fill:none;stroke:#ede6d6;stroke-width:16;stroke-linecap:round;stroke-dasharray:720;stroke-dashoffset:720;animation:xnDraw 2.6s cubic-bezier(.6,0,.2,1) .3s forwards;filter:drop-shadow(0 0 20px rgba(237,230,214,.25))}
-      .xn-seal{transform-origin:150px 150px;animation:xnSeal .7s cubic-bezier(.3,1.6,.5,1) 2.4s both}
-      .xn-orbit{transform-origin:150px 150px;animation:xnSpin 9s linear infinite}
       @keyframes xnBolt{0%,86%,100%{opacity:0}87%{opacity:1}88%{opacity:.15}89.5%{opacity:1}93%{opacity:0}}
       @keyframes xnSh{to{background-position:-220% 0}}
-      @keyframes xnDraw{to{stroke-dashoffset:0}}
-      @keyframes xnSeal{from{opacity:0;transform:scale(2.4) rotate(-20deg)}to{opacity:1;transform:scale(1) rotate(-5deg)}}
       @keyframes xnSpin{to{transform:rotate(360deg)}}
     `}</style>
-    <Motes rgb="255,190,90" count={70} />
-    <div className="xn-bg" aria-hidden="true">问道</div>
+    <Parallax />
+    <svg className="xn-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="xnSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#04060a" /><stop offset=".45" stopColor="#0d1424" /><stop offset=".75" stopColor="#2a2030" /><stop offset="1" stopColor="#3a2418" /></linearGradient>
+        <radialGradient id="xnHalo"><stop offset="0" stopColor="rgba(255,214,120,.42)" /><stop offset=".4" stopColor="rgba(255,190,90,.12)" /><stop offset="1" stopColor="rgba(255,190,90,0)" /></radialGradient>
+        <linearGradient id="xnPeak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b2333" /><stop offset="1" stopColor="#090c12" /></linearGradient>
+        <radialGradient id="xnLanGlow"><stop offset="0" stopColor="rgba(255,150,70,.6)" /><stop offset="1" stopColor="rgba(255,150,70,0)" /></radialGradient>
+        <linearGradient id="xnSwG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="rgba(160,220,255,0)" /><stop offset="1" stopColor="#e6f6ff" /></linearGradient>
+        <filter id="xnBlur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="14" /></filter>
+      </defs>
+      <rect width="1600" height="900" fill="url(#xnSky)" />
+      <g className="xn-l1">
+        {XN_STARS.map((s, i) => <circle key={i} className="xn-tw" style={{ animationDelay: s[3] + "s" }} cx={s[0]} cy={s[1]} r={s[2]} fill="#f3ead2" />)}
+        <g transform="translate(1100,260)">
+          <g className="xn-rays">
+            {Array.from({ length: 18 }, (_, i) => <polygon key={i} points="0,0 -18,-760 18,-760" fill="rgba(255,214,120,.045)" transform={"rotate(" + i * 20 + ")"} />)}
+          </g>
+        </g>
+        <circle cx="1100" cy="260" r="330" fill="url(#xnHalo)" />
+        <path d={xnKarst([[90, 430, 34], [230, 380, 40], [380, 470, 30], [520, 410, 36], [680, 460, 30], [840, 500, 28], [1380, 440, 30], [1490, 380, 42], [1580, 450, 26]], 720)} fill="#1a2232" opacity=".6" />
+      </g>
+      <g className="xn-l2">
+        <path d={xnKarst([[60, 560, 46], [200, 520, 50], [340, 600, 40], [470, 560, 48], [620, 620, 40], [1440, 580, 46], [1560, 540, 50]], 760)} fill="#10161f" />
+        <ellipse cx="800" cy="690" rx="900" ry="40" fill="rgba(200,210,225,.08)" filter="url(#xnBlur)" />
+        <XnIsle x={240} y={170} s={0.42} d={2} />
+        <XnIsle x={720} y={140} s={0.3} d={5} />
+      </g>
+      <g className="xn-l3">
+        <path d="M740,900 L830,740 L890,690 L930,600 L945,548 L990,546 L1000,500 L1030,430 L1060,380 L1085,352 L1115,350 L1140,372 L1170,420 L1205,500 L1225,566 L1270,566 L1290,620 L1350,700 L1440,780 L1520,900 Z" fill="url(#xnPeak)" />
+        <path d="M830,740 L890,690 L930,600 L945,548 L990,546 L1000,500 L1030,430 L1060,380 L1085,352" fill="none" stroke="rgba(255,207,90,.35)" strokeWidth="1.5" />
+        <XnPagoda x={968} y={547} s={0.95} />
+        <XnHall x={1100} y={350} s={1.1} />
+        <XnHall x={1247} y={566} s={0.55} />
+        <XnIsle x={1470} y={250} s={0.62} d={0} />
+        {[[180, -14], [300, -34], [240, 4]].map((c, i) => (
+          <g key={i} transform={"translate(0," + c[0] + ")"}>
+            <g className="xn-crane" style={{ animationDelay: -(i * 13 + c[0] / 20) + "s" }}>
+              <g transform={"translate(0," + c[1] + ")"}>
+                <path d="M-16,0 Q0,-4 16,-1 L24,-5" fill="none" stroke="#ede6d6" strokeWidth="2" strokeLinecap="round" />
+                <path className="xn-flap" style={{ animationDelay: i * 0.3 + "s" }} d="M2,-1 Q-6,-16 -20,-18 Q-6,-8 -4,-1 Z" fill="#ede6d6" />
+              </g>
+            </g>
+          </g>
+        ))}
+        <line className="xn-sw" x1="160" y1="120" x2="980" y2="300" stroke="url(#xnSwG)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="160 1600" />
+        <line className="xn-sw" style={{ animationDelay: "4.5s" }} x1="1600" y1="80" x2="760" y2="200" stroke="url(#xnSwG)" strokeWidth="2" strokeLinecap="round" strokeDasharray="140 1600" />
+      </g>
+      <g className="xn-l4">
+        <g filter="url(#xnBlur)">
+          <g className="xn-cloudA">{XN_CLOUDS.filter((_, i) => i % 2 === 0).map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.16)" />)}</g>
+          <g className="xn-cloudB">{XN_CLOUDS.filter((_, i) => i % 2 === 1).map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.13)" />)}</g>
+          <ellipse cx="1100" cy="760" rx="300" ry="30" fill="rgba(255,190,110,.08)" />
+          <ellipse cx="500" cy="790" rx="260" ry="24" fill="rgba(255,190,110,.06)" />
+        </g>
+        <polygon points="1050,832 1150,832 1240,900 960,900" fill="#0b0f16" />
+        {[846, 860, 874, 888].map((sy, i) => <line key={sy} x1={1050 - (i + 1) * 21} y1={sy} x2={1150 + (i + 1) * 21} y2={sy} stroke="rgba(255,207,90,.18)" strokeWidth="1" />)}
+        <XnGate x={1100} y={832} s={0.9} />
+        <path d="M0,900 L0,852 L90,838 L170,866 L250,900 Z" fill="#05070b" />
+        <path d="M1290,900 L1340,852 L1420,834 L1500,848 L1600,822 L1600,900 Z" fill="#05070b" />
+        <path d="M1520,850 L1514,760 L1530,700" fill="none" stroke="#05070b" strokeWidth="9" strokeLinecap="round" />
+        {[[1490, 720, 46, 10], [1560, 700, 42, 9], [1500, 680, 36, 8], [1550, 760, 40, 9]].map((p, i) => <ellipse key={i} cx={p[0]} cy={p[1]} rx={p[2]} ry={p[3]} fill="#05070b" />)}
+      </g>
+    </svg>
+    <Motes rgb="255,190,90" count={60} />
+    <div className="xn-shade" />
+    <div className="xn-cue">ASCEND<i /></div>
     <svg className="xn-bolt" viewBox="0 0 100 300" preserveAspectRatio="none" aria-hidden="true"><polyline points="60,0 44,60 62,82 34,150 56,170 24,240 40,250 18,300" /></svg>
     <div className="xn-flash" />
     <div className="xn-wrap">
-      <div>
+      <div className="xn-copy">
         <span className="xn-tag"><i>宗</i>THE SECT OF STORY · v0.8.5 · AGPL-3.0</span>
         <h1 className="xn-h1">Every Story Has<br /><span className="xn-gold">a Spirit Root</span></h1>
         <p className="xn-sub">Biz Novel Studio is an open-source AI novel writing workbench. Bring one spark of inspiration, and cultivate it realm by realm into a complete long novel or short story.</p>
@@ -728,18 +1014,6 @@ export const XnHero = () => (
         <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Stars">
           <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=07090d&color=c8321e" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
         </a>
-      </div>
-      <div className="xn-enso" aria-hidden="true">
-        <svg viewBox="0 0 300 300">
-          <path className="xn-stroke" d="M168 36 C236 46 274 108 260 170 C246 234 184 272 120 262 C56 252 22 190 34 128 C44 78 82 46 122 38" />
-          <g className="xn-orbit"><circle cx="150" cy="22" r="5" fill="#ffcf5a" style={{ filter: "drop-shadow(0 0 8px #ffcf5a)" }} /></g>
-          <g className="xn-seal">
-            <rect x="104" y="104" width="92" height="92" fill="#c8321e" />
-            <rect x="110" y="110" width="80" height="80" fill="none" stroke="#fff1dd" strokeWidth="2" opacity=".7" />
-            <text x="150" y="146" textAnchor="middle" fontFamily="Ma Shan Zheng, Noto Serif SC, serif" fontSize="36" fill="#fff1dd">書</text>
-            <text x="150" y="184" textAnchor="middle" fontFamily="Ma Shan Zheng, Noto Serif SC, serif" fontSize="36" fill="#fff1dd">道</text>
-          </g>
-        </svg>
       </div>
     </div>
   </div>
@@ -991,10 +1265,22 @@ export const XnCta = () => (
       .xn-tal:hover{box-shadow:0 0 0 6px rgba(255,207,90,.3),0 0 80px rgba(255,207,90,.9);animation-play-state:paused}
       .xn-tv{writing-mode:vertical-rl;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:30px;letter-spacing:.2em}
       .xn-te{font-family:"Cinzel",Georgia,serif;font-size:11.5px;font-weight:700;letter-spacing:.12em;color:#7a1a10;line-height:1.35}
+      .xn-back{position:absolute;left:0;bottom:0;width:100%;height:100%;pointer-events:none;display:block}
       .xn-small{position:relative;margin-top:28px;font-size:16px;opacity:.5;font-style:italic}
       @keyframes xnSpin{to{transform:rotate(360deg)}}
       @keyframes xnSway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
     `}</style>
+    <svg className="xn-back" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <radialGradient id="xnLanGlow2"><stop offset="0" stopColor="rgba(255,150,70,.5)" /><stop offset="1" stopColor="rgba(255,150,70,0)" /></radialGradient>
+        <filter id="xnBlur2" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="14" /></filter>
+      </defs>
+      <path d={xnKarst([[80, 300, 60], [220, 360, 50], [360, 420, 40], [1240, 420, 40], [1380, 340, 56], [1520, 280, 64]], 600)} fill="#121926" opacity=".85" />
+      <g opacity=".4"><XnGate x={800} y={600} s={1.5} /></g>
+      <g filter="url(#xnBlur2)" className="xn-cloudA">
+        {[[200, 560, 320, 40], [800, 590, 520, 46], [1400, 560, 320, 40]].map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.14)" />)}
+      </g>
+    </svg>
     <div className="xn-ck">THE SECT GATES ARE OPEN</div>
     <h2 className="xn-ch">Start writing your first book now</h2>
     <p className="xn-cp">The desktop version is great for starting to write right away; the source version is for development and self-hosting. Models use your own API configuration.</p>
