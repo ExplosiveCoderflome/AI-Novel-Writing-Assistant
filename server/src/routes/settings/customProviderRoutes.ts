@@ -184,7 +184,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           baseURL,
           authMode,
           isActive: body.isActive ?? true,
-          reasoningEnabled: body.reasoningEnabled ?? true,
+          reasoningEnabled: body.reasoningEnabled ?? false,
           reasoningEffort: normalizeReasoningEffort(body.reasoningEffort),
           hiddenModels: "[]",
           availableModels: serializeModelList(models),

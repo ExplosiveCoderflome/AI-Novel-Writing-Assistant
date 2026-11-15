@@ -28,13 +28,30 @@ export async function probeStatus(input: ModelIdentity): Promise<ProbeStatus> {
   return row ? JSON.parse(row.value) as ProbeStatus : { state: "idle" };
 }
 
+// The probe answer is one tiny JSON object, but a thinking model spends output
+// budget on reasoning before emitting it. 512 leaves room for the answer
+// behind the reasoning while staying cheap.
+const PROBE_MAX_TOKENS = 512;
+// Trials run back to back by default; pacing keeps a burst of probe requests
+// from tripping a per-second rate limit on the endpoint.
+const PROBE_REQUEST_DELAY_MS = 500;
+// Rate limits and server errors are transient: retry them with backoff before
+// giving up. Auth failures and malformed output are never retried.
+const PROBE_RETRY_DELAYS_MS = [1000, 2000];
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function isRetryableProbeError(error: unknown): boolean {
+  const status = (error as { status?: number }).status;
+  return status === 429 || (typeof status === "number" && status >= 500);
+}
+
 // Explicit network opt-in is required by every entrypoint, including CLI and tests.
-export async function probeModel(input: ModelIdentity, options: { allowNetwork: boolean }): Promise<ModelCapabilityProfile> {
+export async function probeModel(input: ModelIdentity, options: { allowNetwork: boolean; requestDelayMs?: number }): Promise<ModelCapabilityProfile> {
   if (!options.allowNetwork) throw new Error("Compatibility probes require explicit network opt-in.");
+  const requestDelayMs = options.requestDelayMs ?? PROBE_REQUEST_DELAY_MS;
   const previous = await loadCapability(input);
   const base = await resolveLLMClientOptions(input.provider, { model: input.model, baseURL: input.baseURL,
     requestProtocol: input.requestProtocol ?? (input.provider === "anthropic" ? "anthropic" : undefined),
-    maxTokens: 128, timeoutMs: 20000, reasoningEnabled: false });
+    maxTokens: PROBE_MAX_TOKENS, timeoutMs: 20000, reasoningEnabled: false });
   // LangChain drops vendor reasoning fields unless the original delta is retained.
   base.includeRawResponse = true;
   let observedReasoningField = previous.reasoningField;
@@ -69,12 +86,31 @@ export async function probeModel(input: ModelIdentity, options: { allowNetwork: 
     schema.parse(JSON.parse(filtered.text + tail.text));
     return { reasoningChars: reasoning.length };
   };
+  let probeRequestSent = false;
+  const pacedRun = async (mode: StructuredMode, modelKwargs = base.modelKwargs) => {
+    if (probeRequestSent && requestDelayMs > 0) await sleep(requestDelayMs);
+    probeRequestSent = true;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= PROBE_RETRY_DELAYS_MS.length; attempt += 1) {
+      try {
+        return await run(mode, modelKwargs);
+      } catch (error) {
+        lastError = error;
+        if (attempt < PROBE_RETRY_DELAYS_MS.length && isRetryableProbeError(error)) {
+          await sleep(PROBE_RETRY_DELAYS_MS[attempt]);
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
+  };
   const supported: StructuredMode[] = [];
   const failed: StructuredMode[] = [];
   let reasoningChars = 0;
   for (const mode of ["json_object", "json_schema", "tool_calling"] as const) {
     if (base.requestProtocol === "anthropic") break; // The existing Anthropic transport supports text only.
-    try { const result = await run(mode); supported.push(mode); reasoningChars = Math.max(reasoningChars, result.reasoningChars); }
+    try { const result = await pacedRun(mode); supported.push(mode); reasoningChars = Math.max(reasoningChars, result.reasoningChars); }
     catch (error) {
       // Auth, rate limits and outages are not evidence that a mode is unsupported.
       const status = (error as { status?: number }).status;
@@ -87,12 +123,12 @@ export async function probeModel(input: ModelIdentity, options: { allowNetwork: 
       failed.push(mode);
     }
   }
-  const plain = await run("prompt_only");
+  const plain = await pacedRun("prompt_only");
   reasoningChars = Math.max(reasoningChars, plain.reasoningChars);
   if (toggle.control === "none" && plain.reasoningChars > 2) {
     for (const control of ["enable_thinking", "thinking", "thinking_boolean", "reasoning_effort"] as const) {
       try {
-        const result = await run("prompt_only", { ...base.modelKwargs, ...thinkingControlKwargs({ supported: true, control, effort: false }, false) });
+        const result = await pacedRun("prompt_only", { ...base.modelKwargs, ...thinkingControlKwargs({ supported: true, control, effort: false }, false) });
         if (result.reasoningChars <= 2) { toggle.control = control; toggle.supported = true; reasoningChars = 0; break; }
       } catch { /* This control is not usable on this endpoint. */ }
     }

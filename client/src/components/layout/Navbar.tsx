@@ -1,8 +1,10 @@
 import { useLocation } from "react-router-dom";
+import { useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
+import BlgCelebration from "@/components/layout/BlgCelebration";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import ProjectGithubLink from "@/components/layout/ProjectGithubLink";
@@ -27,11 +29,24 @@ export default function Navbar(props: NavbarProps) {
   const isHome = location.pathname === "/";
   const showWorkspaceToggle = Boolean(workspaceNavMode && onWorkspaceNavModeChange);
   const useMobileAutoDirectorShell = shouldUseAutoDirectorMobileFullWidthContent(location.pathname);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const brandClickTimesRef = useRef<number[]>([]);
+  const handleBrandClick = () => {
+    const now = Date.now();
+    brandClickTimesRef.current = [...brandClickTimesRef.current.filter((time) => now - time < 2000), now];
+    if (brandClickTimesRef.current.length >= 5) {
+      brandClickTimesRef.current = [];
+      setCelebrationOpen(true);
+    }
+  };
 
   return (
+    <>
     <header className="flex h-16 min-w-0 items-center justify-between gap-3 border-b bg-background px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
-        <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
+        <button type="button" aria-label="工作台标识" onClick={handleBrandClick} className="shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
+        </button>
         <div className="flex min-w-0 flex-col leading-tight">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
@@ -77,5 +92,7 @@ export default function Navbar(props: NavbarProps) {
         </div>
       </div>
     </header>
+    <BlgCelebration open={celebrationOpen} onClose={() => setCelebrationOpen(false)} />
+    </>
   );
 }
