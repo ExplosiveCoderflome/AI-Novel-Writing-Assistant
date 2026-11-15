@@ -24,15 +24,16 @@ test("only stable, complete formal releases pass asset gate", () => {
 });
 
 test("updates only five download links and intended homepage badges", () => {
-  const links = names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n");
+  const links = `下载 **v0.8.1**：\n${names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n")}`;
   const updated = updateInstallation(links, "0.8.2");
   assert.equal((updated.match(/releases\/download\/v0\.8\.2\//g) || []).length, 5);
+  assert.match(updated, /下载 \*\*v0\.8\.2\*\*/);
   assert.match(updateHomepage("v0.8.1 · 开源; v0.8.1 · AGPL-3.0; https://img.shields.io/github/stars/x", "0.8.2"), /v0\.8\.2 · 开源; v0\.8\.2 · AGPL-3\.0; https:\/\/img\.shields\.io\/github\/stars\/x/);
   assert.throws(() => updateInstallation(`${links}\nhref="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/Biz-Novel-Studio-0.8.1-setup-x64.exe"`, "0.8.2"), /Duplicate/);
 });
 
 test("running transformation twice is idempotent", () => {
-  const source = names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n");
+  const source = `下载 **v0.8.1**：\n${names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n")}`;
   const once = updateInstallation(source, "0.8.2");
   assert.equal(updateInstallation(once, "0.8.2"), once);
   const badge = "v0.8.1 · 开源";
@@ -46,7 +47,7 @@ test("CLI dry-run and rejected releases never write fixture documents; complete 
   fs.mkdirSync(docs);
   const installationPath = path.join(docs, "installation.mdx");
   const homepagePath = path.join(docs, "index.mdx");
-  const installation = `${names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n")}\n历史说明 v0.7.5`;
+  const installation = `点下面对应系统直接下载 **v0.8.1**：\n${names.map((name) => `href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/download/v0.8.1/${name.replace("0.8.2", "0.8.1")}"`).join("\n")}\n历史说明 v0.7.5`;
   const homepage = "v0.8.1 · 开源\nhttps://img.shields.io/github/stars/example";
   fs.writeFileSync(installationPath, installation);
   fs.writeFileSync(homepagePath, homepage);
@@ -72,6 +73,7 @@ test("CLI dry-run and rejected releases never write fixture documents; complete 
   assert.equal(synced.status, 0, synced.stderr);
   const after = [fs.readFileSync(installationPath, "utf8"), fs.readFileSync(homepagePath, "utf8")];
   assert.equal((after[0].match(/releases\/download\/v0\.8\.2\//g) || []).length, 5);
+  assert.match(after[0], /下载 \*\*v0\.8\.2\*\*/);
   assert.match(after[0], /历史说明 v0\.7\.5/);
   assert.match(after[1], /github\/stars\/example/);
   const repeated = run(completeRelease());

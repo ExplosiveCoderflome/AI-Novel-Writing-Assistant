@@ -12,6 +12,25 @@ keywords:
 
 以下汇总近期桌面版本的用户可见更新。如需查看完整历史，可前往源仓库的 [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) 或 GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) 页面。
 
+<Update label="2026-11-15" description="v0.8.6">
+
+桌面版本 v0.8.6：新增厂商默认关闭思考，兼容探测遇限流自动重试，工作台加入 BLG 夺冠庆祝彩蛋；桌面正式发布改为各平台先打包校验、再上传已通过的安装包与更新元数据。
+
+#### 新增
+
+- 品牌标识连点五次触发 BLG 夺冠庆祝：彩带与奖杯庆祝层，点空白、按 Esc 或点「继续创作」关闭。
+
+#### 优化
+
+- 新增厂商默认关闭思考：新建自定义厂商与首次配置的内置厂商默认关闭，已有厂商的设置保持不变。
+- 桌面正式发布改为各平台并行打包并先完成校验，再上传已经通过检查的安装包与更新说明；Mac 两个架构的更新信息会合并后再发布，避免互相覆盖。
+
+#### 修复
+
+- 兼容探测遇限流或服务端错误时自动退避重试，探测预算放宽，突发限流下探测也可完成。
+
+</Update>
+
 <Update label="2026-11-14" description="v0.8.5">
 
 桌面版本 v0.8.5 修复 Windows 正式打包，并加快发布检查：可移植全量检查在 Ubuntu 完成一次后复用，Windows 保留迁移、生产数据库探测与平台打包验收。`v0.8.4` 已有 Linux / macOS 安装包但缺 Windows；完整五平台请下载本版。
