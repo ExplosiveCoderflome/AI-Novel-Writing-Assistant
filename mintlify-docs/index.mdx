@@ -65,6 +65,7 @@ export const BnHero = () => {
   const [lines, setLines] = useState(0);
 
   useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(full); return; }
     let i = 0;
     const t = setInterval(() => {
       i += 1;
@@ -75,7 +76,8 @@ export const BnHero = () => {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setLines((n) => (n >= 9 ? 0 : n + 1)), 650);
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setLines(9); return; }
+    const t = setInterval(() => { if (!document.hidden) setLines((n) => (n >= 9 ? 0 : n + 1)); }, 650);
     return () => clearInterval(t);
   }, []);
 
@@ -91,26 +93,33 @@ export const BnHero = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => { resize(); if (still) draw(0); });
     ro.observe(canvas);
     const stars = Array.from({ length: 90 }, () => ({
       x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3,
       v: Math.random() * 0.00025 + 0.00005, p: Math.random() * Math.PI * 2,
     }));
+    const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let vis = true;
     const draw = (time) => {
       ctx.clearRect(0, 0, w, h);
       for (const s of stars) {
-        s.y -= s.v; if (s.y < 0) { s.y = 1; s.x = Math.random(); }
-        const a = 0.35 + 0.45 * Math.sin(time / 900 + s.p);
+        if (!still) { s.y -= s.v; if (s.y < 0) { s.y = 1; s.x = Math.random(); } }
+        const a = still ? 0.55 : 0.35 + 0.45 * Math.sin(time / 900 + s.p);
         ctx.beginPath();
         ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(134,239,172,${Math.max(a, 0.08)})`;
         ctx.fill();
       }
-      raf = requestAnimationFrame(draw);
+      raf = still || !vis ? 0 : requestAnimationFrame(draw);
     };
+    const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((es) => {
+      vis = es[0].isIntersecting;
+      if (vis && !raf && !still) raf = requestAnimationFrame(draw);
+    });
+    if (io) io.observe(canvas);
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect(); };
   }, []);
 
   const widths = [92, 78, 88, 64, 95, 82, 70, 90, 58];
@@ -179,8 +188,8 @@ export const BnDirector = () => {
   const [cur, setCur] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => setCur((c) => (c + 1) % STAGES.length), 1800);
+    if (paused || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const t = setInterval(() => { if (!document.hidden) setCur((c) => (c + 1) % STAGES.length); }, 1800);
     return () => clearInterval(t);
   }, [paused]);
   const pct = ((cur + 1) / STAGES.length) * 100;
@@ -206,7 +215,7 @@ export const BnDirector = () => {
       `}</style>
       <div className="bn-in">
         <div className="bn-k">AUTO DIRECTOR</div>
-        <div className="bn-h2">自动导演，把一本书持续推进下去</div>
+        <h2 className="bn-h2">自动导演，把一本书持续推进下去</h2>
         <div className="bn-p">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
         <div className="bn-track"><div className="bn-fill" style={{ width: pct + "%" }} /></div>
         <div className="bn-grid">
@@ -264,7 +273,7 @@ export const BnFeatures = () => {
       `}</style>
       <div className="bn-fin">
         <div className="bn-fk">FEATURES</div>
-        <div className="bn-fh">现在已经能做什么</div>
+        <h2 className="bn-fh">现在已经能做什么</h2>
         <div className="bn-fg">
           {ITEMS.map((it, i) => (
             <div key={it.t} className="bn-aur" style={{ animationDelay: i * -1 + "s" }}>
@@ -415,7 +424,7 @@ export const BnShelf = () => {
       <div className="bn-shin">
         <div>
           <div className="bn-shk">GENRE SHOWCASE</div>
-          <div className="bn-shh">按题材，走进一本书</div>
+          <h2 className="bn-shh">按题材，走进一本书</h2>
           <div className="bn-shp">每个题材一间展厅：从一句灵感、推进方式、世界星图到章节样张，沉浸式地看看用工作台写这一类小说是什么样子。已经开放：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
           <div className="bn-shgos">
             <a className="bn-shgo" href="/showcase/xianxia">走进仙侠修真展厅 →</a>
@@ -501,7 +510,7 @@ export const BnTyping = () => {
       <div className="bn-tin">
         <div>
           <div className="bn-tk">FROM IDEA TO NOVEL</div>
-          <div className="bn-th">一句灵感，一路展开成正文</div>
+          <h2 className="bn-th">一句灵感，一路展开成正文</h2>
           <div className="bn-tp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
         </div>
         <div className="bn-win" aria-live="polite">
@@ -812,7 +821,7 @@ export const BnStarMap = () => {
       <div className="bn-smi">
         <div>
           <div className="bn-smk">WORLD & CHARACTERS</div>
-          <div className="bn-smh">一本书的世界，彼此相连</div>
+          <h2 className="bn-smh">一本书的世界，彼此相连</h2>
           <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
         </div>
         <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
@@ -1341,7 +1350,7 @@ export const XzScroll = () => {
         <div className="xz-hd">
           <div>
             <div className="xz-hk">一 · 展卷</div>
-            <div className="xz-hh">一句灵感，徐徐展开成书</div>
+            <h2 className="xz-hh">一句灵感，徐徐展开成书</h2>
           </div>
           <div className="xz-hp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
         </div>
@@ -1374,8 +1383,8 @@ export const XzDirector = () => {
   const [cur, setCur] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => setCur((c) => (c + 1) % STAGES.length), 2000);
+    if (paused || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const t = setInterval(() => { if (!document.hidden) setCur((c) => (c + 1) % STAGES.length); }, 2000);
     return () => clearInterval(t);
   }, [paused]);
   return (
@@ -1405,7 +1414,7 @@ export const XzDirector = () => {
       `}</style>
       <div className="xz-di">
         <div className="xz-dk">二 · 运笔</div>
-        <div className="xz-dh">自动导演，十二道工序成一书</div>
+        <h2 className="xz-dh">自动导演，十二道工序成一书</h2>
         <div className="xz-dp">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
         <div className="xz-grid">
           {STAGES.map((s, i) => (
@@ -1478,7 +1487,7 @@ export const XzWeb = () => {
       <div className="xz-wi">
         <div>
           <div className="xz-wk">三 · 经纬</div>
-          <div className="xz-wh">一书之内，皆有牵连</div>
+          <h2 className="xz-wh">一书之内，皆有牵连</h2>
           <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
         </div>
         <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
@@ -1535,7 +1544,7 @@ export const XzFeatures = () => {
       `}</style>
       <div className="xz-fi">
         <div className="xz-fk">四 · 成卷</div>
-        <div className="xz-fh">现在已经能做什么</div>
+        <h2 className="xz-fh">现在已经能做什么</h2>
         <div className="xz-fg">
           {ITEMS.map((it, i) => (
             <a key={it.t} className="xz-card" href={it.h}>
@@ -1657,7 +1666,7 @@ export const XzShelf = () => {
       <div className="xz-shin">
         <div>
           <div className="xz-shk">五 · 书架</div>
-          <div className="xz-shh">按题材，抽一卷来读</div>
+          <h2 className="xz-shh">按题材，抽一卷来读</h2>
           <div className="xz-shp">每个题材一间展厅：一句灵感、推进方式、山河星图与章节样张，一卷读尽这一类小说怎样写成。已开五卷：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
           <div className="xz-shgos">
             <a className="xz-shgo" href="/showcase/xianxia">展卷 · 仙侠修真</a>
@@ -2112,7 +2121,7 @@ export const HomeFx = ({ children }) => {
         .hfx-prog.paper .hfx-paper{left:3px;top:4px;width:12px;height:calc(var(--p) * (68vh - 7px));background-color:#f8f2e4;background-image:repeating-linear-gradient(180deg,transparent 0 13px,rgba(28,26,23,.16) 13px 14px);border-left:1px solid rgba(28,26,23,.28);border-right:1px solid rgba(28,26,23,.28);box-shadow:0 0 6px rgba(28,26,23,.15)}
         .hfx-prog.paper .hfx-sealp{left:1px;top:calc(var(--p) * (68vh - 7px) + 12px);width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;color:#faf6ec;background:#b4382a;border-radius:2px;font-family:"Noto Serif SC","Songti SC",serif;opacity:calc((var(--p) - .97) * 40)}
         @media (max-width:640px){.hfx-prog.paper{display:none}}
-        @media (prefers-reduced-motion: reduce){.hfx-layer,.hfx-burst{display:none}}
+        @media (prefers-reduced-motion: reduce){.hfx-layer,.hfx-burst{display:none}.hfx *,.hfx *::before,.hfx *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}
       `}</style>
     </div>
   );
