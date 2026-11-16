@@ -44,6 +44,26 @@ export function resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount: numb
   );
 }
 
+const DIRECTOR_CANDIDATES_OUTPUT_TOKEN_FLOOR = 8_192;
+const DIRECTOR_CANDIDATES_OUTPUT_TOKENS_PER_CANDIDATE = 4_096;
+const DIRECTOR_CANDIDATES_OUTPUT_TOKEN_CEILING = 32_768;
+
+// Book-level candidate batches carry several full direction drafts. The floor
+// scales with the requested candidate count so a larger batch never runs on
+// the same budget as a single direction.
+export function resolveDirectorCandidatesOutputTokenBudget(candidateCount: number): number {
+  const normalizedCount = Number.isFinite(candidateCount)
+    ? Math.max(1, Math.round(candidateCount))
+    : 1;
+  return Math.min(
+    DIRECTOR_CANDIDATES_OUTPUT_TOKEN_CEILING,
+    Math.max(
+      DIRECTOR_CANDIDATES_OUTPUT_TOKEN_FLOOR,
+      normalizedCount * DIRECTOR_CANDIDATES_OUTPUT_TOKENS_PER_CANDIDATE,
+    ),
+  );
+}
+
 export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
   {
     promptId: "novel.chapter.writer",
