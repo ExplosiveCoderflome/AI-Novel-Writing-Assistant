@@ -57,6 +57,13 @@ export async function run(scenario) {
     chapterProgress:null,nextLaunchRange:null,progress:{done:1,total:1,source:'artifact_ledger'},
     debts:{count:0,chapterOrders:[]},availableActions:[],sourceRoute:'/lab/director/book',
     sourceTrace:{controlStatus:'completed',controlVersion:1,pauseKind:null,planVersion:'v1'}};
+  if(scenario==='review-prose') {
+    book.chapters.push({...chapter,id:'c2',order:2,title:'第二章',content:'最近保存的正文'}, {...chapter,id:'c3',order:3,content:null});
+    book.planning={volumes:[{id:'v1',sortOrder:1,title:'第一卷',chapters:[{id:'p3',volumeId:'v1',chapterOrder:3,title:'第三章',taskSheet:'本章任务',sceneCards:'本章场景'}]}],beatSheets:[]};
+    book.reviewContexts=[{type:'chapter_task_sheet',novelId:'book',runId:'run',controlVersion:1,from:3,to:3,chapterId:'p3',volumeId:'v1'}];
+    view.mode='waiting_gate';
+    view.availableActions=[{id:'review:chapter_task_sheet',label:'去确认章节任务',kind:'navigate',target:'/lab/director/book?review=chapter_task_sheet'}];
+  }
   const workspace={chapterMeta:{chapterId:'c1',order:1,title:chapter.title,wordCount:9,openIssueCount:0,updatedAt:chapter.updatedAt},
     macroContext:null,diagnosticCards:[],recommendedTask:null};
   if(diagnostic) {
@@ -76,6 +83,7 @@ export async function run(scenario) {
   const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity,gcTime:0},mutations:{gcTime:0}}});
   client.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:view});
   client.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view,timeline:[]}});
+  if(scenario==='review-prose') client.setQueryData([...queryKeys.directorNext.detail('book'),'run'],{success:true,data:{view,timeline:[]}});
   client.setQueryData(['directorBookWorkspace','book'],{success:true,data:book});
   client.setQueryData(['directorNovelMetadata','book'],{success:true,data:metadata});
   client.setQueryData(queryKeys.novels.detail('book'),{success:true,data:metadata});
@@ -125,10 +133,15 @@ export async function run(scenario) {
     await act(async()=>button.click());await flush();
   };
   try {
-    const route='/lab/director/'+(scenario==='preview' ? 'preview' : 'book')+(scenario==='review' ? '?review=chapter_batch_closed' : '');
+    const route='/lab/director/'+(scenario==='preview' ? 'preview' : 'book')+(scenario==='review' ? '?review=chapter_batch_closed' : scenario==='review-prose' ? '?review=chapter_task_sheet' : '');
     await act(async()=>root.render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[route]}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></MemoryRouter></QueryClientProvider>));
     await flush();
     if(scenario==='preview') return {hasEdit:document.body.textContent.includes('编辑正文'),requests};
+    if(scenario==='review-prose') {
+      const before=document.body.textContent;
+      await click('查看最新正文（第 2 章）');
+      return {before,after:document.body.textContent,requests};
+    }
     const before=document.querySelector('article').textContent;
     await click('编辑正文');
     const follow=[...document.querySelectorAll('input[type=checkbox]')].find(input=>input.parentElement.textContent.includes('跟随生成'));
@@ -270,6 +283,15 @@ test('V2 chapter review opens editing and returns to the same review context',as
   const result=await run('review');
   assert.match(result.before,/查看本阶段结果/);assert.match(result.reader,/查看本阶段结果/);
   assert.match(result.reader,/门外响起敲门声/);
+});
+
+test('chapter-plan review opens the latest saved prose without changing the waiting gate',async()=>{
+  const result=await run('review-prose');
+  assert.match(result.before,/确认结果并继续/);
+  assert.match(result.after,/最近保存的正文/);
+  assert.match(result.after,/去确认章节任务/);
+  assert.doesNotMatch(result.after,/确认结果并继续/);
+  assert.equal(result.requests.some(({method})=>method!=='get'),false);
 });
 
 test('failed save keeps the original chapter and the unaccepted continuation candidate',async()=>{

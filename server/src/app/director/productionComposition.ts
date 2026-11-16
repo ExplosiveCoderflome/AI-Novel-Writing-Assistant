@@ -18,7 +18,7 @@ import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from 
 import { NovelCorePipelineService } from "../../services/novel/novelCorePipelineService";
 import {buildDirectorCompletionProfile} from "@ai-novel/shared/types/directorCompletion";
 import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
-import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow } from "./productionInputs";
+import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow, readExecutionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
 import {readExistingAssets} from "./existingAssets";
@@ -94,7 +94,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {...modelOptions(context), workspace, targets: executionWindow(context, workspace).targets};
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
     execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {workspace, executionRange: executionWindow(context, workspace).executionRange};
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
+      return readExecutionWindow(context, workspace);
     }, contentHash}),
     chapter_batch: createKernelProductionStep({db: prisma, runtime: context => createNativeKernelRuntime(prisma, context),
       legacy: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {

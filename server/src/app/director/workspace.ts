@@ -7,6 +7,7 @@ import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volu
 import {AppError} from "../../middleware/errorHandler";
 import {FactIntegrityError,PrismaRunRepository} from "../../modules/director";
 import {resolveSavedReviewContexts,type SavedReviewContext} from "./projections/confirmationRoutes";
+import {applySavedChapterPlanFields} from "./productionInputs";
 import {projectWorldMaterials,projectCharacterMaterials,savedStringList} from "./workspace/index";
 export {readDirectorLedgers} from "./workspace/index";
 
@@ -23,7 +24,11 @@ export async function readDirectorWorkspace(novelId: string) {
   try {if(contract && control) reviewContexts=await resolveSavedReviewContexts({contract,control});}
   catch(error) {if(!(error instanceof FactIntegrityError)) throw error;reviewContextError=error.message;}
   const version = await prisma.volumePlanVersion.findFirst({where:{novelId,status:"active"},orderBy:{version:"desc"}});
-  const planning = normalizeVolumeWorkspaceDocument(novelId, version?.contentJson ?? {volumes:novel.volumePlans}, {activeVersionId:version?.id ?? null,source:novel.volumePlans.length ? "volume" : "empty"});
+  const saved = normalizeVolumeWorkspaceDocument(novelId, version?.contentJson ?? {volumes:novel.volumePlans}, {activeVersionId:version?.id ?? null,source:novel.volumePlans.length ? "volume" : "empty"});
+  const taskSheet = reviewContexts.find(context => context.type === "chapter_task_sheet");
+  const savedPlan = taskSheet && novel.volumePlans.find(volume => volume.id === taskSheet.volumeId)?.chapters
+    .find(chapter => chapter.id === taskSheet.chapterId && chapter.chapterOrder === taskSheet.from);
+  const planning = savedPlan ? applySavedChapterPlanFields(saved, savedPlan) : saved;
   const chapters: SimpleCreationShelfProjection["chapters"] = novel.chapters.map(chapter=>{
     const content=chapter.content?.trim() || null, qualityDebt=content ? readChapterQualityDebtDetails(chapter.riskFlags):null;
     const status: SimpleCreationShelfProjection["chapters"][number]["status"] = hasChapterQualityLoopReplanRequiredRiskFlags(chapter.riskFlags) ? "replan_required" : qualityDebt ? "quality_debt" : chapter.generationState === "approved" || chapter.generationState === "published" ? "completed" : chapter.chapterStatus === "generating" ? "generating" : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review" ? "reviewing" : content ? "waiting_writing" : "waiting_planning";

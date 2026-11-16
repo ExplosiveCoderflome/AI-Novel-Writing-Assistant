@@ -20,6 +20,7 @@ interface DirectorPanelProps {
   startForm?: ReactNode | ((range: DashboardView["nextLaunchRange"], driver: DashboardView["driver"]) => ReactNode);
   reviewTarget?:string;
   reviewReady?:boolean;
+  reviewCanRegenerate?:boolean;
   reviewRunId?:string;
   reviewVersion?:number;
   renderPlanEditor?:import("./DirectorGate").PlanEditorRenderer;
@@ -42,12 +43,15 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewRunId, reviewVersion, renderPlanEditor, outlineBound = false }: DirectorPanelProps) {
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewCanRegenerate = false, reviewRunId, reviewVersion, renderPlanEditor, outlineBound = false }: DirectorPanelProps) {
   const candidates = useDirectorCharacterCandidates(view.runId, !preview);
   const candidatePage = candidates.data?.data;
   const reviewingCharacters = candidatePage?.reviews.some(r => r.blocking) ?? false;
   const badgeView = reviewingCharacters ? {...view, headline: "请确认本章人物后继续", availableActions: view.availableActions.filter(a => a.command !== "resume")} : view;
-  const reviewingCurrentGate=reviewReady && reviewRunId===view.runId && reviewVersion===view.sourceTrace.controlVersion && view.availableActions.some(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
+  const reviewAction = view.availableActions.find(action=>action.id.startsWith("review:") && action.kind==="navigate" && action.target===reviewTarget);
+  const currentReview = reviewAction && reviewRunId===view.runId && reviewVersion===view.sourceTrace.controlVersion;
+  const reviewingCurrentGate = currentReview && reviewReady;
+  const recoveringReview = currentReview && reviewAction.id === "review:chapter_task_sheet" && reviewCanRegenerate;
   const navigationAction = view.availableActions.find(action => action.kind === "navigate" && action.target !== reviewTarget);
   const driveSwitch = view.availableActions.find(action => action.command === "handoff" && action.toDriver);
   const chapterText = view.debts.chapterOrders.length > 0
@@ -66,7 +70,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
         budget={view.chapterBudget} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
       {view.mode === "paused" && view.unknownClaims ? <UnknownClaimsRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.unknownClaims.chapterId}`}
         claims={view.unknownClaims} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
-      {!preview && view.mode === "waiting_gate" && reviewingCurrentGate ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={view.availableActions.find(action=>action.kind==="navigate" && action.target===reviewTarget)?.id.slice("review:".length)} renderPlanEditor={renderPlanEditor}/>:null}
+      {!preview && view.mode === "waiting_gate" && (reviewingCurrentGate || recoveringReview) ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={reviewAction?.id.slice("review:".length)} canConfirm={Boolean(reviewingCurrentGate)} renderPlanEditor={renderPlanEditor}/>:null}
       {!outlineBound && driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-current-work">
@@ -106,7 +110,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
           <ClipboardList className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           需要你做什么
         </div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">{reviewingCurrentGate ? "请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。" : view.nextActionGuidance}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{reviewingCurrentGate ? "请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。" : recoveringReview ? "重新生成章节任务与场景后，再确认并继续创作。" : view.nextActionGuidance}</p>
         {view.detail ? <p className={`mt-2 text-sm leading-6 ${reviewingCharacters ? "text-muted-foreground" : "text-destructive"}`}>{view.detail}</p> : null}
         {navigationAction ? (
           <Link className="mt-3 inline-flex text-sm font-medium text-primary underline-offset-4 hover:underline" to={navigationAction.target ?? view.sourceRoute}>
