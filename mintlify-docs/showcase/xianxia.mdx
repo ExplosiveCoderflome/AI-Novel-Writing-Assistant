@@ -1,7 +1,7 @@
 ---
 title: "仙侠修真 · 题材展厅"
 sidebarTitle: "仙侠修真"
-description: "一幅可以展开的水墨长卷：用 Biz Novel Studio 写一部仙侠修真长篇，从一句灵感、方向候选、境界推进，到宗门舆图与章节样张。"
+description: "一幅可以展开的水墨长卷：飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。跟着它看 Biz Novel Studio 怎样从一句灵感、方向候选、天梯推进，走到客栈舆图与章节样张。"
 mode: "custom"
 icon: "mountain-sun"
 keywords:
@@ -10,6 +10,8 @@ keywords:
   - "仙侠修真"
   - "修仙小说创作"
   - "水墨"
+  - "天梯客栈"
+  - "仙侠脑洞"
   - "题材展厅"
   - "Biz Novel Studio"
 ---
@@ -24,6 +26,8 @@ keywords:
 
 <JpPage />
 
+<JqLots />
+
 <JwEnd />
 
 export const JhScroll = () => {
@@ -34,9 +38,19 @@ export const JhScroll = () => {
     tRef.current = setTimeout(() => setOpen(true), 400);
     return () => clearTimeout(tRef.current);
   }, []);
+  const [peek, setPeek] = useState(false);
+  const closeRef = useRef(null);
+  useEffect(() => {
+    if (peek && closeRef.current) closeRef.current.focus();
+  }, [peek]);
+  let STAIR = "M10 192";
+  for (let i = 0; i < 24; i++) STAIR += " h15 v-7";
+  const QUEUERS = [];
+  for (let i = 0; i < 24; i++) { if (i < 13 || i > 17) QUEUERS.push({ x: 17 + 15 * i, y: 192 - 7 * i }); }
   const replay = () => {
     clearTimeout(tRef.current);
     setOpen(false);
+    setPeek(false);
     setDrops([]);
     tRef.current = setTimeout(() => setOpen(true), 1500);
   };
@@ -120,7 +134,18 @@ export const JhScroll = () => {
         @keyframes jhBob{from{translate:0 -6px}to{translate:0 6px}}
         @keyframes jhFlap{from{scale:1 1}to{scale:1 -.55}}
         @keyframes jhInk{0%{scale:0;opacity:1}14%{scale:1;opacity:.95}100%{scale:1.3;opacity:0}}
-        @media (prefers-reduced-motion:reduce){.jh-paper,.jh-rod,.jh-title{transition:none}.jh-cl,.jh-crane,.jh-crane svg,.jh-wing{animation:none}.jh-crane{left:58%}.jh-drop{animation:none;opacity:.5}}
+        .jh-who{cursor:zoom-in}
+        .jh-ring{fill:none;stroke:#b8342b;stroke-width:1.4;transform-box:fill-box;transform-origin:center;animation:jhPulse 2.6s ease-out infinite}
+        @keyframes jhPulse{0%{opacity:.85;scale:.5}100%{opacity:0;scale:1.7}}
+        .jh-pip{position:absolute;z-index:5;left:4%;bottom:7%;width:min(440px,90%);padding:12px 12px 10px;background:#f8f4ea;cursor:default;transform-origin:20% 100%;box-shadow:0 24px 40px -20px rgba(40,28,10,.6),inset 0 0 0 1px rgba(29,27,25,.45),inset 0 0 0 5px #f8f4ea,inset 0 0 0 6px rgba(184,52,43,.45);animation:jhPip .6s cubic-bezier(.3,1.3,.5,1) both}
+        .jh-pip svg{display:block;width:100%;height:auto}
+        .jh-pip p{margin:8px 4px 2px;font-size:13px;line-height:1.75;letter-spacing:.04em;color:#3d3933}
+        .jh-pip em{font-style:normal;color:#b8342b;-webkit-text-emphasis:filled dot #b8342b;text-emphasis:filled dot #b8342b}
+        .jh-pip button{position:absolute;top:8px;right:8px;font:inherit;font-size:12px;letter-spacing:.1em;padding:3px 9px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0}
+        .jh-pip button:hover{background:#b8342b}
+        .jh-pip button:focus-visible{outline:2px solid #b8342b;outline-offset:2px}
+        @keyframes jhPip{from{opacity:0;scale:.15}to{opacity:1;scale:1}}
+        @media (prefers-reduced-motion:reduce){.jh-paper,.jh-rod,.jh-title{transition:none}.jh-cl,.jh-crane,.jh-crane svg,.jh-wing{animation:none}.jh-crane{left:58%}.jh-drop{animation:none;opacity:.5}.jh-ring{animation:none;opacity:.6}.jh-pip{animation:none}}
         @media (max-width:900px){.jh-stage{padding-top:36px}.jh-foot{margin-top:42px}}
         @media (max-width:520px){.jh{padding:18px 16px 44px}.jh-top{font-size:12px;letter-spacing:.12em}.jh-scroll{height:min(64vh,420px)}.jh-title{right:5%;gap:10px}}
       `}</style>
@@ -131,7 +156,7 @@ export const JhScroll = () => {
       <div className="jh-stage">
         <div className={"jh-scroll" + (open ? " open" : "")}>
           <div className="jh-paper">
-            <div className="jh-art" onClick={ink} role="img" aria-label="水墨山水长卷：云海里的仙山、楼阁和仙鹤">
+            <div className="jh-art" onClick={ink} role="group" aria-label="水墨山水长卷：云海里的仙山、楼阁、仙鹤，和崖上一个小小的人">
               <svg className="jh-svg" viewBox="0 0 1200 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                 <defs>
                   <linearGradient id="jhFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#77726a" stopOpacity=".55" /><stop offset=".55" stopColor="#77726a" stopOpacity="0" /></linearGradient>
@@ -168,10 +193,14 @@ export const JhScroll = () => {
                   <ellipse cx="126" cy="114" rx="18" ry="5" transform="rotate(6 126 114)" />
                   <ellipse cx="108" cy="102" rx="13" ry="4" transform="rotate(-4 108 102)" />
                 </g>
-                <circle cx="190" cy="184" r="3" fill="#1d1b19" />
-                <path d="M187 188 L183 205 L196 205 L192 188Z" fill="#1d1b19" />
-                <path d="M192 192 q10 2 18 -4" stroke="#b8342b" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-                <path d="M186 191 L179 179" stroke="#1d1b19" strokeWidth="1" />
+                <g className="jh-who" onClick={(e) => { e.stopPropagation(); setPeek(true); }}>
+                  <circle cx="190" cy="194" r="24" fill="transparent" />
+                  <circle className="jh-ring" cx="190" cy="194" r="16" />
+                  <circle cx="190" cy="184" r="3" fill="#1d1b19" />
+                  <path d="M187 188 L183 205 L196 205 L192 188Z" fill="#1d1b19" />
+                  <path d="M192 192 q10 2 18 -4" stroke="#b8342b" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+                  <path d="M186 191 L179 179" stroke="#1d1b19" strokeWidth="1" />
+                </g>
                 <path d={ISLE} fill="url(#jhNear)" opacity=".8" />
                 <rect x="0" y="372" width="1200" height="68" fill="url(#jhFoot)" />
                 <path d="M918 412 q19 7 38 0 q-19 3 -38 0Z" fill="#1d1b19" />
@@ -192,6 +221,33 @@ export const JhScroll = () => {
                 </div>
               ))}
               {drops.map((d) => <i key={d.id} className="jh-drop" style={{ left: d.x + "px", top: d.y + "px", width: d.s + "px", height: d.s + "px" }} />)}
+              {peek && (
+                <div className="jh-pip" role="dialog" aria-label="画中有画：第九千级客栈" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" ref={closeRef} onClick={() => setPeek(false)}>收起 ×</button>
+                  <svg viewBox="0 0 400 200" role="img" aria-label="一条斜向天际的天梯，台阶上排满了小人，半山腰有一家客栈，顶端是紧闭的天门">
+                    <path d="M0 200 L0 170 Q60 150 120 160 Q200 120 280 128 Q340 90 400 100 L400 200Z" fill="#77726a" opacity=".12" />
+                    <path d={STAIR} fill="none" stroke="#1d1b19" strokeWidth="1.4" strokeLinejoin="round" />
+                    {QUEUERS.map((q, i) => (
+                      <g key={i} fill="#1d1b19" opacity={0.55 + (i % 3) * 0.15}>
+                        <circle cx={q.x} cy={q.y - 10} r="1.8" />
+                        <path d={"M" + (q.x - 2) + " " + (q.y - 8) + " L" + (q.x - 3) + " " + q.y + " L" + (q.x + 3) + " " + q.y + " L" + (q.x + 2) + " " + (q.y - 8) + "Z"} />
+                      </g>
+                    ))}
+                    <rect x="210" y="58" width="64" height="43" fill="#f3ead2" stroke="#1d1b19" strokeWidth="1.2" />
+                    <path d="M202 60 L242 40 L282 60Z" fill="#1d1b19" />
+                    <rect x="226" y="63" width="32" height="11" fill="#1d1b19" />
+                    <text x="242" y="71.5" textAnchor="middle" fontSize="8" fill="#f8efe2">客栈</text>
+                    <rect x="235" y="82" width="14" height="19" fill="#1d1b19" />
+                    <circle cx="216" cy="72" r="3" fill="#b8342b" />
+                    <circle cx="268" cy="72" r="3" fill="#b8342b" />
+                    <rect x="352" y="6" width="4" height="25" fill="#1d1b19" />
+                    <rect x="382" y="6" width="4" height="25" fill="#1d1b19" />
+                    <rect x="348" y="2" width="42" height="5" fill="#1d1b19" />
+                    <rect x="362" y="11" width="14" height="11" fill="#f3ead2" stroke="#b8342b" strokeWidth="1" />
+                  </svg>
+                  <p>画中有画：崖上那个小人，是第九千级客栈的<em>掌柜</em>。他身后的台阶上，排着三百年没挪过一步的队，最上面的天门，贴着一张告示。（示意）</p>
+                </div>
+              )}
               <div className="jh-title">
                 <h1 className="jh-h1">仙侠修真</h1>
                 <div className="jh-col">
@@ -206,9 +262,10 @@ export const JhScroll = () => {
         </div>
         <div className="jh-foot">
           <div className="jh-copy">
-            <p className="jh-sub">选好故事类型与推进方式，自动导演会把宗门、境界、人物和章节一层层接起来，陪你把一部修仙长篇写下去。</p>
+            <p className="jh-sub">飞升天梯堵了三百年，崖上那个凡人，在第九千级开了家客栈。选好故事类型与推进方式，自动导演会把天梯、客栈、房客和章节一层层接起来，陪你把一部修仙长篇写下去。</p>
             <div className="jh-hint">
               <span>点一下画卷，落一滴墨</span>
+              <button type="button" aria-expanded={peek} onClick={() => setPeek(!peek)}>画中有画 · 崖上那个人</button>
               <button type="button" onClick={replay}>↻ 收卷重展</button>
             </div>
           </div>
@@ -224,11 +281,11 @@ export const JhScroll = () => {
 };
 
 export const JiIdea = () => {
-  const IDEA = "修仙界开始内卷考编，我靠一张五百年前的真题卷，成了全宗门唯一的上岸者。";
+  const IDEA = "飞升天梯堵了三百年。我在第九千级台阶上开了家客栈，排队渡劫的大能们，全都欠着我的房钱。";
   const DIRS = [
-    { t: "宗门编制", d: "外门杂役靠一张古卷连闯三关，从杂役名册一路考进内门真传。", m: "升级变强", s: "关系拉扯" },
-    { t: "五百年真题", d: "卷上的题目一道道应验，主角开始追查五百年前出题的人。", m: "解谜推进", s: "升级变强" },
-    { t: "上岸之后", d: "考进宗门只是开始，他要把没落的峰头经营成人人想进的去处。", m: "经营扩张", s: "升级变强" },
+    { t: "房钱抵修为", d: "大能们付不起房钱，只好拿修为抵账。一个没有灵根的凡人掌柜，收着收着，成了整条天梯上最强的人。", m: "升级变强", s: "经营扩张" },
+    { t: "天梯客栈", d: "从山脚一间漏雨的茶棚，到第九千级的三层客栈，再到天梯上的第一座城。房客越来越难伺候。", m: "经营扩张", s: "关系拉扯" },
+    { t: "谁锁了天门", d: "三百年没人飞升。掌柜在一位房客的遗物里翻出半把钥匙，开始追查是谁在天门上落了锁。", m: "解谜推进", s: "升级变强" },
   ];
   const NEXT = ["立项创建", "故事宏观", "世界搭建", "角色生成", "卷战略"];
   const rootRef = useRef(null);
@@ -395,17 +452,18 @@ export const JiIdea = () => {
 
 export const JsStair = () => {
   const REALMS = [
-    { n: "练气", v: "卷一 · 外门", goal: "从杂役名册考进外门，站稳第一块立足之地。", pay: "考核放榜，被人嘲笑的杂役名列榜首。" },
-    { n: "筑基", v: "卷二 · 内门试炼", goal: "在内门试炼中争到真传名额，第一次正面对上宿敌。", pay: "试炼台上一招破局，师尊破例收徒。" },
-    { n: "金丹", v: "卷三 · 上古秘境", goal: "进入上古秘境，查清真题卷的来历。", pay: "秘境深处，找到五百年前出题人的手稿。" },
-    { n: "元婴", v: "卷四 · 宗门大比", goal: "代表本峰出战宗门大比，扭转峰头没落的局面。", pay: "大比夺魁，没落的峰头重回宗门中心。" },
-    { n: "化神", v: "卷五 · 天门", goal: "揭开出题人的真正目的，在飞升之前做出选择。", pay: "最后一道题的答案，由主角自己写下。" },
+    { n: "山脚", v: "卷一 · 山脚茶棚", goal: "在天梯山脚支起一间茶棚，接下第一位排队渡劫的散修。", pay: "散修付不起茶钱，留下一缕修为抵账。没有灵根的掌柜，第一次摸到了灵气。" },
+    { n: "三千级", v: "卷二 · 排队长龙", goal: "跟着队伍往上挪，在第三千级抢下一块能落脚的平台。", pay: "大宗门的弟子要插队，掌柜递过去一张排队号牌，他乖乖退回了队尾。" },
+    { n: "九千级", v: "卷三 · 天梯客栈", goal: "在第九千级盖起客栈，让排了三百年的大能们有处歇脚。", pay: "开张第一夜，三位化神大能为抢最后一间上房，各自赊下了一百年房钱。" },
+    { n: "云顶", v: "卷四 · 收账", goal: "房钱越欠越多，掌柜开始挨个敲门，用修为收账。", pay: "收到第九间房，凡人掌柜的修为，已经压过了半条天梯。" },
+    { n: "天门", v: "卷五 · 天门", goal: "排到队伍最前面，亲眼看看天门为什么三百年没开。", pay: "天门上贴着一张告示。掌柜读完，转身下山，把客栈又盖高了一层。" },
   ];
   const AUX = [
-    { k: "关系拉扯", d: "与师尊、宿敌和同门的关系，在这一卷里再拉近或撕裂一次。" },
-    { k: "经营扩张", d: "峰头的人手、灵田和名声，在这一卷里再扩张一圈。" },
-    { k: "解谜推进", d: "真题卷的谜底，在这一卷里再揭开一层。" },
+    { k: "经营扩张", d: "客栈的房间、伙计和名声，在这一卷里再扩张一圈。" },
+    { k: "关系拉扯", d: "与赊账的大能、插队的宗门和隔壁茶摊，在这一卷里再拉近或撕裂一次。" },
+    { k: "解谜推进", d: "天门为什么三百年没开，在这一卷里再揭开一层。" },
   ];
+  const QUEUE = ["3,000,007", "1,204,580", "88,231", "4,096", "0"];
   const CHECKS = ["爽点是否有铺垫和兑现", "冲突是否逐步升级", "章节结尾是否有继续阅读的理由"];
   const NODES = [{ x: 172, y: 392 }, { x: 104, y: 314 }, { x: 214, y: 236 }, { x: 118, y: 156 }, { x: 178, y: 70 }];
   const CLOUDS = [[40, 352, 80, 14], [300, 296, 90, 15], [60, 226, 80, 13], [290, 140, 70, 12], [180, 458, 230, 26]];
@@ -473,6 +531,22 @@ export const JsStair = () => {
         .js-checks i{width:20px;height:20px;flex:none;display:grid;place-items:center;font-style:normal;font-size:12px;color:#b8342b;border:1.5px solid #b8342b;border-radius:50% 46% 52% 48%}
         .js-up{margin-top:26px;width:100%;padding:14px 18px;font:inherit;font-size:16px;letter-spacing:.2em;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;transition:background .3s}
         .js-up:hover{background:#b8342b}
+        .js-tk{position:absolute;left:10px;top:10px;padding:8px 12px 9px;background:#f8f4ea;border:1px solid rgba(29,27,25,.55);box-shadow:3px 3px 0 rgba(29,27,25,.12);rotate:-3deg;font-size:12px;line-height:1.5;color:#4a4640;min-width:118px}
+        .js-tk::after{content:"";position:absolute;right:-1px;top:50%;width:9px;height:9px;margin-top:-5px;background:#bfae86;border-radius:50%}
+        .js-tk em{display:block;font-style:normal;font-size:11px;letter-spacing:.3em;color:#b8342b}
+        .js-tk b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:19px;color:#161513;animation:jsIn .45s ease both}
+        .js-tk span{font-size:11px;color:#8a847a}
+        .js-notice{position:absolute;left:50%;top:18%;width:46%;max-width:190px;margin-left:-23%;padding:14px 12px 12px;text-align:center;background:#f3ead2;color:#2a2724;box-shadow:0 14px 26px -14px rgba(40,28,10,.6),inset 0 0 0 1px rgba(29,27,25,.35),inset 0 0 0 4px #f3ead2,inset 0 0 0 5px rgba(184,52,43,.45);animation:jsDrop .9s cubic-bezier(.3,1.4,.5,1) both;transform-origin:top center}
+        .js-notice b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:20px;letter-spacing:.5em;color:#b8342b}
+        .js-notice span{display:block;margin-top:6px;font-size:13.5px;line-height:1.6}
+        .js-notice strong{display:block;margin-top:2px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:17px;color:#161513}
+        .js-notice i{display:inline-block;margin-top:8px;padding:3px 6px;font-style:normal;font-size:10.5px;letter-spacing:.2em;color:#f8efe2;background:#b8342b;rotate:-4deg}
+        .js-sign{position:absolute;right:12px;bottom:16%;writing-mode:vertical-rl;padding:10px 6px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;letter-spacing:.3em;color:#f8efe2;background:#1d1b19;box-shadow:0 0 0 2px #f6f1e6,0 0 0 3px #1d1b19;animation:jsSwing 2.4s ease-in-out .9s both;transform-origin:top center}
+        .js-sign::before{content:"";position:absolute;top:-14px;left:50%;width:1px;height:14px;background:#1d1b19}
+        .js-groan{margin-top:12px;font-size:13px;line-height:1.8;color:#b8342b;animation:jsIn .5s ease 1s both}
+        @keyframes jsDrop{0%{opacity:0;translate:0 -40px;rotate:-8deg}60%{opacity:1;rotate:3deg}100%{opacity:1;translate:0 0;rotate:-1.5deg}}
+        @keyframes jsSwing{0%{opacity:0;rotate:12deg}30%{opacity:1;rotate:-7deg}55%{rotate:4deg}80%{rotate:-2deg}100%{opacity:1;rotate:0deg}}
+        @media (prefers-reduced-motion:reduce){.js-tk b,.js-notice,.js-sign,.js-groan{animation:none}}
         @keyframes jsDrift{from{translate:-16px 0}to{translate:16px 0}}
         @keyframes jsRing{from{opacity:.75;scale:.3}to{opacity:0;scale:4.5}}
         @keyframes jsBrush{from{clip-path:inset(0 0 100% 0);opacity:.4}to{clip-path:inset(0 0 0 0);opacity:1}}
@@ -486,12 +560,12 @@ export const JsStair = () => {
           <div className="js-k"><i />画心一 · 登阶</div>
           <div className="js-h">主推进：升级变强</div>
           <p className="js-p">题材回答这本书放在哪个货架，推进模式回答读者为什么继续看下一章。仙侠修真最常见的主推进是升级变强，再搭配一到两个辅助推进增加变化。推进模式会进入卷规划和章节任务，帮助判断爽点是否有铺垫和兑现、冲突是否逐步升级。</p>
-          <p className="js-note">示意：境界与分卷是演示用的例子，实际卷规划由自动导演根据你选定的方向生成。点击石阶上的境界可以直接跳转。</p>
+          <p className="js-note">示意：天梯台阶、排队号牌与分卷都是演示用的例子，实际卷规划由自动导演根据你选定的方向生成。点击天梯上的台阶可以直接跳转；一路爬到天门，看看那里贴着什么。</p>
         </div>
         <div className="js-grid">
           <div className="js-hang">
             <div className="js-art">
-              <svg className="js-svg" viewBox="0 0 360 470" role="img" aria-label="云间石阶：从练气到化神的五个境界">
+              <svg className="js-svg" viewBox="0 0 360 470" role="img" aria-label="飞升天梯：从山脚到天门的五段台阶">
                 <defs>
                   <linearGradient id="jsMt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f1d1a" stopOpacity=".92" /><stop offset=".5" stopColor="#3d3933" stopOpacity=".5" /><stop offset="1" stopColor="#3d3933" stopOpacity="0" /></linearGradient>
                   <linearGradient id="jsBk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7a746a" stopOpacity=".5" /><stop offset="1" stopColor="#7a746a" stopOpacity="0" /></linearGradient>
@@ -522,7 +596,7 @@ export const JsStair = () => {
                   </g>
                 )}
                 {NODES.map((n, i) => (
-                  <g key={i} className="js-nd" tabIndex="0" role="button" aria-label={"境界：" + REALMS[i].n} onClick={() => setLv(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLv(i); } }}>
+                  <g key={i} className="js-nd" tabIndex="0" role="button" aria-label={"台阶：" + REALMS[i].n} onClick={() => setLv(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLv(i); } }}>
                     <circle cx={n.x} cy={n.y} r="20" fill="transparent" />
                     <circle className="js-dot" cx={n.x} cy={n.y} r={i === lv ? 8 : 6} fill={i < lv ? "#1d1b19" : i === lv ? "#b8342b" : "#f6f1e6"} stroke="#1d1b19" strokeWidth="1.6" style={{ transition: "all .4s" }} />
                     <text x={n.x + (n.x < 150 ? -18 : 18)} y={n.y + 6} textAnchor={n.x < 150 ? "end" : "start"} className={"js-lbl" + (i === lv ? " on" : "")}>{REALMS[i].n}</text>
@@ -534,6 +608,20 @@ export const JsStair = () => {
                   <path d="M2 -9 q7 1 12 -5" stroke="#b8342b" strokeWidth="1.2" fill="none" strokeLinecap="round" />
                 </g>
               </svg>
+              <div className="js-tk" aria-live="polite">
+                <em>排队号牌</em>
+                <b key={"q" + lv}>{lv < max ? "前方 " + QUEUE[lv] + " 位" : "到你了"}</b>
+                <span>飞升天梯 · 演示</span>
+              </div>
+              {lv === max && (
+                <div className="js-notice" key={"nt" + burst} role="note">
+                  <b>告示</b>
+                  <span>天门维修中</span>
+                  <strong>预计开放：三百年后</strong>
+                  <i>演示 · 示意</i>
+                </div>
+              )}
+              {lv === max && <div className="js-sign" key={"sg" + burst}>天门客栈 · 分号</div>}
             </div>
           </div>
           <div className="js-leaf">
@@ -558,7 +646,8 @@ export const JsStair = () => {
                 {CHECKS.map((c, i) => <span key={c} style={{ animationDelay: 0.3 + i * 0.25 + "s" }}><i>✓</i>{c}</span>)}
               </dd>
             </dl>
-            <button type="button" className="js-up" onClick={up}>{lv < max ? "拾级而上 · 冲击" + REALMS[lv + 1].n : "重入山门 · 从练气再来"}</button>
+            {lv === max && <div className="js-groan" key={"gr" + burst}>身后三百万人的长队，同时叹了一口气。掌柜却笑了：这么多人要等三百年，客栈该开分号了。</div>}
+            <button type="button" className="js-up" onClick={up}>{lv < max ? "拾级而上 · 前往" + REALMS[lv + 1].n : "下山重排 · 从山脚再来"}</button>
           </div>
         </div>
       </div>
@@ -572,16 +661,16 @@ export const JmMap = () => {
     { id: "world", x: 150, y: 125, s: 40, rot: 4, l: "世界", main: true, k: "世界搭建", d: "自动导演在世界搭建阶段生成本书的世界骨架：规则、势力和地点。" },
     { id: "char", x: 450, y: 125, s: 40, rot: -5, l: "角色", main: true, k: "角色生成", d: "角色生成阶段给出角色候选和阵容草案，你可以继续调整。" },
     { id: "chap", x: 300, y: 365, s: 40, rot: 3, l: "章节", main: true, k: "章节细化", d: "卷规划拆成章节任务，再细化成场景卡和目标。" },
-    { id: "rule", x: 50, y: 55, l: "灵根与境界", k: "规则", d: "修炼体系的硬规则：怎样突破、要付出什么代价、什么不能做。" },
-    { id: "force", x: 45, y: 195, l: "宗门势力", k: "势力", d: "宗门、峰头、魔道与散修，各自想要什么。" },
-    { id: "place", x: 190, y: 25, l: "外门与秘境", k: "地点", d: "故事会反复回到的地方：外门考场、内门、上古秘境。" },
-    { id: "tension", x: 70, y: 310, l: "正魔之争", k: "冲突张力", d: "长期压在整本书上的冲突，为每一卷和每一章提供压力。" },
-    { id: "trait", x: 410, y: 25, l: "林砚 · 杂役出身", k: "性格与能力", d: "主角的出身、性格、能力和成长方向。" },
-    { id: "rel", x: 530, y: 62, l: "师尊 · 宿敌 · 同门", k: "关系", d: "人物之间的关系，以及它在每一卷里怎样变化。" },
-    { id: "state", x: 548, y: 210, l: "境界与处境", k: "章节状态", d: "每章保存后同步角色状态，下一章从这里接着写。" },
-    { id: "task", x: 165, y: 410, l: "问心台考核", k: "章节任务", d: "这一章要完成什么：主角在考核中第一次用上真题卷。" },
-    { id: "scene", x: 435, y: 410, l: "入场 · 落笔 · 放榜", k: "场景卡", d: "把一章拆成几场戏，每场都有自己的目标。" },
-    { id: "fore", x: 540, y: 330, l: "真题卷的落款", k: "伏笔", d: "埋下的线索会被记录，交给后面的章节回收。" },
+    { id: "rule", x: 50, y: 55, l: "天梯规矩", k: "规则", d: "这个世界的硬规则：一级一阶不许跳，排队不许插，天门不开，谁也飞不上去。" },
+    { id: "force", x: 45, y: 195, l: "排队的宗门", k: "势力", d: "三大宗门、散修和魔道各占一段台阶，各自想要什么，各自欠着多少房钱。" },
+    { id: "place", x: 190, y: 25, l: "第九千级 · 客栈", k: "地点", d: "故事会反复回到的地方：山脚茶棚、第九千级的客栈、贴着告示的天门。" },
+    { id: "tension", x: 70, y: 310, l: "三百年没开的天门", k: "冲突张力", d: "长期压在整本书上的冲突，为每一卷和每一章提供压力：队伍越排越长，耐心越来越少。" },
+    { id: "trait", x: 410, y: 25, l: "林砚 · 凡人掌柜", k: "性格与能力", d: "主角的出身、性格、能力和成长方向：没有灵根，只有一本越记越厚的账簿。" },
+    { id: "rel", x: 530, y: 62, l: "赊账大能 · 伙计", k: "关系", d: "人物之间的关系，以及它在每一卷里怎样变化：欠得越多的房客，越不敢得罪掌柜。" },
+    { id: "state", x: 548, y: 210, l: "修为与欠账", k: "章节状态", d: "每章保存后同步角色状态，下一章从这里接着写：收了多少修为，谁还欠着房钱。" },
+    { id: "task", x: 165, y: 410, l: "雷劫券抵房钱", k: "章节任务", d: "这一章要完成什么：化神大能想拿一张雷劫券抵房钱，林砚第一次拒收。" },
+    { id: "scene", x: 435, y: 410, l: "敲门 · 讨价 · 收账", k: "场景卡", d: "把一章拆成几场戏，每场都有自己的目标。" },
+    { id: "fore", x: 540, y: 330, l: "账簿最后一页", k: "伏笔", d: "埋下的线索会被记录，交给后面的章节回收：账簿最后一页，记着一位从没来住过的房客。" },
   ];
   const EDGES = [["book", "world"], ["book", "char"], ["book", "chap"], ["world", "rule"], ["world", "force"], ["world", "place"], ["world", "tension"], ["char", "trait"], ["char", "rel"], ["char", "state"], ["chap", "task"], ["chap", "scene"], ["chap", "fore"], ["force", "rel"], ["state", "chap"], ["fore", "trait"], ["tension", "task"]];
   const RIVER = "M612 150 C540 168 480 236 400 262 S250 296 205 352 S110 418 -12 428";
@@ -589,6 +678,19 @@ export const JmMap = () => {
   const mt = (x, y, s) => "M" + (x - 11 * s) + " " + y + " Q" + (x - 5 * s) + " " + (y - 14 * s) + " " + x + " " + (y - 4 * s) + " Q" + (x + 5 * s) + " " + (y - 18 * s) + " " + (x + 12 * s) + " " + y;
   const [sel, setSel] = useState("book");
   const [hover, setHover] = useState(null);
+  const [fog, setFog] = useState(null);
+  const [breath, setBreath] = useState(false);
+  const stageRef = useRef(null);
+  const move = (e) => {
+    const el = stageRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setFog({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
+  };
+  const [over, setOver] = useState(false);
+  const fp = fog || { x: 50, y: 50 };
+  const mask = breath ? "none" : "radial-gradient(circle 120px at " + fp.x + "% " + fp.y + "%, #000 0%, #000 40%, transparent 100%)";
+  const ghost = breath || over ? 1 : 0;
   const act = hover || sel;
   const P = {};
   NODES.forEach((n) => { P[n.id] = n; });
@@ -619,6 +721,16 @@ export const JmMap = () => {
         .jm-nd.main text{font-size:17px;fill:#f8efe2;stroke:none}
         .jm-nd:focus-visible .jm-dot{stroke:#b8342b;stroke-width:3}
         .jm-ct{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:13px;fill:#1d1b19;text-anchor:middle}
+        .jm-hint{margin-top:12px;color:#9c2a22}
+        .jm-stage{position:relative}
+        .jm-ghost{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(250,247,240,.55),rgba(250,247,240,.25) 70%);transition:opacity .45s ease}
+        .jm-gt{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;fill:#9c2a22;paint-order:stroke;stroke:#f3ecdc;stroke-width:4px}
+        .jm-gt.big{font-size:18px}
+        .jm-gs{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:17px;fill:#f8efe2}
+        .jm-bar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:13px;color:#5a554c}
+        .jm-blow{font:inherit;font-size:14px;letter-spacing:.2em;padding:7px 16px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;transition:background .3s}
+        .jm-blow:hover,.jm-blow[aria-pressed="true"]{background:#b8342b}
+        .jm-blow:focus-visible{outline:2px solid #b8342b;outline-offset:2px}
         @keyframes jmRoad{to{stroke-dashoffset:-24}}
         @keyframes jmIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
         @media (prefers-reduced-motion:reduce){.jm-e.on,.jm-slip{animation:none}}
@@ -628,8 +740,9 @@ export const JmMap = () => {
       <div className="jm-in">
         <div>
           <div className="jm-k"><i />画心二 · 舆图</div>
-          <div className="jm-h">一座宗门，一张山河舆图</div>
+          <div className="jm-h">一条天梯，一张排队舆图</div>
           <p className="jm-p">世界规则、势力、地点和冲突张力，角色的性格、关系与状态，章节任务、场景卡和伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到舆图上的地名，看看它在一部仙侠小说里装着什么。</p>
+          <p className="jm-p jm-hint">再对着舆图呵一口气：画师没敢画出来的东西，会在水汽里显形。</p>
           <div className="jm-slip" key={act}>
             <span className="jm-kind">{cur.k}</span>
             <b>{cur.l}</b>
@@ -638,41 +751,64 @@ export const JmMap = () => {
           <p className="jm-note">示意：舆图内容为演示例子，实际资料由自动导演根据你的方向生成。</p>
         </div>
         <div className="jm-map">
-          <svg className="jm-svg" viewBox="0 0 600 440" role="img" aria-label="仙侠题材的世界、角色与章节舆图">
-            <defs>
-              <filter id="jmBlur" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation="6" /></filter>
-            </defs>
-            <path d={RIVER} fill="none" stroke="#5f7d78" strokeOpacity=".2" strokeWidth="24" filter="url(#jmBlur)" />
-            <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 -8)" />
-            <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 8)" />
-            <g fill="none" stroke="#1d1b19" strokeOpacity=".3" strokeWidth="1.3" strokeLinecap="round">
-              {MTS.map((m, i) => <path key={i} d={mt(m[0], m[1], m[2])} />)}
-            </g>
-            <g transform="translate(14 342)">
-              <rect width="28" height="84" fill="#f3ecdc" stroke="#1d1b19" strokeOpacity=".55" />
-              <rect x="3" y="3" width="22" height="78" fill="none" stroke="#1d1b19" strokeOpacity=".3" />
-              {["演", "示", "舆", "图"].map((c, i) => <text key={c} x="14" y={23 + i * 17} className="jm-ct">{c}</text>)}
-            </g>
-            {EDGES.map((e, i) => (
-              <line key={i} className={"jm-e" + (lit(e[0], e[1]) ? " on" : "")} x1={P[e[0]].x} y1={P[e[0]].y} x2={P[e[1]].x} y2={P[e[1]].y} />
-            ))}
-            {NODES.map((n) => (
-              <g key={n.id} className={"jm-nd" + (n.main ? " main" : "")} tabIndex="0" role="button" aria-label={n.k + "：" + n.l} style={{ opacity: near(n.id) ? 1 : 0.35 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setSel(n.id)} onClick={() => setSel(n.id)}>
-                {n.main ? (
-                  <g>
-                    <rect className="jm-dot" x={n.x - n.s / 2} y={n.y - n.s / 2} width={n.s} height={n.s} rx="3" fill="#b8342b" stroke="#6e1a14" strokeWidth={act === n.id ? 2.5 : 0} transform={"rotate(" + n.rot + " " + n.x + " " + n.y + ")"} />
-                    <text x={n.x} y={n.y + 6}>{n.l}</text>
-                  </g>
-                ) : (
-                  <g>
-                    <circle cx={n.x} cy={n.y} r="16" fill="transparent" />
-                    <circle className="jm-dot" cx={n.x} cy={n.y} r={act === n.id ? 7 : 5.5} fill={act === n.id ? "#1d1b19" : "#f6f1e6"} stroke="#1d1b19" strokeWidth="1.6" />
-                    <text x={n.x} y={n.y + 22}>{n.l}</text>
-                  </g>
-                )}
+          <div className="jm-stage" ref={stageRef} onPointerMove={move} onPointerEnter={(e) => { move(e); setOver(true); }} onPointerLeave={() => setOver(false)}>
+            <svg className="jm-svg" viewBox="0 0 600 440" role="img" aria-label="天梯排队的世界、角色与章节舆图">
+              <defs>
+                <filter id="jmBlur" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation="6" /></filter>
+              </defs>
+              <path d={RIVER} fill="none" stroke="#5f7d78" strokeOpacity=".2" strokeWidth="24" filter="url(#jmBlur)" />
+              <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 -8)" />
+              <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 8)" />
+              <g fill="none" stroke="#1d1b19" strokeOpacity=".3" strokeWidth="1.3" strokeLinecap="round">
+                {MTS.map((m, i) => <path key={i} d={mt(m[0], m[1], m[2])} />)}
               </g>
-            ))}
-          </svg>
+              <g transform="translate(14 342)">
+                <rect width="28" height="84" fill="#f3ecdc" stroke="#1d1b19" strokeOpacity=".55" />
+                <rect x="3" y="3" width="22" height="78" fill="none" stroke="#1d1b19" strokeOpacity=".3" />
+                {["演", "示", "舆", "图"].map((c, i) => <text key={c} x="14" y={23 + i * 17} className="jm-ct">{c}</text>)}
+              </g>
+              {EDGES.map((e, i) => (
+                <line key={i} className={"jm-e" + (lit(e[0], e[1]) ? " on" : "")} x1={P[e[0]].x} y1={P[e[0]].y} x2={P[e[1]].x} y2={P[e[1]].y} />
+              ))}
+              {NODES.map((n) => (
+                <g key={n.id} className={"jm-nd" + (n.main ? " main" : "")} tabIndex="0" role="button" aria-label={n.k + "：" + n.l} style={{ opacity: near(n.id) ? 1 : 0.35 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setSel(n.id)} onClick={() => setSel(n.id)}>
+                  {n.main ? (
+                    <g>
+                      <rect className="jm-dot" x={n.x - n.s / 2} y={n.y - n.s / 2} width={n.s} height={n.s} rx="3" fill="#b8342b" stroke="#6e1a14" strokeWidth={act === n.id ? 2.5 : 0} transform={"rotate(" + n.rot + " " + n.x + " " + n.y + ")"} />
+                      <text x={n.x} y={n.y + 6}>{n.l}</text>
+                    </g>
+                  ) : (
+                    <g>
+                      <circle cx={n.x} cy={n.y} r="16" fill="transparent" />
+                      <circle className="jm-dot" cx={n.x} cy={n.y} r={act === n.id ? 7 : 5.5} fill={act === n.id ? "#1d1b19" : "#f6f1e6"} stroke="#1d1b19" strokeWidth="1.6" />
+                      <text x={n.x} y={n.y + 22}>{n.l}</text>
+                    </g>
+                  )}
+                </g>
+              ))}
+            </svg>
+            <div className="jm-ghost" style={{ opacity: ghost, WebkitMaskImage: mask, maskImage: mask }}>
+              <svg className="jm-svg" viewBox="0 0 600 440" role="img" aria-label="显影：舆图上没画出来的暗梯与半把天门钥匙">
+                <path d="M372 432 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0" fill="none" stroke="#b8342b" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+                <path d="M384 432 L384 90" fill="none" stroke="#b8342b" strokeOpacity=".35" strokeWidth="1" strokeDasharray="2 6" />
+                <text x="404" y="276" className="jm-gt">暗梯 · 不必排队</text>
+                <g transform="translate(392 78)" stroke="#b8342b" strokeWidth="2.2" fill="none" strokeLinecap="round">
+                  <circle cx="0" cy="0" r="7" />
+                  <path d="M7 0 L26 0 M18 0 L18 7 M24 0 L24 5" />
+                </g>
+                <text x="372" y="84" className="jm-gt" textAnchor="end">半把天门钥匙</text>
+                <text x="200" y="298" className="jm-gt big" textAnchor="middle">画师批：此梯不入图</text>
+                <g transform="translate(470 352) rotate(-8)">
+                  <rect x="-15" y="-15" width="30" height="30" rx="3" fill="#b8342b" />
+                  <text x="0" y="6" className="jm-gs" textAnchor="middle">显</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <div className="jm-bar">
+            <button type="button" className="jm-blow" aria-pressed={breath} onClick={() => setBreath(!breath)}>{breath ? "让墨迹隐去" : "呵一口气"}</button>
+            <span aria-live="polite">{breath ? "显影：暗梯与半把天门钥匙（演示）" : "鼠标在舆图上移动，也能一点点呵出来"}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -680,12 +816,12 @@ export const JmMap = () => {
 };
 
 export const JpPage = () => {
-  const TITLE = "第三章　问心台";
-  const TEXT = "考场设在外门的问心台。三百名杂役排成长队，人人手里攥着一支秃笔。\n林砚把那张泛黄的卷子压在袖中。卷角有一行小字：天衍历七百年，外门考核真题。\n他抬头看向台上新挂出的考题，指尖一凉。\n一字不差。\n执事敲响铜钟，香炷点燃。身后有人低声笑：“杂役也想考编？”\n林砚没有回头。第三题的答案，五百年前就写在他袖中的那张卷子上了。";
+  const TITLE = "第三章　雷劫券";
+  const TEXT = "第九千级的风很硬。客栈门口的队伍排进了云里，看不见尾。\n一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。\n“抵三十年房钱。”\n林砚翻开账簿，又合上。\n不收。\n“您欠的是一百年。”他把券推回去，“而且天门不开，这张券，三百年内都用不上。”";
   const TASK = [
-    { k: "本章目标", v: "林砚在外门考核中第一次用上真题卷。" },
-    { k: "场景卡", v: "入场 · 落笔 · 放榜" },
-    { k: "伏笔", v: "卷角的年号：天衍历七百年" },
+    { k: "本章目标", v: "林砚第一次拒收大能的抵押，立下客栈的规矩。" },
+    { k: "场景卡", v: "敲门 · 讨价 · 收账" },
+    { k: "伏笔", v: "雷劫券背面，盖着一枚天门守将的私印" },
     { k: "推进方式", v: "主推进 · 升级变强" },
   ];
   const CHECKS = ["满足本章任务", "爽点有铺垫", "章末留下继续阅读的理由"];
@@ -780,10 +916,10 @@ export const JpPage = () => {
         <div className="jp-grid">
           <div className="jp-book">
             <div className="jp-frame">
-              <div className="jp-txt" tabIndex="0" aria-label="演示样张：第三章 问心台">
+              <div className="jp-txt" tabIndex="0" aria-label="演示样张：第三章 雷劫券">
                 <div className="jp-tt">{TITLE}</div>
                 {paras.map((p, i) => (
-                  <p key={i} className={p === "一字不差。" ? "jp-hit" : ""}>{p}{i === paras.length - 1 && ph === 0 && <span className="jp-cur" />}</p>
+                  <p key={i} className={p === "不收。" ? "jp-hit" : ""}>{p}{i === paras.length - 1 && ph === 0 && <span className="jp-cur" />}</p>
                 ))}
               </div>
               <div className="jp-heart" aria-hidden="true"><span>仙侠修真</span><i /><span>演示样张</span></div>
@@ -877,13 +1013,13 @@ export const JwEnd = () => {
       </svg>
       <div className="jw-in">
         <div className="jw-k"><i />拖尾 · 出山</div>
-        <div className="jw-h">用这个题材，开你的第一本书</div>
+        <div className="jw-h">天门还要等三百年，你的书今天就能开</div>
         <p className="jw-p">在开书页写下灵感，把故事类型选为仙侠修真、推进方式选为升级变强；拿不准时，也可以交给 AI 自动匹配，再由自动导演一路推进到正文。</p>
         <div className="jw-stamp">
           <button type="button" className="jw-seal" onClick={() => setSeal(Date.now())} aria-label="在卷尾落款">
             {seal === 0 ? <span className="jw-ghost">落款</span> : <span key={seal} className="jw-ink"><b>万章成书</b></span>}
           </button>
-          <div className="jw-said">{seal === 0 ? "卷尾留白，等你来落款" : "落款已成。下一部仙侠长篇，从你的一句灵感开始。"}</div>
+          <div className="jw-said">{seal === 0 ? "卷尾留白，等你来落款" : "落款已成。不必排队，下一部仙侠长篇，从你的一句灵感开始。"}</div>
         </div>
         <div className="jw-btns">
           {LINKS.map((l) => (
@@ -895,6 +1031,116 @@ export const JwEnd = () => {
           {HALLS.map((h) => <a key={h.h} className={h.c} href={h.h}>{h.t} · 已开放</a>)}
         </div>
         <a className="jw-back" href="/">← 回到首页书架</a>
+      </div>
+    </div>
+  );
+};
+
+export const JqLots = () => {
+  const LOTS = [
+    { k: "身份", c: ["天梯客栈的凡人掌柜", "替大能代排队的跑腿", "宗门里记账的外门弟子", "渡劫失败、只剩一缕魂的老祖", "守了三百年天门的看门人", "卖雷劫保险的散修"] },
+    { k: "异变", c: ["账本上写下的名字，会被天雷认出", "每接一单，就能借走客人一年修为", "天门的另半把钥匙，落在你的柜台里", "一闭眼，就能看见整条天梯的排队号", "雷劫开始排队来找你", "你写的欠条，连天道都认"] },
+    { k: "代价", c: ["每收一笔账，忘掉一个熟人", "永远不能离开第九千级", "大能们欠的房钱，要你替他们还", "天门开的那天，你会变回凡人", "每用一次，客栈就往天上漂一级", "你的名字从所有族谱上消失"] },
+  ];
+  const [idx, setIdx] = useState([0, 0, 0]);
+  const [lock, setLock] = useState([false, false, false]);
+  const [go, setGo] = useState(0);
+  const all = lock.every(Boolean);
+  const shake = () => {
+    if (all) return;
+    setIdx((cur) => cur.map((v, i) => {
+      if (lock[i]) return v;
+      const n = LOTS[i].c.length;
+      let r = Math.floor(Math.random() * n);
+      if (r === v) r = (r + 1) % n;
+      return r;
+    }));
+    setGo(Date.now());
+  };
+  const flip = (i) => setLock((l) => l.map((v, j) => (j === i ? !v : v)));
+  const pick = idx.map((v, i) => LOTS[i].c[v]);
+  return (
+    <div className="not-prose jq">
+      <style>{`
+        .jq{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(800px 380px at 30% 30%,rgba(255,255,255,.5),transparent 70%),#f1eadb}
+        .jq-in{max-width:1160px;margin:0 auto}
+        .jq-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
+        .jq-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
+        .jq-h{margin:16px 0 0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
+        .jq-p{margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.95;color:#4a4640}
+        .jq-grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:56px;align-items:center;margin-top:48px}
+        .jq-left{display:flex;flex-direction:column;align-items:center;gap:20px}
+        .jq-tube{width:170px;transform-origin:50% 92%}
+        .jq-tube svg{display:block;width:100%;height:auto}
+        .jq-tube.go{animation:jqShake .7s ease-in-out}
+        @keyframes jqShake{0%,100%{rotate:0deg}15%{rotate:-11deg}30%{rotate:9deg}45%{rotate:-7deg}60%{rotate:5deg}75%{rotate:-3deg}}
+        .jq-go{font:inherit;font-size:16px;letter-spacing:.3em;padding:12px 28px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;box-shadow:0 10px 24px -12px rgba(29,27,25,.7);transition:background .3s}
+        .jq-go:hover:not(:disabled){background:#b8342b}
+        .jq-go:disabled{cursor:default;opacity:.55}
+        .jq-go:focus-visible,.jq-keep:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
+        .jq-slips{display:flex;gap:22px;justify-content:flex-start}
+        .jq-slip{position:relative;display:flex;flex-direction:column;align-items:center;width:82px;padding:0 0 12px;background:linear-gradient(90deg,#d9c08a,#ecdcb0 40%,#e2cc98 70%,#c9ab70);border-radius:6px 6px 3px 3px;box-shadow:0 18px 30px -18px rgba(60,42,18,.6),inset 0 0 0 1px rgba(94,69,34,.35);transition:translate .4s ease,box-shadow .4s}
+        .jq-slip.kept{translate:0 -10px;box-shadow:0 26px 36px -18px rgba(60,42,18,.7),inset 0 0 0 2px #b8342b}
+        .jq-tag{width:100%;padding:8px 0;text-align:center;font-size:13px;letter-spacing:.3em;text-indent:.3em;color:#fbf6ec;background:#b8342b;border-radius:6px 6px 0 0}
+        .jq-txt{height:300px;margin:16px 0 14px;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:19px;line-height:1.5;letter-spacing:.14em;color:#1d1b19}
+        .jq-txt.drop{animation:jqDrop .55s cubic-bezier(.3,1.4,.5,1) both}
+        @keyframes jqDrop{from{opacity:0;translate:0 -40px}to{opacity:1;translate:0 0}}
+        .jq-keep{font:inherit;font-size:13px;letter-spacing:.15em;padding:5px 10px;cursor:pointer;color:#5e4522;background:rgba(255,255,255,.55);border:1px solid rgba(94,69,34,.45);border-radius:2px}
+        .jq-keep[aria-pressed="true"]{color:#fbf6ec;background:#b8342b;border-color:#b8342b}
+        .jq-out{margin-top:30px;padding:18px 20px;font-size:16px;line-height:1.9;color:#3d3933;background:rgba(255,255,255,.5);border-left:3px solid #b8342b}
+        .jq-out b{font-weight:600;color:#161513}
+        .jq-note{margin-top:12px;font-size:13px;letter-spacing:.08em;color:#8a847a}
+        @media (prefers-reduced-motion:reduce){.jq-tube.go,.jq-txt.drop{animation:none}.jq-slip{transition:none}}
+        @media (max-width:900px){.jq-grid{grid-template-columns:1fr;gap:32px}.jq-slips{justify-content:center}}
+        @media (max-width:520px){.jq{padding:84px 16px}.jq-slips{gap:12px}.jq-slip{width:76px}.jq-txt{height:280px;font-size:17px}}
+      `}</style>
+      <div className="jq-in">
+        <div className="jq-k"><i />画外 · 求签</div>
+        <div className="jq-h">再摇一支签，换一个脑洞</div>
+        <p className="jq-p">身份、异变、代价，各抽一签。看中哪一支就「留签」，其余的接着摇，直到三支签拼成一个你想写的故事。</p>
+        <div className="jq-grid">
+          <div className="jq-left">
+            <div key={go} className={"jq-tube" + (go ? " go" : "")} aria-hidden="true">
+              <svg viewBox="0 0 160 230">
+                <defs>
+                  <linearGradient id="jqBam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#8e6c36" /><stop offset=".35" stopColor="#e2c98e" /><stop offset=".7" stopColor="#c9a868" /><stop offset="1" stopColor="#7a5a2c" /></linearGradient>
+                </defs>
+                <g fill="#ecdcb0" stroke="#8e6c36" strokeWidth="1">
+                  <rect x="54" y="18" width="10" height="90" rx="2" transform="rotate(-12 59 108)" />
+                  <rect x="68" y="6" width="10" height="102" rx="2" transform="rotate(-4 73 108)" />
+                  <rect x="82" y="12" width="10" height="96" rx="2" transform="rotate(5 87 108)" />
+                  <rect x="96" y="22" width="10" height="86" rx="2" transform="rotate(13 101 108)" />
+                </g>
+                <g fill="#b8342b">
+                  <rect x="54" y="18" width="10" height="12" rx="2" transform="rotate(-12 59 108)" />
+                  <rect x="68" y="6" width="10" height="12" rx="2" transform="rotate(-4 73 108)" />
+                  <rect x="82" y="12" width="10" height="12" rx="2" transform="rotate(5 87 108)" />
+                  <rect x="96" y="22" width="10" height="12" rx="2" transform="rotate(13 101 108)" />
+                </g>
+                <rect x="36" y="86" width="88" height="138" rx="6" fill="url(#jqBam)" stroke="#5e4522" strokeWidth="1.2" />
+                <ellipse cx="80" cy="88" rx="44" ry="8" fill="#5e4522" opacity=".85" />
+                <rect x="36" y="114" width="88" height="5" fill="#5e4522" opacity=".45" />
+                <rect x="36" y="198" width="88" height="5" fill="#5e4522" opacity=".45" />
+                <circle cx="80" cy="158" r="19" fill="#b8342b" />
+                <text x="80" y="165" textAnchor="middle" fontSize="20" fill="#f8efe2" fontFamily="STKaiti, KaiTi, serif">签</text>
+              </svg>
+            </div>
+            <button type="button" className="jq-go" onClick={shake} disabled={all}>{all ? "三签都留下了" : "摇签筒"}</button>
+          </div>
+          <div>
+            <div className="jq-slips">
+              {LOTS.map((l, i) => (
+                <div key={l.k} className={"jq-slip" + (lock[i] ? " kept" : "")}>
+                  <div className="jq-tag">{l.k}</div>
+                  <div key={lock[i] ? "k" : go + "-" + idx[i]} className={"jq-txt" + (go && !lock[i] ? " drop" : "")}>{pick[i]}</div>
+                  <button type="button" className="jq-keep" aria-pressed={lock[i]} aria-label={(lock[i] ? "取消留签：" : "留签：") + l.k} onClick={() => flip(i)}>{lock[i] ? "已留" : "留签"}</button>
+                </div>
+              ))}
+            </div>
+            <div className="jq-out" aria-live="polite">你是<b>{pick[0]}</b>；<b>{pick[1]}</b>；代价是：<b>{pick[2]}</b>。</div>
+            <div className="jq-note">演示：随机拼出的脑洞，拿去开书页写成你的灵感</div>
+          </div>
+        </div>
       </div>
     </div>
   );

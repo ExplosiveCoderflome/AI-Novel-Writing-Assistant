@@ -8,6 +8,10 @@
 <p align="center"><sub>Open-source AI novel writing assistant and long-form production studio.</sub></p>
 
 <p align="center">
+  <a href="https://ai-novel-writing-assistant.mintlify.app"><strong>🌐 项目官网｜使用文档、下载安装与更新说明</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><img src="https://img.shields.io/github/v/release/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=flat-square&amp;label=Windows%20%E6%A1%8C%E9%9D%A2%E7%89%88&amp;color=17556b" alt="最新桌面版本" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-17556b?style=flat-square" alt="AGPL-3.0 许可证" /></a>
   <a href="https://linux.do/"><img src="https://img.shields.io/badge/LINUX%20DO-%E7%A4%BE%E5%8C%BA-FDD835?style=flat-square&amp;labelColor=222" alt="LINUX DO 社区" /></a>
@@ -34,7 +38,7 @@
 
 <p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><strong>下载 Windows 桌面版</strong></a> ·
-  <a href="https://ai-novel-writing-assistant.mintlify.site">项目介绍与文档</a> ·
+  <a href="https://ai-novel-writing-assistant.mintlify.app">项目官网与文档</a> ·
   <a href="#快速开始">第一次使用</a> ·
   <a href="#源码运行">源码运行</a> ·
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues">问题反馈</a>
@@ -50,22 +54,11 @@
 
 ## 最新更新
 
-### 2026-11-15 · v0.8.6
-
-桌面版本 `v0.8.6`：新增厂商默认关闭思考，兼容探测遇限流自动重试，工作台加入 BLG 夺冠庆祝彩蛋；桌面正式发布改为各平台先打包校验、再上传已通过的安装包与更新元数据。
-
-#### 新增
-
-- 品牌标识连点五次触发 BLG 夺冠庆祝：彩带与奖杯庆祝层，点空白、按 Esc 或点「继续创作」关闭。
-
-#### 优化
-
-- 新增厂商默认关闭思考：新建自定义厂商与首次配置的内置厂商默认关闭，已有厂商的设置保持不变。
-- 桌面正式发布改为各平台并行打包并先完成校验，再上传已经通过检查的安装包与更新说明；Mac 两个架构的更新信息会合并后再发布，避免互相覆盖。
+### 2026-11-15
 
 #### 修复
 
-- 兼容探测遇限流或服务端错误时自动退避重试，探测预算放宽，突发限流下探测也可完成。
+- 大纲「交互完善」提案：依赖写错成节点编号、新增章节未标明所属卷、或误改卷的章节列表时，会给出可读的中文提示并拒绝采纳，不再出现笼统的服务器错误；采纳失败不会留下半截结果。
 
 [查看完整更新历史](docs/releases/release-notes.md)
 

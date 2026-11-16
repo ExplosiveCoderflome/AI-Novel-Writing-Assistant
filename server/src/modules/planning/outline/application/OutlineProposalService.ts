@@ -3,6 +3,11 @@ import { outlineInitialGeneratePrompt, outlineEditProposalPrompt } from "../../.
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 import { createEmptyOutlineDocument } from "../domain/outlineDocument";
+import {
+  assertValidOutlineEditOperations,
+  mapOutlineApplyFailure,
+  type OutlineEditOperation,
+} from "../domain/outlineEditOperations";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 import { AppError } from "../../../../middleware/errorHandler";
 
@@ -10,12 +15,16 @@ export class OutlineProposalService {
   constructor(private readonly repository: OutlineRepository) {}
   async generate(projectId: string, request: { kind: "edit" | "initial_generation"; requestText: string; scope?: string }) {
     const current = await this.repository.getCurrent(projectId);
-    if (!current || !current.revision) throw new Error("大纲项目不存在");
+    if (!current || !current.revision) throw new AppError("大纲项目不存在", 404);
     const document = validateOutlineDocument(JSON.parse(current.revision.documentJson));
     const baseVersion = current.project.currentVersion;
     const result = request.kind === "initial_generation"
       ? await runStructuredPrompt({ asset: outlineInitialGeneratePrompt, promptInput: { idea: request.requestText, rough: true } })
       : await runStructuredPrompt({ asset: outlineEditProposalPrompt, promptInput: { request: request.requestText, baseVersion, document, scope: request.scope ?? "story" } });
+    if (request.kind === "edit") {
+      const operations = (result.output as { operations: OutlineEditOperation[] }).operations;
+      assertValidOutlineEditOperations(operations, { document });
+    }
     const latest = await this.repository.getCurrent(projectId);
     const stale = !latest || latest.project.currentVersion !== baseVersion;
     return this.repository.createProposal({ id: randomUUID(), projectId, baseVersion, kind: request.kind, status: stale ? "stale" : "pending", requestText: request.requestText, proposalJson: JSON.stringify(result.output), promptId: result.meta.invocation.promptId, promptVersion: result.meta.invocation.promptVersion });
@@ -26,7 +35,7 @@ export class OutlineProposalService {
     if (!proposal || !["pending"].includes(proposal.status)) throw new AppError("此提案不可采纳", 409, "请重新生成提案后再采纳。");
     const current = await this.repository.getCurrent(projectId);
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
-    const payload = JSON.parse(proposal.proposalJson) as { operations: Array<{ operationId: string; kind: string; nodeType?: string; nodeId?: string; clientRef?: string; parentNodeId?: string; fields?: Record<string, unknown>; dependsOn: string[] }> };
+    const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     if (proposal.kind === "initial_generation") {
       const initial = JSON.parse(proposal.proposalJson) as { storyFields: Record<string, unknown>; volumes: Array<Record<string, any>>; chapters: Array<Record<string, any>>; characters: Array<Record<string, any>>; payoffs: Array<Record<string, any>>; facts: Array<Record<string, any>> };
       const refs = new Map<string, string>();
@@ -41,16 +50,27 @@ export class OutlineProposalService {
       document.facts = initial.facts.map(x=>({ nodeId: refs.get(x.clientRef)!, title: x.title, content: x.content ?? x.summary, scope: { type: "story" }, relatedNodeIds: [], immutable: false }));
       return this.repository.applyInitialProposal(projectId, proposalId, proposal.baseVersion, document);
     }
-    const selected = new Set(operationIds.length ? operationIds : payload.operations.map(x=>x.operationId));
-    for (const operation of payload.operations.filter(x=>selected.has(x.operationId))) if (operation.dependsOn.some(id=>!selected.has(id))) throw new Error("所选操作缺少依赖项");
     const document = validateOutlineDocument(JSON.parse(current.revision!.documentJson));
-    return this.repository.applyOutlineProposal(projectId, proposalId, proposal.baseVersion, selected, document, payload.operations);
+    const selectedIds = operationIds.length ? operationIds : payload.operations.map((operation) => operation.operationId);
+    try {
+      assertValidOutlineEditOperations(payload.operations, { document, selectedOperationIds: selectedIds });
+      return await this.repository.applyOutlineProposal(
+        projectId,
+        proposalId,
+        proposal.baseVersion,
+        new Set(selectedIds),
+        document,
+        payload.operations,
+      );
+    } catch (error) {
+      mapOutlineApplyFailure(error);
+    }
   }
   get(projectId: string, proposalId: string) { return this.repository.findProposal(projectId, proposalId); }
   async reject(projectId: string, proposalId: string) {
     const proposal = await this.repository.findProposal(projectId, proposalId);
     if (proposal?.kind === "text_feedback") throw new AppError("请从章节反馈逐项拒绝建议。", 409);
-    if (!proposal || proposal.status !== "pending") throw new Error("此提案不可放弃");
+    if (!proposal || proposal.status !== "pending") throw new AppError("此提案不可放弃", 409);
     return this.repository.updateProposalStatus(proposalId, "rejected");
   }
 }
