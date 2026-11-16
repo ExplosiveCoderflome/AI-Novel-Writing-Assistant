@@ -64,7 +64,7 @@
 
 [查看完整更新历史](docs/releases/release-notes.md)
 
-下一正式桌面版为 **v0.8.7**（标签与流水线触发后，安装包齐备前请勿当作已可下载的 Latest）。当前完整五平台安装包仍以 GitHub Release 的 `v0.8.6` 为准。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。
+正式桌面版以 GitHub Release 的 **v0.8.7** 五平台安装包为准；`v0.8.6` 为上一完整五平台版本，`v0.8.5` 亦为完整五平台，`v0.8.4` 缺 Windows 包，`v0.8.3` 标签曾推送但打包失败、无安装包，`v0.8.2` 附注标签也不对应可下载版本。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。
 
 
 ## 现在已经能做什么
