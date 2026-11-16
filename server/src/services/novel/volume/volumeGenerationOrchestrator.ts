@@ -148,7 +148,7 @@ async function generateStrategy(params: {
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.3,
-      maxTokens: resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount),
+      automaticMaxTokens: resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount),
       novelId: document.novelId,
       taskId: options.taskId,
       stage: "volume_strategy",

@@ -4379,6 +4379,9 @@ model LlmInvocationUsageRecord {
   chainId String?
   parentInvocationId String?
   structuredMode String?
+  budgetTraceJson String?
+  finishReason String?
+  structureStatus String?
   payload LlmInvocationPayload?
   runId String?
   generationJobId String?

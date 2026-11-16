@@ -4,15 +4,25 @@ import {readProductionBatchImplementation} from "../batch/binding";
 import {productionKernelV2ChaptersEnabled} from "../batch/router";
 import type {KernelModelPolicySources} from "../modelPolicy/source";
 import {inspectProductionStorage, type StorageReader, type KernelReadiness} from "./storage";
-import {inspectKernelModels, KernelReadinessError} from "./models";
+import {inspectKernelModels, KernelReadinessError, outputBudgetReadinessIssue} from "./models";
+import {readBoundKernelModelPolicy} from "../modelPolicy/binding";
+import {MissingTaskOutputBudgetError} from "../../../../platform/llm/execution";
 export * from "./storage";
 export {KernelReadinessError} from "./models";
 
-export async function inspectKernelStartReadiness(db: StorageReader, contract: RunContract, sources?: KernelModelPolicySources): Promise<KernelReadiness> {
+type ReadinessReader = StorageReader & Pick<Prisma.TransactionClient, "directorNextEvent">;
+export async function inspectKernelStartReadiness(db: ReadinessReader, contract: RunContract, sources?: KernelModelPolicySources): Promise<KernelReadiness> {
   const storage = await inspectProductionStorage(db, process.env.DATABASE_URL?.startsWith("postgres") ? "postgresql" : "sqlite");
-  return storage.ready ? inspectKernelModels(contract, sources) : storage;
+  if (!storage.ready) return storage;
+  try {
+    const saved = await readBoundKernelModelPolicy(db, contract);
+    return inspectKernelModels(contract, sources, saved ?? undefined);
+  } catch (error) {
+    if (!(error instanceof MissingTaskOutputBudgetError)) throw error;
+    return {ready:false, issues:[outputBudgetReadinessIssue(error)]};
+  }
 }
-export async function assertKernelStartReadiness(db: StorageReader, contract: RunContract): Promise<void> {
+export async function assertKernelStartReadiness(db: ReadinessReader, contract: RunContract): Promise<void> {
   const result = await inspectKernelStartReadiness(db, contract);
   if (!result.ready) throw new KernelReadinessError(result.issues[0]);
 }

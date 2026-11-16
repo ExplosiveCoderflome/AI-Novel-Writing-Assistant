@@ -1,7 +1,7 @@
 import type {Prisma} from "@prisma/client";
 
 export interface KernelReadinessIssue {
-  code: "production_storage_not_ready" | "production_model_capability_missing";
+  code: "production_storage_not_ready" | "production_model_capability_missing" | "production_output_budget_capture_missing";
   message: string;
 }
 export type KernelReadiness = {ready: true} | {ready: false; issues: KernelReadinessIssue[]};

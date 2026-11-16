@@ -1,7 +1,20 @@
 import {z} from "zod";
 
-export const DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
+export const LEGACY_DIRECTOR_CHAPTER_TOKEN_LIMIT = 100_000;
+export const DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT = 200_000;
 export const MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT = 10_000_000;
+export const DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS = 16_000;
+
+export function recommendDirectorChapterTokenLimit(limit: number, usedTokens: number, reserveTokens: number): number {
+  return Math.min(MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT, Math.ceil(
+    (Math.max(limit, usedTokens + reserveTokens) + DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS) / 1000,
+  ) * 1000);
+}
+
+export function automaticDirectorChapterTopUp(limit: number, usedTokens: number, reserveTokens: number): number | null {
+  const suggested = recommendDirectorChapterTokenLimit(limit, usedTokens, reserveTokens);
+  return suggested > usedTokens + reserveTokens && suggested > limit && suggested <= limit * 2 ? suggested : null;
+}
 /** A new task must cover the conservative 16,000-token next-step reserve. */
 export const directorChapterTokenLimitSchema = z.number().int().min(16_001).max(MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT);
 export const directorChapterBudgetSettingsSchema = z.object({tokenLimit: directorChapterTokenLimitSchema}).strict();
@@ -33,6 +46,7 @@ export interface DirectorChapterBudgetView {
   cacheHitTokens?: number;
   unclassifiedTokens?: number;
   tokenLimit: number;
+  automaticTopUpTokens?: number;
   reserveTokens: number;
   recommendedLimit: number;
   stage: DirectorChapterBudgetStage | null;

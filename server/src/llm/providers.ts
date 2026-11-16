@@ -13,7 +13,6 @@ export interface ProviderConfig {
   envKey: string;
   envBaseURLKey?: string;
   envModelKey?: string;
-  maxTokens?: number;
   requiresApiKey?: boolean;
 }
 
@@ -26,7 +25,6 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     envKey: "DEEPSEEK_API_KEY",
     envBaseURLKey: "DEEPSEEK_BASE_URL",
     envModelKey: "DEEPSEEK_MODEL",
-    maxTokens: 8192,
   },
   siliconflow: {
     name: "SiliconFlow",

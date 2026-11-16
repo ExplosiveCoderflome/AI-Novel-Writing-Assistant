@@ -1,1 +1,1 @@
-export {getDirectorChapterBudgetSettings, saveDirectorChapterBudgetSettings} from "./ChapterBudgetSettingsService";
+export {getDirectorChapterBudgetSettings, resolveDirectorChapterBudget, saveDirectorChapterBudgetSettings} from "./ChapterBudgetSettingsService";

@@ -1,5 +1,6 @@
 import type { RunContract, RunControl } from "../../../../modules/director";
 import type { DirectorChapterBudgetStage, DirectorChapterBudgetView } from "@ai-novel/shared/types/director/chapterBudget";
+import { recommendDirectorChapterTokenLimit } from "@ai-novel/shared/types/director/chapterBudget";
 import { parseProductionUnitRun, type StageId } from "../../../../modules/production";
 import { BLOCKED, kernelBudgetMode, readKernelChapterBudget, type KernelBudgetReader, type Reserved } from "../execution/budgetReader";
 import { productionBatchOwnerKey } from "../execution/ownership";
@@ -24,9 +25,9 @@ export async function readKernelPausedChapterBudget(db: KernelBudgetReader, cont
   if (!record || record.version !== 1 || record.runId !== contract.runId || record.requestKey !== blocked[0].contentHash
     || !Number.isSafeInteger(record.tokens) || record.tokens < 1) throw new Error("章节预算暂停记录损坏，请检查运行记录。");
   const budget = await readKernelChapterBudget(db,contract,unit);
-  const recommendedLimit = Math.min(10_000_000,Math.ceil((Math.max(budget.limit,budget.used + record.tokens)+16_000)/1000)*1000);
+  const recommendedLimit = recommendDirectorChapterTokenLimit(budget.limit, budget.used, record.tokens);
   return {jobId:run.id,chapterId:unit.chapterId,chapterOrder:unit.order,metric:budget.metric,
     usedTokens:budget.used,rawTokens:budget.rawTokens,promptTokens:budget.promptTokens,completionTokens:budget.completionTokens,
     cacheHitTokens:budget.cacheHitTokens,unclassifiedTokens:budget.unclassifiedTokens,tokenLimit:budget.limit,
-    reserveTokens:record.tokens,recommendedLimit,stage:stageNames[stage],closed:false};
+    reserveTokens:record.tokens,recommendedLimit,automaticTopUpTokens:budget.automaticTopUpTokens,stage:stageNames[stage],closed:false};
 }

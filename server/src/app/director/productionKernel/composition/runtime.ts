@@ -16,6 +16,7 @@ import { createNativeKernelStages } from "./stages";
 import {resolveLLMClientOptions} from "../../../../llm/factory";
 import {withoutLlmTaskOutputBudgets, resolveScopedTaskOutputTokens} from "../../../../platform/llm/execution";
 import {captureKernelTaskOutputBudgets, createConfiguredKernelProfile, withKernelTaskOutputStages} from "../modelPolicy/outputBudgets";
+import type {KernelModelPolicy} from "../modelPolicy/types";
 import {configureManualChapterProfile, readManualChapterRequest} from "../manual/contract";
 
 export interface NativeKernelRuntimeOptions {
@@ -32,9 +33,9 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
     execution: context.execution ? { ...context.execution } : undefined, step: { ...context.step } };
   const contract = context.contract, ownership = createKernelOwnership(context), manual = readManualChapterRequest(contract);
   const policySource = directorIssuePolicySchema.parse(contract.issuePolicy.pipelinePolicy);
-  const capture = () => withoutLlmTaskOutputBudgets(() => captureKernelModelPolicy(contract, options.modelSources));
-  const modelPolicy = await bindKernelModelPolicy(db, context, capture);
-  const frozen = createKernelFrozenModelPolicy(modelPolicy, capture);
+  const capture = (saved?: KernelModelPolicy) => withoutLlmTaskOutputBudgets(() => captureKernelModelPolicy(contract, options.modelSources, saved));
+  const modelPolicy = await bindKernelModelPolicy(db, context, () => capture());
+  const frozen = createKernelFrozenModelPolicy(modelPolicy, () => capture(modelPolicy));
   const outputBudgets = await captureKernelTaskOutputBudgets(modelPolicy, options.modelSources);
   const profile = configureManualChapterProfile(createConfiguredKernelProfile(outputBudgets), manual?.operation);
   if (manual?.options.artifactSyncMode) profile.reconcile = manual.options.artifactSyncMode;
@@ -92,7 +93,8 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
       return { store, fence, budget: { reserve: async input => ({ reservationKey: input.requestKey,
         accepted: await budget.preflight(unit, input.requestKey, input.outputTokens) }) },
         stages: withKernelTaskOutputStages(createNativeKernelStages({ db, context, ownership, preflight, budget, fence, readBaseline, unit,
-          ...(options.postGenerationStyleReview ? { postGenerationStyleReview: options.postGenerationStyleReview } : {}) }), outputBudgets) };
+          ...(options.postGenerationStyleReview ? { postGenerationStyleReview: options.postGenerationStyleReview } : {}) }),
+          outputBudgets, modelPolicy.structuredThinking !== "default_off") };
     },
   };
 }

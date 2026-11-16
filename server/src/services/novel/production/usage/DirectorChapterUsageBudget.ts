@@ -1,9 +1,9 @@
 import type {PipelineDirectorSnapshot} from "../directorBridge";
-import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
+import {LEGACY_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
+export {DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS} from "@ai-novel/shared/types/director/chapterBudget";
 
-export const DIRECTOR_CHAPTER_TOKEN_LIMIT = DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT;
-/** Conservative fallback when the next stage has no usable estimate. */
-export const DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS = 16_000;
+// Snapshots created before the launch contract saved a token limit use the original allowance.
+export const DIRECTOR_CHAPTER_TOKEN_LIMIT = LEGACY_DIRECTOR_CHAPTER_TOKEN_LIMIT;
 
 export interface ChapterUsageCounters {
   totalTokens: number;

@@ -36,7 +36,45 @@ test('missing exact model windows or executable output caps blocks readiness wit
  assert.equal(result.ready,false);assert.equal(result.issues[0].code,'production_model_capability_missing');
  sources.readWindows=()=>[{provider:'test',model:'test',contextWindow:100000}];
  assert.equal((await ready().inspectKernelStartReadiness(f.db,f.contract,sources)).ready,true);
- for(const cap of [undefined,0,100000]){caps=cap;assert.equal((await ready().inspectKernelStartReadiness(f.db,f.contract,sources)).ready,false);}
+ for(const cap of [undefined,0,100000]){
+  caps=cap;const check=await ready().inspectKernelStartReadiness(f.db,f.contract,sources);
+  assert.equal(check.ready,false);
+  if(cap!==100000){
+   assert.equal(check.issues[0].code,'production_output_budget_capture_missing');
+   assert.match(check.issues[0].message,/test\/test.*planner.*重新准备/);
+  }
+ }
+});
+
+test('readiness on resume uses the saved output allowance within a smaller known window',async t=>{
+ const f=await fixture(t),policy=require('../../dist/app/director/productionKernel/modelPolicy/source');
+ const {bindKernelModelPolicy}=require('../../dist/app/director/productionKernel/modelPolicy/binding');
+ let slot=8192;
+ const sources={readWindows:()=>[{provider:'test',model:'test',contextWindow:16000}],
+  readFallback:async()=>({enabled:false,provider:'test',model:'test',temperature:.2,maxTokens:null,retryCount:0}),
+  resolveModel:async(provider,options)=>({provider,model:options.model,maxTokens:slot,baseURL:'https://invalid.test',
+   temperature:.2,taskType:options.taskType,budgetTrace:{source:'automatic',automaticMaxTokens:slot,
+    requestedMaxTokens:null,routeMaxTokens:null,endpointMaxTokens:null}})};
+ await bindKernelModelPolicy(f.db,f.context,()=>policy.captureKernelModelPolicy(f.contract,sources));
+ slot=16384;
+ assert.deepEqual(await ready().inspectKernelStartReadiness(f.db,f.contract,sources),{ready:true});
+});
+
+test('a missing target in the saved policy identifies the target before any call',async t=>{
+ const f=await fixture(t),policy=require('../../dist/app/director/productionKernel/modelPolicy/source');
+ const {bindKernelModelPolicy}=require('../../dist/app/director/productionKernel/modelPolicy/binding');
+ const sources={readWindows:()=>[{provider:'test',model:'test',contextWindow:100000}],
+  readFallback:async()=>({enabled:false,provider:'test',model:'test',temperature:.2,maxTokens:null,retryCount:0}),
+  resolveModel:async(provider,options)=>({provider,model:options.model,maxTokens:16384,baseURL:'https://invalid.test',
+   temperature:.2,taskType:options.taskType})};
+ await bindKernelModelPolicy(f.db,f.context,()=>policy.captureKernelModelPolicy(f.contract,sources));
+ const event=await f.db.directorNextEvent.findFirstOrThrow({where:{runId:f.contract.runId,type:'production_kernel_model_policy'}});
+ const saved=JSON.parse(event.payloadJson);
+ saved.policy.targets=saved.policy.targets.filter(row=>row.taskType!=='planner');
+ await f.db.directorNextEvent.update({where:{id:event.id},data:{payloadJson:JSON.stringify(saved)}});
+ const result=await ready().inspectKernelStartReadiness(f.db,f.contract,sources);
+ assert.equal(result.issues[0].code,'production_output_budget_capture_missing');
+ assert.match(result.issues[0].message,/test\/test.*planner/);
 });
 test('open readiness selects only authorized new kernel batches; bound kernel resume ignores the default flag',async t=>{
  const f=await fixture(t),api=ready();let checked=0;
