@@ -7,6 +7,7 @@ import type {
   DirectorDashboardMode,
   DirectorDisplayStepStatus,
 } from "@ai-novel/shared/types/directorRuntime";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
   extractDirectorTaskSeedPayloadFromMeta,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/directorTaskNotice";
 import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import { useDirectorBudgetRecovery } from "@/hooks/useDirectorBudgetRecovery";
 import NovelDirectorPreparationJourney, {
   type DirectorPreparationStepStatus,
 } from "./NovelDirectorPreparationJourney";
@@ -378,6 +380,22 @@ export default function NovelAutoDirectorProgressPanel({
     || fallbackError?.trim()
     || "导演任务执行失败，但没有记录明确错误。";
   const isHighMemoryConflict = /高内存卷规划生成正在处理同一范围|高内存.*同一范围|已有自动导演任务正在处理同一范围/.test(failureMessage);
+  const isBudgetExhaustedFailure = /\[STRUCTURED_OUTPUT:(reasoning_budget_exhausted|output_budget_exhausted)\]/i.test(failureMessage);
+  const seedPayload = extractDirectorTaskSeedPayloadFromMeta(task?.meta) as {
+    provider?: unknown;
+  } | null;
+  const seedProvider = typeof seedPayload?.provider === "string" && seedPayload.provider.trim()
+    ? (seedPayload.provider as LLMProvider)
+    : null;
+  const showBudgetRecovery = visualMode === "execution_failed"
+    && candidateSetupFlow
+    && isBudgetExhaustedFailure
+    && Boolean(onConfirmAndContinue);
+  const budgetRecovery = useDirectorBudgetRecovery({
+    enabled: showBudgetRecovery,
+    provider: seedProvider,
+    onRetry: onConfirmAndContinue,
+  });
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
@@ -606,6 +624,35 @@ export default function NovelAutoDirectorProgressPanel({
             ) : null}
             {task?.recoveryHint ? (
               <div className="mt-2 text-xs text-destructive/80">恢复建议：{task.recoveryHint}</div>
+            ) : null}
+            {showBudgetRecovery ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {seedProvider ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => budgetRecovery.recover("disable_thinking")}
+                    disabled={budgetRecovery.isPending}
+                  >
+                    {budgetRecovery.isPending && budgetRecovery.pendingAction === "disable_thinking"
+                      ? "正在关闭并重试..."
+                      : "关闭深度思考并重试"}
+                  </Button>
+                ) : null}
+                {budgetRecovery.canRaiseBudget ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => budgetRecovery.recover("raise_budget")}
+                    disabled={budgetRecovery.isPending}
+                  >
+                    {budgetRecovery.isPending && budgetRecovery.pendingAction === "raise_budget"
+                      ? "正在提高上限并重试..."
+                      : "提高输出上限并重试"}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
             {isHighMemoryConflict && onConfirmAndContinue ? (
               <div className="mt-3 flex flex-wrap gap-2">

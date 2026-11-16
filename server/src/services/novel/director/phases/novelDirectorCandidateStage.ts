@@ -17,7 +17,7 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
-import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { runCandidateStructuredCall } from "./candidateStructuredCall";
 import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 import {
   buildDirectorCandidateContextBlocks,
@@ -191,7 +191,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runStructuredPrompt({
+    const parsed = await runCandidateStructuredCall({
       asset: directorCandidatePrompt,
       promptInput: {
         idea: context.idea,
@@ -217,6 +217,7 @@ export class NovelDirectorCandidateStageService {
         itemKey: "candidate_direction_batch",
         entrypoint: "auto_director_create",
       },
+      candidateCount: context.count,
     });
 
     const productionFoundation = context.productionFoundation
@@ -481,7 +482,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runStructuredPrompt({
+    const parsed = await runCandidateStructuredCall({
       asset: directorCandidatePatchPrompt,
       promptInput: {
         idea: input.idea,
@@ -507,6 +508,7 @@ export class NovelDirectorCandidateStageService {
         itemKey: "candidate_direction_batch",
         entrypoint: "auto_director_create",
       },
+      candidateCount: 1,
     });
 
     await this.markCandidateProgress(
