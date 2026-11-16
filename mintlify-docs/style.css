@@ -4,6 +4,41 @@
    水墨 paper：宣纸底 + 墨色宋体 + 朱红点缀
    ========================================================== */
 
+/* ---------- 首屏加载期：自定义组件还没渲染出来时 ----------
+   .bn-boot 是首页里的纯 HTML 标记，会随服务端 HTML 一起输出；
+   在 .bnh 出现之前，先铺好主题底色、隐藏系统顶栏内容，避免闪出默认白色顶栏 */
+.bn-boot {
+  display: none !important;
+}
+html:has(.bn-boot) #navbar > * {
+  transition: opacity .4s ease;
+}
+html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar > * {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #banner {
+  display: none !important;
+}
+html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar,
+html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar div,
+html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) [data-layout-item="topbar"] {
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html:has(.bn-boot[data-bn-boot="ink"]):not(:has(.bnh[data-bn-theme])),
+html:has(.bn-boot[data-bn-boot="ink"]):not(:has(.bnh[data-bn-theme])) body {
+  background-color: #05080a !important;
+}
+html:has(.bn-boot[data-bn-boot="arcane"]):not(:has(.bnh[data-bn-theme])),
+html:has(.bn-boot[data-bn-boot="arcane"]):not(:has(.bnh[data-bn-theme])) body {
+  background-color: #1a0b0f !important;
+}
+
 /* ---------- 通用：去掉系统顶栏自带的白底、阴影与边框 ---------- */
 html:has(.bnh[data-bn-theme]) #navbar,
 html:has(.bnh[data-bn-theme]) [data-layout-item="topbar"] {

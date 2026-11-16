@@ -8,7 +8,7 @@
 <p align="center"><sub>Open-source AI novel writing assistant and long-form production studio.</sub></p>
 
 <p align="center">
-  <a href="https://ai-novel-writing-assistant.mintlify.app"><strong>🌐 项目官网｜使用文档、下载安装与更新说明</strong></a>
+  <a href="https://biznovelstudio.com"><strong>🌐 项目官网｜使用文档、下载安装与更新说明</strong></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 
 <p align="center">
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest"><strong>下载 Windows 桌面版</strong></a> ·
-  <a href="https://ai-novel-writing-assistant.mintlify.app">项目官网与文档</a> ·
+  <a href="https://biznovelstudio.com">项目官网与文档</a> ·
   <a href="#快速开始">第一次使用</a> ·
   <a href="#源码运行">源码运行</a> ·
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues">问题反馈</a>
@@ -313,7 +313,7 @@ V1 与 V2 分别编排这条链，已保存的小说资料可以复用。章节�
 | 原理、模块边界与开发规范 | [开发 Wiki](./docs/wiki/README.md) · [文档目录](./docs/README.md) · [协作规则](./AGENTS.md) |
 | 历史更新与后续方向 | [完整更新记录](./docs/releases/release-notes.md) · [当前路线图](./TASK.md) |
 
-也可以在[在线文档站](https://ai-novel-writing-assistant.mintlify.site)搜索模块与使用问题。
+也可以在[在线文档站](https://biznovelstudio.com)搜索模块与使用问题。
 
 ## 源码运行
 

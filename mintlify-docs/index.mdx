@@ -14,6 +14,8 @@ keywords:
   - "AI-Novel-Writing-Assistant"
 ---
 
+<div className="bn-boot" data-bn-boot="ink" aria-hidden="true" />
+
 <BnIntro />
 
 <XzIntro />
@@ -65,6 +67,7 @@ export const BnHero = () => {
   const [lines, setLines] = useState(0);
 
   useEffect(() => {
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(full); return; }
     let i = 0;
     const t = setInterval(() => {
       i += 1;
@@ -75,7 +78,8 @@ export const BnHero = () => {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => setLines((n) => (n >= 9 ? 0 : n + 1)), 650);
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setLines(9); return; }
+    const t = setInterval(() => { if (!document.hidden) setLines((n) => (n >= 9 ? 0 : n + 1)); }, 650);
     return () => clearInterval(t);
   }, []);
 
@@ -91,26 +95,33 @@ export const BnHero = () => {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => { resize(); if (still) draw(0); });
     ro.observe(canvas);
     const stars = Array.from({ length: 90 }, () => ({
       x: Math.random(), y: Math.random(), r: Math.random() * 1.4 + 0.3,
       v: Math.random() * 0.00025 + 0.00005, p: Math.random() * Math.PI * 2,
     }));
+    const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let vis = true;
     const draw = (time) => {
       ctx.clearRect(0, 0, w, h);
       for (const s of stars) {
-        s.y -= s.v; if (s.y < 0) { s.y = 1; s.x = Math.random(); }
-        const a = 0.35 + 0.45 * Math.sin(time / 900 + s.p);
+        if (!still) { s.y -= s.v; if (s.y < 0) { s.y = 1; s.x = Math.random(); } }
+        const a = still ? 0.55 : 0.35 + 0.45 * Math.sin(time / 900 + s.p);
         ctx.beginPath();
         ctx.arc(s.x * w, s.y * h, s.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(134,239,172,${Math.max(a, 0.08)})`;
         ctx.fill();
       }
-      raf = requestAnimationFrame(draw);
+      raf = still || !vis ? 0 : requestAnimationFrame(draw);
     };
+    const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver((es) => {
+      vis = es[0].isIntersecting;
+      if (vis && !raf && !still) raf = requestAnimationFrame(draw);
+    });
+    if (io) io.observe(canvas);
     raf = requestAnimationFrame(draw);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect(); };
   }, []);
 
   const widths = [92, 78, 88, 64, 95, 82, 70, 90, 58];
@@ -179,8 +190,8 @@ export const BnDirector = () => {
   const [cur, setCur] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => setCur((c) => (c + 1) % STAGES.length), 1800);
+    if (paused || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const t = setInterval(() => { if (!document.hidden) setCur((c) => (c + 1) % STAGES.length); }, 1800);
     return () => clearInterval(t);
   }, [paused]);
   const pct = ((cur + 1) / STAGES.length) * 100;
@@ -206,7 +217,7 @@ export const BnDirector = () => {
       `}</style>
       <div className="bn-in">
         <div className="bn-k">AUTO DIRECTOR</div>
-        <div className="bn-h2">自动导演，把一本书持续推进下去</div>
+        <h2 className="bn-h2">自动导演，把一本书持续推进下去</h2>
         <div className="bn-p">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
         <div className="bn-track"><div className="bn-fill" style={{ width: pct + "%" }} /></div>
         <div className="bn-grid">
@@ -264,7 +275,7 @@ export const BnFeatures = () => {
       `}</style>
       <div className="bn-fin">
         <div className="bn-fk">FEATURES</div>
-        <div className="bn-fh">现在已经能做什么</div>
+        <h2 className="bn-fh">现在已经能做什么</h2>
         <div className="bn-fg">
           {ITEMS.map((it, i) => (
             <div key={it.t} className="bn-aur" style={{ animationDelay: i * -1 + "s" }}>
@@ -310,8 +321,37 @@ export const BnShelf = () => {
     { t: "悬疑推理", e: "MYSTERY", c: "#1e3a8a", tc: "#bfdbfe", g: "#60a5fa", h: 240, on: true, href: "/showcase/mystery" },
   ];
   const [open, setOpen] = useState(null);
+  const [hov, setHov] = useState(null);
+  const [seen, setSeen] = useState(false);
+  const [demo, setDemo] = useState(-1);
+  const [pos, setPos] = useState(null);
+  const [vis, setVis] = useState(false);
+  const shelfRef = useRef(null);
+  const refs = useRef([]);
+  const hb = BOOKS.find((x) => x.t === hov);
+  const db = demo >= 0 ? BOOKS[demo] : null;
   const ob = BOOKS.find((x) => x.t === open) || BOOKS[0];
   const pass = useRef(false);
+  useEffect(() => {
+    const el = shelfRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVis(true); return; }
+    const io = new IntersectionObserver((es) => setVis(es[0].isIntersecting), { threshold: 0.35 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (seen || !vis) { setDemo(-1); return; }
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let i = 0;
+    const step = () => { setDemo(i % BOOKS.length); i += 1; };
+    const t = setTimeout(step, 450);
+    const id = setInterval(step, 2600);
+    return () => { clearTimeout(t); clearInterval(id); };
+  }, [seen, vis]);
+  useEffect(() => {
+    const el = refs.current[demo];
+    if (el) setPos({ x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight * 0.55 });
+  }, [demo]);
   const go = (e, b) => {
     if (pass.current) { pass.current = false; return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -330,7 +370,7 @@ export const BnShelf = () => {
       <span className={"bn-bb" + (b.on ? " on" : "")}>{b.on ? "已开放" : "筹备中"}</span>
     </>
   );
-  const sty = (b) => ({ "--h": b.h + "px", "--g": b.g, background: "linear-gradient(90deg,rgba(0,0,0,.45),rgba(255,255,255,.1) 28%,rgba(0,0,0,0) 62%,rgba(0,0,0,.5))," + b.c });
+  const sty = (b, i) => ({ "--h": b.h + "px", "--g": b.g, "--i": i, background: "linear-gradient(90deg,rgba(0,0,0,.45),rgba(255,255,255,.1) 28%,rgba(0,0,0,0) 62%,rgba(0,0,0,.5))," + b.c });
   return (
     <div className="not-prose bn-sh">
       <style>{`
@@ -362,13 +402,31 @@ export const BnShelf = () => {
         .bn-shflash span{font-size:clamp(48px,9vw,110px);font-weight:900;letter-spacing:.2em;color:#fde68a;font-family:"Noto Serif SC","Songti SC",serif;text-shadow:0 0 40px rgba(45,212,191,.7)}
         @keyframes bnShine{0%,55%{left:-80%}100%{left:140%}}
         @keyframes bnShFlash{to{opacity:1}}
-        @media (max-width:520px){.bn-shelf{gap:7px;height:270px;padding:0 6px 16px}.bn-bk{width:48px;height:calc(var(--h)*.82)}.bn-bt{font-size:16px}.bn-bb{width:38px}}
-        @media (prefers-reduced-motion:reduce){.bn-shine{animation:none;display:none}}
+        .bn-bk.on.demo{transform:translateY(-22px) rotate(-3deg);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 0 40px -2px var(--g),0 26px 40px -18px var(--g);transition-delay:.85s}
+        .bn-bk.dim{filter:brightness(.45) saturate(.5)}
+        .bn-ghost{position:absolute;left:50%;top:100%;z-index:3;width:0;height:0;pointer-events:none;opacity:0;transition:left .9s cubic-bezier(.65,0,.35,1),top .9s cubic-bezier(.65,0,.35,1),opacity .4s}
+        .bn-ghost.show{opacity:1}
+        .bn-cur{position:absolute;left:-3px;top:-2px;width:26px;height:30px;overflow:visible;filter:drop-shadow(0 0 6px var(--g)) drop-shadow(0 0 14px var(--g));animation:bnPress 2.6s ease-in-out}
+        .bn-cur path{fill:rgba(5,8,10,.85);stroke:#ecfdf5;stroke-width:1.6;stroke-linejoin:round}
+        .bn-ctag{position:absolute;left:22px;top:24px;font:600 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.25em;color:#05080a;background:var(--g);padding:4px 6px 4px 8px;border-radius:3px;box-shadow:0 0 16px -2px var(--g);animation:bnTag 2.6s ease-in-out}
+        .bn-rip{position:absolute;left:0;top:0;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;border:2px solid var(--g);box-shadow:0 0 20px var(--g),inset 0 0 20px var(--g);opacity:0;transform:scale(0);animation:bnRip 1.1s .95s cubic-bezier(.2,.7,.3,1) forwards}
+        .bn-rip.b{animation-delay:1.15s;border-width:1px}
+        .bn-run{position:absolute;left:0;bottom:7px;z-index:2;width:90px;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,#86efac,transparent);box-shadow:0 0 14px #22c55e;pointer-events:none;animation:bnRun 3.4s linear infinite}
+        @keyframes bnPress{0%,34%,46%,100%{transform:scale(1)}39%{transform:scale(.8)}}
+        @keyframes bnTag{0%,30%{opacity:0;transform:translateX(-6px)}40%,85%{opacity:1;transform:none}100%{opacity:0}}
+        @keyframes bnRip{0%{opacity:.95;transform:scale(.1)}100%{opacity:0;transform:scale(1.6)}}
+        @keyframes bnRun{0%{left:-90px;opacity:0}10%{opacity:1}90%{opacity:1}100%{left:100%;opacity:0}}
+        .bn-hint{position:absolute;left:50%;top:-22px;z-index:2;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 16px;border-radius:999px;font-size:13.5px;letter-spacing:.06em;color:#bbf7d0;background:rgba(5,8,10,.75);border:1px solid rgba(134,239,172,.35);box-shadow:0 0 22px -6px rgba(34,197,94,.6);backdrop-filter:blur(6px);pointer-events:none;transition:color .3s,border-color .3s,box-shadow .3s}
+        .bn-hint b{display:inline-block;font-weight:700;animation:bnBob 1.2s ease-in-out infinite}
+        .bn-hint::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;margin-left:-5px;background:inherit;border-right:1px solid rgba(134,239,172,.35);border-bottom:1px solid rgba(134,239,172,.35);transform:rotate(45deg)}
+        @keyframes bnBob{0%,100%{transform:translateY(-2px)}50%{transform:translateY(3px)}}
+        @media (max-width:520px){.bn-shelf{gap:7px;height:270px;padding:0 6px 16px}.bn-bk{width:48px;height:calc(var(--h)*.82)}.bn-bt{font-size:16px}.bn-bb{width:38px}.bn-hint{font-size:12.5px;padding:6px 13px}}
+        @media (prefers-reduced-motion:reduce){.bn-shine{animation:none;display:none}.bn-hint b,.bn-run{animation:none}.bn-run,.bn-ghost{display:none}}
       `}</style>
       <div className="bn-shin">
         <div>
           <div className="bn-shk">GENRE SHOWCASE</div>
-          <div className="bn-shh">按题材，走进一本书</div>
+          <h2 className="bn-shh">按题材，走进一本书</h2>
           <div className="bn-shp">每个题材一间展厅：从一句灵感、推进方式、世界星图到章节样张，沉浸式地看看用工作台写这一类小说是什么样子。已经开放：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
           <div className="bn-shgos">
             <a className="bn-shgo" href="/showcase/xianxia">走进仙侠修真展厅 →</a>
@@ -378,12 +436,22 @@ export const BnShelf = () => {
             <a className="bn-shgo" href="/showcase/urban">走进都市异能展厅 →</a>
           </div>
         </div>
-        <div className="bn-shelf">
-          {BOOKS.map((b) => b.on ? (
-            <a key={b.t} className={"bn-bk on" + (open === b.t ? " opening" : "")} href={b.href} style={sty(b)} aria-label={b.t + " 题材展厅"} onClick={(e) => go(e, b)}>{inner(b)}</a>
+        <div ref={shelfRef} className="bn-shelf" onMouseLeave={() => setHov(null)}>
+          <div className="bn-hint" aria-hidden="true" style={(hb || db) ? { color: (hb || db).tc, borderColor: (hb || db).g, boxShadow: "0 0 26px -4px " + (hb || db).g } : null}>
+            {hb ? <>进入「{hb.t}」展厅 <b>→</b></> : db ? <><b>↓</b> 点击书脊 · 进入「{db.t}」</> : <><b>↓</b> 点击书脊，进入题材展厅</>}
+          </div>
+          {BOOKS.map((b, i) => b.on ? (
+            <a key={b.t} ref={(n) => { refs.current[i] = n; }} className={"bn-bk on" + (open === b.t ? " opening" : "") + (demo === i ? " demo" : "") + (hov && hov !== b.t ? " dim" : "")} href={b.href} style={sty(b, i)} aria-label={b.t + " 题材展厅"} title={"进入「" + b.t + "」展厅"} onMouseEnter={() => { setHov(b.t); setSeen(true); }} onFocus={() => { setHov(b.t); setSeen(true); }} onBlur={() => setHov(null)} onClick={(e) => go(e, b)}>{inner(b)}</a>
           ) : (
-            <div key={b.t} className="bn-bk off" style={sty(b)} title="筹备中">{inner(b)}</div>
+            <div key={b.t} className="bn-bk off" style={sty(b, i)} title="筹备中">{inner(b)}</div>
           ))}
+          <div className={"bn-ghost" + (pos && db ? " show" : "")} style={pos ? { left: pos.x + "px", top: pos.y + "px", "--g": db ? db.g : "#4ade80" } : null} aria-hidden="true">
+            <i key={"ra" + demo} className="bn-rip" />
+            <i key={"rb" + demo} className="bn-rip b" />
+            <svg key={"c" + demo} className="bn-cur" viewBox="0 0 22 26"><path d="M3 2 L3 20 L7.8 15.6 L11 23 L14.2 21.6 L11.1 14.4 L17.6 14.2 Z" /></svg>
+            <span key={"t" + demo} className="bn-ctag">CLICK</span>
+          </div>
+          <i className="bn-run" />
         </div>
       </div>
       {open && (
@@ -444,7 +512,7 @@ export const BnTyping = () => {
       <div className="bn-tin">
         <div>
           <div className="bn-tk">FROM IDEA TO NOVEL</div>
-          <div className="bn-th">一句灵感，一路展开成正文</div>
+          <h2 className="bn-th">一句灵感，一路展开成正文</h2>
           <div className="bn-tp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
         </div>
         <div className="bn-win" aria-live="polite">
@@ -755,7 +823,7 @@ export const BnStarMap = () => {
       <div className="bn-smi">
         <div>
           <div className="bn-smk">WORLD & CHARACTERS</div>
-          <div className="bn-smh">一本书的世界，彼此相连</div>
+          <h2 className="bn-smh">一本书的世界，彼此相连</h2>
           <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
         </div>
         <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
@@ -1284,7 +1352,7 @@ export const XzScroll = () => {
         <div className="xz-hd">
           <div>
             <div className="xz-hk">一 · 展卷</div>
-            <div className="xz-hh">一句灵感，徐徐展开成书</div>
+            <h2 className="xz-hh">一句灵感，徐徐展开成书</h2>
           </div>
           <div className="xz-hp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
         </div>
@@ -1317,8 +1385,8 @@ export const XzDirector = () => {
   const [cur, setCur] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
-    if (paused) return;
-    const t = setInterval(() => setCur((c) => (c + 1) % STAGES.length), 2000);
+    if (paused || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const t = setInterval(() => { if (!document.hidden) setCur((c) => (c + 1) % STAGES.length); }, 2000);
     return () => clearInterval(t);
   }, [paused]);
   return (
@@ -1348,7 +1416,7 @@ export const XzDirector = () => {
       `}</style>
       <div className="xz-di">
         <div className="xz-dk">二 · 运笔</div>
-        <div className="xz-dh">自动导演，十二道工序成一书</div>
+        <h2 className="xz-dh">自动导演，十二道工序成一书</h2>
         <div className="xz-dp">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
         <div className="xz-grid">
           {STAGES.map((s, i) => (
@@ -1421,7 +1489,7 @@ export const XzWeb = () => {
       <div className="xz-wi">
         <div>
           <div className="xz-wk">三 · 经纬</div>
-          <div className="xz-wh">一书之内，皆有牵连</div>
+          <h2 className="xz-wh">一书之内，皆有牵连</h2>
           <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
         </div>
         <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
@@ -1478,7 +1546,7 @@ export const XzFeatures = () => {
       `}</style>
       <div className="xz-fi">
         <div className="xz-fk">四 · 成卷</div>
-        <div className="xz-fh">现在已经能做什么</div>
+        <h2 className="xz-fh">现在已经能做什么</h2>
         <div className="xz-fg">
           {ITEMS.map((it, i) => (
             <a key={it.t} className="xz-card" href={it.h}>
@@ -1503,7 +1571,35 @@ export const XzShelf = () => {
     { t: "悬疑推理", c: "#3f4f3a", h: 242, on: true, href: "/showcase/mystery" },
   ];
   const [open, setOpen] = useState(null);
+  const [hov, setHov] = useState(null);
+  const [seen, setSeen] = useState(false);
+  const [demo, setDemo] = useState(-1);
+  const [pos, setPos] = useState(null);
+  const [vis, setVis] = useState(false);
+  const shelfRef = useRef(null);
+  const refs = useRef([]);
+  const db = demo >= 0 ? BOOKS[demo] : null;
   const pass = useRef(false);
+  useEffect(() => {
+    const el = shelfRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") { setVis(true); return; }
+    const io = new IntersectionObserver((es) => setVis(es[0].isIntersecting), { threshold: 0.35 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (seen || !vis) { setDemo(-1); return; }
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let i = 0;
+    const step = () => { setDemo(i % BOOKS.length); i += 1; };
+    const t = setTimeout(step, 450);
+    const id = setInterval(step, 2600);
+    return () => { clearTimeout(t); clearInterval(id); };
+  }, [seen, vis]);
+  useEffect(() => {
+    const el = refs.current[demo];
+    if (el) setPos({ x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight * 0.5 });
+  }, [demo]);
   const go = (e, b) => {
     if (pass.current) { pass.current = false; return; }
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -1520,7 +1616,7 @@ export const XzShelf = () => {
       {b.on ? <span className="xz-seal2">开</span> : <span className="xz-bs">待刊</span>}
     </>
   );
-  const sty = (b) => ({ "--h": b.h + "px", background: "linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.08) 30%,rgba(0,0,0,0) 65%,rgba(0,0,0,.3))," + b.c });
+  const sty = (b, i) => ({ "--h": b.h + "px", "--i": i, background: "linear-gradient(90deg,rgba(0,0,0,.28),rgba(255,255,255,.08) 30%,rgba(0,0,0,0) 65%,rgba(0,0,0,.3))," + b.c });
   return (
     <div className="not-prose xz-sh">
       <style>{`
@@ -1548,12 +1644,31 @@ export const XzShelf = () => {
         .xz-shflash span{position:relative;font-size:clamp(48px,9vw,110px);font-weight:900;letter-spacing:.2em;color:#f3ede1;opacity:0;animation:xzShTxt .8s .25s ease forwards}
         @keyframes xzShInk{to{transform:scale(3)}}
         @keyframes xzShTxt{to{opacity:1}}
-        @media (max-width:520px){.xz-shelf{gap:8px;height:270px;padding:0 6px 18px}.xz-bk{width:50px;height:calc(var(--h)*.82)}.xz-sig{font-size:14px}}
+        .xz-bk.on.demo{transform:translateY(-20px) rotate(-3deg);box-shadow:inset 0 0 0 1px rgba(250,246,236,.15),0 22px 30px -14px rgba(28,26,23,.75);transition-delay:1s}
+        .xz-bk.dim{filter:sepia(.55) brightness(.78) saturate(.5)}
+        .xz-ghost{position:absolute;left:50%;top:100%;z-index:3;width:0;height:0;pointer-events:none;opacity:0;transition:left .9s cubic-bezier(.65,0,.35,1),top .9s cubic-bezier(.65,0,.35,1),opacity .4s}
+        .xz-ghost.show{opacity:1}
+        .xz-seal3{position:absolute;left:-21px;top:-21px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:#b4382a;color:#faf6ec;font-size:22px;font-weight:900;border-radius:4px;box-shadow:inset 0 0 0 2.5px rgba(250,246,236,.55),inset 0 0 0 5px #b4382a,inset 0 0 0 6px rgba(250,246,236,.35),0 14px 22px -10px rgba(28,26,23,.6);animation:xzStamp 2.6s cubic-bezier(.5,0,.3,1) both}
+        .xz-ink{position:absolute;left:0;top:0;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;background:radial-gradient(circle,rgba(28,26,23,0) 52%,rgba(28,26,23,.55) 62%,rgba(28,26,23,0) 74%);filter:blur(1.5px);opacity:0;transform:scale(0);animation:xzInk 1.3s 1.02s cubic-bezier(.2,.7,.3,1) forwards}
+        .xz-ink.b{animation-delay:1.22s;background:radial-gradient(circle,rgba(180,56,42,0) 54%,rgba(180,56,42,.45) 63%,rgba(180,56,42,0) 72%)}
+        .xz-dot{position:absolute;left:0;top:0;width:7px;height:7px;margin:-3.5px;border-radius:50%;background:#1c1a17;opacity:0;animation:xzDot .9s 1.02s ease-out forwards}
+        .xz-say{position:absolute;left:28px;top:-34px;white-space:nowrap;font-size:13px;letter-spacing:.3em;color:#1c1a17;writing-mode:vertical-rl;opacity:0;animation:xzSay 2.6s ease both}
+        @keyframes xzStamp{0%{opacity:0;transform:translateY(-70px) scale(1.7) rotate(-16deg)}12%{opacity:1}34%{opacity:1;transform:translateY(-58px) scale(1.55) rotate(-14deg)}40%{transform:translateY(0) scale(.9) rotate(-6deg)}45%{transform:translateY(0) scale(1.04) rotate(-6deg)}50%,82%{opacity:1;transform:translateY(0) scale(1) rotate(-6deg)}100%{opacity:0;transform:translateY(0) scale(1) rotate(-6deg)}}
+        @keyframes xzInk{0%{opacity:.9;transform:scale(.15)}100%{opacity:0;transform:scale(1.7)}}
+        @keyframes xzDot{0%{opacity:.85;transform:rotate(calc(var(--a) * 1deg)) translateX(10px) scale(1)}100%{opacity:0;transform:rotate(calc(var(--a) * 1deg)) translateX(46px) scale(.3)}}
+        @keyframes xzSay{0%,40%{opacity:0;transform:translateY(-6px)}50%,85%{opacity:.85;transform:none}100%{opacity:0}}
+        .xz-hint{position:absolute;left:50%;top:-22px;z-index:2;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 16px;font-size:14px;letter-spacing:.18em;color:#b4382a;background:#faf6ec;border:1px solid rgba(180,56,42,.45);border-radius:3px;box-shadow:0 10px 22px -14px rgba(28,26,23,.6);pointer-events:none;transition:color .3s,background .3s}
+        .xz-hint b{display:inline-block;font-weight:800;animation:xzBob 1.2s ease-in-out infinite}
+        .xz-hint::after{content:"";position:absolute;left:50%;bottom:-6px;width:10px;height:10px;margin-left:-5px;background:inherit;border-right:1px solid rgba(180,56,42,.45);border-bottom:1px solid rgba(180,56,42,.45);transform:rotate(45deg)}
+        .xz-hint.on{background:#b4382a;color:#faf6ec}
+        @keyframes xzBob{0%,100%{transform:translateY(-2px)}50%{transform:translateY(3px)}}
+        @media (max-width:520px){.xz-shelf{gap:8px;height:270px;padding:0 6px 18px}.xz-bk{width:50px;height:calc(var(--h)*.82)}.xz-sig{font-size:14px}.xz-hint{font-size:12.5px;padding:6px 12px;letter-spacing:.1em}}
+        @media (prefers-reduced-motion:reduce){.xz-shelf.nudge .xz-bk.on,.xz-hint b{animation:none}}
       `}</style>
       <div className="xz-shin">
         <div>
           <div className="xz-shk">五 · 书架</div>
-          <div className="xz-shh">按题材，抽一卷来读</div>
+          <h2 className="xz-shh">按题材，抽一卷来读</h2>
           <div className="xz-shp">每个题材一间展厅：一句灵感、推进方式、山河星图与章节样张，一卷读尽这一类小说怎样写成。已开五卷：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
           <div className="xz-shgos">
             <a className="xz-shgo" href="/showcase/xianxia">展卷 · 仙侠修真</a>
@@ -1563,12 +1678,22 @@ export const XzShelf = () => {
             <a className="xz-shgo" href="/showcase/urban">展卷 · 都市异能</a>
           </div>
         </div>
-        <div className="xz-shelf">
-          {BOOKS.map((b) => b.on ? (
-            <a key={b.t} className={"xz-bk on" + (open === b.t ? " opening" : "")} href={b.href} style={sty(b)} aria-label={b.t + " 题材展厅"} onClick={(e) => go(e, b)}>{inner(b)}</a>
+        <div ref={shelfRef} className="xz-shelf" onMouseLeave={() => setHov(null)}>
+          <div className={"xz-hint" + (hov ? " on" : "")} aria-hidden="true">
+            {hov ? <>展卷「{hov}」<b>→</b></> : db ? <><b>↓</b> 点书脊 · 展「{db.t}」</> : <><b>↓</b> 点书脊，入展厅</>}
+          </div>
+          {BOOKS.map((b, i) => b.on ? (
+            <a key={b.t} ref={(n) => { refs.current[i] = n; }} className={"xz-bk on" + (open === b.t ? " opening" : "") + (demo === i ? " demo" : "") + (hov && hov !== b.t ? " dim" : "")} href={b.href} style={sty(b, i)} aria-label={b.t + " 题材展厅"} title={"展卷「" + b.t + "」"} onMouseEnter={() => { setHov(b.t); setSeen(true); }} onFocus={() => { setHov(b.t); setSeen(true); }} onBlur={() => setHov(null)} onClick={(e) => go(e, b)}>{inner(b)}</a>
           ) : (
-            <div key={b.t} className="xz-bk off" style={sty(b)} title="待刊">{inner(b)}</div>
+            <div key={b.t} className="xz-bk off" style={sty(b, i)} title="待刊">{inner(b)}</div>
           ))}
+          <div className={"xz-ghost" + (pos && db ? " show" : "")} style={pos ? { left: pos.x + "px", top: pos.y + "px" } : null} aria-hidden="true">
+            <i key={"ia" + demo} className="xz-ink" />
+            <i key={"ib" + demo} className="xz-ink b" />
+            {[20, 95, 160, 215, 290, 340].map((a) => <i key={"d" + demo + a} className="xz-dot" style={{ "--a": a }} />)}
+            <span key={"s" + demo} className="xz-seal3">点</span>
+            <span key={"y" + demo} className="xz-say">一点即开</span>
+          </div>
         </div>
       </div>
       {open && <div className="xz-shflash"><i /><span>{open}</span></div>}
@@ -1998,7 +2123,7 @@ export const HomeFx = ({ children }) => {
         .hfx-prog.paper .hfx-paper{left:3px;top:4px;width:12px;height:calc(var(--p) * (68vh - 7px));background-color:#f8f2e4;background-image:repeating-linear-gradient(180deg,transparent 0 13px,rgba(28,26,23,.16) 13px 14px);border-left:1px solid rgba(28,26,23,.28);border-right:1px solid rgba(28,26,23,.28);box-shadow:0 0 6px rgba(28,26,23,.15)}
         .hfx-prog.paper .hfx-sealp{left:1px;top:calc(var(--p) * (68vh - 7px) + 12px);width:16px;height:16px;font-size:10px;line-height:16px;text-align:center;color:#faf6ec;background:#b4382a;border-radius:2px;font-family:"Noto Serif SC","Songti SC",serif;opacity:calc((var(--p) - .97) * 40)}
         @media (max-width:640px){.hfx-prog.paper{display:none}}
-        @media (prefers-reduced-motion: reduce){.hfx-layer,.hfx-burst{display:none}}
+        @media (prefers-reduced-motion: reduce){.hfx-layer,.hfx-burst{display:none}.hfx *,.hfx *::before,.hfx *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}}
       `}</style>
     </div>
   );

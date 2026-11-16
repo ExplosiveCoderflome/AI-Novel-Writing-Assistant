@@ -665,6 +665,7 @@ export const MxTypewriter = () => {
 .mt-machine{position:relative;max-width:640px;margin:0 auto;padding:28px 26px 22px;background:#1a1a1a;border:2px solid #444;border-radius:4px;box-shadow:0 20px 50px -20px rgba(0,0,0,.9)}
 .mt-screen{min-height:72px;font-family:"Courier New",monospace;font-size:16px;line-height:1.7;color:#86efac;text-align:left;white-space:pre-wrap;word-break:break-word}
 .mt-cursor{display:inline-block;width:8px;height:18px;background:#86efac;vertical-align:middle;margin-left:2px;animation:mtBlink 1s step-end infinite}
+@media (prefers-reduced-motion:reduce){.mt-cursor{animation:none}}
 @keyframes mtBlink{50%{opacity:0}}
 .mt-bar{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:22px}
 .mt-lock{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-family:inherit;color:#cbd5e1;background:#111a2e;border:1px solid rgba(148,163,184,.3);cursor:pointer;border-radius:4px;transition:background .2s}

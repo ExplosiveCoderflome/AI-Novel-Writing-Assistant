@@ -94,7 +94,8 @@
       "application-name": "Biz Novel Studio",
       "og:site_name": "Biz Novel Studio",
       "twitter:card": "summary_large_image",
-      "google-site-verification": "7ZnhzjjvdxyHnejrlJHVmVlXFoVNyhCmH3j5GZO8_Qc"
+      "google-site-verification": "IGD7m22Rg_b4zuPAADn0eZNvTTF7s0qpuE33B7_Gwp8",
+      "canonical": "https://biznovelstudio.com"
     },
     "paths": [
       {
@@ -108,8 +109,8 @@
     ],
     "organization": {
       "name": "Biz Novel Studio",
-      "url": "https://ai-novel-writing-assistant.mintlify.app",
-      "logo": "https://ai-novel-writing-assistant.mintlify.app/images/logo.svg",
+      "url": "https://biznovelstudio.com",
+      "logo": "https://biznovelstudio.com/images/logo.svg",
       "sameAs": [
         "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant"
       ]
