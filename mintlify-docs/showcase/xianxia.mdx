@@ -65,7 +65,43 @@ export const XgHero = () => {
   const PTS = [[1132, 560], [1148, 454], [1150, 344], [1204, 186], [1180, 104]];
   const RAYS = Array.from({ length: 16 }, (_, i) => i);
   const CRANES = [[0, 0, 1], [30, 12, 0.8], [-26, 16, 0.7]];
+  const ARMS = Array.from({ length: 5 }, (_, a) => Array.from({ length: 41 }, (_, k) => { const r = 24 + k * 13; const th = a * 1.2566 + k * 0.13; return (k ? "L" : "M") + Math.round(Math.cos(th) * r) + " " + Math.round(Math.sin(th) * r); }).join(" "));
+  const CFL = ["M-230 -50 L-200 -18 L-214 -10 L-176 34", "M170 -70 L196 -30 L182 -22 L228 24", "M-60 40 L-30 64 L-44 72 L-4 108", "M330 10 L352 40 L340 46 L372 80", "M-380 -10 L-356 18 L-368 24 L-340 56"];
+  const RAIN = Array.from({ length: 46 }, (_, i) => [(i * 37 + 5) % 104, 40 + (i % 5) * 16, 0.55 + (i % 4) * 0.12, (i * 0.13) % 1.2]);
+  const DEBT = ["玄霄真人", "赤霞老祖"];
+  const mkBolt = (fx, x, y) => {
+    const sx = fx + (Math.random() - 0.5) * 90;
+    const sy = 50;
+    const N = 13;
+    let d = "M" + Math.round(sx) + " " + sy;
+    let br = "";
+    for (let k = 1; k <= N; k++) {
+      const t = k / N;
+      const px = k === N ? x : sx + (x - sx) * t + (Math.random() - 0.5) * 64 * (1 - t * 0.5);
+      const py = sy + (y - sy) * t;
+      d += " L" + Math.round(px) + " " + Math.round(py);
+      if (k > 1 && k < N - 1 && Math.random() < 0.4) {
+        let bx = px;
+        let by = py;
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        br += " M" + Math.round(bx) + " " + Math.round(by);
+        for (let j = 0; j < 4; j++) {
+          bx += dir * (10 + Math.random() * 26);
+          by += 12 + Math.random() * 22;
+          br += " L" + Math.round(bx) + " " + Math.round(by);
+        }
+      }
+    }
+    return { d: d, br: br.trim() };
+  };
   const rootRef = useRef(null);
+  const [jie, setJie] = useState(null);
+  const jR = useRef(null);
+  const jT = useRef([]);
+  const jKeyRef = useRef(null);
+  const rmR = useRef(false);
+  const meRef = useRef(null);
+  const avaRef = useRef(null);
   const vis = useRef(false);
   const castRef = useRef(null);
   const [lv, setLv] = useState(0);
@@ -103,9 +139,106 @@ export const XgHero = () => {
     setFx((a) => a.slice(-3).concat([{ id: id, t: t, c: tone, x: x }]));
     setTimeout(() => setFx((a) => a.filter((f) => f.id !== id)), 1400);
   };
+  const setJ = (o) => { jR.current = o; setJie(o); };
+  const upJ = (p) => { if (!jR.current) return null; const o = Object.assign({}, jR.current, p); setJ(o); return o; };
+  const jAfter = (ms, f) => { jT.current.push(setTimeout(f, ms)); };
+  const jClear = () => { jT.current.forEach((t) => clearTimeout(t)); jT.current = []; };
+  useEffect(() => () => jClear(), []);
+  const aim = () => {
+    const el = rootRef.current;
+    if (!el) return [600, 300];
+    const R = el.getBoundingClientRect();
+    const at = (n) => {
+      if (!n) return null;
+      const b = n.getBoundingClientRect();
+      const x = b.left + b.width / 2 - R.left;
+      const y = b.top + b.height / 2 - R.top;
+      return x > 60 && x < R.width - 60 && y > 150 && y < R.height - 60 ? [Math.round(x), Math.round(y)] : null;
+    };
+    return at(meRef.current) || at(avaRef.current) || [Math.round(R.width / 2), Math.round(R.height * 0.42)];
+  };
+  const startJie = () => {
+    jClear();
+    const p = aim();
+    setJ({ ph: "gather", n: -1, hp: 100, tr: 2, rs: [], x: p[0], y: p[1], dur: 2800, t0: 0, sid: Date.now(), pr: null, bolt: null, res: null });
+    banner("天劫降临 · 九霄雷劫");
+    jAfter(2800, () => charge(0));
+  };
+  const charge = (n) => {
+    if (!jR.current) return;
+    const p = aim();
+    const dur = n === 8 ? 1800 : Math.max(950, 1500 - n * 70);
+    upJ({ ph: "charge", n: n, x: p[0], y: p[1], dur: dur, t0: performance.now() + dur, sid: Date.now(), pr: null, bolt: null });
+    jAfter(dur + 80, () => strike(n));
+  };
+  const guard = () => {
+    const j = jR.current;
+    if (!j || j.ph !== "charge" || j.pr) return;
+    const d = performance.now() - j.t0;
+    upJ({ pr: rmR.current ? "g" : d >= -150 ? "p" : d >= -380 ? "g" : "e" });
+  };
+  const strike = (n) => {
+    const j = jR.current;
+    if (!j || j.ph !== "charge" || j.n !== n) return;
+    const fin = n === 8;
+    const g = j.pr === "p" ? "p" : j.pr === "g" ? "g" : "h";
+    const dmg = g === "p" ? 0 : g === "g" ? (fin ? 12 : 4 + n) : (fin ? 40 : 15 + n * 2);
+    const hp = Math.max(0, j.hp - dmg);
+    const bolt = [mkBolt(j.x, j.x, j.y)];
+    if (fin) { bolt.push(mkBolt(j.x - 80, j.x, j.y)); bolt.push(mkBolt(j.x + 80, j.x, j.y)); }
+    const t = g === "p" ? (fin ? "紫霄化灵" : "化雷为灵") : g === "g" ? "护体 · 气血 -" + dmg : (j.pr === "e" ? "早了 · " : "") + "气血 -" + dmg;
+    upJ({ ph: "hit", hp: hp, bolt: bolt, rs: j.rs.concat(g), res: { g: g, t: t, x: j.x, y: j.y, id: Date.now() } });
+    if (hp <= 0) jAfter(1000, fail);
+    else if (fin) jAfter(1100, win);
+    else jAfter(950, () => charge(n + 1));
+  };
+  const shift = () => {
+    const j = jR.current;
+    if (!j || j.ph !== "charge") return;
+    if (j.n === 8) { pop("第九道点了名 · 记不上账", "vi", 50); return; }
+    if (j.tr <= 0 || j.pr) return;
+    const el = rootRef.current;
+    const R = el ? el.getBoundingClientRect() : { width: 1200, height: 800 };
+    let tx = j.x - 300;
+    if (tx < 80) tx = j.x + 300;
+    tx = Math.max(60, Math.min(R.width - 60, tx));
+    const ty = Math.min(R.height - 120, j.y + 120);
+    const nm = DEBT[2 - j.tr];
+    jClear();
+    upJ({ ph: "hit", tr: j.tr - 1, bolt: [mkBolt(j.x, tx, ty)], rs: j.rs.concat("t"), res: { g: "t", t: "记账 · " + nm, x: tx, y: ty, id: Date.now() } });
+    say(["【账】第 " + (j.n + 1) + " 道天雷，记在了「" + nm + "」的账上。雷劫券，可转让。"]);
+    jAfter(950, () => charge(j.n + 1));
+  };
+  const win = () => {
+    const j = jR.current;
+    if (!j) return;
+    const np = j.rs.filter((r) => r === "p").length;
+    const rank = np >= 8 ? "天道亲证" : np >= 5 ? "雷劫不过如此" : "九死一生";
+    upJ({ ph: "win", bolt: null, res: { g: "p", t: "化神 · 渡劫成功", x: j.x, y: j.y, id: Date.now() } });
+    banner("渡劫成功 · " + rank);
+    jAfter(900, () => {
+      setLv(top);
+      setEx(0);
+      say(["【天劫】九道天雷渡尽，评价「" + rank + "」· 完美护体 " + np + "/9。"].concat(np >= 9 ? ["【天机】九雷化灵：林砚把九道天雷收进账簿，抵了三百年房钱。"] : [], ["【系统】林砚突破至「化神」，登上天梯天门。", "【系统公告】天门维修中，预计开放：三百年后。"]));
+    });
+    jAfter(3200, () => setJ(null));
+  };
+  const fail = () => {
+    if (!jR.current) return;
+    upJ({ ph: "fail", bolt: null });
+    banner("渡劫失败 · 跌回金丹");
+    setEx(60);
+    say(["【天劫】林砚被劈回金丹，修为跌到六成。好消息：客栈没塌。", "【主线】再攒满修为会重引天雷；「转劫」留给后面几道更划算。"]);
+    jAfter(2600, () => setJ(null));
+  };
+  jKeyRef.current = (k) => {
+    if (k === " ") { guard(); return true; }
+    if (k === "1") { shift(); return true; }
+    return "2345".indexOf(k) >= 0;
+  };
   const cast = (i) => {
     const s = SKILLS[i];
-    if (!s || cd[i]) return;
+    if (!s || cd[i] || jR.current) return;
     const cid = Date.now() + i;
     setCd((c) => Object.assign({}, c, { [i]: cid }));
     setTimeout(() => setCd((c) => { const n = Object.assign({}, c); delete n[i]; return n; }), 900);
@@ -146,7 +279,12 @@ export const XgHero = () => {
     }
     pop(t, tone, 10 + i * 20);
     let ne = ex + s.ex;
-    if (ne >= 100 && lv < top) {
+    if (ne >= 100 && lv === top - 1) {
+      ne = 100;
+      add.push("【天劫】金丹圆满，头顶的云开始转了：九道天雷，躲不掉，也排不了队。");
+      add.push("【主线】雷印收拢的一瞬按 空格 护体；按 1 转劫，把天雷记到欠账大能的账上（限 2 次）。");
+      startJie();
+    } else if (ne >= 100 && lv < top) {
       ne -= 100;
       const nl = lv + 1;
       setLv(nl);
@@ -180,6 +318,7 @@ export const XgHero = () => {
   const reset = () => {
     setLv(0); setEx(0); setFx([]); setBrk(null); setLog(LOG0); setRoute(null);
     setEye(false); setEyeUsed(false); setLine(0); setDraws(0); setGot(false); setDlg(false); setQOpen(false);
+    jClear(); setJ(null);
   };
   useEffect(() => {
     const el = rootRef.current;
@@ -195,6 +334,7 @@ export const XgHero = () => {
       if (!vis.current || e.metaKey || e.ctrlKey || e.altKey || !e.key || e.key.length !== 1) return;
       const tg = e.target;
       if (tg && (tg.tagName === "INPUT" || tg.tagName === "TEXTAREA" || tg.isContentEditable)) return;
+      if (jR.current) { if (jKeyRef.current && jKeyRef.current(e.key)) e.preventDefault(); return; }
       const i = "12345".indexOf(e.key);
       if (i < 0 || !castRef.current) return;
       castRef.current(i);
@@ -204,6 +344,7 @@ export const XgHero = () => {
     let aRaf = 0;
     let lockEnd = 0;
     const rm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    rmR.current = rm;
     const findSc = () => {
       let n = el ? el.parentElement : null;
       while (n && n !== document.body && n !== document.documentElement) {
@@ -292,7 +433,7 @@ export const XgHero = () => {
       if (go(e.deltaY > 0 ? 1 : -1)) e.preventDefault();
     };
     const onK = (e) => {
-      if (rm || !wide() || dlgR.current || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (rm || !wide() || dlgR.current || jR.current || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const tg = e.target;
       const tn = tg && tg.tagName;
       if (tn === "INPUT" || tn === "TEXTAREA" || tn === "SELECT" || (tg && tg.isContentEditable)) return;
@@ -329,17 +470,20 @@ export const XgHero = () => {
   }, []);
   const QUESTS = [
     { k: "起念", t: route === null ? "选定开局路线" : "路线 · " + ROUTES[route].t, ok: route !== null, h: "点「开天机」，选一条开局路线。" },
-    { k: "登阶", t: "登上天门", ok: lv >= top, h: "施放任意技能攒修为，每突破一次境界，就往上登一段天梯。" },
+    { k: "登阶", t: lv === top - 1 ? "渡九霄雷劫，登上天门" : "登上天门", ok: lv >= top, h: lv === top - 1 ? "金丹圆满会引来九道天雷：雷印收拢时按 空格 护体，按 1 转劫。" : "施放任意技能攒修为，每突破一次境界，就往上登一段天梯；金丹之后要渡雷劫。" },
     { k: "舆图", t: "开天眼，找到暗梯", ok: eyeUsed, h: "按 4 · 天眼，看看天梯山上没画出来的路。" },
     { k: "落笔", t: "写完第三章 " + Math.min(line, LINES.length) + "/" + LINES.length, ok: line >= LINES.length, h: "按 3 · 落笔，一句一句写出「雷劫券」。" },
     { k: "祈愿", t: "祈愿一个脑洞", ok: draws > 0, h: "按 5 · 祈愿：身份、异变、代价各抽一张。" },
   ];
   const curQ = QUESTS.findIndex((q) => !q.ok);
   const nDone = QUESTS.filter((q) => q.ok).length + (got ? 1 : 0);
-  const tone = (l) => (l.indexOf("【系统公告】") === 0 ? "r" : l.indexOf("【第三章】") === 0 ? "c" : l.indexOf("【天机】") === 0 || l.indexOf("【祈愿】") === 0 ? "v" : l.indexOf("【主线】") === 0 ? "g" : "");
+  const tone = (l) => (l.indexOf("【系统公告】") === 0 ? "r" : l.indexOf("【第三章】") === 0 ? "c" : l.indexOf("【天机】") === 0 || l.indexOf("【祈愿】") === 0 || l.indexOf("【天劫】") === 0 || l.indexOf("【账】") === 0 ? "v" : l.indexOf("【主线】") === 0 ? "g" : "");
   const mp = Math.round((lv / top) * 100);
+  const jHit = !!(jie && jie.ph === "hit" && jie.res && jie.res.g !== "t");
+  const hc = "not-prose xg xg-hero" + (jie ? " jie" : "") + (jie && jie.ph === "gather" ? " jg" : "") + (jHit ? (jie.n === 8 ? " shk2" : " shk") + (jie.res.g === "h" ? " hit" : "") : "") + (jie && jie.ph === "fail" ? " jfail" : "");
+  const hpv = jie ? jie.hp : 100;
   return (
-    <div className="not-prose xg xg-hero" ref={rootRef}>
+    <div className={hc} ref={rootRef}>
       <style>{`
         .xg{--gd:#f0c96a;--gl:#fbe7a8;--jd:#5fe3c8;--sk:#7fd8ff;--vi:#b98cff;--tx:#e8edf6;--mu:#9aa8c2;color:var(--tx);font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;-webkit-font-smoothing:antialiased}
         .xg *{box-sizing:border-box}
@@ -517,6 +661,96 @@ export const XgHero = () => {
         @keyframes xghRing{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
         @keyframes xghFade{from{opacity:0}}
         @keyframes xghGlow{0%,100%{box-shadow:0 0 10px -2px rgba(240,201,106,.55)}50%{box-shadow:0 0 22px 2px rgba(240,201,106,.95)}}
+        .xg-hero.jie .xgh-mid{opacity:.1;pointer-events:none;transition:opacity .8s}
+        .xg-hero.jg .xgh-mt,.xg-hero.jg .xgh-sky{animation:xghRmb .2s linear infinite}
+        .xg-hero.shk .xgh-mt,.xg-hero.shk .xgh-sky,.xg-hero.shk .xgh-vx{animation:xghShk .45s linear}
+        .xg-hero.shk2 .xgh-mt,.xg-hero.shk2 .xgh-sky,.xg-hero.shk2 .xgh-vx{animation:xghShk .5s linear 2}
+        .xg-hero.hit .xgh-ava{animation:xghHurt .6s ease-out}
+        .xg-hero.jfail .xgh-mt,.xg-hero.jfail .xgh-sky{filter:grayscale(.85) brightness(.55);transition:filter .8s}
+        .xgh-jb{position:absolute;inset:0;z-index:1;overflow:hidden;pointer-events:none;animation:xghFade 1.2s ease-out both}
+        .xgh-jb.ph-win{animation:xghOut 2.8s ease-in forwards}
+        .xgh-jo{position:absolute;inset:0;background:radial-gradient(60% 40% at 50% 0%,rgba(30,14,60,.85),transparent 70%),linear-gradient(180deg,rgba(6,3,16,.88) 0%,rgba(10,5,26,.6) 40%,rgba(6,3,16,.35) 75%,rgba(6,3,16,.55))}
+        .xgh-rain{position:absolute;inset:0}
+        .xgh-rain i{position:absolute;top:-12%;width:1px;background:linear-gradient(180deg,transparent,rgba(205,220,255,.55));rotate:14deg;animation:xghDrop linear infinite}
+        .xgh-vx{position:absolute;top:-250px;width:1200px;height:600px;margin-left:-600px;overflow:visible;transition:left 1s}
+        .xgh-jb.ph-gather .xgh-vx{animation:xghVIn 2.8s cubic-bezier(.2,.8,.2,1) both}
+        .xgh-vs,.xgh-vc{transform-box:fill-box;transform-origin:center}
+        .xgh-vs{animation:xgSpin 22s linear infinite reverse}
+        .xgh-vc{animation:xghChg linear forwards}
+        .xgh-vf path{fill:none;stroke:#e6dcff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:0;animation:xghCF 2.6s linear infinite}
+        .xgh-jf{position:absolute;inset:0;z-index:3;overflow:hidden;pointer-events:none}
+        .xgh-tl{position:absolute;width:0;height:0}
+        .xgh-tl .ring,.xgh-tl .core,.xgh-tl .shd{position:absolute;left:-34px;top:-34px;width:68px;height:68px;border-radius:50%}
+        .xgh-tl .ring{border:2px solid #e6dcff;box-shadow:0 0 18px #9d7bff,inset 0 0 14px rgba(157,123,255,.6);animation:xghShr linear forwards}
+        .xgh-tl .core{border:1.5px dashed rgba(240,201,106,.9);box-shadow:0 0 12px rgba(240,201,106,.5);animation:xgSpin 3s linear infinite}
+        .xgh-tl .shd.p,.xgh-tl .shd.g{left:-52px;top:-52px;width:104px;height:104px;background:radial-gradient(circle,rgba(255,241,194,.35),rgba(240,201,106,.12) 60%,transparent 70%);border:2px solid #f0c96a;box-shadow:0 0 26px #f0c96a,inset 0 0 22px rgba(240,201,106,.6);animation:xghShd .25s ease-out both}
+        .xgh-tl .shd.g{background:radial-gradient(circle,rgba(200,235,255,.3),transparent 70%);border-color:#7fd8ff;box-shadow:0 0 22px #7fd8ff,inset 0 0 18px rgba(127,216,255,.5)}
+        .xgh-tl .shd.e{border:2px dashed #ff8a7a;box-shadow:0 0 14px rgba(255,90,74,.6);animation:xghShd .25s ease-out both}
+        .xgh-tl em{position:absolute;left:0;top:46px;transform:translateX(-50%);white-space:nowrap;font-style:normal;font-size:12px;letter-spacing:.2em;color:#e6dcff;text-shadow:0 0 6px #000,0 0 10px #000}
+        .xgh-bolt{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 10px rgba(185,140,255,.95));animation:xghBolt .6s linear forwards}
+        .xgh-bolt path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+        .xgh-bolt .o{stroke:#8f6bff;stroke-opacity:.4;stroke-width:16}
+        .xgh-bolt .m{stroke:#d9ccff;stroke-width:5}
+        .xgh-bolt .c{stroke:#fff;stroke-width:2}
+        .xgh-bolt .bc{stroke:#efe9ff;stroke-width:1.6}
+        .xgh-bolt.p{filter:drop-shadow(0 0 12px rgba(240,201,106,.95))}
+        .xgh-bolt.p .o{stroke:#f0c96a}
+        .xgh-bolt.p .m{stroke:#fff1c2}
+        .xgh-bolt.g .o{stroke:#7fd8ff}
+        .xgh-bolt.h .o{stroke:#b04bff;stroke-opacity:.55;stroke-width:22}
+        .xgh-bolt.big{animation-duration:.95s}
+        .xgh-bolt.big .o{stroke-width:30}
+        .xgh-bolt.big .m{stroke-width:8}
+        .xgh-bolt.big .c{stroke-width:3}
+        .xgh-imp{position:absolute;width:0;height:0}
+        .xgh-imp::before{content:"";position:absolute;left:-130px;top:-130px;width:260px;height:260px;border-radius:50%;opacity:0;background:radial-gradient(circle,rgba(255,255,255,.95),rgba(185,140,255,.5) 30%,transparent 68%);animation:xghFlash .6s ease-out forwards}
+        .xgh-imp i{position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;opacity:0;border:3px solid #efe9ff;box-shadow:0 0 24px #9d7bff;animation:xghImp .7s ease-out forwards}
+        .xgh-imp i + i{animation-delay:.12s;border-width:2px}
+        .xgh-imp.p::before{background:radial-gradient(circle,#fffaf0,rgba(240,201,106,.6) 30%,transparent 68%)}
+        .xgh-imp.p i{border-color:#fff1c2;box-shadow:0 0 26px #f0c96a}
+        .xgh-imp.g i{border-color:#bfe9ff;box-shadow:0 0 22px #7fd8ff}
+        .xgh-imp.h i{border-color:#ffb3a8;box-shadow:0 0 26px #ff5a4a}
+        .xgh-jt{position:absolute;white-space:nowrap;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:26px;letter-spacing:.12em;color:#efe9ff;text-shadow:0 0 14px #9d7bff,0 2px 0 #12072a;transform:translateX(-50%);animation:xghPop 1.5s ease-out forwards}
+        .xgh-jt.p{font-size:30px;color:#fff6d8;text-shadow:0 0 16px #f0c96a,0 2px 0 #3a2506}
+        .xgh-jt.g{color:#dff4ff;text-shadow:0 0 12px #7fd8ff,0 2px 0 #062033}
+        .xgh-jt.h{color:#ffb3a8;text-shadow:0 0 12px #ff5a4a,0 2px 0 #3a0a06}
+        .xgh-flash{position:absolute;inset:0;opacity:0;background:rgba(226,216,255,.85);animation:xghFlash .5s ease-out forwards}
+        .xgh-flash.p{background:rgba(255,236,190,.8)}
+        .xgh-flash.big{animation:xghFlashB 1s ease-out forwards}
+        .xgh-pillar{position:absolute;top:0;width:140px;margin-left:-70px;opacity:0;transform-origin:top;background:linear-gradient(90deg,transparent,rgba(255,241,194,.25) 30%,rgba(255,248,224,.95) 50%,rgba(255,241,194,.25) 70%,transparent);animation:xghPil 2.6s ease-out forwards}
+        .xgh-jh{position:absolute;z-index:4;left:50%;top:62px;transform:translateX(-50%);width:min(360px,calc(100% - 32px));padding:12px 16px 10px;text-align:center;background:linear-gradient(180deg,rgba(14,8,32,.92),rgba(8,5,20,.82));border:1px solid rgba(185,140,255,.5);border-radius:3px;box-shadow:0 0 30px -6px rgba(157,123,255,.6);animation:xghFade .6s ease-out both}
+        .xgh-jn{display:flex;justify-content:center;align-items:baseline;gap:10px;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:20px;letter-spacing:.3em;color:#efe9ff;text-shadow:0 0 12px #9d7bff}
+        .xgh-jn em{font-style:normal;font-size:12.5px;letter-spacing:.15em;color:var(--gl);text-shadow:none}
+        .xgh-jp{display:flex;justify-content:center;gap:6px;margin:9px 0 8px}
+        .xgh-jp i{width:12px;height:18px;background:rgba(185,140,255,.22);clip-path:polygon(60% 0,10% 56%,44% 56%,30% 100%,92% 40%,56% 40%,78% 0);transition:background .3s}
+        .xgh-jp i.cur{background:#efe9ff;animation:xghBlink .5s ease-in-out infinite}
+        .xgh-jp i.p{background:#f0c96a}
+        .xgh-jp i.g{background:#7fd8ff}
+        .xgh-jp i.h{background:#ff6a5a}
+        .xgh-jp i.t{background:#b98cff}
+        .xgh-jhp{position:relative;height:14px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.14);overflow:hidden}
+        .xgh-jhp i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ff8a7a,#c8322a);transition:width .4s}
+        .xgh-jhp span{position:relative;display:block;font-size:10.5px;line-height:12px;letter-spacing:.1em;color:#fff;text-shadow:0 1px 2px #000}
+        .xgh-jk{margin-top:8px;font-size:11.5px;letter-spacing:.08em;color:var(--mu)}
+        .xgh-jk kbd{padding:0 5px;font-family:inherit;font-size:11px;color:var(--gl);border:1px solid rgba(240,201,106,.45);border-radius:2px}
+        .xgh-sk.xgh-gd{width:96px;border-color:#c9a6ff;box-shadow:inset 0 0 12px rgba(0,0,0,.6),0 0 16px rgba(185,140,255,.55)}
+        .xgh-sk.xgh-gd b{color:#efe9ff;text-shadow:0 0 12px #b98cff}
+        .xgh-sk:disabled{opacity:.4;cursor:default;transform:none}
+        @keyframes xghFlash{0%{opacity:0}8%{opacity:.9}18%{opacity:.15}28%{opacity:.6}100%{opacity:0}}
+        @keyframes xghFlashB{0%{opacity:0}6%{opacity:1}14%{opacity:.2}22%{opacity:.95}34%{opacity:.3}46%{opacity:.8}100%{opacity:0}}
+        @keyframes xghImp{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(4.2)}}
+        @keyframes xghShr{from{opacity:.15;transform:scale(3.4)}to{opacity:1;transform:scale(1)}}
+        @keyframes xghShd{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+        @keyframes xghBolt{0%{opacity:0}4%{opacity:1}12%{opacity:.2}20%{opacity:1}30%{opacity:.5}40%{opacity:1}100%{opacity:0}}
+        @keyframes xghChg{from{opacity:.15;transform:scale(.4)}to{opacity:1;transform:scale(1.5)}}
+        @keyframes xghVIn{from{opacity:0;transform:scale(.35)}to{opacity:1;transform:scale(1)}}
+        @keyframes xghOut{to{opacity:0}}
+        @keyframes xghCF{0%,100%{opacity:0}3%{opacity:.95}5%{opacity:.1}7%{opacity:.8}10%{opacity:0}}
+        @keyframes xghDrop{from{translate:0 0}to{translate:-160px 1100px}}
+        @keyframes xghShk{0%,100%{translate:0 0}15%{translate:-9px 5px}30%{translate:8px -6px}45%{translate:-6px 3px}60%{translate:5px -2px}80%{translate:-2px 1px}}
+        @keyframes xghRmb{0%,100%{translate:0 0}25%{translate:1.5px -1px}50%{translate:-1px 1.5px}75%{translate:1px 1px}}
+        @keyframes xghPil{0%{opacity:0;transform:scaleY(0)}22%{opacity:1;transform:scaleY(1)}75%{opacity:.85}100%{opacity:0;transform:scaleY(1)}}
+        @keyframes xghHurt{0%,100%{filter:none}20%{filter:brightness(1.8) saturate(2) hue-rotate(-40deg)}}
         .xgh-dots{position:fixed;z-index:60;right:20px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;transition:opacity .4s}
         .xgh-dots.off{opacity:0;pointer-events:none}
         .xgh-dot{position:relative;display:grid;place-items:center;width:24px;height:24px;padding:0;background:none;border:0;cursor:pointer}
@@ -703,7 +937,7 @@ export const XgHero = () => {
         <g className="xgh-me" style={{ transform: "translate(" + PTS[lv][0] + "px," + PTS[lv][1] + "px)" }}>
           <circle r="24" fill="url(#xghJd)" />
           <circle className="xgh-mer" r="9" fill="none" stroke="#9ff5e2" strokeWidth="1.5" />
-          <circle r="4.5" fill="#effffb" stroke="#5fe3c8" strokeWidth="1.5" />
+          <circle ref={meRef} r="4.5" fill="#effffb" stroke="#5fe3c8" strokeWidth="1.5" />
           <g transform={"translate(0 " + (lv === top ? 30 : -28) + ")"}>
             <rect x="-22" y="-10" width="44" height="17" rx="2" fill="#060b18" fillOpacity=".88" stroke="#f0c96a" strokeOpacity=".8" />
             <text y="3" textAnchor="middle" fontSize="10.5" fill="#fbe7a8">林砚</text>
@@ -714,16 +948,49 @@ export const XgHero = () => {
         {MOTES.map((m, i) => <i key={i} style={{ left: m[0] + "%", top: m[1] + "%", width: m[2] + "px", height: m[2] + "px", animationDuration: m[3] + "s", animationDelay: m[4] + "s" }} />)}
       </div>
       <i className="xgh-sword" aria-hidden="true" />
+      {jie && (
+        <div className={"xgh-jb ph-" + jie.ph} aria-hidden="true">
+          <div className="xgh-jo" />
+          <div className="xgh-rain">
+            {RAIN.map((r, i) => <i key={i} style={{ left: r[0] + "%", height: r[1] + "px", animationDuration: r[2] + "s", animationDelay: r[3] + "s" }} />)}
+          </div>
+          <svg className="xgh-vx" style={{ left: jie.x + "px" }} viewBox="-600 -300 1200 600">
+            <defs>
+              <radialGradient id="xghJy">
+                <stop offset="0" stopColor="#1a1036" stopOpacity=".95" />
+                <stop offset=".6" stopColor="#120a28" stopOpacity=".8" />
+                <stop offset="1" stopColor="#0a0618" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="xghJg">
+                <stop offset="0" stopColor="#ffffff" />
+                <stop offset=".35" stopColor="#d9ccff" stopOpacity=".85" />
+                <stop offset="1" stopColor="#7a52ff" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse rx="600" ry="250" fill="url(#xghJy)" />
+            <g transform="scale(1 .38)">
+              <g className="xgh-vs">
+                {ARMS.map((d, i) => <path key={"a" + i} d={d} fill="none" stroke={i % 2 ? "#271c4f" : "#3a2a6e"} strokeOpacity=".8" strokeWidth={50 - i * 6} strokeLinecap="round" />)}
+                {ARMS.map((d, i) => <path key={"h" + i} d={d} fill="none" stroke="#a88bff" strokeOpacity=".45" strokeWidth="1.5" />)}
+              </g>
+            </g>
+            <g className="xgh-vf">
+              {CFL.map((d, i) => <path key={i} d={d} style={{ animationDelay: i * 0.65 + "s" }} />)}
+            </g>
+            {jie.ph === "charge" && <circle key={jie.sid} className="xgh-vc" r="80" fill="url(#xghJg)" style={{ animationDuration: jie.dur + "ms" }} />}
+          </svg>
+        </div>
+      )}
       <div className="xgh-top">
         <a className="xgh-back" href="/">← 返回首页</a>
       </div>
       <div className="xgh-lc">
         <div className="xgh-hud" aria-label={"角色：林砚，凡人掌柜，境界 " + REALM[lv]}>
-          <div className="xgh-ava"><b>砚</b><em>Lv.{lv}</em></div>
+          <div className="xgh-ava" ref={avaRef}><b>砚</b><em>Lv.{lv}</em></div>
           <div className="xgh-info">
             <div className="xgh-nm">林砚<small>凡人掌柜</small><button type="button" className="xgh-tg" aria-expanded={hudOpen} onClick={() => setHudOpen(!hudOpen)}>{hudOpen ? "收起" : "属性"}</button></div>
             <div className="xgh-realm">境界 · {REALM[lv]}　天梯 · {STAIR[lv]}</div>
-            {hudOpen && <div className="xgh-bar hp"><i style={{ width: "100%" }} /><span>气血 100/100</span></div>}
+            {hudOpen && <div className="xgh-bar hp"><i style={{ width: hpv + "%" }} /><span>{"气血 " + hpv + "/100"}</span></div>}
             {hudOpen && <div className="xgh-bar mp"><i style={{ width: mp + "%" }} /><span>{lv === 0 ? "灵力 0 · 无灵根" : "灵力 " + lv * 120 + "/" + top * 120 + " · 房钱抵来的"}</span></div>}
             <div className="xgh-bar ex"><i style={{ width: ex + "%" }} /><span>{lv === top && ex >= 100 ? "修为圆满 · 只等天门开" : "修为 " + ex + "%"}</span></div>
             <div className="xgh-tr">
@@ -750,6 +1017,50 @@ export const XgHero = () => {
           )}
         </div>
       </div>
+      {jie && (
+        <div className="xgh-jf" aria-hidden="true">
+          {jie.ph === "charge" && (
+            <div className="xgh-tl" style={{ left: jie.x + "px", top: jie.y + "px" }}>
+              <i key={jie.sid} className="ring" style={{ animationDuration: jie.dur + "ms" }} />
+              <i className="core" />
+              {jie.pr && <i className={"shd " + jie.pr} />}
+              <em>{jie.n === 8 ? "紫霄神雷 · 空格" : "空格 · 护体"}</em>
+            </div>
+          )}
+          {jie.bolt && jie.res && (
+            <svg key={"b" + jie.res.id} className={"xgh-bolt " + jie.res.g + (jie.bolt.length > 1 ? " big" : "")}>
+              {jie.bolt.map((b, i) => (
+                <g key={i}>
+                  <path className="o" d={b.d} />
+                  <path className="m" d={b.d} />
+                  <path className="c" d={b.d} />
+                  {b.br && <path className="bc" d={b.br} />}
+                </g>
+              ))}
+            </svg>
+          )}
+          {jie.res && (
+            <div key={"i" + jie.res.id} className={"xgh-imp " + jie.res.g} style={{ left: jie.res.x + "px", top: jie.res.y + "px" }}><i /><i /></div>
+          )}
+          {jie.res && (
+            <div key={"t" + jie.res.id} className={"xgh-jt " + jie.res.g} style={{ left: jie.res.x + "px", top: jie.res.y - 58 + "px" }}>{jie.res.t}</div>
+          )}
+          {jie.res && jie.res.g !== "t" && (
+            <div key={"f" + jie.res.id} className={"xgh-flash " + jie.res.g + (jie.bolt && jie.bolt.length > 1 ? " big" : "")} />
+          )}
+          {jie.ph === "win" && <div className="xgh-pillar" style={{ left: jie.x + "px", height: jie.y + "px" }} />}
+        </div>
+      )}
+      {jie && (
+        <div className="xgh-jh" role="status">
+          <div className="xgh-jn">九霄雷劫<em>{jie.ph === "gather" ? "劫云汇聚" : jie.ph === "win" ? "渡劫成功" : jie.ph === "fail" ? "道基受损" : "第 " + (jie.n + 1) + " / 9 道" + (jie.n === 8 ? " · 紫霄神雷" : "")}</em></div>
+          <div className="xgh-jp">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => <i key={k} className={jie.rs[k] ? jie.rs[k] : k === jie.n && jie.ph === "charge" ? "cur" : ""} />)}
+          </div>
+          <div className="xgh-jhp"><i style={{ width: jie.hp + "%" }} /><span>{"气血 " + jie.hp + "/100"}</span></div>
+          <div className="xgh-jk"><kbd>空格</kbd> 雷印收拢时护体　<kbd>1</kbd> 转劫 ×{jie.tr}</div>
+        </div>
+      )}
       <div className="xgh-mid">
         <div className="xgh-tag">题材展厅 · 壹</div>
         <h1 className="xgh-title">仙侠修真</h1>
@@ -765,7 +1076,18 @@ export const XgHero = () => {
           {fx.map((f) => <span key={f.id} className={f.c} style={{ left: f.x + "%" }}>{f.t}</span>)}
         </div>
         {brk && <div key={brk.id} className="xgh-brk">{brk.t}</div>}
-        {SKILLS.map((s, i) => (
+        {jie ? [
+          <button type="button" key="gd" className="xgh-sk xgh-gd" onClick={guard} disabled={jie.ph !== "charge"} aria-label="护体（空格）">
+            <kbd>空格</kbd>
+            <b>护</b>
+            <span>护体</span>
+          </button>,
+          <button type="button" key="tr" className="xgh-sk" onClick={shift} disabled={jie.tr <= 0 || jie.ph !== "charge"} aria-label={"转劫（数字键 1），剩余 " + jie.tr + " 次"}>
+            <kbd>1</kbd>
+            <b>账</b>
+            <span>{"转劫 ×" + jie.tr}</span>
+          </button>,
+        ] : SKILLS.map((s, i) => (
           <button type="button" key={s.k} className={"xgh-sk" + (s.id === "eye" && eye ? " on" : "")} onClick={() => cast(i)} aria-label={"技能 " + s.k + "：" + s.n}>
             <kbd>{s.k}</kbd>
             <b>{s.g}</b>
@@ -773,7 +1095,7 @@ export const XgHero = () => {
             {cd[i] && <i key={cd[i]} className="xgh-cdm" />}
           </button>
         ))}
-        <div className="xgh-skh">数字键 1~5 或点击施放</div>
+        <div className="xgh-skh">{jie ? "空格 护体 · 1 转劫" : "数字键 1~5 或点击施放"}</div>
       </div>
       {dlg && (
         <div className="xgh-ov" onClick={(e) => { if (e.target === e.currentTarget) setDlg(false); }}>
