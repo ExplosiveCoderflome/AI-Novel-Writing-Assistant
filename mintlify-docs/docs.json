@@ -120,9 +120,14 @@
     "options": [
       "copy",
       "view",
+      "assistant",
       "chatgpt",
       "claude",
-      "perplexity"
+      "perplexity",
+      "mcp",
+      "add-mcp",
+      "cursor",
+      "vscode"
     ],
     "display": "header"
   },
