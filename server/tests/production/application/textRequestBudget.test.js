@@ -14,6 +14,14 @@ function fixture() {
     '../../llm/factory': { getResolvedLLMClientOptionsFromInstance: () => ({provider:'openai',model:'fixture',maxTokens:6000}), getLLM: async () => { events.push('factory'); return { stream: async () => {
       events.push('stream'); return { async *[Symbol.asyncIterator]() { yield { content: '正文' }; } };
     } }; } },
+    // promptRunner imports createInvocationParseScope for structured parse ownership;
+    // text budget tests only need a pass-through scope so the isolation harness can load.
+    '../../llm/compatibility': {
+      createInvocationParseScope: () => ({
+        run: (operation) => operation(),
+        save: async () => {},
+      }),
+    },
     '../../llm/structuredInvoke': { formatLivePrompt: () => '' },
     '../../llm/structuredOutput': {},
     '../../llm/usageTracking': { extractLlmTokenUsage: () => null, mergeStreamTokenUsage: () => null },
