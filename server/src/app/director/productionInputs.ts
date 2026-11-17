@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma";
 import type { StepContext, RunContract } from "../../modules/director";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import type { DirectorBookContractPromptInput } from "../../prompting/prompts/novel/directorPlanning.prompts";
-import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { VolumeChapterPlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import { AppError } from "../../middleware/errorHandler";
 
@@ -71,4 +71,27 @@ export function executionWindow(context: StepContext, workspace: VolumePlanDocum
     .map(chapter => ({volumeId: volume.id, chapterId: chapter.id})));
   if (matches.length !== 1) throw new Error("授权起始章节缺少唯一的章节路线。");
   return {targets: matches, executionRange: {startOrder: range.from, endOrder: range.from}};
+}
+
+type SavedChapterPlanFields = Pick<VolumeChapterPlan, "id" | "volumeId" | "chapterOrder" | "taskSheet" | "sceneCards" | "targetWordCount" | "mustAvoid">;
+
+/** Use saved task and scene fields for one chapter, retaining the rest of the version. */
+export function applySavedChapterPlanFields(workspace: VolumePlanDocument, saved: SavedChapterPlanFields): VolumePlanDocument {
+  const {id, volumeId, chapterOrder, taskSheet, sceneCards, targetWordCount, mustAvoid} = saved;
+  return {...workspace, volumes: workspace.volumes.map(volume => volume.id !== volumeId ? volume : {
+    ...volume, chapters: volume.chapters.map(chapter => chapter.id === id && chapter.chapterOrder === chapterOrder
+      ? {...chapter, taskSheet, sceneCards, targetWordCount, mustAvoid} : chapter),
+  })};
+}
+
+export async function readExecutionWindow(context: StepContext, workspace: VolumePlanDocument) {
+  const {targets: [target], executionRange} = executionWindow(context, workspace);
+  const {novelId, launchInput} = context.contract;
+  const rows = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId, status:"active"}, chapterOrder: executionRange.startOrder}});
+  const [saved] = rows;
+  if (rows.length !== 1 || saved.id !== target.chapterId || saved.volumeId !== target.volumeId
+    || (launchInput?.targetVolumeId && saved.volumeId !== launchInput.targetVolumeId)) {
+    throw new AppError(`无法定位第 ${executionRange.startOrder} 章的已保存计划，请重新读取本书。`, 409);
+  }
+  return {workspace: applySavedChapterPlanFields(workspace, saved), executionRange};
 }

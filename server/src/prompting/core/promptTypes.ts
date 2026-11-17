@@ -127,6 +127,7 @@ export interface PromptExecutionOptions {
   temperature?: number;
   reasoningEnabled?: boolean;
   maxTokens?: number;
+  automaticMaxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   novelId?: string;

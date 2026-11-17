@@ -1,7 +1,7 @@
 import {resolveLLMClientOptions} from "../../../../llm/factory";
 import {createLongChapterProfile, ProductionSnapshotConflictError, type ProductionProfile, type UnitPorts, type StagePort} from "../../../../modules/production";
-import {withLlmTaskOutputBudgets, withoutLlmTaskOutputBudgets, type LlmTaskOutputBudget} from "../../../../platform/llm/execution";
-import {configurationKey} from "../prompts/preflight";
+import {MissingTaskOutputBudgetError, withLlmTaskOutputBudgets, withoutLlmTaskOutputBudgets, type LlmTaskOutputBudget} from "../../../../platform/llm/execution";
+import {configurationKey, matchSavedKernelBudget} from "../prompts/preflight";
 import type {KernelModelPolicySources} from "./source";
 import type {KernelModelPolicy} from "./types";
 
@@ -10,14 +10,19 @@ export function captureKernelTaskOutputBudgets(policy: KernelModelPolicy, source
   return withoutLlmTaskOutputBudgets(async () => {
     const rows: LlmTaskOutputBudget[] = [];
     for (const target of policy.targets) {
-      const current = await (sources?.resolveModel ?? resolveLLMClientOptions)(target.provider,
+      const configured = await (sources?.resolveModel ?? resolveLLMClientOptions)(target.provider,
         {model: target.model, taskType: target.taskType, executionMode: "plain"});
-      if (configurationKey(current) !== target.configurationHash || !Number.isSafeInteger(current.maxTokens) || current.maxTokens! < 1) {
+      const current = matchSavedKernelBudget(configured, target.configurationHash, target.maxTokens);
+      if (!Number.isSafeInteger(current.maxTokens) || current.maxTokens! < 1) {
+        throw new MissingTaskOutputBudgetError(target.provider, target.model, target.taskType);
+      }
+      if (configurationKey(current) !== target.configurationHash) {
         throw new ProductionSnapshotConflictError();
       }
       const fallback = policy.fallback.enabled && (target.provider !== policy.provider || target.model !== policy.model);
+      const budget = fallback ? policy.fallback.maxTokens ?? current.maxTokens! : current.maxTokens!;
       rows.push({provider: target.provider, model: target.model, taskType: target.taskType,
-        maxTokens: fallback ? policy.fallback.maxTokens ?? current.maxTokens! : current.maxTokens!});
+        maxTokens: Math.min(budget, current.budgetTrace?.endpointMaxTokens ?? Number.POSITIVE_INFINITY)});
     }
     return rows;
   });
@@ -31,15 +36,17 @@ export function createConfiguredKernelProfile(rows: readonly LlmTaskOutputBudget
 }
 
 /** Describe, execute and recovery use the same limits. Existing unit profiles remain authoritative on resume. */
-export function withKernelTaskOutputStages(input: UnitPorts["stages"], rows: readonly LlmTaskOutputBudget[]): UnitPorts["stages"] {
+export function withKernelTaskOutputStages(input: UnitPorts["stages"], rows: readonly LlmTaskOutputBudget[],
+  legacyStructuredThinking = false): UnitPorts["stages"] {
   const captured = rows.map(row => ({...row})), stages: UnitPorts["stages"] = {};
   const tasks = {draft: "writer", accept: "review", verify: "review", repair: "repair"} as const;
   for (const [stage, port] of Object.entries(input)) {
     if (!port) continue;
     const scoped = <T>(run: Parameters<StagePort["describe"]>[0], operation: () => Promise<T>) => {
       const task = tasks[stage as keyof typeof tasks], limit = run.snapshots.profile.outputBudgets[stage as keyof typeof run.snapshots.profile.outputBudgets];
-      return withLlmTaskOutputBudgets(captured.map(row => ({...row,
-        maxTokens: task === row.taskType && limit ? Math.min(limit, row.maxTokens) : row.maxTokens})), operation);
+      const budgets = legacyStructuredThinking ? captured.map(row => ({...row,
+        maxTokens: task === row.taskType && limit ? Math.min(limit, row.maxTokens) : row.maxTokens})) : captured;
+      return withLlmTaskOutputBudgets(budgets, operation, legacyStructuredThinking);
     };
     stages[stage as keyof typeof stages] = {
       describe: run => scoped(run, () => port.describe(run)),

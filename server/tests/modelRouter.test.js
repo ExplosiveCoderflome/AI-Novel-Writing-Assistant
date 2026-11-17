@@ -70,15 +70,15 @@ test("resolveModel treats a saved 4096 value as the user's chosen allowance", as
   }
 });
 
-test('empty output allowance has an editable 8192 default in execution and settings without writing',async()=>{
+test('empty output allowance stays automatic in settings and starts at 16K in execution',async()=>{
  const router=require('../dist/llm/modelRouter.js');
  const original={one:prisma.modelRouteConfig.findUnique,many:prisma.modelRouteConfig.findMany};
  const row={taskType:'writer',provider:'deepseek',model:'deepseek-flash',temperature:.7,maxTokens:null};
  prisma.modelRouteConfig.findUnique=async()=>row;prisma.modelRouteConfig.findMany=async()=>[row];
  try{
-  assert.equal((await resolveModel('writer')).maxTokens,8192);
-  assert.equal((await router.listModelRouteConfigs())[0].maxTokens,8192);
-  prisma.modelRouteConfig.findUnique=async()=>null;assert.equal((await resolveModel('writer')).maxTokens,8192);
+  assert.equal((await resolveModel('writer')).maxTokens,16384);
+  assert.equal((await router.listModelRouteConfigs())[0].maxTokens,null);
+  prisma.modelRouteConfig.findUnique=async()=>null;assert.equal((await resolveModel('writer')).maxTokens,16384);
  }finally{prisma.modelRouteConfig.findUnique=original.one;prisma.modelRouteConfig.findMany=original.many;}
 });
 

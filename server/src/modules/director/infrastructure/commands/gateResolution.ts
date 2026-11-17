@@ -19,8 +19,8 @@ export async function commitGateResolution(tx: Prisma.TransactionClient, input: 
       continue;
     }
     if ((resolution.decision === "confirm_after_edit" || recoveringProtected) && !readEdit) throw new GateResolutionError("请从资产页面保存修改，再确认本阶段。");
-    // Chapter confirmation always revalidates saved prose after asynchronous synchronization.
-    const edited = readEdit && (resolution.decision === "confirm_after_edit" || recoveringProtected || current.type === "chapter_batch_closed")
+    // Revalidate saved planning and prose before releasing the chapter gate.
+    const edited = readEdit && (resolution.decision === "confirm_after_edit" || recoveringProtected || current.type === "chapter_task_sheet" || current.type === "chapter_batch_closed")
       ? await readEdit({contract, type: current.type, contentRef: current.contentRef, chapterPlanEdit: resolution.chapterPlanEdit}, tx)
       : undefined;
     if (edited && (!edited.contentRef.trim() || !edited.contentHash.trim())) throw new GateResolutionError("未读取到已保存的修改。");

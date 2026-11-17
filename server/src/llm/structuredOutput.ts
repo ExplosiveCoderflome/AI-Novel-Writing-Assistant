@@ -27,9 +27,7 @@ export interface StructuredOutputProfile {
   nativeJsonObject: boolean;
   requiresNonThinkingForStructured: boolean;
   supportsReasoningToggle: boolean;
-  omitMaxTokensForNativeStructured: boolean;
   preferredStructuredStrategy: StructuredOutputStrategy;
-  safeStructuredMaxTokens?: number;
   family: string;
 }
 
@@ -141,9 +139,7 @@ function buildProfile(input: Partial<StructuredOutputProfile> & { family: string
     nativeJsonObject: input.nativeJsonObject ?? false,
     requiresNonThinkingForStructured: input.requiresNonThinkingForStructured ?? false,
     supportsReasoningToggle: input.supportsReasoningToggle ?? false,
-    omitMaxTokensForNativeStructured: input.omitMaxTokensForNativeStructured ?? false,
     preferredStructuredStrategy: input.preferredStructuredStrategy ?? "prompt_json",
-    safeStructuredMaxTokens: input.safeStructuredMaxTokens,
     family: input.family,
   };
 }
@@ -176,7 +172,6 @@ function resolveBuiltinStructuredOutputProfile(input: {
     return buildProfile({
       family: "anthropic",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (usesOfficialEndpoint("gemini", GEMINI_HOST_PATTERN)) {
@@ -234,7 +229,6 @@ function resolveBuiltinStructuredOutputProfile(input: {
     return buildProfile({
       family: "minimax",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (isDashScopeQwen) {
@@ -244,8 +238,6 @@ function resolveBuiltinStructuredOutputProfile(input: {
       preferredStructuredStrategy: qwenNativeStructuredModel ? "json_object" : "prompt_json",
       requiresNonThinkingForStructured: qwenMixedThinkingModel,
       supportsReasoningToggle: qwenMixedThinkingModel,
-      omitMaxTokensForNativeStructured: qwenNativeStructuredModel,
-      safeStructuredMaxTokens: qwenNativeStructuredModel ? undefined : 8192,
     });
   }
   if (isModelScopeQwen && qwenFamily) {
@@ -254,14 +246,12 @@ function resolveBuiltinStructuredOutputProfile(input: {
       preferredStructuredStrategy: "prompt_json",
       requiresNonThinkingForStructured: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
       supportsReasoningToggle: qwenMixedThinkingModel && !qwenThinkingOnlyModel,
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (qwenFamily) {
     return buildProfile({
       family: "custom_openai_compatible_qwen",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (usesOfficialEndpoint("openai", OPENAI_HOST_PATTERN)) {
@@ -276,34 +266,29 @@ function resolveBuiltinStructuredOutputProfile(input: {
     return buildProfile({
       family: "anthropic",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (input.provider === "siliconflow") {
     return buildProfile({
       family: "siliconflow",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (input.provider === "ollama") {
     return buildProfile({
       family: "ollama",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   if (customProvider) {
     return buildProfile({
       family: qwenFamily ? "custom_openai_compatible_qwen" : "custom_openai_compatible",
       preferredStructuredStrategy: "prompt_json",
-      safeStructuredMaxTokens: 8192,
     });
   }
   return buildProfile({
     family: "default",
     preferredStructuredStrategy: "prompt_json",
-    safeStructuredMaxTokens: 8192,
   });
 }
 

@@ -7,7 +7,7 @@ const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');
 const Database = require('better-sqlite3');
 const { prisma } = require('../dist/db/prisma');
 const usage = require('../dist/platform/llm/usage');
-const { attachLLMUsageTracking, runWithInvocationChain, observeInvocationParse } = require('../dist/llm/compatibility');
+const { attachLLMUsageTracking, runWithInvocationChain, observeInvocationParse, createInvocationParseScope } = require('../dist/llm/compatibility');
 const { runWithLlmUsageTracking } = require('../dist/llm/usageTracking');
 const tokens = { input_tokens: 10, output_tokens: 2, total_tokens: 12 };
 
@@ -19,6 +19,10 @@ async function capture(t, enabled = true) {
     t.after(() => { delegate[name] = original; });
   };
   patch(prisma.llmInvocationUsageRecord, 'create', async ({ data }) => { rows.push(data); return data; });
+  patch(prisma.llmInvocationUsageRecord, 'updateMany', async ({ where, data }) => {
+    Object.assign(rows.find(row => row.id === where.id), data);
+    return { count: 1 };
+  });
   patch(prisma.directorLlmUsageRecord, 'create', async ({ data }) => { legacy.push(data); return data; });
   patch(prisma.llmInvocationPayload, 'create', async ({ data }) => { payloads.set(data.usageRecordId, data); return data; });
   patch(prisma.llmInvocationPayload, 'findUnique', async ({ where }) => payloads.get(where.usageRecordId) ?? null);
@@ -54,10 +58,26 @@ test('stream timing ignores empty chunks, records TTFT and mirrors legacy direct
 
 test('non-streaming calls have null TTFT, history disabled stores timing without payload', async t => {
   const f = await capture(t, false);
-  await client(async function* () {}).invoke('prompt');
+  const llm = client(async function* () {});
+  await observeInvocationParse(() => llm.invoke('prompt'), () => ({ valid: true }));
   assert.equal(f.rows.length, 1);
   assert.equal(f.rows[0].firstTokenMs, null);
   assert.ok(f.rows[0].durationMs >= 0);
+  assert.equal(f.payloads.size, 0);
+  assert.equal(f.rows[0].structureStatus, 'valid');
+});
+
+test('a stream consumed after the parser scope exits still records its validation', async t => {
+  const f = await capture(t, false);
+  const parse = createInvocationParseScope();
+  const llm = client(async function* () {
+    yield { content: '{', response_metadata: { finish_reason: 'length' } };
+  });
+  const stream = await parse.run(() => llm.stream('prompt'));
+  for await (const _ of stream) {}
+  await parse.save(null, 'truncated');
+  assert.equal(f.rows[0].finishReason, 'length');
+  assert.equal(f.rows[0].structureStatus, 'invalid');
   assert.equal(f.payloads.size, 0);
 });
 
@@ -186,8 +206,11 @@ async function database(t) {
 
 test('payload/timing query is book-scoped, chains cross pages, and timing aggregates all filtered calls', async t => {
   const f = await database(t);
+  const budgetTrace = { source: 'automatic', requestedMaxTokens: null, routeMaxTokens: null, automaticMaxTokens: 16384,
+    endpointMaxTokens: null, frozenMaxTokens: null, structuredMaxTokens: null, finalMaxTokens: 16384 };
   await f.write('first');
-  await f.write('second', { durationMs: 6000, attemptNumber: 2, parentInvocationId: 'first', structuredMode: 'prompt_json', stage: 'review' });
+  await f.write('second', { budgetTrace, finishReason: 'stop', durationMs: 6000, attemptNumber: 2,
+    parentInvocationId: 'first', structuredMode: 'prompt_json', stage: 'review' });
   await f.write('foreign', { novelId: 'other' });
   await f.payloads.save('second', { messages: [{ role: 'user', content: 'prompt' }], response: 'response', parsed: { ok: true }, error: null }, []);
   const scope = { novel: { id: 'book', title: 'Book' }, chapters: [{ id: 'chapter', order: 1, title: 'Chapter' }], workflowTaskIds: [], generationJobIds: [] };
@@ -201,6 +224,9 @@ test('payload/timing query is book-scoped, chains cross pages, and timing aggreg
   const detail = await q.getInvocation('book', 'second');
   assert.equal(detail.item.firstTokenMs, 100);
   assert.equal(detail.item.durationMs, 6000);
+  assert.deepEqual(detail.item.budgetTrace, budgetTrace);
+  assert.equal(detail.item.finishReason, 'stop');
+  assert.equal(detail.chain[0].budgetTrace, null);
   assert.equal(detail.payload.response, 'response');
   assert.deepEqual(detail.chain.map(row => row.invocationId), ['first', 'second']);
   assert.equal(detail.chain[1].parentInvocationId, 'first');

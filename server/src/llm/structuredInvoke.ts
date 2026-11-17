@@ -68,6 +68,7 @@ export interface StructuredInvokeInput<T> {
   temperature?: number;
   reasoningEnabled?: boolean;
   maxTokens?: number;
+  automaticMaxTokens?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   taskType?: TaskType;
@@ -90,6 +91,7 @@ interface StructuredAttemptTarget {
   temperature: number;
   reasoningEnabled?: boolean;
   maxTokens?: number;
+  budgetTrace?: ResolvedLLMClientOptions["budgetTrace"];
   profile: StructuredOutputProfile;
   requestProtocol: ResolvedLLMClientOptions["requestProtocol"];
   preferredStrategy: StructuredOutputStrategy | null;
@@ -170,6 +172,7 @@ async function resolveAttemptTarget(input: {
   temperature?: number;
   reasoningEnabled?: boolean;
   maxTokens?: number;
+  automaticMaxTokens?: number;
   taskType?: TaskType;
   requestProtocol?: ModelRouteRequestProtocol;
   structuredStrategy?: StructuredOutputStrategy;
@@ -192,6 +195,7 @@ async function resolveAttemptTarget(input: {
     temperature: input.temperature,
     reasoningEnabled: input.reasoningEnabled,
     maxTokens: input.maxTokens,
+    automaticMaxTokens: input.automaticMaxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
@@ -211,6 +215,7 @@ async function resolveAttemptTarget(input: {
     temperature: resolved.temperature,
     reasoningEnabled: input.reasoningEnabled,
     maxTokens: resolved.maxTokens,
+    budgetTrace: resolved.budgetTrace,
     requestProtocol: resolved.requestProtocol,
     preferredStrategy,
     profile: resolveStructuredOutputProfile({
@@ -241,6 +246,7 @@ async function invokeStructuredAttempt<T>(input: {
     temperature: attemptTemperature,
     reasoningEnabled: input.target.reasoningEnabled,
     maxTokens: input.target.maxTokens,
+    budgetOrigin: input.target.budgetTrace,
     timeoutMs: input.baseInput.timeoutMs,
     taskType: input.baseInput.taskType ?? "planner",
     promptMeta: input.baseInput.promptMeta,
@@ -599,6 +605,7 @@ async function invokeStructuredLlmInChain<T>(input: StructuredInvokeInput<T>): P
     temperature: input.temperature ?? 0.3,
     reasoningEnabled: input.reasoningEnabled,
     maxTokens: input.maxTokens,
+    automaticMaxTokens: input.automaticMaxTokens,
     taskType: input.taskType ?? "planner",
     requestProtocol: input.requestProtocol,
     structuredStrategy: input.structuredStrategy,
@@ -635,6 +642,7 @@ async function invokeStructuredLlmInChain<T>(input: StructuredInvokeInput<T>): P
       temperature: fallbackSettings.temperature,
       reasoningEnabled: input.reasoningEnabled,
       maxTokens: fallbackSettings.maxTokens ?? undefined,
+      automaticMaxTokens: input.automaticMaxTokens,
       taskType: input.taskType ?? "planner",
     });
     try {

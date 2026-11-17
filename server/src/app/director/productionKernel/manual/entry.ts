@@ -11,7 +11,7 @@ import {AppError} from "../../../../middleware/errorHandler";
 import {resolveLLMClientOptions} from "../../../../llm/factory";
 import {chapterRuntimeRequestSchema} from "../../../../services/novel/runtime/chapterRuntimeSchema";
 import type {ChapterAcceptanceAssessmentResult} from "../../../../services/novel/runtime/ChapterAcceptanceAssessmentService";
-import {getDirectorChapterBudgetSettings} from "../../../../services/settings/chapterBudget";
+import {resolveDirectorChapterBudget} from "../../../../services/settings/chapterBudget";
 import {buildRuntimePackage} from "../../../../services/novel/runtime/chapterRuntimePackageBuilders";
 import {openConflictService} from "../../../../services/state/OpenConflictService";
 import {PlannerService} from "../../../../services/planner/PlannerService";
@@ -59,10 +59,13 @@ export function createManualChapterEntry(deps: ManualChapterEntryDependencies) {
     const {workflowTaskId: _oldTask, ...options} = chapterRuntimeRequestSchema.parse(input);
     const model = await (deps.resolveModel ?? resolveLLMClientOptions)(options.provider,
       {model: options.model, temperature: options.temperature, taskType: "writer"});
-    const chapterTokenLimit = await (deps.readTokenLimit ?? (async () => (await getDirectorChapterBudgetSettings()).tokenLimit))();
+    const budget = deps.readTokenLimit
+      ? { tokenLimit: await deps.readTokenLimit(), automatic: false }
+      : await resolveDirectorChapterBudget();
     const launchInput: ManualChapterLaunchInput = {storyInput: novel.description?.trim() || novel.title,
       estimatedChapterCount: Math.max(novel.estimatedChapterCount ?? 1, chapter.order), worldMode: "skip", targetMode: "opening",
-      executionRange: {from: chapter.order, to: chapter.order}, chapterTokenLimit,
+      executionRange: {from: chapter.order, to: chapter.order}, chapterTokenLimit: budget.tokenLimit,
+      ...(budget.automatic ? { chapterBudgetAutomatic: true } : {}),
       provider: model.provider, model: model.model, temperature: options.temperature,
       manualChapter: {operation, chapterId, baseline: {content: chapter.content, updatedAt: chapter.updatedAt.toISOString()}, options}};
     const result = await deps.commands().execute({type: "open_run", novelId, driver: "auto", stepIdsInScope: ["chapter_batch"],

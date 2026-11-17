@@ -1,10 +1,11 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { StepContext } from "../../../../modules/director";
 import { hashProductionContent, type UnitRef } from "../../../../modules/production";
+import { automaticDirectorChapterTopUp } from "@ai-novel/shared/types/director/chapterBudget";
 import type { InvocationUsageRecord } from "../../../../platform/llm/usage";
 import { createKernelOwnership } from "./ownership";
 import { accountKernelUsage } from "./budgetUsage";
-import { readKernelChapterBudget, kernelBudgetMode, RESERVATION, USAGE, BLOCKED, type Reserved, type Observed, type KernelBudgetReader } from "./budgetReader";
+import { readKernelChapterBudget, kernelBudgetMode, RESERVATION, USAGE, BLOCKED, AUTOMATIC_TOP_UP, type Reserved, type Observed, type KernelBudgetReader } from "./budgetReader";
 
 /** A reservation remains charged until its observed physical invocation supplies usable token counts. */
 export function createKernelChapterBudget(db: PrismaClient, context: StepContext) {
@@ -23,6 +24,21 @@ export function createKernelChapterBudget(db: PrismaClient, context: StepContext
   }
   const key = (unit: UnitRef, artifactType: string, contentHash: string) => ({novelId,chapterId:unit.chapterId,contentHash,artifactType,syncMode:mode});
   const read = (reader: KernelBudgetReader, unit: UnitRef) => readKernelChapterBudget(reader,contract,unitIdentity(unit));
+  async function canAfford(tx: Prisma.TransactionClient, unit: UnitRef, tokens: number): Promise<boolean> {
+    const budget = await read(tx, unit);
+    if (budget.remaining >= tokens) return true;
+    if (!budget.canAutoTopUp) return false;
+    const tokenLimit = automaticDirectorChapterTopUp(budget.limit, budget.used, tokens);
+    if (tokenLimit === null) return false;
+    const identity = key(unit, AUTOMATIC_TOP_UP, AUTOMATIC_TOP_UP);
+    await tx.chapterArtifactSyncCheckpoint.upsert({
+      where: { novelId_chapterId_contentHash_artifactType_syncMode: identity },
+      create: { ...identity, status: "succeeded", sourceType: "production_kernel", sourceStage: "budget",
+        metadataJson: JSON.stringify({ version: 1, runId, tokenLimit }) },
+      update: {},
+    });
+    return (await read(tx, unit)).remaining >= tokens;
+  }
   async function block(tx: Prisma.TransactionClient, unit: UnitRef, requestKey: string, tokens: number): Promise<false> {
     const identity = key(unit,BLOCKED,requestKey), metadata: Reserved = {version:1,runId,requestKey,tokens};
     await tx.chapterArtifactSyncCheckpoint.upsert({where:{novelId_chapterId_contentHash_artifactType_syncMode:identity},
@@ -38,7 +54,7 @@ export function createKernelChapterBudget(db: PrismaClient, context: StepContext
       if(!requestKey||!Number.isSafeInteger(tokens)||tokens<1)throw new Error("Invalid kernel preflight allowance");
       return db.$transaction(async tx=>{
         await assertOwnership(tx,{unit});
-        return (await read(tx,unit)).remaining>=tokens ? true : block(tx,unit,requestKey,tokens);
+        return await canAfford(tx,unit,tokens) ? true : block(tx,unit,requestKey,tokens);
       });
     },
     async reserve(value: UnitRef, requestKey: string, tokens: number): Promise<boolean> {
@@ -60,18 +76,18 @@ export function createKernelChapterBudget(db: PrismaClient, context: StepContext
             || !Number.isSafeInteger(saved.tokens) || saved.tokens < 1) throw new Error("Kernel reservation identity changed");
           if (existing.status === "succeeded") {
             if (tokens <= saved.tokens) return true;
-            if ((await read(tx,unit)).remaining < tokens - saved.tokens) return block(tx,unit,requestKey,tokens);
+            if (!await canAfford(tx,unit,tokens - saved.tokens)) return block(tx,unit,requestKey,tokens);
             const topped = await tx.chapterArtifactSyncCheckpoint.updateMany({where:{...identity,status:"succeeded",metadataJson:existing.metadataJson},data:{metadataJson:JSON.stringify(metadata)}});
             if (topped.count !== 1) throw new Error("Kernel reservation changed while topping up");
             return true;
           }
           if (existing.status !== "not_dispatched") throw new Error("Invalid kernel reservation status");
-          if ((await read(tx,unit)).remaining < tokens) return block(tx,unit,requestKey,tokens);
+          if (!await canAfford(tx,unit,tokens)) return block(tx,unit,requestKey,tokens);
           const resumed = await tx.chapterArtifactSyncCheckpoint.updateMany({where:{...identity,status:"not_dispatched"},data:{status:"succeeded",metadataJson:JSON.stringify(metadata)}});
           if (resumed.count !== 1) throw new Error("Kernel reservation changed while resuming");
           return true;
         }
-        if ((await read(tx,unit)).remaining < tokens) return block(tx,unit,requestKey,tokens);
+        if (!await canAfford(tx,unit,tokens)) return block(tx,unit,requestKey,tokens);
         await tx.chapterArtifactSyncCheckpoint.create({data:{...identity,status:"succeeded",sourceType:"production_kernel",sourceStage:"budget",metadataJson:JSON.stringify(metadata)}});
         return true;
       });

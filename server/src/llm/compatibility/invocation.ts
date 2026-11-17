@@ -4,7 +4,8 @@ import type { ChatOpenAI } from "@langchain/openai";
 import { PrismaInvocationUsageRepository, captureInvocationUsageObserver, extractLlmTokenUsage, mergeStreamTokenUsage, getInvocationHistorySettings, invocationPayloadStore, type InvocationUsageRecord, type LlmTokenUsageSnapshot } from "../../platform/llm/usage";
 import { prisma } from "../../db/prisma";
 import { getLlmUsageTrackingContext, recordTrackedLlmUsage, runWithLlmUsageTracking, type LlmUsageTrackingMeta } from "../usageTracking";
-import { nextInvocationAttempt, attachInvocationParse, invocationMessages, invocationChunkText, hasInvocationToken } from "./observation";
+import { nextInvocationAttempt, captureInvocationParse, invocationMessages, invocationChunkText, hasInvocationToken } from "./observation";
+import { readResponseFinishReason } from "../../platform/llm/diagnostics/structuredEvidence";
 const LLM_USAGE_PATCHED = Symbol("LLM_USAGE_PATCHED");
 type PatchableChatOpenAI = ChatOpenAI & { [LLM_USAGE_PATCHED]?: boolean };
 // Object identity distinguishes SDK batch children already observed through invoke.
@@ -14,13 +15,15 @@ function beginAttempt(meta: LlmUsageTrackingMeta | undefined, input: unknown, se
     const notify = captureInvocationUsageObserver();
     const invocationId = randomUUID();
     const identity = nextInvocationAttempt(invocationId);
-    const parseScope = () => attachInvocationParse(invocationId, secrets);
+    const attachParse = captureInvocationParse(invocationId, secrets);
     const settings = getInvocationHistorySettings().catch(() => { console.warn("[llm-history] settings read failed"); return { enabled: false }; });
     let firstTokenMs: number | null = null;
     let response = "";
+    let finishReason: string | null = null;
     const protocol = meta?.requestProtocol === "anthropic" ? "anthropic" : "openai-compatible";
     let finished = false;
     return { async observe(chunk: unknown, streaming = true) {
+            finishReason = readResponseFinishReason(chunk) ?? finishReason;
             if (streaming && firstTokenMs === null && hasInvocationToken(chunk)) firstTokenMs = Date.now() - startedAt.getTime();
             if ((await settings).enabled) response += invocationChunkText(chunk);
         }, decode: (output: unknown) => extractLlmTokenUsage(output, { protocol }),
@@ -29,6 +32,7 @@ function beginAttempt(meta: LlmUsageTrackingMeta | undefined, input: unknown, se
                 return;
             finished = true;
             const record: InvocationUsageRecord = { invocationId, ...identity, firstTokenMs, durationMs: Date.now() - startedAt.getTime(), structuredMode: meta?.structuredMode ?? null, startedAt, finishedAt: new Date(), usage, status,
+                budgetTrace: meta?.budgetTrace ?? null, finishReason,
                 provider: meta?.provider ? String(meta.provider) : null, model: meta?.model ?? null, requestProtocol: protocol,
                 runId: context?.directorNextRunId ?? null, generationJobId: context?.generationJobId ?? null,
                 workflowTaskId: context?.workflowTaskId ?? null, novelId: context?.novelId ?? meta?.promptMeta?.novelId ?? null,
@@ -36,10 +40,11 @@ function beginAttempt(meta: LlmUsageTrackingMeta | undefined, input: unknown, se
                 promptId: meta?.promptMeta?.promptId ?? null, promptVersion: meta?.promptMeta?.promptVersion ?? null };
             await notify(record);
             await new PrismaInvocationUsageRepository(prisma.llmInvocationUsageRecord).record(record).then(async () => {
-                if ((await settings).enabled) {
+                const historyEnabled = (await settings).enabled;
+                attachParse(historyEnabled);
+                if (historyEnabled) {
                     await invocationPayloadStore.save(invocationId, { messages: invocationMessages(input), response, parsed: null,
                         error: error ? error instanceof Error ? error.message : String(error) : status === "completed" ? null : "Stream did not complete" }, secrets);
-                    parseScope();
                 }
             }).catch(() => console.warn("[llm-usage] journal or payload write failed", record.invocationId));
             await runWithLlmUsageTracking(context ?? {}, () => recordTrackedLlmUsage(usage, { ...identity, invocationId, firstTokenMs, structuredMode: meta?.structuredMode, meta, status, durationMs: record.durationMs }));

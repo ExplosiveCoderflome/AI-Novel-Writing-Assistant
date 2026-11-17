@@ -4,6 +4,7 @@ import type {WorkspaceBook, WorkspaceChapter} from "./model";
 const labels: Record<string,string> = {story_macro:"故事规划",book_contract:"创作约定",world_skeleton:"世界设定",volume_beat_sheet:"本卷节奏",volume_chapter_list:"本卷章节路线",character_cast:"角色阵容",volume_strategy:"卷纲",chapter_task_sheet:"章节任务与场景",chapter_execution_contract:"正文执行计划",chapter_batch_closed:"本批次正文"};
 export interface SavedReview {
   type:string; label:string; ready:boolean; error?:string; notice?:string;
+  canRegenerate?:boolean;
   runId?:string; controlVersion?:number;
   volumeId?:string;
   plan?:VolumeChapterPlan;
@@ -46,7 +47,9 @@ export function resolveSavedReview(book:WorkspaceBook, params:URLSearchParams): 
   if (plans.length!==1) return missing();
   if (type === "chapter_task_sheet") {
     const plan=plans[0];
-    if (plan.id!==id || !hasText(plan.taskSheet) || !hasText(plan.sceneCards)) return missing();
+    if (plan.id!==id) return missing();
+    const missingFields = [!hasText(plan.taskSheet) && "章节任务", !hasText(plan.sceneCards) && "场景安排"].filter(Boolean);
+    if (missingFields.length) return {...result,canRegenerate:true,error:`第 ${from} 章缺少已保存的${missingFields.join("和")}，请在导演台处理当前阶段。`};
     return {...result,ready:true,plan};
   }
   const rows=book.executionPlans?.filter(row=>row.id===id && row.order===from) ?? [];

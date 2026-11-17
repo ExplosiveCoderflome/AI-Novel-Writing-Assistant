@@ -22,7 +22,7 @@ export async function saveChapterPlanEdit(contract: RunContract, raw: ChapterPla
   const document = JSON.parse(version.contentJson) as VolumePlanDocument;
   const matches = document.volumes?.filter(volume => volume.id === row.volumeId)
     .flatMap(volume => volume.chapters.filter(chapter => chapter.id === row.id && chapter.chapterOrder === from)) ?? [];
-  if (matches.length !== 1 || chapterPlanRevisionKey(matches[0]) !== edit.baseRevision || chapterPlanRevisionKey(row) !== edit.baseRevision) {
+  if (matches.length !== 1 || chapterPlanRevisionKey(row) !== edit.baseRevision) {
     throw new AppError("章节计划已变化，请刷新后重新编辑。", 409);
   }
   const saved = {taskSheet: edit.taskSheet, sceneCards: serializeChapterScenePlan(scenePlan), targetWordCount: edit.targetWordCount, mustAvoid: edit.mustAvoid};
