@@ -201,28 +201,130 @@ export const XgHero = () => {
     };
     window.addEventListener("keydown", h);
     let raf = 0;
-    const rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const b0 = el ? el.getBoundingClientRect().top + (window.scrollY || 0) : 0;
+    let aRaf = 0;
+    let lockEnd = 0;
+    const rm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const findSc = () => {
+      let n = el ? el.parentElement : null;
+      while (n && n !== document.body && n !== document.documentElement) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === "auto" || o === "scroll" || o === "overlay") && n.scrollHeight > n.clientHeight + 1) return n;
+        n = n.parentElement;
+      }
+      return null;
+    };
+    const sc = findSc();
+    const getY = () => (sc ? sc.scrollTop : window.scrollY || document.documentElement.scrollTop || 0);
+    const setY = (y) => { if (sc) sc.scrollTop = y; else window.scrollTo(0, y); };
+    const b0 = el ? el.getBoundingClientRect().top + getY() : 0;
     const base = Math.max(0, Math.min(160, b0));
+    if (el) el.style.setProperty("--nh", Math.round(base) + "px");
+    const secs = () => Array.from(document.querySelectorAll(".xg-hero, .xg-sec"));
     const upd = () => {
       raf = 0;
       const r = el.getBoundingClientRect();
-      const s = Math.max(0, Math.min(r.height, base - r.top));
-      el.style.setProperty("--s", s.toFixed(1));
-      el.style.setProperty("--p", (r.height ? s / r.height : 0).toFixed(3));
+      if (!rm) {
+        const s = Math.max(0, Math.min(r.height, base - r.top));
+        el.style.setProperty("--s", s.toFixed(1));
+        el.style.setProperty("--p", (r.height ? s / r.height : 0).toFixed(3));
+      }
+      const mid = base + (window.innerHeight - base) * 0.45;
+      let a = -1;
+      secs().forEach((n, i) => { const b = n.getBoundingClientRect(); if (b.top <= mid && b.bottom > mid) a = i; });
+      if (a !== actR.current) { actR.current = a; setAct(a); }
     };
     const onS = () => { if (!raf) raf = requestAnimationFrame(upd); };
-    if (el && !rm) {
+    const anim = (to) => {
+      const from = getY();
+      const d = to - from;
+      if (Math.abs(d) < 2) return false;
+      if (aRaf) cancelAnimationFrame(aRaf);
+      const tgt = sc || document.documentElement;
+      tgt.style.scrollBehavior = "auto";
+      if (rm) { setY(to); tgt.style.scrollBehavior = ""; return true; }
+      const dur = Math.min(950, 600 + Math.abs(d) * 0.15);
+      const t0 = performance.now();
+      lockEnd = t0 + dur + 150;
+      const step = (t) => {
+        const k = Math.min(1, Math.max(0, (t - t0) / dur));
+        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        setY(from + d * e);
+        if (k < 1) aRaf = requestAnimationFrame(step);
+        else { aRaf = 0; tgt.style.scrollBehavior = ""; }
+      };
+      aRaf = requestAnimationFrame(step);
+      return true;
+    };
+    const go = (dir) => {
+      const L = secs();
+      if (L.length < 2) return false;
+      const vh = window.innerHeight;
+      const R = L.map((n) => n.getBoundingClientRect());
+      const y = getY();
+      for (let i = 1; i < R.length; i++) {
+        if (dir > 0 && R[i].top > base + 6) return R[i].top <= vh + 2 ? anim(y + R[i].top - base) : false;
+        if (dir < 0 && R[i].top > base - 6) {
+          if (R[i].top >= vh - 2) return false;
+          const p = R[i - 1];
+          return anim(p.height <= vh - base + 48 ? y + p.top - base : y + R[i].top - vh);
+        }
+      }
+      return false;
+    };
+    const skip = (t, dy) => {
+      let n = t && t.nodeType === 1 ? t : t && t.parentElement;
+      if (n && n.closest && n.closest("[role=\"dialog\"]")) return true;
+      while (n && n !== document.body && n !== document.documentElement && n !== sc) {
+        const o = getComputedStyle(n).overflowY;
+        if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight + 1) {
+          if (dy > 0 ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return true;
+        }
+        n = n.parentElement;
+      }
+      return false;
+    };
+    const wide = () => window.innerWidth >= 1024;
+    const onW = (e) => {
+      if (rm || !wide() || e.ctrlKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      const now = performance.now();
+      if (now < lockEnd) { e.preventDefault(); lockEnd = Math.max(lockEnd, now + 160); return; }
+      if (Math.abs(e.deltaY) < 1 || dlgR.current || skip(e.target, e.deltaY)) return;
+      if (go(e.deltaY > 0 ? 1 : -1)) e.preventDefault();
+    };
+    const onK = (e) => {
+      if (rm || !wide() || dlgR.current || e.metaKey || e.ctrlKey || e.altKey) return;
+      const tg = e.target;
+      const tn = tg && tg.tagName;
+      if (tn === "INPUT" || tn === "TEXTAREA" || tn === "SELECT" || (tg && tg.isContentEditable)) return;
+      let dir = 0;
+      if (e.key === "PageDown" || e.key === "ArrowDown" || (e.key === " " && !e.shiftKey)) dir = 1;
+      else if (e.key === "PageUp" || e.key === "ArrowUp" || (e.key === " " && e.shiftKey)) dir = -1;
+      if (!dir || (e.key === " " && (tn === "BUTTON" || tn === "A")) || skip(tg, dir)) return;
+      if (performance.now() < lockEnd) { e.preventDefault(); return; }
+      if (go(dir)) e.preventDefault();
+    };
+    snapR.current = (i) => {
+      const L = secs();
+      return L[i] ? anim(getY() + L[i].getBoundingClientRect().top - base) : false;
+    };
+    if (el) {
       upd();
       document.addEventListener("scroll", onS, { capture: true, passive: true });
       window.addEventListener("resize", onS);
+      window.addEventListener("wheel", onW, { passive: false });
+      window.addEventListener("keydown", onK);
     }
     return () => {
       window.removeEventListener("keydown", h);
       if (io) io.disconnect();
       document.removeEventListener("scroll", onS, true);
       window.removeEventListener("resize", onS);
+      window.removeEventListener("wheel", onW);
+      window.removeEventListener("keydown", onK);
       if (raf) cancelAnimationFrame(raf);
+      if (aRaf) cancelAnimationFrame(aRaf);
+      (sc || document.documentElement).style.scrollBehavior = "";
+      snapR.current = null;
     };
   }, []);
   const QUESTS = [
@@ -415,7 +517,16 @@ export const XgHero = () => {
         @keyframes xghRing{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
         @keyframes xghFade{from{opacity:0}}
         @keyframes xghGlow{0%,100%{box-shadow:0 0 10px -2px rgba(240,201,106,.55)}50%{box-shadow:0 0 22px 2px rgba(240,201,106,.95)}}
-        @media (min-width:1280px){.xgh-mid{transform:translate3d(0,calc(var(--s,0) * .45px),0) scale(calc(1 - var(--p,0) * .1));opacity:calc(1 - var(--p,0) * 1.5)}.xgh-lc,.xgh-log{opacity:calc(1 - var(--p,0) * 2.4)}.xgh-skills{opacity:calc(1 - var(--p,0) * 1.6)}}
+        .xgh-dots{position:fixed;z-index:60;right:20px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;transition:opacity .4s}
+        .xgh-dots.off{opacity:0;pointer-events:none}
+        .xgh-dot{position:relative;display:grid;place-items:center;width:24px;height:24px;padding:0;background:none;border:0;cursor:pointer}
+        .xgh-dot i{display:block;width:7px;height:7px;border:1px solid rgba(240,201,106,.6);transform:rotate(45deg);transition:all .3s}
+        .xgh-dot span{position:absolute;right:28px;top:50%;transform:translate(6px,-50%);white-space:nowrap;font-size:12px;letter-spacing:.3em;color:var(--gl);text-shadow:0 0 8px rgba(0,0,0,.9);opacity:0;pointer-events:none;transition:all .3s}
+        .xgh-dot:hover span,.xgh-dot:focus-visible span{opacity:1;transform:translate(0,-50%)}
+        .xgh-dot:hover i{border-color:var(--gl)}
+        .xgh-dot.on i{width:10px;height:10px;background:var(--gd);border-color:var(--gl);box-shadow:0 0 10px rgba(240,201,106,.8)}
+        @media (max-width:1279px){.xgh-dots{display:none}}
+        @media (min-width:1280px){.xg-hero{min-height:max(700px,calc(100vh - var(--nh,0px)))}.xgh-mid{transform:translate3d(0,calc(var(--s,0) * .45px),0) scale(calc(1 - var(--p,0) * .1));opacity:calc(1 - var(--p,0) * 1.5)}.xgh-lc,.xgh-log{opacity:calc(1 - var(--p,0) * 2.4)}.xgh-skills{opacity:calc(1 - var(--p,0) * 1.6)}}
         @media (max-width:1279px){.xg-hero{justify-content:flex-start;padding:80px 20px 82px}.xgh-lc{order:1;position:relative;left:auto;top:auto;align-items:center;width:100%;max-width:400px;margin:36px auto 0}.xgh-quest{width:100%;max-width:340px}.xgh-skills{order:2;position:relative;left:auto;bottom:auto;transform:none;margin-top:110px}.xgh-log{order:3;position:relative;left:auto;bottom:auto;width:100%;max-width:520px;margin-top:20px}}
         @media (max-width:560px){.xg-hero{padding:70px 14px 72px}#xg-idea{margin-top:-24px;border-radius:24px 24px 0 0}.xgh-hud{align-self:stretch;max-width:380px}.xgh-info{flex:1;width:auto}.xgh-skills{gap:6px;padding:10px 10px 28px}.xgh-sk{width:54px;height:68px}.xgh-top{padding:14px 16px;letter-spacing:.15em}.xgh-top span{display:none}}
         @media (prefers-reduced-motion:reduce){.xg *,.xg *::before,.xg *::after{animation:none !important;transition:none !important}.xgh-sword,.xgh-motes{display:none}}
@@ -645,7 +756,7 @@ export const XgHero = () => {
         <div className="xgh-sub">一念入道 · 万章成书</div>
         <p className="xgh-p">飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。先在这一屏玩一局，再往下看这本书是怎样写出来的。</p>
         <div className="xgh-cta">
-          <a className="xg-btn" href="#xg-idea">踏入仙途 ↓</a>
+          <a className="xg-btn" href="#xg-idea" onClick={(e) => { if (snapR.current && snapR.current(1)) e.preventDefault(); }}>踏入仙途 ↓</a>
           <a className="xg-btn ghost" href="/quickstart">快速开始</a>
         </div>
       </div>
@@ -701,6 +812,14 @@ export const XgHero = () => {
           {(logOpen ? log : log.slice(-1)).map((l, i) => <div key={i + l} className={tone(l)}>{l}</div>)}
         </div>
       </div>
+      <nav className={"xgh-dots" + (act < 0 ? " off" : "")} aria-label="展厅分屏">
+        {SCREENS.map((s, i) => (
+          <button key={s} type="button" className={"xgh-dot" + (act === i ? " on" : "")} aria-label={"第 " + (i + 1) + " 屏 · " + s} aria-current={act === i ? "true" : undefined} onClick={() => { if (snapR.current) snapR.current(i); }}>
+            <i />
+            <span>{s}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 };
