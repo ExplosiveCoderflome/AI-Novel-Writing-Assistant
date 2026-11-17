@@ -195,7 +195,30 @@ export const XgHero = () => {
       castRef.current(i);
     };
     window.addEventListener("keydown", h);
-    return () => { window.removeEventListener("keydown", h); if (io) io.disconnect(); };
+    let raf = 0;
+    const rm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const b0 = el ? el.getBoundingClientRect().top + (window.scrollY || 0) : 0;
+    const base = Math.max(0, Math.min(160, b0));
+    const upd = () => {
+      raf = 0;
+      const r = el.getBoundingClientRect();
+      const s = Math.max(0, Math.min(r.height, base - r.top));
+      el.style.setProperty("--s", s.toFixed(1));
+      el.style.setProperty("--p", (r.height ? s / r.height : 0).toFixed(3));
+    };
+    const onS = () => { if (!raf) raf = requestAnimationFrame(upd); };
+    if (el && !rm) {
+      upd();
+      document.addEventListener("scroll", onS, { capture: true, passive: true });
+      window.addEventListener("resize", onS);
+    }
+    return () => {
+      window.removeEventListener("keydown", h);
+      if (io) io.disconnect();
+      document.removeEventListener("scroll", onS, true);
+      window.removeEventListener("resize", onS);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
   const QUESTS = [
     { k: "起念", t: route === null ? "选定开局路线" : "路线 · " + ROUTES[route].t, ok: route !== null, h: "点「开天机」，选一条开局路线。" },
@@ -242,10 +265,14 @@ export const XgHero = () => {
         @keyframes xgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
         @keyframes xgSpin{to{transform:rotate(360deg)}}
         @keyframes xgBlink{50%{opacity:0}}
-        .xg-hero{position:relative;overflow:hidden;min-height:min(100vh,940px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:150px 24px 210px;background:radial-gradient(1000px 520px at 50% 22%,rgba(127,216,255,.14),transparent 65%),linear-gradient(180deg,#040713 0%,#0a1430 45%,#14274d 75%,#0b1530 100%)}
+        .xg-hero{position:relative;overflow:hidden;min-height:min(100vh,940px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:150px 24px 240px;background:radial-gradient(1000px 520px at 50% 22%,rgba(127,216,255,.14),transparent 65%),linear-gradient(180deg,#040713 0%,#0a1430 45%,#14274d 75%,#0b1530 100%)}
         .xgh-sky,.xgh-motes{position:absolute;inset:0;pointer-events:none}
+        .xgh-sky{transform:translate3d(0,calc(var(--s,0) * .62px),0)}
+        .xg-hero::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;background:#03050d;opacity:calc(var(--p,0) * .8)}
+        #xg-idea{z-index:6;margin-top:-32px;border-radius:32px 32px 0 0;box-shadow:0 -34px 70px -12px rgba(0,0,0,.9)}
+        #xg-idea::after{content:"";position:absolute;left:50%;top:12px;width:90px;height:3px;margin-left:-45px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(240,201,106,.75),transparent)}
         .xgh-st{position:absolute;border-radius:50%;background:#fff;opacity:.7;animation:xghTw 4s ease-in-out infinite}
-        .xgh-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:80%;pointer-events:none}
+        .xgh-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:80%;overflow:visible;pointer-events:none;transform:translate3d(0,calc(var(--s,0) * .34px),0)}
         .xgh-fl{animation:xghFl 7s ease-in-out infinite}
         .xgh-fl.b{animation-duration:9s;animation-delay:-3s}
         .xgh-halo{animation:xghPulse 4s ease-in-out infinite}
@@ -383,8 +410,9 @@ export const XgHero = () => {
         @keyframes xghRing{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
         @keyframes xghFade{from{opacity:0}}
         @keyframes xghGlow{0%,100%{box-shadow:0 0 10px -2px rgba(240,201,106,.55)}50%{box-shadow:0 0 22px 2px rgba(240,201,106,.95)}}
-        @media (max-width:1279px){.xg-hero{justify-content:flex-start;padding:80px 20px 50px}.xgh-lc{order:1;position:relative;left:auto;top:auto;align-items:center;width:100%;max-width:400px;margin:36px auto 0}.xgh-quest{width:100%;max-width:340px}.xgh-skills{order:2;position:relative;left:auto;bottom:auto;transform:none;margin-top:110px}.xgh-log{order:3;position:relative;left:auto;bottom:auto;width:100%;max-width:520px;margin-top:20px}}
-        @media (max-width:560px){.xg-hero{padding:70px 14px 40px}.xgh-hud{align-self:stretch;max-width:380px}.xgh-info{flex:1;width:auto}.xgh-skills{gap:6px;padding:10px 10px 28px}.xgh-sk{width:54px;height:68px}.xgh-top{padding:14px 16px;letter-spacing:.15em}.xgh-top span{display:none}}
+        @media (min-width:1280px){.xgh-mid{transform:translate3d(0,calc(var(--s,0) * .45px),0) scale(calc(1 - var(--p,0) * .1));opacity:calc(1 - var(--p,0) * 1.5)}.xgh-lc,.xgh-log{opacity:calc(1 - var(--p,0) * 2.4)}.xgh-skills{opacity:calc(1 - var(--p,0) * 1.6)}}
+        @media (max-width:1279px){.xg-hero{justify-content:flex-start;padding:80px 20px 82px}.xgh-lc{order:1;position:relative;left:auto;top:auto;align-items:center;width:100%;max-width:400px;margin:36px auto 0}.xgh-quest{width:100%;max-width:340px}.xgh-skills{order:2;position:relative;left:auto;bottom:auto;transform:none;margin-top:110px}.xgh-log{order:3;position:relative;left:auto;bottom:auto;width:100%;max-width:520px;margin-top:20px}}
+        @media (max-width:560px){.xg-hero{padding:70px 14px 72px}#xg-idea{margin-top:-24px;border-radius:24px 24px 0 0}.xgh-hud{align-self:stretch;max-width:380px}.xgh-info{flex:1;width:auto}.xgh-skills{gap:6px;padding:10px 10px 28px}.xgh-sk{width:54px;height:68px}.xgh-top{padding:14px 16px;letter-spacing:.15em}.xgh-top span{display:none}}
         @media (prefers-reduced-motion:reduce){.xg *,.xg *::before,.xg *::after{animation:none !important;transition:none !important}.xgh-sword,.xgh-motes{display:none}}
       `}</style>
       <div className="xgh-sky" aria-hidden="true">
