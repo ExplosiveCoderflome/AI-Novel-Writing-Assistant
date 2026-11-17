@@ -66,11 +66,13 @@ export function targetVolume(context: Pick<StepContext,"contract">, workspace: V
 export function executionWindow(context: StepContext, workspace: VolumePlanDocument) {
   const range = context.contract.chapterRange;
   if (!range) throw new AppError("准备正文需要明确章节授权范围。", 400);
-  if (range.from !== range.to) throw new AppError("按大纲写作每次只确认一章，请选择当前章。", 422);
-  const matches = workspace.volumes.flatMap(volume => volume.chapters.filter(chapter => chapter.chapterOrder === range.from)
-    .map(chapter => ({volumeId: volume.id, chapterId: chapter.id})));
-  if (matches.length !== 1) throw new Error("授权起始章节缺少唯一的章节路线。");
-  return {targets: matches, executionRange: {startOrder: range.from, endOrder: range.from}};
+  if (!Number.isSafeInteger(range.from) || !Number.isSafeInteger(range.to) || range.from < 1 || range.to < range.from) throw new AppError("章节授权范围无效。", 422);
+  const matches = workspace.volumes.flatMap(volume => volume.chapters.filter(chapter => chapter.chapterOrder >= range.from && chapter.chapterOrder <= range.to)
+    .map(chapter => ({volumeId: volume.id, chapterId: chapter.id, chapterOrder: chapter.chapterOrder})));
+  const expected = range.to - range.from + 1;
+  if (matches.length !== expected || new Set(matches.map(match => match.chapterOrder)).size !== expected) throw new AppError("授权范围缺少唯一的章节路线。", 422);
+  matches.sort((a, b) => a.chapterOrder - b.chapterOrder);
+  return {targets: matches.map(({volumeId, chapterId}) => ({volumeId, chapterId})), executionRange: {startOrder: range.from, endOrder: range.to}};
 }
 
 type SavedChapterPlanFields = Pick<VolumeChapterPlan, "id" | "volumeId" | "chapterOrder" | "taskSheet" | "sceneCards" | "targetWordCount" | "mustAvoid">;
@@ -85,13 +87,25 @@ export function applySavedChapterPlanFields(workspace: VolumePlanDocument, saved
 }
 
 export async function readExecutionWindow(context: StepContext, workspace: VolumePlanDocument) {
-  const {targets: [target], executionRange} = executionWindow(context, workspace);
+  const {targets, executionRange} = executionWindow(context, workspace);
   const {novelId, launchInput} = context.contract;
-  const rows = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId, status:"active"}, chapterOrder: executionRange.startOrder}});
-  const [saved] = rows;
-  if (rows.length !== 1 || saved.id !== target.chapterId || saved.volumeId !== target.volumeId
-    || (launchInput?.targetVolumeId && saved.volumeId !== launchInput.targetVolumeId)) {
-    throw new AppError(`无法定位第 ${executionRange.startOrder} 章的已保存计划，请重新读取本书。`, 409);
+  const orders = new Map(workspace.volumes.flatMap(volume => volume.chapters.map(chapter => [chapter.id, chapter.chapterOrder] as const)));
+  const rows = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId, status:"active"}, chapterOrder: {gte: executionRange.startOrder, lte: executionRange.endOrder}}});
+  const matched = new Set<string>();
+  let hydrated = workspace;
+  for (const target of targets) {
+    const order = orders.get(target.chapterId) ?? executionRange.startOrder;
+    const candidates = rows.filter(row => row.id === target.chapterId && row.volumeId === target.volumeId);
+    const saved = candidates[0];
+    if (candidates.length !== 1 || (launchInput?.targetVolumeId && saved.volumeId !== launchInput.targetVolumeId)) {
+      throw new AppError(`无法定位第 ${order} 章的已保存计划，请重新读取本书。`, 409);
+    }
+    matched.add(saved.id);
+    hydrated = applySavedChapterPlanFields(hydrated, saved);
   }
-  return {workspace: applySavedChapterPlanFields(workspace, saved), executionRange};
+  if (matched.size !== rows.length) {
+    const extra = rows.find(row => !matched.has(row.id));
+    throw new AppError(`第 ${extra?.chapterOrder ?? executionRange.startOrder} 章的已保存计划不唯一，请重新读取本书。`, 409);
+  }
+  return {workspace: hydrated, executionRange};
 }

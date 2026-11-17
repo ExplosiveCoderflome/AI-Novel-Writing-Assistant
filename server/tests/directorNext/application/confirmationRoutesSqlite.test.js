@@ -42,15 +42,17 @@ function snapshot() {
  await prisma.chapter.createMany({data: [
   {id: 'c-first', novelId, order: 1, title: '首章', content: '保留首章正文'},
   {id: 'c/7?x=3', novelId, order: 7, title: '范围起点', content: '保留目标正文', taskSheet: '真正同步的任务', sceneCards: '真正同步的场景', targetWordCount: 2100, mustAvoid: '执行禁忌'},
+  {id: 'c-8', novelId, order: 8, title: '范围次章', content: '保留次章正文'},
   {id: 'c-other', novelId: 'other', order: 7, title: '其他书同章序', content: '其他书正文'},
  ]});
  await prisma.volumeChapterPlan.createMany({data: [
   {id: 'p-first', volumeId: 'v-first', chapterId: 'c-first', chapterOrder: 1, title: '首章', summary: '首章路线'},
   {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线', taskSheet: '上游规划任务', sceneCards: '上游规划场景'},
+  {id: 'p-8', volumeId: 'v/target?x=2', chapterId: 'c-8', chapterOrder: 8, title: '次章', summary: '次章路线', taskSheet: '上游规划任务二', sceneCards: '上游规划场景二'},
   {id: 'p-other', volumeId: 'v-other', chapterId: 'c-other', chapterOrder: 7, title: '其他书', summary: '其他书路线'},
  ]});
  const version = await prisma.volumePlanVersion.create({data:{novelId,version:1,status:'active',contentJson:JSON.stringify({volumes:[
-  {id:'v/target?x=2',sortOrder:2,title:'目标卷',chapters:[{id:'p/7?x=4',chapterOrder:7,title:'目标章',summary:'目标路线',taskSheet:'过期的任务',styleContract:'仅版本保存的写法'}]},
+  {id:'v/target?x=2',sortOrder:2,title:'目标卷',chapters:[{id:'p/7?x=4',chapterOrder:7,title:'目标章',summary:'目标路线',taskSheet:'过期的任务',styleContract:'仅版本保存的写法'},{id:'p-8',chapterOrder:8,title:'次章',summary:'次章路线',taskSheet:'过期的任务二'}]},
  ]})}});
  const planningBefore=snapshot();
  const options = createDirectorProductionOptions();
@@ -63,6 +65,12 @@ function snapshot() {
  assert.equal(prepared.taskSheet,'上游规划任务','execution sync must read the saved plan instead of a stale version or execution row');
  assert.equal(prepared.sceneCards,'上游规划场景');
  assert.equal(prepared.styleContract,'仅版本保存的写法');
+ const multi=await readExecutionWindow({contract:{...contract,chapterRange:{from:7,to:8}}}, savedPlanning);
+ const multiChapters=multi.workspace.volumes.find(v=>v.id==='v/target?x=2').chapters;
+ assert.equal(multiChapters.find(c=>c.id==='p/7?x=4').taskSheet,'上游规划任务');
+ assert.equal(multiChapters.find(c=>c.id==='p-8').taskSheet,'上游规划任务二');
+ assert.equal(multiChapters.find(c=>c.id==='p-8').sceneCards,'上游规划场景二');
+ assert.deepEqual(multi.executionRange,{startOrder:7,endOrder:8});
  assert.deepEqual(snapshot(),planningBefore);
  await runs.open(contract); await runs.transition(contract.runId, {type: 'start'}, 0);
  for (const [type, chapterId, volumeId] of [
