@@ -12,12 +12,87 @@ keywords:
 
 Below is a summary of recent desktop release updates. For the full history, visit the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) or the GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) page.
 
-<Update label="2026-11-13" description="v0.8.1">
-  Desktop v0.8.1 fixes an issue where a new book's blank placeholder volume was incorrectly treated as a user-confirmed single volume, preventing long novels from generating a multi-volume structure.
+<Update label="2026-11-16" description="v0.8.7">
+  Desktop `v0.8.7`: outline "interactive refinement" proposals with a wrong dependency, a chapter without a volume, or an accidental change to a volume's chapter list now show a readable message and are rejected instead of a generic server error, and a failed adoption leaves no partial results. Book-level plan generation always turns off deep thinking, scales its output limit with the number of candidates, retries automatically on the token limit, and offers one-click recovery on the failure card.
 
   #### Fixes
 
-  - The initial blank placeholder volume (`legacy-volume-1`, content "待补全") on a new book is no longer treated as a user-confirmed single-volume plan. Novels targeting 200 chapters can now properly suggest and generate a multi-volume structure instead of being locked to a single volume.
+  - Outline "interactive refinement" proposals: when a dependency is written as a node ID, a new chapter does not specify its volume, or a volume's chapter list is changed by mistake, you now see a readable message and the proposal is rejected instead of a generic server error. A failed adoption leaves no partial results.
+  - Book-level plan generation always turns off deep thinking, and its output limit scales with the number of candidates. A higher limit configured on the model route takes precedence.
+  - When book-level plan generation hits the output token limit, it raises the limit and retries once, capped at 32768. Other failures are not retried.
+  - When book-level plan generation fails, the failure card shows recovery buttons: turn off deep thinking and retry, or raise the output limit and retry (hidden when the limit is already at the cap). One click changes the setting and retries in place.
+</Update>
+
+<Update label="2026-11-15" description="v0.8.6">
+  Desktop `v0.8.6`: newly added providers have thinking disabled by default, compatibility probes retry automatically when rate limited, and the workbench gains a BLG championship celebration easter egg. Desktop releases now build and verify on every platform first, then upload only the installers and update metadata that passed.
+
+  #### New
+
+  - Click the brand logo five times to trigger the BLG championship celebration: a confetti and trophy overlay. Close it by clicking empty space, pressing Esc, or clicking "Continue writing".
+
+  #### Improvements
+
+  - Thinking is disabled by default for new providers: newly created custom providers and built-in providers configured for the first time start with thinking off. Settings for existing providers are unchanged.
+  - Desktop releases now package all platforms in parallel and finish verification first, then upload only the installers and release notes that passed. Update info for the two Mac architectures is merged before publishing so they no longer overwrite each other.
+
+  #### Fixes
+
+  - Compatibility probes back off and retry automatically on rate limits or server errors, with a larger probe budget, so probing can complete even during bursts of rate limiting.
+</Update>
+
+<Update label="2026-11-14" description="v0.8.5">
+  Desktop `v0.8.5` fixes the Windows release packaging and speeds up release checks: the full portable check runs once on Ubuntu and is reused, while Windows keeps migrations, the production database probe, and platform packaging acceptance. `v0.8.4` shipped Linux / macOS installers but no Windows installer; download this version for all five platforms.
+
+  #### Improvements
+
+  - Shorter desktop release waits: the full portable check runs only once on Ubuntu, and every platform's packaging reuses the same passing record.
+  - The Windows release path keeps only the necessary migration, production database probe, quality, and platform artifact checks.
+
+  #### Fixes
+
+  - The Windows installer can now complete the official packaging run.
+</Update>
+
+<Update label="2026-11-14" description="v0.8.4">
+  Desktop `v0.8.4` carries over the candidate features from the never-shipped `v0.8.2` / `v0.8.3`: outline chapter feedback, short-story manuscript revision, novel data maintenance, and writing reliability improvements. It also fixes release builds deleting the database acceptance credentials by mistake. This version shipped Linux / macOS installers, but the Windows installer was not completed; use `v0.8.5` for all five platforms.
+
+  #### Improvements
+
+  - New custom providers auto-probe compatibility by default, detecting the structured output formats and thinking toggle the model supports right after creation. Auto-probing can be turned off per provider in model settings.
+  - When thinking content exhausts the output budget, the error message points you to run a compatibility probe first.
+
+  #### Fixes
+
+  - Fixed the PostgreSQL deployment check failing to start on Windows; paths containing spaces are supported.
+  - Older Auto Director tasks show the background executor and takeover progress, and display the correct recovery state when the lease has expired.
+  - When a run pauses because the chapter budget is insufficient, the prompt links directly to adding more budget.
+  - When a model rejects strict structured output, the request automatically retries with a looser format.
+  - The structured output format selected in model routing now also applies to Auto Director calls.
+  - Updating a novel that does not exist now correctly reports that the novel does not exist.
+  - For outline-bound novels, the volume plan list opens normally even after chapters have run, and the editor no longer shows a preserved-content conflict prompt.
+  - A failed PostgreSQL release verification no longer deletes the database acceptance credentials already downloaded by the same build job, so the desktop package can finish its release checks.
+  - Auto Director's opening and chapter generation share an explicit chapter budget boundary, keeping chapter writes the user confirmed.
+
+  #### Full features and thanks
+
+  The following features originally belonged to the never-shipped `v0.8.2` / `v0.8.3` candidates and are bundled into `v0.8.4`. `v0.8.2` remains an annotated tag only; the `v0.8.3` tag was pushed but packaging failed with no installers. Neither is a released or downloadable version.
+
+  #### New
+
+  - Outline-bound novels can generate follow-up outline feedback from chapter summaries, which you review and adopt item by item. Feedback never rewrites saved prose or the original outline. This feedback entry is off by default; turn it on when needed.
+  - Novel covers can show the author's pen name. Short-story manuscripts can be imported by confirmed sections, and revisions can be previewed, adopted, or reverted while keeping the original text.
+  - After deleting a novel started from an outline, the outline project and its revisions are kept and can start a book again. The book's own generated images and related writing records are cleaned up per book.
+
+  #### Thanks
+
+  - Novel covers can show the author's pen name. Thanks to @baixiaomo for the proposal in #233
+  - Short-story manuscripts can be imported as a revision copy after confirming sections, with revisions adopted or reverted item by item. Thanks to @baixiaomo for the proposal in #230
+  - Deleting a novel cleans up its related writing records and dedicated generated images, avoiding leftover history. Thanks to @lavakein for the proposal in #168
+  - Outline-bound novels can generate follow-up outline feedback from chapter summaries for item-by-item review and adoption. Thanks to @baixiaomo for the proposal in #229
+</Update>
+
+<Update label="2026-11-14" description="v0.8.3">
+  The `v0.8.3` tag was pushed, but desktop packaging failed. There are **no** GitHub Release installers, so it is not a released version and cannot be downloaded. Its features and thanks are included in `v0.8.4` above. The annotated `v0.8.2` tag likewise has no downloadable installers.
 </Update>
 
 <Update label="2026-11-13" description="v0.8.1">

@@ -12,6 +12,19 @@
 .bn-boot {
   display: none !important;
 }
+/* 通用兜底：任何页面在正文渲染出来之前，先不显示顶栏内容，
+   不依赖 data-current-path（首屏 HTML 上可能还没有这个属性）。
+   正文一出现就恢复；万一正文迟迟不出现，2.5 秒后也会自动显示，避免顶栏永久消失 */
+html:not(:has(#content-area *, #content *, .mdx-content *, .bnh, .not-found-container)) #navbar > *,
+html:not(:has(#content-area *, #content *, .mdx-content *, .bnh, .not-found-container)) #banner {
+  opacity: 0;
+  animation: bn-nav-reveal .3s ease 2.5s forwards;
+}
+@keyframes bn-nav-reveal {
+  to {
+    opacity: 1;
+  }
+}
 html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)) #navbar > * {
   transition: opacity .4s ease;
 }
