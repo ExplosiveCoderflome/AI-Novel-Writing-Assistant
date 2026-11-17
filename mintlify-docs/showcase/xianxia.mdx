@@ -85,7 +85,12 @@ export const XgHero = () => {
   const [logOpen, setLogOpen] = useState(false);
   const [hudOpen, setHudOpen] = useState(false);
   const dRef = useRef(null);
-  useEffect(() => { if (dlg && dRef.current) dRef.current.focus(); }, [dlg]);
+  const dlgR = useRef(false);
+  const snapR = useRef(null);
+  const actR = useRef(0);
+  const [act, setAct] = useState(0);
+  const SCREENS = ["天门", "起念", "登阶", "舆图", "落笔", "祈愿", "出山"];
+  useEffect(() => { dlgR.current = dlg; if (dlg && dRef.current) dRef.current.focus(); }, [dlg]);
   const top = REALM.length - 1;
   const say = (add) => setLog((l) => l.concat(add).slice(-4));
   const banner = (t) => {
