@@ -80,6 +80,12 @@ export const XgHero = () => {
   const [line, setLine] = useState(0);
   const [draws, setDraws] = useState(0);
   const [got, setGot] = useState(false);
+  const [dlg, setDlg] = useState(false);
+  const [qOpen, setQOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [hudOpen, setHudOpen] = useState(false);
+  const dRef = useRef(null);
+  useEffect(() => { if (dlg && dRef.current) dRef.current.focus(); }, [dlg]);
   const top = REALM.length - 1;
   const say = (add) => setLog((l) => l.concat(add).slice(-4));
   const banner = (t) => {
@@ -157,6 +163,7 @@ export const XgHero = () => {
   const pickRoute = (i) => {
     const R = ROUTES[i];
     setRoute(i);
+    setDlg(false);
     say(["【主线】选定路线 " + R.r + " · " + R.t + "：主推进 " + R.m + "，辅助 " + R.s + "。"]);
     pop("开局 · " + R.t, "gold", 50);
   };
@@ -167,7 +174,7 @@ export const XgHero = () => {
   };
   const reset = () => {
     setLv(0); setEx(0); setFx([]); setBrk(null); setLog(LOG0); setRoute(null);
-    setEye(false); setEyeUsed(false); setLine(0); setDraws(0); setGot(false);
+    setEye(false); setEyeUsed(false); setLine(0); setDraws(0); setGot(false); setDlg(false); setQOpen(false);
   };
   useEffect(() => {
     const el = rootRef.current;
@@ -179,6 +186,7 @@ export const XgHero = () => {
       vis.current = true;
     }
     const h = (e) => {
+      if (e.key === "Escape") { setDlg(false); return; }
       if (!vis.current || e.metaKey || e.ctrlKey || e.altKey || !e.key || e.key.length !== 1) return;
       const tg = e.target;
       if (tg && (tg.tagName === "INPUT" || tg.tagName === "TEXTAREA" || tg.isContentEditable)) return;
@@ -190,7 +198,7 @@ export const XgHero = () => {
     return () => { window.removeEventListener("keydown", h); if (io) io.disconnect(); };
   }, []);
   const QUESTS = [
-    { k: "起念", t: route === null ? "选定开局路线" : "路线 · " + ROUTES[route].t, ok: route !== null, h: "在右下角「天机」对话里，选一条开局路线。" },
+    { k: "起念", t: route === null ? "选定开局路线" : "路线 · " + ROUTES[route].t, ok: route !== null, h: "点「开天机」，选一条开局路线。" },
     { k: "登阶", t: "登上天门", ok: lv >= top, h: "施放任意技能攒修为，每突破一次境界，就往上登一段天梯。" },
     { k: "舆图", t: "开天眼，找到暗梯", ok: eyeUsed, h: "按 4 · 天眼，看看天梯山上没画出来的路。" },
     { k: "落笔", t: "写完第三章 " + Math.min(line, LINES.length) + "/" + LINES.length, ok: line >= LINES.length, h: "按 3 · 落笔，一句一句写出「雷劫券」。" },
@@ -237,7 +245,6 @@ export const XgHero = () => {
         .xg-hero{position:relative;overflow:hidden;min-height:min(100vh,940px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:150px 24px 210px;background:radial-gradient(1000px 520px at 50% 22%,rgba(127,216,255,.14),transparent 65%),linear-gradient(180deg,#040713 0%,#0a1430 45%,#14274d 75%,#0b1530 100%)}
         .xgh-sky,.xgh-motes{position:absolute;inset:0;pointer-events:none}
         .xgh-st{position:absolute;border-radius:50%;background:#fff;opacity:.7;animation:xghTw 4s ease-in-out infinite}
-        .xgh-moon{position:absolute;left:28%;top:15%;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 40% 38%,#fffbe8,#f6dd9a 55%,#d9a648);box-shadow:0 0 50px 10px rgba(246,221,154,.3),0 0 140px 40px rgba(246,221,154,.1)}
         .xgh-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:80%;pointer-events:none}
         .xgh-fl{animation:xghFl 7s ease-in-out infinite}
         .xgh-fl.b{animation-duration:9s;animation-delay:-3s}
@@ -250,13 +257,22 @@ export const XgHero = () => {
         .xgh-back{color:var(--gl);text-decoration:none;letter-spacing:.2em}
         .xgh-back:hover{color:#fff}
         .xgh-back:focus-visible{outline:2px solid var(--jd);outline-offset:3px}
-        .xgh-hud{position:absolute;z-index:3;left:26px;top:66px;display:flex;gap:14px;align-items:center;padding:10px 16px 12px 10px;background:linear-gradient(90deg,rgba(9,15,30,.88),rgba(9,15,30,.45));border:1px solid rgba(240,201,106,.3);border-radius:44px 6px 6px 44px}
+        .xgh-lc{position:absolute;z-index:3;left:26px;top:66px;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+        .xgh-tg{flex:none;margin-left:auto;padding:1px 7px;font:inherit;font-size:11px;font-weight:400;line-height:1.5;letter-spacing:.1em;cursor:pointer;color:var(--gl);background:rgba(240,201,106,.08);border:1px solid rgba(240,201,106,.4);border-radius:2px;transition:background .2s,border-color .2s}
+        .xgh-tg:hover{background:rgba(240,201,106,.2);border-color:var(--gd)}
+        .xgh-tg:focus-visible,.xgh-act:focus-visible,.xgh-x:focus-visible{outline:2px solid var(--jd);outline-offset:2px}
+        .xgh-act{display:block;width:100%;margin-top:10px;padding:8px 10px;font:inherit;font-size:13px;letter-spacing:.18em;cursor:pointer;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 50%,#c08a2a);border:1px solid #fff1c2;box-shadow:0 0 14px -2px rgba(240,201,106,.7);animation:xghGlow 2s ease-in-out infinite}
+        .xgh-act.ghost{color:var(--gl);background:rgba(240,201,106,.08);border-color:rgba(240,201,106,.45);box-shadow:none;animation:none}
+        .xgh-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,6,16,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:xghFade .25s ease-out both}
+        .xgh-x{position:absolute;right:6px;top:4px;z-index:1;width:30px;height:30px;padding:0;font:inherit;font-size:20px;line-height:1;cursor:pointer;color:var(--mu);background:none;border:0}
+        .xgh-x:hover{color:#fff}
+        .xgh-hud{position:relative;display:flex;gap:14px;align-items:center;padding:10px 16px 12px 10px;background:linear-gradient(90deg,rgba(9,15,30,.88),rgba(9,15,30,.45));border:1px solid rgba(240,201,106,.3);border-radius:44px 6px 6px 44px}
         .xgh-ava{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 40% 35%,#26457a,#0b1630);box-shadow:0 0 0 2px #f0c96a,0 0 0 4px rgba(9,15,30,.9),0 0 0 5px rgba(240,201,106,.5),0 0 20px rgba(240,201,106,.35)}
         .xgh-ava b{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;font-weight:400;color:var(--gl)}
         .xgh-ava em{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);padding:1px 7px;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.05em;white-space:nowrap;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a);border-radius:2px}
         .xgh-info{width:214px}
-        .xgh-nm{font-size:16px;font-weight:700;letter-spacing:.12em;color:#fff}
-        .xgh-nm small{margin-left:6px;font-size:11.5px;font-weight:400;letter-spacing:.1em;color:var(--mu)}
+        .xgh-nm{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:700;letter-spacing:.12em;color:#fff}
+        .xgh-nm small{font-size:11.5px;font-weight:400;letter-spacing:.1em;color:var(--mu)}
         .xgh-realm{margin:2px 0 6px;font-size:12px;letter-spacing:.2em;color:var(--jd)}
         .xgh-bar{position:relative;height:14px;margin-top:4px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);overflow:hidden}
         .xgh-bar i{position:absolute;left:0;top:0;bottom:0;transition:width .6s cubic-bezier(.2,.8,.2,1)}
@@ -275,11 +291,10 @@ export const XgHero = () => {
         .xgh-tr i.cur::before{background:var(--gl);border-color:#fff;box-shadow:0 0 8px var(--gd)}
         .xgh-tr span{margin-left:6px;letter-spacing:.06em;white-space:nowrap}
         .xgh-tr em{margin-left:6px;padding:2px 5px;font-style:normal;font-size:10px;color:#e3d0ff;border:1px solid rgba(185,140,255,.6)}
-        .xgh-side{position:absolute;z-index:3;right:26px;top:66px;width:236px}
-        .xgh-quest{position:relative;width:100%;padding:12px 16px 12px 18px;text-align:left;background:linear-gradient(270deg,rgba(6,11,24,.88),rgba(6,11,24,.62) 70%,rgba(6,11,24,.15));border-right:2px solid var(--gd)}
-        .xgh-quest::before{content:"";position:absolute;right:-6px;top:-5px;width:10px;height:10px;transform:rotate(45deg);background:var(--gd);box-shadow:0 0 10px var(--gd)}
-        .xgh-qh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;padding-bottom:6px;font-size:13px;letter-spacing:.3em;color:var(--gd);border-bottom:1px solid rgba(240,201,106,.22)}
-        .xgh-dlg{position:absolute;z-index:4;right:26px;bottom:26px;width:300px;padding:24px 16px 14px;text-align:left;background:linear-gradient(180deg,rgba(16,28,54,.95),rgba(6,11,24,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
+        .xgh-quest{position:relative;width:268px;padding:12px 14px 12px 16px;text-align:left;background:linear-gradient(90deg,rgba(6,11,24,.88),rgba(6,11,24,.62) 70%,rgba(6,11,24,.2));border-left:2px solid var(--gd)}
+        .xgh-quest::before{content:"";position:absolute;left:-6px;top:-5px;width:10px;height:10px;transform:rotate(45deg);background:var(--gd);box-shadow:0 0 10px var(--gd)}
+        .xgh-qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;font-size:13px;letter-spacing:.3em;color:var(--gd);border-bottom:1px solid rgba(240,201,106,.22)}
+        .xgh-dlg{position:relative;width:100%;max-width:400px;padding:28px 18px 16px;text-align:left;background:linear-gradient(180deg,rgba(16,28,54,.95),rgba(6,11,24,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
         .xgh-dh{position:absolute;left:14px;top:-12px;z-index:1;padding:3px 14px;font-size:12px;letter-spacing:.3em;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 55%,#c08a2a);box-shadow:0 0 12px rgba(240,201,106,.45)}
         .xgh-dq{margin:0 0 8px;font-size:12px;letter-spacing:.15em;color:var(--jd)}
         .xgh-qh em{font-style:normal;font-size:11.5px;letter-spacing:.1em;color:var(--mu)}
@@ -331,12 +346,14 @@ export const XgHero = () => {
         .xgh-fx span.gold{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;color:#fff6d8;text-shadow:0 0 16px #f0c96a,0 2px 0 #3a2506}
         .xgh-fx span.vi{color:#e3d0ff;text-shadow:0 0 10px #b98cff,0 2px 0 #1e0b3a}
         .xgh-brk{position:absolute;z-index:6;left:50%;bottom:calc(100% + 80px);transform:translateX(-50%);padding:14px 52px;white-space:nowrap;font-family:"STKaiti","KaiTi",serif;font-size:clamp(26px,4vw,40px);letter-spacing:.3em;color:#fff6d8;text-shadow:0 0 18px #f0c96a;background:linear-gradient(90deg,transparent,rgba(9,15,30,.88) 20%,rgba(9,15,30,.88) 80%,transparent);border-top:1px solid rgba(240,201,106,.6);border-bottom:1px solid rgba(240,201,106,.6);pointer-events:none;animation:xghBrk 2.4s ease-out forwards}
-        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:340px;padding:10px 12px;font-size:12px;line-height:1.6;color:rgba(232,237,246,.85);background:rgba(4,8,18,.66);border:1px solid rgba(255,255,255,.08);border-radius:3px}
-        .xgh-log div{padding:1px 0;animation:xgIn .35s both}
-        .xgh-log div.g{color:var(--gl)}
-        .xgh-log div.c{color:#fff;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:13px}
-        .xgh-log div.v{color:#d6b8ff}
-        .xgh-log div.r{color:#ff9d84}
+        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:320px;padding:7px 10px;font-size:12px;line-height:1.6;text-align:left;color:rgba(232,237,246,.85);background:rgba(4,8,18,.66);border:1px solid rgba(255,255,255,.08);border-radius:3px}
+        .xgh-log .xgh-tg{float:right;margin:1px 0 0 8px}
+        .xgh-lg div{padding:1px 0;animation:xgIn .35s both}
+        .xgh-log:not(.open) .xgh-lg div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .xgh-lg div.g{color:var(--gl)}
+        .xgh-lg div.c{color:#fff;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:13px}
+        .xgh-lg div.v{color:#d6b8ff}
+        .xgh-lg div.r{color:#ff9d84}
         .xgh-skills{position:absolute;z-index:4;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;padding:12px 16px 30px;background:linear-gradient(180deg,rgba(9,15,30,.6),rgba(9,15,30,.92));border:1px solid rgba(240,201,106,.3);border-radius:6px}
         .xgh-sk{position:relative;width:66px;height:78px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;cursor:pointer;font:inherit;color:var(--gl);background:radial-gradient(circle at 50% 30%,#2b4b80,#0c1730);border:1px solid rgba(240,201,106,.55);border-radius:6px;box-shadow:inset 0 0 12px rgba(0,0,0,.6);transition:transform .15s,box-shadow .25s}
         .xgh-sk:hover{transform:translateY(-2px);box-shadow:inset 0 0 12px rgba(0,0,0,.6),0 0 16px rgba(240,201,106,.55)}
@@ -364,13 +381,14 @@ export const XgHero = () => {
         @keyframes xghCrane{from{transform:translate(-60px,8px)}to{transform:translate(60px,-8px)}}
         @keyframes xghFlap{to{transform:scaleY(.3)}}
         @keyframes xghRing{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.4);opacity:0}}
-        @media (max-width:1279px){.xg-hero{justify-content:flex-start;padding:80px 20px 50px}.xgh-hud{position:relative;left:auto;top:auto;margin:0 auto 36px}.xgh-skills{position:relative;left:auto;bottom:auto;transform:none;margin-top:110px}.xgh-dlg{position:relative;right:auto;bottom:auto;width:100%;max-width:420px;margin-top:40px}.xgh-side{position:relative;right:auto;top:auto;width:100%;max-width:420px;margin-top:28px}.xgh-log{position:relative;left:auto;bottom:auto;width:100%;max-width:620px;margin-top:20px}}
+        @keyframes xghFade{from{opacity:0}}
+        @keyframes xghGlow{0%,100%{box-shadow:0 0 10px -2px rgba(240,201,106,.55)}50%{box-shadow:0 0 22px 2px rgba(240,201,106,.95)}}
+        @media (max-width:1279px){.xg-hero{justify-content:flex-start;padding:80px 20px 50px}.xgh-lc{order:1;position:relative;left:auto;top:auto;align-items:center;width:100%;max-width:400px;margin:36px auto 0}.xgh-quest{width:100%;max-width:340px}.xgh-skills{order:2;position:relative;left:auto;bottom:auto;transform:none;margin-top:110px}.xgh-log{order:3;position:relative;left:auto;bottom:auto;width:100%;max-width:520px;margin-top:20px}}
         @media (max-width:560px){.xg-hero{padding:70px 14px 40px}.xgh-hud{align-self:stretch;max-width:380px}.xgh-info{flex:1;width:auto}.xgh-skills{gap:6px;padding:10px 10px 28px}.xgh-sk{width:54px;height:68px}.xgh-top{padding:14px 16px;letter-spacing:.15em}.xgh-top span{display:none}}
         @media (prefers-reduced-motion:reduce){.xg *,.xg *::before,.xg *::after{animation:none !important;transition:none !important}.xgh-sword,.xgh-motes{display:none}}
       `}</style>
       <div className="xgh-sky" aria-hidden="true">
         {STARS.map((s, i) => <i key={i} className="xgh-st" style={{ left: s[0] + "%", top: s[1] + "%", width: s[2] + "px", height: s[2] + "px", animationDelay: s[3] + "s" }} />)}
-        <i className="xgh-moon" />
       </div>
       <svg className={"xgh-mt" + (eye ? " eye" : "")} viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
         <defs>
@@ -416,8 +434,10 @@ export const XgHero = () => {
             <circle r="130" fill="none" stroke="#5fe3c8" strokeOpacity=".32" strokeDasharray="34 12 4 12" />
           </g>
         </g>
-        {PILS.map((p, i) => <path key={i} d={pil(p[0], p[1], p[2])} fill="url(#xghPil)" stroke="#7fd8ff" strokeOpacity=".18" strokeWidth="1" />)}
-        {PILS.map((p, i) => <use key={"p" + i} href="#xghPine" transform={"translate(" + p[0] + " " + (p[2] + 4) + ") scale(" + p[1] / 60 + ")"} />)}
+        <g opacity=".72">
+          {PILS.map((p, i) => <path key={i} d={pil(p[0], p[1], p[2])} fill="url(#xghPil)" stroke="#7fd8ff" strokeOpacity=".18" strokeWidth="1" />)}
+          {PILS.map((p, i) => <use key={"p" + i} href="#xghPine" transform={"translate(" + p[0] + " " + (p[2] + 4) + ") scale(" + p[1] / 60 + ")"} />)}
+        </g>
         <g className="xgh-cl b" filter="url(#xghBl)" opacity=".5">
           <ellipse cx="300" cy="420" rx="300" ry="26" fill="#9fb8e8" />
           <ellipse cx="820" cy="390" rx="260" ry="22" fill="#9fb8e8" />
@@ -500,12 +520,6 @@ export const XgHero = () => {
             <use href="#xghPine" transform="translate(20 -7)" />
           </g>
         </g>
-        <g transform="translate(1352 196) scale(.36)">
-          <g className="xgh-fl">
-            <use href="#xghIsle" />
-            <use href="#xghPine" transform="translate(-10 -7) scale(1.4)" />
-          </g>
-        </g>
         <g transform="translate(1050 34)">
           <g className="xgh-crane">
             {CRANES.map((c, i) => (
@@ -528,8 +542,6 @@ export const XgHero = () => {
           <use href="#xghPad" transform="translate(16 -92) scale(1.1)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
           <use href="#xghPad" transform="translate(48 -98) scale(.7)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
         </g>
-        <use href="#xghYun" transform="translate(560 476) scale(1.1)" />
-        <use href="#xghYun" transform="translate(860 528) scale(.8)" />
         <g className="xgh-cl" filter="url(#xghBl)">
           <ellipse cx="400" cy="566" rx="320" ry="40" fill="#9fb8e8" opacity=".45" />
           <ellipse cx="1200" cy="574" rx="360" ry="44" fill="#9fb8e8" opacity=".45" />
@@ -560,32 +572,48 @@ export const XgHero = () => {
       <i className="xgh-sword" aria-hidden="true" />
       <div className="xgh-top">
         <a className="xgh-back" href="/">← 返回首页</a>
-        <span>题材展厅 · 壹　仙侠修真</span>
       </div>
-      <div className="xgh-hud" aria-label={"角色：林砚，凡人掌柜，境界 " + REALM[lv]}>
-        <div className="xgh-ava"><b>砚</b><em>Lv.{lv}</em></div>
-        <div className="xgh-info">
-          <div className="xgh-nm">林砚<small>凡人掌柜</small></div>
-          <div className="xgh-realm">境界 · {REALM[lv]}　天梯 · {STAIR[lv]}</div>
-          <div className="xgh-bar hp"><i style={{ width: "100%" }} /><span>气血 100/100</span></div>
-          <div className="xgh-bar mp"><i style={{ width: mp + "%" }} /><span>{lv === 0 ? "灵力 0 · 无灵根" : "灵力 " + lv * 120 + "/" + top * 120 + " · 房钱抵来的"}</span></div>
-          <div className="xgh-bar ex"><i style={{ width: ex + "%" }} /><span>{lv === top && ex >= 100 ? "修为圆满 · 只等天门开" : "修为 " + ex + "%"}</span></div>
-          <div className="xgh-tr">
-            {STAIR.map((s, i) => <i key={s} className={i < lv ? "ok" : i === lv ? "cur" : ""} />)}
-            <span>{lv < top ? "排队 " + QUEUE[lv] : "天门维修中"}</span>
-            {eye && <em>暗梯</em>}
+      <div className="xgh-lc">
+        <div className="xgh-hud" aria-label={"角色：林砚，凡人掌柜，境界 " + REALM[lv]}>
+          <div className="xgh-ava"><b>砚</b><em>Lv.{lv}</em></div>
+          <div className="xgh-info">
+            <div className="xgh-nm">林砚<small>凡人掌柜</small><button type="button" className="xgh-tg" aria-expanded={hudOpen} onClick={() => setHudOpen(!hudOpen)}>{hudOpen ? "收起" : "属性"}</button></div>
+            <div className="xgh-realm">境界 · {REALM[lv]}　天梯 · {STAIR[lv]}</div>
+            {hudOpen && <div className="xgh-bar hp"><i style={{ width: "100%" }} /><span>气血 100/100</span></div>}
+            {hudOpen && <div className="xgh-bar mp"><i style={{ width: mp + "%" }} /><span>{lv === 0 ? "灵力 0 · 无灵根" : "灵力 " + lv * 120 + "/" + top * 120 + " · 房钱抵来的"}</span></div>}
+            <div className="xgh-bar ex"><i style={{ width: ex + "%" }} /><span>{lv === top && ex >= 100 ? "修为圆满 · 只等天门开" : "修为 " + ex + "%"}</span></div>
+            <div className="xgh-tr">
+              {STAIR.map((s, i) => <i key={s} className={i < lv ? "ok" : i === lv ? "cur" : ""} />)}
+              <span>{lv < top ? "排队 " + QUEUE[lv] : "天门维修中"}</span>
+              {eye && <em>暗梯</em>}
+            </div>
           </div>
+        </div>
+        <div className="xgh-quest">
+          <div className="xgh-qh">主线任务<em>{nDone}/6</em><button type="button" className="xgh-tg" aria-expanded={qOpen} onClick={() => setQOpen(!qOpen)}>{qOpen ? "收起 ▴" : "全部 ▾"}</button></div>
+          {qOpen ? QUESTS.map((q, i) => (
+            <div key={q.k} className={"xgh-q" + (q.ok ? " ok" : i === curQ ? " cur" : "")}><i>{q.ok ? "✓" : ""}</i><b>{q.k}</b>{q.t}</div>
+          )) : curQ >= 0 ? (
+            <div className="xgh-q cur"><i></i><b>{QUESTS[curQ].k}</b>{QUESTS[curQ].t}</div>
+          ) : null}
+          {(qOpen || curQ < 0) && <div className={"xgh-q" + (got ? " ok" : curQ < 0 ? " cur" : "")}><i>{got ? "✓" : ""}</i><b>出山</b>{got ? "已获得【万章成书】" : "领取通关奖励"}</div>}
+          {route === null ? (
+            <button type="button" className="xgh-act" onClick={() => setDlg(true)}>开天机 · 选一条开局路线</button>
+          ) : curQ >= 0 ? (
+            <div className="xgh-qn" aria-live="polite">{QUESTS[curQ].h}</div>
+          ) : (
+            <button type="button" className={"xgh-act" + (got ? " ghost" : "")} onClick={() => setDlg(true)}>{got ? "查看法宝" : "出山 · 领取通关奖励"}</button>
+          )}
         </div>
       </div>
       <div className="xgh-mid">
         <div className="xgh-tag">题材展厅 · 壹</div>
         <h1 className="xgh-title">仙侠修真</h1>
         <div className="xgh-sub">一念入道 · 万章成书</div>
-        <p className="xgh-p">飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。先在这一屏玩一局：选路线、攒修为登天梯、开天眼、落笔写章、祈愿脑洞；再往下，逐段看 Biz Novel Studio 怎样把一句灵感写成书。</p>
+        <p className="xgh-p">飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。先在这一屏玩一局，再往下看这本书是怎样写出来的。</p>
         <div className="xgh-cta">
           <a className="xg-btn" href="#xg-idea">踏入仙途 ↓</a>
           <a className="xg-btn ghost" href="/quickstart">快速开始</a>
-          <a className="xg-btn ghost" href="/features/genre-library">题材基础库</a>
         </div>
       </div>
       <div className="xgh-skills" role="group" aria-label="技能栏">
@@ -603,46 +631,42 @@ export const XgHero = () => {
         ))}
         <div className="xgh-skh">数字键 1~5 或点击施放</div>
       </div>
-      {(route === null || curQ < 0) && (
-        <div className="xg-pan xgh-dlg" aria-live="polite">
-          <span className="xgh-dh">{route === null ? "天机 · 起念" : "天机 · 出山"}</span>
-          {route === null ? (
-            <div>
-              <p className="xgh-idea">“{IDEA}”</p>
-              <p className="xgh-dq">这本书，从哪条路开？</p>
-              <div className="xgh-rt">
-                {ROUTES.map((r, i) => (
-                  <button type="button" key={r.r} onClick={() => pickRoute(i)}><span>{r.r} · {r.t}</span><em>{r.m}</em></button>
-                ))}
+      {dlg && (
+        <div className="xgh-ov" onClick={(e) => { if (e.target === e.currentTarget) setDlg(false); }}>
+          <div className="xg-pan xgh-dlg" role="dialog" aria-modal="true" aria-label={route === null ? "天机 · 起念" : "天机 · 出山"}>
+            <span className="xgh-dh">{route === null ? "天机 · 起念" : "天机 · 出山"}</span>
+            <button type="button" className="xgh-x" ref={dRef} aria-label="关闭" onClick={() => setDlg(false)}>×</button>
+            {route === null ? (
+              <div>
+                <p className="xgh-idea">“{IDEA}”</p>
+                <p className="xgh-dq">这本书，从哪条路开？</p>
+                <div className="xgh-rt">
+                  {ROUTES.map((r, i) => (
+                    <button type="button" key={r.r} onClick={() => pickRoute(i)}><span>{r.r} · {r.t}</span><em>{r.m}</em></button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : !got ? (
-            <div>
-              <p className="xgh-idea">天门没开，书却写成了。五道主线已全部完成。</p>
-              <button type="button" className="xgh-chest" onClick={claim}>领取通关奖励</button>
-            </div>
-          ) : (
-            <div className="xgh-loot">
-              <em>法宝</em>
-              <b>万章成书</b>
-              <a href="/quickstart">去开一本真书 →</a>
-              <button type="button" className="xgh-again" onClick={reset}>重开一局</button>
-            </div>
-          )}
+            ) : !got ? (
+              <div>
+                <p className="xgh-idea">天门没开，书却写成了。五道主线已全部完成。</p>
+                <button type="button" className="xgh-chest" onClick={claim}>领取通关奖励</button>
+              </div>
+            ) : (
+              <div className="xgh-loot">
+                <em>法宝</em>
+                <b>万章成书</b>
+                <a href="/quickstart">去开一本真书 →</a>
+                <button type="button" className="xgh-again" onClick={reset}>重开一局</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
-      <div className="xgh-side">
-        <div className="xgh-quest">
-          <div className="xgh-qh">主线任务<em>{nDone}/6</em></div>
-          {QUESTS.map((q, i) => (
-            <div key={q.k} className={"xgh-q" + (q.ok ? " ok" : i === curQ ? " cur" : "")}><i>{q.ok ? "✓" : ""}</i><b>{q.k}</b>{q.t}</div>
-          ))}
-          <div className={"xgh-q" + (got ? " ok" : curQ < 0 ? " cur" : "")}><i>{got ? "✓" : ""}</i><b>出山</b>领取通关奖励</div>
-          {curQ >= 0 && <div className="xgh-qn" aria-live="polite">{QUESTS[curQ].h}</div>}
+      <div className={"xgh-log" + (logOpen ? " open" : "")}>
+        <button type="button" className="xgh-tg" aria-expanded={logOpen} onClick={() => setLogOpen(!logOpen)}>{logOpen ? "收起 ▾" : "传音 ▴"}</button>
+        <div className="xgh-lg" role="log" aria-live="polite">
+          {(logOpen ? log : log.slice(-1)).map((l, i) => <div key={i + l} className={tone(l)}>{l}</div>)}
         </div>
-      </div>
-      <div className="xgh-log" role="log" aria-live="polite">
-        {log.map((l, i) => <div key={i + l} className={tone(l)}>{l}</div>)}
       </div>
     </div>
   );
