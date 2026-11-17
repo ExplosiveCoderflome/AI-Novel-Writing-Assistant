@@ -154,6 +154,22 @@ test('a saved task limit is applied to each new chapter and survives restart',()
  assert.equal(observeChapterUsage(restored,'c2',350000).exceeded,true);
 });
 
+test('legacy chapter accounting persists the single automatic increase and leaves older snapshots at 100K',()=>{
+ const {beginChapterUsage,pauseChapterBudget}=require('../../../dist/services/novel/production/usage');
+ const snapshot={runId:'automatic',decisions:[],chapterTokenLimit:200000,chapterBudgetAutomatic:true};
+ beginChapterUsage(snapshot,'chapter',1,0);
+ const row=snapshot.chapterUsage[0];
+ row.totalTokens=199000;
+ assert.equal(pauseChapterBudget(row,10000,'review',true),false);
+ assert.equal(row.tokenLimit,225000);
+ assert.equal(row.automaticTopUpTokens,25000);
+ const restored=parsePipelineDirectorSnapshot(JSON.parse(JSON.stringify(snapshot)));
+ assert.equal(pauseChapterBudget(restored.chapterUsage[0],30000,'repair',true),true);
+ const legacy={runId:'legacy',decisions:[]};
+ beginChapterUsage(legacy,'old',1,0);
+ assert.equal(legacy.chapterUsage[0].tokenLimit,100000);
+});
+
 test('extending the remaining task keeps completed chapters and applies to future checkpoints',()=>{
  const {authorizeChapterBudget,beginChapterUsage}=require('../../../dist/services/novel/production/usage');
  const snapshot={runId:'custom-run',chapterTokenLimit:100000,

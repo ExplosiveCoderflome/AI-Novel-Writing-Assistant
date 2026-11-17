@@ -9,6 +9,7 @@ export function builtinCapability(input: ModelIdentity): ModelCapabilityProfile 
   let structuredModes: StructuredMode[] = ["prompt_only"];
   let control: ModelCapabilityProfile["thinkingToggle"]["control"] = "none";
   let effort = false;
+  let reasoningRequired = false;
   let reasoningField: ModelCapabilityProfile["reasoningField"] = "reasoning_content";
   if (input.provider === "ollama") { family = "ollama"; control = "reasoning_effort"; }
   else if (input.provider === "deepseek" && direct("deepseek", /(?:^|\.)api\.deepseek\.com$/)) {
@@ -25,6 +26,7 @@ export function builtinCapability(input: ModelIdentity): ModelCapabilityProfile 
     if (direct("qwen", /dashscope\.aliyuncs\.com$/) && !model.includes("thinking")) structuredModes = ["json_object", "tool_calling", "prompt_only"];
     if ((direct("qwen", /dashscope\.aliyuncs\.com$/) || /modelscope\.cn$/.test(host))
       && /^qwen(?:3|-(?:plus|flash|turbo))/.test(model) && !model.includes("thinking")) control = "enable_thinking";
+    reasoningRequired = /(?:^|[-_])thinking(?:$|[-_])/.test(model);
   } else if (input.provider === "kimi" || /moonshot\.(?:cn|ai)$/.test(host) || /^(?:kimi|moonshot)/.test(model)) {
     family = "kimi";
     if (!model.includes("thinking")) structuredModes = ["json_object", "tool_calling", "prompt_only"];
@@ -35,6 +37,7 @@ export function builtinCapability(input: ModelIdentity): ModelCapabilityProfile 
     family = "anthropic"; reasoningField = "reasoning";
   } else if (direct("gemini", /generativelanguage\.googleapis\.com$/)) {
     family = "gemini"; structuredModes = ["json_schema", "json_object", "tool_calling", "prompt_only"];
+    reasoningRequired = /^gemini-(?:[34](?:[.-]|$)|2\.5-pro(?:[.-]|$))/.test(model);
   } else if (/xf-yun\.com$/.test(host) || /^(?:spark|xfyun)/.test(model) || /^(?:spark|xfyun)$/.test(input.provider)) {
     family = "spark"; // MaaS spark-x2.6 rejects response_format at the transport layer.
   } else if (input.provider === "minimax" || /minimax(?:i)?\.(?:io|com)$/.test(host) || /^minimax-m2(?:[.-]|$)/.test(model)) {
@@ -42,5 +45,6 @@ export function builtinCapability(input: ModelIdentity): ModelCapabilityProfile 
   } else if (input.provider === "grok" || /api\.x\.ai$/.test(host)) {
     family = "grok"; structuredModes = ["json_object", "tool_calling", "prompt_only"];
   }
-  return { family, structuredModes, failedModes: [], thinkingToggle: { supported: control !== "none", control, effort }, reasoningField, source: "builtin_default", updatedAt: "1970-01-01T00:00:00.000Z" };
+  return { family, structuredModes, failedModes: [], thinkingToggle: { supported: control !== "none", control, effort },
+    reasoningField, ...(reasoningRequired ? {reasoningRequired} : {}), source: "builtin_default", updatedAt: "1970-01-01T00:00:00.000Z" };
 }

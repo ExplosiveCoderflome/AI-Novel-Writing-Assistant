@@ -38,6 +38,27 @@ test('native request fences reject a changed durable unit claim before another p
  assert.equal((await f.api.createKernelChapterBudget(f.db,f.context).read(unit)).used,0);
 });
 
+test('missing captured budget pauses the chapter batch with its target and sends nothing',async t=>{
+ const f=await setup(t),factory=require('../../dist/llm/factory');
+ const {MissingTaskOutputBudgetError}=require('../../dist/platform/llm/execution');
+ const windows=process.env.PRODUCTION_KERNEL_MODEL_WINDOWS;
+ process.env.PRODUCTION_KERNEL_MODEL_WINDOWS=JSON.stringify([{provider:'test',model:'test',contextWindow:200000}]);
+ factory.setProviderSecretCache('test',{key:'local-fixture',model:'test',baseURL:'https://never-dispatched.invalid'});
+ t.after(()=>{
+  if(windows===undefined)delete process.env.PRODUCTION_KERNEL_MODEL_WINDOWS;
+  else process.env.PRODUCTION_KERNEL_MODEL_WINDOWS=windows;
+  factory.setProviderSecretCache('test',null);
+ });
+ const owner=f.api.productionBatchOwnerKey(f.contract.runId);
+ const step=f.api.createKernelProductionStep({db:f.db,enabled:()=>true,
+  legacy:async()=>{throw Error('unexpected legacy');},
+  runtime:async()=>{throw new MissingTaskOutputBudgetError('test','test','review');}});
+ const result=await step(f.context);
+ assert.equal(result.stopSignal?.action,'pause_for_manual');
+ assert.match(result.stopSignal.reason,/test\/test.*review.*重新准备/);
+ assert.equal(await f.db.productionUnitRun.count({where:{ownerKey:owner}}),0);
+});
+
 test('native composition retains the captured contract and worker when its caller object changes',async t=>{
  const f=await setup(t),native=require('../../dist/app/director/productionKernel/composition/stages');
  const original=native.createNativeKernelStages;let seen;
@@ -53,8 +74,16 @@ test('resume retains a previously saved output profile instead of adopting new d
  const saved=first.request(unit);
  saved.profile.outputBudgets={draft:6000,accept:4096,repair:4200,verify:6144};
  const before=await first.ports(unit).store.loadOrCreate(saved);
+ const originalResolve=f.sources.resolveModel;
+ f.sources.resolveModel=async(provider,options)=>{
+  const resolved=await originalResolve(provider,options);
+  return {...resolved,maxTokens:options.maxTokens??16384,budgetTrace:{
+   source:'automatic',requestedMaxTokens:null,routeMaxTokens:null,automaticMaxTokens:16384,
+   frozenMaxTokens:null,endpointMaxTokens:null,structuredMaxTokens:null,finalMaxTokens:16384}};
+ };
  const resumed=await f.api.createNativeKernelRuntime(f.db,f.context,{modelSources:f.sources});
  assert.deepEqual(resumed.request(unit).profile.outputBudgets,saved.profile.outputBudgets);
  const after=await resumed.ports(unit).store.loadOrCreate(resumed.request(unit));
  assert.equal(after.id,before.id);assert.deepEqual(after.snapshots,before.snapshots);
+ await resumed.ports(unit).fence(after,'loaded');
 });

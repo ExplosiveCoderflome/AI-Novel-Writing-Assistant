@@ -9,6 +9,7 @@ export const pipelineDirectorSnapshotSchema = z.object({
   pendingCharacterReviewId: z.string().trim().min(1).optional(),
   resolvedDecisionCount: z.number().int().nonnegative().optional(),
   chapterTokenLimit: directorChapterTokenLimitSchema.optional(),
+  chapterBudgetAutomatic: z.boolean().optional(),
   chapterUsage: z.array(chapterUsageCheckpointSchema)
     .refine(rows=>new Set(rows.map(row=>row.chapterId)).size === rows.length && new Set(rows.map(row=>row.chapterOrder)).size === rows.length).optional(),
 }).refine(value => (value.resolvedDecisionCount ?? 0) <= value.decisions.length);

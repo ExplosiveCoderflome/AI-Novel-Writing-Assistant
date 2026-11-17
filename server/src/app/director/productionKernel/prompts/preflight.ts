@@ -27,6 +27,17 @@ export function configurationKey(value: ResolvedLLMClientOptions): string {
     executionMode:value.executionMode,structuredStrategy:value.structuredStrategy ?? null,
     taskType:value.taskType ?? null,modelRoute:value.modelRoute ?? null,routeDegraded:value.routeDegraded ?? false});
 }
+
+/** Match the old numeric policy only when its full saved configuration hash still matches. */
+export function matchSavedKernelBudget(value: ResolvedLLMClientOptions, savedHash: string,
+  savedTokens?: number): ResolvedLLMClientOptions {
+  const trace = value.budgetTrace;
+  if (!trace || configurationKey(value) === savedHash) return value;
+  if (savedTokens != null && (trace.routeMaxTokens != null || trace.requestedMaxTokens != null
+    || (trace.endpointMaxTokens != null && savedTokens > trace.endpointMaxTokens))) return value;
+  const captured = { ...value, maxTokens: savedTokens ?? trace.endpointMaxTokens ?? trace.routeMaxTokens ?? 8_192 };
+  return configurationKey(captured) === savedHash ? captured : value;
+}
 function messages(input: unknown): unknown {
   if(input && typeof input === "object" && "toChatMessages" in input && typeof input.toChatMessages === "function")return messages(input.toChatMessages());
   if(!Array.isArray(input))throw new Error("Kernel model invocation requires complete chat messages");

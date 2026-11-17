@@ -11,6 +11,7 @@ export const chapterUsageCheckpointSchema = z.object({
   promptTokens: count.optional(), completionTokens: count.optional(), cacheHitTokens: count.optional(), effectiveTokens: count.optional(),
   unclassifiedTokens: count.optional(),
   tokenLimit: z.number().int().positive().max(10_000_000).optional(),
+  automaticTopUpTokens: z.number().int().positive().max(10_000_000).optional(),
   budgetPause: z.object({reserveTokens: count, stage: z.enum(["draft", "review", "repair", "artifact_sync"]).nullable()}).optional(),
 }).refine(row => {
   if (row.endJobTokens !== undefined) {

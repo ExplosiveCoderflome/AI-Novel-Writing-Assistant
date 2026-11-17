@@ -1,0 +1,10 @@
+{
+  "zh": [
+    "大纲「交互完善」提案遇到依赖错误、章节未指定所属卷或误改卷章节列表时，会指出具体问题。采纳失败时，已有大纲保持完整。",
+    "书级方案生成触及模型输出上限时会自动重试。需要手动恢复时，可以从失败卡关闭深度思考或提高输出上限后重试。"
+  ],
+  "en": [
+    "Outline proposals now identify invalid dependencies, chapters without an assigned volume, and unintended changes to a volume’s chapter list. If applying a proposal fails, the existing outline stays intact.",
+    "Book planning retries automatically when it hits the model’s output limit. If manual recovery is needed, retry from the failure card with deep thinking turned off or a higher output limit."
+  ]
+}

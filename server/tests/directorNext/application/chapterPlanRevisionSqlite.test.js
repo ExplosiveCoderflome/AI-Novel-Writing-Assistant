@@ -23,7 +23,8 @@ const scenes=JSON.stringify({targetWordCount:2200,scenes:[1,2,3].map(i=>({key:'s
  await ensureRuntimeDatabaseReady();
  await prisma.novel.create({data:{id:'book',title:'编辑测试'}});
  const chapters=[1,2].map(i=>({id:'plan-'+i,volumeId:'volume',chapterOrder:i,title:'第'+i+'章',summary:'概要',taskSheet:'原任务',sceneCards:scenes,targetWordCount:2200,mustAvoid:'不提前揭底'}));
- await prisma.volumePlanVersion.create({data:{id:'version',novelId:'book',version:1,status:'active',contentJson:JSON.stringify({novelId:'book',volumes:[{id:'volume',chapters}]})}});
+ const staleVersionChapters=[{...chapters[0],sceneCards:null,styleContract:'保留作者写法'},chapters[1]];
+ await prisma.volumePlanVersion.create({data:{id:'version',novelId:'book',version:1,status:'active',contentJson:JSON.stringify({novelId:'book',volumes:[{id:'volume',chapters:staleVersionChapters}]})}});
  await prisma.volumePlan.create({data:{id:'volume',novelId:'book',sortOrder:1,title:'一卷',sourceVersionId:'version',chapters:{create:chapters.map(({volumeId,...chapter})=>chapter)}}});
  await prisma.volumePlan.create({data:{id:'archived-volume',novelId:'book',sortOrder:2,title:'归档卷',status:'archived',chapters:{create:{...chapters[0],id:'archived-plan',volumeId:undefined}}}});
  await prisma.chapter.create({data:{id:'body',novelId:'book',order:1,title:'正文',content:'作者正文必须保留'}});
@@ -49,6 +50,7 @@ const scenes=JSON.stringify({targetWordCount:2200,scenes:[1,2,3].map(i=>({key:'s
  assert.equal(JSON.parse(saved.sceneCards).scenes.length,3);
  const content=JSON.parse((await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:'version'}})).contentJson);
  assert.equal(content.volumes[0].chapters[0].taskSheet,'作者修订任务');
+ assert.equal(content.volumes[0].chapters[0].styleContract,'保留作者写法');
  assert.equal(content.volumes[0].chapters[1].taskSheet,'原任务');
  assert.deepEqual(await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'plan-2'}}),beforeOther);
  assert.deepEqual(await prisma.volumeChapterPlan.findUniqueOrThrow({where:{id:'archived-plan'}}),beforeArchived);

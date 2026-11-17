@@ -1,6 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { DEFAULT_MODEL_OUTPUT_TOKENS } from "@ai-novel/shared/types/llm";
-import { resolveModel } from "../../../../llm/modelRouter";
+import { resolveLLMClientOptions } from "../../../../llm/factory";
+import { runWithInvocationChain } from "../../../../llm/compatibility";
 import {
   extractStructuredOutputErrorCategory,
   StructuredOutputError,
@@ -38,7 +38,7 @@ export interface CandidateStructuredCallDependencies {
   resolveRoute?: (
     taskType: "planner",
     override?: { provider?: LLMProvider; model?: string },
-  ) => Promise<{ maxTokens?: number }>;
+  ) => Promise<{ routeMaxTokens?: number; endpointMaxTokens?: number; reasoningReserveTokens?: number }>;
 }
 
 export async function runCandidateStructuredCall<I, O>(input: {
@@ -50,39 +50,45 @@ export async function runCandidateStructuredCall<I, O>(input: {
 }, dependencies: CandidateStructuredCallDependencies = {}): Promise<PromptRunResult<O>> {
   const invoke = dependencies.invoke ?? runStructuredPrompt;
   const resolveRoute = dependencies.resolveRoute
-    ?? ((taskType: "planner", override?: { provider?: LLMProvider; model?: string }) => resolveModel(taskType, override));
+    ?? (async (taskType: "planner", override?: { provider?: LLMProvider; model?: string }) => {
+      const resolved = await resolveLLMClientOptions(override?.provider, { taskType, model: override?.model });
+      return {
+        routeMaxTokens: resolved.budgetTrace?.routeMaxTokens ?? undefined,
+        endpointMaxTokens: resolved.budgetTrace?.endpointMaxTokens ?? undefined,
+        reasoningReserveTokens: resolved.budgetTrace?.reasoningReserveTokens,
+      };
+    });
   const route = await resolveRoute("planner", {
     provider: input.options?.provider,
     model: input.options?.model,
   });
-  const baseMaxTokens = Math.max(
-    route.maxTokens ?? DEFAULT_MODEL_OUTPUT_TOKENS,
-    resolveDirectorCandidatesOutputTokenBudget(input.candidateCount),
-  );
-  const retryMaxTokens = Math.min(CANDIDATE_BUDGET_RETRY_CEILING, baseMaxTokens * 2);
-
-  let attempt = 0;
-  for (;;) {
+  const automaticMaxTokens = resolveDirectorCandidatesOutputTokenBudget(input.candidateCount);
+  const configuredMaxTokens = input.options?.maxTokens ?? route.routeMaxTokens;
+  const endpointMaxTokens = route.endpointMaxTokens ?? Number.POSITIVE_INFINITY;
+  const reasoningReserve = route.reasoningReserveTokens ?? 0;
+  const baseMaxTokens = Math.min(configuredMaxTokens ?? automaticMaxTokens + reasoningReserve, endpointMaxTokens);
+  const retryMaxTokens = Math.min(CANDIDATE_BUDGET_RETRY_CEILING, endpointMaxTokens, baseMaxTokens * 2);
+  const call = (budget: number) => invoke({
+    asset: input.asset,
+    promptInput: input.promptInput,
+    contextBlocks: input.contextBlocks,
+    options: { ...input.options, reasoningEnabled: false, automaticMaxTokens: budget },
+  });
+  return runWithInvocationChain(async () => {
     try {
-      return await invoke({
-        asset: input.asset,
-        promptInput: input.promptInput,
-        contextBlocks: input.contextBlocks,
-        options: {
-          ...input.options,
-          reasoningEnabled: false,
-          maxTokens: attempt === 0 ? baseMaxTokens : retryMaxTokens,
-        },
-      });
+      return await call(automaticMaxTokens);
     } catch (error) {
-      attempt += 1;
-      if (
-        attempt > 1
-        || retryMaxTokens <= baseMaxTokens
-        || !isBudgetExhaustedStructuredError(error)
-      ) {
-        throw error;
-      }
+      if (configuredMaxTokens != null || retryMaxTokens <= baseMaxTokens || !canRetryCandidateBudget(error)) throw error;
+      return call(retryMaxTokens - reasoningReserve);
     }
-  }
+  });
+}
+
+function canRetryCandidateBudget(error: unknown): boolean {
+  if (!isBudgetExhaustedStructuredError(error)) return false;
+  if (!(error instanceof StructuredOutputError)) return false;
+  const response = error.diagnostics.response;
+  const used = response?.tokenUsage?.completionTokens;
+  if (used != null && response?.maxTokens != null) return used >= response.maxTokens;
+  return error.category === "reasoning_budget_exhausted" || response?.finishReason === "max_tokens";
 }

@@ -226,7 +226,6 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(qwenMixedProfile.nativeJsonObject, true);
   assert.equal(qwenMixedProfile.requiresNonThinkingForStructured, true);
   assert.equal(qwenMixedProfile.supportsReasoningToggle, true);
-  assert.equal(qwenMixedProfile.omitMaxTokensForNativeStructured, true);
   assert.equal(selectStructuredOutputStrategy(qwenMixedProfile, schema), "json_object");
 
   const qwenThinkingProfile = resolveStructuredOutputProfile({
@@ -239,7 +238,6 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(qwenThinkingProfile.nativeJsonObject, false);
   assert.equal(qwenThinkingProfile.requiresNonThinkingForStructured, false);
   assert.equal(qwenThinkingProfile.supportsReasoningToggle, false);
-  assert.equal(qwenThinkingProfile.omitMaxTokensForNativeStructured, false);
   assert.equal(selectStructuredOutputStrategy(qwenThinkingProfile, schema), "prompt_json");
 
   const customProfile = resolveStructuredOutputProfile({
@@ -330,7 +328,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwen.reasoningEnabled, false);
     assert.equal(qwen.reasoningForcedOff, true);
     assert.equal(qwen.modelKwargs?.enable_thinking, false);
-    assert.equal(qwen.maxTokens, undefined);
+    assert.equal(qwen.maxTokens, 20000);
     assert.equal(qwen.requestProtocol, "openai_compatible");
 
     const glm = await resolveLLMClientOptions("glm", {

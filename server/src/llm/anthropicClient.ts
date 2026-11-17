@@ -1,5 +1,6 @@
 import {applyCacheRequestPolicy,getPromptCacheBoundary,resolveCacheCapability} from "../platform/llm/cache";
 import { IterableReadableStream } from "@langchain/core/utils/stream";
+import { DEFAULT_MODEL_OUTPUT_TOKENS } from "@ai-novel/shared/types/llm";
 import {
   AIMessage,
   AIMessageChunk,
@@ -176,7 +177,7 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
         },
         body: JSON.stringify(applyCacheRequestPolicy({
           model: options.model,
-          max_tokens: options.maxTokens ?? 4096,
+          max_tokens: options.maxTokens ?? DEFAULT_MODEL_OUTPUT_TOKENS,
           temperature: options.temperature,
           stream,
           ...(converted.system ? { system: converted.system } : {}),
@@ -237,11 +238,15 @@ export function createAnthropicLLM(options: AnthropicLLMOptions): {
             const control=event as {type?:string;error?:{message?:string}};
             if(control.type === "error") throw new Error(control.error?.message ?? "Anthropic stream error.");
             if(control.type === "message_stop") stopped=true;
-            const e = event as { message?: { usage?: Record<string, unknown> }; usage?: Record<string, unknown> };
+            const e = event as { message?: { usage?: Record<string, unknown> }; usage?: Record<string, unknown>; delta?: { stop_reason?: string } };
             const reported = e.message?.usage ?? e.usage;
             if (reported) usage = { ...usage, ...reported };
             const text = extractDeltaText(event);
-            return text || reported ? new AIMessageChunk({ content: text, ...(reported ? { response_metadata: { usage } } : {}) }) : null;
+            const stopReason = control.type === "message_delta" ? e.delta?.stop_reason : undefined;
+            return text || reported || stopReason ? new AIMessageChunk({
+              content: text,
+              response_metadata: { ...(reported ? { usage } : {}), ...(stopReason ? { stop_reason: stopReason } : {}) },
+            }) : null;
           }
           try {
             while (true) {

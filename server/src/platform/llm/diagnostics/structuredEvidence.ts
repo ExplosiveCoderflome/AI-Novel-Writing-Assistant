@@ -21,10 +21,16 @@ export function observeStructuredChunk(evidence: StructuredResponseEvidence, chu
   const source = record(chunk);
   const metadata = record(source.response_metadata);
   const extra = record(source.additional_kwargs);
-  evidence.finishReason = token(metadata.finish_reason ?? metadata.stop_reason ?? extra.finish_reason) ?? evidence.finishReason;
+  evidence.finishReason = readResponseFinishReason(chunk) ?? evidence.finishReason;
   evidence.refused ||= Boolean(extra.refusal || metadata.refusal || metadata.blocked);
   const usage = extractLlmTokenUsage(chunk);
   evidence.tokenUsage = mergeStreamTokenUsage(evidence.tokenUsage, usage);
+}
+
+export function readResponseFinishReason(chunk: unknown): string | null {
+  const source = record(chunk);
+  const metadata = record(source.response_metadata);
+  return token(metadata.finish_reason ?? metadata.stop_reason ?? record(source.additional_kwargs).finish_reason);
 }
 
 export function classifyResponseEvidence(

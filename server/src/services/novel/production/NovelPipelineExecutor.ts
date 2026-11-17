@@ -565,8 +565,10 @@ export class NovelPipelineExecutor {
             }
             const row = runtimePayload.directorNext.chapterUsage!.find(item => item.chapterId === chapter.id)!;
             const normalizedReserve = Math.max(0, Math.floor(reserveTokens));
-            const paused = pauseChapterBudget(row, normalizedReserve, stage);
-            if (initialized || closed || paused) {
+            const previousTopUp = row.automaticTopUpTokens;
+            const paused = pauseChapterBudget(row, normalizedReserve, stage,
+              runtimePayload.directorNext.chapterBudgetAutomatic === true && row.tokenLimit === runtimePayload.directorNext.chapterTokenLimit);
+            if (initialized || closed || paused || row.automaticTopUpTokens !== previousTopUp) {
               try {
                 await this.updateJobRequired(jobId, {
                   ...(closed ? { completedCount: completed + 1, progress: Number(((completed + 1) / totalCount).toFixed(4)) } : {}),

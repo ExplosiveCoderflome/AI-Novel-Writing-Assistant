@@ -1,4 +1,5 @@
 import type { PromptBudgetProfile } from "@ai-novel/shared/types/chapterRuntime";
+import { DEFAULT_MODEL_OUTPUT_TOKENS } from "@ai-novel/shared/types/llm";
 
 export const NOVEL_PROMPT_BUDGETS = {
   directorCandidates: 1200,
@@ -44,7 +45,7 @@ export function resolveVolumeStrategyOutputTokenBudget(expectedVolumeCount: numb
   );
 }
 
-const DIRECTOR_CANDIDATES_OUTPUT_TOKEN_FLOOR = 8_192;
+const DIRECTOR_CANDIDATES_OUTPUT_TOKEN_FLOOR = DEFAULT_MODEL_OUTPUT_TOKENS;
 const DIRECTOR_CANDIDATES_OUTPUT_TOKENS_PER_CANDIDATE = 4_096;
 const DIRECTOR_CANDIDATES_OUTPUT_TOKEN_CEILING = 32_768;
 

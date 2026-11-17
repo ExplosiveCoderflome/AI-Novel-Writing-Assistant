@@ -3,6 +3,31 @@ import { useQuery } from "@tanstack/react-query";
 import { getNovelInvocation } from "@/api/novel/usage";
 import { Button } from "@/components/ui/button";
 import { formatUsageDuration, usageStatusLabel } from "../presentation";
+import type { LlmOutputBudgetTrace } from "@ai-novel/shared/types/llmUsage";
+
+const budgetSources: Record<LlmOutputBudgetTrace["source"], string> = {
+  automatic: "自动预算", task: "本次任务", route: "模型路由", endpoint: "模型输出上限",
+  frozen: "已保存的任务预算", structured: "结构化输出限制", provider: "由端点决定",
+};
+
+function OutputBudget({ trace }: { trace: LlmOutputBudgetTrace }) {
+  const fields = [
+    ["任务请求", trace.requestedMaxTokens], ["模型路由", trace.routeMaxTokens],
+    ["自动预算", trace.automaticMaxTokens], ["模型输出上限", trace.endpointMaxTokens],
+    ["已保存的任务预算", trace.frozenMaxTokens], ["结构化输出限制", trace.structuredMaxTokens],
+    ["思考预留", trace.reasoningReserveTokens],
+  ] as const;
+  return <details className="space-y-2">
+    <summary className="cursor-pointer">
+      输出预算 {trace.finalMaxTokens == null ? "由端点决定" : `${trace.finalMaxTokens.toLocaleString("zh-CN")} Tokens · ${budgetSources[trace.source]}`}
+    </summary>
+    <dl className="grid grid-cols-2 gap-1 text-muted-foreground">
+      {fields.map(([label, amount]) => amount == null ? null : <div key={label} className="contents">
+        <dt>{label}</dt><dd>{amount.toLocaleString("zh-CN")} Tokens</dd>
+      </div>)}
+    </dl>
+  </details>;
+}
 
 export function InvocationDetail({ novelId, invocationId, onJump }: { novelId: string; invocationId: string; onJump: (id: string) => void }) {
   const query = useQuery({ queryKey: ["novel-invocation", novelId, invocationId], queryFn: () => getNovelInvocation(novelId, invocationId) });
@@ -13,6 +38,9 @@ export function InvocationDetail({ novelId, invocationId, onJump }: { novelId: s
   return <div className="space-y-4 py-3 text-xs">
     <p className="break-all text-muted-foreground">调用编号：{invocationId}</p>
     <p>耗时 {formatUsageDuration(data.item.durationMs)} · 首次返回 {formatUsageDuration(data.item.firstTokenMs)} · 第 {data.item.attemptNumber} 次尝试 · {data.item.structuredMode ?? "文本输出"}</p>
+    {data.item.budgetTrace ? <OutputBudget trace={data.item.budgetTrace} /> : null}
+    {data.item.finishReason ? <p>模型结束原因 · {data.item.finishReason}</p> : null}
+    {data.item.structureStatus ? <p>结构校验 · {data.item.structureStatus === "valid" ? "通过" : "未通过"}</p> : null}
     <div className="space-y-1"><p className="font-medium">尝试链（{data.chain.length} 次）</p>{data.chain.map(attempt => <button key={attempt.invocationId} type="button" className="block text-left text-primary underline-offset-4 hover:underline" onClick={() => onJump(attempt.invocationId)}>第 {attempt.attemptNumber} 次 · {attempt.model ?? "未记录模型"} · {attempt.structuredMode ?? "文本输出"} · {usageStatusLabel(attempt.status)} · {formatUsageDuration(attempt.durationMs)}</button>)}</div>
     {data.payload ? <>
       <div className="space-y-2"><p className="font-medium">提示词消息</p>{data.payload.messages.map((message, index) => <PayloadText key={index} label={`${index + 1}. ${message.role}`} text={typeof message.content === "string" ? message.content : JSON.stringify(message.content, null, 2)} />)}</div>

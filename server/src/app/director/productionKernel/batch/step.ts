@@ -6,8 +6,9 @@ import { readKernelUnitOutcome } from "../readModel/completion";
 import { chooseProductionBatchImplementation } from "./binding";
 import { createKernelChapterBatchHandler } from "./handler";
 import { createProductionBatchRouter, productionKernelV2ChaptersEnabled } from "./router";
-import {assertKernelStartReadiness} from "../readiness";
+import {assertKernelStartReadiness, KernelReadinessError} from "../readiness";
 import {readManualChapterRequest} from "../manual/contract";
+import {MissingTaskOutputBudgetError} from "../../../../platform/llm/execution";
 
 export interface KernelBatchRuntime {
   request(unit: UnitRef): UnitRequest;
@@ -21,16 +22,22 @@ export function createKernelProductionStep(input: {db: PrismaClient; legacy: Ste
     choose:(context,enabled)=>chooseProductionBatchImplementation(input.db,context,Boolean(readManualChapterRequest(context.contract)) || enabled),legacy:input.legacy,
     kernel:async context=>{
       await assertKernelOwnership(input.db,context);
-      await assertKernelStartReadiness(input.db,context.contract);
-      const runtime=await input.runtime(context);
-      return createKernelChapterBatchHandler({assertActive:()=>assertKernelOwnership(input.db,context),
-        readChapters:()=>input.db.chapter.findMany({where:{novelId:context.contract.novelId,
-          order:{gte:context.contract.chapterRange!.from,lte:context.contract.chapterRange!.to}},
-          select:{id:true,novelId:true,order:true,content:true},orderBy:{order:"asc"}}),
-        readOutcome:(_context,chapter)=>readKernelUnitOutcome(input.db,context.contract,chapter),
-        runChapter:(_context,chapter)=>{
-          const unit={novelId:chapter.novelId,chapterId:chapter.id,order:chapter.order};
-          return runUnit(runtime.request(unit),runtime.ports(unit));
-        },hashBatch:artifactContentHash})(context);
+      try {
+        await assertKernelStartReadiness(input.db,context.contract);
+        const runtime=await input.runtime(context);
+        return await createKernelChapterBatchHandler({assertActive:()=>assertKernelOwnership(input.db,context),
+          readChapters:()=>input.db.chapter.findMany({where:{novelId:context.contract.novelId,
+            order:{gte:context.contract.chapterRange!.from,lte:context.contract.chapterRange!.to}},
+            select:{id:true,novelId:true,order:true,content:true},orderBy:{order:"asc"}}),
+          readOutcome:(_context,chapter)=>readKernelUnitOutcome(input.db,context.contract,chapter),
+          runChapter:(_context,chapter)=>{
+            const unit={novelId:chapter.novelId,chapterId:chapter.id,order:chapter.order};
+            return runUnit(runtime.request(unit),runtime.ports(unit));
+          },hashBatch:artifactContentHash})(context);
+      } catch (error) {
+        if (!(error instanceof MissingTaskOutputBudgetError)
+          && !(error instanceof KernelReadinessError && error.code === "production_output_budget_capture_missing")) throw error;
+        return { stopSignal: { kind: "manual_recovery", action: "pause_for_manual", source: "runtime", reason: error.message } };
+      }
     }});
 }

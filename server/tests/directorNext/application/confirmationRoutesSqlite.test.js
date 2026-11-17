@@ -16,14 +16,18 @@ const Database = require(require.resolve('better-sqlite3', {paths: [server]}));
 const {prisma} = require(path.join(server, 'dist/db/prisma'));
 const {ensureRuntimeDatabaseReady} = require(path.join(server, 'dist/db/runtimeMigrations'));
 const {createDirectorProductionOptions} = require(path.join(server, 'dist/app/director/productionComposition'));
+const {readExecutionWindow} = require(path.join(server, 'dist/app/director/productionInputs'));
 const {createDirectorNextServices, FactIntegrityError} = require(path.join(server, 'dist/modules/director'));
-const {PrismaRunRepository} = require(path.join(server, 'dist/modules/director/infrastructure'));
+const {PrismaRunRepository, PrismaArtifactLedger} = require(path.join(server, 'dist/modules/director/infrastructure'));
+const {createDirectorNextRouter} = require(path.join(server, 'dist/modules/director/http'));
+const {errorHandler} = require(path.join(server, 'dist/middleware/errorHandler'));
+const express = require(require.resolve('express', {paths: [server]}));
 const {readDirectorWorkspace} = require(path.join(server, 'dist/app/director/workspace'));
 const {NovelVolumeService} = require(path.join(server,'dist/services/novel/volume/NovelVolumeService'));
 function snapshot() {
  const db = new Database(process.env.DATABASE_URL.slice(5), {readonly: true});
  try {return ['DirectorNextRun','DirectorNextRunControl','DirectorNextArtifact','DirectorNextEvent','DirectorNextCommand','DirectorNextQualityDebt',
-  'Novel','VolumePlan','VolumeChapterPlan','Chapter'].map(table => ({table, rows: db.prepare('SELECT * FROM "'+table+'" ORDER BY rowid').all()}));}
+  'Novel','VolumePlan','VolumePlanVersion','VolumeChapterPlan','Chapter'].map(table => ({table, rows: db.prepare('SELECT * FROM "'+table+'" ORDER BY rowid').all()}));}
  finally {db.close();}
 }
 (async () => {
@@ -38,21 +42,36 @@ function snapshot() {
  await prisma.chapter.createMany({data: [
   {id: 'c-first', novelId, order: 1, title: '首章', content: '保留首章正文'},
   {id: 'c/7?x=3', novelId, order: 7, title: '范围起点', content: '保留目标正文', taskSheet: '真正同步的任务', sceneCards: '真正同步的场景', targetWordCount: 2100, mustAvoid: '执行禁忌'},
+  {id: 'c-8', novelId, order: 8, title: '范围次章', content: '保留次章正文'},
   {id: 'c-other', novelId: 'other', order: 7, title: '其他书同章序', content: '其他书正文'},
  ]});
  await prisma.volumeChapterPlan.createMany({data: [
   {id: 'p-first', volumeId: 'v-first', chapterId: 'c-first', chapterOrder: 1, title: '首章', summary: '首章路线'},
   {id: 'p/7?x=4', volumeId: 'v/target?x=2', chapterId: 'c/7?x=3', chapterOrder: 7, title: '目标章', summary: '目标路线', taskSheet: '上游规划任务', sceneCards: '上游规划场景'},
+  {id: 'p-8', volumeId: 'v/target?x=2', chapterId: 'c-8', chapterOrder: 8, title: '次章', summary: '次章路线', taskSheet: '上游规划任务二', sceneCards: '上游规划场景二'},
   {id: 'p-other', volumeId: 'v-other', chapterId: 'c-other', chapterOrder: 7, title: '其他书', summary: '其他书路线'},
  ]});
+ const version = await prisma.volumePlanVersion.create({data:{novelId,version:1,status:'active',contentJson:JSON.stringify({volumes:[
+  {id:'v/target?x=2',sortOrder:2,title:'目标卷',chapters:[{id:'p/7?x=4',chapterOrder:7,title:'目标章',summary:'目标路线',taskSheet:'过期的任务',styleContract:'仅版本保存的写法'},{id:'p-8',chapterOrder:8,title:'次章',summary:'次章路线',taskSheet:'过期的任务二'}]},
+ ]})}});
  const planningBefore=snapshot();
- const savedPlanning=await new NovelVolumeService().getVolumes(novelId,{hydrateCanonical:false});
- assert.equal(savedPlanning.volumes.find(v=>v.id==='v/target?x=2').chapters[0].taskSheet,'上游规划任务','planning reads must retain the prepared source instead of copying execution');
- assert.deepEqual(snapshot(),planningBefore);
  const options = createDirectorProductionOptions();
  const services = createDirectorNextServices(options), runs = new PrismaRunRepository(prisma);
  const contract = options.contractFactory({runId: 'range-run', novelId, driver: 'assisted', stepIdsInScope: null,
   launchInput: {storyInput: '故事', estimatedChapterCount: 12, worldMode: 'skip', targetMode: 'opening', provider: 'openai', model: 'no-ai', executionRange: {from: 7, to: 8}}});
+ const savedPlanning=await new NovelVolumeService().getVolumes(novelId,{hydrateCanonical:false});
+ const {workspace}=await readExecutionWindow({contract:{...contract,chapterRange:{from:7,to:7}}}, savedPlanning);
+ const prepared=workspace.volumes.find(v=>v.id==='v/target?x=2').chapters[0];
+ assert.equal(prepared.taskSheet,'上游规划任务','execution sync must read the saved plan instead of a stale version or execution row');
+ assert.equal(prepared.sceneCards,'上游规划场景');
+ assert.equal(prepared.styleContract,'仅版本保存的写法');
+ const multi=await readExecutionWindow({contract:{...contract,chapterRange:{from:7,to:8}}}, savedPlanning);
+ const multiChapters=multi.workspace.volumes.find(v=>v.id==='v/target?x=2').chapters;
+ assert.equal(multiChapters.find(c=>c.id==='p/7?x=4').taskSheet,'上游规划任务');
+ assert.equal(multiChapters.find(c=>c.id==='p-8').taskSheet,'上游规划任务二');
+ assert.equal(multiChapters.find(c=>c.id==='p-8').sceneCards,'上游规划场景二');
+ assert.deepEqual(multi.executionRange,{startOrder:7,endOrder:8});
+ assert.deepEqual(snapshot(),planningBefore);
  await runs.open(contract); await runs.transition(contract.runId, {type: 'start'}, 0);
  for (const [type, chapterId, volumeId] of [
   ['chapter_task_sheet','p/7?x=4','v/target?x=2'],
@@ -64,6 +83,12 @@ function snapshot() {
   const before = snapshot();
   for (let read = 0; read < 2; read++) {
    const book = await readDirectorWorkspace(novelId);
+   if (type==='chapter_task_sheet') {
+    const plan=book.planning.volumes.find(v=>v.id==='v/target?x=2').chapters[0];
+    assert.equal(plan.taskSheet,'上游规划任务');
+    assert.equal(plan.sceneCards,'上游规划场景');
+    assert.equal(plan.styleContract,'仅版本保存的写法');
+   }
    const execution = book.executionPlans.find(row => row.id === 'c/7?x=3');
    assert.equal(execution.taskSheet,'真正同步的任务');
    assert.equal(execution.sceneCards,'真正同步的场景');
@@ -90,6 +115,40 @@ function snapshot() {
  }
  // Missing or duplicate current-book mappings must not silently select a different chapter.
  await runs.transition(contract.runId, {type: 'open_gate', gateId: 'missing', artifactTypes: ['chapter_task_sheet']}, (await runs.getControl(contract.runId)).version);
+ const raw = JSON.parse(version.contentJson);
+ raw.volumes[0].chapters[0].sceneCards='只剩旧版本场景';
+ await prisma.volumePlanVersion.update({where:{id:version.id},data:{contentJson:JSON.stringify(raw)}});
+ await prisma.volumeChapterPlan.update({where:{id:'p/7?x=4'},data:{sceneCards:null}});
+ const incomplete=await readDirectorWorkspace(novelId);
+ assert.equal(incomplete.reviewContexts[0].chapterId,'p/7?x=4');
+ assert.equal(incomplete.planning.volumes.find(v=>v.id==='v/target?x=2').chapters[0].sceneCards,null);
+ await new PrismaArtifactLedger().record({novelId,type:'chapter_task_sheet',scope:contract.scope,status:'draft',protectedUserContent:false,
+  contentRef:'fixture-plan',contentHash:'fixture-hash',producedByRunId:contract.runId});
+ const app=express();app.use(express.json());
+ app.use('/api/director-next',createDirectorNextRouter({...services.http,readWorkspace:readDirectorWorkspace}));
+ app.use(errorHandler);
+ const http=app.listen(0,'127.0.0.1');await require('node:events').once(http,'listening');
+ try {
+  const base='http://127.0.0.1:'+http.address().port+'/api/director-next';
+  const confirm = async key => fetch(base+'/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    type:'resolve_gate',decision:'confirm',runId:contract.runId,expectedVersion:(await runs.getControl(contract.runId)).version,idempotencyKey:key,
+  })});
+  const blocked=await confirm('incomplete-confirm');
+  assert.equal(blocked.status,409);
+  assert.match((await blocked.json()).error,/第 7 章缺少已保存的场景安排/);
+  assert.equal((await runs.getControl(contract.runId)).status,'waiting_gate');
+  await prisma.volumeChapterPlan.update({where:{id:'p/7?x=4'},data:{sceneCards:'上游规划场景'}});
+  const stored=await fetch(base+'/novels/'+encodeURIComponent(novelId)+'/workspace');
+  assert.equal(stored.status,200);
+  const {data}=await stored.json();
+  assert.equal(data.planning.volumes.find(v=>v.id==='v/target?x=2').chapters[0].sceneCards,'上游规划场景');
+  const accepted=await confirm('complete-confirm');
+  assert.equal(accepted.status,202,JSON.stringify(await accepted.json()));
+  assert.equal((await runs.getControl(contract.runId)).status,'running');
+  assert.equal((await prisma.volumePlanVersion.findUniqueOrThrow({where:{id:version.id}})).contentJson,JSON.stringify(raw));
+  assert.equal((await prisma.chapter.findUniqueOrThrow({where:{id:'c-first'}})).content,'保留首章正文');
+ } finally {await new Promise(resolve=>http.close(resolve));}
+ await runs.transition(contract.runId, {type:'open_gate',gateId:'missing-mapping',artifactTypes:['chapter_task_sheet']}, (await runs.getControl(contract.runId)).version);
  await prisma.volumeChapterPlan.update({where: {id: 'p/7?x=4'}, data: {chapterOrder: 9}});
  let before = snapshot();
  await assert.rejects(() => services.http.projectionService.get(contract.runId), error => error instanceof FactIntegrityError);

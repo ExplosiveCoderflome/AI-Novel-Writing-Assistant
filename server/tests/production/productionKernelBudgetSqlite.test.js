@@ -1,14 +1,48 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {fixture:base}=require('./batch/fixture.cjs');
-async function fixture(t) {
+async function fixture(t, launchInput = {chapterTokenLimit:100}) {
  const api=require('../../dist/app/director/productionKernel');
  assert.equal(typeof api.createKernelChapterBudget,'function','durable kernel chapter budget must be exported');
- const f=await base(t);f.contract.launchInput={chapterTokenLimit:100};
+ const f=await base(t);f.contract.launchInput=launchInput;
  await f.db.directorNextRun.update({where:{id:f.contract.runId},data:{contractJson:JSON.stringify(f.contract)}});
  const unit={novelId:'novel-1',chapterId:'chapter-1',order:1};
  return {...f,unit,budget:api.createKernelChapterBudget(f.db,f.context),usage:(id,tokens)=>({invocationId:id,novelId:'novel-1',chapterId:'chapter-1',
   runId:'batch-1',status:'completed',usage:tokens===null?null:{totalTokens:tokens},startedAt:new Date(0),finishedAt:new Date(1)})};
 }
+
+test('automatic chapter allowance is raised once and survives recreation',async t=>{
+ const f=await fixture(t,{chapterTokenLimit:200000,chapterBudgetAutomatic:true});
+ assert.equal(await f.budget.reserve(f.unit,'first',198000),true);
+ assert.equal(await f.budget.reserve(f.unit,'second',12000),true);
+ const restarted=f.api.createKernelChapterBudget(f.db,f.context);
+ const budget=await restarted.read(f.unit);
+ assert.equal(budget.limit,226000);
+ assert.equal(budget.automaticTopUpTokens,26000);
+ assert.equal(await restarted.reserve(f.unit,'third',17000),false);
+ assert.equal((await restarted.read(f.unit)).limit,226000);
+});
+
+test('a configured 200K budget and historical defaults still require manual authorization',async t=>{
+ const f=await fixture(t,{chapterTokenLimit:200000});
+ assert.equal(await f.budget.reserve(f.unit,'large',200001),false);
+ assert.equal((await f.budget.read(f.unit)).limit,200000);
+});
+
+test('automatic 200K allowance covers 12 chapters at 144K each without mixing receipts',async t=>{
+ const f=await fixture(t,{chapterTokenLimit:200000,chapterBudgetAutomatic:true});
+ f.contract.chapterRange={from:1,to:12};
+ await f.db.directorNextRun.update({where:{id:f.contract.runId},data:{contractJson:JSON.stringify(f.contract)}});
+ await f.db.chapter.createMany({data:Array.from({length:11},(_,i)=>({id:'chapter-'+(i+2),novelId:'novel-1',order:i+2,title:'测试章'}))});
+ const budget=f.api.createKernelChapterBudget(f.db,f.context);
+ for(let order=1;order<=12;order++){
+  const unit={novelId:'novel-1',chapterId:'chapter-'+order,order};
+  assert.equal(await budget.reserve(unit,'draft',90000),true);
+  await budget.observe(unit,'draft',{...f.usage('draft-'+order,90000),chapterId:unit.chapterId});
+  assert.equal(await budget.reserve(unit,'review',54000),true);
+  await budget.observe(unit,'review',{...f.usage('review-'+order,54000),chapterId:unit.chapterId});
+  assert.equal((await budget.read(unit)).used,144000);
+ }
+});
 test('durable physical reservations are idempotent and cannot exceed the saved chapter allowance',async t=>{
  const f=await fixture(t);assert.equal(await f.budget.reserve(f.unit,'physical-1',60),true);
  assert.equal(await f.budget.reserve(f.unit,'physical-1',60),true);

@@ -137,6 +137,7 @@ export async function probeModel(input: ModelIdentity, options: { allowNetwork: 
   structuredModes.push("prompt_only");
   return saveCapability(input, { ...previous, source: "probed", structuredModes, failedModes: failed,
     reasoningField: observedReasoningField,
+    reasoningRequired: reasoningChars > 2 ? true : undefined,
     thinkingToggle: { ...toggle, supported: toggle.control !== "none" && reasoningChars <= 2 },
     probedAt: new Date().toISOString() });
 }
