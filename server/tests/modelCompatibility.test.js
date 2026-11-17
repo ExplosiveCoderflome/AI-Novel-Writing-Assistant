@@ -84,17 +84,71 @@ test("unprobed custom structured requests turn reasoning off even without a know
   }
 });
 
-test("stored probe results override custom structured reasoning defaults", async (t) => {
+test("stored probe results keep structured thinking off and still drive toggle kwargs", async (t) => {
+  // Contract (v0.8.8 / candidate-budget wiki): new structured calls default thinking
+  // off; tasks may opt in explicitly; probe toggles only decide whether off can be
+  // sent as kwargs; reasoningRequired models still think.
   const input = identity("probed-thinking-control");
   factory.setProviderSecretCache(input.provider, { key: "fixture-key" });
   t.after(() => factory.setProviderSecretCache(input.provider, null));
-  for (const supported of [true, false]) {
-    await compat.saveCapability(input, { ...compat.builtinCapability(input), source: "probed",
-      thinkingToggle: { supported, control: "enable_thinking", effort: false } });
+
+  await compat.saveCapability(input, {
+    ...compat.builtinCapability(input),
+    source: "probed",
+    thinkingToggle: { supported: true, control: "enable_thinking", effort: false },
+  });
+  {
     const resolved = await factory.resolveLLMClientOptions(input.provider, { ...input, executionMode: "structured" });
-    assert.equal(resolved.reasoningEnabled, !supported);
-    assert.equal(resolved.reasoningForcedOff, supported);
-    assert.deepEqual(resolved.modelKwargs, supported ? { enable_thinking: false } : undefined);
+    assert.equal(resolved.reasoningEnabled, false);
+    assert.equal(resolved.reasoningForcedOff, true);
+    assert.deepEqual(resolved.modelKwargs, { enable_thinking: false });
+    const off = await factory.resolveLLMClientOptions(input.provider, {
+      ...input, executionMode: "structured", reasoningEnabled: false,
+    });
+    assert.equal(off.reasoningEnabled, false);
+    assert.deepEqual(off.modelKwargs, { enable_thinking: false });
+    // Toggle-supported structured profile still forces thinking off even if asked on.
+    const on = await factory.resolveLLMClientOptions(input.provider, {
+      ...input, executionMode: "structured", reasoningEnabled: true,
+    });
+    assert.equal(on.reasoningEnabled, false);
+    assert.equal(on.reasoningForcedOff, true);
+    assert.deepEqual(on.modelKwargs, { enable_thinking: false });
+  }
+
+  await compat.saveCapability(input, {
+    ...compat.builtinCapability(input),
+    source: "probed",
+    thinkingToggle: { supported: false, control: "enable_thinking", effort: false },
+  });
+  {
+    const resolved = await factory.resolveLLMClientOptions(input.provider, { ...input, executionMode: "structured" });
+    assert.equal(resolved.reasoningEnabled, false);
+    assert.equal(resolved.modelKwargs, undefined);
+    const off = await factory.resolveLLMClientOptions(input.provider, {
+      ...input, executionMode: "structured", reasoningEnabled: false,
+    });
+    assert.equal(off.reasoningEnabled, false);
+    assert.equal(off.modelKwargs, undefined);
+    // Without a usable toggle, explicit on is honored (no requiresNonThinking force).
+    const on = await factory.resolveLLMClientOptions(input.provider, {
+      ...input, executionMode: "structured", reasoningEnabled: true,
+    });
+    assert.equal(on.reasoningEnabled, true);
+    assert.equal(on.reasoningForcedOff, false);
+    assert.equal(on.modelKwargs, undefined);
+  }
+
+  await compat.saveCapability(input, {
+    ...compat.builtinCapability(input),
+    source: "probed",
+    thinkingToggle: { supported: false, control: "none", effort: false },
+    reasoningRequired: true,
+  });
+  {
+    const resolved = await factory.resolveLLMClientOptions(input.provider, { ...input, executionMode: "structured" });
+    assert.equal(resolved.reasoningEnabled, true);
+    assert.equal(resolved.reasoningForcedOff, false);
   }
 });
 
