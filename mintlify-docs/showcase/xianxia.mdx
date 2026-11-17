@@ -1,7 +1,7 @@
 ---
 title: "仙侠修真 · 题材展厅"
 sidebarTitle: "仙侠修真"
-description: "一幅可以展开的水墨长卷：飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。跟着它看 Biz Novel Studio 怎样从一句灵感、方向候选、天梯推进，走到客栈舆图与章节样张。"
+description: "一座青绿山水里的鎏金仙宫：飞升天梯堵了三百年，凡人掌柜在第九千级开了家客栈。跟着它看 Biz Novel Studio 怎样从一句灵感、方向候选、天梯推进，走到客栈舆图与章节样张。"
 mode: "custom"
 icon: "mountain-sun"
 keywords:
@@ -9,14 +9,15 @@ keywords:
   - "AI 修仙小说"
   - "仙侠修真"
   - "修仙小说创作"
-  - "水墨"
+  - "青绿山水"
+  - "鎏金仙宫"
   - "天梯客栈"
   - "仙侠脑洞"
   - "题材展厅"
   - "Biz Novel Studio"
 ---
 
-<JhScroll />
+<JgPalace />
 
 <JiIdea />
 
@@ -30,16 +31,16 @@ keywords:
 
 <JwEnd />
 
-export const JhScroll = () => {
-  const [open, setOpen] = useState(false);
-  const [drops, setDrops] = useState([]);
+export const JgPalace = () => {
+  const [up, setUp] = useState(false);
+  const [dust, setDust] = useState([]);
+  const [peek, setPeek] = useState(false);
   const tRef = useRef(null);
+  const closeRef = useRef(null);
   useEffect(() => {
-    tRef.current = setTimeout(() => setOpen(true), 400);
+    tRef.current = setTimeout(() => setUp(true), 300);
     return () => clearTimeout(tRef.current);
   }, []);
-  const [peek, setPeek] = useState(false);
-  const closeRef = useRef(null);
   useEffect(() => {
     if (peek && closeRef.current) closeRef.current.focus();
   }, [peek]);
@@ -47,17 +48,21 @@ export const JhScroll = () => {
   for (let i = 0; i < 24; i++) STAIR += " h15 v-7";
   const QUEUERS = [];
   for (let i = 0; i < 24; i++) { if (i < 13 || i > 17) QUEUERS.push({ x: 17 + 15 * i, y: 192 - 7 * i }); }
+  const STARS = [];
+  for (let i = 0; i < 46; i++) STARS.push({ x: (i * 263) % 1200, y: 10 + ((i * 97) % 190), r: 0.6 + (i % 3) * 0.45, o: 0.35 + (i % 4) * 0.15 });
+  const RAYS = [];
+  for (let i = 0; i < 13; i++) RAYS.push(200 + i * 11.5);
   const replay = () => {
     clearTimeout(tRef.current);
-    setOpen(false);
+    setUp(false);
     setPeek(false);
-    setDrops([]);
-    tRef.current = setTimeout(() => setOpen(true), 1500);
+    setDust([]);
+    tRef.current = setTimeout(() => setUp(true), 900);
   };
-  const ink = (e) => {
+  const sprinkle = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const d = { id: Date.now() + Math.random(), x: e.clientX - r.left, y: e.clientY - r.top, s: 60 + Math.random() * 90 };
-    setDrops((p) => p.slice(-5).concat(d));
+    const d = { id: Date.now() + Math.random(), x: e.clientX - r.left, y: e.clientY - r.top };
+    setDust((p) => p.slice(-5).concat(d));
   };
   const hill = (pts, by) => {
     let d = "M" + pts[0][0] + " " + by + " L" + pts[0][0] + " " + pts[0][1];
@@ -67,213 +72,236 @@ export const JhScroll = () => {
     const L = pts[pts.length - 1];
     return d + " L" + L[0] + " " + L[1] + " L" + L[0] + " " + by + " Z";
   };
-  const peak = (cx, top, w) => hill([[cx - w, 440], [cx - w * 0.8, top + 110], [cx - w * 0.5, top + 22], [cx - w * 0.1, top], [cx + w * 0.35, top + 16], [cx + w * 0.65, top + 96], [cx + w, 440]], 440);
-  const FAR = hill([[-20, 250], [60, 212], [140, 232], [230, 168], [320, 214], [420, 176], [520, 222], [600, 186], [700, 148], [790, 204], [880, 172], [980, 214], [1080, 168], [1220, 206]], 440);
-  const PEAKS = [[400, 128, 46, 0.7], [505, 182, 32, 0.5], [640, 214, 30, 0.45], [760, 80, 56, 0.95], [880, 166, 38, 0.6], [1020, 120, 46, 0.8], [1125, 196, 34, 0.5]];
-  const NEAR = hill([[-20, 140], [30, 128], [90, 150], [150, 178], [195, 205], [228, 255], [250, 318], [268, 380], [300, 440]], 440);
-  const ISLE = hill([[985, 440], [1030, 404], [1080, 384], [1140, 378], [1215, 398]], 440);
+  const peak = (cx, top, w) => hill([[cx - w, 520], [cx - w * 0.8, top + 120], [cx - w * 0.5, top + 26], [cx - w * 0.12, top], [cx + w * 0.3, top + 14], [cx + w * 0.62, top + 92], [cx + w, 520]], 520);
+  const FAR = hill([[-20, 330], [90, 282], [200, 306], [320, 254], [450, 296], [560, 262], [680, 300], [790, 248], [910, 290], [1030, 258], [1130, 300], [1220, 276]], 520);
+  const PEAKS = [[70, 300, 80, 0.75], [215, 262, 96, 0.9], [360, 318, 70, 0.7], [850, 296, 84, 0.8], [1050, 240, 110, 0.95], [1170, 330, 64, 0.65]];
+  const MAIN = hill([[420, 520], [470, 380], [520, 270], [556, 216], [600, 210], [644, 216], [680, 270], [730, 380], [780, 520]], 520);
+  const ISLES = [{ x: 255, y: 214, w: 50, s: 1 }, { x: 960, y: 176, w: 62, s: 1.2 }, { x: 405, y: 150, w: 28, s: 0.65 }];
+  const isle = (x, y, w) => "M" + (x - w) + " " + y + " Q" + x + " " + (y - 12) + " " + (x + w) + " " + y + " Q" + (x + w * 0.55) + " " + (y + w * 0.5) + " " + x + " " + (y + w * 1.25) + " Q" + (x - w * 0.55) + " " + (y + w * 0.5) + " " + (x - w) + " " + y + "Z";
+  const pav = (x, y, s, k) => (
+    <g key={k} transform={"translate(" + x + " " + y + ") scale(" + s + ")"}>
+      <rect x="-13" y="-15" width="26" height="15" fill="#0f3b45" />
+      <rect x="-10" y="-15" width="2" height="15" fill="url(#jgGold)" />
+      <rect x="8" y="-15" width="2" height="15" fill="url(#jgGold)" />
+      <rect x="-3" y="-10" width="6" height="10" fill="#ffd77a" opacity=".85" />
+      <path d="M-24 -13 Q-15 -14 -11 -23 L11 -23 Q15 -14 24 -13 Q0 -18 -24 -13Z" fill="url(#jgGold)" />
+      <path d="M0 -23 L0 -31" stroke="#e8b84f" strokeWidth="1.6" />
+      <circle cx="0" cy="-33" r="2.4" fill="#ffe39a" />
+    </g>
+  );
   const CLOUDS = [
-    { l: "-6%", t: "50%", w: "40%", h: "26%", d: 24 },
-    { l: "26%", t: "60%", w: "46%", h: "30%", d: 32 },
-    { l: "56%", t: "46%", w: "34%", h: "22%", d: 27 },
-    { l: "70%", t: "66%", w: "42%", h: "28%", d: 36 },
-    { l: "38%", t: "28%", w: "20%", h: "12%", d: 42 },
+    { l: "-8%", t: "66%", w: "42%", h: "26%", d: 26 },
+    { l: "24%", t: "74%", w: "48%", h: "28%", d: 34 },
+    { l: "58%", t: "64%", w: "36%", h: "22%", d: 29 },
+    { l: "72%", t: "78%", w: "44%", h: "26%", d: 38 },
+  ];
+  const YUN = [
+    { t: "20%", w: 96, d: 80, del: -12 },
+    { t: "33%", w: 66, d: 96, del: -48 },
+    { t: "12%", w: 52, d: 120, del: -84 },
   ];
   const CRANES = [
-    { t: "16%", w: 52, d: 46, del: -8 },
-    { t: "23%", w: 38, d: 52, del: -21 },
-    { t: "12%", w: 30, d: 60, del: -37 },
+    { t: "18%", w: 50, d: 48, del: -10 },
+    { t: "26%", w: 36, d: 56, del: -26 },
   ];
   return (
-    <div className="not-prose jh">
+    <div className={"not-prose jg" + (up ? " up" : "")}>
       <style>{`
-        .jh{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;padding:22px 24px 56px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(1000px 520px at 50% 42%,rgba(255,255,255,.6),transparent 70%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#ece5d6}
-        .jh-top{max-width:1160px;width:100%;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13px;letter-spacing:.3em;color:#5a554c}
-        .jh-top a{color:#5a554c;text-decoration:none;letter-spacing:.15em;transition:color .25s}
-        .jh-top a:hover{color:#b8342b}
-        .jh-stage{flex:1;max-width:1160px;width:100%;margin:0 auto;display:flex;flex-direction:column;justify-content:center;padding:46px 14px 0}
-        .jh-scroll{position:relative;height:clamp(300px,56vh,480px)}
-        .jh-paper{position:absolute;inset:0;background:linear-gradient(180deg,#b9a77f,#d6c7a3 18%,#cbb991 50%,#d6c7a3 82%,#b9a77f);box-shadow:0 34px 60px -34px rgba(60,42,18,.55);clip-path:inset(0 calc(50% - 12px));transition:clip-path 2.8s cubic-bezier(.65,0,.25,1)}
-        .jh-scroll.open .jh-paper{clip-path:inset(0 0)}
-        .jh-art{position:absolute;left:0;right:0;top:14px;bottom:14px;overflow:hidden;cursor:pointer;background:radial-gradient(700px 300px at 70% 20%,rgba(255,255,255,.55),transparent 70%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#f5f0e4;box-shadow:inset 0 0 0 1px rgba(80,60,30,.22),inset 0 0 40px rgba(150,120,70,.14)}
-        .jh-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-        .jh-rod{position:absolute;top:-18px;bottom:-18px;width:24px;z-index:4;border-radius:5px;background:linear-gradient(90deg,#2e1b0e,#6b4325 22%,#a87447 48%,#7a4f2c 70%,#3b2414);box-shadow:0 12px 24px -10px rgba(0,0,0,.55);transition:left 2.8s cubic-bezier(.65,0,.25,1),right 2.8s cubic-bezier(.65,0,.25,1)}
-        .jh-rod::before,.jh-rod::after{content:"";position:absolute;left:-4px;right:-4px;height:16px;border-radius:6px;background:linear-gradient(90deg,#a99f86,#f3eee0 45%,#c9bfa4)}
-        .jh-rod::before{top:-12px}
-        .jh-rod::after{bottom:-12px}
-        .jh-rl{left:calc(50% - 24px)}
-        .jh-rr{right:calc(50% - 24px)}
-        .jh-scroll.open .jh-rl{left:-14px}
-        .jh-scroll.open .jh-rr{right:-14px}
-        .jh-cl{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(closest-side,rgba(247,243,234,.98),rgba(247,243,234,.75) 50%,rgba(247,243,234,0));filter:blur(4px);animation:jhDrift ease-in-out infinite alternate}
-        .jh-crane{position:absolute;left:104%;pointer-events:none;animation:jhFly linear infinite}
-        .jh-crane svg{display:block;width:100%;height:auto;animation:jhBob 3.2s ease-in-out infinite alternate}
-        .jh-wing{transform-box:fill-box;transform-origin:50% 100%;animation:jhFlap .9s ease-in-out infinite alternate}
-        .jh-drop{position:absolute;pointer-events:none;border-radius:48% 52% 46% 54%/53% 47% 55% 45%;translate:-50% -50%;background:radial-gradient(closest-side,rgba(22,21,19,.78),rgba(22,21,19,.5) 35%,rgba(22,21,19,.16) 70%,rgba(22,21,19,0));animation:jhInk 6s cubic-bezier(.15,.7,.3,1) forwards}
-        .jh-title{position:absolute;top:9%;right:7%;z-index:3;display:flex;flex-direction:row-reverse;align-items:flex-start;gap:16px;pointer-events:none;opacity:0;filter:blur(10px);transition:opacity 1.6s ease 2s,filter 1.8s ease 2s}
-        .jh-scroll.open .jh-title{opacity:1;filter:blur(0)}
-        .jh-h1{margin:0;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-weight:400;font-size:clamp(46px,7vw,88px);line-height:1;letter-spacing:.16em;color:#151412;text-shadow:0 0 18px rgba(245,240,228,.9)}
-        .jh-col{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:clamp(30px,5vw,60px)}
-        .jh-line{writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(14px,1.5vw,17px);letter-spacing:.42em;color:#3d3933}
-        .jh-seal{width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#b8342b;border-radius:3px 4px 3px 5px;color:#f8efe2;box-shadow:inset 0 0 0 2px rgba(248,239,226,.18);opacity:.92}
-        .jh-seal span{writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;line-height:17px;height:32px;letter-spacing:0}
-        .jh-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:24px 40px;margin-top:54px}
-        .jh-copy{max-width:520px}
-        .jh-sub{margin:0;font-size:16px;line-height:1.95;color:#3d3933}
-        .jh-hint{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;letter-spacing:.18em;color:#625c52}
-        .jh-hint button{font:inherit;letter-spacing:.12em;color:#5a554c;background:none;border:0;border-bottom:1px solid rgba(29,27,25,.3);padding:2px 0;cursor:pointer}
-        .jh-hint button:hover{color:#b8342b;border-color:#b8342b}
-        .jh-btns{display:flex;flex-wrap:wrap;gap:12px}
-        .jh-btn{display:inline-flex;align-items:center;padding:11px 22px;font-size:15px;letter-spacing:.1em;text-decoration:none;color:#1d1b19;border:1px solid rgba(29,27,25,.45);border-radius:2px;background:rgba(255,255,255,.25);transition:all .3s}
-        .jh-btn:hover{background:#1d1b19;color:#f5f0e4}
-        .jh-btn.pri{background:#b8342b;border-color:#b8342b;color:#fbf6ec;box-shadow:0 12px 26px -12px rgba(184,52,43,.75)}
-        .jh-btn.pri:hover{background:#9c2a22}
-        .jh-btn:focus-visible,.jh-hint button:focus-visible,.jh-top a:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
-        @keyframes jhDrift{from{translate:-40px 0}to{translate:40px 0}}
-        @keyframes jhFly{from{left:104%}to{left:-12%}}
-        @keyframes jhBob{from{translate:0 -6px}to{translate:0 6px}}
-        @keyframes jhFlap{from{scale:1 1}to{scale:1 -.55}}
-        @keyframes jhInk{0%{scale:0;opacity:1}14%{scale:1;opacity:.95}100%{scale:1.3;opacity:0}}
-        .jh-who{cursor:zoom-in}
-        .jh-ring{fill:none;stroke:#b8342b;stroke-width:1.4;transform-box:fill-box;transform-origin:center;animation:jhPulse 2.6s ease-out infinite}
-        @keyframes jhPulse{0%{opacity:.85;scale:.5}100%{opacity:0;scale:1.7}}
-        .jh-pip{position:absolute;z-index:5;left:4%;bottom:7%;width:min(440px,90%);padding:12px 12px 10px;background:#f8f4ea;cursor:default;transform-origin:20% 100%;box-shadow:0 24px 40px -20px rgba(40,28,10,.6),inset 0 0 0 1px rgba(29,27,25,.45),inset 0 0 0 5px #f8f4ea,inset 0 0 0 6px rgba(184,52,43,.45);animation:jhPip .6s cubic-bezier(.3,1.3,.5,1) both}
-        .jh-pip svg{display:block;width:100%;height:auto}
-        .jh-pip p{margin:8px 4px 2px;font-size:13px;line-height:1.75;letter-spacing:.04em;color:#3d3933}
-        .jh-pip em{font-style:normal;color:#b8342b;-webkit-text-emphasis:filled dot #b8342b;text-emphasis:filled dot #b8342b}
-        .jh-pip button{position:absolute;top:8px;right:8px;font:inherit;font-size:12px;letter-spacing:.1em;padding:3px 9px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0}
-        .jh-pip button:hover{background:#b8342b}
-        .jh-pip button:focus-visible{outline:2px solid #b8342b;outline-offset:2px}
-        @keyframes jhPip{from{opacity:0;scale:.15}to{opacity:1;scale:1}}
-        @media (prefers-reduced-motion:reduce){.jh-paper,.jh-rod,.jh-title{transition:none}.jh-cl,.jh-crane,.jh-crane svg,.jh-wing{animation:none}.jh-crane{left:58%}.jh-drop{animation:none;opacity:.5}.jh-ring{animation:none;opacity:.6}.jh-pip{animation:none}}
-        @media (max-width:900px){.jh-stage{padding-top:36px}.jh-foot{margin-top:42px}}
-        @media (max-width:520px){.jh{padding:18px 16px 44px}.jh-top{font-size:12px;letter-spacing:.12em}.jh-scroll{height:min(64vh,420px)}.jh-title{right:5%;gap:10px}}
+        .jg{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;color:#f3ead0;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:linear-gradient(180deg,#061a24 0%,#0b3040 34%,#17565f 60%,#0d3a40 80%,#0a2a31 100%)}
+        .jg-top{position:relative;z-index:6;max-width:1160px;width:100%;margin:0 auto;padding:22px 24px 0;display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13px;letter-spacing:.3em;color:rgba(243,234,208,.72)}
+        .jg-top a{color:rgba(243,234,208,.72);text-decoration:none;letter-spacing:.15em;transition:color .25s}
+        .jg-top a:hover{color:#ffd77a}
+        .jg-art{position:relative;flex:1;min-height:clamp(380px,64vh,600px);overflow:hidden;cursor:pointer}
+        .jg-svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+        .jg-rise{transform:translateY(110px);opacity:0;transition:transform 2.6s cubic-bezier(.2,.8,.2,1),opacity 1.8s ease}
+        .jg-rise.d1{transition-delay:.2s}
+        .jg-rise.d2{transition-delay:.45s}
+        .jg.up .jg-rise{transform:translateY(0);opacity:1}
+        .jg-halo{transform-box:fill-box;transform-origin:center;animation:jgBreath 5s ease-in-out infinite alternate}
+        .jg-ray{transform-box:view-box;transform-origin:600px 168px;animation:jgSpin 60s linear infinite}
+        .jg-tw{animation:jgTw 3.6s ease-in-out infinite alternate}
+        .jg-fall{animation:jgFall 1.6s linear infinite}
+        .jg-gate{cursor:zoom-in}
+        .jg-ring{fill:none;stroke:#ffd77a;stroke-width:1.5;transform-box:fill-box;transform-origin:center;animation:jgPulse 2.6s ease-out infinite}
+        .jg-cl{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(closest-side,rgba(232,244,238,.92),rgba(214,236,228,.6) 50%,rgba(214,236,228,0));filter:blur(5px);animation:jgDrift ease-in-out infinite alternate}
+        .jg-yun{position:absolute;left:-12%;pointer-events:none;animation:jgYun linear infinite}
+        .jg-yun svg,.jg-crane svg{display:block;width:100%;height:auto}
+        .jg-crane{position:absolute;left:104%;pointer-events:none;animation:jgFly linear infinite}
+        .jg-crane svg{animation:jgBob 3.2s ease-in-out infinite alternate}
+        .jg-wing{transform-box:fill-box;transform-origin:50% 100%;animation:jgFlap .9s ease-in-out infinite alternate}
+        .jg-sp{position:absolute;width:0;height:0;pointer-events:none}
+        .jg-sp i{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:#ffe39a;box-shadow:0 0 10px 2px rgba(255,211,106,.8);animation:jgSp 1.5s cubic-bezier(.2,.7,.3,1) forwards}
+        .jg-title{position:absolute;z-index:4;top:6%;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;filter:blur(8px);transition:opacity 1.4s ease 1.5s,filter 1.6s ease 1.5s}
+        .jg.up .jg-title{opacity:1;filter:blur(0)}
+        .jg-plaque{display:inline-block;padding:12px 30px 10px;background:linear-gradient(180deg,#0f3d4a,#092a34);border-radius:4px;box-shadow:0 0 0 2px #c99a3b,0 0 0 6px #092a34,0 0 0 7px rgba(232,184,79,.75),0 24px 40px -18px rgba(0,0,0,.75)}
+        .jg-h1{margin:0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-weight:400;font-size:clamp(38px,6vw,74px);line-height:1.15;letter-spacing:.3em;padding-left:.3em;background:linear-gradient(180deg,#fff3c4,#e8b84f 55%,#b07d1c);-webkit-background-clip:text;background-clip:text;color:transparent}
+        .jg-line{margin:14px 0 0;font-size:clamp(13px,1.4vw,16px);letter-spacing:.55em;color:#f1dca0;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+        .jg-foot{position:relative;z-index:5;max-width:1160px;width:100%;margin:0 auto;padding:8px 24px 56px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:24px 40px}
+        .jg-copy{max-width:540px}
+        .jg-sub{margin:0;font-size:16px;line-height:1.95;color:rgba(243,234,208,.9)}
+        .jg-hint{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:13px;letter-spacing:.18em;color:rgba(243,234,208,.7)}
+        .jg-hint button{font:inherit;letter-spacing:.12em;color:#f1dca0;background:none;border:0;border-bottom:1px solid rgba(232,184,79,.5);padding:2px 0;cursor:pointer}
+        .jg-hint button:hover{color:#ffd77a;border-color:#ffd77a}
+        .jg-btns{display:flex;flex-wrap:wrap;gap:12px}
+        .jg-btn{display:inline-flex;align-items:center;padding:11px 22px;font-size:15px;letter-spacing:.1em;text-decoration:none;color:#f3ead0;border:1px solid rgba(232,184,79,.6);border-radius:3px;background:rgba(9,42,52,.45);transition:all .3s}
+        .jg-btn:hover{background:rgba(232,184,79,.16);color:#ffe39a}
+        .jg-btn.pri{background:linear-gradient(180deg,#f6d886,#d6a03c 55%,#b07d1c);border-color:#e8b84f;color:#0a2c36;box-shadow:0 12px 30px -12px rgba(232,184,79,.85)}
+        .jg-btn.pri:hover{filter:brightness(1.08);color:#0a2c36}
+        .jg-btn:focus-visible,.jg-hint button:focus-visible,.jg-top a:focus-visible,.jg-pip button:focus-visible{outline:2px solid #ffd77a;outline-offset:3px}
+        .jg-pip{position:absolute;z-index:5;left:4%;bottom:7%;width:min(440px,90%);padding:14px 14px 10px;background:linear-gradient(180deg,#0f3d4a,#0a2c36);cursor:default;transform-origin:20% 100%;box-shadow:0 24px 40px -20px rgba(0,0,0,.8),inset 0 0 0 1px rgba(232,184,79,.8),inset 0 0 0 5px #0c3340,inset 0 0 0 6px rgba(232,184,79,.35);animation:jgPip .6s cubic-bezier(.3,1.3,.5,1) both}
+        .jg-pip svg{display:block;width:100%;height:auto}
+        .jg-pip p{margin:8px 4px 2px;font-size:13px;line-height:1.75;letter-spacing:.04em;color:rgba(243,234,208,.9)}
+        .jg-pip em{font-style:normal;color:#ffd77a}
+        .jg-pip button{position:absolute;top:8px;right:8px;font:inherit;font-size:12px;letter-spacing:.1em;padding:3px 9px;cursor:pointer;color:#0a2c36;background:#e8b84f;border:0}
+        .jg-pip button:hover{background:#ffd77a}
+        @keyframes jgBreath{from{opacity:.75;scale:.94}to{opacity:1;scale:1.05}}
+        @keyframes jgSpin{to{rotate:360deg}}
+        @keyframes jgTw{from{opacity:.25}to{opacity:1}}
+        @keyframes jgFall{from{stroke-dashoffset:0}to{stroke-dashoffset:-24}}
+        @keyframes jgPulse{0%{opacity:.85;scale:.6}100%{opacity:0;scale:1.6}}
+        @keyframes jgDrift{from{translate:-40px 0}to{translate:40px 0}}
+        @keyframes jgYun{from{left:-12%}to{left:104%}}
+        @keyframes jgFly{from{left:104%}to{left:-12%}}
+        @keyframes jgBob{from{translate:0 -6px}to{translate:0 6px}}
+        @keyframes jgFlap{from{scale:1 1}to{scale:1 -.55}}
+        @keyframes jgSp{0%{transform:translateX(0);opacity:1}100%{transform:translateX(64px);opacity:0}}
+        @keyframes jgPip{from{opacity:0;scale:.15}to{opacity:1;scale:1}}
+        @media (prefers-reduced-motion:reduce){.jg-rise,.jg-title{transition:none}.jg-halo,.jg-ray,.jg-tw,.jg-fall,.jg-ring,.jg-cl,.jg-yun,.jg-crane,.jg-crane svg,.jg-wing,.jg-pip{animation:none}.jg-yun{left:62%}.jg-crane{left:30%}.jg-sp i{animation:none;opacity:.6}}
+        @media (max-width:520px){.jg-top{font-size:12px;letter-spacing:.12em;padding:18px 16px 0}.jg-foot{padding:8px 16px 44px}.jg-plaque{padding:10px 18px 8px}.jg-line{letter-spacing:.3em}}
       `}</style>
-      <div className="jh-top">
+      <div className="jg-top">
         <span>题材展厅 · 壹　仙侠修真</span>
         <a href="/">← 返回首页</a>
       </div>
-      <div className="jh-stage">
-        <div className={"jh-scroll" + (open ? " open" : "")}>
-          <div className="jh-paper">
-            <div className="jh-art" onClick={ink} role="group" aria-label="水墨山水长卷：云海里的仙山、楼阁、仙鹤，和崖上一个小小的人">
-              <svg className="jh-svg" viewBox="0 0 1200 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <defs>
-                  <linearGradient id="jhFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#77726a" stopOpacity=".55" /><stop offset=".55" stopColor="#77726a" stopOpacity="0" /></linearGradient>
-                  <linearGradient id="jhMid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2f2c28" stopOpacity=".92" /><stop offset=".45" stopColor="#4a4640" stopOpacity=".45" /><stop offset=".8" stopColor="#4a4640" stopOpacity="0" /></linearGradient>
-                  <linearGradient id="jhSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f5f0e4" stopOpacity="0" /><stop offset="1" stopColor="#f5f0e4" stopOpacity=".95" /></linearGradient>
-                  <filter id="jhSoft"><feGaussianBlur stdDeviation="2.2" /></filter>
-                </defs>
-                <circle cx="930" cy="92" r="30" fill="#c0453a" opacity=".6" />
-                <path d={FAR} fill="url(#jhFar)" filter="url(#jhSoft)" />
-                {PEAKS.map((p, i) => <path key={i} d={peak(p[0], p[1], p[2])} fill="url(#jhMid)" opacity={p[3]} />)}
-                <g fill="#1d1b19">
-                  <path d="M738 75 Q747 72 754 64 Q761 72 770 75 Q754 72.5 738 75Z" />
-                  <rect x="744" y="74" width="1.6" height="8" />
-                  <rect x="762.5" y="74" width="1.6" height="8" />
+      <div className="jg-art" onClick={sprinkle} role="group" aria-label="青绿山水与鎏金仙宫：云海中的青绿群峰，峰顶一座金色仙宫，浮岛上的楼阁与仙鹤">
+        <svg className="jg-svg" viewBox="0 0 1200 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="jgFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4f9fb0" stopOpacity=".55" /><stop offset=".6" stopColor="#4f9fb0" stopOpacity="0" /></linearGradient>
+            <linearGradient id="jgMt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a7fa6" /><stop offset=".3" stopColor="#2f9a83" /><stop offset=".6" stopColor="#6fae74" /><stop offset=".85" stopColor="#c9a05a" /><stop offset="1" stopColor="#c9a05a" stopOpacity=".3" /></linearGradient>
+            <linearGradient id="jgGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff1b8" /><stop offset=".45" stopColor="#e8b84f" /><stop offset="1" stopColor="#a8741c" /></linearGradient>
+            <radialGradient id="jgHalo"><stop offset="0" stopColor="#ffe08a" stopOpacity=".75" /><stop offset=".45" stopColor="#ffd06a" stopOpacity=".25" /><stop offset="1" stopColor="#ffd06a" stopOpacity="0" /></radialGradient>
+            <linearGradient id="jgSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d6ece4" stopOpacity="0" /><stop offset=".55" stopColor="#d6ece4" stopOpacity=".55" /><stop offset="1" stopColor="#0a2a31" stopOpacity="1" /></linearGradient>
+            <filter id="jgSoft"><feGaussianBlur stdDeviation="2.4" /></filter>
+            <filter id="jgGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="3" /></filter>
+          </defs>
+          {STARS.map((s, i) => <circle key={i} className="jg-tw" cx={s.x} cy={s.y} r={s.r} fill="#fff3c4" opacity={s.o} style={{ animationDelay: (i % 7) * -0.6 + "s" }} />)}
+          <circle cx="1020" cy="86" r="24" fill="#ffe7a6" opacity=".85" />
+          <circle cx="1031" cy="80" r="21" fill="#0b3040" opacity=".9" />
+          <g className="jg-rise">
+            <path d={FAR} fill="url(#jgFar)" filter="url(#jgSoft)" />
+            {PEAKS.map((p, i) => <path key={i} d={peak(p[0], p[1], p[2])} fill="url(#jgMt)" opacity={p[3]} stroke="#e8c26a" strokeOpacity=".45" strokeWidth="1.2" />)}
+          </g>
+          <g className="jg-rise d1">
+            <circle className="jg-halo" cx="600" cy="168" r="170" fill="url(#jgHalo)" />
+            <g className="jg-ray" stroke="#ffe08a" strokeOpacity=".16" strokeWidth="2">
+              {RAYS.map((a) => <path key={a} d={"M600 168 L" + (600 + 330 * Math.cos((a * Math.PI) / 180)).toFixed(1) + " " + (168 + 330 * Math.sin((a * Math.PI) / 180)).toFixed(1)} />)}
+            </g>
+            <path d="M650 202 Q800 158 930 178" stroke="#e8b84f" strokeOpacity=".55" strokeWidth="1.6" fill="none" />
+            <path d="M548 206 Q420 170 285 214" stroke="#e8b84f" strokeOpacity=".4" strokeWidth="1.4" fill="none" />
+            {ISLES.map((s, i) => (
+              <g key={i}>
+                <path d={isle(s.x, s.y, s.w)} fill="url(#jgMt)" stroke="#e8c26a" strokeOpacity=".5" strokeWidth="1" />
+                <path className="jg-fall" d={"M" + (s.x + s.w * 0.3) + " " + (s.y + 4) + " L" + (s.x + s.w * 0.3) + " " + (s.y + s.w * 1.6)} stroke="#e8f6f0" strokeOpacity=".55" strokeWidth="1.6" strokeDasharray="8 4" />
+                {pav(s.x - s.w * 0.15, s.y - 4, s.s, "p" + i)}
+              </g>
+            ))}
+          </g>
+          <g className="jg-rise d2">
+            <path d={MAIN} fill="url(#jgMt)" stroke="#e8c26a" strokeOpacity=".55" strokeWidth="1.3" />
+            <g stroke="#e8c26a" strokeOpacity=".35" strokeWidth="1.1" fill="none" strokeLinecap="round">
+              <path d="M548 240 q-20 50 -44 110" />
+              <path d="M650 236 q22 46 48 104" />
+              <path d="M590 262 q-6 40 -16 90" />
+            </g>
+            <rect x="546" y="204" width="108" height="8" fill="url(#jgGold)" />
+            <rect x="558" y="198" width="84" height="6" fill="#0f3b45" stroke="#e8b84f" strokeWidth=".8" />
+            <rect x="566" y="174" width="68" height="24" fill="#0f3b45" />
+            {[571, 585, 599, 613, 627].map((x) => <rect key={x} x={x} y="174" width="2.4" height="24" fill="url(#jgGold)" />)}
+            <rect x="594" y="182" width="12" height="16" fill="#ffd77a" opacity=".92" />
+            <path d="M536 176 Q554 174 564 164 L636 164 Q646 174 664 176 Q630 170 600 170 Q570 170 536 176Z" fill="url(#jgGold)" />
+            <rect x="580" y="144" width="40" height="20" fill="#0f3b45" />
+            {[585, 599, 613].map((x) => <rect key={x} x={x} y="144" width="2" height="20" fill="url(#jgGold)" />)}
+            <path d="M558 146 Q571 144 580 134 L620 134 Q629 144 642 146 Q620 141 600 141 Q580 141 558 146Z" fill="url(#jgGold)" />
+            <rect x="584" y="131" width="32" height="3" fill="url(#jgGold)" />
+            <path d="M600 131 L600 114" stroke="#e8b84f" strokeWidth="2" />
+            <circle cx="600" cy="111" r="4" fill="#ffe39a" />
+            <circle cx="546" cy="182" r="5" fill="#ffd77a" filter="url(#jgGlow)" />
+            <circle cx="654" cy="182" r="5" fill="#ffd77a" filter="url(#jgGlow)" />
+            <g className="jg-gate" onClick={(e) => { e.stopPropagation(); setPeek(true); }}>
+              <rect x="530" y="100" width="140" height="115" fill="transparent" />
+              <circle className="jg-ring" cx="600" cy="168" r="56" />
+            </g>
+          </g>
+          <rect x="0" y="380" width="1200" height="140" fill="url(#jgSea)" />
+        </svg>
+        {CLOUDS.map((c, i) => <i key={i} className="jg-cl" style={{ left: c.l, top: c.t, width: c.w, height: c.h, animationDuration: c.d + "s", animationDelay: i * -5 + "s" }} />)}
+        {YUN.map((c, i) => (
+          <div key={i} className="jg-yun" style={{ top: c.t, width: c.w + "px", animationDuration: c.d + "s", animationDelay: c.del + "s" }}>
+            <svg viewBox="0 0 64 30" aria-hidden="true">
+              <path d="M8 24 C1 24 1 13 9 13 C9 5 21 3 25 9 C29 1 43 3 43 12 C51 11 56 17 52 24 Z" fill="rgba(255,236,180,.12)" stroke="#e8b84f" strokeWidth="1.3" strokeOpacity=".8" />
+              <path d="M20 19 a4 4 0 1 1 7 -2 M36 19 a3.5 3.5 0 1 0 -6 -2" fill="none" stroke="#e8b84f" strokeWidth="1.1" strokeOpacity=".75" />
+            </svg>
+          </div>
+        ))}
+        {CRANES.map((c, i) => (
+          <div key={i} className="jg-crane" style={{ top: c.t, width: c.w + "px", animationDuration: c.d + "s", animationDelay: c.del + "s" }}>
+            <svg viewBox="0 0 60 30" aria-hidden="true">
+              <g className="jg-wing"><path d="M22 15 Q27 1 41 3 Q35 9 33 15Z" fill="#f4f8f4" /></g>
+              <path d="M17 16 Q30 11 43 16 Q30 20 17 16Z" fill="#e8f0ec" />
+              <path d="M18 16 Q11 14.5 5 12.5" stroke="#e8f0ec" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+              <circle cx="4.6" cy="12.3" r="1.7" fill="#e8b84f" />
+              <path d="M42 16 L58 17.5" stroke="#e8f0ec" strokeWidth="1.1" />
+            </svg>
+          </div>
+        ))}
+        {dust.map((d) => (
+          <span key={d.id} className="jg-sp" style={{ left: d.x + "px", top: d.y + "px" }}>
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <i key={a} style={{ rotate: a + "deg" }} />)}
+          </span>
+        ))}
+        {peek && (
+          <div className="jg-pip" role="dialog" aria-label="云下有梯：第九千级客栈" onClick={(e) => e.stopPropagation()}>
+            <button type="button" ref={closeRef} onClick={() => setPeek(false)}>收起 ×</button>
+            <svg viewBox="0 0 400 200" role="img" aria-label="仙宫之下，一条斜向天际的天梯，台阶上排满了小人，半山腰有一家客栈，顶端是紧闭的天门">
+              <path d="M0 200 L0 170 Q60 150 120 160 Q200 120 280 128 Q340 90 400 100 L400 200Z" fill="#2f9a83" opacity=".18" />
+              <path d={STAIR} fill="none" stroke="#e8b84f" strokeWidth="1.4" strokeLinejoin="round" />
+              {QUEUERS.map((q, i) => (
+                <g key={i} fill="#f3ead0" opacity={0.55 + (i % 3) * 0.15}>
+                  <circle cx={q.x} cy={q.y - 10} r="1.8" />
+                  <path d={"M" + (q.x - 2) + " " + (q.y - 8) + " L" + (q.x - 3) + " " + q.y + " L" + (q.x + 3) + " " + q.y + " L" + (q.x + 2) + " " + (q.y - 8) + "Z"} />
                 </g>
-                <rect x="0" y="230" width="1200" height="210" fill="url(#jhSea)" />
-              </svg>
-              {CLOUDS.map((c, i) => <i key={i} className="jh-cl" style={{ left: c.l, top: c.t, width: c.w, height: c.h, animationDuration: c.d + "s", animationDelay: i * -5 + "s" }} />)}
-              <svg className="jh-svg" viewBox="0 0 1200 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                <defs>
-                  <linearGradient id="jhNear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1a1917" stopOpacity=".95" /><stop offset=".6" stopColor="#2a2724" stopOpacity=".7" /><stop offset="1" stopColor="#2a2724" stopOpacity=".15" /></linearGradient>
-                  <linearGradient id="jhFoot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f5f0e4" stopOpacity="0" /><stop offset="1" stopColor="#f5f0e4" stopOpacity="1" /></linearGradient>
-                </defs>
-                <path d={NEAR} fill="url(#jhNear)" />
-                <g stroke="#0f0e0d" strokeOpacity=".35" strokeWidth="1.4" fill="none" strokeLinecap="round">
-                  <path d="M30 175 q18 40 6 90" />
-                  <path d="M86 190 q22 46 2 104" />
-                  <path d="M146 214 q16 40 2 86" />
-                  <path d="M200 246 q12 30 0 70" />
-                </g>
-                <path d="M112 160 q-6 -18 4 -34 q8 -12 2 -26" stroke="#141312" strokeWidth="3" fill="none" strokeLinecap="round" />
-                <g fill="#141312" opacity=".88">
-                  <ellipse cx="102" cy="126" rx="17" ry="5" transform="rotate(-8 102 126)" />
-                  <ellipse cx="126" cy="114" rx="18" ry="5" transform="rotate(6 126 114)" />
-                  <ellipse cx="108" cy="102" rx="13" ry="4" transform="rotate(-4 108 102)" />
-                </g>
-                <g className="jh-who" onClick={(e) => { e.stopPropagation(); setPeek(true); }}>
-                  <circle cx="190" cy="194" r="24" fill="transparent" />
-                  <circle className="jh-ring" cx="190" cy="194" r="16" />
-                  <circle cx="190" cy="184" r="3" fill="#1d1b19" />
-                  <path d="M187 188 L183 205 L196 205 L192 188Z" fill="#1d1b19" />
-                  <path d="M192 192 q10 2 18 -4" stroke="#b8342b" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-                  <path d="M186 191 L179 179" stroke="#1d1b19" strokeWidth="1" />
-                </g>
-                <path d={ISLE} fill="url(#jhNear)" opacity=".8" />
-                <rect x="0" y="372" width="1200" height="68" fill="url(#jhFoot)" />
-                <path d="M918 412 q19 7 38 0 q-19 3 -38 0Z" fill="#1d1b19" />
-                <circle cx="938" cy="402" r="2.2" fill="#1d1b19" />
-                <path d="M936 404 L934 411 L942 411 L940 404Z" fill="#1d1b19" />
-                <path d="M940 404 L962 392 L966 412" stroke="#1d1b19" strokeWidth=".7" strokeOpacity=".6" fill="none" />
-                <g stroke="#4a4640" strokeOpacity=".35" strokeWidth="1"><path d="M880 418 h30" /><path d="M970 422 h40" /><path d="M900 428 h22" /></g>
-              </svg>
-              {CRANES.map((c, i) => (
-                <div key={i} className="jh-crane" style={{ top: c.t, width: c.w + "px", animationDuration: c.d + "s", animationDelay: c.del + "s" }}>
-                  <svg viewBox="0 0 60 30" aria-hidden="true">
-                    <g className="jh-wing"><path d="M22 15 Q27 1 41 3 Q35 9 33 15Z" fill="#1d1b19" /></g>
-                    <path d="M17 16 Q30 11 43 16 Q30 20 17 16Z" fill="#2a2724" />
-                    <path d="M18 16 Q11 14.5 5 12.5" stroke="#2a2724" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-                    <circle cx="4.6" cy="12.3" r="1.7" fill="#b8342b" />
-                    <path d="M42 16 L58 17.5" stroke="#2a2724" strokeWidth="1.1" />
-                  </svg>
-                </div>
               ))}
-              {drops.map((d) => <i key={d.id} className="jh-drop" style={{ left: d.x + "px", top: d.y + "px", width: d.s + "px", height: d.s + "px" }} />)}
-              {peek && (
-                <div className="jh-pip" role="dialog" aria-label="画中有画：第九千级客栈" onClick={(e) => e.stopPropagation()}>
-                  <button type="button" ref={closeRef} onClick={() => setPeek(false)}>收起 ×</button>
-                  <svg viewBox="0 0 400 200" role="img" aria-label="一条斜向天际的天梯，台阶上排满了小人，半山腰有一家客栈，顶端是紧闭的天门">
-                    <path d="M0 200 L0 170 Q60 150 120 160 Q200 120 280 128 Q340 90 400 100 L400 200Z" fill="#77726a" opacity=".12" />
-                    <path d={STAIR} fill="none" stroke="#1d1b19" strokeWidth="1.4" strokeLinejoin="round" />
-                    {QUEUERS.map((q, i) => (
-                      <g key={i} fill="#1d1b19" opacity={0.55 + (i % 3) * 0.15}>
-                        <circle cx={q.x} cy={q.y - 10} r="1.8" />
-                        <path d={"M" + (q.x - 2) + " " + (q.y - 8) + " L" + (q.x - 3) + " " + q.y + " L" + (q.x + 3) + " " + q.y + " L" + (q.x + 2) + " " + (q.y - 8) + "Z"} />
-                      </g>
-                    ))}
-                    <rect x="210" y="58" width="64" height="43" fill="#f3ead2" stroke="#1d1b19" strokeWidth="1.2" />
-                    <path d="M202 60 L242 40 L282 60Z" fill="#1d1b19" />
-                    <rect x="226" y="63" width="32" height="11" fill="#1d1b19" />
-                    <text x="242" y="71.5" textAnchor="middle" fontSize="8" fill="#f8efe2">客栈</text>
-                    <rect x="235" y="82" width="14" height="19" fill="#1d1b19" />
-                    <circle cx="216" cy="72" r="3" fill="#b8342b" />
-                    <circle cx="268" cy="72" r="3" fill="#b8342b" />
-                    <rect x="352" y="6" width="4" height="25" fill="#1d1b19" />
-                    <rect x="382" y="6" width="4" height="25" fill="#1d1b19" />
-                    <rect x="348" y="2" width="42" height="5" fill="#1d1b19" />
-                    <rect x="362" y="11" width="14" height="11" fill="#f3ead2" stroke="#b8342b" strokeWidth="1" />
-                  </svg>
-                  <p>画中有画：崖上那个小人，是第九千级客栈的<em>掌柜</em>。他身后的台阶上，排着三百年没挪过一步的队，最上面的天门，贴着一张告示。（示意）</p>
-                </div>
-              )}
-              <div className="jh-title">
-                <h1 className="jh-h1">仙侠修真</h1>
-                <div className="jh-col">
-                  <span className="jh-line">一念入道　万章成书</span>
-                  <span className="jh-seal"><span>题材展厅</span></span>
-                </div>
-              </div>
-            </div>
+              <rect x="210" y="58" width="64" height="43" fill="#0f3b45" stroke="#e8b84f" strokeWidth="1.2" />
+              <path d="M202 60 L242 40 L282 60Z" fill="#e8b84f" />
+              <rect x="226" y="63" width="32" height="11" fill="#e8b84f" />
+              <text x="242" y="71.5" textAnchor="middle" fontSize="8" fill="#0a2c36">客栈</text>
+              <rect x="235" y="82" width="14" height="19" fill="#ffd77a" opacity=".85" />
+              <rect x="352" y="6" width="4" height="25" fill="#e8b84f" />
+              <rect x="382" y="6" width="4" height="25" fill="#e8b84f" />
+              <rect x="348" y="2" width="42" height="5" fill="#e8b84f" />
+              <rect x="362" y="11" width="14" height="11" fill="#f3ead0" />
+            </svg>
+            <p>云下有梯：仙宫底下的天梯第九千级，开着一家客栈，<em>掌柜</em>是个凡人。他身后的台阶上，排着三百年没挪过一步的队，最上面的天门，贴着一张告示。（示意）</p>
           </div>
-          <i className="jh-rod jh-rl" />
-          <i className="jh-rod jh-rr" />
+        )}
+        <div className="jg-title">
+          <div className="jg-plaque"><h1 className="jg-h1">仙侠修真</h1></div>
+          <p className="jg-line">一念入道 · 万章成书</p>
         </div>
-        <div className="jh-foot">
-          <div className="jh-copy">
-            <p className="jh-sub">飞升天梯堵了三百年，崖上那个凡人，在第九千级开了家客栈。选好故事类型与推进方式，自动导演会把天梯、客栈、房客和章节一层层接起来，陪你把一部修仙长篇写下去。</p>
-            <div className="jh-hint">
-              <span>点一下画卷，落一滴墨</span>
-              <button type="button" aria-expanded={peek} onClick={() => setPeek(!peek)}>画中有画 · 崖上那个人</button>
-              <button type="button" onClick={replay}>↻ 收卷重展</button>
-            </div>
+      </div>
+      <div className="jg-foot">
+        <div className="jg-copy">
+          <p className="jg-sub">飞升天梯堵了三百年，云顶仙宫的门再没开过；一个凡人，在第九千级开了家客栈。选好故事类型与推进方式，自动导演会把天梯、客栈、房客和章节一层层接起来，陪你把一部修仙长篇写下去。</p>
+          <div className="jg-hint">
+            <span>点一下天空，撒一把金粉</span>
+            <button type="button" aria-expanded={peek} onClick={() => setPeek(!peek)}>云下有梯 · 点仙宫看看</button>
+            <button type="button" onClick={replay}>↻ 仙宫再起</button>
           </div>
-          <div className="jh-btns">
-            <a className="jh-btn pri" href="/quickstart">用这个题材开书 →</a>
-            <a className="jh-btn" href="/features/genre-library">题材基础库</a>
-            <a className="jh-btn" href="#ji-idea">展卷 · 往下读 ↓</a>
-          </div>
+        </div>
+        <div className="jg-btns">
+          <a className="jg-btn pri" href="/quickstart">用这个题材开书 →</a>
+          <a className="jg-btn" href="/features/genre-library">题材基础库</a>
+          <a className="jg-btn" href="#ji-idea">入山门 · 往下读 ↓</a>
         </div>
       </div>
     </div>
@@ -327,57 +355,57 @@ export const JiIdea = () => {
   return (
     <div className="not-prose ji" id="ji-idea" ref={rootRef}>
       <style>{`
-        .ji{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 30%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#efe8da}
+        .ji{padding:110px 24px;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 30%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .06 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#e4eee6}
         .ji-in{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:56px;align-items:center}
-        .ji-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .ji-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .ji-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
-        .ji-p{margin:0;font-size:16px;line-height:1.95;color:#4a4640}
-        .ji-note{margin:16px 0 0;font-size:13px;line-height:1.8;color:#625c52}
-        .ji-re{margin-top:22px;font:inherit;font-size:14px;letter-spacing:.15em;color:#5a554c;background:none;border:0;border-bottom:1px solid rgba(29,27,25,.3);padding:3px 0;cursor:pointer}
-        .ji-re:hover{color:#b8342b;border-color:#b8342b}
-        .ji-sheet{position:relative;padding:32px 30px 28px;background:#f8f4ea;box-shadow:0 30px 60px -36px rgba(70,52,24,.5),inset 0 0 0 1px rgba(29,27,25,.1),inset 0 0 0 7px #f8f4ea,inset 0 0 0 8px rgba(184,52,43,.22)}
+        .ji-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .ji-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .ji-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#0d333b}
+        .ji-p{margin:0;font-size:16px;line-height:1.95;color:#36605f}
+        .ji-note{margin:16px 0 0;font-size:13px;line-height:1.8;color:#4c6f6c}
+        .ji-re{margin-top:22px;font:inherit;font-size:14px;letter-spacing:.15em;color:#476a67;background:none;border:0;border-bottom:1px solid rgba(18,62,71,.3);padding:3px 0;cursor:pointer}
+        .ji-re:hover{color:#a0731a;border-color:#a0731a}
+        .ji-sheet{position:relative;padding:32px 30px 28px;background:#f4f8f2;box-shadow:0 30px 60px -36px rgba(18,70,74,.5),inset 0 0 0 1px rgba(18,62,71,.1),inset 0 0 0 7px #f4f8f2,inset 0 0 0 8px rgba(160,115,26,.22)}
         .ji-top{display:flex;flex-direction:row-reverse;gap:28px;align-items:stretch}
-        .ji-idea{writing-mode:vertical-rl;height:300px;min-width:150px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:24px;line-height:48px;letter-spacing:.1em;color:#161513}
-        .ji-ph{color:rgba(29,27,25,.28)}
+        .ji-idea{writing-mode:vertical-rl;height:300px;min-width:150px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:24px;line-height:48px;letter-spacing:.1em;color:#0d333b}
+        .ji-ph{color:rgba(18,62,71,.28)}
         .ji-ch{animation:jiInk .8s ease-out both}
         .ji-meta{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:18px;padding:4px 0}
-        .ji-lab{font-size:12px;letter-spacing:.35em;color:#b8342b}
+        .ji-lab{font-size:12px;letter-spacing:.35em;color:#a0731a}
         .ji-seals{display:flex;gap:18px;flex-wrap:wrap}
         .ji-sw{display:flex;flex-direction:column;align-items:center;gap:8px}
-        .ji-slot{width:64px;height:64px;display:grid;place-items:center;border:1px dashed rgba(29,27,25,.25)}
-        .ji-seal{width:54px;height:54px;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.14),transparent 45%),#b8342b;color:#f8efe2;border-radius:3px 5px 4px 6px;opacity:0;scale:1.9;rotate:-6deg;transition:opacity .3s,scale .45s cubic-bezier(.3,1.5,.5,1),rotate .45s}
+        .ji-slot{width:64px;height:64px;display:grid;place-items:center;border:1px dashed rgba(18,62,71,.25)}
+        .ji-seal{width:54px;height:54px;display:grid;place-items:center;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.14),transparent 45%),#a0731a;color:#f8efe2;border-radius:3px 5px 4px 6px;opacity:0;scale:1.9;rotate:-6deg;transition:opacity .3s,scale .45s cubic-bezier(.3,1.5,.5,1),rotate .45s}
         .ji-seal.on{opacity:.94;scale:1;rotate:-2deg}
         .ji-seal b{writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:17px;line-height:20px;height:38px;letter-spacing:0}
-        .ji-sw em{font-style:normal;font-size:12px;letter-spacing:.2em;color:#5a554c}
-        .ji-auto{font-size:13px;color:#625c52;letter-spacing:.1em}
-        .ji-bot{margin-top:24px;padding-top:22px;border-top:1px dashed rgba(29,27,25,.2);min-height:276px}
-        .ji-gen{display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.12em;color:#5a554c}
-        .ji-gen i{width:7px;height:7px;border-radius:50%;background:#1d1b19;animation:jiDot 1.2s ease-in-out infinite}
+        .ji-sw em{font-style:normal;font-size:12px;letter-spacing:.2em;color:#476a67}
+        .ji-auto{font-size:13px;color:#4c6f6c;letter-spacing:.1em}
+        .ji-bot{margin-top:24px;padding-top:22px;border-top:1px dashed rgba(18,62,71,.2);min-height:276px}
+        .ji-gen{display:flex;align-items:center;gap:6px;font-size:14px;letter-spacing:.12em;color:#476a67}
+        .ji-gen i{width:7px;height:7px;border-radius:50%;background:#123e47;animation:jiDot 1.2s ease-in-out infinite}
         .ji-gen i:nth-child(2){animation-delay:.2s}
         .ji-gen i:nth-child(3){animation-delay:.4s;margin-right:8px}
         .ji-pick{display:grid;grid-template-columns:auto minmax(0,1fr);gap:26px;align-items:end}
         .ji-slips{display:flex;gap:12px;align-items:flex-end;padding-top:40px}
-        .ji-slip{position:relative;width:58px;height:210px;padding:22px 0 14px;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;color:#2a2018;border-radius:24px 24px 4px 4px/12px 12px 4px 4px;background:linear-gradient(180deg,transparent 31%,rgba(110,80,30,.32) 31%,rgba(110,80,30,.32) 32.2%,transparent 32.2%,transparent 68%,rgba(110,80,30,.32) 68%,rgba(110,80,30,.32) 69.2%,transparent 69.2%),linear-gradient(90deg,#b99a5d,#dcc591 28%,#ecdcae 50%,#d3b97f 76%,#a98a4f);box-shadow:0 14px 22px -14px rgba(60,40,10,.7);transition:translate .45s cubic-bezier(.3,1.4,.5,1),opacity .35s;animation:jiRise .7s ease-out backwards}
+        .ji-slip{position:relative;width:58px;height:210px;padding:22px 0 14px;border:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;color:#1a3c40;border-radius:24px 24px 4px 4px/12px 12px 4px 4px;background:linear-gradient(180deg,transparent 31%,rgba(110,80,30,.32) 31%,rgba(110,80,30,.32) 32.2%,transparent 32.2%,transparent 68%,rgba(110,80,30,.32) 68%,rgba(110,80,30,.32) 69.2%,transparent 69.2%),linear-gradient(90deg,#c99a3b,#ecc96a 28%,#fbe7a8 50%,#e2b65a 76%,#b08024);box-shadow:0 14px 22px -14px rgba(10,50,56,.7);transition:translate .45s cubic-bezier(.3,1.4,.5,1),opacity .35s;animation:jiRise .7s ease-out backwards}
         .ji-slip:hover{translate:0 -8px}
         .ji-slip.on{translate:0 -22px}
         .ji-slip.off{opacity:.5}
-        .ji-slip:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
+        .ji-slip:focus-visible{outline:2px solid #a0731a;outline-offset:3px}
         .ji-st{writing-mode:vertical-rl;font-size:21px;letter-spacing:.18em}
-        .ji-sm{writing-mode:vertical-rl;font-size:12px;letter-spacing:.14em;color:#9c2a22;font-family:"Noto Serif SC","Songti SC",serif}
-        .ji-mark{position:absolute;top:-14px;left:50%;margin-left:-15px;width:30px;height:30px;display:grid;place-items:center;background:#b8342b;color:#f8efe2;border-radius:3px;rotate:-6deg;animation:jiStamp .4s cubic-bezier(.3,1.6,.5,1) both}
+        .ji-sm{writing-mode:vertical-rl;font-size:12px;letter-spacing:.14em;color:#7d5a10;font-family:"Noto Serif SC","Songti SC",serif}
+        .ji-mark{position:absolute;top:-14px;left:50%;margin-left:-15px;width:30px;height:30px;display:grid;place-items:center;background:#a0731a;color:#f8efe2;border-radius:3px;rotate:-6deg;animation:jiStamp .4s cubic-bezier(.3,1.6,.5,1) both}
         .ji-mark span{writing-mode:vertical-rl;font-size:11px;line-height:12px;height:24px;letter-spacing:0}
         .ji-det{min-height:200px;padding-bottom:6px}
-        .ji-tip{font-size:14px;letter-spacing:.15em;color:#625c52;line-height:1.9}
+        .ji-tip{font-size:14px;letter-spacing:.15em;color:#4c6f6c;line-height:1.9}
         .ji-dd{animation:jiFade .5s ease both}
-        .ji-dd b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:24px;letter-spacing:.06em;color:#161513}
-        .ji-dd p{margin:10px 0 0;font-size:14.5px;line-height:1.85;color:#4a4640}
+        .ji-dd b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:24px;letter-spacing:.06em;color:#0d333b}
+        .ji-dd p{margin:10px 0 0;font-size:14.5px;line-height:1.85;color:#36605f}
         .ji-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-        .ji-tags span{font-size:12px;letter-spacing:.1em;padding:3px 10px;border:1px solid rgba(184,52,43,.45);color:#9c2a22}
+        .ji-tags span{font-size:12px;letter-spacing:.1em;padding:3px 10px;border:1px solid rgba(160,115,26,.45);color:#7d5a10}
         .ji-chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px 0;margin-top:16px;font-size:13px}
-        .ji-chain em{width:100%;font-style:normal;font-size:12px;letter-spacing:.2em;color:#625c52;margin-bottom:2px}
-        .ji-chain span{color:#1d1b19;letter-spacing:.06em;animation:jiFade .5s ease backwards}
-        .ji-chain span+span::before{content:"→";margin:0 7px;color:#b8342b}
+        .ji-chain em{width:100%;font-style:normal;font-size:12px;letter-spacing:.2em;color:#4c6f6c;margin-bottom:2px}
+        .ji-chain span{color:#123e47;letter-spacing:.06em;animation:jiFade .5s ease backwards}
+        .ji-chain span+span::before{content:"→";margin:0 7px;color:#a0731a}
         @keyframes jiInk{from{opacity:0;filter:blur(5px)}to{opacity:1;filter:blur(0)}}
         @keyframes jiDot{0%,100%{opacity:.2}50%{opacity:1}}
         @keyframes jiRise{from{opacity:0;translate:0 30px}to{opacity:1;translate:0 0}}
@@ -389,11 +417,11 @@ export const JiIdea = () => {
       `}</style>
       <div className="ji-in">
         <div>
-          <div className="ji-k"><i />引首 · 起念</div>
+          <div className="ji-k"><i />山门 · 起念</div>
           <div className="ji-h">一句灵感，先化作三条可走的路</div>
           <p className="ji-p">在开书页写下你想看的故事。故事类型和推进方式可以自己选，也可以交给 AI 自动匹配；随后自动导演会整理出可选的书级方向和标题组，你挑定一条，再继续往下推进。</p>
           <p className="ji-note">演示内容：方向与标题均为示意，实际结果取决于你的灵感和所选模型。</p>
-          <button type="button" className="ji-re" onClick={() => setRun(Date.now())}>↻ 重新落墨</button>
+          <button type="button" className="ji-re" onClick={() => setRun(Date.now())}>↻ 重新点化</button>
         </div>
         <div className="ji-sheet">
           <div className="ji-top">
@@ -493,57 +521,57 @@ export const JsStair = () => {
   return (
     <div className="not-prose js">
       <style>{`
-        .js{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#ece5d5}
+        .js{padding:110px 24px;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .06 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#e2ece3}
         .js-in{max-width:1160px;margin:0 auto}
         .js-hd{max-width:780px}
-        .js-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .js-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .js-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
-        .js-p{margin:0;font-size:16px;line-height:1.95;color:#4a4640}
-        .js-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#625c52}
+        .js-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .js-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .js-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#0d333b}
+        .js-p{margin:0;font-size:16px;line-height:1.95;color:#36605f}
+        .js-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#4c6f6c}
         .js-grid{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:56px;align-items:center;margin-top:52px}
-        .js-hang{position:relative;padding:16px 14px;margin:14px 8px 22px;background:linear-gradient(90deg,#bfae86,#d8caa6 50%,#bfae86)}
+        .js-hang{position:relative;padding:16px 14px;margin:14px 8px 22px;background:linear-gradient(90deg,#2f7d8c,#4f9aa6 50%,#2f7d8c)}
         .js-hang::before,.js-hang::after{content:"";position:absolute;border-radius:6px}
-        .js-hang::before{top:-9px;left:-12px;right:-12px;height:12px;background:linear-gradient(180deg,#3b2414,#8b5e3c 45%,#4a2e19)}
-        .js-hang::after{bottom:-15px;left:-22px;right:-22px;height:18px;background:linear-gradient(180deg,#2e1b0e,#7a4f2c 45%,#3b2414)}
-        .js-art{position:relative;background:#f6f1e6;box-shadow:inset 0 0 0 1px rgba(80,60,30,.2)}
+        .js-hang::before{top:-9px;left:-12px;right:-12px;height:12px;background:linear-gradient(180deg,#6b4a10,#e2b65a 45%,#7a5512)}
+        .js-hang::after{bottom:-15px;left:-22px;right:-22px;height:18px;background:linear-gradient(180deg,#5a3d0a,#b8862b 45%,#6b4a10)}
+        .js-art{position:relative;background:#eef4ee;box-shadow:inset 0 0 0 1px rgba(20,80,84,.2)}
         .js-svg{display:block;width:100%;height:auto}
         .js-cl{animation:jsDrift ease-in-out infinite alternate}
         .js-nd{cursor:pointer;outline:none}
-        .js-nd:focus-visible .js-dot{stroke:#b8342b;stroke-width:3}
-        .js-lbl{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:17px;fill:#3d3933;paint-order:stroke;stroke:#f6f1e6;stroke-width:4px;transition:fill .3s}
-        .js-lbl.on{fill:#b8342b;font-size:20px}
+        .js-nd:focus-visible .js-dot{stroke:#a0731a;stroke-width:3}
+        .js-lbl{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:17px;fill:#2a5258;paint-order:stroke;stroke:#eef4ee;stroke-width:4px;transition:fill .3s}
+        .js-lbl.on{fill:#a0731a;font-size:20px}
         .js-man{pointer-events:none;transition:transform 1s cubic-bezier(.5,0,.2,1)}
-        .js-ring{fill:none;stroke:#1d1b19;stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center;animation:jsRing 1.5s ease-out}
-        .js-ring.b{stroke:#b8342b;animation-delay:.18s}
-        .js-leaf{position:relative;padding:34px 116px 30px 32px;background:#f8f4ea;box-shadow:0 26px 50px -34px rgba(70,52,24,.5),inset 0 0 0 1px rgba(29,27,25,.5),inset 0 0 0 6px #f8f4ea,inset 0 0 0 7px rgba(29,27,25,.25)}
-        .js-vol{display:inline-block;font-size:12.5px;letter-spacing:.25em;padding:4px 10px;color:#f8efe2;background:#b8342b}
-        .js-name{position:absolute;top:30px;right:32px;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:60px;line-height:1;letter-spacing:.1em;color:#161513;animation:jsBrush 1s cubic-bezier(.6,0,.3,1) both}
+        .js-ring{fill:none;stroke:#123e47;stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center;animation:jsRing 1.5s ease-out}
+        .js-ring.b{stroke:#a0731a;animation-delay:.18s}
+        .js-leaf{position:relative;padding:34px 116px 30px 32px;background:#f4f8f2;box-shadow:0 26px 50px -34px rgba(18,70,74,.5),inset 0 0 0 1px rgba(18,62,71,.5),inset 0 0 0 6px #f4f8f2,inset 0 0 0 7px rgba(18,62,71,.25)}
+        .js-vol{display:inline-block;font-size:12.5px;letter-spacing:.25em;padding:4px 10px;color:#f8efe2;background:#a0731a}
+        .js-name{position:absolute;top:30px;right:32px;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:60px;line-height:1;letter-spacing:.1em;color:#0d333b;animation:jsBrush 1s cubic-bezier(.6,0,.3,1) both}
         .js-leaf dl{margin:18px 0 0}
-        .js-leaf dt{margin-top:16px;font-size:12px;letter-spacing:.3em;color:#b8342b}
-        .js-leaf dd{margin:6px 0 0;font-size:15.5px;line-height:1.85;color:#2a2724}
+        .js-leaf dt{margin-top:16px;font-size:12px;letter-spacing:.3em;color:#a0731a}
+        .js-leaf dd{margin:6px 0 0;font-size:15.5px;line-height:1.85;color:#1b4a52}
         .js-aux{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-        .js-aux button{font:inherit;font-size:13px;letter-spacing:.08em;padding:4px 12px;cursor:pointer;color:#4a4640;background:transparent;border:1px solid rgba(29,27,25,.3);transition:all .25s}
-        .js-aux button.on{background:#1d1b19;color:#f5f0e4;border-color:#1d1b19}
-        .js-aux button:focus-visible,.js-up:focus-visible{outline:2px solid #b8342b;outline-offset:2px}
+        .js-aux button{font:inherit;font-size:13px;letter-spacing:.08em;padding:4px 12px;cursor:pointer;color:#36605f;background:transparent;border:1px solid rgba(18,62,71,.3);transition:all .25s}
+        .js-aux button.on{background:#123e47;color:#f0f6f0;border-color:#123e47}
+        .js-aux button:focus-visible,.js-up:focus-visible{outline:2px solid #a0731a;outline-offset:2px}
         .js-checks{display:flex;flex-direction:column;gap:7px}
         .js-checks span{display:flex;align-items:center;gap:10px;animation:jsIn .5s ease backwards}
-        .js-checks i{width:20px;height:20px;flex:none;display:grid;place-items:center;font-style:normal;font-size:12px;color:#b8342b;border:1.5px solid #b8342b;border-radius:50% 46% 52% 48%}
-        .js-up{margin-top:26px;width:100%;padding:14px 18px;font:inherit;font-size:16px;letter-spacing:.2em;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;transition:background .3s}
-        .js-up:hover{background:#b8342b}
-        .js-tk{position:absolute;left:10px;top:10px;padding:8px 12px 9px;background:#f8f4ea;border:1px solid rgba(29,27,25,.55);box-shadow:3px 3px 0 rgba(29,27,25,.12);rotate:-3deg;font-size:12px;line-height:1.5;color:#4a4640;min-width:118px}
-        .js-tk::after{content:"";position:absolute;right:-1px;top:50%;width:9px;height:9px;margin-top:-5px;background:#bfae86;border-radius:50%}
-        .js-tk em{display:block;font-style:normal;font-size:11px;letter-spacing:.3em;color:#b8342b}
-        .js-tk b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:19px;color:#161513;animation:jsIn .45s ease both}
-        .js-tk span{font-size:11px;color:#625c52}
-        .js-notice{position:absolute;left:50%;top:18%;width:46%;max-width:190px;margin-left:-23%;padding:14px 12px 12px;text-align:center;background:#f3ead2;color:#2a2724;box-shadow:0 14px 26px -14px rgba(40,28,10,.6),inset 0 0 0 1px rgba(29,27,25,.35),inset 0 0 0 4px #f3ead2,inset 0 0 0 5px rgba(184,52,43,.45);animation:jsDrop .9s cubic-bezier(.3,1.4,.5,1) both;transform-origin:top center}
-        .js-notice b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:20px;letter-spacing:.5em;color:#b8342b}
+        .js-checks i{width:20px;height:20px;flex:none;display:grid;place-items:center;font-style:normal;font-size:12px;color:#a0731a;border:1.5px solid #a0731a;border-radius:50% 46% 52% 48%}
+        .js-up{margin-top:26px;width:100%;padding:14px 18px;font:inherit;font-size:16px;letter-spacing:.2em;cursor:pointer;color:#fbf6ec;background:#123e47;border:0;transition:background .3s}
+        .js-up:hover{background:#a0731a}
+        .js-tk{position:absolute;left:10px;top:10px;padding:8px 12px 9px;background:#f4f8f2;border:1px solid rgba(18,62,71,.55);box-shadow:3px 3px 0 rgba(18,62,71,.12);rotate:-3deg;font-size:12px;line-height:1.5;color:#36605f;min-width:118px}
+        .js-tk::after{content:"";position:absolute;right:-1px;top:50%;width:9px;height:9px;margin-top:-5px;background:#2f7d8c;border-radius:50%}
+        .js-tk em{display:block;font-style:normal;font-size:11px;letter-spacing:.3em;color:#a0731a}
+        .js-tk b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:19px;color:#0d333b;animation:jsIn .45s ease both}
+        .js-tk span{font-size:11px;color:#4c6f6c}
+        .js-notice{position:absolute;left:50%;top:18%;width:46%;max-width:190px;margin-left:-23%;padding:14px 12px 12px;text-align:center;background:#f3ead2;color:#1b4a52;box-shadow:0 14px 26px -14px rgba(8,40,46,.6),inset 0 0 0 1px rgba(18,62,71,.35),inset 0 0 0 4px #f3ead2,inset 0 0 0 5px rgba(160,115,26,.45);animation:jsDrop .9s cubic-bezier(.3,1.4,.5,1) both;transform-origin:top center}
+        .js-notice b{display:block;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:20px;letter-spacing:.5em;color:#a0731a}
         .js-notice span{display:block;margin-top:6px;font-size:13.5px;line-height:1.6}
-        .js-notice strong{display:block;margin-top:2px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:17px;color:#161513}
-        .js-notice i{display:inline-block;margin-top:8px;padding:3px 6px;font-style:normal;font-size:10.5px;letter-spacing:.2em;color:#f8efe2;background:#b8342b;rotate:-4deg}
-        .js-sign{position:absolute;right:12px;bottom:16%;writing-mode:vertical-rl;padding:10px 6px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;letter-spacing:.3em;color:#f8efe2;background:#1d1b19;box-shadow:0 0 0 2px #f6f1e6,0 0 0 3px #1d1b19;animation:jsSwing 2.4s ease-in-out .9s both;transform-origin:top center}
-        .js-sign::before{content:"";position:absolute;top:-14px;left:50%;width:1px;height:14px;background:#1d1b19}
-        .js-groan{margin-top:12px;font-size:13px;line-height:1.8;color:#b8342b;animation:jsIn .5s ease 1s both}
+        .js-notice strong{display:block;margin-top:2px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:17px;color:#0d333b}
+        .js-notice i{display:inline-block;margin-top:8px;padding:3px 6px;font-style:normal;font-size:10.5px;letter-spacing:.2em;color:#f8efe2;background:#a0731a;rotate:-4deg}
+        .js-sign{position:absolute;right:12px;bottom:16%;writing-mode:vertical-rl;padding:10px 6px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;letter-spacing:.3em;color:#f8efe2;background:#123e47;box-shadow:0 0 0 2px #eef4ee,0 0 0 3px #123e47;animation:jsSwing 2.4s ease-in-out .9s both;transform-origin:top center}
+        .js-sign::before{content:"";position:absolute;top:-14px;left:50%;width:1px;height:14px;background:#123e47}
+        .js-groan{margin-top:12px;font-size:13px;line-height:1.8;color:#a0731a;animation:jsIn .5s ease 1s both}
         @keyframes jsDrop{0%{opacity:0;translate:0 -40px;rotate:-8deg}60%{opacity:1;rotate:3deg}100%{opacity:1;translate:0 0;rotate:-1.5deg}}
         @keyframes jsSwing{0%{opacity:0;rotate:12deg}30%{opacity:1;rotate:-7deg}55%{rotate:4deg}80%{rotate:-2deg}100%{opacity:1;rotate:0deg}}
         @media (prefers-reduced-motion:reduce){.js-tk b,.js-notice,.js-sign,.js-groan{animation:none}}
@@ -557,7 +585,7 @@ export const JsStair = () => {
       `}</style>
       <div className="js-in">
         <div className="js-hd">
-          <div className="js-k"><i />画心一 · 登阶</div>
+          <div className="js-k"><i />一重天 · 登阶</div>
           <div className="js-h">主推进：升级变强</div>
           <p className="js-p">题材回答这本书放在哪个货架，推进模式回答读者为什么继续看下一章。仙侠修真最常见的主推进是升级变强，再搭配一到两个辅助推进增加变化。推进模式会进入卷规划和章节任务，帮助判断爽点是否有铺垫和兑现、冲突是否逐步升级。</p>
           <p className="js-note">示意：天梯台阶、排队号牌与分卷都是演示用的例子，实际卷规划由自动导演根据你选定的方向生成。点击天梯上的台阶可以直接跳转；一路爬到天门，看看那里贴着什么。</p>
@@ -567,28 +595,28 @@ export const JsStair = () => {
             <div className="js-art">
               <svg className="js-svg" viewBox="0 0 360 470" role="img" aria-label="飞升天梯：从山脚到天门的五段台阶">
                 <defs>
-                  <linearGradient id="jsMt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f1d1a" stopOpacity=".92" /><stop offset=".5" stopColor="#3d3933" stopOpacity=".5" /><stop offset="1" stopColor="#3d3933" stopOpacity="0" /></linearGradient>
-                  <linearGradient id="jsBk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7a746a" stopOpacity=".5" /><stop offset="1" stopColor="#7a746a" stopOpacity="0" /></linearGradient>
+                  <linearGradient id="jsMt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a7fa6" stopOpacity=".95" /><stop offset=".35" stopColor="#2f9a83" stopOpacity=".85" /><stop offset=".7" stopColor="#6fae74" stopOpacity=".45" /><stop offset="1" stopColor="#c9a05a" stopOpacity="0" /></linearGradient>
+                  <linearGradient id="jsBk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4f9fb0" stopOpacity=".5" /><stop offset="1" stopColor="#4f9fb0" stopOpacity="0" /></linearGradient>
                   <filter id="jsBlur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="7" /></filter>
                   <filter id="jsSoft"><feGaussianBlur stdDeviation="1.6" /></filter>
                 </defs>
-                <circle cx="300" cy="62" r="20" fill="#c0453a" opacity=".55" />
+                <circle cx="300" cy="62" r="20" fill="#e0b54a" opacity=".55" />
                 <path d={BACK} fill="url(#jsBk)" filter="url(#jsSoft)" />
                 <path d={MAIN} fill="url(#jsMt)" />
-                <g stroke="#0f0e0d" strokeOpacity=".3" strokeWidth="1.2" fill="none" strokeLinecap="round">
+                <g stroke="#0a2a31" strokeOpacity=".3" strokeWidth="1.2" fill="none" strokeLinecap="round">
                   <path d="M150 70 q-14 50 -26 110" />
                   <path d="M196 96 q10 40 26 90" />
                   <path d="M96 260 q-12 30 -30 60" />
                   <path d="M250 250 q14 30 34 52" />
                 </g>
-                <path d="M244 262 q-3 -12 2 -24" stroke="#1a1917" strokeWidth="2" fill="none" />
-                <g fill="#1a1917" opacity=".85"><ellipse cx="240" cy="242" rx="11" ry="3.4" /><ellipse cx="251" cy="234" rx="9" ry="3" /><ellipse cx="244" cy="228" rx="7" ry="2.6" /></g>
-                <path d="M70 352 q2 -12 -3 -22" stroke="#1a1917" strokeWidth="2" fill="none" />
-                <g fill="#1a1917" opacity=".8"><ellipse cx="64" cy="334" rx="10" ry="3.2" /><ellipse cx="74" cy="327" rx="8" ry="2.8" /></g>
-                <path d={route} fill="none" stroke="#f6f1e6" strokeOpacity=".7" strokeWidth="9" strokeLinejoin="round" />
-                <path d={route} fill="none" stroke="#8a7f6e" strokeWidth="6" strokeDasharray="2 4" strokeLinejoin="round" />
-                <path d={done} fill="none" stroke="#b8342b" strokeWidth="6" strokeDasharray="2 4" strokeLinejoin="round" />
-                {CLOUDS.map((c, i) => <ellipse key={i} className="js-cl" cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="#f6f1e6" opacity=".92" filter="url(#jsBlur)" style={{ animationDuration: 10 + i * 3 + "s", animationDelay: i * -2 + "s" }} />)}
+                <path d="M244 262 q-3 -12 2 -24" stroke="#0f3740" strokeWidth="2" fill="none" />
+                <g fill="#0f3740" opacity=".85"><ellipse cx="240" cy="242" rx="11" ry="3.4" /><ellipse cx="251" cy="234" rx="9" ry="3" /><ellipse cx="244" cy="228" rx="7" ry="2.6" /></g>
+                <path d="M70 352 q2 -12 -3 -22" stroke="#0f3740" strokeWidth="2" fill="none" />
+                <g fill="#0f3740" opacity=".8"><ellipse cx="64" cy="334" rx="10" ry="3.2" /><ellipse cx="74" cy="327" rx="8" ry="2.8" /></g>
+                <path d={route} fill="none" stroke="#eef4ee" strokeOpacity=".7" strokeWidth="9" strokeLinejoin="round" />
+                <path d={route} fill="none" stroke="#7d9a92" strokeWidth="6" strokeDasharray="2 4" strokeLinejoin="round" />
+                <path d={done} fill="none" stroke="#a0731a" strokeWidth="6" strokeDasharray="2 4" strokeLinejoin="round" />
+                {CLOUDS.map((c, i) => <ellipse key={i} className="js-cl" cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="#eef4ee" opacity=".92" filter="url(#jsBlur)" style={{ animationDuration: 10 + i * 3 + "s", animationDelay: i * -2 + "s" }} />)}
                 {burst > 0 && (
                   <g key={burst}>
                     <circle className="js-ring" cx={P.x} cy={P.y} r="12" />
@@ -598,14 +626,14 @@ export const JsStair = () => {
                 {NODES.map((n, i) => (
                   <g key={i} className="js-nd" tabIndex="0" role="button" aria-label={"台阶：" + REALMS[i].n} onClick={() => setLv(i)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setLv(i); } }}>
                     <circle cx={n.x} cy={n.y} r="20" fill="transparent" />
-                    <circle className="js-dot" cx={n.x} cy={n.y} r={i === lv ? 8 : 6} fill={i < lv ? "#1d1b19" : i === lv ? "#b8342b" : "#f6f1e6"} stroke="#1d1b19" strokeWidth="1.6" style={{ transition: "all .4s" }} />
+                    <circle className="js-dot" cx={n.x} cy={n.y} r={i === lv ? 8 : 6} fill={i < lv ? "#123e47" : i === lv ? "#a0731a" : "#eef4ee"} stroke="#123e47" strokeWidth="1.6" style={{ transition: "all .4s" }} />
                     <text x={n.x + (n.x < 150 ? -18 : 18)} y={n.y + 6} textAnchor={n.x < 150 ? "end" : "start"} className={"js-lbl" + (i === lv ? " on" : "")}>{REALMS[i].n}</text>
                   </g>
                 ))}
                 <g className="js-man" style={{ transform: "translate(" + P.x + "px," + (P.y - 9) + "px)" }}>
-                  <circle cx="0" cy="-15" r="2.8" fill="#1d1b19" />
-                  <path d="M-2.6 -12 L-5 0 L5 0 L2.6 -12Z" fill="#1d1b19" />
-                  <path d="M2 -9 q7 1 12 -5" stroke="#b8342b" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+                  <circle cx="0" cy="-15" r="2.8" fill="#123e47" />
+                  <path d="M-2.6 -12 L-5 0 L5 0 L2.6 -12Z" fill="#123e47" />
+                  <path d="M2 -9 q7 1 12 -5" stroke="#a0731a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
                 </g>
               </svg>
               <div className="js-tk" aria-live="polite">
@@ -700,37 +728,37 @@ export const JmMap = () => {
   return (
     <div className="not-prose jm">
       <style>{`
-        .jm{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#efe8da}
+        .jm{padding:110px 24px;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .06 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#e4eee6}
         .jm-in{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:52px;align-items:center}
-        .jm-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .jm-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .jm-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
-        .jm-p{margin:0;font-size:16px;line-height:1.95;color:#4a4640}
-        .jm-slip{position:relative;margin-top:26px;min-height:150px;padding:20px 22px 20px 28px;background:#f8f4ea;box-shadow:0 20px 40px -30px rgba(70,52,24,.5),inset 0 0 0 1px rgba(29,27,25,.14);animation:jmIn .4s ease both}
-        .jm-slip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#b8342b}
-        .jm-kind{display:inline-block;font-size:12px;letter-spacing:.25em;color:#9c2a22;border:1px solid rgba(184,52,43,.45);padding:2px 9px}
-        .jm-slip b{display:block;margin-top:10px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:22px;color:#161513}
-        .jm-slip p{margin:8px 0 0;font-size:14.5px;line-height:1.85;color:#4a4640}
-        .jm-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#625c52}
-        .jm-map{position:relative;padding:22px 18px 18px;background:#e9dfc9;box-shadow:0 30px 60px -36px rgba(70,52,24,.55),inset 0 0 0 1px rgba(29,27,25,.45),inset 0 0 0 6px #e9dfc9,inset 0 0 0 7px rgba(29,27,25,.25)}
+        .jm-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .jm-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .jm-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#0d333b}
+        .jm-p{margin:0;font-size:16px;line-height:1.95;color:#36605f}
+        .jm-slip{position:relative;margin-top:26px;min-height:150px;padding:20px 22px 20px 28px;background:#f4f8f2;box-shadow:0 20px 40px -30px rgba(18,70,74,.5),inset 0 0 0 1px rgba(18,62,71,.14);animation:jmIn .4s ease both}
+        .jm-slip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:#a0731a}
+        .jm-kind{display:inline-block;font-size:12px;letter-spacing:.25em;color:#7d5a10;border:1px solid rgba(160,115,26,.45);padding:2px 9px}
+        .jm-slip b{display:block;margin-top:10px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:22px;color:#0d333b}
+        .jm-slip p{margin:8px 0 0;font-size:14.5px;line-height:1.85;color:#36605f}
+        .jm-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#4c6f6c}
+        .jm-map{position:relative;padding:22px 18px 18px;background:#d9e8de;box-shadow:0 30px 60px -36px rgba(18,70,74,.55),inset 0 0 0 1px rgba(18,62,71,.45),inset 0 0 0 6px #d9e8de,inset 0 0 0 7px rgba(18,62,71,.25)}
         .jm-svg{display:block;width:100%;height:auto;overflow:visible}
-        .jm-e{fill:none;stroke:rgba(29,27,25,.32);stroke-width:1.6;stroke-dasharray:1 5;stroke-linecap:round;transition:stroke .3s}
-        .jm-e.on{stroke:#b8342b;stroke-width:2;stroke-dasharray:7 5;animation:jmRoad 1.6s linear infinite}
+        .jm-e{fill:none;stroke:rgba(18,62,71,.32);stroke-width:1.6;stroke-dasharray:1 5;stroke-linecap:round;transition:stroke .3s}
+        .jm-e.on{stroke:#a0731a;stroke-width:2;stroke-dasharray:7 5;animation:jmRoad 1.6s linear infinite}
         .jm-nd{cursor:pointer;outline:none;transition:opacity .3s}
-        .jm-nd text{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:14px;fill:#2a2724;text-anchor:middle;paint-order:stroke;stroke:#e9dfc9;stroke-width:4px}
+        .jm-nd text{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:14px;fill:#1b4a52;text-anchor:middle;paint-order:stroke;stroke:#d9e8de;stroke-width:4px}
         .jm-nd.main text{font-size:17px;fill:#f8efe2;stroke:none}
-        .jm-nd:focus-visible .jm-dot{stroke:#b8342b;stroke-width:3}
-        .jm-ct{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:13px;fill:#1d1b19;text-anchor:middle}
-        .jm-hint{margin-top:12px;color:#9c2a22}
+        .jm-nd:focus-visible .jm-dot{stroke:#a0731a;stroke-width:3}
+        .jm-ct{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:13px;fill:#123e47;text-anchor:middle}
+        .jm-hint{margin-top:12px;color:#7d5a10}
         .jm-stage{position:relative}
-        .jm-ghost{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(250,247,240,.55),rgba(250,247,240,.25) 70%);transition:opacity .45s ease}
-        .jm-gt{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;fill:#9c2a22;paint-order:stroke;stroke:#f3ecdc;stroke-width:4px}
+        .jm-ghost{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(244,249,244,.55),rgba(244,249,244,.25) 70%);transition:opacity .45s ease}
+        .jm-gt{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:15px;fill:#7d5a10;paint-order:stroke;stroke:#e9f1e9;stroke-width:4px}
         .jm-gt.big{font-size:18px}
         .jm-gs{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:17px;fill:#f8efe2}
-        .jm-bar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:13px;color:#5a554c}
-        .jm-blow{font:inherit;font-size:14px;letter-spacing:.2em;padding:7px 16px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;transition:background .3s}
-        .jm-blow:hover,.jm-blow[aria-pressed="true"]{background:#b8342b}
-        .jm-blow:focus-visible{outline:2px solid #b8342b;outline-offset:2px}
+        .jm-bar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:13px;color:#476a67}
+        .jm-blow{font:inherit;font-size:14px;letter-spacing:.2em;padding:7px 16px;cursor:pointer;color:#fbf6ec;background:#123e47;border:0;transition:background .3s}
+        .jm-blow:hover,.jm-blow[aria-pressed="true"]{background:#a0731a}
+        .jm-blow:focus-visible{outline:2px solid #a0731a;outline-offset:2px}
         @keyframes jmRoad{to{stroke-dashoffset:-24}}
         @keyframes jmIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
         @media (prefers-reduced-motion:reduce){.jm-e.on,.jm-slip{animation:none}}
@@ -739,7 +767,7 @@ export const JmMap = () => {
       `}</style>
       <div className="jm-in">
         <div>
-          <div className="jm-k"><i />画心二 · 舆图</div>
+          <div className="jm-k"><i />二重天 · 舆图</div>
           <div className="jm-h">一条天梯，一张排队舆图</div>
           <p className="jm-p">世界规则、势力、地点和冲突张力，角色的性格、关系与状态，章节任务、场景卡和伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到舆图上的地名，看看它在一部仙侠小说里装着什么。</p>
           <p className="jm-p jm-hint">再对着舆图呵一口气：画师没敢画出来的东西，会在水汽里显形。</p>
@@ -756,15 +784,15 @@ export const JmMap = () => {
               <defs>
                 <filter id="jmBlur" x="-10%" y="-20%" width="120%" height="140%"><feGaussianBlur stdDeviation="6" /></filter>
               </defs>
-              <path d={RIVER} fill="none" stroke="#5f7d78" strokeOpacity=".2" strokeWidth="24" filter="url(#jmBlur)" />
-              <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 -8)" />
-              <path d={RIVER} fill="none" stroke="#1d1b19" strokeOpacity=".22" strokeWidth="1" transform="translate(0 8)" />
-              <g fill="none" stroke="#1d1b19" strokeOpacity=".3" strokeWidth="1.3" strokeLinecap="round">
+              <path d={RIVER} fill="none" stroke="#2a7fa6" strokeOpacity=".2" strokeWidth="24" filter="url(#jmBlur)" />
+              <path d={RIVER} fill="none" stroke="#123e47" strokeOpacity=".22" strokeWidth="1" transform="translate(0 -8)" />
+              <path d={RIVER} fill="none" stroke="#123e47" strokeOpacity=".22" strokeWidth="1" transform="translate(0 8)" />
+              <g fill="none" stroke="#123e47" strokeOpacity=".3" strokeWidth="1.3" strokeLinecap="round">
                 {MTS.map((m, i) => <path key={i} d={mt(m[0], m[1], m[2])} />)}
               </g>
               <g transform="translate(14 342)">
-                <rect width="28" height="84" fill="#f3ecdc" stroke="#1d1b19" strokeOpacity=".55" />
-                <rect x="3" y="3" width="22" height="78" fill="none" stroke="#1d1b19" strokeOpacity=".3" />
+                <rect width="28" height="84" fill="#e9f1e9" stroke="#123e47" strokeOpacity=".55" />
+                <rect x="3" y="3" width="22" height="78" fill="none" stroke="#123e47" strokeOpacity=".3" />
                 {["演", "示", "舆", "图"].map((c, i) => <text key={c} x="14" y={23 + i * 17} className="jm-ct">{c}</text>)}
               </g>
               {EDGES.map((e, i) => (
@@ -774,13 +802,13 @@ export const JmMap = () => {
                 <g key={n.id} className={"jm-nd" + (n.main ? " main" : "")} tabIndex="0" role="button" aria-label={n.k + "：" + n.l} style={{ opacity: near(n.id) ? 1 : 0.35 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setSel(n.id)} onClick={() => setSel(n.id)}>
                   {n.main ? (
                     <g>
-                      <rect className="jm-dot" x={n.x - n.s / 2} y={n.y - n.s / 2} width={n.s} height={n.s} rx="3" fill="#b8342b" stroke="#6e1a14" strokeWidth={act === n.id ? 2.5 : 0} transform={"rotate(" + n.rot + " " + n.x + " " + n.y + ")"} />
+                      <rect className="jm-dot" x={n.x - n.s / 2} y={n.y - n.s / 2} width={n.s} height={n.s} rx="3" fill="#a0731a" stroke="#5a3d0a" strokeWidth={act === n.id ? 2.5 : 0} transform={"rotate(" + n.rot + " " + n.x + " " + n.y + ")"} />
                       <text x={n.x} y={n.y + 6}>{n.l}</text>
                     </g>
                   ) : (
                     <g>
                       <circle cx={n.x} cy={n.y} r="16" fill="transparent" />
-                      <circle className="jm-dot" cx={n.x} cy={n.y} r={act === n.id ? 7 : 5.5} fill={act === n.id ? "#1d1b19" : "#f6f1e6"} stroke="#1d1b19" strokeWidth="1.6" />
+                      <circle className="jm-dot" cx={n.x} cy={n.y} r={act === n.id ? 7 : 5.5} fill={act === n.id ? "#123e47" : "#eef4ee"} stroke="#123e47" strokeWidth="1.6" />
                       <text x={n.x} y={n.y + 22}>{n.l}</text>
                     </g>
                   )}
@@ -789,24 +817,24 @@ export const JmMap = () => {
             </svg>
             <div className="jm-ghost" style={{ opacity: ghost, WebkitMaskImage: mask, maskImage: mask }}>
               <svg className="jm-svg" viewBox="0 0 600 440" role="img" aria-label="显影：舆图上没画出来的暗梯与半把天门钥匙">
-                <path d="M372 432 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0" fill="none" stroke="#b8342b" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
-                <path d="M384 432 L384 90" fill="none" stroke="#b8342b" strokeOpacity=".35" strokeWidth="1" strokeDasharray="2 6" />
+                <path d="M372 432 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0 l0 -38 l-14 0 l0 -38 l18 0 l0 -38 l-16 0 l0 -38 l18 0" fill="none" stroke="#a0731a" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
+                <path d="M384 432 L384 90" fill="none" stroke="#a0731a" strokeOpacity=".35" strokeWidth="1" strokeDasharray="2 6" />
                 <text x="404" y="276" className="jm-gt">暗梯 · 不必排队</text>
-                <g transform="translate(392 78)" stroke="#b8342b" strokeWidth="2.2" fill="none" strokeLinecap="round">
+                <g transform="translate(392 78)" stroke="#a0731a" strokeWidth="2.2" fill="none" strokeLinecap="round">
                   <circle cx="0" cy="0" r="7" />
                   <path d="M7 0 L26 0 M18 0 L18 7 M24 0 L24 5" />
                 </g>
                 <text x="372" y="84" className="jm-gt" textAnchor="end">半把天门钥匙</text>
                 <text x="200" y="298" className="jm-gt big" textAnchor="middle">画师批：此梯不入图</text>
                 <g transform="translate(470 352) rotate(-8)">
-                  <rect x="-15" y="-15" width="30" height="30" rx="3" fill="#b8342b" />
+                  <rect x="-15" y="-15" width="30" height="30" rx="3" fill="#a0731a" />
                   <text x="0" y="6" className="jm-gs" textAnchor="middle">显</text>
                 </g>
               </svg>
             </div>
           </div>
           <div className="jm-bar">
-            <button type="button" className="jm-blow" aria-pressed={breath} onClick={() => setBreath(!breath)}>{breath ? "让墨迹隐去" : "呵一口气"}</button>
+            <button type="button" className="jm-blow" aria-pressed={breath} onClick={() => setBreath(!breath)}>{breath ? "让字迹隐去" : "呵一口气"}</button>
             <span aria-live="polite">{breath ? "显影：暗梯与半把天门钥匙（演示）" : "鼠标在舆图上移动，也能一点点呵出来"}</span>
           </div>
         </div>
@@ -861,44 +889,44 @@ export const JpPage = () => {
   return (
     <div className="not-prose jp" ref={rootRef}>
       <style>{`
-        .jp{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#ece5d5}
+        .jp{padding:110px 24px;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .06 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#e2ece3}
         .jp-in{max-width:1160px;margin:0 auto}
         .jp-hd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end}
-        .jp-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .jp-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .jp-h{margin:16px 0 0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
-        .jp-p{margin:0;font-size:16px;line-height:1.95;color:#4a4640}
+        .jp-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .jp-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .jp-h{margin:16px 0 0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#0d333b}
+        .jp-p{margin:0;font-size:16px;line-height:1.95;color:#36605f}
         .jp-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:40px;margin-top:44px;align-items:start}
-        .jp-book{padding:26px;background:#f2e9d4;box-shadow:0 30px 60px -36px rgba(70,52,24,.55),inset 0 0 0 1px rgba(80,60,30,.2)}
-        .jp-frame{display:flex;padding:10px;border:2.5px solid #2a2622;box-shadow:inset 0 0 0 3px #f2e9d4,inset 0 0 0 4px rgba(42,38,34,.7)}
-        .jp-txt{--lh:36px;flex:1;min-width:0;height:432px;writing-mode:vertical-rl;overflow-x:auto;overflow-y:hidden;font-size:18px;line-height:var(--lh);letter-spacing:.06em;color:#1d1b19;background:repeating-linear-gradient(to left,transparent 0,transparent calc(var(--lh) - 1px),rgba(184,52,43,.3) calc(var(--lh) - 1px),rgba(184,52,43,.3) var(--lh));background-attachment:local;outline:none}
-        .jp-txt:focus-visible{outline:2px solid #b8342b;outline-offset:4px}
-        .jp-tt{padding-top:1em;margin-left:var(--lh);font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:21px;letter-spacing:.2em;color:#161513}
+        .jp-book{padding:26px;background:#e6efe5;box-shadow:0 30px 60px -36px rgba(18,70,74,.55),inset 0 0 0 1px rgba(20,80,84,.2)}
+        .jp-frame{display:flex;padding:10px;border:2.5px solid #1b4a52;box-shadow:inset 0 0 0 3px #e6efe5,inset 0 0 0 4px rgba(27,74,82,.7)}
+        .jp-txt{--lh:36px;flex:1;min-width:0;height:432px;writing-mode:vertical-rl;overflow-x:auto;overflow-y:hidden;font-size:18px;line-height:var(--lh);letter-spacing:.06em;color:#123e47;background:repeating-linear-gradient(to left,transparent 0,transparent calc(var(--lh) - 1px),rgba(160,115,26,.3) calc(var(--lh) - 1px),rgba(160,115,26,.3) var(--lh));background-attachment:local;outline:none}
+        .jp-txt:focus-visible{outline:2px solid #a0731a;outline-offset:4px}
+        .jp-tt{padding-top:1em;margin-left:var(--lh);font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:21px;letter-spacing:.2em;color:#0d333b}
         .jp-txt p{margin:0;text-indent:2em}
-        .jp-hit{color:#161513;-webkit-text-emphasis:filled dot #b8342b;text-emphasis:filled dot #b8342b;animation:jpHit .7s ease both}
-        .jp-cur{display:inline-block;width:12px;height:2px;margin-top:6px;background:#b8342b;vertical-align:middle;animation:jpBlink 1s steps(1) infinite}
-        .jp-heart{width:38px;flex:none;margin-left:10px;padding:14px 0;border-left:1.5px solid rgba(42,38,34,.7);display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:13px;color:#4a4640}
+        .jp-hit{color:#0d333b;-webkit-text-emphasis:filled dot #a0731a;text-emphasis:filled dot #a0731a;animation:jpHit .7s ease both}
+        .jp-cur{display:inline-block;width:12px;height:2px;margin-top:6px;background:#a0731a;vertical-align:middle;animation:jpBlink 1s steps(1) infinite}
+        .jp-heart{width:38px;flex:none;margin-left:10px;padding:14px 0;border-left:1.5px solid rgba(27,74,82,.7);display:flex;flex-direction:column;align-items:center;justify-content:space-between;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:13px;color:#36605f}
         .jp-heart span{writing-mode:vertical-rl;letter-spacing:.3em}
-        .jp-heart i{width:18px;height:22px;background:#2a2622;clip-path:polygon(0 0,100% 0,100% 100%,50% 70%,0 100%)}
-        .jp-note{padding:28px 26px;background:#f8f4ea;box-shadow:0 26px 50px -34px rgba(70,52,24,.5),inset 0 0 0 1px rgba(29,27,25,.14)}
-        .jp-nt{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:19px;color:#b8342b;letter-spacing:.12em;padding-bottom:10px;border-bottom:1px solid rgba(184,52,43,.3);margin-bottom:6px}
+        .jp-heart i{width:18px;height:22px;background:#1b4a52;clip-path:polygon(0 0,100% 0,100% 100%,50% 70%,0 100%)}
+        .jp-note{padding:28px 26px;background:#f4f8f2;box-shadow:0 26px 50px -34px rgba(18,70,74,.5),inset 0 0 0 1px rgba(18,62,71,.14)}
+        .jp-nt{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:19px;color:#a0731a;letter-spacing:.12em;padding-bottom:10px;border-bottom:1px solid rgba(160,115,26,.3);margin-bottom:6px}
         .jp-nt.b{margin-top:24px}
-        .jp-row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px dashed rgba(29,27,25,.14);font-size:14.5px;line-height:1.7}
-        .jp-row span{font-size:12.5px;letter-spacing:.12em;color:#9c2a22;padding-top:2px}
-        .jp-row b{font-weight:500;color:#1d1b19}
-        .jp-chk{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:14.5px;color:#625c52;transition:color .4s}
-        .jp-chk i{width:22px;height:22px;flex:none;display:grid;place-items:center;font-style:normal;font-size:12px;color:#b8342b;border:1.6px solid #b8342b;border-radius:52% 46% 50% 48%;opacity:0;scale:1.8;transition:opacity .35s,scale .45s cubic-bezier(.3,1.5,.5,1)}
-        .jp-chk.on{color:#1d1b19}
+        .jp-row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:9px 0;border-bottom:1px dashed rgba(18,62,71,.14);font-size:14.5px;line-height:1.7}
+        .jp-row span{font-size:12.5px;letter-spacing:.12em;color:#7d5a10;padding-top:2px}
+        .jp-row b{font-weight:500;color:#123e47}
+        .jp-chk{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:14.5px;color:#4c6f6c;transition:color .4s}
+        .jp-chk i{width:22px;height:22px;flex:none;display:grid;place-items:center;font-style:normal;font-size:12px;color:#a0731a;border:1.6px solid #a0731a;border-radius:52% 46% 50% 48%;opacity:0;scale:1.8;transition:opacity .35s,scale .45s cubic-bezier(.3,1.5,.5,1)}
+        .jp-chk.on{color:#123e47}
         .jp-chk.on i{opacity:1;scale:1}
-        .jp-saved{display:flex;align-items:center;gap:12px;margin-top:18px;font-size:14px;letter-spacing:.06em;color:#4a4640;opacity:0;transition:opacity .5s}
+        .jp-saved{display:flex;align-items:center;gap:12px;margin-top:18px;font-size:14px;letter-spacing:.06em;color:#36605f;opacity:0;transition:opacity .5s}
         .jp-saved.on{opacity:1}
-        .jp-seal{width:40px;height:40px;flex:none;display:grid;place-items:center;background:#b8342b;color:#f8efe2;border-radius:3px;rotate:-5deg;scale:1.8;transition:scale .45s cubic-bezier(.3,1.5,.5,1)}
+        .jp-seal{width:40px;height:40px;flex:none;display:grid;place-items:center;background:#a0731a;color:#f8efe2;border-radius:3px;rotate:-5deg;scale:1.8;transition:scale .45s cubic-bezier(.3,1.5,.5,1)}
         .jp-saved.on .jp-seal{scale:1}
         .jp-seal span{writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:14px;line-height:15px;height:30px}
-        .jp-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:22px;font-size:13px;line-height:1.7;color:#625c52}
-        .jp-foot button{font:inherit;font-size:14px;letter-spacing:.15em;color:#5a554c;background:none;border:0;border-bottom:1px solid rgba(29,27,25,.3);padding:3px 0;cursor:pointer}
-        .jp-foot button:hover{color:#b8342b;border-color:#b8342b}
-        .jp-foot button:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
+        .jp-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:22px;font-size:13px;line-height:1.7;color:#4c6f6c}
+        .jp-foot button{font:inherit;font-size:14px;letter-spacing:.15em;color:#476a67;background:none;border:0;border-bottom:1px solid rgba(18,62,71,.3);padding:3px 0;cursor:pointer}
+        .jp-foot button:hover{color:#a0731a;border-color:#a0731a}
+        .jp-foot button:focus-visible{outline:2px solid #a0731a;outline-offset:3px}
         @keyframes jpHit{from{opacity:0;filter:blur(4px)}to{opacity:1;filter:blur(0)}}
         @keyframes jpBlink{50%{opacity:0}}
         @media (prefers-reduced-motion:reduce){.jp-hit,.jp-cur{animation:none}.jp-chk i,.jp-seal,.jp-saved{transition:none}}
@@ -908,7 +936,7 @@ export const JpPage = () => {
       <div className="jp-in">
         <div className="jp-hd">
           <div>
-            <div className="jp-k"><i />画心三 · 落笔</div>
+            <div className="jp-k"><i />三重天 · 落笔</div>
             <div className="jp-h">按章节任务，写出一章</div>
           </div>
           <p className="jp-p">正文按章节任务生成。写完后检查是否满足任务与写法要求，再局部修文、保存正文，并同步角色与伏笔状态，下一章从这里接着写。</p>
@@ -963,30 +991,30 @@ export const JwEnd = () => {
   return (
     <div className="not-prose jw">
       <style>{`
-        .jw{position:relative;overflow:hidden;padding:130px 24px 160px;text-align:center;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(700px 360px at 50% 40%,rgba(255,255,255,.55),transparent 70%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .16 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#efe8da}
-        .jw-rod{position:absolute;left:0;top:0;bottom:0;width:20px;background:linear-gradient(90deg,#2e1b0e,#6b4325 30%,#a87447 52%,#7a4f2c 72%,#3b2414);box-shadow:4px 0 12px rgba(0,0,0,.25)}
-        .jw-silk{position:absolute;left:20px;top:0;bottom:0;width:36px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 4px,transparent 4px 8px),linear-gradient(90deg,#c2b38f,#d9ccab 60%,#cbbd9a);box-shadow:inset -1px 0 0 rgba(80,60,30,.35)}
+        .jw{position:relative;overflow:hidden;padding:130px 24px 160px;text-align:center;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(700px 360px at 50% 40%,rgba(255,255,255,.55),transparent 70%),url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .06 0 0 0 0 .3 0 0 0 0 .3 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),#e4eee6}
+        .jw-rod{position:absolute;left:0;top:0;bottom:0;width:20px;background:linear-gradient(90deg,#5a3d0a,#9a6d17 30%,#f0d27a 52%,#b8862b 72%,#6b4a10);box-shadow:4px 0 12px rgba(0,0,0,.25)}
+        .jw-silk{position:absolute;left:20px;top:0;bottom:0;width:36px;background:repeating-linear-gradient(45deg,rgba(255,255,255,.08) 0 4px,transparent 4px 8px),linear-gradient(90deg,#2f7d8c,#4f9aa6 60%,#3a8a96);box-shadow:inset -1px 0 0 rgba(20,80,84,.35)}
         .jw-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:190px;pointer-events:none}
         .jw-in{position:relative;max-width:760px;margin:0 auto}
-        .jw-k{display:inline-flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .jw-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .jw-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.6vw,50px);line-height:1.3;letter-spacing:.08em;color:#161513}
-        .jw-p{margin:0 auto;max-width:640px;font-size:16px;line-height:1.95;color:#4a4640}
+        .jw-k{display:inline-flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .jw-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .jw-h{margin:16px 0 18px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.6vw,50px);line-height:1.3;letter-spacing:.08em;color:#0d333b}
+        .jw-p{margin:0 auto;max-width:640px;font-size:16px;line-height:1.95;color:#36605f}
         .jw-stamp{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:38px}
-        .jw-seal{position:relative;width:96px;height:96px;display:grid;place-items:center;padding:0;cursor:pointer;font:inherit;background:transparent;border:1.5px dashed rgba(29,27,25,.35);transition:border-color .3s}
-        .jw-seal:hover{border-color:#b8342b}
-        .jw-seal:focus-visible{outline:2px solid #b8342b;outline-offset:4px}
-        .jw-ghost{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:20px;letter-spacing:.2em;color:rgba(29,27,25,.4)}
-        .jw-ink{position:absolute;inset:6px;display:grid;place-items:center;background:radial-gradient(circle at 28% 22%,rgba(255,255,255,.14),transparent 45%),#b8342b;color:#f8efe2;border-radius:4px 6px 5px 7px;rotate:-4deg;animation:jwStamp .5s cubic-bezier(.3,1.5,.5,1) both}
+        .jw-seal{position:relative;width:96px;height:96px;display:grid;place-items:center;padding:0;cursor:pointer;font:inherit;background:transparent;border:1.5px dashed rgba(18,62,71,.35);transition:border-color .3s}
+        .jw-seal:hover{border-color:#a0731a}
+        .jw-seal:focus-visible{outline:2px solid #a0731a;outline-offset:4px}
+        .jw-ghost{font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:20px;letter-spacing:.2em;color:rgba(18,62,71,.4)}
+        .jw-ink{position:absolute;inset:6px;display:grid;place-items:center;background:radial-gradient(circle at 28% 22%,rgba(255,255,255,.14),transparent 45%),#a0731a;color:#f8efe2;border-radius:4px 6px 5px 7px;rotate:-4deg;animation:jwStamp .5s cubic-bezier(.3,1.5,.5,1) both}
         .jw-ink b{writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-weight:400;font-size:28px;line-height:32px;height:60px;letter-spacing:0}
-        .jw-said{min-height:1.7em;font-size:14px;letter-spacing:.15em;color:#5a554c}
+        .jw-said{min-height:1.7em;font-size:14px;letter-spacing:.15em;color:#476a67}
         .jw-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin-top:34px}
-        .jw-btn{display:inline-flex;align-items:center;padding:11px 22px;font-size:15px;letter-spacing:.1em;text-decoration:none;color:#1d1b19;border:1px solid rgba(29,27,25,.45);border-radius:2px;background:rgba(255,255,255,.25);transition:all .3s}
-        .jw-btn:hover{background:#1d1b19;color:#f5f0e4}
-        .jw-btn.pri{background:#b8342b;border-color:#b8342b;color:#fbf6ec;box-shadow:0 12px 26px -12px rgba(184,52,43,.75)}
-        .jw-btn.pri:hover{background:#9c2a22}
-        .jw-btn:focus-visible,.jw-chips a:focus-visible,.jw-back:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
-        .jw-more{margin-top:56px;font-size:13px;letter-spacing:.3em;color:#625c52}
+        .jw-btn{display:inline-flex;align-items:center;padding:11px 22px;font-size:15px;letter-spacing:.1em;text-decoration:none;color:#123e47;border:1px solid rgba(18,62,71,.45);border-radius:2px;background:rgba(255,255,255,.25);transition:all .3s}
+        .jw-btn:hover{background:#123e47;color:#f0f6f0}
+        .jw-btn.pri{background:#a0731a;border-color:#a0731a;color:#fbf6ec;box-shadow:0 12px 26px -12px rgba(160,115,26,.75)}
+        .jw-btn.pri:hover{background:#7d5a10}
+        .jw-btn:focus-visible,.jw-chips a:focus-visible,.jw-back:focus-visible{outline:2px solid #a0731a;outline-offset:3px}
+        .jw-more{margin-top:56px;font-size:13px;letter-spacing:.3em;color:#4c6f6c}
         .jw-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:14px}
         .jw-chips a{font-size:13.5px;padding:7px 15px;text-decoration:none;border:1px solid;background:rgba(255,255,255,.3);transition:background .25s}
         .jw-chips a.w{color:#b45309;border-color:rgba(180,83,9,.45)}
@@ -997,8 +1025,8 @@ export const JwEnd = () => {
         .jw-chips a.r:hover{background:rgba(190,24,93,.08)}
         .jw-chips a.u{color:#6d28d9;border-color:rgba(109,40,217,.4)}
         .jw-chips a.u:hover{background:rgba(109,40,217,.08)}
-        .jw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:#5a554c;text-decoration:none;border-bottom:1px solid rgba(29,27,25,.3)}
-        .jw-back:hover{color:#b8342b;border-color:#b8342b}
+        .jw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:#476a67;text-decoration:none;border-bottom:1px solid rgba(18,62,71,.3)}
+        .jw-back:hover{color:#a0731a;border-color:#a0731a}
         @keyframes jwStamp{0%{opacity:0;scale:2.4}60%{opacity:1}100%{opacity:.95;scale:1}}
         @media (prefers-reduced-motion:reduce){.jw-ink{animation:none}}
         @media (max-width:700px){.jw-rod,.jw-silk{display:none}.jw{padding:100px 18px 130px}}
@@ -1007,12 +1035,12 @@ export const JwEnd = () => {
       <i className="jw-silk" aria-hidden="true" />
       <svg className="jw-mt" viewBox="0 0 1200 190" preserveAspectRatio="none" aria-hidden="true">
         <defs>
-          <linearGradient id="jwHill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#77726a" stopOpacity=".28" /><stop offset="1" stopColor="#77726a" stopOpacity="0" /></linearGradient>
+          <linearGradient id="jwHill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2f9a83" stopOpacity=".4" /><stop offset="1" stopColor="#2a7fa6" stopOpacity="0" /></linearGradient>
         </defs>
         <path d="M0 190 L0 120 Q120 70 230 110 Q330 40 450 100 Q560 60 650 112 Q760 30 880 96 Q990 64 1080 110 Q1150 84 1200 100 L1200 190Z" fill="url(#jwHill)" />
       </svg>
       <div className="jw-in">
-        <div className="jw-k"><i />拖尾 · 出山</div>
+        <div className="jw-k"><i />九重天 · 出山</div>
         <div className="jw-h">天门还要等三百年，你的书今天就能开</div>
         <p className="jw-p">在开书页写下灵感，把故事类型选为仙侠修真、推进方式选为升级变强；拿不准时，也可以交给 AI 自动匹配，再由自动导演一路推进到正文。</p>
         <div className="jw-stamp">
@@ -1062,40 +1090,40 @@ export const JqLots = () => {
   return (
     <div className="not-prose jq">
       <style>{`
-        .jq{padding:110px 24px;color:#1d1b19;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(800px 380px at 30% 30%,rgba(255,255,255,.5),transparent 70%),#f1eadb}
+        .jq{padding:110px 24px;color:#123e47;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;background:radial-gradient(800px 380px at 30% 30%,rgba(255,255,255,.5),transparent 70%),#e8f0e8}
         .jq-in{max-width:1160px;margin:0 auto}
-        .jq-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#b8342b}
-        .jq-k i{width:9px;height:9px;background:#b8342b;rotate:8deg}
-        .jq-h{margin:16px 0 0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#161513}
-        .jq-p{margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.95;color:#4a4640}
+        .jq-k{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.5em;color:#a0731a}
+        .jq-k i{width:9px;height:9px;background:#a0731a;rotate:8deg}
+        .jq-h{margin:16px 0 0;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC","Songti SC",serif;font-size:clamp(30px,4.2vw,46px);line-height:1.3;letter-spacing:.06em;color:#0d333b}
+        .jq-p{margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.95;color:#36605f}
         .jq-grid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:56px;align-items:center;margin-top:48px}
         .jq-left{display:flex;flex-direction:column;align-items:center;gap:20px}
         .jq-tube{width:170px;transform-origin:50% 92%}
         .jq-tube svg{display:block;width:100%;height:auto}
         .jq-tube.go{animation:jqShake .7s ease-in-out}
         @keyframes jqShake{0%,100%{rotate:0deg}15%{rotate:-11deg}30%{rotate:9deg}45%{rotate:-7deg}60%{rotate:5deg}75%{rotate:-3deg}}
-        .jq-go{font:inherit;font-size:16px;letter-spacing:.3em;padding:12px 28px;cursor:pointer;color:#fbf6ec;background:#1d1b19;border:0;box-shadow:0 10px 24px -12px rgba(29,27,25,.7);transition:background .3s}
-        .jq-go:hover:not(:disabled){background:#b8342b}
+        .jq-go{font:inherit;font-size:16px;letter-spacing:.3em;padding:12px 28px;cursor:pointer;color:#fbf6ec;background:#123e47;border:0;box-shadow:0 10px 24px -12px rgba(18,62,71,.7);transition:background .3s}
+        .jq-go:hover:not(:disabled){background:#a0731a}
         .jq-go:disabled{cursor:default;opacity:.55}
-        .jq-go:focus-visible,.jq-keep:focus-visible{outline:2px solid #b8342b;outline-offset:3px}
+        .jq-go:focus-visible,.jq-keep:focus-visible{outline:2px solid #a0731a;outline-offset:3px}
         .jq-slips{display:flex;gap:22px;justify-content:flex-start}
-        .jq-slip{position:relative;display:flex;flex-direction:column;align-items:center;width:82px;padding:0 0 12px;background:linear-gradient(90deg,#d9c08a,#ecdcb0 40%,#e2cc98 70%,#c9ab70);border-radius:6px 6px 3px 3px;box-shadow:0 18px 30px -18px rgba(60,42,18,.6),inset 0 0 0 1px rgba(94,69,34,.35);transition:translate .4s ease,box-shadow .4s}
-        .jq-slip.kept{translate:0 -10px;box-shadow:0 26px 36px -18px rgba(60,42,18,.7),inset 0 0 0 2px #b8342b}
-        .jq-tag{width:100%;padding:8px 0;text-align:center;font-size:13px;letter-spacing:.3em;text-indent:.3em;color:#fbf6ec;background:#b8342b;border-radius:6px 6px 0 0}
-        .jq-txt{height:300px;margin:16px 0 14px;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:19px;line-height:1.5;letter-spacing:.14em;color:#1d1b19}
+        .jq-slip{position:relative;display:flex;flex-direction:column;align-items:center;width:82px;padding:0 0 12px;background:linear-gradient(90deg,#d6a644,#f6dc8e 40%,#ecc96a 70%,#c08a2a);border-radius:6px 6px 3px 3px;box-shadow:0 18px 30px -18px rgba(10,50,56,.6),inset 0 0 0 1px rgba(94,69,34,.35);transition:translate .4s ease,box-shadow .4s}
+        .jq-slip.kept{translate:0 -10px;box-shadow:0 26px 36px -18px rgba(10,50,56,.7),inset 0 0 0 2px #a0731a}
+        .jq-tag{width:100%;padding:8px 0;text-align:center;font-size:13px;letter-spacing:.3em;text-indent:.3em;color:#fbf6ec;background:#a0731a;border-radius:6px 6px 0 0}
+        .jq-txt{height:300px;margin:16px 0 14px;writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:19px;line-height:1.5;letter-spacing:.14em;color:#123e47}
         .jq-txt.drop{animation:jqDrop .55s cubic-bezier(.3,1.4,.5,1) both}
         @keyframes jqDrop{from{opacity:0;translate:0 -40px}to{opacity:1;translate:0 0}}
         .jq-keep{font:inherit;font-size:13px;letter-spacing:.15em;padding:5px 10px;cursor:pointer;color:#5e4522;background:rgba(255,255,255,.55);border:1px solid rgba(94,69,34,.45);border-radius:2px}
-        .jq-keep[aria-pressed="true"]{color:#fbf6ec;background:#b8342b;border-color:#b8342b}
-        .jq-out{margin-top:30px;padding:18px 20px;font-size:16px;line-height:1.9;color:#3d3933;background:rgba(255,255,255,.5);border-left:3px solid #b8342b}
-        .jq-out b{font-weight:600;color:#161513}
-        .jq-note{margin-top:12px;font-size:13px;letter-spacing:.08em;color:#625c52}
+        .jq-keep[aria-pressed="true"]{color:#fbf6ec;background:#a0731a;border-color:#a0731a}
+        .jq-out{margin-top:30px;padding:18px 20px;font-size:16px;line-height:1.9;color:#2a5258;background:rgba(255,255,255,.5);border-left:3px solid #a0731a}
+        .jq-out b{font-weight:600;color:#0d333b}
+        .jq-note{margin-top:12px;font-size:13px;letter-spacing:.08em;color:#4c6f6c}
         @media (prefers-reduced-motion:reduce){.jq-tube.go,.jq-txt.drop{animation:none}.jq-slip{transition:none}}
         @media (max-width:900px){.jq-grid{grid-template-columns:1fr;gap:32px}.jq-slips{justify-content:center}}
         @media (max-width:520px){.jq{padding:84px 16px}.jq-slips{gap:12px}.jq-slip{width:76px}.jq-txt{height:280px;font-size:17px}}
       `}</style>
       <div className="jq-in">
-        <div className="jq-k"><i />画外 · 求签</div>
+        <div className="jq-k"><i />天外 · 求签</div>
         <div className="jq-h">再摇一支签，换一个脑洞</div>
         <p className="jq-p">身份、异变、代价，各抽一签。看中哪一支就「留签」，其余的接着摇，直到三支签拼成一个你想写的故事。</p>
         <div className="jq-grid">
@@ -1103,15 +1131,15 @@ export const JqLots = () => {
             <div key={go} className={"jq-tube" + (go ? " go" : "")} aria-hidden="true">
               <svg viewBox="0 0 160 230">
                 <defs>
-                  <linearGradient id="jqBam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#8e6c36" /><stop offset=".35" stopColor="#e2c98e" /><stop offset=".7" stopColor="#c9a868" /><stop offset="1" stopColor="#7a5a2c" /></linearGradient>
+                  <linearGradient id="jqBam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#a8741c" /><stop offset=".35" stopColor="#f6d886" /><stop offset=".7" stopColor="#e2b65a" /><stop offset="1" stopColor="#8a5f12" /></linearGradient>
                 </defs>
-                <g fill="#ecdcb0" stroke="#8e6c36" strokeWidth="1">
+                <g fill="#f6dc8e" stroke="#a8741c" strokeWidth="1">
                   <rect x="54" y="18" width="10" height="90" rx="2" transform="rotate(-12 59 108)" />
                   <rect x="68" y="6" width="10" height="102" rx="2" transform="rotate(-4 73 108)" />
                   <rect x="82" y="12" width="10" height="96" rx="2" transform="rotate(5 87 108)" />
                   <rect x="96" y="22" width="10" height="86" rx="2" transform="rotate(13 101 108)" />
                 </g>
-                <g fill="#b8342b">
+                <g fill="#a0731a">
                   <rect x="54" y="18" width="10" height="12" rx="2" transform="rotate(-12 59 108)" />
                   <rect x="68" y="6" width="10" height="12" rx="2" transform="rotate(-4 73 108)" />
                   <rect x="82" y="12" width="10" height="12" rx="2" transform="rotate(5 87 108)" />
@@ -1121,7 +1149,7 @@ export const JqLots = () => {
                 <ellipse cx="80" cy="88" rx="44" ry="8" fill="#5e4522" opacity=".85" />
                 <rect x="36" y="114" width="88" height="5" fill="#5e4522" opacity=".45" />
                 <rect x="36" y="198" width="88" height="5" fill="#5e4522" opacity=".45" />
-                <circle cx="80" cy="158" r="19" fill="#b8342b" />
+                <circle cx="80" cy="158" r="19" fill="#a0731a" />
                 <text x="80" y="165" textAnchor="middle" fontSize="20" fill="#f8efe2" fontFamily="STKaiti, KaiTi, serif">签</text>
               </svg>
             </div>
