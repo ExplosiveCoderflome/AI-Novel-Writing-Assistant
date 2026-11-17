@@ -101,28 +101,28 @@ export const MgHome = ({ children }) => {
   const dur = "1.6s";
   const toXian = fx && fx.to === "xian";
   const ringBg = toXian
-    ? "radial-gradient(circle closest-side, transparent 84%, rgba(255,207,90,.95) 90%, rgba(200,50,30,.8) 94%, rgba(7,9,13,0) 100%)"
+    ? "radial-gradient(circle closest-side, transparent 84%, rgba(76,240,255,.95) 90%, rgba(166,107,255,.85) 94%, rgba(10,8,32,0) 100%)"
     : "radial-gradient(circle closest-side, transparent 84%, rgba(236,208,138,.9) 90%, rgba(122,20,36,.9) 94.5%, rgba(26,11,15,0) 100%)";
 
   return (
     <div ref={wrapRef} className="not-prose bnh" data-bn-theme={current}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Exo+2:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&family=Noto+Sans+SC:wght@500;700;900&family=Noto+Serif+SC:wght@500;700&display=swap');
         .bnh{position:relative;overflow:hidden}
         .bnh-tg{position:fixed;right:22px;top:50%;z-index:60;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
         .bnh-orb{position:relative;width:58px;height:58px;border-radius:50%;overflow:hidden;transition:transform 1.2s cubic-bezier(.76,0,.18,1),box-shadow .4s}
         .bnh-orb::before,.bnh-orb::after{content:"";position:absolute;top:0;bottom:0;width:50%}
         .bnh-orb::before{left:0;background:radial-gradient(circle at 70% 30%,#a31f33,#3a0d16 70%)}
-        .bnh-orb::after{right:0;background:radial-gradient(circle at 30% 30%,#2a2f3a,#07090d 70%)}
+        .bnh-orb::after{right:0;background:radial-gradient(circle at 30% 30%,#3b2a8a,#0a0820 70%)}
         .bnh-orb i{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;z-index:2;transition:background .6s}
         .bnh-tg.arcane .bnh-orb{box-shadow:0 0 0 2px rgba(236,208,138,.6),0 0 26px -2px rgba(201,162,74,.75)}
-        .bnh-tg.xian .bnh-orb{box-shadow:0 0 0 2px rgba(200,50,30,.8),0 0 26px -2px rgba(255,207,90,.6)}
+        .bnh-tg.xian .bnh-orb{box-shadow:0 0 0 2px rgba(76,240,255,.8),0 0 26px -2px rgba(166,107,255,.8)}
         .bnh-tg.arcane .bnh-orb i{background:#ecd08a;box-shadow:0 0 12px #ecd08a}
-        .bnh-tg.xian .bnh-orb i{background:#ffcf5a;box-shadow:0 0 12px #ff6a3d}
+        .bnh-tg.xian .bnh-orb i{background:#4cf0ff;box-shadow:0 0 12px #4cf0ff,0 0 22px #a66bff}
         .bnh-tg:hover .bnh-orb{transform:scale(1.1) rotate(25deg)}
         .bnh-lab{font-size:11px;letter-spacing:.18em;text-transform:uppercase;padding:6px 10px;border-radius:999px;transition:all .4s;white-space:nowrap;font-family:"Cinzel",Georgia,serif}
         .bnh-tg.arcane .bnh-lab{color:#ecd08a;background:rgba(26,11,15,.8);border:1px solid rgba(236,208,138,.4)}
-        .bnh-tg.xian .bnh-lab{color:#ffcf5a;background:rgba(7,9,13,.85);border:1px solid rgba(200,50,30,.6)}
+        .bnh-tg.xian .bnh-lab{color:#4cf0ff;background:rgba(10,8,32,.88);border:1px solid rgba(76,240,255,.5);font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700}
         .bnh-ring{position:absolute;z-index:5;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%);filter:blur(5px)}
         .bnh-drop{position:absolute;z-index:6;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) scale(.2);opacity:0;animation:bnhDrop 1.1s cubic-bezier(.2,.8,.2,1) forwards}
         .bnh-glyph{position:fixed;left:50%;top:50%;z-index:55;pointer-events:none;font-size:clamp(150px,24vw,320px);line-height:1;transform:translate(-50%,-50%);animation:bnhGlyph 1.6s ease forwards}
@@ -144,10 +144,10 @@ export const MgHome = ({ children }) => {
 
       {fx && <div className="bnh-ring" style={{ left: fx.x, top: fx.y, width: fx.go ? fx.r * 2.12 : 0, height: fx.go ? fx.r * 2.12 : 0, background: ringBg, transition: `width ${dur} ${ease}, height ${dur} ${ease}` }} />}
       {fx && fx.drops.map((d, i) => (
-        <span key={i} className="bnh-drop" style={{ left: fx.x, top: fx.y, width: d.s, height: d.s, animationDelay: d.delay + "s", background: toXian ? (i % 3 === 0 ? "#c8321e" : "#ffcf5a") : (i % 3 === 0 ? "#a31f33" : "#ecd08a"), boxShadow: toXian ? "0 0 12px rgba(255,207,90,.9)" : "0 0 12px rgba(236,208,138,.9)", "--dx": d.dx + "px", "--dy": d.dy + "px" }} />
+        <span key={i} className="bnh-drop" style={{ left: fx.x, top: fx.y, width: d.s, height: d.s, animationDelay: d.delay + "s", background: toXian ? (i % 3 === 0 ? "#a66bff" : "#4cf0ff") : (i % 3 === 0 ? "#a31f33" : "#ecd08a"), boxShadow: toXian ? "0 0 12px rgba(76,240,255,.9)" : "0 0 12px rgba(236,208,138,.9)", "--dx": d.dx + "px", "--dy": d.dy + "px" }} />
       ))}
       {fx && (
-        <div className="bnh-glyph" style={toXian ? { color: "#ffcf5a", fontFamily: "\"Ma Shan Zheng\",\"Noto Serif SC\",serif", textShadow: "0 0 50px rgba(200,50,30,.9)" } : { color: "#ecd08a", fontFamily: "\"Cinzel\",Georgia,serif", textShadow: "0 0 40px rgba(201,162,74,.9)" }}>{toXian ? "道" : "✦"}</div>
+        <div className="bnh-glyph" style={toXian ? { color: "#4cf0ff", fontFamily: "\"Noto Sans SC\",\"Exo 2\",sans-serif", fontWeight: 900, textShadow: "0 0 30px rgba(76,240,255,.9), 0 0 70px rgba(166,107,255,.9)" } : { color: "#ecd08a", fontFamily: "\"Cinzel\",Georgia,serif", textShadow: "0 0 40px rgba(201,162,74,.9)" }}>{toXian ? "道" : "✦"}</div>
       )}
 
       <button type="button" className={"bnh-tg " + current} onClick={toggle} aria-label={current === "arcane" ? "Switch to the Cultivation Sect theme" : "Switch to the Academy theme"}>
@@ -585,42 +585,47 @@ export const StorySample = ({ theme }) => {
       <style>{`
         .ss{padding:96px 24px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
         .ss-a{background:linear-gradient(180deg,#240e14,#1a0b0f);color:#f1e6cc;border-top:1px solid rgba(236,208,138,.1)}
-        .ss-x{background:radial-gradient(800px 400px at 80% 0%,rgba(200,50,30,.14),transparent 60%),#0b0e13;color:#ede6d6;border-top:1px solid rgba(255,207,90,.1)}
+        .ss-x{background:radial-gradient(800px 400px at 80% 0%,rgba(124,77,255,.18),transparent 60%),#0a0820;color:#e6ecff;border-top:1px solid rgba(76,240,255,.14);font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif}
+        .ss-x .ss-k,.ss-x .ss-tt,.ss-x .ss-row span,.ss-x .ss-pt,.ss-x .ss-foot button,.ss-x .ss-more{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700}
+        .ss-x .ss-h,.ss-x .ss-ch{font-family:"Exo 2","Noto Sans SC",sans-serif;font-weight:800}
+        .ss-x .ss-p{font-size:18px}
+        .ss-x .ss-page p{font-size:18px}
         .ss-in{max-width:1120px;margin:0 auto}
         .ss-k{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em}
         .ss-a .ss-k{color:#c9a24a}
-        .ss-x .ss-k{color:#ffcf5a}
+        .ss-x .ss-k{color:#4cf0ff;letter-spacing:.32em;font-size:13px}
         .ss-h{font-family:"Cinzel",Georgia,serif;font-size:clamp(28px,3.8vw,42px);font-weight:700;margin:12px 0 14px;line-height:1.2}
         .ss-p{font-size:19.5px;line-height:1.7;max-width:680px;opacity:.78;font-weight:500}
         .ss-grid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,1.6fr);gap:28px;margin-top:40px;align-items:start}
         .ss-task{padding:24px;position:relative}
         .ss-a .ss-task{background:#14533f;color:#f1e6cc;box-shadow:0 0 0 1px rgba(236,208,138,.4),0 30px 60px -30px rgba(0,0,0,.8)}
-        .ss-x .ss-task{background:#12161d;border:1px solid rgba(255,207,90,.25);box-shadow:inset 4px 0 0 #c8321e}
+        .ss-x .ss-task{background:#110e2b;border:1px solid rgba(76,240,255,.3);box-shadow:inset 4px 0 0 #a66bff,0 0 40px -20px rgba(76,240,255,.6);clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
         .ss-tt{font-family:"Cinzel",Georgia,serif;font-size:11px;letter-spacing:.3em;opacity:.75}
         .ss-ch{font-family:"Cinzel",Georgia,serif;font-size:19px;font-weight:700;margin:8px 0 16px;line-height:1.3}
         .ss-a .ss-ch{color:#ecd08a}
-        .ss-x .ss-ch{color:#ffcf5a}
+        .ss-x .ss-ch{color:#4cf0ff}
         .ss-row{padding:10px 0;border-top:1px solid rgba(255,255,255,.12)}
         .ss-row span{display:inline-block;font-family:"Cinzel",Georgia,serif;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;padding:2px 8px;margin-bottom:6px}
         .ss-a .ss-row span{background:#7a1424;color:#fff3cf}
-        .ss-x .ss-row span{background:#c8321e;color:#fff}
+        .ss-x .ss-row{border-top-color:rgba(76,240,255,.14)}
+        .ss-x .ss-row span{background:rgba(166,107,255,.2);color:#d9c4ff;box-shadow:inset 0 0 0 1px rgba(166,107,255,.6);font-size:11.5px}
         .ss-row b{display:block;font-weight:600;font-size:17px;line-height:1.45}
         .ss-page{position:relative;padding:36px 38px 24px;min-height:440px}
         .ss-a .ss-page{color:#3a2412;background:radial-gradient(circle at 20% 0%,#fbf1d6,#ecd9ad 75%,#dcc28c);box-shadow:0 40px 80px -30px rgba(0,0,0,.8)}
-        .ss-x .ss-page{color:#ede6d6;background:linear-gradient(180deg,#15110c,#0e0b08);border-top:10px solid #3a2a18;border-bottom:10px solid #3a2a18;box-shadow:0 40px 80px -30px rgba(0,0,0,.9),inset 0 0 0 1px rgba(255,207,90,.18)}
-        .ss-x .ss-page::after{content:"書";position:absolute;right:18px;top:18px;width:44px;height:44px;background:#c8321e;color:#fff1dd;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:30px;display:flex;align-items:center;justify-content:center;transform:rotate(-6deg);opacity:.9}
+        .ss-x .ss-page{color:#e6ecff;background:repeating-linear-gradient(0deg,rgba(76,240,255,.03) 0 1px,transparent 1px 4px),linear-gradient(180deg,#120f30,#0a0820);border:1px solid rgba(76,240,255,.35);box-shadow:0 0 50px -16px rgba(76,240,255,.55),inset 0 0 60px -30px rgba(166,107,255,.6);clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,24px 100%,0 calc(100% - 24px))}
+        .ss-x .ss-page::after{content:"◆ LORE";position:absolute;right:30px;top:16px;padding:3px 10px;background:linear-gradient(135deg,#4cf0ff,#a66bff);color:#070615;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:11.5px;letter-spacing:.22em}
         .ss-pt{font-family:"Cinzel",Georgia,serif;font-size:13px;letter-spacing:.24em;text-align:center;margin-bottom:22px;opacity:.75}
         .ss-page p{font-size:20px;line-height:1.75;margin:0 0 16px;font-weight:500}
         .ss-a .ss-page p:first-of-type::first-letter{float:left;font-family:"Cinzel",Georgia,serif;font-size:58px;line-height:.85;font-weight:900;color:#7a1424;margin:6px 10px 0 0}
-        .ss-x .ss-page p:first-of-type::first-letter{color:#ffcf5a;font-size:30px;font-weight:700}
+        .ss-x .ss-page p:first-of-type::first-letter{color:#4cf0ff;font-size:30px;font-weight:800;text-shadow:0 0 12px rgba(76,240,255,.7)}
         .ss-cur{display:inline-block;width:2px;height:1em;margin-left:2px;vertical-align:-2px;animation:ssBk 1s steps(1) infinite}
         .ss-a .ss-cur{background:#7a1424}
-        .ss-x .ss-cur{background:#ffcf5a}
+        .ss-x .ss-cur{background:#4cf0ff;box-shadow:0 0 8px #4cf0ff}
         .ss-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:12px;border-top:1px solid currentColor;border-color:rgba(127,127,127,.3);font-size:14.5px;font-style:italic;opacity:.75}
         .ss-foot button{background:none;border:1px solid currentColor;color:inherit;font-family:"Cinzel",Georgia,serif;font-style:normal;font-size:11px;letter-spacing:.14em;padding:5px 10px;cursor:pointer}
         .ss-more{display:inline-block;margin-top:22px;font-family:"Cinzel",Georgia,serif;font-size:13px;letter-spacing:.08em;text-decoration:none}
         .ss-a .ss-more{color:#ecd08a}
-        .ss-x .ss-more{color:#ffcf5a}
+        .ss-x .ss-more{color:#4cf0ff;letter-spacing:.1em}
         @keyframes ssBk{50%{opacity:0}}
         @media (max-width:820px){.ss-grid{grid-template-columns:1fr}.ss-page{padding:28px 22px 20px}}
       `}</style>
@@ -675,62 +680,73 @@ export const GroundsMap = ({ theme }) => {
       <style>{`
         .gm{padding:96px 24px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
         .gm-a{background:#1a0b0f;color:#f1e6cc;border-top:1px solid rgba(236,208,138,.1)}
-        .gm-x{background:#07090d;color:#ede6d6;border-top:1px solid rgba(255,207,90,.1)}
+        .gm-x{background:#070615;color:#e6ecff;border-top:1px solid rgba(76,240,255,.14);font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif}
+        .gm-x .gm-k,.gm-x .gm-pin b,.gm-x .gm-pl,.gm-x .gm-go{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700}
+        .gm-x .gm-h,.gm-x .gm-pn{font-family:"Exo 2","Noto Sans SC",sans-serif;font-weight:800}
+        .gm-x .gm-p{font-size:18px}
+        .gm-x .gm-fd{font-size:16.5px}
         .gm-in{max-width:1120px;margin:0 auto}
         .gm-k{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em}
         .gm-a .gm-k{color:#c9a24a}
-        .gm-x .gm-k{color:#ffcf5a}
+        .gm-x .gm-k{color:#4cf0ff;font-size:13px}
         .gm-h{font-family:"Cinzel",Georgia,serif;font-size:clamp(28px,3.8vw,42px);font-weight:700;margin:12px 0 14px;line-height:1.2}
         .gm-p{font-size:19.5px;line-height:1.7;max-width:680px;opacity:.78;font-weight:500}
         .gm-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);gap:26px;margin-top:40px;align-items:stretch}
         .gm-map{position:relative;aspect-ratio:16/11;overflow:hidden}
         .gm-a .gm-map{background:radial-gradient(ellipse 30% 18% at 50% 52%,rgba(60,110,140,.35),transparent 70%),radial-gradient(ellipse 20% 14% at 12% 86%,rgba(20,83,63,.35),transparent 70%),radial-gradient(ellipse 18% 14% at 92% 90%,rgba(20,83,63,.35),transparent 70%),radial-gradient(circle at 30% 20%,#fbf1d6,#e7d2a2 70%,#cfb27a);box-shadow:0 0 0 2px rgba(122,20,36,.6),0 0 0 8px #1a0b0f,0 0 0 9px rgba(236,208,138,.35),0 40px 80px -30px rgba(0,0,0,.9)}
-        .gm-x .gm-map{background:radial-gradient(500px 260px at 50% 0%,rgba(255,207,90,.12),transparent 70%),linear-gradient(180deg,#0d1118,#07090d);box-shadow:0 0 0 1px rgba(255,207,90,.25),0 40px 80px -30px rgba(0,0,0,.9)}
-        .gm-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:70%;pointer-events:none}
+        .gm-x .gm-map{background:radial-gradient(420px 260px at 50% 50%,rgba(124,77,255,.25),transparent 70%),linear-gradient(rgba(76,240,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(76,240,255,.07) 1px,transparent 1px),linear-gradient(180deg,#0e0b2a,#070615);background-size:auto,32px 32px,32px 32px,auto;box-shadow:0 0 0 1px rgba(76,240,255,.35),0 0 50px -16px rgba(76,240,255,.5),0 40px 80px -30px rgba(0,0,0,.9);clip-path:polygon(0 0,calc(100% - 24px) 0,100% 24px,100% 100%,24px 100%,0 calc(100% - 24px))}
+        .gm-mt{position:absolute;left:50%;top:50%;width:62%;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;opacity:.55}
+        .gm-mt g{transform-origin:100px 100px;animation:gmSpin 50s linear infinite}
         .gm-rose{position:absolute;right:14px;bottom:10px;font-size:46px;color:rgba(122,20,36,.55);pointer-events:none}
         .gm-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
         .gm-svg polyline{fill:none;stroke-width:2;stroke-dasharray:6 7}
         .gm-a .gm-svg polyline{stroke:rgba(58,36,18,.45)}
-        .gm-x .gm-svg polyline{stroke:rgba(255,207,90,.3);animation:gmFlow 3s linear infinite}
+        .gm-x .gm-svg polyline{stroke:rgba(76,240,255,.45);animation:gmFlow 3s linear infinite}
         .gm-pin{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
         .gm-pin i{font-style:normal;display:flex;align-items:center;justify-content:center;width:46px;height:46px;font-size:22px;transition:transform .3s,box-shadow .3s}
         .gm-a .gm-pin i{background:#7a1424;color:#ecd08a;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 6px 12px rgba(0,0,0,.4)}
         .gm-a .gm-pin i::first-line{line-height:1}
         .gm-a .gm-pin i span{transform:rotate(45deg)}
-        .gm-x .gm-pin i{background:radial-gradient(circle at 50% 40%,#ff7a4a,#c8321e 60%,#7a1a10);color:#fff1dd;border-radius:40% 40% 46% 46%;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:26px;box-shadow:0 0 18px rgba(255,120,60,.55)}
+        .gm-x .gm-pin i{background:linear-gradient(160deg,#2a2366,#110e2b);color:#4cf0ff;font-family:"Noto Sans SC",sans-serif;font-weight:900;font-size:20px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:inset 0 0 0 2px rgba(76,240,255,.6);filter:drop-shadow(0 0 8px rgba(76,240,255,.6))}
         .gm-pin b{font-family:"Cinzel",Georgia,serif;font-size:11.5px;letter-spacing:.06em;padding:2px 8px;white-space:nowrap}
         .gm-a .gm-pin b{color:#3a2412;background:rgba(251,241,214,.85)}
-        .gm-x .gm-pin b{color:#ffcf5a;background:rgba(7,9,13,.75)}
+        .gm-x .gm-pin b{color:#cfe9ff;background:rgba(10,8,32,.85);box-shadow:inset 0 0 0 1px rgba(76,240,255,.3);font-size:12.5px}
         .gm-a .gm-pin.on i{transform:rotate(-45deg) scale(1.2);box-shadow:0 0 0 4px rgba(236,208,138,.8),0 10px 20px rgba(0,0,0,.5)}
-        .gm-x .gm-pin.on i{transform:scale(1.2);box-shadow:0 0 0 3px #ffcf5a,0 0 40px rgba(255,160,60,.9);animation:gmGlow 1.6s ease-in-out infinite}
+        .gm-x .gm-pin.on i{transform:scale(1.2);background:linear-gradient(160deg,#4cf0ff,#a66bff);color:#070615;animation:gmGlow 1.6s ease-in-out infinite}
+        .gm-x .gm-pin.on b{color:#4cf0ff}
         .gm-card{display:flex;flex-direction:column;padding:28px;text-decoration:none;color:inherit;transition:transform .3s}
         .gm-card:hover{transform:translateY(-4px)}
         .gm-a .gm-card{background:linear-gradient(180deg,#2a1016,#1f0c11);border:1px solid rgba(236,208,138,.35)}
-        .gm-x .gm-card{background:#10141b;border:1px solid rgba(255,207,90,.25);box-shadow:inset 0 3px 0 #c8321e}
+        .gm-x .gm-card{background:linear-gradient(180deg,#110e2b,#0a0820);border:1px solid rgba(76,240,255,.3);box-shadow:inset 0 3px 0 #a66bff,0 0 40px -20px rgba(76,240,255,.6);clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
         .gm-pl{font-family:"Cinzel",Georgia,serif;font-size:11px;letter-spacing:.28em;opacity:.7}
         .gm-pn{font-family:"Cinzel",Georgia,serif;font-size:24px;font-weight:700;margin-top:6px}
         .gm-a .gm-pn{color:#ecd08a}
-        .gm-x .gm-pn{color:#ffcf5a}
-        .gm-zh{font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:22px;color:#c8321e;margin-left:10px}
+        .gm-x .gm-pn{color:#4cf0ff}
+        .gm-zh{font-family:"Noto Sans SC",sans-serif;font-weight:700;font-size:18px;color:#a66bff;margin-left:10px}
         .gm-ft{font-size:20px;font-weight:700;margin-top:18px}
         .gm-fd{font-size:18px;line-height:1.6;opacity:.78;margin-top:8px;flex:1}
         .gm-go{margin-top:18px;font-family:"Cinzel",Georgia,serif;font-size:13px;letter-spacing:.1em}
         .gm-a .gm-go{color:#ecd08a}
-        .gm-x .gm-go{color:#ffcf5a}
+        .gm-x .gm-go{color:#4cf0ff;font-size:14px}
         @keyframes gmFlow{to{stroke-dashoffset:-26}}
-        @keyframes gmGlow{50%{box-shadow:0 0 0 3px #ffcf5a,0 0 60px rgba(255,160,60,1)}}
+        @keyframes gmGlow{0%,100%{filter:drop-shadow(0 0 8px rgba(76,240,255,.8))}50%{filter:drop-shadow(0 0 22px rgba(76,240,255,1)) drop-shadow(0 0 30px rgba(166,107,255,.8))}}
+        @keyframes gmSpin{to{transform:rotate(360deg)}}
         @media (max-width:820px){.gm-grid{grid-template-columns:1fr}.gm-pin b{display:none}.gm-pin i{width:38px;height:38px;font-size:18px}}
       `}</style>
       <div className="gm-in">
         <div className="gm-k">{arc ? "FEATURES · THE ACADEMY GROUNDS" : "FEATURES · THE SECT GROUNDS"}</div>
         <div className="gm-h">{arc ? "Six halls, six things you can do now" : "Six halls of the sect, six arts to master"}</div>
-        <div className="gm-p">{arc ? "Every part of the workbench has a place on the grounds. Hover or tap a building to see what is taught inside." : "Every art of the workbench is practised somewhere on the mountain. Hover or tap a lantern to see which discipline lives there."}</div>
+        <div className="gm-p">{arc ? "Every part of the workbench has a place on the grounds. Hover or tap a building to see what is taught inside." : "Every art of the workbench is practised somewhere on the mountain. Hover or tap a node to see which discipline lives there."}</div>
         <div className="gm-grid">
           <div className="gm-map">
             {!arc && (
-              <svg className="gm-mt" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M0 400 L0 250 L120 150 L210 220 L330 90 L450 200 L520 40 L610 190 L720 110 L830 220 L920 140 L1000 200 L1000 400 Z" fill="#141a22" />
-                <path d="M0 400 L0 320 L150 250 L300 310 L470 230 L640 300 L800 240 L1000 300 L1000 400 Z" fill="#0b0f15" />
+              <svg className="gm-mt" viewBox="0 0 200 200" aria-hidden="true">
+                <g>
+                  <circle cx="100" cy="100" r="96" fill="none" stroke="rgba(76,240,255,.5)" strokeWidth=".8" strokeDasharray="2 5" />
+                  <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(166,107,255,.6)" strokeWidth=".8" />
+                  <polygon points="100,30 160.6,135 39.4,135" fill="none" stroke="rgba(76,240,255,.4)" strokeWidth=".8" />
+                  <polygon points="100,170 160.6,65 39.4,65" fill="none" stroke="rgba(76,240,255,.4)" strokeWidth=".8" />
+                </g>
               </svg>
             )}
             {arc && <span className="gm-rose" aria-hidden="true">✣</span>}
@@ -795,230 +811,182 @@ export const AcCta = () => (
   </div>
 );
 
-export const xnRoof = (w, y, h) => "M" + (-w) + "," + (y - 7) + " Q" + (-w * 0.72) + "," + (y + 2) + " " + (-w * 0.5) + "," + (y - h) + " L" + (w * 0.5) + "," + (y - h) + " Q" + (w * 0.72) + "," + (y + 2) + " " + w + "," + (y - 7) + " L" + (w * 0.84) + "," + (y + 4) + " L" + (-w * 0.84) + "," + (y + 4) + " Z";
-
-export const xnKarst = (arr, base) => arr.map((p) => "M" + (p[0] - p[2]) + "," + base + " C" + (p[0] - p[2]) + "," + p[1] + " " + (p[0] + p[2]) + "," + p[1] + " " + (p[0] + p[2]) + "," + base + " Z").join(" ");
-
-export const XnHall = ({ x, y, s }) => {
-  const D = "#0c1017";
-  const RM = "rgba(255,207,90,.35)";
-  return (
-    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
-      <rect x="-92" y="-6" width="184" height="6" fill={D} stroke={RM} strokeWidth="1" />
-      <rect x="-82" y="-16" width="164" height="10" fill={D} stroke={RM} strokeWidth="1" />
-      <rect x="-76" y="-54" width="152" height="40" fill={D} stroke={RM} strokeWidth="1" />
-      {[0, 1, 2, 3, 4, 5].map((i) => <rect key={i} className="xn-win" style={{ animationDelay: i * 0.6 + "s" }} x={-62 + i * 24} y="-46" width="8" height="24" fill="#ffcf5a" />)}
-      <path d={xnRoof(112, -58, 34)} fill="#141a24" stroke={RM} strokeWidth="1.2" />
-      <rect x="-36" y="-112" width="72" height="26" fill={D} stroke={RM} strokeWidth="1" />
-      {[0, 1, 2].map((i) => <rect key={i} className="xn-win" style={{ animationDelay: i * 0.9 + "s" }} x={-21 + i * 18} y="-106" width="6" height="14" fill="#ffcf5a" />)}
-      <path d={xnRoof(66, -112, 28)} fill="#141a24" stroke={RM} strokeWidth="1.2" />
-      <circle cx="0" cy="-144" r="4" fill="#ffcf5a" />
-    </g>
-  );
-};
-
-export const XnPagoda = ({ x, y, s }) => {
-  const RM = "rgba(255,207,90,.35)";
-  return (
-    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
-      <rect x="-50" y="-10" width="100" height="10" fill="#0c1017" stroke={RM} strokeWidth="1" />
-      {[0, 1, 2, 3, 4, 5, 6].map((i) => {
-        const w = 44 - i * 4.6;
-        const b = -10 - i * 30;
-        return (
-          <g key={i}>
-            <rect x={-w * 0.62} y={b - 22} width={w * 1.24} height="22" fill="#0c1017" stroke={RM} strokeWidth="1" />
-            <rect className="xn-win" style={{ animationDelay: i * 0.7 + "s" }} x="-3" y={b - 18} width="6" height="11" fill="#ffcf5a" />
-            <path d={xnRoof(w, b - 20, 10)} fill="#141a24" stroke={RM} strokeWidth="1" />
-          </g>
-        );
-      })}
-      <line x1="0" y1="-220" x2="0" y2="-264" stroke="#ffcf5a" strokeWidth="2" />
-      {[-232, -242, -252].map((cy) => <circle key={cy} cx="0" cy={cy} r="3" fill="#ffcf5a" />)}
-    </g>
-  );
-};
-
-export const XnIsle = ({ x, y, s, d }) => (
-  <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
-    <g className="xn-bob" style={{ animationDelay: -d + "s" }}>
-      <line className="xn-fall" x1="96" y1="10" x2="96" y2="300" stroke="rgba(214,228,250,.55)" strokeWidth="7" strokeDasharray="18 10" />
-      <ellipse cx="96" cy="300" rx="46" ry="12" fill="rgba(214,228,250,.18)" filter="url(#xnBlur)" />
-      <path d="M-140,0 Q-70,-16 0,-10 Q70,-18 140,0 L110,24 L70,44 L36,96 L10,170 L-12,104 L-52,56 L-108,26 Z" fill="#111722" stroke="rgba(255,207,90,.22)" strokeWidth="1" />
-      <path d="M-140,0 Q-70,-16 0,-10 Q70,-18 140,0" fill="none" stroke="#3f8f6b" strokeWidth="4" />
-      <XnHall x={-10} y={-8} s={0.6} />
-      <ellipse cx="-104" cy="-14" rx="16" ry="11" fill="#163025" />
-      <ellipse cx="-86" cy="-20" rx="11" ry="14" fill="#1b3a2d" />
-      <ellipse cx="86" cy="-18" rx="14" ry="12" fill="#163025" />
-      <ellipse cx="108" cy="-12" rx="10" ry="9" fill="#1b3a2d" />
-    </g>
+export const XnSword = ({ s, glow }) => (
+  <g transform={"scale(" + (s || 1) + ")"}>
+    <polygon points="0,170 -15,-62 0,-74 15,-62" fill="url(#xnBlade)" stroke={glow || "#4cf0ff"} strokeWidth="1.5" />
+    <line x1="0" y1="150" x2="0" y2="-66" stroke="rgba(255,255,255,.85)" strokeWidth="1.5" />
+    <polygon points="-52,-74 -12,-84 0,-96 12,-84 52,-74 12,-70 0,-62 -12,-70" fill="#1b1446" stroke={glow || "#4cf0ff"} strokeWidth="1.5" />
+    <circle cx="0" cy="-80" r="5" fill="#ffd166" />
+    <rect x="-6" y="-150" width="12" height="56" rx="3" fill="#120d33" stroke="rgba(166,107,255,.8)" strokeWidth="1.5" />
+    <polygon points="0,-176 -11,-158 0,-150 11,-158" fill={glow || "#4cf0ff"} />
   </g>
 );
 
-export const XnGate = ({ x, y, s }) => {
-  const D = "#0b0f16";
-  const RM = "rgba(255,207,90,.4)";
-  return (
-    <g transform={"translate(" + x + "," + y + ") scale(" + s + ")"}>
-      <rect x="-136" y="-196" width="18" height="196" fill={D} stroke={RM} strokeWidth="1" />
-      <rect x="118" y="-196" width="18" height="196" fill={D} stroke={RM} strokeWidth="1" />
-      <rect x="-68" y="-160" width="16" height="160" fill={D} stroke={RM} strokeWidth="1" />
-      <rect x="52" y="-160" width="16" height="160" fill={D} stroke={RM} strokeWidth="1" />
-      {[-142, -74, 46, 112].map((px) => <rect key={px} x={px} y="-12" width={px === -142 || px === 112 ? 30 : 28} height="12" fill={D} stroke={RM} strokeWidth="1" />)}
-      <rect x="-150" y="-150" width="300" height="9" fill="#7a1a10" stroke={RM} strokeWidth="1" />
-      <rect x="-158" y="-208" width="316" height="14" fill="#7a1a10" stroke={RM} strokeWidth="1" />
-      <path d={xnRoof(186, -208, 40)} fill="#141a24" stroke={RM} strokeWidth="1.4" />
-      <path d="M-93,-248 q-8,-14 4,-20 M93,-248 q8,-14 -4,-20" fill="none" stroke="#ffcf5a" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="0" cy="-254" r="6" fill="#ffcf5a" />
-      <rect x="-46" y="-192" width="92" height="38" fill="#c8321e" stroke="#ffcf5a" strokeWidth="2" />
-      <text x="0" y="-164" textAnchor="middle" fontFamily="Ma Shan Zheng, Noto Serif SC, serif" fontSize="26" fill="#ffcf5a">问道宗</text>
-      {[-94, 94].map((lx) => (
-        <g key={lx} transform={"translate(" + lx + ",-141)"}>
-          <g className="xn-lan" style={{ animationDelay: (lx > 0 ? -1.3 : 0) + "s" }}>
-            <line x1="0" y1="0" x2="0" y2="16" stroke="#ffcf5a" strokeWidth="1.5" />
-            <circle cx="0" cy="30" r="26" fill="url(#xnLanGlow)" />
-            <ellipse cx="0" cy="30" rx="10" ry="13" fill="#c8321e" stroke="#ffcf5a" strokeWidth="1" />
-          </g>
-        </g>
-      ))}
-    </g>
-  );
-};
+export const XnRune = ({ r, n, size, col }) => (
+  <g>
+    {Array.from({ length: n }, (_, i) => (
+      <g key={i} transform={"rotate(" + (i * 360) / n + ") translate(0," + -r + ")"}>
+        <rect x={-size / 2} y={-size / 2} width={size} height={size} fill="none" stroke={col} strokeWidth="1.5" transform="rotate(45)" />
+        <line x1="0" y1={-size * 0.9} x2="0" y2={size * 0.9} stroke={col} strokeWidth="1.2" />
+      </g>
+    ))}
+  </g>
+);
 
-export const XN_STARS = Array.from({ length: 70 }, (_, i) => [(i * 211 + 47) % 1600, (i * 89 + 23) % 420, 0.5 + ((i * 5) % 4) * 0.3, (i % 6) * 0.6]);
+export const XN_STARS = Array.from({ length: 80 }, (_, i) => [(i * 211 + 47) % 1600, (i * 89 + 23) % 560, 0.5 + ((i * 5) % 4) * 0.3, (i % 6) * 0.6]);
 
-export const XN_CLOUDS = [[80, 770, 240, 46], [360, 800, 280, 54], [660, 770, 260, 50], [960, 790, 320, 58], [1260, 770, 280, 52], [1540, 800, 260, 48], [220, 860, 340, 50], [820, 870, 380, 54], [1380, 865, 320, 50]];
+export const XN_GEMS = [[820, 250, 0.8, 0], [1430, 300, 1, 1.6], [1500, 560, 0.6, 3.1], [700, 520, 0.55, 2.2]];
 
 export const XnHero = () => (
   <div className="not-prose xn-hero">
     <style>{`
-      .xn-hero{position:relative;overflow:hidden;min-height:min(94vh,920px);display:flex;align-items:center;background:#07090d;color:#ede6d6;padding:120px 24px 150px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
+      .xn-hero{position:relative;overflow:hidden;min-height:min(94vh,920px);display:flex;align-items:center;background:#070615;color:#e6ecff;padding:120px 24px 150px;font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif}
       .xn-scene{position:absolute;inset:0;width:100%;height:100%;display:block}
-      .xn-shade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(7,9,13,.94) 0%,rgba(7,9,13,.72) 30%,rgba(7,9,13,0) 60%),linear-gradient(0deg,#07090d 0%,rgba(7,9,13,0) 20%)}
-      .xn-l1,.xn-l2,.xn-l3,.xn-l4{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
+      .xn-shade{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(7,6,21,.95) 0%,rgba(7,6,21,.74) 32%,rgba(7,6,21,0) 62%),linear-gradient(0deg,#070615 0%,rgba(7,6,21,0) 22%)}
+      .xn-scan{position:absolute;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(76,240,255,.035) 0 1px,transparent 1px 4px)}
+      .xn-l1,.xn-l2,.xn-l3{transition:transform 1.1s cubic-bezier(.2,.7,.2,1)}
       .xn-l1{transform:translate(calc(var(--mx,0) * -6px),calc(var(--my,0) * -4px))}
-      .xn-l2{transform:translate(calc(var(--mx,0) * -14px),calc(var(--my,0) * -6px))}
-      .xn-l3{transform:translate(calc(var(--mx,0) * -24px),calc(var(--my,0) * -10px))}
-      .xn-l4{transform:translate(calc(var(--mx,0) * -44px),calc(var(--my,0) * -16px))}
-      .xn-rays{animation:xnSpin 120s linear infinite}
-      .xn-tw{animation:xnTw 3.5s ease-in-out infinite}
-      .xn-win{animation:xnWin 5s ease-in-out infinite}
-      .xn-bob{animation:xnBob 8s ease-in-out infinite}
-      .xn-fall{animation:xnFall .9s linear infinite}
-      .xn-crane{animation:xnCrane 46s linear infinite}
-      .xn-flap{transform-box:fill-box;transform-origin:center bottom;animation:xnFlap 1.1s ease-in-out infinite}
-      .xn-sw{animation:xnSw 9s ease-in infinite}
-      .xn-cloudA{animation:xnCA 26s ease-in-out infinite alternate}
-      .xn-cloudB{animation:xnCB 32s ease-in-out infinite alternate}
-      .xn-lan{transform-box:fill-box;transform-origin:center top;animation:xnLan 4s ease-in-out infinite}
-      .xn-cue{position:absolute;z-index:3;left:50%;bottom:26px;transform:translateX(-50%);font-family:"Cinzel",Georgia,serif;font-size:11px;letter-spacing:.3em;color:rgba(255,207,90,.7);text-align:center;pointer-events:none}
-      .xn-cue i{display:block;width:1px;height:34px;margin:8px auto 0;background:linear-gradient(#ffcf5a,transparent);animation:xnCue 2s ease-in-out infinite}
-      .xn-bolt{position:absolute;z-index:1;left:66%;top:0;width:160px;height:52%;opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
-      .xn-bolt polyline{fill:none;stroke:#fff3c4;stroke-width:3;filter:drop-shadow(0 0 8px #ffcf5a) drop-shadow(0 0 22px #ffcf5a)}
-      .xn-flash{position:absolute;z-index:1;inset:0;background:rgba(255,236,180,.08);opacity:0;animation:xnBolt 7s infinite;pointer-events:none}
+      .xn-l2{transform:translate(calc(var(--mx,0) * -16px),calc(var(--my,0) * -8px))}
+      .xn-l3{transform:translate(calc(var(--mx,0) * -32px),calc(var(--my,0) * -14px))}
+      .xn-tw{animation:xhTw 3.5s ease-in-out infinite}
+      .xn-rot{animation:xhSpin 60s linear infinite}
+      .xn-rotr{animation:xhSpin 38s linear infinite reverse}
+      .xn-rotf{animation:xhSpin 14s linear infinite}
+      .xn-pillar{animation:xhPulse 3s ease-in-out infinite}
+      .xn-hover{animation:xhHover 5s ease-in-out infinite}
+      .xn-gem{animation:xhHover 6s ease-in-out infinite}
+      .xn-sw{animation:xhSw 8s ease-in infinite}
+      .xn-cue{position:absolute;z-index:3;left:50%;bottom:26px;transform:translateX(-50%);font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:12px;letter-spacing:.34em;color:rgba(76,240,255,.8);text-align:center;pointer-events:none}
+      .xn-cue i{display:block;width:10px;height:10px;margin:10px auto 0;border-right:2px solid #4cf0ff;border-bottom:2px solid #4cf0ff;transform:rotate(45deg);animation:xhCue 1.6s ease-in-out infinite}
+      .xn-bolt{position:absolute;z-index:1;left:62%;top:0;width:150px;height:50%;opacity:0;animation:xhBolt 7s infinite;pointer-events:none}
+      .xn-bolt polyline{fill:none;stroke:#eafeff;stroke-width:3;filter:drop-shadow(0 0 8px #4cf0ff) drop-shadow(0 0 22px #a66bff)}
+      .xn-flash{position:absolute;z-index:1;inset:0;background:rgba(140,200,255,.07);opacity:0;animation:xhBolt 7s infinite;pointer-events:none}
       .xn-wrap{position:relative;z-index:3;max-width:1200px;width:100%;margin:0 auto}
-      .xn-copy{max-width:580px}
-      @keyframes xnTw{0%,100%{opacity:.9}50%{opacity:.25}}
-      @keyframes xnWin{0%,100%{opacity:1}45%{opacity:.5}55%{opacity:.9}}
-      @keyframes xnBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-      @keyframes xnFall{to{stroke-dashoffset:-28}}
-      @keyframes xnCrane{from{transform:translateX(-200px)}to{transform:translateX(1800px)}}
-      @keyframes xnFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-.4)}}
-      @keyframes xnSw{0%{stroke-dashoffset:1600;opacity:0}5%{opacity:1}22%{stroke-dashoffset:0;opacity:0}100%{stroke-dashoffset:0;opacity:0}}
-      @keyframes xnCA{from{transform:translateX(-50px)}to{transform:translateX(50px)}}
-      @keyframes xnCB{from{transform:translateX(50px)}to{transform:translateX(-50px)}}
-      @keyframes xnLan{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
-      @keyframes xnCue{0%,100%{opacity:.3;transform:scaleY(.6)}50%{opacity:1;transform:scaleY(1)}}
-      @media (max-width:820px){.xn-hero{align-items:flex-end;padding:90px 20px 80px}.xn-shade{background:linear-gradient(0deg,#07090d 0%,rgba(7,9,13,.9) 45%,rgba(7,9,13,.2) 80%)}.xn-cue{display:none}}
+      .xn-copy{max-width:600px}
+      .xn-tag{display:inline-flex;align-items:center;gap:10px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13px;letter-spacing:.22em;color:#4cf0ff;padding:6px 16px 6px 6px;background:rgba(76,240,255,.06);border:1px solid rgba(76,240,255,.35);clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
+      .xn-tag i{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:linear-gradient(135deg,#4cf0ff,#a66bff);color:#070615;font-style:normal;font-size:11px;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+      .xn-h1{font-family:"Exo 2","Noto Sans SC",sans-serif;font-size:clamp(38px,5.8vw,68px);line-height:1.04;font-weight:800;letter-spacing:-.01em;margin:24px 0 0;text-shadow:0 0 30px rgba(76,240,255,.15)}
+      .xn-gold{background:linear-gradient(100deg,#4cf0ff,#a66bff 30%,#ff5ce1 50%,#a66bff 70%,#4cf0ff);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:xhSh 5s linear infinite;font-weight:900}
+      .xn-sub{font-size:19px;line-height:1.65;color:rgba(230,236,255,.76);margin:22px 0 0;max-width:540px;font-weight:500}
+      .xn-xp{margin-top:26px;max-width:420px}
+      .xn-xp div{display:flex;justify-content:space-between;gap:12px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:12.5px;letter-spacing:.18em;color:rgba(230,236,255,.7)}
+      .xn-xp div b{color:#ffd166}
+      .xn-xp p{position:relative;height:8px;margin:8px 0 0;background:rgba(255,255,255,.07);border:1px solid rgba(76,240,255,.3);overflow:hidden;transform:skewX(-20deg)}
+      .xn-xp p i{position:absolute;left:0;top:0;bottom:0;width:72%;background:linear-gradient(90deg,#4cf0ff,#a66bff);box-shadow:0 0 14px #4cf0ff;animation:xhFill 2.4s cubic-bezier(.2,.8,.2,1) both}
+      .xn-xp p i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent) no-repeat;background-size:40% 100%;animation:xhGleam 2.6s linear infinite}
+      .xn-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+      .xn-btn{display:inline-flex;align-items:center;padding:13px 22px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:15px;letter-spacing:.1em;text-transform:uppercase;text-decoration:none;transition:all .25s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+      .xn-pri{background:linear-gradient(135deg,#4cf0ff,#7c8bff 55%,#a66bff);color:#070615}
+      .xn-pri:hover{filter:brightness(1.15);transform:translateY(-2px)}
+      .xn-sec{background:rgba(76,240,255,.06);box-shadow:inset 0 0 0 1px rgba(76,240,255,.4);color:#e6ecff}
+      .xn-sec:hover{background:rgba(76,240,255,.14);color:#4cf0ff;transform:translateY(-2px)}
+      .xn-hud{position:absolute;z-index:3;right:28px;bottom:30px;width:260px;padding:14px 16px;background:rgba(10,8,32,.72);border:1px solid rgba(76,240,255,.3);font-family:"Rajdhani","Exo 2",sans-serif;font-weight:600;color:#e6ecff;backdrop-filter:blur(6px);clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+      .xn-hud small{display:block;font-size:11px;letter-spacing:.3em;color:#4cf0ff}
+      .xn-hud b{display:block;font-size:18px;margin-top:4px;letter-spacing:.04em}
+      .xn-hud span{display:block;font-size:13.5px;opacity:.65;margin-top:2px}
+      .xn-hud em{display:flex;gap:4px;margin-top:10px}
+      .xn-hud em i{flex:1;height:5px;background:rgba(255,255,255,.1);transform:skewX(-20deg)}
+      .xn-hud em i.on{background:#4cf0ff;box-shadow:0 0 8px #4cf0ff}
+      @keyframes xhTw{0%,100%{opacity:.9}50%{opacity:.2}}
+      @keyframes xhSpin{to{transform:rotate(360deg)}}
+      @keyframes xhPulse{0%,100%{opacity:.6}50%{opacity:1}}
+      @keyframes xhHover{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+      @keyframes xhSw{0%{stroke-dashoffset:1600;opacity:0}5%{opacity:1}24%{stroke-dashoffset:0;opacity:0}100%{stroke-dashoffset:0;opacity:0}}
+      @keyframes xhBolt{0%,86%,100%{opacity:0}87%{opacity:1}88%{opacity:.15}89.5%{opacity:1}93%{opacity:0}}
+      @keyframes xhSh{to{background-position:-220% 0}}
+      @keyframes xhCue{0%,100%{opacity:.3;transform:translateY(-4px) rotate(45deg)}50%{opacity:1;transform:translateY(2px) rotate(45deg)}}
+      @keyframes xhFill{from{width:0}}
+      @keyframes xhGleam{from{background-position:-60% 0}to{background-position:160% 0}}
+      @media (max-width:980px){.xn-hud{display:none}}
+      @media (max-width:820px){.xn-hero{align-items:flex-end;padding:90px 20px 80px}.xn-shade{background:linear-gradient(0deg,#070615 0%,rgba(7,6,21,.9) 45%,rgba(7,6,21,.2) 80%)}.xn-cue{display:none}}
       @media (prefers-reduced-motion:reduce){.xn-hero *{animation:none !important}}
-      .xn-tag{display:inline-flex;align-items:center;gap:10px;font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.2em;color:#ffcf5a}
-      .xn-tag i{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:#c8321e;color:#fff1dd;font-style:normal;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:17px;letter-spacing:0}
-      .xn-h1{font-family:"Cinzel",Georgia,serif;font-size:clamp(36px,5.6vw,64px);line-height:1.1;font-weight:700;margin:24px 0 0}
-      .xn-gold{background:linear-gradient(100deg,#c8321e,#ff8a3d 25%,#ffcf5a 45%,#fff3c4 55%,#ffcf5a 70%,#c8321e);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:xnSh 5s linear infinite;font-weight:900}
-      .xn-sub{font-size:21px;line-height:1.6;color:rgba(237,230,214,.78);margin:24px 0 0;max-width:540px;font-weight:500}
-      .xn-btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
-      .xn-btn{display:inline-flex;align-items:center;padding:13px 22px;font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:13.5px;letter-spacing:.06em;text-decoration:none;transition:all .25s}
-      .xn-pri{background:#c8321e;color:#fff1dd;box-shadow:0 0 0 1px #ffcf5a,0 12px 30px -8px rgba(200,50,30,.8)}
-      .xn-pri:hover{background:#e0412a;transform:translateY(-2px);box-shadow:0 0 0 1px #ffcf5a,0 0 36px rgba(255,140,60,.7)}
-      .xn-sec{border:1px solid rgba(255,207,90,.35);color:#ede6d6}
-      .xn-sec:hover{border-color:#ffcf5a;color:#ffcf5a;transform:translateY(-2px)}
-      @keyframes xnBolt{0%,86%,100%{opacity:0}87%{opacity:1}88%{opacity:.15}89.5%{opacity:1}93%{opacity:0}}
-      @keyframes xnSh{to{background-position:-220% 0}}
-      @keyframes xnSpin{to{transform:rotate(360deg)}}
     `}</style>
     <Parallax />
-    <svg className="xn-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMax slice" aria-hidden="true">
+    <svg className="xn-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
       <defs>
-        <linearGradient id="xnSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#04060a" /><stop offset=".45" stopColor="#0d1424" /><stop offset=".75" stopColor="#2a2030" /><stop offset="1" stopColor="#3a2418" /></linearGradient>
-        <radialGradient id="xnHalo"><stop offset="0" stopColor="rgba(255,214,120,.42)" /><stop offset=".4" stopColor="rgba(255,190,90,.12)" /><stop offset="1" stopColor="rgba(255,190,90,0)" /></radialGradient>
-        <linearGradient id="xnPeak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1b2333" /><stop offset="1" stopColor="#090c12" /></linearGradient>
-        <radialGradient id="xnLanGlow"><stop offset="0" stopColor="rgba(255,150,70,.6)" /><stop offset="1" stopColor="rgba(255,150,70,0)" /></radialGradient>
-        <linearGradient id="xnSwG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="rgba(160,220,255,0)" /><stop offset="1" stopColor="#e6f6ff" /></linearGradient>
-        <filter id="xnBlur" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="14" /></filter>
+        <linearGradient id="xnSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#05040f" /><stop offset=".55" stopColor="#0d0a2e" /><stop offset=".72" stopColor="#1c1150" /><stop offset="1" stopColor="#070615" /></linearGradient>
+        <radialGradient id="xnNeb"><stop offset="0" stopColor="rgba(166,107,255,.45)" /><stop offset="1" stopColor="rgba(166,107,255,0)" /></radialGradient>
+        <radialGradient id="xnNeb2"><stop offset="0" stopColor="rgba(76,240,255,.26)" /><stop offset="1" stopColor="rgba(76,240,255,0)" /></radialGradient>
+        <radialGradient id="xnCoreG"><stop offset="0" stopColor="rgba(234,254,255,.95)" /><stop offset=".25" stopColor="rgba(76,240,255,.7)" /><stop offset=".6" stopColor="rgba(124,77,255,.25)" /><stop offset="1" stopColor="rgba(124,77,255,0)" /></radialGradient>
+        <linearGradient id="xnPil" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stopColor="rgba(76,240,255,.5)" /><stop offset="1" stopColor="rgba(76,240,255,0)" /></linearGradient>
+        <linearGradient id="xnBlade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#9fefff" /><stop offset=".5" stopColor="#ffffff" /><stop offset="1" stopColor="#6f8bff" /></linearGradient>
+        <linearGradient id="xnGem" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e9d6ff" /><stop offset=".5" stopColor="#a66bff" /><stop offset="1" stopColor="#3b1d8f" /></linearGradient>
+        <linearGradient id="xnSwG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="rgba(76,240,255,0)" /><stop offset="1" stopColor="#eafeff" /></linearGradient>
+        <linearGradient id="xnSwV" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stopColor="rgba(166,107,255,0)" /><stop offset="1" stopColor="#f0e2ff" /></linearGradient>
       </defs>
       <rect width="1600" height="900" fill="url(#xnSky)" />
       <g className="xn-l1">
-        {XN_STARS.map((s, i) => <circle key={i} className="xn-tw" style={{ animationDelay: s[3] + "s" }} cx={s[0]} cy={s[1]} r={s[2]} fill="#f3ead2" />)}
-        <g transform="translate(1100,260)">
-          <g className="xn-rays">
-            {Array.from({ length: 18 }, (_, i) => <polygon key={i} points="0,0 -18,-760 18,-760" fill="rgba(255,214,120,.045)" transform={"rotate(" + i * 20 + ")"} />)}
-          </g>
-        </g>
-        <circle cx="1100" cy="260" r="330" fill="url(#xnHalo)" />
-        <path d={xnKarst([[90, 430, 34], [230, 380, 40], [380, 470, 30], [520, 410, 36], [680, 460, 30], [840, 500, 28], [1380, 440, 30], [1490, 380, 42], [1580, 450, 26]], 720)} fill="#1a2232" opacity=".6" />
+        <circle cx="1240" cy="220" r="420" fill="url(#xnNeb)" />
+        <circle cx="760" cy="380" r="320" fill="url(#xnNeb2)" />
+        {XN_STARS.map((s, i) => <circle key={i} className="xn-tw" style={{ animationDelay: s[3] + "s" }} cx={s[0]} cy={s[1]} r={s[2]} fill={i % 4 === 0 ? "#a6f6ff" : "#eae6ff"} />)}
       </g>
       <g className="xn-l2">
-        <path d={xnKarst([[60, 560, 46], [200, 520, 50], [340, 600, 40], [470, 560, 48], [620, 620, 40], [1440, 580, 46], [1560, 540, 50]], 760)} fill="#10161f" />
-        <ellipse cx="800" cy="690" rx="900" ry="40" fill="rgba(200,210,225,.08)" filter="url(#xnBlur)" />
-        <XnIsle x={240} y={170} s={0.42} d={2} />
-        <XnIsle x={720} y={140} s={0.3} d={5} />
-      </g>
-      <g className="xn-l3">
-        <path d="M740,900 L830,740 L890,690 L930,600 L945,548 L990,546 L1000,500 L1030,430 L1060,380 L1085,352 L1115,350 L1140,372 L1170,420 L1205,500 L1225,566 L1270,566 L1290,620 L1350,700 L1440,780 L1520,900 Z" fill="url(#xnPeak)" />
-        <path d="M830,740 L890,690 L930,600 L945,548 L990,546 L1000,500 L1030,430 L1060,380 L1085,352" fill="none" stroke="rgba(255,207,90,.35)" strokeWidth="1.5" />
-        <XnPagoda x={968} y={547} s={0.95} />
-        <XnHall x={1100} y={350} s={1.1} />
-        <XnHall x={1247} y={566} s={0.55} />
-        <XnIsle x={1470} y={250} s={0.62} d={0} />
-        {[[180, -14], [300, -34], [240, 4]].map((c, i) => (
-          <g key={i} transform={"translate(0," + c[0] + ")"}>
-            <g className="xn-crane" style={{ animationDelay: -(i * 13 + c[0] / 20) + "s" }}>
-              <g transform={"translate(0," + c[1] + ")"}>
-                <path d="M-16,0 Q0,-4 16,-1 L24,-5" fill="none" stroke="#ede6d6" strokeWidth="2" strokeLinecap="round" />
-                <path className="xn-flap" style={{ animationDelay: i * 0.3 + "s" }} d="M2,-1 Q-6,-16 -20,-18 Q-6,-8 -4,-1 Z" fill="#ede6d6" />
-              </g>
+        <ellipse cx="1100" cy="650" rx="760" ry="70" fill="rgba(124,77,255,.22)" />
+        {Array.from({ length: 17 }, (_, i) => <line key={"v" + i} x1={1100 + (-500 + i * 200 - 1100) * 0.235} y1="640" x2={-500 + i * 200} y2="900" stroke="rgba(76,240,255,.16)" strokeWidth="1" />)}
+        {[648, 664, 690, 728, 780, 846].map((y, i) => <line key={"h" + i} x1="0" y1={y} x2="1600" y2={y} stroke="rgba(76,240,255,.16)" strokeOpacity={0.4 + i * 0.12} strokeWidth="1" />)}
+        <rect className="xn-pillar" x="1052" y="120" width="96" height="530" fill="url(#xnPil)" />
+        <g transform="translate(1100,650) scale(1,.36)">
+          <circle className="xn-pillar" r="330" fill="url(#xnCoreG)" />
+          <circle r="320" fill="none" stroke="rgba(76,240,255,.55)" strokeWidth="3" />
+          <g className="xn-rot">
+            <circle r="300" fill="none" stroke="rgba(76,240,255,.4)" strokeWidth="2" strokeDasharray="3 12" />
+            <XnRune r={270} n={16} size={16} col="rgba(166,107,255,.95)" />
+            <polygon points="0,-240 207.8,120 -207.8,120" fill="none" stroke="rgba(166,107,255,.75)" strokeWidth="2.5" />
+            <polygon points="0,240 207.8,-120 -207.8,-120" fill="none" stroke="rgba(166,107,255,.75)" strokeWidth="2.5" />
+          </g>
+          <g className="xn-rotr">
+            <circle r="200" fill="none" stroke="rgba(76,240,255,.7)" strokeWidth="2.5" />
+            <rect x="-140" y="-140" width="280" height="280" fill="none" stroke="rgba(76,240,255,.5)" strokeWidth="2" />
+            <rect x="-140" y="-140" width="280" height="280" fill="none" stroke="rgba(76,240,255,.5)" strokeWidth="2" transform="rotate(45)" />
+            <XnRune r={170} n={8} size={12} col="#4cf0ff" />
+          </g>
+          <g className="xn-rotf">
+            <circle r="96" fill="none" stroke="rgba(234,254,255,.8)" strokeWidth="2" strokeDasharray="40 14" />
+          </g>
+        </g>
+        {XN_GEMS.map((g, i) => (
+          <g key={i} transform={"translate(" + g[0] + "," + g[1] + ") scale(" + g[2] + ")"}>
+            <g className="xn-gem" style={{ animationDelay: -g[3] + "s" }}>
+              <polygon points="0,-46 26,0 0,58 -26,0" fill="url(#xnGem)" stroke="rgba(233,214,255,.8)" strokeWidth="1.5" style={{ filter: "drop-shadow(0 0 14px rgba(166,107,255,.9))" }} />
+              <polygon points="0,-46 8,0 0,58 -26,0" fill="rgba(255,255,255,.18)" />
             </g>
           </g>
         ))}
-        <line className="xn-sw" x1="160" y1="120" x2="980" y2="300" stroke="url(#xnSwG)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="160 1600" />
-        <line className="xn-sw" style={{ animationDelay: "4.5s" }} x1="1600" y1="80" x2="760" y2="200" stroke="url(#xnSwG)" strokeWidth="2" strokeLinecap="round" strokeDasharray="140 1600" />
       </g>
-      <g className="xn-l4">
-        <g filter="url(#xnBlur)">
-          <g className="xn-cloudA">{XN_CLOUDS.filter((_, i) => i % 2 === 0).map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.16)" />)}</g>
-          <g className="xn-cloudB">{XN_CLOUDS.filter((_, i) => i % 2 === 1).map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.13)" />)}</g>
-          <ellipse cx="1100" cy="760" rx="300" ry="30" fill="rgba(255,190,110,.08)" />
-          <ellipse cx="500" cy="790" rx="260" ry="24" fill="rgba(255,190,110,.06)" />
+      <g className="xn-l3">
+        <g transform="translate(1100,400)">
+          <g className="xn-hover">
+            <g style={{ filter: "drop-shadow(0 0 12px rgba(76,240,255,.9)) drop-shadow(0 0 40px rgba(166,107,255,.7))" }}>
+              <XnSword s={1.15} />
+            </g>
+          </g>
         </g>
-        <polygon points="1050,832 1150,832 1240,900 960,900" fill="#0b0f16" />
-        {[846, 860, 874, 888].map((sy, i) => <line key={sy} x1={1050 - (i + 1) * 21} y1={sy} x2={1150 + (i + 1) * 21} y2={sy} stroke="rgba(255,207,90,.18)" strokeWidth="1" />)}
-        <XnGate x={1100} y={832} s={0.9} />
-        <path d="M0,900 L0,852 L90,838 L170,866 L250,900 Z" fill="#05070b" />
-        <path d="M1290,900 L1340,852 L1420,834 L1500,848 L1600,822 L1600,900 Z" fill="#05070b" />
-        <path d="M1520,850 L1514,760 L1530,700" fill="none" stroke="#05070b" strokeWidth="9" strokeLinecap="round" />
-        {[[1490, 720, 46, 10], [1560, 700, 42, 9], [1500, 680, 36, 8], [1550, 760, 40, 9]].map((p, i) => <ellipse key={i} cx={p[0]} cy={p[1]} rx={p[2]} ry={p[3]} fill="#05070b" />)}
+        <line className="xn-sw" x1="120" y1="140" x2="980" y2="330" stroke="url(#xnSwG)" strokeWidth="3" strokeLinecap="round" strokeDasharray="180 1600" />
+        <line className="xn-sw" style={{ animationDelay: "3s" }} x1="1600" y1="90" x2="720" y2="240" stroke="url(#xnSwV)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="160 1600" />
+        <line className="xn-sw" style={{ animationDelay: "5.6s" }} x1="300" y1="560" x2="1300" y2="470" stroke="url(#xnSwG)" strokeWidth="2" strokeLinecap="round" strokeDasharray="140 1600" />
       </g>
     </svg>
-    <Motes rgb="255,190,90" count={60} />
+    <Motes rgb="120,240,255" count={60} />
+    <div className="xn-scan" />
     <div className="xn-shade" />
-    <div className="xn-cue">ASCEND<i /></div>
+    <div className="xn-cue">PRESS START<i /></div>
     <svg className="xn-bolt" viewBox="0 0 100 300" preserveAspectRatio="none" aria-hidden="true"><polyline points="60,0 44,60 62,82 34,150 56,170 24,240 40,250 18,300" /></svg>
     <div className="xn-flash" />
+    <div className="xn-hud" aria-hidden="true">
+      <small>◆ CURRENT QUEST</small>
+      <b>Auto Director</b>
+      <span>Stage 1 / 12 · Direction Candidates</span>
+      <em>{Array.from({ length: 12 }, (_, i) => <i key={i} className={i < 1 ? "on" : ""} />)}</em>
+    </div>
     <div className="xn-wrap">
       <div className="xn-copy">
-        <span className="xn-tag"><i>宗</i>THE SECT OF STORY · v0.8.7 · AGPL-3.0</span>
+        <span className="xn-tag"><i>◆</i>THE SECT OF STORY · v0.8.7 · AGPL-3.0</span>
         <h1 className="xn-h1">Every Story Has<br /><span className="xn-gold">a Spirit Root</span></h1>
         <p className="xn-sub">Biz Novel Studio is an open-source AI novel writing workbench. Bring one spark of inspiration, and cultivate it realm by realm into a complete long novel or short story.</p>
+        <div className="xn-xp" aria-hidden="true">
+          <div><span>REALM I · SPARK OF INSPIRATION</span><b>LV 1</b></div>
+          <p><i /></p>
+        </div>
         <div className="xn-btns">
           <a className="xn-btn xn-pri" href="#xn-root">Test Your Spirit Root ↓</a>
           <a className="xn-btn xn-sec" href="/en/quickstart">Begin Cultivation</a>
@@ -1026,7 +994,7 @@ export const XnHero = () => (
           <a className="xn-btn xn-sec" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
         </div>
         <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Stars">
-          <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=07090d&color=c8321e" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
+          <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=0a0820&color=7c4dff" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
         </a>
       </div>
     </div>
@@ -1065,42 +1033,52 @@ export const XnRoot = () => {
     setRes(null);
     setTimeout(() => { setRes({ e: EL[bi], pur: 62 + (h % 37), long: words >= 14 }); setSt("done"); }, 1500);
   };
-  const glow = res ? res.e.col : "#ffcf5a";
+  const glow = res ? res.e.col : "#4cf0ff";
+  const idle = st === "idle";
+  const rar = res ? (res.pur >= 90 ? ["LEGENDARY", "#ffd166"] : res.pur >= 80 ? ["EPIC", "#a66bff"] : res.pur >= 70 ? ["RARE", "#4cf0ff"] : ["UNCOMMON", "#5cffa8"]) : null;
   return (
     <div className="not-prose xn-root" id="xn-root">
       <style>{`
-        .xn-root{background:linear-gradient(180deg,#07090d,#0b0e13);color:#ede6d6;padding:96px 24px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif;border-top:1px solid rgba(255,207,90,.1);scroll-margin-top:80px}
+        .xn-root{position:relative;background:radial-gradient(ellipse at 80% 0%,rgba(124,77,255,.16),transparent 55%),linear-gradient(180deg,#070615,#0a0820);color:#e6ecff;padding:96px 24px;font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif;border-top:1px solid rgba(76,240,255,.14);scroll-margin-top:80px}
         .xn-ri{max-width:1120px;margin:0 auto}
-        .xn-k{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em;color:#ffcf5a}
-        .xn-h2{font-family:"Cinzel",Georgia,serif;font-size:clamp(28px,3.8vw,42px);font-weight:700;margin:12px 0 14px;line-height:1.2}
-        .xn-p{font-size:19.5px;line-height:1.7;max-width:680px;opacity:.78;font-weight:500}
+        .xn-k{display:inline-flex;align-items:center;gap:8px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13px;letter-spacing:.32em;color:#4cf0ff}
+        .xn-k::before{content:"";width:8px;height:8px;background:#4cf0ff;box-shadow:0 0 10px #4cf0ff;transform:rotate(45deg)}
+        .xn-h2{font-family:"Exo 2","Noto Sans SC",sans-serif;font-size:clamp(28px,3.8vw,42px);font-weight:800;margin:12px 0 14px;line-height:1.15}
+        .xn-p{font-size:18px;line-height:1.7;max-width:680px;opacity:.74;font-weight:500}
         .xn-rg{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,1fr);gap:36px;margin-top:40px;align-items:center}
-        .xn-ta{width:100%;min-height:130px;box-sizing:border-box;resize:vertical;padding:18px;background:#10141b;border:1px solid rgba(255,207,90,.3);color:#ede6d6;font-family:inherit;font-size:20px;line-height:1.5;outline:none;transition:border-color .3s,box-shadow .3s}
-        .xn-ta:focus{border-color:#ffcf5a;box-shadow:0 0 0 3px rgba(255,207,90,.15)}
+        .xn-ta{width:100%;min-height:130px;box-sizing:border-box;resize:vertical;padding:18px;background:#110e2b;border:1px solid rgba(76,240,255,.3);color:#e6ecff;font-family:inherit;font-size:18px;line-height:1.55;outline:none;transition:border-color .3s,box-shadow .3s;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+        .xn-ta:focus{border-color:#4cf0ff;box-shadow:inset 0 0 24px rgba(76,240,255,.12)}
         .xn-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-        .xn-chip{background:none;border:1px dashed rgba(237,230,214,.3);color:rgba(237,230,214,.7);font-family:inherit;font-size:15px;padding:6px 10px;cursor:pointer;text-align:left;transition:all .2s}
-        .xn-chip:hover{border-color:#ffcf5a;color:#ffcf5a}
-        .xn-go{margin-top:20px;display:inline-flex;align-items:center;gap:10px;padding:14px 26px;background:#c8321e;color:#fff1dd;border:0;box-shadow:0 0 0 1px #ffcf5a,0 12px 30px -8px rgba(200,50,30,.8);font-family:"Cinzel",Georgia,serif;font-weight:700;font-size:14px;letter-spacing:.08em;cursor:pointer;transition:all .25s}
-        .xn-go:hover{background:#e0412a;box-shadow:0 0 0 1px #ffcf5a,0 0 36px rgba(255,140,60,.7)}
+        .xn-chip{background:rgba(166,107,255,.06);border:1px solid rgba(166,107,255,.3);color:rgba(230,236,255,.72);font-family:inherit;font-size:14px;padding:7px 11px;cursor:pointer;text-align:left;transition:all .2s}
+        .xn-chip:hover{border-color:#a66bff;color:#fff;background:rgba(166,107,255,.16)}
+        .xn-go{margin-top:20px;display:inline-flex;align-items:center;gap:10px;padding:14px 28px;background:linear-gradient(135deg,#4cf0ff,#7c8bff 55%,#a66bff);color:#070615;border:0;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:16px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .25s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+        .xn-go:hover{filter:brightness(1.15);transform:translateY(-2px)}
         .xn-stone{display:flex;flex-direction:column;align-items:center;text-align:center}
-        .xn-stone svg{width:min(240px,70%);height:auto;overflow:visible}
-        .xn-stone.test svg{animation:xnShake .12s linear infinite}
-        .xn-core{transition:fill .8s,opacity .8s}
-        .xn-lbl{margin-top:14px;font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.28em;opacity:.7;min-height:18px}
-        .xn-out{margin-top:8px;animation:xnIn .7s ease both;width:100%}
-        .xn-el{font-family:"Cinzel",Georgia,serif;font-size:26px;font-weight:700}
-        .xn-el span{font-family:"Ma Shan Zheng","Noto Serif SC",serif;margin-left:10px}
-        .xn-meta{font-size:18px;margin-top:6px;opacity:.85}
-        .xn-bar{height:6px;background:rgba(255,255,255,.08);margin:12px auto 0;max-width:260px}
+        .xn-stone svg{width:min(250px,72%);height:auto;overflow:visible}
+        .xn-stone.test svg{animation:xrShake .12s linear infinite}
+        .xn-rglow{transition:fill .8s,opacity .8s}
+        .xn-rring{animation:xrSpin 22s linear infinite}
+        .xn-rring2{animation:xrSpin 12s linear infinite reverse}
+        .xn-stone.test .xn-rring,.xn-stone.test .xn-rring2{animation-duration:1.4s}
+        .xn-rscan{animation:xrScan .9s ease-in-out infinite alternate}
+        .xn-lbl{margin-top:14px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13px;letter-spacing:.28em;color:#4cf0ff;opacity:.85;min-height:18px}
+        .xn-out{position:relative;margin-top:14px;animation:xrIn .7s ease both;width:100%;max-width:380px;padding:18px 18px 20px;background:linear-gradient(180deg,rgba(17,14,43,.95),rgba(10,8,32,.95));border:1px solid var(--rc);box-shadow:0 0 30px -6px var(--rc),inset 0 0 30px -12px var(--rc);clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
+        .xn-rar{display:inline-block;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:12px;letter-spacing:.3em;padding:3px 10px;color:#070615;background:var(--rc);margin-bottom:10px}
+        .xn-el{font-family:"Exo 2",sans-serif;font-size:26px;font-weight:800}
+        .xn-el span{font-family:"Noto Sans SC",sans-serif;font-weight:900;margin-left:10px}
+        .xn-meta{font-size:16px;margin-top:6px;opacity:.82}
+        .xn-bar{height:8px;background:rgba(255,255,255,.08);margin:12px auto 0;max-width:260px;transform:skewX(-20deg);overflow:hidden}
         .xn-bar i{display:block;height:100%;transition:width 1s ease}
         .xn-links{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}
-        .xn-links a{font-family:"Cinzel",Georgia,serif;font-size:12.5px;font-weight:700;padding:9px 14px;text-decoration:none;color:#07090d;background:#ffcf5a;transition:transform .2s}
-        .xn-links a.alt{background:transparent;color:#ffcf5a;border:1px solid rgba(255,207,90,.5)}
+        .xn-links a{font-family:"Rajdhani","Exo 2",sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;padding:9px 14px;text-decoration:none;color:#070615;background:#4cf0ff;transition:transform .2s;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+        .xn-links a.alt{background:rgba(76,240,255,.08);color:#4cf0ff;box-shadow:inset 0 0 0 1px rgba(76,240,255,.5)}
         .xn-links a:hover{transform:translateY(-2px)}
-        .xn-disc{margin-top:16px;font-size:14.5px;font-style:italic;opacity:.55;max-width:360px;margin-left:auto;margin-right:auto}
-        @keyframes xnShake{0%{transform:translate(0,0)}25%{transform:translate(2px,-1px)}50%{transform:translate(-2px,1px)}75%{transform:translate(1px,2px)}}
-        @keyframes xnIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-        @keyframes xnPulse{50%{opacity:.55}}
+        .xn-disc{margin-top:16px;font-size:13.5px;font-style:italic;opacity:.55;max-width:360px;margin-left:auto;margin-right:auto}
+        @keyframes xrShake{0%{transform:translate(0,0)}25%{transform:translate(2px,-1px)}50%{transform:translate(-2px,1px)}75%{transform:translate(1px,2px)}}
+        @keyframes xrIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        @keyframes xrPulse{50%{opacity:.55}}
+        @keyframes xrSpin{to{transform:rotate(360deg)}}
+        @keyframes xrScan{from{transform:translateY(0)}to{transform:translateY(176px)}}
         @media (max-width:820px){.xn-rg{grid-template-columns:1fr}}
       `}</style>
       <div className="xn-ri">
@@ -1111,23 +1089,29 @@ export const XnRoot = () => {
           <div>
             <textarea className="xn-ta" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Tell us the story you want to write..." aria-label="Your story idea" />
             <div className="xn-chips">{SAMPLES.map((s) => <button type="button" key={s} className="xn-chip" onClick={() => { setTxt(s); setSt("idle"); setRes(null); }}>{s}</button>)}</div>
-            <button type="button" className="xn-go" onClick={test}>✋ Touch the Testing Stone</button>
+            <button type="button" className="xn-go" onClick={test}>◆ Touch the Testing Stone</button>
           </div>
           <div className={"xn-stone" + (st === "test" ? " test" : "")} aria-live="polite">
-            <svg viewBox="0 0 200 240">
+            <svg viewBox="0 0 220 240">
               <defs>
-                <radialGradient id="xnStone" cx="40%" cy="30%"><stop offset="0%" stopColor="#3a404a" /><stop offset="100%" stopColor="#12151b" /></radialGradient>
-                <filter id="xnBlur"><feGaussianBlur stdDeviation="14" /></filter>
+                <linearGradient id="xnRootCry" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#2a2366" /><stop offset="1" stopColor="#0d0a26" /></linearGradient>
+                <filter id="xnRootBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14" /></filter>
               </defs>
-              <ellipse cx="100" cy="228" rx="80" ry="10" fill="rgba(0,0,0,.6)" />
-              <ellipse className="xn-core" cx="100" cy="120" rx="80" ry="96" fill={glow} opacity={st === "idle" ? 0.08 : 0.55} filter="url(#xnBlur)" style={{ animation: st === "test" ? "xnPulse .5s infinite" : "none" }} />
-              <path d="M100 18 C152 18 182 78 176 138 C170 198 140 222 100 222 C60 222 30 198 24 138 C18 78 48 18 100 18 Z" fill="url(#xnStone)" stroke={st === "idle" ? "rgba(255,207,90,.3)" : glow} strokeWidth="2" />
-              <path d="M70 60 L88 96 L76 128 M128 70 L116 110 L134 150 M90 170 L104 196" stroke={st === "idle" ? "rgba(255,255,255,.08)" : glow} strokeWidth="2" fill="none" opacity=".8" />
-              <text x="100" y="140" textAnchor="middle" fontFamily="Ma Shan Zheng, Noto Serif SC, serif" fontSize="66" fill={res ? res.e.col : "rgba(237,230,214,.15)"} style={{ filter: res ? "drop-shadow(0 0 14px " + res.e.col + ")" : "none" }}>{res ? res.e.z : "?"}</text>
+              <ellipse cx="110" cy="228" rx="84" ry="9" fill={glow} opacity=".2" />
+              <circle className="xn-rglow" cx="110" cy="116" r="86" fill={glow} opacity={idle ? 0.1 : 0.5} filter="url(#xnRootBlur)" style={{ animation: st === "test" ? "xrPulse .5s infinite" : "none" }} />
+              <g transform="translate(110,116)">
+                <g className="xn-rring"><circle r="104" fill="none" stroke={glow} strokeOpacity=".55" strokeWidth="1.5" strokeDasharray="4 10" /></g>
+                <g className="xn-rring2"><circle r="94" fill="none" stroke={glow} strokeOpacity=".35" strokeWidth="1" strokeDasharray="30 8" /></g>
+              </g>
+              <polygon points="110,22 182,64 182,168 110,210 38,168 38,64" fill="url(#xnRootCry)" stroke={idle ? "rgba(76,240,255,.4)" : glow} strokeWidth="2" />
+              <polygon points="110,40 166,73 166,159 110,192 54,159 54,73" fill="none" stroke={idle ? "rgba(76,240,255,.18)" : glow} strokeOpacity=".55" strokeWidth="1" />
+              {st === "test" && <rect className="xn-rscan" x="44" y="28" width="132" height="3" fill="#eafeff" style={{ filter: "drop-shadow(0 0 6px #4cf0ff)" }} />}
+              <text x="110" y="138" textAnchor="middle" fontFamily="Noto Sans SC, sans-serif" fontWeight="900" fontSize="62" fill={res ? res.e.col : "rgba(230,236,255,.18)"} style={{ filter: res ? "drop-shadow(0 0 14px " + res.e.col + ")" : "none" }}>{res ? res.e.z : "?"}</text>
             </svg>
             <div className="xn-lbl">{st === "idle" ? "THE STONE AWAITS" : st === "test" ? "THE STONE IS READING YOUR IDEA..." : "THE STONE HAS SPOKEN"}</div>
             {res && (
-              <div className="xn-out">
+              <div className="xn-out" style={{ "--rc": rar[1] }}>
+                <div className="xn-rar">{rar[0]}</div>
                 <div className="xn-el" style={{ color: res.e.col }}>{res.e.n} Root<span>{res.e.z}灵根</span></div>
                 <div className="xn-meta">Affinity: {res.e.a}</div>
                 <div className="xn-meta">Root purity {res.pur}% · {res.long ? "Deep root, suited to a long novel" : "Sharp root, suited to a short story"}</div>
@@ -1178,49 +1162,53 @@ export const XnTrib = () => {
   return (
     <div className="not-prose xn-tr">
       <style>{`
-        .xn-tr{position:relative;background:radial-gradient(900px 380px at 50% 0%,rgba(90,80,140,.25),transparent 70%),#07090d;color:#ede6d6;padding:96px 24px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif;border-top:1px solid rgba(255,207,90,.1);overflow:hidden}
+        .xn-tr{position:relative;background:radial-gradient(900px 380px at 50% 0%,rgba(124,77,255,.22),transparent 70%),#070615;color:#e6ecff;padding:96px 24px;font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif;border-top:1px solid rgba(76,240,255,.14);overflow:hidden}
         .xn-ti{max-width:1120px;margin:0 auto;position:relative}
-        .xn-k{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em;color:#ffcf5a}
-        .xn-h2{font-family:"Cinzel",Georgia,serif;font-size:clamp(28px,3.8vw,42px);font-weight:700;margin:12px 0 14px;line-height:1.2}
-        .xn-p{font-size:19.5px;line-height:1.7;max-width:680px;opacity:.78;font-weight:500}
+        .xn-k{display:inline-flex;align-items:center;gap:8px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13px;letter-spacing:.32em;color:#4cf0ff}
+        .xn-k::before{content:"";width:8px;height:8px;background:#4cf0ff;box-shadow:0 0 10px #4cf0ff;transform:rotate(45deg)}
+        .xn-h2{font-family:"Exo 2","Noto Sans SC",sans-serif;font-size:clamp(28px,3.8vw,42px);font-weight:800;margin:12px 0 14px;line-height:1.15}
+        .xn-p{font-size:18px;line-height:1.7;max-width:680px;opacity:.74;font-weight:500}
         .xn-sky{position:relative;margin-top:40px;height:200px}
         .xn-bsvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-        .xn-bsvg polyline{fill:none;stroke:#fff3c4;stroke-width:3;filter:drop-shadow(0 0 6px #ffcf5a) drop-shadow(0 0 18px #b48cff);animation:xnStrike .7s ease-out forwards}
-        .xn-fl{position:absolute;inset:-40px;background:radial-gradient(circle at 50% 30%,rgba(255,243,196,.35),transparent 70%);animation:xnFl .5s ease-out forwards;pointer-events:none}
-        .xn-clouds{position:absolute;left:0;right:0;top:0;height:30px;background:radial-gradient(ellipse 12% 100% at 10% 0%,rgba(120,110,170,.4),transparent),radial-gradient(ellipse 14% 100% at 35% 0%,rgba(120,110,170,.35),transparent),radial-gradient(ellipse 12% 100% at 62% 0%,rgba(120,110,170,.4),transparent),radial-gradient(ellipse 14% 100% at 88% 0%,rgba(120,110,170,.35),transparent);filter:blur(6px)}
+        .xn-bsvg polyline{fill:none;stroke:#e8fdff;stroke-width:3;filter:drop-shadow(0 0 6px #4cf0ff) drop-shadow(0 0 18px #a66bff);animation:xtStrike .7s ease-out forwards}
+        .xn-fl{position:absolute;inset:-40px;background:radial-gradient(circle at 50% 30%,rgba(140,230,255,.3),transparent 70%);animation:xtFl .5s ease-out forwards;pointer-events:none}
+        .xn-band{position:absolute;left:0;right:0;top:0;height:34px;background:linear-gradient(90deg,transparent,rgba(166,107,255,.45) 20%,rgba(76,240,255,.45) 50%,rgba(166,107,255,.45) 80%,transparent);background-size:200% 100%;filter:blur(10px);animation:xtBand 6s linear infinite}
+        .xn-band::after{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(90deg,transparent,#4cf0ff,transparent);filter:none}
         .xn-row{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(12,1fr);gap:6px}
-        .xn-n{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:inherit;font-family:inherit}
-        .xn-n i{font-style:normal;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:24px;border:1px solid rgba(237,230,214,.25);color:rgba(237,230,214,.4);transition:all .4s}
-        .xn-n.done i{background:radial-gradient(circle,#ffcf5a,#c8321e);color:#07090d;border-color:#ffcf5a;box-shadow:0 0 18px rgba(255,207,90,.7)}
-        .xn-n.on i{transform:scale(1.2);box-shadow:0 0 0 3px #fff3c4,0 0 34px #ffcf5a}
-        .xn-n small{font-family:"Cinzel",Georgia,serif;font-size:10px;opacity:.5}
-        .xn-panel{margin-top:30px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:24px 28px;background:#10141b;border:1px solid rgba(255,207,90,.22);box-shadow:inset 4px 0 0 #c8321e;min-height:120px}
-        .xn-panel small{font-family:"Cinzel",Georgia,serif;font-size:11px;letter-spacing:.28em;color:#ffcf5a}
-        .xn-panel b{display:block;font-family:"Cinzel",Georgia,serif;font-size:24px;margin-top:6px}
-        .xn-panel p{margin:8px 0 0;font-size:18.5px;line-height:1.6;opacity:.82}
+        .xn-row::before{content:"";position:absolute;left:4%;right:4%;top:22px;height:2px;background:rgba(76,240,255,.15)}
+        .xn-n{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:inherit;font-family:inherit}
+        .xn-n i{font-style:normal;display:flex;align-items:center;justify-content:center;width:44px;height:48px;font-family:"Noto Sans SC",sans-serif;font-weight:900;font-size:20px;background:#110e2b;color:rgba(230,236,255,.35);clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:inset 0 0 0 2px rgba(76,240,255,.25);transition:all .4s}
+        .xn-n.done i{background:linear-gradient(160deg,#4cf0ff,#a66bff);color:#070615;filter:drop-shadow(0 0 10px rgba(76,240,255,.8))}
+        .xn-n.on i{transform:scale(1.22);filter:drop-shadow(0 0 6px #eafeff) drop-shadow(0 0 22px #4cf0ff)}
+        .xn-n small{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:11px;letter-spacing:.1em;opacity:.55}
+        .xn-panel{margin-top:30px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:center;padding:24px 28px;background:linear-gradient(180deg,rgba(17,14,43,.95),rgba(10,8,32,.95));border:1px solid rgba(76,240,255,.28);box-shadow:inset 4px 0 0 #a66bff,0 0 40px -18px rgba(76,240,255,.6);min-height:120px;clip-path:polygon(0 0,calc(100% - 20px) 0,100% 20px,100% 100%,20px 100%,0 calc(100% - 20px))}
+        .xn-panel small{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:12px;letter-spacing:.28em;color:#4cf0ff}
+        .xn-panel b{display:block;font-family:"Exo 2",sans-serif;font-weight:800;font-size:24px;margin-top:6px}
+        .xn-panel p{margin:8px 0 0;font-size:17px;line-height:1.6;opacity:.8}
         .xn-ctl{display:flex;flex-direction:column;gap:10px}
-        .xn-b{font-family:"Cinzel",Georgia,serif;font-size:12.5px;font-weight:700;letter-spacing:.06em;padding:11px 16px;cursor:pointer;border:1px solid rgba(255,207,90,.5);background:transparent;color:#ffcf5a;transition:all .2s;white-space:nowrap}
-        .xn-b.main{background:#c8321e;color:#fff1dd;border-color:#ffcf5a}
-        .xn-b:hover{transform:translateY(-2px)}
-        .xn-b:disabled{opacity:.35;cursor:default;transform:none}
-        .xn-asc{position:relative;margin-top:30px;padding:36px 28px;text-align:center;background:radial-gradient(circle at 50% 120%,rgba(255,207,90,.45),transparent 65%),#10141b;border:1px solid #ffcf5a;animation:xnAsc 1s ease both;overflow:hidden}
-        .xn-asc::before{content:"";position:absolute;left:50%;top:100%;width:4px;height:400px;margin-left:-2px;background:linear-gradient(transparent,#fff3c4);box-shadow:0 0 40px 20px rgba(255,207,90,.5);animation:xnBeam 1.4s ease-out both}
-        .xn-asc b{position:relative;font-family:"Cinzel",Georgia,serif;font-size:clamp(24px,3.4vw,34px);color:#ffcf5a}
-        .xn-asc p{position:relative;font-size:19px;margin:10px auto 18px;max-width:560px;opacity:.85}
-        .xn-asc a{position:relative;display:inline-block;margin:0 6px 8px;font-family:"Cinzel",Georgia,serif;font-size:13px;font-weight:700;padding:11px 18px;text-decoration:none;background:#ffcf5a;color:#07090d}
+        .xn-b{font-family:"Rajdhani","Exo 2",sans-serif;font-size:14px;font-weight:700;letter-spacing:.08em;padding:11px 16px;cursor:pointer;border:0;background:rgba(76,240,255,.07);box-shadow:inset 0 0 0 1px rgba(76,240,255,.45);color:#4cf0ff;transition:all .2s;white-space:nowrap;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
+        .xn-b.main{background:linear-gradient(135deg,#4cf0ff,#7c8bff 55%,#a66bff);color:#070615;box-shadow:none}
+        .xn-b:hover{transform:translateY(-2px);filter:brightness(1.15)}
+        .xn-b:disabled{opacity:.35;cursor:default;transform:none;filter:none}
+        .xn-asc{position:relative;margin-top:30px;padding:36px 28px;text-align:center;background:radial-gradient(circle at 50% 120%,rgba(76,240,255,.4),rgba(124,77,255,.15) 45%,transparent 70%),#110e2b;border:1px solid #4cf0ff;box-shadow:0 0 50px -10px rgba(76,240,255,.6);animation:xtAsc 1s ease both;overflow:hidden;clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px))}
+        .xn-asc::before{content:"";position:absolute;left:50%;top:100%;width:4px;height:400px;margin-left:-2px;background:linear-gradient(transparent,#eafeff);box-shadow:0 0 40px 20px rgba(76,240,255,.45),0 0 90px 40px rgba(166,107,255,.3);animation:xtBeam 1.4s ease-out both}
+        .xn-asc b{position:relative;font-family:"Exo 2",sans-serif;font-weight:900;letter-spacing:.06em;text-transform:uppercase;font-size:clamp(24px,3.4vw,34px);background:linear-gradient(90deg,#4cf0ff,#ffd166,#a66bff);-webkit-background-clip:text;background-clip:text;color:transparent}
+        .xn-asc p{position:relative;font-size:17.5px;margin:10px auto 18px;max-width:560px;opacity:.85}
+        .xn-asc a{position:relative;display:inline-block;margin:0 6px 8px;font-family:"Rajdhani","Exo 2",sans-serif;font-size:14px;font-weight:700;letter-spacing:.06em;padding:11px 18px;text-decoration:none;background:#4cf0ff;color:#070615;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,10px 100%,0 calc(100% - 10px))}
         .xn-asc button{position:relative}
-        @keyframes xnStrike{0%{opacity:1;stroke-width:5}100%{opacity:0;stroke-width:1}}
-        @keyframes xnFl{from{opacity:1}to{opacity:0}}
-        @keyframes xnAsc{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-        @keyframes xnBeam{from{top:100%}to{top:-60%}}
-        @media (max-width:820px){.xn-row{grid-template-columns:repeat(6,1fr);row-gap:14px}.xn-sky{height:250px}.xn-panel{grid-template-columns:1fr}.xn-ctl{flex-direction:row;flex-wrap:wrap}.xn-n i{width:38px;height:38px;font-size:20px}}
+        @keyframes xtStrike{0%{opacity:1;stroke-width:5}100%{opacity:0;stroke-width:1}}
+        @keyframes xtFl{from{opacity:1}to{opacity:0}}
+        @keyframes xtAsc{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+        @keyframes xtBeam{from{top:100%}to{top:-60%}}
+        @keyframes xtBand{to{background-position:-200% 0}}
+        @media (max-width:820px){.xn-row{grid-template-columns:repeat(6,1fr);row-gap:14px}.xn-row::before{display:none}.xn-sky{height:250px}.xn-panel{grid-template-columns:1fr}.xn-ctl{flex-direction:row;flex-wrap:wrap}.xn-n i{width:38px;height:42px;font-size:17px}}
       `}</style>
       <div className="xn-ti">
         <div className="xn-k">AUTO DIRECTOR · THE TWELVE TRIBULATIONS</div>
         <div className="xn-h2">Endure twelve tribulations, and a book ascends</div>
         <div className="xn-p">From direction candidates to repair and backfill, twelve stages form a complete long-form production line. Summon them one strike at a time, or let Auto Director carry you through all twelve; in the real workbench you can also pause at key stages for your confirmation.</div>
         <div className="xn-sky">
-          <div className="xn-clouds" />
+          <div className="xn-band" />
           {bolt && (
             <svg key={bolt.id} className="xn-bsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <polyline vectorEffect="non-scaling-stroke" points={bolt.pts} />
@@ -1254,7 +1242,7 @@ export const XnTrib = () => {
             <b>Ascension</b>
             <p>Twelve tribulations endured. Your book has been planned, drafted, reviewed, and repaired, with character and foreshadowing states saved for the next volume.</p>
             <a href="/en/features/auto-director">Read about Auto Director →</a>
-            <a href="/en/quickstart" style={{ background: "transparent", color: "#ffcf5a", border: "1px solid #ffcf5a" }}>Begin your own ascent</a>
+            <a href="/en/quickstart" style={{ background: "rgba(76,240,255,.08)", color: "#4cf0ff", boxShadow: "inset 0 0 0 1px #4cf0ff" }}>Begin your own ascent</a>
             <div><button type="button" className="xn-b" onClick={reset} style={{ marginTop: 10 }}>↺ Endure them again</button></div>
           </div>
         )}
@@ -1266,44 +1254,55 @@ export const XnTrib = () => {
 export const XnCta = () => (
   <div className="not-prose xn-cta">
     <style>{`
-      .xn-cta{position:relative;overflow:hidden;background:radial-gradient(600px 320px at 50% 60%,rgba(255,207,90,.16),transparent 70%),#07090d;color:#ede6d6;padding:110px 24px 120px;text-align:center;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif;border-top:1px solid rgba(255,207,90,.1)}
-      .xn-cta::before{content:"";position:absolute;left:50%;top:58%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;background:repeating-conic-gradient(rgba(255,207,90,.07) 0 6deg,transparent 6deg 18deg);animation:xnSpin 80s linear infinite;pointer-events:none}
-      .xn-ck{position:relative;font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em;color:#ffcf5a}
-      .xn-ch{position:relative;font-family:"Cinzel",Georgia,serif;font-size:clamp(28px,4.4vw,46px);font-weight:900;margin:14px 0 0}
-      .xn-cp{position:relative;font-size:19.5px;line-height:1.65;opacity:.78;margin:16px auto 0;max-width:560px;font-weight:500}
-      .xn-os{position:relative;display:flex;justify-content:center;flex-wrap:wrap;margin-top:24px}
-      .xn-os span{font-family:"Cinzel",Georgia,serif;font-size:12.5px;padding:2px 16px;opacity:.85}
-      .xn-os span+span{border-left:1px solid rgba(255,207,90,.35)}
-      .xn-tal{position:relative;z-index:1;display:inline-flex;flex-direction:column;align-items:center;gap:12px;margin-top:46px;width:140px;padding:24px 0 22px;background:linear-gradient(180deg,#f3dc8a,#e2bf55);border:2px solid #c8321e;color:#c8321e;text-decoration:none;box-shadow:0 0 50px rgba(255,207,90,.35),0 22px 40px -18px rgba(200,50,30,.8);transform-origin:top center;animation:xnSway 5s ease-in-out infinite;transition:box-shadow .3s}
-      .xn-tal::before{content:"";position:absolute;inset:6px;border:1px solid rgba(200,50,30,.6)}
-      .xn-tal:hover{box-shadow:0 0 0 6px rgba(255,207,90,.3),0 0 80px rgba(255,207,90,.9);animation-play-state:paused}
-      .xn-tv{writing-mode:vertical-rl;font-family:"Ma Shan Zheng","Noto Serif SC",serif;font-size:30px;letter-spacing:.2em}
-      .xn-te{font-family:"Cinzel",Georgia,serif;font-size:11.5px;font-weight:700;letter-spacing:.12em;color:#7a1a10;line-height:1.35}
-      .xn-back{position:absolute;left:0;bottom:0;width:100%;height:100%;pointer-events:none;display:block}
-      .xn-small{position:relative;margin-top:28px;font-size:16px;opacity:.5;font-style:italic}
-      @keyframes xnSpin{to{transform:rotate(360deg)}}
-      @keyframes xnSway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+      .xn-cta{position:relative;overflow:hidden;background:radial-gradient(640px 360px at 50% 72%,rgba(124,77,255,.28),transparent 70%),linear-gradient(180deg,#070615,#0a0820);color:#e6ecff;padding:110px 24px 120px;text-align:center;font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif;border-top:1px solid rgba(76,240,255,.14)}
+      .xn-cta::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(76,240,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(76,240,255,.06) 1px,transparent 1px);background-size:48px 48px;-webkit-mask-image:radial-gradient(ellipse at 50% 70%,#000 20%,transparent 70%);mask-image:radial-gradient(ellipse at 50% 70%,#000 20%,transparent 70%);pointer-events:none}
+      .xn-ck{position:relative;display:inline-flex;align-items:center;gap:8px;font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13px;letter-spacing:.32em;color:#4cf0ff}
+      .xn-ck::before,.xn-ck::after{content:"";width:8px;height:8px;background:#4cf0ff;box-shadow:0 0 10px #4cf0ff;transform:rotate(45deg)}
+      .xn-ch{position:relative;font-family:"Exo 2","Noto Sans SC",sans-serif;font-size:clamp(28px,4.4vw,46px);font-weight:900;margin:14px 0 0;text-shadow:0 0 30px rgba(76,240,255,.2)}
+      .xn-cp{position:relative;font-size:18px;line-height:1.65;opacity:.74;margin:16px auto 0;max-width:560px;font-weight:500}
+      .xn-os{position:relative;display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:24px}
+      .xn-os span{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;font-size:13.5px;letter-spacing:.06em;padding:4px 12px;color:#cfd8ff;background:rgba(76,240,255,.06);box-shadow:inset 0 0 0 1px rgba(76,240,255,.25)}
+      .xn-portal{position:relative;display:inline-flex;align-items:center;justify-content:center;width:240px;height:240px;margin-top:40px;text-decoration:none;border-radius:50%}
+      .xn-portal svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+      .xn-pr1{transform-origin:120px 120px;animation:xcSpin 30s linear infinite}
+      .xn-pr2{transform-origin:120px 120px;animation:xcSpin 16s linear infinite reverse}
+      .xn-pcore{transform-origin:120px 120px;animation:xcPulse 2.6s ease-in-out infinite}
+      .xn-pbtn{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 22px;background:rgba(7,6,21,.75);font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700;color:#eafeff;letter-spacing:.14em;box-shadow:inset 0 0 0 1px rgba(76,240,255,.6),0 0 30px rgba(76,240,255,.35);transition:all .3s;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+      .xn-pbtn b{font-size:18px;font-weight:700}
+      .xn-pbtn small{font-size:11.5px;color:#4cf0ff;letter-spacing:.2em}
+      .xn-portal:hover .xn-pbtn{background:linear-gradient(135deg,#4cf0ff,#7c8bff 55%,#a66bff);color:#070615}
+      .xn-portal:hover .xn-pbtn small{color:#070615}
+      .xn-portal:hover .xn-pr1,.xn-portal:hover .xn-pr2{animation-duration:3s}
+      .xn-small{position:relative;margin-top:24px;font-size:14.5px;opacity:.5;font-style:italic}
+      @keyframes xcSpin{to{transform:rotate(360deg)}}
+      @keyframes xcPulse{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:1;transform:scale(1.04)}}
+      @media (prefers-reduced-motion:reduce){.xn-cta *{animation:none !important}}
     `}</style>
-    <svg className="xn-back" viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-      <defs>
-        <radialGradient id="xnLanGlow2"><stop offset="0" stopColor="rgba(255,150,70,.5)" /><stop offset="1" stopColor="rgba(255,150,70,0)" /></radialGradient>
-        <filter id="xnBlur2" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="14" /></filter>
-      </defs>
-      <path d={xnKarst([[80, 300, 60], [220, 360, 50], [360, 420, 40], [1240, 420, 40], [1380, 340, 56], [1520, 280, 64]], 600)} fill="#121926" opacity=".85" />
-      <g opacity=".4"><XnGate x={800} y={600} s={1.5} /></g>
-      <g filter="url(#xnBlur2)" className="xn-cloudA">
-        {[[200, 560, 320, 40], [800, 590, 520, 46], [1400, 560, 320, 40]].map((c, i) => <ellipse key={i} cx={c[0]} cy={c[1]} rx={c[2]} ry={c[3]} fill="rgba(200,210,225,.14)" />)}
-      </g>
-    </svg>
     <div className="xn-ck">THE SECT GATES ARE OPEN</div>
     <h2 className="xn-ch">Start writing your first book now</h2>
     <p className="xn-cp">The desktop version is great for starting to write right away; the source version is for development and self-hosting. Models use your own API configuration.</p>
     <div className="xn-os"><span>Windows</span><span>macOS · Intel</span><span>macOS · Apple Silicon</span><span>Linux</span></div>
-    <a className="xn-tal" href="/en/installation" aria-label="Download and install">
-      <span className="xn-tv">敕令成书</span>
-      <span className="xn-te">DOWNLOAD<br />& INSTALL</span>
-    </a>
-    <div className="xn-small">Touch the talisman to go to Download & Install</div>
+    <div>
+      <a className="xn-portal" href="/en/installation" aria-label="Download and install">
+        <svg viewBox="0 0 240 240" aria-hidden="true">
+          <defs>
+            <radialGradient id="xnPortalG"><stop offset="0" stopColor="rgba(234,254,255,.55)" /><stop offset=".35" stopColor="rgba(76,240,255,.35)" /><stop offset=".7" stopColor="rgba(124,77,255,.2)" /><stop offset="1" stopColor="rgba(124,77,255,0)" /></radialGradient>
+          </defs>
+          <circle className="xn-pcore" cx="120" cy="120" r="118" fill="url(#xnPortalG)" />
+          <g className="xn-pr1">
+            <circle cx="120" cy="120" r="112" fill="none" stroke="rgba(76,240,255,.7)" strokeWidth="2" strokeDasharray="6 10" />
+            <g transform="translate(120,120)"><XnRune r={100} n={12} size={9} col="#a66bff" /></g>
+          </g>
+          <g className="xn-pr2">
+            <circle cx="120" cy="120" r="86" fill="none" stroke="rgba(166,107,255,.75)" strokeWidth="2" />
+            <polygon points="120,38 191,161 49,161" fill="none" stroke="rgba(76,240,255,.55)" strokeWidth="1.5" />
+            <polygon points="120,202 191,79 49,79" fill="none" stroke="rgba(76,240,255,.55)" strokeWidth="1.5" />
+          </g>
+        </svg>
+        <span className="xn-pbtn"><b>ENTER THE REALM</b><small>DOWNLOAD & INSTALL</small></span>
+      </a>
+    </div>
+    <div className="xn-small">Step through the portal to go to Download & Install</div>
   </div>
 );
 
@@ -1315,8 +1314,8 @@ export const RepoPulse = ({ theme }) => {
   const ideaBody = "**Problem to Solve**:\n\n**Desired Approach**:\n\n**Additional Notes**:\n";
   const bugUrl = G + "/issues/new?title=" + encodeURIComponent("[Bug] ") + "&body=" + encodeURIComponent(body);
   const ideaUrl = G + "/issues/new?title=" + encodeURIComponent("[Suggestion] ") + "&body=" + encodeURIComponent(ideaBody);
-  const lc = arc ? "1a0b0f" : "07090d";
-  const cc = arc ? "7a1424" : "c8321e";
+  const lc = arc ? "1a0b0f" : "0a0820";
+  const cc = arc ? "7a1424" : "7c4dff";
   const badge = (kind, label) => "https://img.shields.io/github/" + kind + "/" + R + "?style=for-the-badge&logo=github&label=" + encodeURIComponent(label) + "&labelColor=" + lc + "&color=" + cc;
   const BADGES = [
     { src: badge("stars", "Star"), href: G + "/stargazers", alt: "Star Count" },
@@ -1336,11 +1335,14 @@ export const RepoPulse = ({ theme }) => {
       <style>{`
         .rp-a,.rp-x{padding:96px 24px;font-family:"Cormorant Garamond","EB Garamond",Georgia,serif}
         .rp-a{background:#1a0b0f;color:#f1e6cc;border-top:1px solid rgba(236,208,138,.1)}
-        .rp-x{background:#0b0e13;color:#ede6d6;border-top:1px solid rgba(255,207,90,.1)}
+        .rp-x{background:radial-gradient(700px 360px at 15% 0%,rgba(124,77,255,.16),transparent 60%),#0a0820;color:#e6ecff;border-top:1px solid rgba(76,240,255,.14);font-family:"Exo 2","Noto Sans SC",system-ui,sans-serif}
+        .rp-x .cm-k,.rp-x .cm-cap{font-family:"Rajdhani","Exo 2",sans-serif;font-weight:700}
+        .rp-x .cm-h,.rp-x .cm-at{font-family:"Exo 2","Noto Sans SC",sans-serif;font-weight:800}
+        .rp-x .cm-p{font-size:18px}
         .cm-in{max-width:1120px;margin:0 auto}
         .cm-k{font-family:"Cinzel",Georgia,serif;font-size:12px;letter-spacing:.32em}
         .rp-a .cm-k{color:#c9a24a}
-        .rp-x .cm-k{color:#ffcf5a}
+        .rp-x .cm-k{color:#4cf0ff;font-size:13px}
         .cm-h{font-family:"Cinzel",Georgia,serif;font-size:clamp(26px,3.6vw,40px);font-weight:700;margin:12px 0 12px}
         .cm-p{font-size:19px;line-height:1.65;max-width:680px;font-weight:500;opacity:.78}
         .cm-badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
@@ -1350,18 +1352,18 @@ export const RepoPulse = ({ theme }) => {
         .cm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:24px;margin-top:36px;align-items:stretch}
         .cm-chart{display:block;overflow:hidden;padding:14px;text-decoration:none;color:inherit}
         .rp-a .cm-chart{border:1px solid rgba(236,208,138,.3);background:#22090f}
-        .rp-x .cm-chart{border:1px solid rgba(255,207,90,.25);background:#10141b}
+        .rp-x .cm-chart{border:1px solid rgba(76,240,255,.3);background:#110e2b;box-shadow:0 0 40px -20px rgba(76,240,255,.6);clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
         .cm-chart img{width:100%;height:auto;display:block}
         .cm-cap{font-size:13px;margin-top:8px;opacity:.6;text-align:right}
         .cm-acts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
         .cm-a{display:flex;flex-direction:column;gap:8px;padding:20px;text-decoration:none;color:inherit;transition:all .25s}
         .rp-a .cm-a{border:1px solid rgba(236,208,138,.18);background:rgba(255,255,255,.02)}
         .rp-a .cm-a:hover{border-color:#c9a24a;background:rgba(122,20,36,.25);transform:translateY(-3px)}
-        .rp-x .cm-a{border:1px solid rgba(255,207,90,.18);background:#10141b}
-        .rp-x .cm-a:hover{border-color:#ffcf5a;transform:translateY(-3px);box-shadow:0 0 30px -10px rgba(255,207,90,.6)}
+        .rp-x .cm-a{border:1px solid rgba(166,107,255,.3);background:linear-gradient(180deg,#110e2b,#0a0820);clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+        .rp-x .cm-a:hover{border-color:#4cf0ff;transform:translateY(-3px);box-shadow:inset 0 0 30px -10px rgba(76,240,255,.6)}
         .cm-ak{font-size:11px;letter-spacing:.18em;align-self:flex-start;padding:2px 8px}
         .rp-a .cm-ak{color:#ecd08a;border:1px solid rgba(236,208,138,.4);font-family:"Cinzel",Georgia,serif}
-        .rp-x .cm-ak{color:#fff1dd;background:#c8321e;font-size:18px;letter-spacing:0;line-height:1.2}
+        .rp-x .cm-ak{color:#070615;background:linear-gradient(135deg,#4cf0ff,#a66bff);font-family:"Noto Sans SC",sans-serif;font-weight:900;font-size:18px;letter-spacing:0;line-height:1.2;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);padding:2px 12px}
         .cm-at{font-family:"Cinzel",Georgia,serif;font-size:16px;font-weight:700}
         .cm-ad{font-size:16px;line-height:1.55;opacity:.7}
         @media (max-width:520px){.cm-acts{grid-template-columns:1fr}}

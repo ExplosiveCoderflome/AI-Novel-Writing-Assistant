@@ -5,24 +5,39 @@
    ========================================================== */
 
 /* ---------- 首屏加载期：自定义组件还没渲染出来时 ----------
-   .bn-boot 是首页里的纯 HTML 标记，会随服务端 HTML 一起输出；
-   在 .bnh 出现之前，先铺好主题底色、隐藏系统顶栏内容，避免闪出默认白色顶栏 */
+   首页正文是客户端渲染的，首屏 HTML 里还没有 .bn-boot / .bnh，
+   所以优先用 Mintlify 在 <html> 上输出的 data-current-path 判断"这是首页"：
+   中文首页 = "/"，英文首页 = "/en"。.bn-boot 作为兜底保留。
+   在 .bnh 出现之前，先铺好主题底色、隐藏系统顶栏内容，避免闪出默认顶栏 */
 .bn-boot {
   display: none !important;
 }
-html:has(.bn-boot) #navbar > * {
+/* 通用兜底：任何页面在正文渲染出来之前，先不显示顶栏内容，
+   不依赖 data-current-path（首屏 HTML 上可能还没有这个属性）。
+   正文一出现就恢复；万一正文迟迟不出现，2.5 秒后也会自动显示，避免顶栏永久消失 */
+html:not(:has(#content-area *, #content *, .mdx-content *, .bnh, .not-found-container)) #navbar > *,
+html:not(:has(#content-area *, #content *, .mdx-content *, .bnh, .not-found-container)) #banner {
+  opacity: 0;
+  animation: bn-nav-reveal .3s ease 2.5s forwards;
+}
+@keyframes bn-nav-reveal {
+  to {
+    opacity: 1;
+  }
+}
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)) #navbar > * {
   transition: opacity .4s ease;
 }
-html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar > * {
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)):not(:has(.bnh[data-bn-theme])) #navbar > * {
   opacity: 0 !important;
   pointer-events: none !important;
 }
-html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #banner {
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)):not(:has(.bnh[data-bn-theme])) #banner {
   display: none !important;
 }
-html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar,
-html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) #navbar div,
-html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) [data-layout-item="topbar"] {
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)):not(:has(.bnh[data-bn-theme])) #navbar,
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)):not(:has(.bnh[data-bn-theme])) #navbar div,
+html:is([data-current-path="/"], [data-current-path="/index"], [data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot)):not(:has(.bnh[data-bn-theme])) [data-layout-item="topbar"] {
   background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
@@ -30,12 +45,14 @@ html:has(.bn-boot):not(:has(.bnh[data-bn-theme])) [data-layout-item="topbar"] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-html:has(.bn-boot[data-bn-boot="ink"]):not(:has(.bnh[data-bn-theme])),
-html:has(.bn-boot[data-bn-boot="ink"]):not(:has(.bnh[data-bn-theme])) body {
+/* 中文首页：墨夜底色 */
+html:is([data-current-path="/"], [data-current-path="/index"], :has(.bn-boot[data-bn-boot="ink"])):not(:has(.bnh[data-bn-theme])),
+html:is([data-current-path="/"], [data-current-path="/index"], :has(.bn-boot[data-bn-boot="ink"])):not(:has(.bnh[data-bn-theme])) body {
   background-color: #05080a !important;
 }
-html:has(.bn-boot[data-bn-boot="arcane"]):not(:has(.bnh[data-bn-theme])),
-html:has(.bn-boot[data-bn-boot="arcane"]):not(:has(.bnh[data-bn-theme])) body {
+/* 英文首页：Arcane 底色 */
+html:is([data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot[data-bn-boot="arcane"])):not(:has(.bnh[data-bn-theme])),
+html:is([data-current-path="/en"], [data-current-path="/en/"], [data-current-path="/en/index"], :has(.bn-boot[data-bn-boot="arcane"])):not(:has(.bnh[data-bn-theme])) body {
   background-color: #1a0b0f !important;
 }
 
@@ -254,29 +271,29 @@ html:has(.bnh[data-bn-theme="arcane"]) #navbar #assistant-entry:hover {
   box-shadow: 0 0 18px -4px rgba(201, 162, 74, .75) !important;
 }
 
-/* ---------- English: Xianxia Cultivation ---------- */
+/* ---------- English: Cultivation Game (修仙游戏 HUD) ---------- */
 html:has(.bnh[data-bn-theme="xian"]),
 html:has(.bnh[data-bn-theme="xian"]) body {
-  background-color: #07090d !important;
+  background-color: #0a0820 !important;
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar,
 html:has(.bnh[data-bn-theme="xian"]) [data-layout-item="topbar"] {
-  background-color: rgba(7, 9, 13, .85) !important;
+  background-color: rgba(10, 8, 32, .85) !important;
   background-image: none !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  color: #ede6d6 !important;
-  font-family: "Cormorant Garamond", Georgia, serif !important;
+  color: #e6ecff !important;
+  font-family: "Exo 2", "Noto Sans SC", system-ui, sans-serif !important;
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar::after {
-  background: linear-gradient(90deg, transparent, rgba(200, 50, 30, .55) 20%, rgba(255, 207, 90, .5) 50%, rgba(200, 50, 30, .55) 80%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(166, 107, 255, .6) 20%, rgba(76, 240, 255, .75) 50%, rgba(166, 107, 255, .6) 80%, transparent);
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar a,
 html:has(.bnh[data-bn-theme="xian"]) #navbar button,
 html:has(.bnh[data-bn-theme="xian"]) #navbar span,
 html:has(.bnh[data-bn-theme="xian"]) #navbar svg {
-  color: rgba(237, 230, 214, .78) !important;
-  font-family: "Cormorant Garamond", Georgia, serif !important;
+  color: rgba(230, 236, 255, .8) !important;
+  font-family: "Exo 2", "Noto Sans SC", system-ui, sans-serif !important;
   font-weight: 600;
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar svg path[fill]:not([fill="none"]) {
@@ -286,31 +303,32 @@ html:has(.bnh[data-bn-theme="xian"]) #navbar a:hover,
 html:has(.bnh[data-bn-theme="xian"]) #navbar button:hover,
 html:has(.bnh[data-bn-theme="xian"]) #navbar a:hover span,
 html:has(.bnh[data-bn-theme="xian"]) #navbar button:hover svg {
-  color: #ffcf5a !important;
-  text-shadow: 0 0 12px rgba(255, 160, 60, .5);
+  color: #4cf0ff !important;
+  text-shadow: 0 0 12px rgba(76, 240, 255, .6);
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/"],
 html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/"] *,
 html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/en"],
 html:has(.bnh[data-bn-theme="xian"]) #navbar a[href="/en"] * {
-  color: #ffcf5a !important;
+  color: #4cf0ff !important;
+  font-family: "Rajdhani", "Exo 2", sans-serif !important;
   font-weight: 700;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar [data-search-item="trigger"],
 html:has(.bnh[data-bn-theme="xian"]) #navbar #search-bar-entry,
 html:has(.bnh[data-bn-theme="xian"]) #navbar #assistant-entry,
 html:has(.bnh[data-bn-theme="xian"]) #navbar [data-layout-item="search-entry"],
 html:has(.bnh[data-bn-theme="xian"]) #navbar [data-layout-item="assistant-entry"] {
-  background-color: rgba(200, 50, 30, .12) !important;
-  border: 1px solid rgba(255, 207, 90, .35) !important;
+  background-color: rgba(124, 77, 255, .12) !important;
+  border: 1px solid rgba(166, 107, 255, .45) !important;
   border-radius: 4px !important;
-  color: rgba(237, 230, 214, .7) !important;
+  color: rgba(230, 236, 255, .72) !important;
   box-shadow: none !important;
 }
 html:has(.bnh[data-bn-theme="xian"]) #navbar [data-search-item="trigger"]:hover,
 html:has(.bnh[data-bn-theme="xian"]) #navbar #search-bar-entry:hover,
 html:has(.bnh[data-bn-theme="xian"]) #navbar #assistant-entry:hover {
-  border-color: #ffcf5a !important;
-  box-shadow: 0 0 16px -4px rgba(200, 50, 30, .9) !important;
+  border-color: #4cf0ff !important;
+  box-shadow: 0 0 16px -4px rgba(76, 240, 255, .9) !important;
 }
