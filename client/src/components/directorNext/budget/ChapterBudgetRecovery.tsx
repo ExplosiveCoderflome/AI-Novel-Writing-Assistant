@@ -41,12 +41,15 @@ export default function ChapterBudgetRecovery({budget, runId, novelId, expectedV
   return <section id="director-chapter-budget" aria-labelledby="chapter-budget-title" className="scroll-mt-4 space-y-3 border-t border-border/60 py-4">
     <h3 id="chapter-budget-title" className="text-sm font-semibold">第 {budget.chapterOrder} 章用量与额度</h3>
     <p role="status" className="text-xs leading-5 text-muted-foreground">{budget.usedTokens >= budget.tokenLimit
-      ? "本章累计用量已达到上限。" : "本章剩余额度不足以进行下一步。"}创作已暂停，进度已保存。是否提高预算？确认后从保存进度继续。</p>
+      ? "本章累计用量已达到上限。" : "本章剩余额度不足以进行下一步。"}
+      建议把本章额度调到 {format(budget.recommendedLimit)} Tokens。确认后从保存进度继续。
+    </p>
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
       <dt className="text-muted-foreground">本章已用</dt><dd>{format(budget.usedTokens)} {budget.metric === "uncached_tokens_v1" ? "有效 Tokens" : "Tokens"}</dd>
       <dt className="text-muted-foreground">本章上限</dt><dd>{format(budget.tokenLimit)} Tokens</dd>
       <dt className="text-muted-foreground">{budget.stage ? stages[budget.stage] : "下一步"}预留</dt><dd>{format(budget.reserveTokens)} Tokens</dd>
     </dl>
+    {budget.automaticTopUpTokens ? <p className="text-xs text-muted-foreground">本章已自动追加 {format(budget.automaticTopUpTokens)} Tokens。</p> : null}
     {budget.metric === "uncached_tokens_v1" ? <div className="space-y-1 text-xs leading-5 text-muted-foreground">
       <p>有效用量按“未命中输入 + 输出”计算，两者各计 1 倍。</p>
       <p>输入 {format(budget.promptTokens ?? 0)} · 缓存命中 {format(budget.cacheHitTokens ?? 0)} · 输出 {format(budget.completionTokens ?? 0)}</p>

@@ -12,9 +12,9 @@ export interface DesktopReleaseNotes {
  * In-app desktop update popup. Bound to the current package version via APP_VERSION
  * (from desktop/package.json at build time) and the matching
  * `### YYYY-MM-DD · vX.Y.Z` block in docs/releases/release-notes.md.
- * For v0.8.7 that block covers recoverable Chinese errors for outline interactive
- * edit proposals (bad dependsOn, missing volume ownership, chapterNodeIds shortcut),
- * plus book-level candidate Token-budget retry and one-click recovery on the failure card.
+ * For v0.8.8 that block covers outline chapter-confirm open-to-saved-prose,
+ * multi-chapter director prose start, and automatic output-budget defaults with
+ * usage detail (ceiling / source / finish reason / structure check).
  */
 function currentRelease(markdown: string): DesktopReleaseNotes {
   const version = APP_VERSION;

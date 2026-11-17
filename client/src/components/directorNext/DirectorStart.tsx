@@ -46,7 +46,7 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
     <label className="block space-y-2 text-xs">单章 AI 用量上限（Tokens）<Input type="number" min={16001} max={MAX_DIRECTOR_CHAPTER_TOKEN_LIMIT} step={1}
       value={chapterBudget} placeholder={budgetSettings.data?.data ? `沿用全局设置：${budgetSettings.data.data.tokenLimit.toLocaleString("zh-CN")}` : "留空沿用全局设置"}
       aria-invalid={!validBudget} onChange={event=>setChapterBudget(event.target.value)}/></label>
-    <p className="text-xs text-muted-foreground">留空沿用全局默认；填写后仅对本任务生效。达到预算时保存进度，确认追加后继续。</p>
+    <p className="text-xs text-muted-foreground">使用系统默认额度时，每章可以按需自动追加一次。填写额度或使用已保存的全局设置时，需要确认后才能追加。</p>
     {!validBudget ? <p className="text-xs text-destructive">请输入 16,001 至 10,000,000 之间的整数，或留空沿用全局设置。</p> : null}
     <label className="block space-y-2 text-xs">故事方向<textarea className="min-h-24 w-full rounded-md border border-input bg-background p-2 text-sm" value={story} onChange={e=>setStory(e.target.value)} placeholder="这本书讲什么，主角想达成什么？" /></label>
     <label className="block space-y-2 text-xs">全书目标章数<Input type="number" min={1} value={count} onChange={e=>setCount(Number(e.target.value))}/></label>

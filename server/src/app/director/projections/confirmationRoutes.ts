@@ -45,7 +45,7 @@ export async function resolveSavedReviewContexts({contract, control}: {contract:
       if (chapters.length !== 1) throw new FactIntegrityError("待确认正文缺少唯一的已保存章节。");
       context.chapterId=chapters[0].id;
     } else {
-      const chapters = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId: contract.novelId}, chapterOrder: from}, select: {id: true, volumeId: true}});
+      const chapters = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId: contract.novelId, status: "active"}, chapterOrder: from}, select: {id: true, volumeId: true}});
       if (chapters.length !== 1 || (contract.launchInput?.targetVolumeId && chapters[0].volumeId !== contract.launchInput.targetVolumeId)) {
         throw new FactIntegrityError("待确认计划缺少唯一的已保存目标卷章节。");
       }

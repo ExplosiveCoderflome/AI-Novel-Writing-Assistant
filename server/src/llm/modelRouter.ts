@@ -46,6 +46,7 @@ export interface ResolvedModel {
   model: string;
   temperature: number;
   maxTokens?: number;
+  routeMaxTokens?: number;
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
   routeKey: ModelRouteTaskType | "default";
@@ -230,6 +231,7 @@ function applyOverrides(
   return {
     ...merged,
     ...routePreferences,
+    routeMaxTokens: normalizeMaxTokens(base.maxTokens),
     maxTokens: normalizeMaxTokens(merged.maxTokens) ?? DEFAULT_MODEL_OUTPUT_TOKENS,
     routeKey: merged.routeKey,
     routeDegraded: merged.routeDegraded,
@@ -321,7 +323,7 @@ export async function listModelRouteConfigs(): Promise<Array<{
         taskType: r.taskType,
         model: r.model,
         temperature: r.temperature,
-        maxTokens: normalizeMaxTokens(r.maxTokens ?? undefined) ?? DEFAULT_MODEL_OUTPUT_TOKENS,
+        maxTokens: normalizeMaxTokens(r.maxTokens ?? undefined) ?? null,
         ...routePreferences,
       };
     });

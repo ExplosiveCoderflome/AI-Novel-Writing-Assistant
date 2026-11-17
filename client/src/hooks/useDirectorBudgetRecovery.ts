@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { DEFAULT_MODEL_OUTPUT_TOKENS, type LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   getModelRoutes,
   saveAPIKeySetting,
@@ -14,7 +14,6 @@ export type DirectorBudgetRecoveryAction = "disable_thinking" | "raise_budget";
 // automatic budget retry uses, so the manual step always goes further than
 // the retry the system already attempted on its own.
 const PLANNER_BUDGET_RECOVERY_TARGET = 32_768;
-const DEFAULT_PLANNER_OUTPUT_TOKENS = 8_192;
 
 // Mirrors the server planner default (DEFAULT_ROUTES.planner in
 // server/src/llm/modelRouter.ts). Only used when no planner route row exists,
@@ -43,7 +42,7 @@ export function useDirectorBudgetRecovery(options: DirectorBudgetRecoveryOptions
     retry: false,
   });
   const plannerRoute = modelRoutesQuery.data?.routes.find((route) => route.taskType === "planner");
-  const currentPlannerMaxTokens = plannerRoute?.maxTokens ?? DEFAULT_PLANNER_OUTPUT_TOKENS;
+  const currentPlannerMaxTokens = plannerRoute?.maxTokens ?? DEFAULT_MODEL_OUTPUT_TOKENS;
   const canRaiseBudget = currentPlannerMaxTokens < PLANNER_BUDGET_RECOVERY_TARGET;
 
   const mutation = useMutation({
@@ -58,7 +57,7 @@ export function useDirectorBudgetRecovery(options: DirectorBudgetRecoveryOptions
       }
       const routes = (await getModelRoutes()).data?.routes ?? [];
       const route = routes.find((item) => item.taskType === "planner");
-      const currentMaxTokens = route?.maxTokens ?? DEFAULT_PLANNER_OUTPUT_TOKENS;
+      const currentMaxTokens = route?.maxTokens ?? DEFAULT_MODEL_OUTPUT_TOKENS;
       if (currentMaxTokens >= PLANNER_BUDGET_RECOVERY_TARGET) {
         return { action, saved: false };
       }

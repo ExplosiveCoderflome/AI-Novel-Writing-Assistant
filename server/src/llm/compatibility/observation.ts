@@ -2,9 +2,10 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import type { LlmInvocationPayloadData } from "@ai-novel/shared/types/llmUsage";
 import { invocationPayloadStore } from "../../platform/llm/usage";
+import { prisma } from "../../db/prisma";
 
 interface AttemptChain { id: string; next: number; parentId: string | null }
-interface ParseScope { attempt?: { id: string; secrets: readonly string[] }; parseFailed?: boolean }
+interface ParseScope { attempt?: { id: string; secrets: readonly string[]; hasPayload: boolean }; recorded?: boolean }
 const chains = new AsyncLocalStorage<AttemptChain>();
 const parses = new AsyncLocalStorage<ParseScope>();
 
@@ -17,28 +18,50 @@ export function nextInvocationAttempt(id: string) {
   if (chain) chain.parentId = id;
   return identity;
 }
-export function attachInvocationParse(id: string, secrets: readonly string[]): void {
+export function captureInvocationParse(id: string, secrets: readonly string[]): (hasPayload: boolean) => void {
   const scope = parses.getStore();
-  if (scope && !scope.attempt) scope.attempt = { id, secrets };
+  return hasPayload => {
+    if (scope && !scope.attempt) scope.attempt = { id, secrets, hasPayload };
+  };
+}
+async function saveParse(attempt: NonNullable<ParseScope["attempt"]>, parsed: unknown, error: string | null): Promise<void> {
+  await Promise.all([
+    prisma.llmInvocationUsageRecord.updateMany({
+      where: { id: attempt.id },
+      data: { structureStatus: error === null ? "valid" : "invalid" },
+    }).catch(() => console.warn("[llm-usage] structure status write failed", attempt.id)),
+    attempt.hasPayload ? invocationPayloadStore.setParse(attempt.id, parsed, error, attempt.secrets)
+      .catch(() => console.warn("[llm-history] parse result write failed", attempt.id)) : undefined,
+  ]);
 }
 export async function recordInvocationParseFailure(error: string): Promise<void> {
   const scope = parses.getStore();
   if (!scope?.attempt) return;
-  scope.parseFailed = true;
-  await invocationPayloadStore.setParse(scope.attempt.id, null, error, scope.attempt.secrets)
-    .catch(() => console.warn("[llm-history] parse error write failed"));
+  scope.recorded = true;
+  await saveParse(scope.attempt, null, error);
 }
 /** A parse scope owns its first physical request; nested JSON repair owns a separate scope. */
+export function createInvocationParseScope() {
+  const scope: ParseScope = {};
+  const chain = chains.getStore() ?? { id: randomUUID(), next: 0, parentId: null };
+  return {
+    run<T>(operation: () => T): T {
+      return chains.run(chain, () => parses.run(scope, operation));
+    },
+    async save(parsed: unknown, error: string | null) {
+      if (scope.attempt && !scope.recorded) {
+        scope.recorded = true;
+        await saveParse(scope.attempt, parsed, error);
+      }
+    },
+  };
+}
 export function observeInvocationParse<T>(run: () => Promise<T>, result: (value: T) => unknown): Promise<T> {
-  return runWithInvocationChain(() => parses.run({}, async () => {
-    const scope = parses.getStore()!;
-    const save = async (parsed: unknown, error: string | null) => {
-      if (scope.attempt && !scope.parseFailed) await invocationPayloadStore.setParse(scope.attempt.id, parsed, error, scope.attempt.secrets)
-        .catch(() => console.warn("[llm-history] parse result write failed"));
-    };
-    try { const value = await run(); await save(result(value), null); return value; }
-    catch (error) { await save(null, error instanceof Error ? error.message : String(error)); throw error; }
-  }));
+  const parse = createInvocationParseScope();
+  return parse.run(async () => {
+    try { const value = await run(); await parse.save(result(value), null); return value; }
+    catch (error) { await parse.save(null, error instanceof Error ? error.message : String(error)); throw error; }
+  });
 }
 
 export function invocationMessages(input: unknown): LlmInvocationPayloadData["messages"] {

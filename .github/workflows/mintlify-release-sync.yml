@@ -4,32 +4,50 @@ on:
   workflow_run:
     workflows: ["Desktop Release"]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published stable desktop release tag (vX.Y.Z)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   sync-docs:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch != '' && startsWith(github.event.workflow_run.head_branch, 'v') && !contains(github.event.workflow_run.head_branch, '-') }}
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v') && !contains(github.event.workflow_run.head_branch, '-'))
+    concurrency:
+      group: mintlify-release-sync
+      queue: max
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout default branch
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
       - name: Verify release assets and update documentation
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
         run: node scripts/sync-mintlify-release.cjs --tag "$RELEASE_TAG"
       - name: Commit documentation updates
+        env:
+          DOCS_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          if git diff --quiet -- mintlify-docs/installation.mdx mintlify-docs/index.mdx; then
-            echo "Mintlify release documents already match this release."
+          git add -- mintlify-docs/{index,installation,changelog}.mdx mintlify-docs/en/{index,installation,changelog}.mdx
+          if git diff --cached --quiet; then
+            echo "No Mintlify release documents to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add mintlify-docs/installation.mdx mintlify-docs/index.mdx
-          git commit -m "优化：同步桌面版下载与首页版本信息"
-          git push
+          git commit -m "优化：同步中英文文档站的桌面版本信息"
+          git push origin "HEAD:refs/heads/$DOCS_BRANCH"

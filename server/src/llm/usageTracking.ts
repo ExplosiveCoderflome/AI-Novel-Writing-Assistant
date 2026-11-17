@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "../db/prisma";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { LlmOutputBudgetTrace } from "@ai-novel/shared/types/llmUsage";
 import type { LlmTokenUsageSnapshot } from "../platform/llm/usage";
 export { extractLlmTokenUsage, mergeStreamTokenUsage } from "../platform/llm/usage";
 export type { LlmTokenUsageSnapshot } from "../platform/llm/usage";
@@ -17,6 +18,7 @@ export interface LlmUsageTrackingContext {
     directorNodeKey?: string | null;
 }
 export interface LlmUsageTrackingMeta {
+    budgetTrace?: LlmOutputBudgetTrace;
     structuredMode?: string | null;
     requestProtocol?: "anthropic" | "openai_compatible" | "openai-compatible" | "auto";
     provider?: LLMProvider | string | null;

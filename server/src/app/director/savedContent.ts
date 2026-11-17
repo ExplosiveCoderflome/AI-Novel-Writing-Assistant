@@ -35,7 +35,12 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
       const from = input.contract.chapterRange?.from;
       if (!from) throw new Error("缺少已授权的章节范围。");
       const chapters = await tx.volumeChapterPlan.findMany({where: {volume: {novelId, status: "active"}, chapterOrder: from}, orderBy: {id: "asc"}});
-      if (chapters.length !== 1 || !chapters[0].taskSheet?.trim() || !chapters[0].sceneCards?.trim()) throw new Error("请保存完整的章节任务与场景计划。");
+      const [chapter] = chapters;
+      if (chapters.length !== 1 || (input.contract.launchInput?.targetVolumeId && chapter.volumeId !== input.contract.launchInput.targetVolumeId)) {
+        throw new AppError(`无法定位第 ${from} 章的待确认计划，请重新读取本书。`, 409);
+      }
+      const missing = [!chapter.taskSheet?.trim() && "章节任务", !chapter.sceneCards?.trim() && "场景安排"].filter(Boolean);
+      if (missing.length) throw new AppError(`第 ${from} 章缺少已保存的${missing.join("和")}，请先处理当前阶段。`, 409);
       content = chapters;
       break;
     }

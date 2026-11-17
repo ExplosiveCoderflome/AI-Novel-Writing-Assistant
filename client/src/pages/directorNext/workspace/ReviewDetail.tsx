@@ -1,6 +1,6 @@
 import {parseChapterScenePlan} from "@ai-novel/shared/types/chapterLengthControl";
 import type {SavedReview} from "./review";
-import type {WorkspaceBook} from "./model";
+import {readableChapter, type WorkspaceBook} from "./model";
 import {ReadingDisplaySettings, readingTextStyle, type ReadingDisplayPreferences} from "./reading";
 import {OutlinePreparationReview} from "./OutlinePreparationReview";
 import {Button} from "@/components/ui/button";
@@ -18,12 +18,15 @@ function Scenes({value,targetWordCount}:{value?:string|null;targetWordCount?:num
   </section>)}</section>;
 }
 
-export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,onEditChapter}:{book:WorkspaceBook;review:SavedReview;readingDisplay:ReadingDisplayPreferences;onReadingDisplayChange:(next:ReadingDisplayPreferences)=>void;onEditChapter?:(chapterId:string)=>void}) {
+export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,onOpenChapter,onEditChapter}:{book:WorkspaceBook;review:SavedReview;readingDisplay:ReadingDisplayPreferences;onReadingDisplayChange:(next:ReadingDisplayPreferences)=>void;onOpenChapter?:(chapterId:string)=>void;onEditChapter?:(chapterId:string)=>void}) {
   const chapter=review.plan ?? review.execution;
+  const latest = onOpenChapter && !review.chapters?.length
+    ? book.chapters.filter(readableChapter).sort((a,b)=>b.order-a.order)[0] : undefined;
   return <article className="mx-auto max-w-[42rem] px-2 pb-8 sm:px-6" aria-label="本阶段创作结果">
     <p className="mb-3 text-xs text-muted-foreground">查看本阶段结果</p>
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-2xl font-semibold">{review.label}</h2>
+      {latest ? <Button size="sm" variant="outline" onClick={()=>onOpenChapter?.(latest.id)}>查看最新正文（第 {latest.order} 章）</Button> : null}
       {review.chapters?.length ? <ReadingDisplaySettings preferences={readingDisplay} onChange={onReadingDisplayChange} previewText={review.chapters[0].content}/> : null}
     </div>
     {review.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p> : review.notice ? <p role="status" className="text-sm leading-6 text-muted-foreground">{review.notice}</p> : <>

@@ -1,28 +1,35 @@
-# Mintlify 正式版文档同步边界
+# Mintlify 正式版文档同步
 
-## 背景
+## 同步时机
 
-桌面 Release 的 Windows、macOS x64、macOS arm64 与 Linux 上传任务并行运行。单个平台上传完成不表示完整安装包集合已经发布；在任一上传 job 中直接改 Mintlify 下载地址，可能产生链接指向尚未上传资产的页面。
+桌面版本号由 `desktop/package.json` 决定，正式 tag 必须是对应的 `vX.Y.Z`。文档站使用已经公开发布的版本。准备或合入下一个桌面版本时，文档下载仍指向最近一次已经齐套的正式安装包。
 
-## 当前规则
+`Mintlify Release Document Sync` 在正式 tag 的 `Desktop Release` 工作流成功后运行。同步脚本查询该 tag 的 GitHub Release，核对它已公开、不是预发布，且五个平台安装资产均已上传、大小大于零、下载 URL 与资产名称吻合。Windows 安装版、Windows 便携版、macOS arm64、macOS x64 和 Linux x64 缺一项就终止同步。
 
-- 文档同步从 `workflow_run` 接收 `Desktop Release` 成功完成事件，不在并行的单平台发布 job 内运行。
-- 同步器仍须独立查询对应 GitHub Release，并验证 stable `vX.Y.Z` tag、非 draft、非 prerelease，以及五个精确文件名都已出现在 Release assets 中。workflow 成功事件本身不是资产齐套证明。
-- 资产合同由 `scripts/sync-mintlify-release.cjs` 的五个文件名模板和测试共同维护。缺少任何一个资产、tag 不稳定、API 失败或 Release 不匹配时，应在读取并计算候选文档后拒绝写入。
-- 自动写入范围只有 `mintlify-docs/installation.mdx` 的五个安装链接与 `mintlify-docs/index.mdx` 的版本徽章/文案。不得全局替换历史版本、改动 GitHub stars/forks shields 或重写 changelog 历史。
-- release 内容和资产大小不是本同步器的生成内容；没有可靠数据时不补造发布日期、文件大小或营销说明。
-- GitHub token 仅用于 Release API 读取及必要的文档提交，不打印 token。提交只包含两个 Mintlify 页面；`site-pages.yml` 监听的 release notes 不参与自动回写。
-- Desktop Release 仅由稳定 tag push 启动，因此文档分支上的普通提交不会触发桌面打包。未来若改变 Desktop Release 触发范围，必须重新审查是否会形成同步提交循环。
+## 准备发布摘要
 
-## 验证方式
+发版前根据本次用户可见改动，准备 `docs/releases/mintlify/vX.Y.Z.json`，在合入 `main` 的发版候选中包含它。每条数组内容是一行 Markdown 列表正文，脚本会生成列表符号。
 
-- `node --test scripts/tests/mintlify-release-sync.test.cjs` 使用临时目录与假 Release 覆盖资产齐套、缺失/错误资产、stable tag、dry-run 零写入、失败零写入、幂等和历史版本局部性。
-- 本地真实查询的预览形式为 `node scripts/sync-mintlify-release.cjs --tag vX.Y.Z --dry-run`，需要 `GITHUB_TOKEN` 读取正式 Release。不得用 fixture 参数代替线上资产核验。
-- 发布后若需手工补跑，先确认对应 tag 的正式 Release 与五个上传资产均存在；脚本再次执行相同的资产检查，不允许绕过门槛。
+```json
+{
+  "zh": ["书级方案生成失败时，可以从失败卡重试。"],
+  "en": ["Retry book planning from its failure card."]
+}
+```
 
-## 相关模块
+中英文应描述相同的改动，按新增、优化、修复顺序写有内容的条目。可以参考同一版本的 GitHub Release 正文或项目发版记录，核对实际提交范围。日期根据 GitHub Release 的 `published_at` 按北京时间生成，根目录 README 与总更新历史继续按日期维护。
 
-- `.github/workflows/desktop-release.yml`：并行构建及上传桌面安装包。
-- `.github/workflows/mintlify-release-sync.yml`：等待 Desktop Release 完成后启动同步。
-- `scripts/sync-mintlify-release.cjs`：Release 校验与有界文档转换。
-- `scripts/update-desktop-release-notes.cjs`：只更新 GitHub Release 正文，和 Mintlify 文档同步是不同职责。
+## 页面写入范围
+
+- `mintlify-docs/` 和 `mintlify-docs/en/` 下的 `index.mdx` 各同步两处版本标签，`installation.mdx` 各同步五条下载直链和下载文案中的版本。
+- 有双语摘要时，在对应 `changelog.mdx` 顶部各新增一条 `<Update>`。同版本重跑保留现有条目。缺少摘要时，工作流发出警告，首页和下载页继续同步。
+- 两份简介链接到各自的更新日志。路线图的当前能力描述和历史版本表按内容需要维护。
+- 这些页面存放可直接编辑的 MDX 文本。改动下载卡片或首页标签结构时同步调整脚本和测试。脚本在全部目标内容得出后才开始写入，已有较新下载或首页版本时跳过旧 tag。历史版本条目和 GitHub stars/forks 徽章由各页维护。
+
+工作流在同一个并发队列内串行写入默认分支。Git 推送遇到其他提交时按普通非快进失败处理，从默认分支重跑。Mintlify 从 Git 同步；核验线上时查看两种语言的页面。
+
+## 预览和补跑
+
+- `node --test scripts/tests/mintlify-release-sync.test.cjs` 使用项目实际中英文 MDX 和离线 Release 样例，覆盖下载链接、版本标签、日期、历史保护、旧版本和重复运行。
+- `node scripts/sync-mintlify-release.cjs --tag vX.Y.Z --dry-run` 读取真实 GitHub Release，预览变更。设置 `GITHUB_TOKEN` 可使用认证额度。`--release-file` 只用于离线测试。
+- 如需补跑，从默认分支手动启动 `Mintlify Release Document Sync` 并填入正式 tag。手动运行使用相同的资产检查和版本保护，也可在补齐双语摘要后用于补写当前版本的日志。

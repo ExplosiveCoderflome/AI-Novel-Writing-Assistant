@@ -22,5 +22,17 @@ test('a task output scope rejects unknown targets even if a compatibility catch 
  assert.equal(typeof execution.withLlmTaskOutputBudgets,'function');
  await assert.rejects(execution.withLlmTaskOutputBudgets([{provider:'custom',model:'fixture',taskType:'review',maxTokens:8192}],async()=>{
   try{execution.resolveScopedTaskOutputTokens('other','fixture','review',100);}catch{}
- }),/output budget/i);
+ }),error=>error.code==='llm_output_budget_capture_missing' && error.message.includes('other/fixture') && error.message.includes('review'));
+});
+
+test("a saved 8K automatic policy remains valid after the default increases to 16K", async t => {
+  const { configurationKey, matchSavedKernelBudget } = require("../dist/app/director/productionKernel/prompts/preflight");
+  factory.setProviderSecretCache("custom_legacy_budget", { key: "fixture", model: "fixture", baseURL: "https://legacy.invalid/v1" });
+  t.after(() => factory.setProviderSecretCache("custom_legacy_budget", null));
+  const target = await factory.resolveLLMClientOptions("custom_legacy_budget", { model: "fixture", taskType: "writer" });
+  assert.equal(target.maxTokens, 16384);
+  const saved = configurationKey({ ...target, maxTokens: 8192 });
+  assert.equal(matchSavedKernelBudget(target, saved).maxTokens, 8192);
+  const changed = { ...target, temperature: 0.9 };
+  assert.equal(matchSavedKernelBudget(changed, saved).maxTokens, 16384);
 });
