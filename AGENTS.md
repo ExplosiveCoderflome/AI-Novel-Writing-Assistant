@@ -250,6 +250,12 @@ These areas have the highest priority for wiki accumulation:
 - After pushing and triggering GitHub packaging, hand off with the pushed ref and workflow link. Do not keep waiting, repeatedly fetch packaging status or logs, or create a packaging monitor by default.
 - Wait for packaging or check its result only when the user explicitly asks to wait, monitor, or inspect the result. A successful push or trigger is evidence that packaging was triggered; claim successful publication only when completed-release evidence is already available.
 
+## Mintlify Desktop Release Documentation
+
+- When preparing a new stable desktop release, use the version in `desktop/package.json` to prepare `docs/releases/mintlify/vX.Y.Z.json` in the release candidate. Include a nonempty `zh` array and a nonempty `en` array, each containing single-line Markdown bullet bodies.
+- An agent drafting the summary must inspect the user-visible changes for the release being prepared. For a published release, use the matching GitHub Release and verify the tag. Keep the localized summaries aligned in meaning and use the existing 新增、优化、修复 order for applicable changes. Leave unverified changes, dates, and download claims out of the summary.
+- The release sync workflow verifies the official tag and uploaded installation assets, then updates the generated version labels, download links, and changelog entries in the two languages. Use its dry run or manual rerun for version corrections. Follow [Mintlify desktop release documentation sync](docs/wiki/workflows/mintlify-release-document-sync.md) for the inputs and checks.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.

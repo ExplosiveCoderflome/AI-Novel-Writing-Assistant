@@ -12,6 +12,13 @@ keywords:
 
 Below is a summary of recent desktop release updates. For the full history, visit the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) or the GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) page.
 
+<Update label="2026-11-16" description="v0.8.7">
+
+- Outline proposals now identify invalid dependencies, chapters without an assigned volume, and unintended changes to a volume’s chapter list. If applying a proposal fails, the existing outline stays intact.
+- Book planning retries automatically when it hits the model’s output limit. If manual recovery is needed, retry from the failure card with deep thinking turned off or a higher output limit.
+
+</Update>
+
 <Update label="2026-11-13" description="v0.8.1">
   Desktop v0.8.1 fixes an issue where a new book's blank placeholder volume was incorrectly treated as a user-confirmed single volume, preventing long novels from generating a multi-volume structure.
 
