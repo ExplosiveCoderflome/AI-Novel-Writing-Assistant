@@ -35,7 +35,7 @@ test('contract generation routes each actual generation and quality request thro
     assert.equal(generations.length, 2);
     assert.equal(assessments.length, 2);
     assert.match(generations[1].promptInput.guidance, /保留钟内纸条来源/);
-    assert.equal(generations[0].options.maxTokens, 3200);
+    assert.equal(generations[0].options.maxTokens, undefined);
     assert.equal(assessments[1].candidate.sceneCards, result.sceneCards);
   } finally {runner.runStructuredPrompt = original;}
 });
