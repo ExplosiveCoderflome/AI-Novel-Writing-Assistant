@@ -31,10 +31,11 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
   return <nav aria-label="小说资源目录" className="max-h-[70dvh] min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 md:max-h-none">
     <p className="px-3 pb-3 text-xs font-medium tracking-widest text-muted-foreground">故事目录</p>
     {row({kind:"volumes"}, "分卷与章节规划", <Layers className="h-4 w-4" />)}
-    {tree.volumes.map(({volume,beats,chapters,unassigned}) => <details key={volume.id} open={contains(chapters) || (selected.kind === "volume" && selected.id === volume.id) || (selected.kind === "beat" && selected.volumeId === volume.id)} className="mb-3">
+    {tree.volumes.map(({volume,beats,chapters,unassigned: directChapters}) => <details key={volume.id} open={contains(chapters) || (selected.kind === "volume" && selected.id === volume.id) || (selected.kind === "beat" && selected.volumeId === volume.id)} className="mb-3">
       <summary className="cursor-pointer px-2 py-2 text-sm font-medium">{volume.title}</summary>
       <div className="ml-2">
         {row({kind:"volume",id:volume.id}, "查看卷纲", <Layers className="h-3.5 w-3.5" />)}
+        {directChapters.map(chapterRow)}
         {beats.map(({beat,chapters:beatChapters}) => <details key={beat.key} className="group/beat" open={contains(beatChapters) || sameSelection(selected,beatSelection(volume.id,beat))}>
           <summary className="flex min-w-0 cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs text-muted-foreground [&::-webkit-details-marker]:hidden">
             <ChevronRight aria-hidden="true" className="h-3 w-3 shrink-0 transition-transform group-open/beat:rotate-90"/>
@@ -44,10 +45,9 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
           <div className="ml-3">{row(beatSelection(volume.id,beat),"查看节奏段目标")}{beatChapters.map(chapterRow)}{beatChapters.length === 0 ? <p className="px-3 py-2 text-xs text-muted-foreground">暂无章节规划</p> : null}</div>
         </details>)}
         {beats.length === 0 ? <p className="px-3 py-2 text-xs text-muted-foreground">节奏段待规划</p> : null}
-        {unassigned.length ? <div><p className="px-3 py-2 text-xs text-muted-foreground">待归类章节</p>{unassigned.map(chapterRow)}</div> : null}
       </div>
     </details>)}
-    {tree.unassigned.length ? group(book.planning ? "待归类章节" : "章节", <FileText className="h-3.5 w-3.5" />, tree.unassigned.length, tree.unassigned.map(chapterRow)) : null}
+    {tree.unassigned.length ? group(book.planning ? "未归卷章节" : "章节", <FileText className="h-3.5 w-3.5" />, tree.unassigned.length, tree.unassigned.map(chapterRow)) : null}
     {!book.planning ? group("卷纲", <Layers className="h-3.5 w-3.5" />, book.materials.volumes.length, book.materials.volumes.map(volume => row({kind:"volume",id:volume.id},volume.title))) : null}
     <p className="mt-6 px-3 pb-3 text-xs font-medium tracking-widest text-muted-foreground">小说资产</p>
     {row({ kind: "story" }, "故事规划", <BookOpen className="h-4 w-4" />)}

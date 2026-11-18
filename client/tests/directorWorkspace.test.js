@@ -73,7 +73,14 @@ import { previewBook } from './src/pages/directorNext/workspace/previewBook';
 import { ResourceDirectory } from './src/pages/directorNext/workspace/ResourceDirectory';
 import { PlanningDetail } from './src/pages/directorNext/workspace/PlanningDetail';
 export const markup = renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><NovelWorkspace book={previewBook} preview /></QueryClientProvider>);
-const book = {...previewBook, planning:{volumes:[{id:'v',sortOrder:1,title:'卷标题',chapters:[{id:'p',volumeId:'v',chapterOrder:4,beatKey:'b',title:'未写章',summary:'计划摘要'}]}],beatSheets:[{volumeId:'v',beats:[{key:'b',label:'开篇',title:'节奏标题',summary:'节奏目标',mustDeliver:['兑现目标']}]}]}};
+const imported = {...previewBook.chapters[0], id:'imported',order:3,title:'大纲导入章',content:'已存正文'};
+const book = {...previewBook, chapters:[...previewBook.chapters, imported],planning:{
+  volumes:[{id:'v',sortOrder:1,title:'卷标题',chapters:[
+    {id:'imported-plan',volumeId:'v',chapterOrder:3,chapterId:'imported',beatKey:null,title:'大纲导入章'},
+    {id:'p',volumeId:'v',chapterOrder:4,beatKey:'b',title:'未写章',summary:'计划摘要'}
+  ]}],
+  beatSheets:[{volumeId:'v',beats:[{key:'b',label:'开篇',title:'节奏标题',chapterSpanHint:'1-4章',summary:'节奏目标',mustDeliver:['兑现目标']}]}]
+}};
 export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/><PlanningDetail book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/></>);`, resolveDir: clientDir, loader: 'tsx' },
       bundle: true, platform: 'node', format: 'esm', packages: 'external',
       plugins: [nodeStyles],
@@ -81,6 +88,10 @@ export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} sel
     });
     const { markup, planned } = await import(pathToFileURL(output).href);
     for (const label of ['卷标题','节奏标题','节奏目标','兑现目标','未写章','待写正文']) assert.ok(planned.includes(label),label);
+    assert.match(planned, /查看卷纲<\/span><\/button><button[^>]*><span[^>]*>3\. 大纲导入章<\/span>/);
+    assert.match(planned, /节奏标题<\/span>.*?4\. 未写章/);
+    assert.match(planned, /未归卷章节/);
+    assert.doesNotMatch(planned, /待归类章节/);
     for (const label of ['故事规划', '世界设定', '世界地图', '角色关系图', '角色时间线', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);
     assert.ok(markup.includes('待写作'));
     assert.doesNotMatch(markup, /border rounded|shadow-lg/);
