@@ -65,70 +65,110 @@ export class ChapterStreamGenerationOrchestrator {
     }
 
     const startMs = Date.now();
-    const writerResult = await this.deps.chapterWritingGraph.createChapterStream({
-      novelId,
-      novelTitle: assembled.novel.title,
-      chapter: assembled.chapter,
-      contextPackage: assembled.contextPackage,
-      options: request,
-    });
+    let writerResult: Awaited<ReturnType<ChapterWritingGraph["createChapterStream"]>>;
+    try {
+      writerResult = await this.deps.chapterWritingGraph.createChapterStream({
+        novelId,
+        novelTitle: assembled.novel.title,
+        chapter: assembled.chapter,
+        contextPackage: assembled.contextPackage,
+        options: request,
+      });
+    } catch (error) {
+      await this.markRecoverableWriterFailure(chapterId, error, "create");
+      throw error;
+    }
 
     return {
-      stream: writerResult.stream,
+      stream: this.guardWriterStream(chapterId, writerResult.stream),
       onDone: async (fullContent: string, helpers: StreamDoneHelpers) => {
-        const runStatusId = traceRunId ?? `chapter-runtime:${chapterId}`;
-        this.emitRunStatus(helpers, {
-          type: "run_status",
-          runId: runStatusId,
-          status: "running",
-          phase: "finalizing",
-          message: "正文已生成，正在整理章节文本并保存草稿。",
-        });
-        const normalized = await this.resolveWriterResultWithEmptyRetry({
-          novelId,
-          chapterId,
-          request,
-          assembled,
-          writerDone: () => writerResult.onDone(fullContent),
-          fallbackContent: fullContent,
-        });
-        const generatedContent = normalized.finalContent;
-        this.emitRunStatus(helpers, {
-          type: "run_status",
-          runId: runStatusId,
-          status: "running",
-          phase: "finalizing",
-          message: "正在完成正文接收检查并同步章节状态。",
-        });
-        const finalized = await this.finalizeChapterContent({
-          novelId,
-          chapterId,
-          request,
-          contextPackage: assembled.contextPackage,
-          content: generatedContent,
-          lengthControl: normalized?.lengthControl,
-          runId: traceRunId,
-          startMs,
-          deferArtifactBackgroundSync: true,
-        });
-        this.emitRunStatus(helpers, {
-          type: "run_status",
-          runId: runStatusId,
-          status: "succeeded",
-          phase: "completed",
-          message: finalized.runtimePackage.audit.hasBlockingIssues
-            ? "章节已保存，但检测到待修复问题。"
-            : "章节已保存，可继续审校。",
-        });
+        try {
+          const runStatusId = traceRunId ?? `chapter-runtime:${chapterId}`;
+          this.emitRunStatus(helpers, {
+            type: "run_status",
+            runId: runStatusId,
+            status: "running",
+            phase: "finalizing",
+            message: "正文已生成，正在整理章节文本并保存草稿。",
+          });
+          const normalized = await this.resolveWriterResultWithEmptyRetry({
+            novelId,
+            chapterId,
+            request,
+            assembled,
+            writerDone: () => writerResult.onDone(fullContent),
+            fallbackContent: fullContent,
+          });
+          const generatedContent = normalized.finalContent;
+          this.emitRunStatus(helpers, {
+            type: "run_status",
+            runId: runStatusId,
+            status: "running",
+            phase: "finalizing",
+            message: "正在完成正文接收检查并同步章节状态。",
+          });
+          const finalized = await this.finalizeChapterContent({
+            novelId,
+            chapterId,
+            request,
+            contextPackage: assembled.contextPackage,
+            content: generatedContent,
+            lengthControl: normalized?.lengthControl,
+            runId: traceRunId,
+            startMs,
+            deferArtifactBackgroundSync: true,
+          });
+          this.emitRunStatus(helpers, {
+            type: "run_status",
+            runId: runStatusId,
+            status: "succeeded",
+            phase: "completed",
+            message: finalized.runtimePackage.audit.hasBlockingIssues
+              ? "章节已保存，但检测到待修复问题。"
+              : "章节已保存，可继续审校。",
+          });
 
-        return {
-          fullContent: finalized.finalContent,
-          frames: config.includeRuntimePackage
-            ? [{ type: "runtime_package", package: finalized.runtimePackage }]
-            : [],
-        };
+          return {
+            fullContent: finalized.finalContent,
+            frames: config.includeRuntimePackage
+              ? [{ type: "runtime_package", package: finalized.runtimePackage }]
+              : [],
+          };
+        } catch (error) {
+          await this.markRecoverableWriterFailure(chapterId, error, "finalize");
+          throw error;
+        }
       },
     };
+  }
+
+  private async *guardWriterStream(
+    chapterId: string,
+    stream: AsyncIterable<BaseMessageChunk>,
+  ): AsyncIterable<BaseMessageChunk> {
+    try {
+      for await (const chunk of stream) yield chunk;
+    } catch (error) {
+      await this.markRecoverableWriterFailure(chapterId, error, "stream");
+      throw error;
+    }
+  }
+
+  private async markRecoverableWriterFailure(chapterId: string, error: unknown, stage: string): Promise<void> {
+    console.error("[chapter-runtime] chapter generation failed", {
+      chapterId,
+      stage,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      recovery: "pending_generation",
+    });
+    try {
+      await this.markChapterStatus(chapterId, "pending_generation");
+    } catch (statusError) {
+      console.error("[chapter-runtime] failed to save recoverable chapter status", {
+        chapterId,
+        errorName: statusError instanceof Error ? statusError.name : "UnknownError",
+      });
+    }
   }
 
   async prepareRuntimeChapter(

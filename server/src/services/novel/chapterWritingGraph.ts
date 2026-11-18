@@ -17,6 +17,7 @@ import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter
 import { NovelContinuationService } from "./NovelContinuationService";
 import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError";
 import { prisma } from "../../db/prisma";
+import { resolveModel } from "../../llm/modelRouter";
 import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
 import { toText } from "./novelP0Utils";
 import { buildContinuationBudget, type ContinuationBudget } from "./runtime/writing";
@@ -91,6 +92,17 @@ const continuationService = new NovelContinuationService();
 
 function countChapterCharacters(content: string): number {
   return content.replace(/\s+/g, "").trim().length;
+}
+
+function isOutputTruncated(chunk: BaseMessageChunk): boolean {
+  const metadata = chunk.response_metadata as Record<string, unknown> | undefined;
+  const additional = chunk.additional_kwargs as Record<string, unknown> | undefined;
+  const finishReason = metadata?.finish_reason ?? metadata?.stop_reason ?? additional?.finish_reason;
+  return finishReason === "length" || finishReason === "max_tokens";
+}
+
+function outputTruncatedError(): Error {
+  return new Error("章节正文达到模型输出上限后被截断，未保存不完整草稿。请提高 Writer 输出预算后重试。");
 }
 
 function buildLengthInstruction(targetWordCount?: number | null): {
@@ -190,6 +202,17 @@ export class ChapterWritingGraph {
     if (!continuationBudget) {
       return input.content;
     }
+    const writerRoute = await resolveModel(chapterWriterPrompt.taskType, {
+      ...(input.options.provider != null ? { provider: input.options.provider } : {}),
+      ...(input.options.model != null ? { model: input.options.model } : {}),
+    });
+    const boundedContinuationBudget = {
+      ...continuationBudget,
+      maxOutputTokens: Math.min(
+        continuationBudget.maxOutputTokens,
+        writerRoute.routeMaxTokens ?? writerRoute.maxTokens ?? continuationBudget.maxOutputTokens,
+      ),
+    };
 
     const builtBlocks = [await loadWritingPlatformBlock(input.novelId), ...buildChapterWriterContextBlocks(writeContext)];
     const sanitized = sanitizeWriterContextBlocks([
@@ -200,7 +223,7 @@ export class ChapterWritingGraph {
         required: true,
         content: buildDraftContinuationBlock(
           input.content,
-          continuationBudget,
+          boundedContinuationBudget,
         ),
       }),
       ...builtBlocks,
@@ -237,7 +260,7 @@ export class ChapterWritingGraph {
         targetWordCount: lengthGoal.targetWordCount,
         minWordCount: lengthGoal.minWordCount,
         maxWordCount: lengthGoal.maxWordCount,
-        continuationBudget,
+        continuationBudget: boundedContinuationBudget,
       },
       contextBlocks: resolvedContext.blocks,
       options: {
@@ -245,7 +268,7 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         reasoningEnabled: false,
-        maxTokens: continuationBudget.maxOutputTokens,
+        maxTokens: boundedContinuationBudget.maxOutputTokens,
         novelId: input.novelId,
         chapterId: input.chapter.id,
         stage: "writer_extend",
@@ -255,13 +278,21 @@ export class ChapterWritingGraph {
     let output: string;
     if (input.onDraftProgress) {
       const streamed = await streamTextPrompt(promptRequest);
-      void streamed.complete.catch(() => {});
+      let completionError: unknown;
+      const completion = streamed.complete.catch((error) => {
+        completionError = error;
+        return null;
+      });
       let continuation = "";
       for await (const chunk of streamed.stream) {
+        if (isOutputTruncated(chunk as BaseMessageChunk)) throw outputTruncatedError();
         continuation += toText(chunk.content);
         input.onDraftProgress(`${input.content.trim()}\n\n${continuation}`, "writing");
       }
-      output = (await streamed.complete).output;
+      const completed = await completion;
+      if (completionError) throw completionError;
+      if (!completed) throw new Error("章节续写流未能完成。");
+      output = completed.output;
     } else {
       output = (await runTextPrompt(promptRequest)).output;
     }
@@ -349,19 +380,38 @@ export class ChapterWritingGraph {
         model: input.options.model,
         temperature: input.options.temperature ?? 0.8,
         reasoningEnabled: false,
-        maxTokens: 6000,
         novelId: input.novelId,
         chapterId: input.chapter.id,
         stage: "writer_draft",
         triggerReason: "chapter_initial_draft",
       },
     });
+    let completionError: unknown;
+    const completion = streamed.complete.catch((error) => {
+      completionError = error;
+      return null;
+    });
+
+    const guardedStream = (async function* () {
+      for await (const chunk of streamed.stream) {
+        yield chunk;
+        if (isOutputTruncated(chunk as BaseMessageChunk)) throw outputTruncatedError();
+      }
+    })();
 
     return {
-      stream: streamed.stream as AsyncIterable<BaseMessageChunk>,
+      stream: guardedStream as AsyncIterable<BaseMessageChunk>,
       onDone: async (fullContent: string) => {
-        const completed = await streamed.complete.catch(() => null);
-        const rawContent = completed?.output ?? fullContent;
+        const completed = await completion;
+        if (completionError) throw completionError;
+        if (!completed) throw new Error("章节初稿流未能完成。");
+        const rawContent = completed.output ?? fullContent;
+        assertChapterContentNotEmpty(rawContent, {
+          novelId: input.novelId,
+          chapterId: input.chapter.id,
+          chapterOrder: input.chapter.order,
+          source: "chapter_writer_stream",
+        });
         const normalized = await this.continuityNode(
           input.novelId,
           input.chapter,
