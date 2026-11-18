@@ -96,7 +96,12 @@ function harness(generate) {
     const code = ts.transpileModule(fs.readFileSync(file, "utf8"), { fileName: file,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
     const requireStub = (id) => {
-      if (id.endsWith("/diagnostics/StructuredDiagnosticStore")) return { latestStructuredDiagnostic: async () => null, canRetryStructuredTask: async () => true };
+      if (id.endsWith("/diagnostics/StructuredDiagnosticStore")) return {
+        ...require("../dist/platform/llm/diagnostics/StructuredDiagnosticStore"),
+        latestStructuredDiagnostic: async () => null, canRetryStructuredTask: async () => true,
+      };
+      if (id.endsWith("/llm/compatibility")) return require("../dist/llm/compatibility");
+      if (id.endsWith("/llm/structuredOutput")) return require("../dist/llm/structuredOutput");
       if (id === "@prisma/client" || id.startsWith("@ai-novel/shared/")) return require(id);
       if (id.endsWith("/director/NovelDirectorService")) return { NovelDirectorService: class {} };
       if (id.endsWith("/NovelCreateResourceRecommendationService")) return { novelCreateResourceRecommendationService: {
@@ -760,4 +765,86 @@ test("reference replan resumes staged candidates after failure with the same con
   assert.deepEqual(resumed.calls.filter((call) => call.asset === "shortStorySegmentWritePrompt").map((call) => call.order), [2, 3]);
   assert.deepEqual((await contents(result.novelId)).map((segment) => segment.content), ["重排正文1", "重排正文2", "重排正文3"]);
   for (const call of resumed.calls) assert.equal(call.input.reference.goal, referenceInput(f).reference.goal);
+});
+
+function planBudgetError(budget, used, overrides = {}) {
+  const { StructuredOutputError } = require("../dist/llm/structuredOutput");
+  return new StructuredOutputError({
+    message: "模型输出达到 Token 上限。请提高输出 Token 上限后重试。",
+    category: "output_budget_exhausted",
+    diagnostics: { fallbackUsed: false, response: {
+      failureReason: "output_budget_exhausted",
+      finishReason: "length",
+      maxTokens: budget,
+      tokenUsage: { completionTokens: used },
+      budgetTrace: { source: "automatic", automaticMaxTokens: budget, finalMaxTokens: budget, ...overrides },
+    } },
+  });
+}
+
+test("initial short story planning raises the automatic allowance once before saving its first plan", async () => {
+  const f = await fixture({ status: "queued", checkpointType: null }, false);
+  const requested = [];
+  const h = harness(input => {
+    if (input.asset.id !== "shortStoryPlanPrompt") return output(input);
+    requested.push(input.options.automaticMaxTokens);
+    if (requested.length === 1) throw planBudgetError(16384, 16384);
+    return output(input);
+  });
+  await h.production.run(f.task.id);
+  assert.deepEqual(requested, [16384, 32768]);
+  assert.equal(await prisma.shortStoryPlan.count({ where: { novelId: f.novel.id } }), 1);
+});
+
+test("full replan keeps the saved manuscript if the provider stops below the application allowance", async () => {
+  const f = await fixture();
+  const requested = [];
+  const h = harness(input => {
+    if (input.asset.id !== "shortStoryPlanPrompt") return output(input, "full_replan");
+    requested.push(input.options.automaticMaxTokens);
+    throw planBudgetError(16384, 8192);
+  });
+  await assert.rejects(h.studio.previewRevision(f.novel.id, "重新安排整篇"), error => {
+    assert.equal(error.statusCode, 502);
+    assert.match(error.message, /16,384 Token/);
+    assert.match(error.message, /模型与厂商.*模型兼容性/);
+    return true;
+  });
+  assert.deepEqual(requested, [16384]);
+  assert.equal(await prisma.novelIntentVersion.count({ where: { novelId: f.novel.id } }), 1);
+  assert.deepEqual((await contents(f.novel.id)).map(segment => segment.version), [1, 1, 1]);
+});
+
+test("manual planner budgets and reached model caps stay fixed when a short story plan is truncated", async () => {
+  for (const [trace, settings] of [
+    [{ source: "route", routeMaxTokens: 16384 }, /大纲策划.*最大输出长度/],
+    [{ source: "automatic", endpointMaxTokens: 16384 }, /模型与厂商.*模型兼容性/],
+  ]) {
+    const f = await fixture();
+    let attempts = 0;
+    const h = harness(input => {
+      if (input.asset.id !== "shortStoryPlanPrompt") return output(input, "full_replan");
+      attempts++;
+      throw planBudgetError(16384, 16384, trace);
+    });
+    await assert.rejects(h.studio.previewRevision(f.novel.id, "重规划"), settings);
+    assert.equal(attempts, 1);
+  }
+});
+
+test("full replan uses the saved segment count and stops after one raised request", async () => {
+  const f = await fixture();
+  await prisma.shortStorySegment.createMany({ data: [4, 5, 6, 7, 8].map(order => ({
+    novelId: f.novel.id, planId: f.saved.id, order, targetWordCount: 300, status: "completed", content: "原文",
+  })) });
+  const requested = [];
+  const h = harness(input => {
+    if (input.asset.id !== "shortStoryPlanPrompt") return output(input, "full_replan");
+    const limit = input.options.automaticMaxTokens;
+    requested.push(limit);
+    throw planBudgetError(limit, limit);
+  });
+  await assert.rejects(h.studio.previewRevision(f.novel.id, "重规划"), /49,152 Token/);
+  assert.deepEqual(requested, [24576, 49152]);
+  assert.equal(await prisma.novelIntentVersion.count({ where: { novelId: f.novel.id } }), 1);
 });

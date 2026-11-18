@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
 import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
+import type { StructuredDiagnosticContext } from "../../platform/llm/diagnostics/StructuredDiagnosticStore";
 import type { PromptSlotDef, ResolvedSlots } from "../slots/slotTypes";
 
 export type PromptMode = "structured" | "text";
@@ -128,6 +129,7 @@ export interface PromptExecutionOptions {
   reasoningEnabled?: boolean;
   maxTokens?: number;
   automaticMaxTokens?: number;
+  structuredDiagnosticContext?: StructuredDiagnosticContext;
   timeoutMs?: number;
   signal?: AbortSignal;
   novelId?: string;

@@ -288,7 +288,7 @@ async function invokeStructuredAttempt<T>(input: {
     model: resolved.model,
     promptText: formatLivePrompt(messages),
   });
-  const evidence = emptyResponseEvidence(resolved.maxTokens);
+  const evidence = emptyResponseEvidence(resolved.maxTokens, resolved.budgetTrace);
   let diagnosticId: string | null = null;
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");

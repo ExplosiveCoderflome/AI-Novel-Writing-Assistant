@@ -7,10 +7,10 @@ import type {
 } from "@ai-novel/shared/types/creationStudio";
 import { prisma } from "../../../../db/prisma";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { runShortStoryPlan } from "./shortStoryPlanCall";
 import {
   shortStoryFullAuditPrompt,
   shortStoryPatchRepairPrompt,
-  shortStoryPlanPrompt,
   shortStorySegmentWritePrompt,
 } from "../../../../prompting/prompts/shortStory/shortStory.prompts";
 import { ProductionVersionConflictError } from "../../../production/common";
@@ -198,8 +198,8 @@ export class ShortStoryProductionService {
       itemLabel: "正在规划完整短篇",
       progress: 0.16,
     });
-    const generated = await runStructuredPrompt({
-      asset: shortStoryPlanPrompt,
+    const generated = await runShortStoryPlan({
+      beforeRetry: () => this.assertRunnable(context.task.id),
       promptInput: {
         originalIdea: context.intent.originalIdea,
         understanding: context.intent.understanding,

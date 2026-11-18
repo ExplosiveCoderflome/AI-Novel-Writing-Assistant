@@ -212,3 +212,34 @@ test("accepted bounded quality recovery clears the failed diagnostic instead of 
   assert.equal(result.output.value, "usable");
   assert.equal(await latestStructuredDiagnostic(task.id), null);
 });
+
+test("short story planning records both real resolved allowances under one diagnostic", async (t) => {
+  const { runShortStoryPlan } = require("../dist/modules/novel/short-story/application/shortStoryPlanCall");
+  const { latestStructuredDiagnostic } = require("../dist/platform/llm/diagnostics/StructuredDiagnosticStore");
+  const task = await prisma.novelWorkflowTask.create({ data: { lane: "creation_studio", title: "短篇预算诊断" } });
+  const provider = "deepseek";
+  const model = "deepseek-chat";
+  factory.setProviderSecretCache(provider, { key: "offline-key", model });
+  t.after(() => factory.setProviderSecretCache(provider, null));
+  factory.resolveLLMClientOptions = originalResolve;
+  settings.getStructuredFallbackSettings = async () => ({ enabled: false, provider, model: "", retryCount: 0 });
+  factory.createLLMFromResolvedOptions = (options) => ({ stream: async function* () {
+    yield { content: '{"title":', response_metadata: { finish_reason: "length" },
+      usage_metadata: { input_tokens: 300, output_tokens: options.maxTokens, total_tokens: 300 + options.maxTokens } };
+  } });
+
+  await assert.rejects(runShortStoryPlan({
+    promptInput: { originalIdea: "追查秘密", understanding: "保持原创", direction: {
+      id: "original", title: "短篇示例", premise: "主人公追查一封信的来源",
+      coreExperience: "揭露秘密", protagonist: "小林", centralConflict: "证据被隐瞒",
+      endingPromise: "揭开真相", styleKeywords: ["直接"],
+    }, targetWordCount: 3000 },
+    options: { provider, model, taskId: task.id, stage: "short_story_plan" },
+  }), /32,768 Token/);
+
+  const latest = await latestStructuredDiagnostic(task.id);
+  assert.equal(latest.attempts, 2);
+  assert.match(latest.message, /32,768 Token.*大纲策划/);
+  const attempts = await prisma.structuredInvocationDiagnostic.findMany({ where: { taskId: task.id }, orderBy: { attempt: "asc" } });
+  assert.deepEqual(attempts.map(row => JSON.parse(row.detailsJson).budgetTrace.finalMaxTokens), [16384, 32768]);
+});

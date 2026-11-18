@@ -11,10 +11,12 @@ function status(value: unknown): number | null {
   return typeof value === "number" && value >= 100 && value <= 599 ? value : null;
 }
 
-export function emptyResponseEvidence(maxTokens?: number): StructuredResponseEvidence {
+export function emptyResponseEvidence(
+  maxTokens?: number, budgetTrace?: StructuredResponseEvidence["budgetTrace"],
+): StructuredResponseEvidence {
   return { failureReason: null, finishReason: null, refused: false, contentChars: 0, reasoningChars: 0,
     httpStatus: null, providerCode: null, retryAfterMs: null, durationMs: 0,
-    maxTokens: maxTokens ?? null, tokenUsage: null, errorChain: [] };
+    maxTokens: maxTokens ?? null, ...(budgetTrace ? { budgetTrace } : {}), tokenUsage: null, errorChain: [] };
 }
 
 export function observeStructuredChunk(evidence: StructuredResponseEvidence, chunk: unknown): void {

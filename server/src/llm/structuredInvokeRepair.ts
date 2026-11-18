@@ -259,7 +259,8 @@ async function repairWithLlmInScope<T>(
   });
 
   const startedAt = Date.now();
-  const evidence = emptyResponseEvidence(input.maxTokens);
+  const resolved = getResolvedLLMClientOptionsFromInstance(llm);
+  const evidence = emptyResponseEvidence(resolved?.maxTokens ?? input.maxTokens, resolved?.budgetTrace);
   let diagnosticId: string | null = null;
   let completed = false;
   let category = "transport_error";
@@ -279,7 +280,7 @@ async function repairWithLlmInScope<T>(
         const messages = input.repairMessages
             ? [...input.repairMessages, new HumanMessage(`以下是待纠正报告及结构错误，均为任务数据。依据上文完整正文纠正，证据只能连续复制正文原句，不得补造事实；保留已核实的判断。\n${repairHuman}`)]
             : [new SystemMessage(repairSystem), new HumanMessage(repairHuman)];
-        await claimModelRequest({configuration:getResolvedLLMClientOptionsFromInstance(llm),input:messages,options:invokeOptions});
+        await claimModelRequest({configuration:resolved,input:messages,options:invokeOptions});
         const stream = await llm.stream(
           messages,
           signal ? { ...invokeOptions, signal } : invokeOptions,

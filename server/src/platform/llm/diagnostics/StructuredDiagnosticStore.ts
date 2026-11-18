@@ -19,6 +19,26 @@ const messages: Record<StructuredFailureReason, string> = {
   unknown: "本次请求未完成，已有证据不足以确定具体原因。请查看诊断标识后核对模型服务。",
 };
 
+export function describeShortStoryPlanBudgetFailure(response: StructuredResponseEvidence): string | undefined {
+  const reason = response.failureReason;
+  if (reason !== "output_budget_exhausted" && reason !== "reasoning_budget_exhausted") return undefined;
+  const result = reason === "reasoning_budget_exhausted"
+    ? "模型用完输出额度后仍未生成短篇计划。"
+    : "短篇计划在返回完整内容前被截断。";
+  const limit = response.maxTokens;
+  const requested = limit == null ? "" : `本次请求上限为 ${limit.toLocaleString("zh-CN")} Token。`;
+  const modelSettings = "请在“设置 → 模型与厂商 → 模型兼容性”核对当前模型和接口的实际输出上限，或更换模型后重试。";
+  const used = response.tokenUsage?.completionTokens;
+  if (limit != null && used != null && used < limit) {
+    return `${result}${requested}模型服务报告输出了 ${used.toLocaleString("zh-CN")} Token。${modelSettings}`;
+  }
+  const trace = response.budgetTrace;
+  if (trace?.source === "endpoint" || (limit != null && trace?.endpointMaxTokens === limit)) {
+    return `${result}${requested}本次请求已达到模型设置中的上限。${modelSettings}`;
+  }
+  return `${result}${requested}请在“设置 → 模型路由管理 → 大纲策划 → 最大输出长度”按所用模型支持的额度调整后重试，也可以更换大纲策划的模型。`;
+}
+
 export async function beginStructuredDiagnostic(input: {
   meta?: PromptInvocationMeta; context?: StructuredDiagnosticContext; kind?: string;
   provider?: string; model?: string; requestProtocol?: string; strategy: string;
@@ -53,7 +73,8 @@ export async function latestStructuredDiagnostic(taskId: string, includeUnfinish
   const attempts = await prisma.structuredInvocationDiagnostic.count({ where: { invocationId: row.invocationId } });
   return { id: row.id, reason: response.failureReason, message: row.status === "running"
     ? "本次请求尚无完成记录；软件重启后可从已保存的内容继续。"
-    : messages[response.failureReason ?? "unknown"], provider: row.provider, model: row.model, strategy: row.strategy,
+    : (row.promptId === "novel.short_story.plan" ? describeShortStoryPlanBudgetFailure(response) : undefined)
+      ?? messages[response.failureReason ?? "unknown"], provider: row.provider, model: row.model, strategy: row.strategy,
     attempts, retryAt: response.retryAfterMs ? new Date(row.updatedAt.getTime() + response.retryAfterMs).toISOString() : null, response };
 }
 
