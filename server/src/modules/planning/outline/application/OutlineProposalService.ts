@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { outlineInitialGeneratePrompt, outlineEditProposalPrompt } from "../../../../prompting/prompts/outline/outline.prompts";
-import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { runOutlineProposalStructuredCall } from "./outlineProposalStructuredCall";
+import {
+  extractStructuredOutputErrorCategory,
+  StructuredOutputError,
+} from "../../../../llm/structuredOutput";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 import { createEmptyOutlineDocument } from "../domain/outlineDocument";
 import {
@@ -11,6 +15,52 @@ import {
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 import { AppError } from "../../../../middleware/errorHandler";
 
+export function mapOutlineGenerateFailure(error: unknown, kind: "edit" | "initial_generation"): unknown {
+  if (error instanceof AppError) return error;
+  const category = error instanceof StructuredOutputError
+    ? error.category
+    : extractStructuredOutputErrorCategory(error instanceof Error ? error.message : String(error ?? ""));
+  if (!category) return error;
+  const noun = kind === "edit" ? "修改建议" : "大纲建议";
+  switch (category) {
+    case "schema_mismatch": {
+      const stripped = (error instanceof Error ? error.message : String(error ?? ""))
+        .replace(/\[STRUCTURED_OUTPUT:[^\]]+\]\s*/g, "")
+        .replace(/\[[^\]]+@v\d+\]\s*/g, "")
+        .trim();
+      const marker = stripped.lastIndexOf("错误：");
+      const rawDetail = (marker >= 0 ? stripped.slice(marker + "错误：".length) : stripped).replace(/^[-\s]+/, "").trim();
+      const detail = rawDetail.replace(/[。]+$/, "");
+      return detail
+        ? new AppError(`模型返回的${noun}格式有误，自动修复后仍未通过校验：${detail}。请重新生成提案。`, 400)
+        : new AppError(`模型返回的${noun}格式有误，自动修复后仍未通过校验。请重新生成提案。`, 400);
+    }
+    case "incomplete_json":
+    case "malformed_json":
+      return new AppError(`模型返回的${noun}不完整，未能通过校验。请重新生成提案。`, 400);
+    case "output_budget_exhausted":
+    case "reasoning_budget_exhausted":
+      return new AppError(
+        kind === "edit"
+          ? "这次要生成的内容较多，超出了单次输出上限。请分批提出修改（例如先改前几卷），或调高模型路线的输出上限后重试。"
+          : "这次要生成的内容较多，超出了单次输出上限。请先生成部分内容（例如先定卷和前几章），或调高模型路线的输出上限后重试。",
+        400,
+      );
+    case "empty_response":
+      return new AppError("模型没有返回内容，请重新生成提案。", 400);
+    case "thinking_pollution":
+      return new AppError(`模型返回的${noun}中混入了思考过程，未能通过校验。请重新生成提案，或在厂商设置里关闭深度思考后重试。`, 400);
+    case "unsupported_native_json":
+      return new AppError("当前模型不支持本次需要的结构化输出格式，请换一个模型后重试。", 400);
+    case "transport_error":
+      return new AppError("连接模型服务时发生网络错误，请检查模型服务后重试。", 502);
+    case "model_unavailable":
+      return new AppError("模型服务暂时不可用，请稍后重试。", 502);
+    default:
+      return error;
+  }
+}
+
 export class OutlineProposalService {
   constructor(private readonly repository: OutlineRepository) {}
   async generate(projectId: string, request: { kind: "edit" | "initial_generation"; requestText: string; scope?: string }) {
@@ -18,9 +68,14 @@ export class OutlineProposalService {
     if (!current || !current.revision) throw new AppError("大纲项目不存在", 404);
     const document = validateOutlineDocument(JSON.parse(current.revision.documentJson));
     const baseVersion = current.project.currentVersion;
-    const result = request.kind === "initial_generation"
-      ? await runStructuredPrompt({ asset: outlineInitialGeneratePrompt, promptInput: { idea: request.requestText, rough: true } })
-      : await runStructuredPrompt({ asset: outlineEditProposalPrompt, promptInput: { request: request.requestText, baseVersion, document, scope: request.scope ?? "story" } });
+    let result: Awaited<ReturnType<typeof runOutlineProposalStructuredCall>>;
+    try {
+      result = request.kind === "initial_generation"
+        ? await runOutlineProposalStructuredCall({ asset: outlineInitialGeneratePrompt, promptInput: { idea: request.requestText, rough: true } })
+        : await runOutlineProposalStructuredCall({ asset: outlineEditProposalPrompt, promptInput: { request: request.requestText, baseVersion, document, scope: request.scope ?? "story" } });
+    } catch (error) {
+      throw mapOutlineGenerateFailure(error, request.kind);
+    }
     if (request.kind === "edit") {
       const operations = (result.output as { operations: OutlineEditOperation[] }).operations;
       assertValidOutlineEditOperations(operations, { document });

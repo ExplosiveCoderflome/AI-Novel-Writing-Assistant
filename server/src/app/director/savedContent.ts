@@ -12,6 +12,7 @@ import {saveChapterPlanEdit} from "./revisions/chapterPlan";
 import {authorizeChapterBudget, readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../services/novel/production/usage";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProduction,cancelKernelProduction} from "./productionKernel";
+import {directorVolumeChapterPlanFilter} from "./planning";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
 export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
@@ -34,7 +35,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
     case "chapter_task_sheet": {
       const from = input.contract.chapterRange?.from;
       if (!from) throw new Error("缺少已授权的章节范围。");
-      const chapters = await tx.volumeChapterPlan.findMany({where: {volume: {novelId, status: "active"}, chapterOrder: from}, orderBy: {id: "asc"}});
+      const chapters = await tx.volumeChapterPlan.findMany({where: {volume: directorVolumeChapterPlanFilter(novelId), chapterOrder: from}, orderBy: {id: "asc"}});
       const [chapter] = chapters;
       if (chapters.length !== 1 || (input.contract.launchInput?.targetVolumeId && chapter.volumeId !== input.contract.launchInput.targetVolumeId)) {
         throw new AppError(`无法定位第 ${from} 章的待确认计划，请重新读取本书。`, 409);
