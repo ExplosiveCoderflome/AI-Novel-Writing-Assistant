@@ -1,5 +1,5 @@
 import type { TaskOverviewSummary } from "@ai-novel/shared/types/task";
-import type { NovelListResponse } from "@/api/novel/shared";
+import { getNovelWorkflowAttention, type NovelListResponse } from "@/api/novel/shared";
 import {
   canContinueChapterBatchAutoExecution,
   canContinueDirector,
@@ -76,13 +76,13 @@ export function getHomeWrittenChapters(novel: HomeNovelItem): number {
 function isHomeRunning(novel: HomeNovelItem): boolean {
   if (isHomeV2Novel(novel)) return ["queued", "running"].includes(novel.bookProgress?.director?.status ?? "");
   const task = getHomeNovelTask(novel);
-  return !task?.pendingManualRecovery && isWorkflowRunningInBackground(task);
+  return getNovelWorkflowAttention(task) !== "recovery" && isWorkflowRunningInBackground(task);
 }
 
 function isHomeActionRequired(novel: HomeNovelItem): boolean {
   if (isHomeV2Novel(novel)) return ["paused", "waiting_gate", "failed"].includes(novel.bookProgress?.director?.status ?? "");
   const task = getHomeNovelTask(novel);
-  return Boolean(task?.pendingManualRecovery) || isWorkflowActionRequired(task);
+  return getNovelWorkflowAttention(task) === "recovery" || isWorkflowActionRequired(task);
 }
 
 export function getHomeNovelActionHref(novel: HomeNovelItem): string | null {
@@ -113,7 +113,7 @@ export function formatHomeDate(value: string | undefined): string {
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
   if (isHomeV2Novel(novel)) return isHomeActionRequired(novel) ? 0 : isHomeRunning(novel) ? 3 : canHomeWrite(novel) ? 4 : 6;
   const task = getHomeNovelTask(novel);
-  if (task?.pendingManualRecovery || canContinueChapterBatchAutoExecution(task)) {
+  if (getNovelWorkflowAttention(task) === "recovery" || canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
   if (requiresCandidateSelection(task)) {
@@ -198,7 +198,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
       tone: task?.status === "succeeded" ? "success" : "info",
     };
   }
-  if (task?.pendingManualRecovery || canContinueChapterBatchAutoExecution(task)) {
+  if (getNovelWorkflowAttention(task) === "recovery" || canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
@@ -323,7 +323,7 @@ export function buildHomeAttentionItems(
     const task = getHomeNovelTask(novel);
     const status = isHomeV2Novel(novel) ? novel.bookProgress?.director?.status : task?.status;
     const to = getHomeNovelActionHref(novel);
-    const description = !task?.pendingManualRecovery && (status === "waiting_gate" || status === "waiting_approval")
+    const description = status === "waiting_gate" || getNovelWorkflowAttention(task) === "confirmation"
       ? "等待确认本阶段结果"
       : status === "failed" ? "创作中断，打开作品查看恢复方式"
         : status === "cancelled" ? "本次创作已取消" : "创作已暂停，打开作品查看暂停原因";

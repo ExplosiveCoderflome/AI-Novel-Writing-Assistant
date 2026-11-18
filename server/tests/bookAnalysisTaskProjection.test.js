@@ -86,7 +86,13 @@ test("BookAnalysisCommandService retries a historical empty success and resets i
     return { status: "succeeded", sections: [emptySection] };
   };
   prisma.$transaction = async (callback) => callback({
-    bookAnalysis: { update: async (input) => input },
+    bookAnalysis: {
+      updateMany: async ({ where, data }) => {
+        assert.deepEqual(where, { id: "analysis-empty", status: "succeeded" });
+        assert.equal(data.status, "queued");
+        return { count: 1 };
+      },
+    },
     bookAnalysisSection: {
       updateMany: async (input) => {
         sectionUpdates.push(input);

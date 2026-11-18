@@ -18,6 +18,15 @@ export interface NovelWorkspaceEntry {
   workspaceSourceRoute?: string | null;
 }
 
+export function getNovelWorkflowAttention(
+  task?: NovelAutoDirectorTaskSummary | null,
+): "recovery" | "confirmation" | null {
+  if (task?.pendingManualRecovery) {
+    return "recovery";
+  }
+  return task?.status === "waiting_approval" ? "confirmation" : null;
+}
+
 export type NovelListItem = Pick<
   Novel,
   | "id"
