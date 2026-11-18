@@ -168,3 +168,33 @@ test("workspace analysis prompt resolves inventory through context broker", asyn
   assert.deepEqual(resolved.blocks.map((block) => block.group), ["workspace_inventory"]);
   assert.match(resolved.blocks[0].content, /"novelId": "novel-1"/);
 });
+
+test("the runtime applies the asset budget after merging broker and fallback blocks", async () => {
+  const { ContextBroker } = require("../dist/prompting/context/ContextBroker");
+  const { ContextResolverRegistry } = require("../dist/prompting/context/ContextResolverRegistry");
+  const { createContextBlock } = require("../dist/prompting/core/contextBudget");
+  const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
+  const block = (id, group, priority, text) =>
+    createContextBlock({ id, group, priority, content: text, allowSummary: false });
+  const history = block("retrieval", "rag_context", 100, "优先级较高的检索参考");
+  const recent = block("recent", "recent_chapters", 10, "最近关键事实");
+  const fallback = block("saved", "state_snapshot", 60, "必须保留的状态");
+  const registry = new ContextResolverRegistry()
+    .register({ group: history.group, resolve: () => history })
+    .register({ group: recent.group, resolve: () => recent });
+  const asset = { ...chapterWriterPrompt, contextPolicy: { maxTokensBudget: 4,
+    requiredGroups: ["state_snapshot"], preferredGroups: ["recent_chapters"] } };
+  const input = {
+    asset,
+    executionContext: { entrypoint: "chapter_pipeline" },
+    requirements: [{ group: history.group, priority: 100 }, { group: recent.group, priority: 10 }],
+    broker: new ContextBroker(registry),
+    fallbackBlocks: [fallback],
+  };
+  const { blocks } = await resolvePromptContextBlocksForAsset(input);
+  const selected = selectContextBlocks(blocks, asset.contextPolicy);
+  assert.deepEqual(selected.selectedBlocks.map(block => block.id), ["saved", "recent"]);
+  assert.deepEqual(selected.droppedBlockIds, ["retrieval"]);
+  const capped = await resolvePromptContextBlocksForAsset({ ...input, maxTokensBudget: 3 });
+  assert.deepEqual(capped.brokerResolution.selectedBlockIds, ["retrieval"], "an explicit resolver cap still applies");
+});

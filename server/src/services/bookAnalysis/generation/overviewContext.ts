@@ -1,3 +1,4 @@
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import type { BookAnalysisOverviewContext, SectionGenerationResult } from "../shared/bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
@@ -18,8 +19,12 @@ function readStructuredStringArray(value: unknown): string[] {
     .filter(Boolean);
 }
 
-export function buildOverviewContext(generated: SectionGenerationResult): BookAnalysisOverviewContext | null {
-  return buildOverviewContextFromData(generated.markdown, generated.structuredData);
+export function buildOverviewContext(
+  generated: SectionGenerationResult,
+  editedContent: string | null,
+): BookAnalysisOverviewContext | null {
+  const manualContent = getManualBookAnalysisContent({ editedContent, aiContent: generated.markdown });
+  return buildOverviewContextFromData(manualContent ?? generated.markdown, manualContent ? null : generated.structuredData);
 }
 
 export function buildOverviewContextFromSection(section: {
@@ -32,7 +37,7 @@ export function buildOverviewContextFromSection(section: {
   }
   return buildOverviewContextFromData(
     getEffectiveContent(section),
-    decodeStructuredData(section.structuredDataJson),
+    getManualBookAnalysisContent(section) ? null : decodeStructuredData(section.structuredDataJson),
   );
 }
 

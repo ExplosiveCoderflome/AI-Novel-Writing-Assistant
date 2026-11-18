@@ -17,6 +17,7 @@ import {
 import { DocumentChapterService } from "../../knowledge/DocumentChapterService";
 import { BookAnalysisBudgetGuard } from "../caching/bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
+import { buildBookAnalysisSourceScope } from "../generation/sourceScope";
 import { runWithConcurrency } from "../infrastructure/bookAnalysis.concurrent";
 import {
   getBookAnalysisAppearanceChapterConcurrency,
@@ -525,13 +526,16 @@ export class BookAnalysisCharacterAppearanceService {
     const model = analysis.model ?? undefined;
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
+    const sourceScope = buildBookAnalysisSourceScope(analysis);
     const notesResult = await this.sourceCache.getOrBuildSourceNotes({
+      analysisId,
       documentVersionId: analysis.documentVersionId,
-      content: analysis.documentVersion.content,
+      content: sourceScope.content,
       provider,
       model,
       temperature,
       sectionMaxTokens: maxTokens,
+      sourceScopeKey: sourceScope.sourceScopeKey,
     });
     return {
       documentId: analysis.documentId,

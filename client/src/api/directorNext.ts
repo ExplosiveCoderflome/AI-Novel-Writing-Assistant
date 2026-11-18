@@ -11,7 +11,7 @@ export interface DirectorReviewContext {
   type:string;novelId:string;runId:string;controlVersion:number;
   from?:number;to?:number;chapterId?:string;volumeId?:string;
 }
-export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"> & {
+export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"bookCompletion"> & {
   outlineBinding?:import("@ai-novel/shared/types/outlineOpenBook").OutlineBookBindingView;
   outlinePreparation?:{storyMacro:import("@ai-novel/shared/types/storyMacro").StoryMacroPlan|null;hasBookContract:boolean;worldMode?:"generate"|"reuse"|"skip"};
   materials:DirectorWorkspaceMaterials;

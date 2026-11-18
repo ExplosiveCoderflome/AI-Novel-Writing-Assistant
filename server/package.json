@@ -12,11 +12,11 @@
     "src/prisma/schema.sqlite.prisma"
   ],
   "prisma": {
-    "seed": "ts-node-dev --transpile-only src/db/seed.ts"
+    "seed": "tsx src/db/seed.ts"
   },
   "scripts": {
     "dev": "pnpm run dev:api",
-    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && ts-node-dev --respawn --transpile-only src/app.ts",
+    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && tsx watch --clear-screen=false src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "start:api": "node dist/app.js",
@@ -79,7 +79,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.3.3",
     "prisma": "^7.4.2",
-    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "yauzl": "^3.2.0"
   }

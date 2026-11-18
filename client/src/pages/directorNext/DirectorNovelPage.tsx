@@ -17,6 +17,7 @@ import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow, useWorkspaceActivity } from "./generation";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 import { DirectorChapterEditor, DirectorChapterPlanEditor } from "./workspace/editing";
+import NovelBookDeliveryActions from "@/pages/novels/components/NovelBookDeliveryActions";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
   const { novelId: routeNovelId = "" } = useParams();
@@ -75,6 +76,9 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
           {!preview ? <Button asChild variant="ghost"><Link to={`/novels/${encodeURIComponent(novelId)}/ai-usage`}>AI 用量</Link></Button> : null}
         </div>
       </header>
+      {!preview && !bookQuery.isError && book?.bookCompletion?.status === "completed" ? (
+        <NovelBookDeliveryActions novelId={novelId} title={book.novel.title} completion={book.bookCompletion} />
+      ) : null}
       {book?.outlineBinding ? <OutlineBookSource binding={book.outlineBinding}/> : null}
       {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}
       {preview ? <details className="rounded-md bg-muted/30 px-4 py-3"><summary className="cursor-pointer text-xs text-muted-foreground">示例预览 · 切换导演状态</summary><p className="mt-3 text-xs text-muted-foreground">本页使用示例内容，创作命令禁用。</p><div className="mt-3 flex flex-wrap gap-2">{previewStates.map((state) => <Button key={state.id} size="sm" variant={(params.get("state") ?? "running") === state.id ? "default" : "ghost"} onClick={() => setParams({ state: state.id })}>{state.label}</Button>)}</div></details> : null}

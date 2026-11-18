@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { BookAnalysisBudgetExceededError, BookAnalysisBudgetGuard } from "./caching/bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "./caching/bookAnalysis.cache";
+import { isEmptySucceededBookAnalysisSection } from "./shared/bookAnalysis.status";
 import { getBookAnalysisSectionConcurrency } from "./shared/bookAnalysis.config";
 import { runWithConcurrency } from "./infrastructure/bookAnalysis.concurrent";
 import {
@@ -91,7 +92,8 @@ export class BookAnalysisGenerationService {
       return;
     }
 
-    const activeSections = analysis.sections.filter((section) => !section.frozen);
+    const activeSections = analysis.sections.filter((section) => !section.frozen
+      && (section.status !== "succeeded" || isEmptySucceededBookAnalysisSection(section)));
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
       data: {
@@ -139,7 +141,6 @@ export class BookAnalysisGenerationService {
 
         let completedSections = 0;
         const errors: string[] = [];
-        let summary = analysis.summary;
 
         const overviewSection = activeSections.find((section) => section.sectionKey === "overview");
         const remainingSections = overviewSection
@@ -148,7 +149,10 @@ export class BookAnalysisGenerationService {
         const overviewProgressEnd = overviewSection
           ? getOverviewProgressEnd(activeSections.length)
           : getSectionStageProgress(0, activeSections.length);
-        let overviewContext: BookAnalysisOverviewContext | null = null;
+        const savedOverview = analysis.sections.find((section) => section.sectionKey === "overview");
+        let overviewContext: BookAnalysisOverviewContext | null = overviewSection
+          ? null
+          : buildOverviewContextFromSection(savedOverview);
 
         if (overviewSection) {
           await ensureNotCancelled(analysisId);
@@ -172,6 +176,7 @@ export class BookAnalysisGenerationService {
           });
 
           try {
+            await budgetGuard.assertCanDispatch();
             const generated = await this.sectionWriter.generateSection(
               "overview",
               notes,
@@ -191,9 +196,7 @@ export class BookAnalysisGenerationService {
               documentChapters,
               analysis.documentVersion.content,
             );
-            overviewContext = buildOverviewContext(generated);
-
-            await prisma.bookAnalysisSection.update({
+            const savedSection = await prisma.bookAnalysisSection.update({
               where: {
                 analysisId_sectionKey: {
                   analysisId,
@@ -209,7 +212,16 @@ export class BookAnalysisGenerationService {
               },
             });
 
-            summary = buildAnalysisSummaryFromContent(generated.markdown);
+            overviewContext = buildOverviewContext(generated, savedSection.editedContent);
+            await prisma.bookAnalysis.update({
+              where: { id: analysisId },
+              data: {
+                summary: buildAnalysisSummaryFromContent(getEffectiveContent({
+                  aiContent: generated.markdown,
+                  editedContent: savedSection.editedContent,
+                })),
+              },
+            });
             await budgetGuard.onSectionFinished(generated.tokenUsage);
           } catch (error) {
             if (isAnalysisCancelled(error) || error instanceof BookAnalysisBudgetExceededError) {
@@ -268,6 +280,7 @@ export class BookAnalysisGenerationService {
           });
 
           try {
+            await budgetGuard.assertCanDispatch();
             const generated = await this.sectionWriter.generateSection(
               section.sectionKey as BookAnalysisSectionKey,
               notes,
@@ -342,7 +355,6 @@ export class BookAnalysisGenerationService {
           data: {
             status: errors.length > 0 ? "failed" : "succeeded",
             progress: 1,
-            summary,
             lastError: errors.length > 0 ? errors.join(" | ") : null,
             heartbeatAt: null,
             currentStage: null,
@@ -445,6 +457,7 @@ export class BookAnalysisGenerationService {
           ? null
           : buildOverviewContextFromSection(analysis.sections.find((item) => item.sectionKey === "overview"));
 
+        await budgetGuard.assertCanDispatch();
         const generated = await this.sectionWriter.generateSection(
           sectionKey,
           notes,
@@ -493,22 +506,16 @@ export class BookAnalysisGenerationService {
             aiContent: true,
           },
         });
-        const overview =
-          sectionKey === "overview"
-            ? generated.markdown
-            : getEffectiveContent(
-                sectionStatuses.find((item) => item.sectionKey === "overview") ?? {
-                  aiContent: null,
-                  editedContent: null,
-                },
-              );
+        const overview = sectionStatuses.find((item) => item.sectionKey === "overview");
 
         await prisma.bookAnalysis.update({
           where: { id: analysisId },
           data: {
             status: sectionStatuses.some((item) => !item.frozen && item.status === "failed") ? "failed" : "succeeded",
             progress: 1,
-            summary: buildAnalysisSummaryFromContent(overview),
+            ...(sectionKey === "overview" && overview
+              ? { summary: buildAnalysisSummaryFromContent(getEffectiveContent(overview)) }
+              : {}),
             lastError: null,
             heartbeatAt: null,
             currentStage: null,

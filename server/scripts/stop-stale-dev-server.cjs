@@ -1,7 +1,7 @@
 const { execFileSync } = require("child_process");
 const path = require("path");
 
-const repoRoot = path.resolve(__dirname, "..", "..").toLowerCase();
+const repoRoot = normalizeCommandLine(path.resolve(__dirname, "..", ".."));
 const currentPid = process.pid;
 const parentPid = process.ppid;
 const optOut = String(process.env.AI_NOVEL_SKIP_DEV_SINGLETON || "").trim();
@@ -24,14 +24,14 @@ function isTargetProcess(processInfo) {
   }
 
   const commandLine = normalizeCommandLine(processInfo.CommandLine);
-  if (!commandLine.includes(repoRoot.replace(/\\/g, "/"))) {
+  if (!commandLine.includes(`${repoRoot}/`) || !/(?:^|[\s"/])src\/app\.ts(?:[\s"]|$)/.test(commandLine)) {
     return false;
   }
 
-  return (
-    commandLine.includes("ts-node-dev")
-    && commandLine.includes("src/app.ts")
-  );
+  // Match both the watcher and the Node child it starts on Windows.
+  const usesTsx = /\/tsx\/dist\/(?:cli\.mjs|preflight\.cjs)(?:[\s"]|$)/.test(commandLine);
+  const usesLegacyRunner = commandLine.includes("ts-node-dev");
+  return usesTsx || usesLegacyRunner;
 }
 
 function readWindowsNodeProcesses() {

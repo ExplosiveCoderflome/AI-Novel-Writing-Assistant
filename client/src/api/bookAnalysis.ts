@@ -62,8 +62,8 @@ export async function createBookAnalysis(payload: {
   return data;
 }
 
-export async function rebuildBookAnalysis(id: string) {
-  const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}/rebuild`, {});
+export async function rebuildBookAnalysis(id: string, regenerateCompleted?: boolean) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}/rebuild`, { regenerateCompleted });
   return data;
 }
 

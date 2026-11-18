@@ -19,9 +19,9 @@ before(async () => {
     import {queryKeys} from './src/api/queryKeys';
     import * as model from './src/pages/home/homeViewModel';
     export {model};
-    export function render(novel) {
+    export function render(...novels) {
       const client=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});
-      client.setQueryData(queryKeys.novels.list(1,model.HOME_NOVEL_FETCH_LIMIT),{success:true,data:{items:[novel]}});
+      client.setQueryData(queryKeys.novels.list(1,model.HOME_NOVEL_FETCH_LIMIT),{success:true,data:{items:novels}});
       client.setQueryData(queryKeys.tasks.overview,{success:true,data:{}});
       try{return renderToStaticMarkup(<QueryClientProvider client={client}><MemoryRouter><Home/></MemoryRouter></QueryClientProvider>).replace(/<!--.*?-->/g,'').replace(/src="data:[^"]*"/g,'src="test-cover"');}
       finally{client.clear();}
@@ -69,6 +69,19 @@ test('unknown V2 source cannot fall back to the old editor and unknown targets d
   assert.match(html, /确定全书目标/);
 });
 
+test('a second interrupted book links to its own director instead of disappearing behind the featured book', () => {
+  const second = {...book('waiting_gate'), id: 'second', title: '第二本书', workspaceSourceRoute: '/lab/director/second'};
+  const stale = {...book('failed'), id: 'stale', title: '入口待刷新', workspaceSourceRoute: '/lab/director/other'};
+  const completed = {...book(), id: 'completed', title: '第三本书', workspaceSourceRoute: '/lab/director/completed'};
+  const html = render(book('paused'), second, stale, completed);
+  assert.match(html, /创作提醒/);
+  assert.match(html, /第二本书/);
+  assert.match(html, /等待确认本阶段结果/);
+  assert.match(html, /href="\/lab\/director\/second"/);
+  assert.match(html, /入口待刷新/);
+  assert.doesNotMatch(html, /\/lab\/director\/other|\/novels\/stale\/edit|第三本书/);
+});
+
 test('V1 and short stories preserve their own workspace and progress paths', () => {
   const v1 = {...book(), directorVersion: 'v1', workspaceSourceRoute: '/novels/novel/edit'};
   assert.equal(model.getHomeNovelTask(v1), v1.latestAutoDirectorTask);
@@ -80,4 +93,14 @@ test('V1 and short stories preserve their own workspace and progress paths', () 
   const shortHtml = render(short);
   assert.match(shortHtml, /href="\/novels\/novel\/story"/);
   assert.doesNotMatch(shortHtml, /打开导演台|重新读取创作入口/);
+});
+
+test('a V1 job that is still marked running but requires manual recovery links to its shelf', () => {
+  const novel = {...book(), id: 'legacy', title: '旧书', directorVersion: 'v1', creationExperience: 'simple',
+    workspaceSourceRoute: '/novels/legacy/simple',
+    latestAutoDirectorTask: {id: 'legacy-task', status: 'running', pendingManualRecovery: true, progress: 0.5}};
+  const html = render(book('paused'), novel);
+  assert.match(html, /旧书/);
+  assert.match(html, /href="\/novels\/legacy\/simple"/);
+  assert.equal(model.buildHomeMetrics({novels: [novel]}).find(metric => metric.id === 'running').value, 0);
 });

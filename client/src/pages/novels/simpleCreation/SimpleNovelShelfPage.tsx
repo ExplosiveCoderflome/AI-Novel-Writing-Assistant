@@ -8,7 +8,6 @@ import {
   BookOpenText,
   CheckCircle2,
   Clock3,
-  Download,
   Eye,
   FileText,
   Loader2,
@@ -20,7 +19,6 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import type { ChapterQualityDebtDetails, ChapterQualityDebtSource } from "@ai-novel/shared/types/chapterQualityLoop";
 import type { SimpleCreationShelfChapterStatus } from "@ai-novel/shared/types/novel";
 import {
-  downloadNovelExport,
   getSimpleCreationShelf,
   setNovelCreationExperience,
 } from "@/api/novel";
@@ -34,6 +32,7 @@ import { toast } from "@/components/ui/toast";
 import SimpleCreationMaterialsPanel from "./SimpleCreationMaterialsPanel";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
 import SimpleCreationIssueGovernancePanel from "./SimpleCreationIssueGovernancePanel";
+import NovelBookDeliveryActions from "../components/NovelBookDeliveryActions";
 
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
   waiting_planning: "等待规划",
@@ -72,17 +71,6 @@ function formatQualityDebtTime(value: string | null): string {
   return Number.isNaN(date.getTime())
     ? "时间未记录"
     : date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
 }
 
 function formatUpdatedAt(value: string): string {
@@ -143,12 +131,6 @@ export default function SimpleNovelShelfPage() {
     }
   }, [id, navigate, shelf?.novel.creationExperience]);
 
-  const exportMutation = useMutation({
-    mutationFn: () => downloadNovelExport(id, "txt", "chapter", shelf?.novel.title),
-    onSuccess: ({ blob, fileName }) => saveBlob(blob, fileName),
-    onError: () => toast.error("导出失败，请稍后重试。"),
-  });
-
   const retryMutation = useMutation({
     mutationFn: async () => {
       const directorTaskId = shelf?.progress.directorTaskId;
@@ -184,6 +166,13 @@ export default function SimpleNovelShelfPage() {
   const savedDraftCount = readableChapters.length;
   const stableChapterCount = shelf.progress.completedChapters;
   const totalChapterCount = shelf.progress.totalChapters || shelf.chapters.length;
+  const interruption = shelf.progress.interruption;
+  const interruptionTitle = interruption && {
+    replan: "后续章节需要重新规划",
+    failed: "创作中断",
+    waiting_confirmation: "等待确认后继续",
+    paused: "创作已暂停",
+  }[interruption.kind];
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -212,7 +201,7 @@ export default function SimpleNovelShelfPage() {
 
               <div className="w-full rounded-2xl border border-border/80 bg-background/80 p-4 shadow-sm xl:max-w-sm">
                 <div className="flex items-center justify-between gap-3 text-sm text-foreground">
-                  <span className="text-muted-foreground">全书生产进度</span>
+                  <span className="text-muted-foreground">本次创作进度</span>
                   <span className="font-semibold">{shelf.progress.percent}%</span>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -246,13 +235,16 @@ export default function SimpleNovelShelfPage() {
               </Button>
             ) : null}
             <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}><Download className="h-4 w-4" /> 导出已完成章节</Button>
+            <NovelBookDeliveryActions novelId={id} title={shelf.novel.title} completion={shelf.bookCompletion} allowDraftExport />
             <Button variant="ghost" size="sm" onClick={() => switchExperienceMutation.mutate()} disabled={switchExperienceMutation.isPending}><Settings2 className="h-4 w-4" /> 专业模式</Button>
           </div>
-          {shelf.progress.safetyMessage ? (
+          {interruption ? (
             <div className="flex items-start gap-3 border-t border-amber-200 bg-amber-50 px-5 py-3 text-sm leading-6 text-amber-950 sm:px-7">
               <AlertTriangle className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
-              <div><div className="font-medium">AI 已暂停以保护作品</div><div className="text-amber-900/75">{shelf.progress.safetyMessage}</div></div>
+              <div>
+                <div className="font-medium">{interruptionTitle}</div>
+                {interruption.detail ? <div className="text-amber-900/75">{interruption.detail}</div> : null}
+              </div>
             </div>
           ) : null}
         </header>

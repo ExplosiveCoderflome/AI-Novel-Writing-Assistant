@@ -92,6 +92,7 @@ export class BookAnalysisSectionWriter {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    onTokenUsage?: (usage: LlmTokenUsageSnapshot | null | undefined) => Promise<void>;
   }): Promise<string> {
     const notesText = renderNotesForPrompt(
       selectNotesForBookAnalysisSection(input.sectionKey, input.notes),
@@ -114,6 +115,7 @@ export class BookAnalysisSectionWriter {
         maxTokens: normalizeMaxTokens(input.maxTokens),
       },
     });
+    await input.onTokenUsage?.(result.meta?.tokenUsage);
     const parsed = result.output;
     const optimizedDraft = typeof (parsed as any).optimizedDraft === "string"
       ? (parsed as any).optimizedDraft.trim()

@@ -176,6 +176,48 @@ test("buildSourceSegments recognizes Chinese chapter headings before falling bac
   assert.equal(segments[2].label, "第三章 山场围猎");
 });
 
+test("buildSourceSegments retains the beginning and end of a long input that fits", () => {
+  const input = "开始" + "甲".repeat(149_996) + "结尾";
+  const segments = buildSourceSegments(input);
+
+  assert.ok(segments.length <= 12);
+  assert.ok(segments.every(({ content }) => content.length <= 16_000));
+  assert.ok(segments[0].content.startsWith("开始"));
+  assert.ok(segments.at(-1).content.endsWith("结尾"));
+});
+
+test("buildSourceSegments retains prefaces and short chapters within bounded segments", () => {
+  const input = [
+    "原文引言",
+    "第一章 雪夜摸排", "正文".repeat(80),
+    "第二章 过桥", "短章伏笔",
+    "第三章 山场围猎", "正文".repeat(80),
+    "第四章 回山", "正文".repeat(80),
+  ].join("\n");
+
+  const text = buildSourceSegments(input).map(({ content }) => content).join("\n");
+  assert.equal(text, input);
+});
+
+test("buildSourceSegments splits oversized chapters without dropping their tail", () => {
+  const input = [
+    "第一章 雪夜摸排", "甲".repeat(30_000),
+    "第二章 卧底试探", "乙".repeat(30_000),
+    "第三章 山场围猎", "丙".repeat(30_000) + "全书末尾",
+  ].join("\n");
+  const segments = buildSourceSegments(input);
+
+  assert.ok(segments.every(({ content }) => content.length <= 16_000));
+  assert.ok(segments.at(-1).content.endsWith("全书末尾"));
+});
+
+test("buildSourceSegments rejects input beyond one run instead of treating a prefix as the whole source", () => {
+  assert.throws(() => buildSourceSegments("正文".repeat(100_000)), {
+    statusCode: 400,
+    message: /缩小.*范围/,
+  });
+});
+
 test("selectNotesForBookAnalysisSection keeps section prompts focused on relevant note signals", () => {
   const notes = [
     {
@@ -1707,7 +1749,7 @@ test("BookAnalysisQueryService listAnalyses filters by selected document", async
 
 test("BookAnalysisSourceCacheService persists notes and reuses cache hits", async () => {
   const original = {
-    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    findMany: prisma.bookAnalysisSourceCache.findMany,
     upsert: prisma.bookAnalysisSourceCache.upsert,
   };
 
@@ -1737,9 +1779,10 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
     };
   };
 
-  prisma.bookAnalysisSourceCache.findUnique = async ({ where }) => {
-    const key = where.documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion;
-    return cacheRows.find((row) => matchCacheIdentity(row, key)) ?? null;
+  prisma.bookAnalysisSourceCache.findMany = async ({ where }) => {
+    const { sourceScopeKey, ...identity } = where;
+    return cacheRows.filter((row) => sourceScopeKey.in.includes(row.sourceScopeKey)
+      && matchCacheIdentity(row, { ...identity, sourceScopeKey: row.sourceScopeKey }));
   };
 
   prisma.bookAnalysisSourceCache.upsert = async ({ where, create, update }) => {
@@ -1805,7 +1848,7 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
     assert.equal(callCounts.runStructuredPrompt, 3);
     assert.equal(cacheRows.length, 3);
   } finally {
-    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.findMany = original.findMany;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
@@ -1813,7 +1856,7 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
 
 test("BookAnalysisSourceCacheService propagates source-note prompt failures without caching fallback notes", async () => {
   const original = {
-    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    findMany: prisma.bookAnalysisSourceCache.findMany,
     upsert: prisma.bookAnalysisSourceCache.upsert,
   };
   const promptRunner = require("../dist/prompting/core/promptRunner.js");
@@ -1824,7 +1867,7 @@ test("BookAnalysisSourceCacheService propagates source-note prompt failures with
   promptRunner.runStructuredPrompt = async () => {
     throw promptError;
   };
-  prisma.bookAnalysisSourceCache.findUnique = async () => null;
+  prisma.bookAnalysisSourceCache.findMany = async () => [];
   prisma.bookAnalysisSourceCache.upsert = async () => {
     upsertCalls += 1;
     throw new Error("source-note cache must not be written after prompt failure");
@@ -1846,7 +1889,7 @@ test("BookAnalysisSourceCacheService propagates source-note prompt failures with
     );
     assert.equal(upsertCalls, 0);
   } finally {
-    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.findMany = original.findMany;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
@@ -1854,7 +1897,7 @@ test("BookAnalysisSourceCacheService propagates source-note prompt failures with
 
 test("BookAnalysisSourceCacheService rebuilds legacy fallback-only notes instead of reusing polluted cache", async () => {
   const original = {
-    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    findMany: prisma.bookAnalysisSourceCache.findMany,
     upsert: prisma.bookAnalysisSourceCache.upsert,
   };
   const promptRunner = require("../dist/prompting/core/promptRunner.js");
@@ -1864,8 +1907,9 @@ test("BookAnalysisSourceCacheService rebuilds legacy fallback-only notes instead
   let promptCalls = 0;
   let upsertCalls = 0;
 
-  prisma.bookAnalysisSourceCache.findUnique = async () => ({
+  prisma.bookAnalysisSourceCache.findMany = async () => [{
     id: "legacy-fallback-cache",
+    sourceScopeKey: "full",
     segmentCount: segments.length,
     notesJson: JSON.stringify(segments.map((segment) => ({
       sourceLabel: segment.label,
@@ -1881,7 +1925,7 @@ test("BookAnalysisSourceCacheService rebuilds legacy fallback-only notes instead
       weaknessSignals: [],
       evidence: [],
     }))),
-  });
+  }];
   prisma.bookAnalysisSourceCache.upsert = async (input) => {
     upsertCalls += 1;
     return input.update;
@@ -1921,7 +1965,7 @@ test("BookAnalysisSourceCacheService rebuilds legacy fallback-only notes instead
     assert.equal(upsertCalls, 1);
     assert.equal(result.notes[0].summary, "重新生成的有效笔记");
   } finally {
-    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.findMany = original.findMany;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
@@ -1970,7 +2014,7 @@ test("BookAnalysisSectionWriter propagates section prompt failures instead of re
 
 test("BookAnalysisSourceCacheService preserves reader and weakness signals from source-note output", async () => {
   const original = {
-    findUnique: prisma.bookAnalysisSourceCache.findUnique,
+    findMany: prisma.bookAnalysisSourceCache.findMany,
     upsert: prisma.bookAnalysisSourceCache.upsert,
   };
   const promptRunner = require("../dist/prompting/core/promptRunner.js");
@@ -1993,7 +2037,7 @@ test("BookAnalysisSourceCacheService preserves reader and weakness signals from 
     repairUsed: false,
   });
 
-  prisma.bookAnalysisSourceCache.findUnique = async () => null;
+  prisma.bookAnalysisSourceCache.findMany = async () => [];
   prisma.bookAnalysisSourceCache.upsert = async ({ create }) => ({
     id: "cache-1",
     ...create,
@@ -2016,7 +2060,7 @@ test("BookAnalysisSourceCacheService preserves reader and weakness signals from 
     assert.deepEqual(result.notes[0].readerSignals, ["智斗爽点明确"]);
     assert.deepEqual(result.notes[0].weaknessSignals, ["对白口号感偏强"]);
   } finally {
-    prisma.bookAnalysisSourceCache.findUnique = original.findUnique;
+    prisma.bookAnalysisSourceCache.findMany = original.findMany;
     prisma.bookAnalysisSourceCache.upsert = original.upsert;
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
@@ -2259,6 +2303,45 @@ test("BookAnalysisGenerationService does not mark an empty section payload as su
     prisma.bookAnalysisSection.update = original.sectionUpdate;
     prisma.bookAnalysisSection.findMany = original.sectionFindMany;
   }
+});
+
+test("BookAnalysisGenerationService resumes unfinished sections using the saved overview", async (t) => {
+  const calls = [];
+  const sections = [
+    { sectionKey: "overview", title: "总览", status: "succeeded", frozen: false, aiContent: "已保存的总览", editedContent: null, structuredDataJson: '{"oneLinePositioning":"原有定位"}' },
+    { sectionKey: "plot_structure", title: "剧情", status: "idle", frozen: false },
+    { sectionKey: "timeline", title: "时间线", status: "succeeded", frozen: false, aiContent: null, editedContent: null, structuredDataJson: null },
+    { sectionKey: "worldbuilding", title: "世界观", status: "idle", frozen: true },
+  ];
+  const { findUnique, update, updateMany } = prisma.bookAnalysis;
+  const originalSectionUpdate = prisma.bookAnalysisSection.update;
+  t.after(() => {
+    Object.assign(prisma.bookAnalysis, { findUnique, update, updateMany });
+    prisma.bookAnalysisSection.update = originalSectionUpdate;
+  });
+  prisma.bookAnalysis.findUnique = async (input) => input.include
+    ? { id: "resume", status: "queued", documentVersionId: "v1", documentVersion: { content: "正文" }, sections }
+    : { status: "running", cancelRequestedAt: null };
+  prisma.bookAnalysis.update = async (input) => input;
+  prisma.bookAnalysis.updateMany = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => input;
+  const service = new BookAnalysisGenerationService(
+    { getOrBuildSourceNotes: async () => ({ notes: [], segmentCount: 1, cacheHit: true }) },
+    {
+      generateSection: async (key, _notes, _provider, _model, _temperature, _maxTokens, context) => {
+        calls.push({ key, overview: context.overviewContext?.oneLinePositioning });
+        return { markdown: "已生成的正文", structuredData: {}, normalizationWarnings: [], evidence: [] };
+      },
+    },
+    createNoopDocumentChapterService(),
+  );
+
+  await service.runFullAnalysis("resume");
+
+  assert.deepEqual(calls, [
+    { key: "plot_structure", overview: "原有定位" },
+    { key: "timeline", overview: "原有定位" },
+  ]);
 });
 
 test("BookAnalysisGenerationService runFullAnalysis keeps old flow when overview is not enabled", async () => {
@@ -2730,9 +2813,38 @@ test("BookAnalysisGenerationService runSingleSection injects persisted overview 
   }
 });
 
+test("BookAnalysisCommandService rejects an oversized source before creating a task", async (t) => {
+  const originalDocument = prisma.knowledgeDocument.findUnique;
+  const originalVersion = prisma.knowledgeDocumentVersion.findUnique;
+  const originalTransaction = prisma.$transaction;
+  t.after(() => {
+    prisma.knowledgeDocument.findUnique = originalDocument;
+    prisma.knowledgeDocumentVersion.findUnique = originalVersion;
+    prisma.$transaction = originalTransaction;
+  });
+  prisma.knowledgeDocument.findUnique = async () => ({
+    id: "document-1",
+    status: "enabled",
+    activeVersionId: "version-1",
+    versions: [{ id: "version-1", versionNumber: 1 }],
+  });
+  prisma.knowledgeDocumentVersion.findUnique = async () => ({ content: "正文".repeat(100_000) });
+  const transaction = t.mock.fn(async () => "unexpected-analysis");
+  prisma.$transaction = transaction;
+  const enqueue = t.mock.method(BookAnalysisTaskQueue.prototype, "enqueue", () => {});
+  const service = new BookAnalysisCommandService({
+    getAnalysisById: async () => ({ id: "unexpected-analysis", sections: [] }),
+  });
+
+  await assert.rejects(() => service.createAnalysis({ documentId: "document-1" }), { statusCode: 400 });
+  assert.equal(transaction.mock.callCount(), 0);
+  assert.equal(enqueue.mock.callCount(), 0);
+});
+
 test("BookAnalysisCommandService createAnalysis freezes sections outside enabledSectionKeys", async () => {
   const originalTransaction = prisma.$transaction;
   const originalFindUnique = prisma.knowledgeDocument.findUnique;
+  const originalVersionFindUnique = prisma.knowledgeDocumentVersion.findUnique;
   const originalEnqueue = BookAnalysisTaskQueue.prototype.enqueue;
   let createdAnalysis = null;
   let createdSections = [];
@@ -2769,6 +2881,7 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
     title: "测试文档",
     versions: [{ id: "version-1", versionNumber: 1 }],
   });
+  prisma.knowledgeDocumentVersion.findUnique = async () => ({ content: "拆书测试原文" });
   BookAnalysisTaskQueue.prototype.enqueue = () => {};
 
   const service = new BookAnalysisCommandService({
@@ -2801,6 +2914,7 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
   } finally {
     prisma.$transaction = originalTransaction;
     prisma.knowledgeDocument.findUnique = originalFindUnique;
+    prisma.knowledgeDocumentVersion.findUnique = originalVersionFindUnique;
     BookAnalysisTaskQueue.prototype.enqueue = originalEnqueue;
   }
 });
@@ -2889,6 +3003,49 @@ test("buildBookAnalysisRagPreChunks turns structured fields into facet chunks", 
   assert.deepEqual(sellingChunk.facets.chapterAnchor, ["2"]);
   assert.equal(sellingChunk.anchor.chapterIndex, 2);
   assert.match(sellingChunk.chunkText, /他摘下面具/);
+});
+
+test("publishing uses the saved edit without generated conclusions or evidence for that section", () => {
+  const editedSection = {
+    sectionKey: "overview",
+    title: "拆书总览",
+    aiContent: "旧正文",
+    editedContent: "主角在庭审中公开证据。",
+    structuredData: { genreTags: ["旧题材"] },
+    evidence: [{ label: "旧证据", excerpt: "旧摘录", sourceLabel: "片段 3", fieldKey: "genreTags" }],
+  };
+  const detail = {
+    title: "测试拆书",
+    sections: [editedSection, {
+      sectionKey: "plot_structure",
+      title: "剧情结构",
+      structuredData: { reusablePatterns: ["保留未编辑小节的套路"] },
+      evidence: [],
+    }, {
+      sectionKey: "themes",
+      title: "主题表达",
+      aiContent: "仅有正文的主题小节。",
+      evidence: [],
+    }],
+  };
+
+  const published = buildPublishMarkdown(detail, "2026-11-18T00:00:00Z");
+  assert.match(published.content, /主角在庭审中公开证据/);
+  assert.doesNotMatch(published.content, /旧正文|旧题材|旧证据|旧摘录/);
+  assert.match(published.content, /保留未编辑小节的套路/);
+
+  const chunks = buildBookAnalysisRagPreChunks(detail);
+  const overviewChunks = chunks.filter((chunk) => chunk.anchor.sectionKey === "overview");
+  assert.equal(overviewChunks.length, 1);
+  assert.match(overviewChunks[0].chunkText, /主角在庭审中公开证据/);
+  assert.deepEqual(overviewChunks[0].anchor, { sectionKey: "overview" });
+  assert.deepEqual(chunks.find((chunk) => chunk.anchor.sectionKey === "plot_structure").facets.strengths,
+    ["保留未编辑小节的套路"]);
+  assert.match(chunks.find((chunk) => chunk.anchor.sectionKey === "themes").chunkText, /仅有正文的主题小节/);
+
+  editedSection.editedContent = " 旧正文\r\n";
+  assert.deepEqual(buildBookAnalysisRagPreChunks(detail).find((chunk) => chunk.anchor.sectionKey === "overview").facets.genreTags,
+    ["旧题材"]);
 });
 
 test("HybridRetrievalService retrieveByFacet applies facet filters", async () => {
@@ -3131,6 +3288,7 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
   };
 
   prisma.novel.findUnique = async () => null;
+  let editedTimeline = null;
   prisma.knowledgeBinding.findMany = async () => ([{ documentId: "document-1" }]);
   prisma.knowledgeDocument.findMany = async (input) => {
     if (input.include) {
@@ -3153,7 +3311,7 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
         ],
       }),
       aiContent: null,
-      editedContent: null,
+      editedContent: editedTimeline,
     }],
   }]);
 
@@ -3165,6 +3323,11 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
     assert.match(reference, /### 潜入/);
     assert.match(reference, /主角入夜潜入山寨 \(时间=第一夜; 来源=片段 1\)/);
     assert.match(reference, /### 反转/);
+
+    editedTimeline = "终局保留反派身份悬念。";
+    const editedReference = await service.buildReferenceForStage("novel-1", "structured_outline");
+    assert.match(editedReference, /终局保留反派身份悬念/);
+    assert.doesNotMatch(editedReference, /反派身份暴露|主角入夜潜入山寨/);
   } finally {
     prisma.knowledgeBinding.findMany = original.knowledgeBindingFindMany;
     prisma.knowledgeDocument.findMany = original.knowledgeDocumentFindMany;
@@ -3294,6 +3457,8 @@ test("BookAnalysisGenerationService keeps heartbeating during long section gener
 
 test("BookAnalysisGenerationService optimizeSectionPreview reuses cached source notes", async () => {
   const originalFindFirst = prisma.bookAnalysisSection.findFirst;
+  const originalFindAnalysis = prisma.bookAnalysis.findUnique;
+  prisma.bookAnalysis.findUnique = async () => ({ budgetTokens: null, usedTokens: 0 });
   const cacheCalls = [];
   const optimizeCalls = [];
 
@@ -3361,11 +3526,13 @@ test("BookAnalysisGenerationService optimizeSectionPreview reuses cached source 
     });
     assert.equal(optimized, "优化后的草稿");
     assert.equal(cacheCalls.length, 1);
+    assert.equal(cacheCalls[0].analysisId, "analysis-1");
     assert.deepEqual(optimizeCalls[0].notes, fakeNotes);
     assert.equal(optimizeCalls[0].currentDraft, "当前草稿");
     assert.equal(optimizeCalls[0].instruction, "请压缩重复表达");
   } finally {
     prisma.bookAnalysisSection.findFirst = originalFindFirst;
+    prisma.bookAnalysis.findUnique = originalFindAnalysis;
   }
 });
 

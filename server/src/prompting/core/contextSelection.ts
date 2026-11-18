@@ -30,24 +30,13 @@ function dedupeConflictBlocks(blocks: PromptContextBlock[]): { kept: PromptConte
     const shouldReplace = nextFreshness > previousFreshness
       || (nextFreshness === previousFreshness && block.priority > previous.priority)
       || (nextFreshness === previousFreshness && block.priority === previous.priority && block.required && !previous.required);
-    const mergedBlock = {
-      ...block,
+    const winner = shouldReplace ? block : previous;
+    byConflictGroup.set(block.conflictGroup, {
+      ...winner,
       required: block.required || previous.required,
       allowSummary: block.allowSummary && previous.allowSummary,
-    } satisfies PromptContextBlock;
-
-    if (shouldReplace) {
-      droppedIds.push(previous.id);
-      byConflictGroup.set(block.conflictGroup, mergedBlock);
-    } else {
-      if (block.required && !previous.required) {
-        byConflictGroup.set(block.conflictGroup, {
-          ...previous,
-          required: true,
-        });
-      }
-      droppedIds.push(block.id);
-    }
+    });
+    droppedIds.push(shouldReplace ? previous.id : block.id);
   }
 
   return {
@@ -74,7 +63,7 @@ function sortOptionalBlocks(blocks: PromptContextBlock[], policy: ContextPolicy)
     const leftDrop = dropOrder.get(left.group) ?? Number.MAX_SAFE_INTEGER;
     const rightDrop = dropOrder.get(right.group) ?? Number.MAX_SAFE_INTEGER;
     if (leftDrop !== rightDrop) {
-      return leftDrop - rightDrop;
+      return rightDrop - leftDrop;
     }
 
     const leftFreshness = left.freshness ?? 0;
@@ -88,11 +77,13 @@ function sortOptionalBlocks(blocks: PromptContextBlock[], policy: ContextPolicy)
 }
 
 export function selectContextBlocks(blocks: PromptContextBlock[], policy: ContextPolicy): ContextSelectionResult {
-  const normalizedBlocks = blocks.filter((block) => block.content.trim().length > 0 && block.estimatedTokens > 0);
-  const deduped = dedupeConflictBlocks(normalizedBlocks);
   const requiredGroups = new Set(policy.requiredGroups ?? []);
+  const normalizedBlocks = blocks
+    .filter((block) => block.content.trim().length > 0 && block.estimatedTokens > 0)
+    .map((block) => !block.required && requiredGroups.has(block.group) ? { ...block, required: true } : block);
+  const deduped = dedupeConflictBlocks(normalizedBlocks);
   const requiredBlocks = deduped.kept
-    .filter((block) => block.required || requiredGroups.has(block.group))
+    .filter((block) => block.required)
     .sort((left, right) => right.priority - left.priority);
   const optionalBlocks = sortOptionalBlocks(
     deduped.kept.filter((block) => !requiredBlocks.some((required) => required.id === block.id)),

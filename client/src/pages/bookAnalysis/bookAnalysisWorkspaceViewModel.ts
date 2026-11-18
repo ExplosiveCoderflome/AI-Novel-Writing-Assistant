@@ -50,6 +50,10 @@ export function isReadableBookAnalysisSection(section: BookAnalysisSection): boo
   );
 }
 
+export function shouldResumeBookAnalysisSection(section: BookAnalysisSection): boolean {
+  return !section.frozen && (section.status !== "succeeded" || !isReadableBookAnalysisSection(section));
+}
+
 export function isUnselectedBookAnalysisSection(section: BookAnalysisSection): boolean {
   return section.frozen && !isReadableBookAnalysisSection(section);
 }

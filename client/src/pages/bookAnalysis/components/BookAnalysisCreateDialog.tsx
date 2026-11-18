@@ -354,6 +354,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                   约 {estimatedLlmCalls} 次模型调用。
                 </div>
                 <div className="mt-1">{scale.tone}</div>
+                <div className="mt-1">单次最多分析 12 个原文片段。范围过长时，请缩小章节范围或分批导入。</div>
               </div>
             ) : null}
 

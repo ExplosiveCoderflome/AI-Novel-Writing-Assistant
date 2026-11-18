@@ -53,19 +53,7 @@ export function formatDate(value?: string | null): string {
 }
 
 export function syncDrafts(detail: BookAnalysisDetail): Record<string, SectionDraft> {
-  return Object.fromEntries(
-    detail.sections.map((section) => [
-      section.id,
-      {
-        editedContent: section.editedContent ?? section.aiContent ?? "",
-        notes: section.notes ?? "",
-        focusInstruction: section.focusInstruction ?? "",
-        frozen: section.frozen,
-        optimizeInstruction: "",
-        optimizePreview: "",
-      },
-    ]),
-  );
+  return Object.fromEntries(detail.sections.map((section) => [section.id, buildSectionDraft(section)]));
 }
 
 export function createDownload(blob: Blob, fileName: string): void {
@@ -81,11 +69,22 @@ export function createDownload(blob: Blob, fileName: string): void {
 
 export function buildSectionDraft(section: BookAnalysisSection): SectionDraft {
   return {
-    editedContent: section.editedContent ?? section.aiContent ?? "",
+    editedContent: section.editedContent?.trim() ? section.editedContent : section.aiContent ?? "",
     notes: section.notes ?? "",
     focusInstruction: section.focusInstruction ?? "",
     frozen: section.frozen,
     optimizeInstruction: "",
     optimizePreview: "",
+  };
+}
+
+export function buildSectionUpdate(draft: SectionDraft, savedDraft: SectionDraft) {
+  return {
+    ...(draft.editedContent !== savedDraft.editedContent
+      ? { editedContent: draft.editedContent.trim() ? draft.editedContent : null }
+      : {}),
+    notes: draft.notes.trim() ? draft.notes : null,
+    focusInstruction: draft.focusInstruction.trim() ? draft.focusInstruction : null,
+    frozen: draft.frozen,
   };
 }

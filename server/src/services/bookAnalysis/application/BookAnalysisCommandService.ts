@@ -6,7 +6,9 @@ import type {
 import { abortAnalysis } from "../generation/lifecycle";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import { prisma } from "../../../db/prisma";
+import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { AppError } from "../../../middleware/errorHandler";
 import { DocumentChapterService } from "../../knowledge/DocumentChapterService";
 import {
@@ -20,7 +22,7 @@ import {
 } from "../shared/bookAnalysis.status";
 import { BookAnalysisGenerationService } from "../bookAnalysis.generation";
 import { BookAnalysisTaskQueue } from "../infrastructure/bookAnalysis.queue";
-import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperature } from "../shared/bookAnalysis.utils";
+import { buildAnalysisSummaryFromContent, buildSourceSegments, normalizeMaxTokens, normalizeTemperature } from "../shared/bookAnalysis.utils";
 import { BookAnalysisWatchdogService } from "./BookAnalysisWatchdogService";
 import { BookAnalysisQueryService } from "./BookAnalysisQueryService";
 
@@ -186,6 +188,19 @@ export class BookAnalysisCommandService {
       documentVersionId: version.id,
       range: input.sourceRange ?? null,
     });
+    const selectedSource = await prisma.knowledgeDocumentVersion.findUnique({
+      where: { id: version.id },
+      select: { content: true },
+    });
+    if (!selectedSource) {
+      throw new AppError("Knowledge document version not found.", 400);
+    }
+    const content = sourceRange
+      ? selectedSource.content.slice(sourceRange.startOffset, sourceRange.endOffset)
+      : selectedSource.content;
+    if (buildSourceSegments(content).length === 0) {
+      throw new AppError("所选范围没有可分析的原文。", 400);
+    }
 
     const analysisId = await prisma.$transaction(async (tx) => {
       const analysis = await tx.bookAnalysis.create({
@@ -306,13 +321,13 @@ export class BookAnalysisCommandService {
     return detail;
   }
 
-  async rebuildAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
-    return this.queueRebuildAnalysis(analysisId, { resetUsedTokens: true });
+  async rebuildAnalysis(analysisId: string, regenerateCompleted = false): Promise<BookAnalysisDetail> {
+    return this.queueRebuildAnalysis(analysisId, { regenerateCompleted });
   }
 
   private async queueRebuildAnalysis(
     analysisId: string,
-    options: { resetUsedTokens: boolean; budgetTokens?: number | null },
+    options: { regenerateCompleted?: boolean; budgetTokens?: number | null },
   ): Promise<BookAnalysisDetail> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -326,17 +341,20 @@ export class BookAnalysisCommandService {
     if (analysis.status === "archived") {
       throw new AppError("Archived book analysis cannot be rebuilt.", 400);
     }
+    if (analysis.status === "queued" || analysis.status === "running") {
+      throw new AppError("分析正在运行。请等本次任务结束后再重新生成小节。", 409);
+    }
     const emptySucceededSectionIds = analysis.sections
       .filter(isEmptySucceededBookAnalysisSection)
       .map((section) => section.id);
     await prisma.$transaction(async (tx) => {
-      await tx.bookAnalysis.update({
-        where: { id: analysisId },
+      const queued = await tx.bookAnalysis.updateMany({
+        where: { id: analysisId, status: analysis.status },
         data: {
           status: "queued",
           pendingManualRecovery: false,
           progress: 0,
-          ...(options.resetUsedTokens ? { usedTokens: 0 } : {}),
+          ...(options.regenerateCompleted ? { usedTokens: 0 } : {}),
           ...(options.budgetTokens !== undefined ? { budgetTokens: options.budgetTokens } : {}),
           lastError: null,
           heartbeatAt: null,
@@ -347,14 +365,19 @@ export class BookAnalysisCommandService {
           attemptCount: 0,
         },
       });
+      if (queued.count !== 1) {
+        throw new AppError("分析状态已变化。请刷新后查看当前进度。", 409);
+      }
       await tx.bookAnalysisSection.updateMany({
         where: {
           analysisId,
           frozen: false,
-          OR: [
-            { status: { not: "succeeded" } },
-            { id: { in: emptySucceededSectionIds } },
-          ],
+          ...(options.regenerateCompleted ? {} : {
+            OR: [
+              { status: { not: "succeeded" } },
+              { id: { in: emptySucceededSectionIds } },
+            ],
+          }),
         },
         data: {
           status: "idle",
@@ -416,7 +439,6 @@ export class BookAnalysisCommandService {
       throw new AppError("Budget tokens must be a positive number.", 400);
     }
     return this.queueRebuildAnalysis(analysisId, {
-      resetUsedTokens: false,
       budgetTokens: normalizedBudget,
     });
   }
@@ -444,7 +466,7 @@ export class BookAnalysisCommandService {
     if (effectiveStatus !== "failed" && effectiveStatus !== "cancelled") {
       throw new AppError("Only failed or cancelled analyses can be retried.", 400);
     }
-    return this.rebuildAnalysis(analysisId);
+    return this.queueRebuildAnalysis(analysisId, {});
   }
 
   async cancelAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
@@ -582,44 +604,34 @@ export class BookAnalysisCommandService {
       frozen?: boolean;
     },
   ): Promise<BookAnalysisDetail> {
-    const section = await prisma.bookAnalysisSection.findFirst({
-      where: {
-        analysisId,
-        sectionKey,
-      },
-    });
-    if (!section) {
-      throw new AppError("Book analysis section not found.", 404);
-    }
-    const normalizedEditedContent = input.editedContent?.trim() || null;
-    const normalizedAiContent = section.aiContent?.replace(/\r\n?/g, "\n").trim() || null;
-    const normalizedForCompare = normalizedEditedContent?.replace(/\r\n?/g, "\n").trim() || null;
-    const finalEditedContent =
-      normalizedForCompare && normalizedForCompare === normalizedAiContent ? null : normalizedEditedContent;
-    await prisma.bookAnalysisSection.update({
-      where: {
-        analysisId_sectionKey: {
-          analysisId,
-          sectionKey,
-        },
-      },
-      data: {
-        ...(input.editedContent !== undefined ? { editedContent: finalEditedContent } : {}),
-        ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
-        ...(input.focusInstruction !== undefined
-          ? { focusInstruction: normalizeOptionalInstruction(input.focusInstruction) }
-          : {}),
-        ...(input.frozen !== undefined ? { frozen: input.frozen } : {}),
-      },
-    });
-    if (sectionKey === "overview" && input.editedContent !== undefined) {
-      await prisma.bookAnalysis.update({
-        where: { id: analysisId },
+    await withSqliteRetry(() => prisma.$transaction(async (tx) => {
+      const where = { analysisId_sectionKey: { analysisId, sectionKey } };
+      const section = await tx.bookAnalysisSection.findUnique({ where, select: { aiContent: true } });
+      if (!section) {
+        throw new AppError("Book analysis section not found.", 404);
+      }
+      const editedContent = getManualBookAnalysisContent({
+        editedContent: input.editedContent,
+        aiContent: section.aiContent,
+      });
+      await tx.bookAnalysisSection.update({
+        where,
         data: {
-          summary: buildAnalysisSummaryFromContent(finalEditedContent ?? section.aiContent ?? ""),
+          ...(input.editedContent !== undefined ? { editedContent } : {}),
+          ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
+          ...(input.focusInstruction !== undefined
+            ? { focusInstruction: normalizeOptionalInstruction(input.focusInstruction) }
+            : {}),
+          ...(input.frozen !== undefined ? { frozen: input.frozen } : {}),
         },
       });
-    }
+      if (sectionKey === "overview" && input.editedContent !== undefined) {
+        await tx.bookAnalysis.update({
+          where: { id: analysisId },
+          data: { summary: buildAnalysisSummaryFromContent(editedContent ?? section.aiContent ?? "") },
+        });
+      }
+    }), { label: "book-analysis-section-update" });
     const detail = await this.queryService.getAnalysisById(analysisId);
     if (!detail) {
       throw new AppError("Book analysis not found after section update.", 500);

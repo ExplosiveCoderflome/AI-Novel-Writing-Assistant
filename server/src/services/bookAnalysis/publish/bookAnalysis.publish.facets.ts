@@ -5,6 +5,7 @@ import {
   type BookAnalysisSection,
   type BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import type { RagChunkFacets, RagChunkFacetKey, RagPreChunk } from "../../rag/chunkFacets";
 
 const FIELD_FACET_MAP: Record<string, RagChunkFacetKey[]> = {
@@ -123,19 +124,41 @@ function buildFieldChunk(section: BookAnalysisSection, fieldKey: string, value: 
   };
 }
 
+function buildSectionTextChunk(section: BookAnalysisSection, content: string): RagPreChunk {
+  return {
+    chunkText: `拆书小节：${section.title}\n\n${content}`,
+    anchor: { sectionKey: section.sectionKey },
+    metadata: {
+      source: "book_analysis_text",
+      sectionKey: section.sectionKey,
+      sectionTitle: section.title,
+    },
+  };
+}
+
 export function buildBookAnalysisRagPreChunks(detail: BookAnalysisDetail): RagPreChunk[] {
-  const chunks: RagPreChunk[] = [];
+  const manualChunks: RagPreChunk[] = [];
+  const structuredChunks: RagPreChunk[] = [];
+  const textFallbacks: RagPreChunk[] = [];
   for (const section of detail.sections) {
-    const structuredData = section.structuredData;
-    if (!structuredData || typeof structuredData !== "object" || Array.isArray(structuredData)) {
+    const manualContent = getManualBookAnalysisContent(section);
+    if (manualContent) {
+      manualChunks.push(buildSectionTextChunk(section, manualContent));
       continue;
     }
-    for (const [fieldKey, value] of Object.entries(structuredData)) {
-      const chunk = buildFieldChunk(section, fieldKey, value);
-      if (chunk) {
-        chunks.push(chunk);
-      }
+    const data = section.structuredData;
+    const fieldChunks = data && typeof data === "object" && !Array.isArray(data)
+      ? Object.entries(data)
+        .map(([fieldKey, value]) => buildFieldChunk(section, fieldKey, value))
+        .filter((chunk): chunk is RagPreChunk => chunk !== null)
+      : [];
+    if (fieldChunks.length > 0) {
+      structuredChunks.push(...fieldChunks);
+    } else if (section.aiContent?.trim()) {
+      textFallbacks.push(buildSectionTextChunk(section, section.aiContent.trim()));
     }
   }
+  // Edited pre-chunks replace the ordinary Markdown splitter, so include other standalone prose too.
+  const chunks = manualChunks.length > 0 ? [...manualChunks, ...textFallbacks, ...structuredChunks] : structuredChunks;
   return chunks.slice(0, 120);
 }

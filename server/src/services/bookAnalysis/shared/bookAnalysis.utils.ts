@@ -5,6 +5,7 @@ import type {
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS, BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS } from "@ai-novel/shared/types/bookAnalysis";
 import { normalizeBookAnalysisTimelineNodes } from "@ai-novel/shared/utils/bookAnalysisTimeline";
+import { AppError } from "../../../middleware/errorHandler";
 import {
   CHAPTER_HEADING_REGEX,
   CHUNK_OVERLAP_CHARS,
@@ -198,7 +199,7 @@ export function normalizeBookAnalysisEvidence(
 }
 
 function detectChapterSegments(content: string): SourceSegment[] {
-  const lines = content.replace(/\r\n?/g, "\n").split("\n");
+  const lines = content.split("\n");
   const headings: Array<{ lineIndex: number; heading: string }> = [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
@@ -214,19 +215,20 @@ function detectChapterSegments(content: string): SourceSegment[] {
   }
 
   const segments: SourceSegment[] = [];
+  let readableChapterCount = 0;
   for (let index = 0; index < headings.length; index += 1) {
     const start = headings[index].lineIndex;
     const end = index + 1 < headings.length ? headings[index + 1].lineIndex : lines.length;
     const body = lines.slice(start, end).join("\n").trim();
-    if (body.length < MIN_SEGMENT_BODY_LENGTH) {
-      continue;
+    if (body.length >= MIN_SEGMENT_BODY_LENGTH) {
+      readableChapterCount += 1;
     }
     segments.push({
       label: headings[index].heading,
-      content: body,
+      content: index === 0 && start > 0 ? lines.slice(0, end).join("\n").trim() : body,
     });
   }
-  return segments;
+  return readableChapterCount >= MIN_CHAPTER_DETECTION_COUNT ? segments : [];
 }
 
 function mergeSegments(segments: SourceSegment[]): SourceSegment[] {
@@ -250,42 +252,47 @@ function mergeSegments(segments: SourceSegment[]): SourceSegment[] {
   return merged;
 }
 
-function splitIntoChunkSegments(content: string): SourceSegment[] {
-  const normalized = normalizeText(content);
+function splitIntoChunkSegments(normalized: string): SourceSegment[] {
+  const charsPerAdditionalSegment = MAX_SEGMENT_CHARS - CHUNK_OVERLAP_CHARS;
+  const coverageLimit = MAX_SEGMENT_CHARS + (MAX_SEGMENT_COUNT - 1) * charsPerAdditionalSegment;
+  if (normalized.length > coverageLimit) {
+    throw new AppError("所选原文超过单次拆书可完整分析的范围。请缩小章节范围，或分批导入原文。", 400);
+  }
   const segments: SourceSegment[] = [];
   let start = 0;
-  let order = 1;
   while (start < normalized.length) {
-    const end = Math.min(start + TARGET_SEGMENT_CHARS, normalized.length);
+    const remainingSlots = MAX_SEGMENT_COUNT - segments.length - 1;
+    const minimumEnd = normalized.length - remainingSlots * charsPerAdditionalSegment;
+    const end = Math.min(Math.max(start + TARGET_SEGMENT_CHARS, minimumEnd), normalized.length);
     let boundary = end;
     if (end < normalized.length) {
       const candidate = normalized.lastIndexOf("\n", Math.min(start + MAX_SEGMENT_CHARS, normalized.length));
-      if (candidate > start + MIN_SEGMENT_CHARS) {
+      if (candidate > start + MIN_SEGMENT_CHARS && candidate >= minimumEnd) {
         boundary = candidate;
       }
     }
     const chunk = normalized.slice(start, boundary).trim();
     if (chunk) {
       segments.push({
-        label: `片段 ${order}`,
+        label: `片段 ${segments.length + 1}`,
         content: chunk,
       });
-      order += 1;
     }
     if (boundary >= normalized.length) {
       break;
     }
     start = Math.max(boundary - CHUNK_OVERLAP_CHARS, start + 1);
   }
-  return segments.slice(0, MAX_SEGMENT_COUNT);
+  return segments;
 }
 
 export function buildSourceSegments(content: string): SourceSegment[] {
-  const chapterSegments = detectChapterSegments(content);
-  if (chapterSegments.length >= MIN_CHAPTER_DETECTION_COUNT) {
-    return mergeSegments(chapterSegments);
+  const normalized = normalizeText(content);
+  const chapterSegments = mergeSegments(detectChapterSegments(normalized));
+  if (chapterSegments.length > 0 && chapterSegments.every((segment) => segment.content.length <= MAX_SEGMENT_CHARS)) {
+    return chapterSegments;
   }
-  return splitIntoChunkSegments(content);
+  return splitIntoChunkSegments(normalized);
 }
 
 function renderNoteField(label: string, values: string[]): string {

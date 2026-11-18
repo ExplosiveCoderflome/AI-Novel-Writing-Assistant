@@ -84,7 +84,20 @@ test("simple shelf projects the book's current director task even when an older 
     assert.equal(response.status, 200);
     assert.equal(body.data.progress.directorTaskId, "new-failed");
     assert.equal(body.data.progress.status, "failed");
-    assert.deepEqual(calls, ["new-failed"]);
+    assert.deepEqual(body.data.progress.interruption, {kind: "replan", detail: "Paused at chapter"});
+    assert.equal(body.data.bookCompletion.status, "needs_attention");
+    currentTask.status = "running";
+    currentTask.checkpointType = null;
+    const refreshed = await fetch(`http://127.0.0.1:${server.address().port}/novels/book-1/simple-shelf`);
+    const active = (await refreshed.json()).data.progress;
+    assert.equal(active.interruption, null, "a saved error is not a current interruption while writing");
+    currentTask.status = "succeeded";
+    currentTask.currentItemLabel = null;
+    const finishedBatch = await fetch(`http://127.0.0.1:${server.address().port}/novels/book-1/simple-shelf`);
+    const saved = (await finishedBatch.json()).data;
+    assert.equal(saved.progress.currentAction, "本次创作已完成");
+    assert.equal(saved.bookCompletion.status, "writing", "a successful batch does not finish the book");
+    assert.deepEqual(calls, ["new-failed", "new-failed", "new-failed"]);
   } finally {
     if (server) await new Promise((resolve) => server.close(resolve));
     for (const [path, entry] of original) {

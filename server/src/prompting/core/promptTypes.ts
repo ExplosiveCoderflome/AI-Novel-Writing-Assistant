@@ -26,6 +26,7 @@ export interface ContextPolicy {
   maxTokensBudget: number;
   requiredGroups?: string[];
   preferredGroups?: string[];
+  /** For equal optional priority, listed groups are discarded in this order. */
   dropOrder?: string[];
 }
 

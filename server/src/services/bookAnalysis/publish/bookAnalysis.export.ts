@@ -5,6 +5,7 @@ import {
   type BookAnalysisSection,
   type BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import {
   groupBookAnalysisTimelineNodesByPhase,
   normalizeBookAnalysisTimelineNode,
@@ -72,7 +73,7 @@ function buildTimelineSummaryRows(label: string, nodes: BookAnalysisTimelineNode
 
 function buildStructuredSummaryMarkdown(section: BookAnalysisSection): string[] {
   const structuredData = section.structuredData;
-  if (!structuredData || typeof structuredData !== "object") {
+  if (getManualBookAnalysisContent(section) || !structuredData || typeof structuredData !== "object") {
     return [];
   }
 
@@ -149,7 +150,9 @@ export function buildPublishMarkdown(
   for (const section of detail.sections) {
     const content = getEffectiveContent(section).trim();
     const notes = section.notes?.trim() ?? "";
-    const evidence = section.evidence.filter((item) => item.label.trim() || item.excerpt.trim());
+    const evidence = getManualBookAnalysisContent(section)
+      ? []
+      : section.evidence.filter((item) => item.label.trim() || item.excerpt.trim());
     const structuredSummary = buildStructuredSummaryMarkdown(section);
     if (!content && !notes && evidence.length === 0 && structuredSummary.length === 0) {
       continue;
@@ -221,7 +224,7 @@ export function buildAnalysisExportContent(
       markdownParts.push("");
       markdownParts.push(section.notes.trim());
     }
-    if (section.evidence.length > 0) {
+    if (!getManualBookAnalysisContent(section) && section.evidence.length > 0) {
       markdownParts.push("");
       markdownParts.push("### 证据摘录");
       markdownParts.push("");

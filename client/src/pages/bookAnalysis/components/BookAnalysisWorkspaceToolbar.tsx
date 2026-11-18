@@ -5,6 +5,7 @@ import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubB
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatStatus, isBookAnalysisBudgetExceeded } from "../bookAnalysis.utils";
+import { shouldResumeBookAnalysisSection } from "../bookAnalysisWorkspaceViewModel";
 
 type ExportFormat = "markdown" | "json";
 
@@ -32,7 +33,7 @@ interface BookAnalysisWorkspaceToolbarProps {
   isDualPane: boolean;
   pending: ToolbarPendingState;
   onCopy: () => void;
-  onRebuild: (analysisId: string) => void;
+  onRebuild: (analysisId: string, regenerateCompleted?: boolean) => void;
   onArchive: (analysisId: string) => void;
   onPublish: () => void;
   onCreateStyleProfile: () => void;
@@ -68,6 +69,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
   const budgetResumeAvailable =
     budgetExceeded && (selectedAnalysis.status === "failed" || selectedAnalysis.status === "cancelled");
   const canAdjustBudget = selectedAnalysis.status !== "archived";
+  const canRebuild = !pending.rebuild && !["queued", "running", "archived"].includes(selectedAnalysis.status);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-border/45 bg-card/70 shadow-[0_10px_32px_rgba(15,23,42,0.035)]">
@@ -148,13 +150,18 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">更多维护操作</summary>
         <div className="mobile-full-actions mt-3 flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>复制分析</Button>
+          {selectedAnalysis.sections.some(shouldResumeBookAnalysisSection) ? (
+            <Button size="sm" variant="outline" onClick={() => onRebuild(selectedAnalysis.id)} disabled={!canRebuild}>
+              补跑未完成小节
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
-            onClick={() => onRebuild(selectedAnalysis.id)}
-            disabled={pending.rebuild || selectedAnalysis.status === "archived"}
+            onClick={() => onRebuild(selectedAnalysis.id, true)}
+            disabled={!canRebuild}
           >
-            重新生成
+            重新生成全部小节
           </Button>
           {canAdjustBudget ? (
             <Button

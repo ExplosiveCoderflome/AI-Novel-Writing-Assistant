@@ -17,6 +17,9 @@ import { KnowledgeService } from "../../../../services/knowledge/KnowledgeServic
 import { novelCreateResourceRecommendationService } from "../../../../services/novel/NovelCreateResourceRecommendationService";
 import type { NovelApplicationServices } from "../../../../services/novel/application/NovelApplicationContracts";
 import { resolveCurrentDirectorTask } from "../../../../services/novel/director/state";
+import { readNovelBookDirector } from "../../../../services/novel/catalog";
+import { projectBookCompletion, readBookCompletionActivity } from "../../../../services/novel/production/completion";
+import { readActiveManuscriptChapters } from "../../manuscript/application/ManuscriptIsolation";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -293,6 +296,10 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           first30ChapterPromise: true,
           creationExperience: true,
           estimatedChapterCount: true,
+          directorVersion: true,
+          directorEpoch: true,
+          narrativeForm: true,
+          manuscriptProject: { select: { id: true } },
           world: {
             select: {
               name: true,
@@ -377,6 +384,17 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           },
         },
       }) : null;
+      const [activeChapters, bookDirector] = await Promise.all([
+        novel.manuscriptProject ? readActiveManuscriptChapters(prisma, id) : null,
+        novel.directorVersion === "v2" && novel.estimatedChapterCount ? readNovelBookDirector(novel) : null,
+      ]);
+      const effectiveChapters: typeof novel.chapters = activeChapters ?? novel.chapters;
+      const bookCompletion = novel.narrativeForm === "short_story" ? null : projectBookCompletion({
+        target: activeChapters?.length ?? novel.estimatedChapterCount,
+        chapters: effectiveChapters,
+        activity: novel.directorVersion === "v2" ? readBookCompletionActivity(bookDirector?.status)
+          : readBookCompletionActivity(task?.status, task?.pendingManualRecovery),
+      });
       const seedPayload = parseJsonRecord(task?.seedPayloadJson);
       const autoExecution = seedPayload?.autoExecution;
       const autoExecutionRecord = autoExecution && typeof autoExecution === "object" && !Array.isArray(autoExecution)
@@ -387,13 +405,13 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         const assessment = parsePersistedDirectorRiskAssessment(metadata?.riskAssessment);
         return assessment ? [{ ...assessment, eventId: event.id }] : [];
       }) ?? [];
-      const completedChapters = novel.chapters.filter((chapter) => (
+      const completedChapters = bookCompletion?.completedChapters ?? effectiveChapters.filter((chapter) => (
         chapter.chapterStatus === "completed"
         || chapter.generationState === "approved"
         || chapter.generationState === "published"
       )).length;
-      const totalChapters = Math.max(
-        novel.chapters.length,
+      const totalChapters = bookCompletion?.targetChapters ?? Math.max(
+        effectiveChapters.length,
         novel.estimatedChapterCount ?? 0,
         completedChapters,
       );
@@ -404,7 +422,16 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
             : task?.pendingManualRecovery || taskStatus === "waiting_approval" ? "paused"
               : taskStatus === "running" ? "running"
                 : "queued";
-      const chapters: SimpleCreationShelfProjection["chapters"] = novel.chapters.map((chapter) => {
+      const interruption: SimpleCreationShelfProjection["progress"]["interruption"] =
+        progressStatus === "failed" || progressStatus === "paused"
+          ? {
+              kind: task?.checkpointType === "replan_required" ? "replan"
+                : progressStatus === "failed" ? "failed"
+                  : taskStatus === "waiting_approval" ? "waiting_confirmation" : "paused",
+              detail: task?.lastError?.trim() || null,
+            }
+          : null;
+      const chapters: SimpleCreationShelfProjection["chapters"] = effectiveChapters.map((chapter) => {
         const isCompleted = chapter.chapterStatus === "completed"
           || chapter.generationState === "approved"
           || chapter.generationState === "published";
@@ -438,6 +465,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         };
       });
       const data: SimpleCreationShelfProjection = {
+        bookCompletion,
         novel: {
           id: novel.id,
           title: novel.title,
@@ -449,11 +477,12 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           percent: task ? Math.max(0, Math.min(100, Math.round(task.progress))) : 0,
           completedChapters,
           totalChapters,
-          currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "整本书已完成" : "等待 AI 开始处理"),
+          currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "本次创作已完成" : "等待 AI 开始处理"),
           status: progressStatus,
           canRetry: progressStatus === "failed" || progressStatus === "paused",
           recoveryAction: task?.checkpointType === "replan_required" ? "replan_and_continue" : "continue",
-          safetyMessage: task?.lastError ?? null,
+          safetyMessage: interruption?.detail ?? null,
+          interruption,
           latestRiskAssessment: riskHistory[0] ?? null,
           riskHistory,
         },

@@ -5,6 +5,14 @@ import {readRunExecutionEpoch} from "../../../../modules/novel/director-routing"
 
 type Book = {id: string; directorVersion?: string | null; directorEpoch?: number; narrativeForm?: string | null; estimatedChapterCount?: number | null};
 
+export async function readNovelBookDirector(book: Book): Promise<NovelBookProgress["director"]> {
+  if (book.narrativeForm === "short_story" || book.directorVersion === "v1") return null;
+  const run = await prisma.directorNextRun.findFirst({where: {novelId: book.id}, orderBy: [{createdAt: "desc"}, {id: "desc"}],
+    select: {id: true, contractJson: true, control: {select: {status: true}}}});
+  return run?.control && readRunExecutionEpoch(run.contractJson) === (book.directorEpoch ?? 0)
+    ? {runId: run.id, status: run.control.status as NonNullable<NovelBookProgress["director"]>["status"]} : null;
+}
+
 /** Indexed catalog reads only; never execute a workflow or infer completion from task success. */
 export async function readNovelBookProgress(books: Book[]): Promise<Map<string, NovelBookProgress>> {
   if (!books.length) return new Map();
@@ -18,11 +26,7 @@ export async function readNovelBookProgress(books: Book[]): Promise<Map<string, 
     GROUP BY "novelId"`);
   const written = new Map(counts.map(row => [row.novelId, Number(row.written)]));
   return new Map(await Promise.all(books.map(async book => {
-    const run = book.narrativeForm !== "short_story" && book.directorVersion !== "v1"
-      ? await prisma.directorNextRun.findFirst({where: {novelId: book.id}, orderBy: [{createdAt: "desc"}, {id: "desc"}],
-        select: {id: true, contractJson: true, control: {select: {status: true}}}}) : null;
-    const director = run?.control && readRunExecutionEpoch(run.contractJson) === (book.directorEpoch ?? 0)
-      ? {runId: run.id, status: run.control.status as NonNullable<NovelBookProgress["director"]>["status"]} : null;
+    const director = await readNovelBookDirector(book);
     return [book.id, {writtenChapters: written.get(book.id) ?? 0,
       targetChapters: book.estimatedChapterCount && book.estimatedChapterCount > 0 ? book.estimatedChapterCount : null,
       director}] as const;

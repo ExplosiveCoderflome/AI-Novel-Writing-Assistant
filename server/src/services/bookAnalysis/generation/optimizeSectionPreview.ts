@@ -2,6 +2,7 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
+import { BookAnalysisBudgetGuard } from "../caching/bookAnalysis.budget";
 import type { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
 import type { BookAnalysisSectionWriter } from "../writing/bookAnalysis.sectionWriter";
 import {
@@ -49,7 +50,9 @@ export async function optimizeSectionPreview(
   const temperature = normalizeTemperature(section.analysis.temperature);
   const maxTokens = normalizeMaxTokens(section.analysis.maxTokens);
   const sourceScope = buildBookAnalysisSourceScope(section.analysis);
+  const budget = new BookAnalysisBudgetGuard(input.analysisId);
   const notes = await deps.sourceCacheService.getOrBuildSourceNotes({
+    analysisId: input.analysisId,
     documentVersionId: section.analysis.documentVersionId,
     content: sourceScope.content,
     provider,
@@ -60,6 +63,7 @@ export async function optimizeSectionPreview(
   });
   const baseDraft =
     input.currentDraft.trim() || section.editedContent?.trim() || section.aiContent?.trim() || "";
+  await budget.assertCanDispatch();
   const optimized = await deps.sectionWriter.generateOptimizedDraft({
     sectionKey: input.sectionKey,
     currentDraft: baseDraft,
@@ -69,6 +73,10 @@ export async function optimizeSectionPreview(
     model,
     temperature,
     maxTokens,
+    onTokenUsage: async (usage) => {
+      // Keep a completed preview available when its final usage reaches the soft limit.
+      await budget.recordUsage(usage);
+    },
   });
   return optimized.trim() || baseDraft;
 }

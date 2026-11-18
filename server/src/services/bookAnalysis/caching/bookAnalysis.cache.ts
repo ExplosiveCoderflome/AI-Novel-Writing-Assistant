@@ -1,10 +1,13 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { analysisSignal } from "../generation/lifecycle";
 import { prisma } from "../../../db/prisma";
+import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { isBuiltInProvider, PROVIDERS } from "../../../llm/providers";
+import type { LlmTokenUsageSnapshot } from "../../../llm/usageTracking";
 import { AppError } from "../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { bookAnalysisSourceNotePrompt } from "../../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
+import { BookAnalysisBudgetGuard } from "./bookAnalysis.budget";
 import { getBookAnalysisCacheSegmentVersion, getBookAnalysisNotesConcurrency } from "../shared/bookAnalysis.config";
 import { runWithConcurrency } from "../infrastructure/bookAnalysis.concurrent";
 import {
@@ -43,8 +46,19 @@ interface GetOrBuildSourceNotesInput {
 
 export class BookAnalysisSourceCacheService {
   async getOrBuildSourceNotes(input: GetOrBuildSourceNotesInput): Promise<SourceNotesResult> {
-    const cacheIdentity = this.buildCacheIdentity(input.provider, input.model, input.temperature, input.sectionMaxTokens);
+    const { requestMaxTokens, ...cacheIdentity } = this.buildCacheIdentity(
+      input.provider,
+      input.model,
+      input.temperature,
+      input.sectionMaxTokens,
+    );
+    const identity = { documentVersionId: input.documentVersionId, ...cacheIdentity };
     const sourceScopeKey = input.sourceScopeKey?.trim() || "full";
+    const segments = buildSourceSegments(input.content);
+    if (segments.length === 0) {
+      throw new AppError("Knowledge document version content is empty.", 400);
+    }
+    const segmentKeys = segments.map((_, index) => `${sourceScopeKey}:note:${index + 1}`);
 
     await input.onProgress?.({
       stage: "loading_cache",
@@ -53,44 +67,42 @@ export class BookAnalysisSourceCacheService {
       itemLabel: formatCacheLookupLabel(),
     });
 
-    const cached = await prisma.bookAnalysisSourceCache.findUnique({
+    const rows = await prisma.bookAnalysisSourceCache.findMany({
       where: {
-        documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion: {
-          documentVersionId: input.documentVersionId,
-          sourceScopeKey,
-          provider: cacheIdentity.provider,
-          model: cacheIdentity.model,
-          temperature: cacheIdentity.temperature,
-          notesMaxTokens: cacheIdentity.notesMaxTokens,
-          segmentVersion: cacheIdentity.segmentVersion,
-        },
+        ...identity,
+        sourceScopeKey: { in: [sourceScopeKey, ...segmentKeys] },
       },
+      select: { sourceScopeKey: true, notesJson: true },
     });
+    const cachedByScope = new Map(rows.map((row) => [row.sourceScopeKey, row.notesJson]));
+    const aggregate = this.parseCachedNotes(cachedByScope.get(sourceScopeKey));
+    const canReuseAggregate = aggregate.length === segments.length
+      && aggregate.every((note, index) => note.sourceLabel === segments[index].label)
+      && !this.isLegacyFallbackCache(aggregate, segments);
+    const notes = canReuseAggregate ? [...aggregate] : segments.map((segment, index) => {
+      const [note] = this.parseCachedNotes(cachedByScope.get(segmentKeys[index]));
+      return note?.sourceLabel === segment.label ? note : null;
+    });
+    const missing = segments.flatMap((segment, index) => notes[index] ? [] : [{ segment, index }]);
 
-    const segments = buildSourceSegments(input.content);
-    if (segments.length === 0) {
-      throw new AppError("Knowledge document version content is empty.", 400);
-    }
-
-    const cachedNotes = this.parseCachedNotes(cached?.notesJson ?? null);
-    if (cached && cachedNotes && !this.isLegacyFallbackCache(cachedNotes, segments)) {
+    if (missing.length === 0) {
       await input.onProgress?.({
         stage: "preparing_notes",
         progress: getCacheHitProgress(),
         itemKey: "source-notes-cache-hit",
-        itemLabel: formatCacheHitLabel(cached.segmentCount),
+        itemLabel: formatCacheHitLabel(segments.length),
       });
       return {
-        notes: cachedNotes,
-        segmentCount: cached.segmentCount,
+        notes: notes.filter((note): note is SourceNote => note !== null),
+        segmentCount: segments.length,
         cacheHit: true,
       };
     }
 
-    const notes = new Array<SourceNote>(segments.length);
-    let completedCount = 0;
+    let completedCount = segments.length - missing.length;
+    const budget = input.analysisId ? new BookAnalysisBudgetGuard(input.analysisId) : null;
 
-    await runWithConcurrency(segments, getBookAnalysisNotesConcurrency(), async (segment, index) => {
+    await runWithConcurrency(missing, getBookAnalysisNotesConcurrency(), async ({ segment, index }) => {
       await input.ensureNotCancelled?.();
       await input.onProgress?.({
         stage: "preparing_notes",
@@ -99,14 +111,37 @@ export class BookAnalysisSourceCacheService {
         itemLabel: formatSegmentProgressLabel(index + 1, segments.length, segment.label),
       });
 
-      notes[index] = await this.buildSingleSourceNote({
+      await budget?.assertCanDispatch();
+      const { note, tokenUsage } = await this.buildSingleSourceNote({
         provider: input.provider,
         model: input.model,
         temperature: cacheIdentity.temperature,
-        maxTokens: cacheIdentity.requestMaxTokens,
+        maxTokens: requestMaxTokens,
         segment,
       });
+      if (!note) {
+        await budget?.onSectionFinished(tokenUsage);
+        throw new AppError("AI 未返回可用的原文分析笔记，请检查模型配置后重试。", 502);
+      }
 
+      const key = { ...identity, sourceScopeKey: segmentKeys[index] };
+      const notesJson = JSON.stringify([note]);
+      const save = (db: Pick<typeof prisma, "bookAnalysisSourceCache">) => db.bookAnalysisSourceCache.upsert({
+        where: { documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion: key },
+        create: { ...key, segmentCount: 1, notesJson },
+        update: { segmentCount: 1, notesJson },
+      });
+      if (budget) {
+        const recorded = await withSqliteRetry(() => prisma.$transaction(async (tx) => {
+          await save(tx);
+          return budget.recordUsage(tokenUsage, tx);
+        }), { label: "book-analysis-source-note" });
+        budget.assertWithinBudget(recorded);
+      } else {
+        await save(prisma);
+      }
+
+      notes[index] = note;
       completedCount += 1;
       await input.onProgress?.({
         stage: "preparing_notes",
@@ -116,37 +151,8 @@ export class BookAnalysisSourceCacheService {
       });
     });
 
-    await prisma.bookAnalysisSourceCache.upsert({
-      where: {
-        documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion: {
-          documentVersionId: input.documentVersionId,
-          sourceScopeKey,
-          provider: cacheIdentity.provider,
-          model: cacheIdentity.model,
-          temperature: cacheIdentity.temperature,
-          notesMaxTokens: cacheIdentity.notesMaxTokens,
-          segmentVersion: cacheIdentity.segmentVersion,
-        },
-      },
-      update: {
-        segmentCount: segments.length,
-        notesJson: JSON.stringify(notes),
-      },
-      create: {
-        documentVersionId: input.documentVersionId,
-        sourceScopeKey,
-        provider: cacheIdentity.provider,
-        model: cacheIdentity.model,
-        temperature: cacheIdentity.temperature,
-        notesMaxTokens: cacheIdentity.notesMaxTokens,
-        segmentVersion: cacheIdentity.segmentVersion,
-        segmentCount: segments.length,
-        notesJson: JSON.stringify(notes),
-      },
-    });
-
     return {
-      notes,
+      notes: notes.filter((note): note is SourceNote => note !== null),
       segmentCount: segments.length,
       cacheHit: false,
     };
@@ -175,13 +181,14 @@ export class BookAnalysisSourceCacheService {
     };
   }
 
-  private parseCachedNotes(notesJson: string | null): SourceNote[] | null {
-    if (!notesJson) {
-      return null;
-    }
-    const parsed = safeParseJSON<SourceNote[] | null>(notesJson, null);
-    if (!Array.isArray(parsed)) {
-      return null;
+  private parseCachedNotes(notesJson?: string): SourceNote[] {
+    const parsed = safeParseJSON<SourceNote[] | null>(notesJson ?? null, null);
+    if (!Array.isArray(parsed) || !parsed.every((note) => note && typeof note.sourceLabel === "string"
+      && typeof note.summary === "string" && note.summary.trim()
+      && [note.plotPoints, note.timelineEvents, note.characters, note.worldbuilding, note.themes,
+        note.styleTechniques, note.marketHighlights, note.readerSignals, note.weaknessSignals, note.evidence]
+        .every(Array.isArray))) {
+      return [];
     }
     return parsed;
   }
@@ -216,7 +223,7 @@ export class BookAnalysisSourceCacheService {
     temperature: number;
     maxTokens?: number;
     segment: { label: string; content: string };
-  }): Promise<SourceNote> {
+  }): Promise<{ note: SourceNote | null; tokenUsage?: LlmTokenUsageSnapshot | null }> {
     const result = await runStructuredPrompt({
       asset: bookAnalysisSourceNotePrompt,
       promptInput: {
@@ -233,22 +240,26 @@ export class BookAnalysisSourceCacheService {
     });
     const record = result.output as Record<string, unknown>;
     const summary = typeof record.summary === "string" ? record.summary.trim() : "";
+    const tokenUsage = result.meta?.tokenUsage;
     if (!summary) {
-      throw new AppError("AI 未返回可用的原文分析笔记，请检查模型配置后重试。", 502);
+      return { note: null, tokenUsage };
     }
     return {
-      sourceLabel: input.segment.label,
-      summary,
-      plotPoints: toStringList(record.plotPoints),
-      timelineEvents: toStringList(record.timelineEvents),
-      characters: toStringList(record.characters),
-      worldbuilding: toStringList(record.worldbuilding),
-      themes: toStringList(record.themes),
-      styleTechniques: toStringList(record.styleTechniques),
-      marketHighlights: toStringList(record.marketHighlights),
-      readerSignals: toStringList(record.readerSignals),
-      weaknessSignals: toStringList(record.weaknessSignals),
-      evidence: toEvidenceList(record.evidence, input.segment.label),
+      tokenUsage,
+      note: {
+        sourceLabel: input.segment.label,
+        summary,
+        plotPoints: toStringList(record.plotPoints),
+        timelineEvents: toStringList(record.timelineEvents),
+        characters: toStringList(record.characters),
+        worldbuilding: toStringList(record.worldbuilding),
+        themes: toStringList(record.themes),
+        styleTechniques: toStringList(record.styleTechniques),
+        marketHighlights: toStringList(record.marketHighlights),
+        readerSignals: toStringList(record.readerSignals),
+        weaknessSignals: toStringList(record.weaknessSignals),
+        evidence: toEvidenceList(record.evidence, input.segment.label),
+      },
     };
   }
 }

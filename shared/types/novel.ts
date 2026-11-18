@@ -117,6 +117,7 @@ export type SimpleCreationShelfChapterStatus =
   | "error";
 
 export interface SimpleCreationShelfProjection {
+  bookCompletion?: import("./director/bookProgress").NovelBookCompletion | null;
   novel: {
     id: string;
     title: string;
@@ -133,6 +134,10 @@ export interface SimpleCreationShelfProjection {
     canRetry: boolean;
     recoveryAction?: "replan_and_continue" | "continue";
     safetyMessage?: string | null;
+    interruption?: {
+      kind: "replan" | "failed" | "waiting_confirmation" | "paused";
+      detail: string | null;
+    } | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;
     riskHistory?: DirectorRiskHistoryItem[];
   };

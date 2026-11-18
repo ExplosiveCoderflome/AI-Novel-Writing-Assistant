@@ -30,6 +30,7 @@ import {
 } from "./runtime/state";
 import { initializeDesktopUpdater, type DesktopUpdaterController } from "./runtime/updater";
 import { createDesktopLogBundle } from "./runtime/logBundle";
+import { createOnboardingTipStore } from "./runtime/preferences/onboardingTips";
 
 const APP_USER_MODEL_ID = "com.ai-novel.desktop";
 const MAIN_WINDOW_BACKGROUND = "#08101f";
@@ -434,6 +435,11 @@ async function showBootstrapFailureDialog(error: unknown): Promise<void> {
 }
 
 function registerDesktopIpcHandlers(): void {
+  const onboardingTips = createOnboardingTipStore(
+    path.join(resolveDesktopAppDataDir(), "preferences", "onboarding-tips.json"),
+  );
+  ipcMain.handle("desktop:get-dismissed-onboarding-tips", () => onboardingTips.read());
+  ipcMain.handle("desktop:dismiss-onboarding-tip", (_event, storageKey: unknown) => onboardingTips.dismiss(storageKey));
   ipcMain.handle("desktop:get-bootstrap-snapshot", () => desktopBootstrapStore.getSnapshot());
   ipcMain.handle("desktop:get-updater-snapshot", () => desktopUpdaterStore.getSnapshot());
   ipcMain.handle("desktop:get-data-import-snapshot", () => getDesktopDataImportSnapshot());

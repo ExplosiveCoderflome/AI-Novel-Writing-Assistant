@@ -1,31 +1,22 @@
-import type { MouseEvent } from "react";
 import { useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { getTaskOverview } from "@/api/tasks";
 import { Button } from "@/components/ui/button";
 import {
-  canContinueDirector,
-  canContinueChapterBatchAutoExecution,
-  canEnterChapterExecution,
-  getCandidateSelectionLink,
-  requiresCandidateSelection,
-} from "@/lib/novelWorkflowTaskUi";
-import { toast } from "@/components/ui/toast";
-import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
-import { getDirectorWorkspaceHref, getNovelEditHref } from "@/lib/novelRoutes";
-import {
   buildHomeAssetHealthItems,
+  buildHomeAttentionItems,
   buildHomeMetrics,
   buildHomeNextAction,
   HOME_NOVEL_FETCH_LIMIT,
-  getHomeNovelTask,
+  getHomeNovelActionHref,
+  isHomeV2Novel,
   selectPrimaryNovel,
   type HomeNovelItem,
 } from "./home/homeViewModel";
+import { HomeAttentionQueue } from "./home/components/HomeAttentionQueue";
 import { HomeAssetHealth } from "./home/components/HomeAssetHealth";
 import { HomeNextActionPanel } from "./home/components/HomeNextActionPanel";
 import { HomeStatusStrip } from "./home/components/HomeStatusStrip";
@@ -33,8 +24,6 @@ import CreationSetupNotice from "@/components/onboarding/CreationSetupNotice";
 import FirstNovelJourneyStrip from "@/components/onboarding/FirstNovelJourneyStrip";
 
 export default function Home() {
-  const queryClient = useQueryClient();
-
   const taskQuery = useQuery({
     queryKey: queryKeys.tasks.overview,
     queryFn: getTaskOverview,
@@ -53,36 +42,6 @@ export default function Home() {
       ["queued", "running"].includes(novel.bookProgress?.director?.status ?? "")) ? 4000 : false,
   });
 
-  const continueWorkflowMutation = useMutation({
-    mutationFn: async (input: {
-      taskId: string;
-      mode?: "resume" | "auto_execute_range";
-    }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
-    onSuccess: async (response, input) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
-        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-      ]);
-      const feedback = resolveWorkflowContinuationFeedback(response.data, {
-        mode: input.mode,
-      });
-      if (feedback.tone === "error") {
-        toast.error(feedback.message);
-        return;
-      }
-      toast.success(feedback.message);
-    },
-    onError: (error, input) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : input.mode === "auto_execute_range"
-            ? "继续自动执行当前章节范围失败。"
-            : "继续自动导演失败。",
-      );
-    },
-  });
-
   const allNovels = novelQuery.data?.data?.items ?? [];
   const hasNovels = allNovels.length > 0;
   const taskOverview = taskQuery.data?.data ?? null;
@@ -97,135 +56,21 @@ export default function Home() {
     [allNovels],
   );
 
-  const stopCardClick = (event: MouseEvent<HTMLElement>) => {
-    event.stopPropagation();
-  };
+  const attentionItems = buildHomeAttentionItems(allNovels, primaryNovel?.id);
 
   const renderNovelPrimaryAction = (
     novel: HomeNovelItem,
-    options?: {
-      size?: "default" | "sm" | "lg";
-      stopPropagation?: boolean;
-    },
+    options?: { size?: "default" | "sm" | "lg"; stopPropagation?: boolean },
   ) => {
-    const { size = "sm", stopPropagation = false } = options ?? {};
-    const task = getHomeNovelTask(novel);
-    const isWorkflowPending = continueWorkflowMutation.isPending
-      && continueWorkflowMutation.variables?.taskId === task?.id;
-
-    const handleActionClick = (event: MouseEvent<HTMLElement>) => {
-      if (stopPropagation) {
-        stopCardClick(event);
-      }
-    };
-
-    const directorRoute = getDirectorWorkspaceHref(novel);
-    if (novel.narrativeForm !== "short_story" && (novel.directorVersion === "v2" || directorRoute)) {
-      return directorRoute ? (
-        <Button asChild size={size}><Link to={directorRoute} onClick={stopPropagation ? stopCardClick : undefined}>打开导演台</Link></Button>
-      ) : <Button size={size} onClick={() => void novelQuery.refetch()}>重新读取创作入口</Button>;
+    const href = getHomeNovelActionHref(novel);
+    const size = options?.size ?? "sm";
+    if (!href) {
+      return <Button size={size} onClick={() => void novelQuery.refetch()}>重新读取创作入口</Button>;
     }
-
-    if (novel.narrativeForm === "short_story") {
-      return (
-        <Button asChild size={size}>
-          <Link
-            to={`/novels/${novel.id}/story`}
-            onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            打开作品
-          </Link>
-        </Button>
-      );
-    }
-
-    if (canContinueChapterBatchAutoExecution(task)) {
-      return (
-        <Button
-          size={size}
-          onClick={(event) => {
-            handleActionClick(event);
-            if (!task) {
-              return;
-            }
-            continueWorkflowMutation.mutate({
-              taskId: task.id,
-              mode: "auto_execute_range",
-            });
-          }}
-          disabled={isWorkflowPending}
-        >
-          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`)}
-        </Button>
-      );
-    }
-
-    if (canContinueDirector(task)) {
-      return (
-        <Button
-          size={size}
-          onClick={(event) => {
-            handleActionClick(event);
-            if (!task) {
-              return;
-            }
-            continueWorkflowMutation.mutate({
-              taskId: task.id,
-            });
-          }}
-          disabled={isWorkflowPending}
-        >
-          {isWorkflowPending ? "继续中..." : (task?.resumeAction ?? "继续导演")}
-        </Button>
-      );
-    }
-
-    if (requiresCandidateSelection(task)) {
-      return (
-        <Button asChild size={size}>
-          <Link
-            to={getCandidateSelectionLink(task!.id)}
-            onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            {task!.resumeAction ?? "继续确认书级方向"}
-          </Link>
-        </Button>
-      );
-    }
-
-    if (canEnterChapterExecution(task)) {
-      return (
-        <Button asChild size={size}>
-          <Link
-            to={`/novels/${novel.id}/edit`}
-            onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            进入章节执行
-          </Link>
-        </Button>
-      );
-    }
-
-    if (task) {
-      return (
-        <Button asChild size={size}>
-          <Link
-            to={getNovelEditHref(novel.id)}
-            onClick={stopPropagation ? stopCardClick : undefined}
-          >
-            查看推进状态
-          </Link>
-        </Button>
-      );
-    }
-
     return (
       <Button asChild size={size}>
-        <Link
-          to={`/novels/${novel.id}/edit`}
-          onClick={stopPropagation ? stopCardClick : undefined}
-        >
-          编辑小说
+        <Link to={href} onClick={options?.stopPropagation ? (event) => event.stopPropagation() : undefined}>
+          {isHomeV2Novel(novel) ? "打开导演台" : "打开作品"}
         </Link>
       </Button>
     );
@@ -243,6 +88,10 @@ export default function Home() {
         onRetry={() => void novelQuery.refetch()}
         renderNovelPrimaryAction={renderNovelPrimaryAction}
       />
+
+      {attentionItems.length > 0 ? (
+        <HomeAttentionQueue items={attentionItems} onReload={() => void novelQuery.refetch()} />
+      ) : null}
 
       <HomeStatusStrip
         metrics={metrics}
