@@ -1,0 +1,14 @@
+{
+  "zh": [
+    "长篇完稿后可从简易书架或导演台通读全书并导出 TXT。首页的待处理事项可以直达对应作品。",
+    "拆书恢复后只补跑缺失的原文笔记和小节。可对比手改正文与 AI 生成版，保存选择后用于参考开书、续写和发布。",
+    "章节首稿和续写遵循模型路由的输出额度，生成中断后可从保存的进度恢复。短篇规划和大纲建议遇到输出上限时可自动提额重试。",
+    "大纲开书后可正常确认章节计划，V2 导演台可直接查看卷下章节。桌面端重启后记住关闭的开书引导提示。"
+  ],
+  "en": [
+    "Read a completed novel from the bookshelf or Director workspace and export it as TXT. Open the relevant project directly from a home-page item that needs attention.",
+    "Resume book analysis from the missing source notes and sections. Compare your edits with the AI-generated version, then save the text you want to use for new books, continuations, and publishing.",
+    "Chapter drafts and continuations honor the model route’s output allowance and can recover from saved progress after an interruption. Short-story planning and outline suggestions can retry with a higher allowance when needed.",
+    "Confirm chapter plans for projects started from an outline and view the chapters under each volume in Director V2. The desktop app remembers dismissed onboarding tips after a restart."
+  ]
+}

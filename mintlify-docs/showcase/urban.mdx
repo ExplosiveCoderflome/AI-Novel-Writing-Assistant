@@ -19,6 +19,8 @@ keywords:
 
 <UbLock />
 
+<UbShift />
+
 <UbRadar />
 
 <UbChat />
@@ -179,7 +181,7 @@ export const UbLock = () => {
           <h1 className="ul-h1">都市<span className="ul-neon">异能</span></h1>
           <p className="ul-sub">这间展厅是一部手机。送了三年外卖的陆川，在午夜零点的骑手 App 里刷出一个删不掉的频道：「未送达」。它只派一种单：别人写好却没发出去的消息，哪怕是三年前的。每送达一单，这座城市就有什么东西悄悄改了。解锁它，看一本都市异能小说怎样从榜单、推进方式到书名一步步成形。</p>
           <div className="ul-btns">
-            <a className="ul-btn ul-pri" href="#ur-radar">打开热榜 ↓</a>
+            <a className="ul-btn ul-pri" href="#uz-shift">接下这一单 ↓</a>
             <a className="ul-btn" href="/quickstart">直接开书 →</a>
           </div>
           <div className="ul-demo">演示：人物、剧情和手机里的内容都是虚构示例。</div>
@@ -217,7 +219,7 @@ export const UbLock = () => {
               <div className="ul-home" aria-hidden={!un}>
                 <div className="ul-wd">
                   <span>未送达 · 待配送 1 单</span>
-                  <b>收件人：林晚 · 3.2 km</b>
+                  <b>收件人：沈知夏 · 3.2 km</b>
                   <i>「对不起，那天我没去车站。」</i>
                   <i className="ul-wt">写于三年前 · 从未发出</i>
                 </div>
@@ -1257,6 +1259,357 @@ export const UbShake = () => {
             <button type="button" className="us-go" disabled={all} onClick={shake}>{all ? "三张都锁住了" : "摇一摇"}</button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+export const UbShift = () => {
+  const STEPS = ["方向候选", "世界规则", "角色生成", "推进模式", "章节细化", "成章"];
+  const GLOW = ["rgba(124,58,237,.24)", "rgba(103,232,249,.14)", "rgba(192,38,211,.2)", "rgba(167,139,250,.2)", "rgba(232,121,249,.22)", "rgba(103,232,249,.18)"];
+  const DIRS = [
+    { c: "接单。五十块一单，先把今晚扣掉的钱赚回来", r: "你点了「接单」。屏幕闪了一下，余额那一栏多出一行小字：送达后结算 50.00。", t: "零点派单", m: "升级变强", e: { b: -2 } },
+    { c: "先别接：查清这条消息是谁写的，为什么三年都没发出去", r: "你点开派单详情。发件时间：三年前的今天，23:59。发件人一栏是空的，头像却和你的一模一样。", t: "三年前的发件人", m: "解谜推进", e: { b: -3 } },
+    { c: "先看一眼收件人是谁，再决定送不送", r: "收件人：沈知夏。你盯着这个名字看了很久。上一次和她聊天，是三年前。", t: "她在 3.2 公里外", m: "关系拉扯", e: { b: -1 } },
+  ];
+  const RULES = [
+    { c: "每送达一条，就忘掉一段自己的记忆", r: "你往下划，还有一行小字：代价从最不重要的开始扣。你想了想，记不起昨天午饭吃的是什么。", k: "送达即遗忘", l: "须知第一行写着：每送达一条，就忘掉一段自己的记忆。", e: { m: -1 } },
+    { c: "必须当面送达，手机关机就算超时", r: "须知最后写着：超时一次，扣除本单全部报酬，并永久关闭频道。你看了一眼电量。", k: "当面送达 · 关机即超时", l: "须知第一行写着：必须当面送达，手机关机，就算超时。", e: { b: -3 } },
+    { c: "送错了人，话就再也收不回来", r: "你想起自己的草稿箱，里面也躺着一条三年前没发出去的消息。你没敢点开。", k: "话出口，收不回", l: "须知第一行写着：送错了人，话就再也收不回来。", e: { b: -1 } },
+  ];
+  const ALLIES = [
+    { c: "老城区便利店王姐：「五十一单。送不到，不要钱。」", r: "王姐把手机推过柜台，转账 50.00 已到账。她的草稿只有一句：「老周，那块招牌我替你留着，别搬走。」", k: "王姐（便利店老板）", s: "王姐把手机推过柜台：「五十一单。送不到，不要钱。」", q: "王姐发来语音：「小陆，接下来你打算怎么干？」", e: { y: 50, b: -1 } },
+    { c: "1803 的林阿姨：女儿林小满三天没回家了", r: "物业小刘把你领到 1803 门口。林阿姨攥着手机，屏幕上是女儿三天前的草稿：「妈，我在老城区天桥下面，手机快没电了。」", k: "林小满（失踪三天）", s: "林阿姨攥着手机，屏幕上是女儿三天前的草稿：「妈，我在老城区天桥下面。」", q: "物业小刘发来消息：「林阿姨问，你明天还来吗？」", e: { b: -4 } },
+    { c: "沈知夏忽然发来一条：「这么晚还在送单？」", r: "你停在路边，打了一行字又删掉，最后只回：「最后一单。」对面的「正在输入…」亮了又灭，灭了又亮。", k: "沈知夏（三年没联系）", s: "沈知夏的消息跳出来：「这么晚还在送单？」他只回了四个字：「最后一单。」", q: "沈知夏又发来一条：「送完这单，你打算干什么？」", e: { b: -1, m: -1 } },
+  ];
+  const AUXS = [
+    { m: "经营扩张", c: "帮王姐把老城区两家便利店并成一家，做频道的线下驿站", r: "第二天早上，热搜上多了一条：老城区两家便利店连夜合并。王姐给你留了一把钥匙。", e: { y: 50, b: -2 } },
+    { m: "解谜推进", c: "查清频道的来历：为什么所有派单都停在三年前", r: "你翻遍派单记录，每一条的发件时间都停在三年前的同一个晚上，23:59。", e: { b: -3 } },
+    { m: "关系拉扯", c: "把写给沈知夏的那条，留到最后一单再送", r: "你把那条派单拖到列表最底下。频道提示：本单可延期，延期期间，收件人会一点点忘记发件人。", e: { m: -1 } },
+    { m: "升级变强", c: "连夜跑单冲等级，解锁「撤回」", r: "凌晨两点，你送完第七单。等级跳到 Lv.2，「撤回」亮了。代价那一栏写着：记忆 −1。", e: { y: 50, b: -3, m: -1 } },
+  ];
+  const HOOKS = [
+    { c: "先把房租交上：频道赚来的第一笔钱", r: "你把 20 块转给房东，备注：本月房租，先交一部分。房东秒回：「哪来的钱？」", k: "钩子 a · 第一笔钱", s: "到账提示响起的时候，他第一件事是把房租转了过去。房东秒回：「哪来的钱？」", e: { y: -20, b: -1 } },
+    { c: "王姐要送的那句话，收件人早已不在这座城市", r: "导航显示，收件地址在一千二百公里外。频道没有退单按钮，只有一行字：本单不设时限。", k: "钩子 b · 送不到的话", s: "导航显示，王姐那条消息的收件地址在一千二百公里外。频道没有退单按钮。", e: { b: -2 } },
+    { c: "派单列表最底下，多了一条写给你自己的", r: "没有报酬，发件时间三年前，发件人一栏被涂黑了。收件人：陆川。", k: "钩子 c · 写给自己的派单", s: "派单列表最底下，多了一条没有报酬的单。收件人：陆川。", e: { b: -1, m: -1 } },
+  ];
+  const HIDDEN = { c: "点开那条涂黑的派单", r: "涂黑的地方一点点褪色：发件人，沈知夏。正文只有一句：「那年在车站，我等过你。」你想起自己草稿箱里那句：「对不起，那天我没去车站。」", k: "隐藏单 · 车站", s: "涂黑的发件人一点点褪色：沈知夏。「那年在车站，我等过你。」", hid: true, e: { m: -2 } };
+  const EVENTS = [
+    { t: "热搜", m: "老城区两家便利店连夜合并", e: {} },
+    { t: "骑手", m: "系统追加一笔顺路单", e: { y: 6 } },
+    { t: "来电", m: "房东来电（未接），响了很久", e: { b: -1 } },
+    { t: "相册", m: "「三年前的今天」：一张车站的照片", e: { m: 1 } },
+    { t: "热搜", m: "老周昨天没搬走，那块招牌今早又亮了", e: {} },
+    { t: "系统", m: "电量过低，已为你开启省电模式", e: { b: 1 } },
+  ];
+  const ENDS = {
+    ok: { t: "五十块的第一单", b: "准时送达", h: "这一单，送到了", x: "" },
+    dead: { t: "关机之前", b: "电量耗尽", h: "手机黑屏，这一夜提前收工", x: "屏幕黑下去之前，派单状态跳成了「已送达」。他不知道，对面到底有没有看见。" },
+    lost: { t: "送达之后", b: "记忆清零", h: "送到了，可你忘了为什么", x: "他站在收件人楼下，攥着手机，却想不起自己为什么要来。" },
+    hid: { t: "那年车站", b: "隐藏结局 · 车站", h: "两条消息，隔着三年", x: "他草稿箱里那句「对不起，那天我没去车站」，也写于三年前。" },
+  };
+  const END_KEYS = ["ok", "dead", "lost", "hid"];
+  const NOTES = [
+    { t: "方向候选", d: "这就是开书时的「方向候选」。写下一句灵感后，自动导演会整理出几条书级方向和标题组，由你挑定一条；故事类型和推进方式可以自己选，也可以交给 AI 自动匹配。", h: "/features/auto-director", l: "自动导演" },
+    { t: "世界规则", d: "你定下的是这个世界的「规则」，也是能力的代价。世界资料分为规则、势力、地点和冲突张力，保存在这本书里；之后每一章写正文，都会从这里取资料。", h: "/features/auto-director", l: "自动导演" },
+    { t: "角色生成", d: "自动导演给出角色候选和阵容草案，你来挑、来改。人物的性格与能力、彼此的关系，以及每一章之后的状态，都会被记录下来。", h: "/features/auto-director", l: "自动导演" },
+    { t: "推进模式", d: "主推进负责稳定追读，辅助推进负责增加变化。都市异能常见的组合是主推进「升级变强」，再配一到两个辅助推进，比如关系拉扯、经营扩张；它们会进入卷规划、章节任务和质量审核。", h: "/features/progression-modes", l: "推进模式库" },
+    { t: "章节细化", d: "你选的是这一章的「章末钩子」。这一夜会被拆成章节任务和几张场景卡，钩子作为伏笔记录下来，交给后面的章节回收。", h: "/features/auto-director", l: "自动导演" },
+    { t: "正文生成 · 质量审核", d: "正文按章节任务生成。写完后检查是否满足任务与写法要求，再局部修文、保存正文，并同步角色与伏笔状态。章节标题可以交给标题工坊，提示冲突、反转、收获或悬念。", h: "/features/title-workshop", l: "标题工坊" },
+  ];
+  const CHECKS = ["满足本章任务", "冲突逐步升级", "章末留下继续阅读的理由"];
+  const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const rootRef = useRef(null);
+  const sceneRef = useRef(null);
+  const resRef = useRef(null);
+  const [step, setStep] = useState(0);
+  const [picks, setPicks] = useState([]);
+  const [n, setN] = useState(0);
+  const [ph, setPh] = useState(0);
+  const [loop, setLoop] = useState(1);
+  const [history, setHistory] = useState([]);
+  const [seen, setSeen] = useState([]);
+  const [charged, setCharged] = useState(false);
+  const P = (i) => (picks[i] == null ? 0 : picks[i]);
+  const auxOpts = AUXS.filter((a) => a.m !== DIRS[P(0)].m).slice(0, 3);
+  const hookOpts = loop > 1 ? HOOKS.concat([HIDDEN]) : HOOKS;
+  const SC = [
+    { time: "周五 · 00:00", p: ["周五，夜班。本单超时 4 分钟，扣款 50.00，余额只剩 37.21。", "零点整，骑手 App 底部多出一个灰色频道：「未送达」。", "第一条派单：配送一条三年前没发出去的消息，收件人在 3.2 公里外。", "备注：一定要送到。"], hit: "备注：一定要送到。", opts: DIRS, chip: (o) => "《" + o.t + "》 · 主推进 " + o.m },
+    { time: "00:07 · 红灯", p: ["等红灯的时候，频道弹出一份《骑手须知》。", "字很小，绿灯亮之前，你只来得及看清一条："], opts: RULES, chip: (o) => "规则 · " + o.k },
+    { time: "00:31 · 老城区", p: ["频道刷新了，三条新派单同时亮起。", "电量不够跑三趟，你只能先接一单。"], opts: ALLIES, chip: (o) => "人物 · " + o.k },
+    { time: "01:20 · 天桥下", p: ["你在天桥底下停车。频道弹出一行字：骑手等级 Lv.1，完成更多派单可解锁新权限。", ALLIES[P(2)].q], opts: auxOpts, chip: (o) => "主推进 · " + DIRS[P(0)].m + "　辅助 · " + o.m },
+    { time: "02:47 · 便利店门口", p: ["你蹲在便利店门口的台阶上。派单列表里，这一夜还剩几条「未完成」。", "天亮之前，你只来得及再点开一条。"], opts: hookOpts, chip: (o) => "伏笔 · " + o.k },
+  ];
+  const evAt = (s) => EVENTS[(loop * 5 + s * 3 + picks.slice(0, s).reduce((a, b) => a + b, 0) * 2) % EVENTS.length];
+  const last = step < 5 ? step : picks.length - 1;
+  const R = { b: 12, y: 37.21, m: 4 };
+  const add = (e) => { R.b += e.b || 0; R.y += e.y || 0; R.m += e.m || 0; };
+  for (let s = 0; s <= last; s++) { if (s > 0) add(evAt(s).e); if (picks[s] != null) add(SC[s].opts[picks[s]].e); }
+  if (charged) add({ b: 4, y: -10 });
+  const bat = Math.max(0, R.b);
+  const chosen = picks[step];
+  const has = chosen != null;
+  const over = step < 4 && has && (R.b <= 0 || R.m <= 0);
+  const hid = picks[4] != null && !!SC[4].opts[picks[4]].hid;
+  const endKey = R.b <= 0 ? "dead" : hid ? "hid" : R.m <= 0 ? "lost" : "ok";
+  const E = ENDS[endKey];
+  const sg = (v) => (v > 0 ? "+" : "−");
+  const fx = (e) => [e.b ? "电量 " + sg(e.b) + Math.abs(e.b) + "%" : "", e.y ? "余额 " + sg(e.y) + Math.abs(e.y).toFixed(2) : "", e.m ? "记忆 " + sg(e.m) + Math.abs(e.m) : ""].filter(Boolean).join(" · ");
+  const money = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
+  const sample = ["零点整，陆川的骑手 App 里多出一个灰色频道：「未送达」。", picks[1] != null ? RULES[P(1)].l : "", picks[2] != null ? ALLIES[P(2)].s : "", picks[4] != null ? SC[4].opts[P(4)].s : "", E.x].filter(Boolean).join("\n");
+  const ROWS = [["书级方向", 0, () => "《" + DIRS[P(0)].t + "》"], ["推进方式", 3, () => "主推进 · " + DIRS[P(0)].m + "　辅助 · " + auxOpts[P(3)].m], ["世界规则", 1, () => RULES[P(1)].k], ["主要人物", 2, () => ALLIES[P(2)].k], ["章末钩子", 4, () => SC[4].opts[P(4)].k], ["资源结算", -1, () => "电量 " + bat + "% · 余额 " + money(R.y) + " · 记忆 " + Math.max(0, R.m)], ["结局", -1, () => E.b]].filter((r) => r[1] < 0 || picks[r[1]] != null);
+  const choose = (i) => { if (has) return; const np = picks.slice(0, step); np[step] = i; setPicks(np); };
+  const next = () => { setN(0); setPh(0); setStep(over ? 5 : step + 1); };
+  const restart = () => {
+    setHistory((h) => [...h, picks]);
+    setLoop((l) => l + 1);
+    setPicks([]); setStep(0); setN(0); setPh(0); setCharged(false);
+    const el = rootRef.current;
+    if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: "smooth" });
+  };
+  useEffect(() => {
+    if (step === 0) return;
+    const el = sceneRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 80 || r.top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + r.top - 110, behavior: "smooth" });
+  }, [step]);
+  useEffect(() => {
+    if (!has) return;
+    const t = setTimeout(() => {
+      const el = resRef.current;
+      if (!el) return;
+      const b = el.getBoundingClientRect();
+      if (b.bottom > window.innerHeight - 24) window.scrollBy({ top: b.bottom - window.innerHeight + 80, behavior: "smooth" });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [has, step]);
+  useEffect(() => {
+    if (step !== 5) return;
+    setSeen((s) => (s.includes(endKey) ? s : s.concat([endKey])));
+    if (reduce) { setN(sample.length); setPh(2); return; }
+    let i = 0;
+    const ts = [];
+    const iv = setInterval(() => {
+      i += 1;
+      setN(i);
+      if (i >= sample.length) {
+        clearInterval(iv);
+        ts.push(setTimeout(() => setPh(1), 400));
+        ts.push(setTimeout(() => setPh(2), 400 + CHECKS.length * 450 + 400));
+      }
+    }, 36);
+    return () => { clearInterval(iv); ts.forEach(clearTimeout); };
+  }, [step]);
+  const N = NOTES[step];
+  const chip = step < 5 && has ? SC[step].chip(SC[step].opts[chosen]) : null;
+  const noteEl = has || step === 5 ? (
+    <div className="uz-note" key={"n" + step}>
+      <div className="uz-nh">导演批注</div>
+      <div className="uz-nt"><span>{N.t}</span></div>
+      <p>{N.d}</p>
+      {chip && <div className="uz-nc">{chip}</div>}
+      <a href={N.h}>了解{N.l} →</a>
+    </div>
+  ) : <div className="uz-wait">做出选择后，导演会在这里写下批注：这一步，在工作台里叫什么。</div>;
+  const sc = SC[Math.min(step, 4)];
+  const ev = step > 0 && step < 5 ? evAt(step) : null;
+  const paras = sample.slice(0, n).split("\n");
+  const wasPicked = (s, i) => history.some((h) => h[s] === i);
+  const dots = Array.from({ length: Math.max(4, R.m) }, (_, i) => (i < R.m ? "●" : "○")).join("");
+  return (
+    <div ref={rootRef} id="uz-shift" className="not-prose uz" style={{ "--glow": GLOW[step] }}>
+      <style>{`
+        .uz{--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;position:relative;background:radial-gradient(900px 420px at 50% 0,var(--glow),transparent 70%),linear-gradient(180deg,#06040f,#0d0820 60%,#140b2e);color:#e9e4f5;padding:96px 24px 90px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;transition:background .8s;scroll-margin-top:70px}
+        .uz-in{max-width:1080px;margin:0 auto}
+        .uz-hd{max-width:700px}
+        .uz-k{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;letter-spacing:.4em;color:#67e8f9}
+        .uz-k i{width:8px;height:8px;border-radius:50%;background:#e879f9;box-shadow:0 0 8px #e879f9;animation:uzBlink 1.2s steps(1) infinite}
+        .uz-h{font-size:clamp(28px,4vw,42px);font-weight:900;letter-spacing:.04em;line-height:1.3;margin:12px 0 14px;color:#f5f3ff;text-shadow:0 0 24px rgba(168,85,247,.55)}
+        .uz-p{font-size:16px;line-height:1.9;color:rgba(233,228,245,.66)}
+        .uz-loop{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:22px;padding:6px 14px;background:rgba(192,38,211,.12);border:1px solid rgba(232,121,249,.35);color:#f0abfc;font-size:13px;letter-spacing:.1em}
+        .uz-loop b{font-family:var(--mono)}
+        .uz-steps{display:flex;gap:6px;margin:30px 0 0;padding:0;list-style:none;overflow-x:auto}
+        .uz-steps li{flex:1;min-width:96px;display:flex;align-items:center;gap:8px;padding:9px 10px;border-top:3px solid rgba(233,228,245,.1);font-size:13px;color:rgba(233,228,245,.35);transition:all .5s}
+        .uz-steps b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;border-radius:50%;font-size:11px;background:rgba(233,228,245,.08)}
+        .uz-steps li.done{border-color:#a78bfa;color:#c4b5fd}
+        .uz-steps li.done b{background:#a78bfa;color:#06040f}
+        .uz-steps li.cur{border-color:#67e8f9;color:#67e8f9}
+        .uz-steps li.cur b{background:#67e8f9;color:#06040f;animation:uzPulse 1.6s ease-in-out infinite}
+        .uz-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:44px;margin-top:26px}
+        .uz-hud{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+        .uz-m{display:flex;flex-direction:column;gap:2px;min-width:92px;padding:8px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(167,139,250,.22)}
+        .uz-m span{font-size:11px;letter-spacing:.2em;color:rgba(233,228,245,.45)}
+        .uz-m b{font-family:var(--mono);font-size:17px;color:#67e8f9;animation:uzPop .5s}
+        .uz-m.low{border-color:rgba(252,165,165,.5)}
+        .uz-m.low b{color:#fca5a5}
+        .uz-tool{margin-left:auto;padding:8px 14px;border-radius:12px;border:1px dashed rgba(103,232,249,.45);background:none;color:#67e8f9;font-family:inherit;font-size:13px;cursor:pointer}
+        .uz-tool:hover:not(:disabled){background:rgba(103,232,249,.1)}
+        .uz-tool:disabled{opacity:.35;cursor:default}
+        .uz-log{display:grid;gap:6px;margin-bottom:20px}
+        .uz-lr{display:grid;grid-template-columns:130px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(167,139,250,.5)}
+        .uz-lr span{font-family:var(--mono);font-size:11.5px;color:rgba(233,228,245,.45)}
+        .uz-lr b{font-weight:500;color:rgba(233,228,245,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .uz-lr em{font-style:normal;font-size:11.5px;color:#c4b5fd}
+        .uz-ev{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);animation:uzDrop .5s both}
+        .uz-ev i{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:none;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#c026d3);font-style:normal;font-size:13px;font-weight:800;color:#fff}
+        .uz-ev div{display:flex;flex-direction:column;min-width:0}
+        .uz-ev b{font-size:12px;font-weight:600;color:rgba(233,228,245,.5)}
+        .uz-ev span{font-size:14px;color:#f5f3ff}
+        .uz-ev em{margin-left:auto;font-style:normal;font-size:12px;color:#67e8f9;white-space:nowrap}
+        .uz-time{font-family:var(--mono);font-size:12.5px;letter-spacing:.25em;color:#e879f9;margin-bottom:16px}
+        .uz-scene p{margin:0 0 14px;font-size:18px;line-height:1.95;color:#ece8f7;opacity:0;animation:uzIn .7s forwards}
+        .uz-scene p.uz-hit{font-size:24px;font-weight:900;letter-spacing:.2em;color:#f0abfc;text-shadow:0 0 8px #e879f9,0 0 24px #a855f7;margin:20px 0}
+        .uz-opts{display:grid;gap:10px;margin-top:24px;opacity:0;animation:uzIn .6s forwards}
+        .uz-opt{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 18px;border-radius:14px;border:1px solid rgba(167,139,250,.28);background:rgba(255,255,255,.02);color:#ece8f7;font-family:inherit;font-size:16px;line-height:1.6;cursor:pointer;transition:border-color .25s,background .25s,translate .25s,opacity .4s}
+        .uz-opt>b{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none;border-radius:50%;font-family:var(--mono);font-size:13px;border:1px solid rgba(167,139,250,.55);color:#c4b5fd}
+        .uz-oc{display:flex;flex-direction:column;gap:2px;min-width:0}
+        .uz-oc small{font-size:12px;color:rgba(103,232,249,.75)}
+        .uz-oc em{font-style:normal;color:#f0abfc}
+        .uz-opt:hover:not(:disabled){border-color:#a78bfa;background:rgba(124,58,237,.1);translate:6px 0}
+        .uz-opt:focus-visible,.uz-next:focus-visible,.uz-tool:focus-visible,.uz-again:focus-visible{outline:2px solid #67e8f9;outline-offset:2px}
+        .uz-opt:disabled{cursor:default}
+        .uz-opt.on{border-color:#67e8f9;background:rgba(103,232,249,.08)}
+        .uz-opt.on>b{background:#67e8f9;border-color:#67e8f9;color:#06040f}
+        .uz-opt.off{opacity:.3}
+        .uz-opt.hid{border-style:dashed;border-color:rgba(232,121,249,.6);background:rgba(192,38,211,.08)}
+        .uz-tag{margin-left:auto;font-size:11px;color:#f0abfc;white-space:nowrap}
+        .uz-res{margin-top:22px;padding:16px 18px;border-left:3px solid #67e8f9;background:rgba(103,232,249,.05);font-size:17px;line-height:1.9;color:#f5f3ff;animation:uzIn .6s both}
+        .uz-res small{display:block;margin-top:6px;font-size:12.5px;color:#67e8f9}
+        .uz-warn{margin-top:12px;padding:10px 14px;border:1px solid rgba(252,165,165,.45);background:rgba(252,165,165,.08);color:#fca5a5;font-size:14px;line-height:1.7;animation:uzIn .5s both}
+        .uz-next{margin-top:20px;padding:13px 26px;border:none;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#c026d3);color:#fff;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:uzIn .6s .3s both}
+        .uz-next:hover{transform:translateY(-2px)}
+        .uz-aside{position:sticky;top:96px;align-self:start}
+        .uz-nm{display:none;margin-top:22px}
+        .uz-note{position:relative;padding:28px 22px 20px;background:#ede2c6;color:#2a221a;rotate:-1.2deg;box-shadow:0 24px 50px -24px rgba(0,0,0,.9);font-family:"Kaiti SC","STKaiti","KaiTi","Noto Serif SC",serif;animation:uzNote .55s cubic-bezier(.2,1.2,.4,1) both}
+        .uz-note::before{content:"";position:absolute;left:50%;top:-10px;width:90px;height:22px;margin-left:-45px;background:rgba(232,121,249,.55);rotate:-3deg}
+        .uz-nh{font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:12px;font-weight:800;letter-spacing:.3em;color:#7c3aed}
+        .uz-nt{margin-top:6px;font-size:23px;font-weight:800;color:#1c1712}
+        .uz-nt span{background:linear-gradient(transparent 62%,rgba(192,38,211,.3) 62%)}
+        .uz-note p{margin:10px 0 0;font-size:15.5px;line-height:1.85;color:#2a221a;opacity:1;animation:none}
+        .uz-nc{display:inline-block;margin-top:12px;padding:3px 10px;background:#1c1430;color:#67e8f9;font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:12.5px}
+        .uz-note a{display:block;margin-top:12px;font-family:"Noto Sans SC","PingFang SC",system-ui,sans-serif;font-size:13.5px;color:#7c3aed;text-decoration:none}
+        .uz-note a:hover{text-decoration:underline}
+        .uz-wait{padding:22px;border:1px dashed rgba(233,228,245,.2);font-size:14px;line-height:1.8;color:rgba(233,228,245,.45)}
+        .uz-endh{font-size:clamp(24px,3.2vw,32px);font-weight:900;color:#f5f3ff;margin-bottom:20px}
+        .uz-eg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+        .uz-card{padding:20px;border-radius:16px;border:1px solid rgba(167,139,250,.25);background:rgba(255,255,255,.02)}
+        .uz-ct{font-size:12px;letter-spacing:.25em;color:#67e8f9;margin-bottom:6px}
+        .uz-row{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px dashed rgba(233,228,245,.1);font-size:14px}
+        .uz-row span{color:rgba(233,228,245,.45)}
+        .uz-row b{font-weight:600;color:#f5f3ff}
+        .uz-paper{position:relative;padding:34px 24px 22px;background:#e9e1d2;color:#2a221a}
+        .uz-badge{position:absolute;top:10px;right:12px;font-size:11px;letter-spacing:.2em;padding:2px 8px;border:1px solid #7c3aed;color:#7c3aed}
+        .uz-pt{font-size:18px;font-weight:900;letter-spacing:.12em;margin-bottom:12px}
+        .uz-paper p{margin:0 0 8px;text-indent:2em;font-size:15px;line-height:1.95;font-family:"Noto Serif SC","Songti SC",serif}
+        .uz-cur{display:inline-block;width:2px;height:1em;margin-left:2px;background:#7c3aed;vertical-align:-2px;animation:uzBlink .8s steps(1) infinite}
+        .uz-checks{display:grid;gap:4px;margin-top:14px}
+        .uz-checks span{font-size:13.5px;color:rgba(42,34,26,.3);transition:color .4s}
+        .uz-checks span.on{color:#7c3aed;font-weight:700}
+        .uz-saved{margin-top:12px;padding:7px 12px;font-size:13px;background:#1c1430;color:#67e8f9;opacity:0;transform:translateY(6px);transition:all .5s}
+        .uz-saved.on{opacity:1;transform:none}
+        .uz-ends{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:24px;font-size:13px;color:rgba(233,228,245,.55)}
+        .uz-ends b{padding:4px 10px;border-radius:999px;border:1px dashed rgba(233,228,245,.2);font-weight:500;color:rgba(233,228,245,.35)}
+        .uz-ends b.on{border-style:solid;border-color:#e879f9;color:#f0abfc;background:rgba(192,38,211,.12)}
+        .uz-hint{margin-top:10px;font-size:13px;color:#67e8f9}
+        .uz-acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+        .uz-again{padding:12px 22px;border-radius:999px;border:1px solid rgba(167,139,250,.5);background:none;color:#c4b5fd;font-family:inherit;font-size:15px;letter-spacing:.1em;cursor:pointer}
+        .uz-again:hover{background:rgba(124,58,237,.15)}
+        .uz-start{padding:12px 24px;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#c026d3);color:#fff;font-weight:800;font-size:15px;letter-spacing:.1em;text-decoration:none}
+        .uz-foot{margin-top:36px;font-size:12.5px;line-height:1.7;color:rgba(233,228,245,.4)}
+        @keyframes uzIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        @keyframes uzNote{from{opacity:0;transform:translateX(24px) rotate(4deg)}to{opacity:1;transform:none}}
+        @keyframes uzBlink{50%{opacity:0}}
+        @keyframes uzPulse{50%{box-shadow:0 0 0 6px rgba(103,232,249,.2)}}
+        @keyframes uzPop{from{transform:scale(1.25);color:#f0abfc}to{transform:none}}
+        @keyframes uzDrop{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+        @media (prefers-reduced-motion:reduce){.uz *{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition:none!important}}
+        @media (max-width:900px){.uz-grid{grid-template-columns:1fr}.uz-aside{display:none}.uz-nm{display:block}}
+        @media (max-width:520px){.uz{padding:80px 18px}.uz-lr{grid-template-columns:1fr auto}.uz-lr span{display:none}.uz-scene p{font-size:16.5px}.uz-m{flex:1;min-width:0}.uz-tool{margin-left:0;width:100%}}
+      `}</style>
+      <div className="uz-in">
+        <div className="uz-hd">
+          <div className="uz-k"><i />互动夜班</div>
+          <div className="uz-h">接下这一单，写出一章</div>
+          <div className="uz-p">五个选择，每一个都要花掉电量、余额或记忆。资源撑不撑得住，决定这一章怎么收尾。右边的导演批注会告诉你，这一步在 Biz Novel Studio 里对应哪个创作环节。</div>
+        </div>
+        {loop > 1 && (
+          <div className="uz-loop"><b>第 {loop} 夜班</b><span>频道记得你上一夜的选择 · 派单列表最底下多了一条</span></div>
+        )}
+        <ol className="uz-steps" aria-label="创作环节进度">
+          {STEPS.map((s, i) => <li key={s} className={i === step ? "cur" : i < step && (i === 5 || picks[i] != null) ? "done" : ""}><b>{i + 1}</b><span>{i <= step ? s : "？？？"}</span></li>)}
+        </ol>
+        <div className="uz-grid">
+          <div>
+            <div className="uz-hud" role="group" aria-label="夜班资源">
+              <div className={"uz-m" + (bat <= 3 ? " low" : "")}><span>电量</span><b key={"b" + bat}>{bat}%</b></div>
+              <div className={"uz-m" + (R.y < 10 ? " low" : "")}><span>余额</span><b key={"y" + R.y.toFixed(2)}>{money(R.y)}</b></div>
+              <div className={"uz-m" + (R.m <= 1 ? " low" : "")}><span>记忆</span><b key={"m" + R.m}>{dots}</b></div>
+              <button type="button" className="uz-tool" disabled={charged || step === 5 || R.y < 10} onClick={() => setCharged(true)} aria-label="借王姐的充电宝：电量加 4%，余额减 10 元，每夜限一次">{charged ? "充电宝已借过" : "借充电宝 · 电量 +4% · 余额 −10.00"}</button>
+            </div>
+            {step > 0 && (
+              <div className="uz-log">
+                {SC.slice(0, step < 5 ? step : picks.length).map((s, i) => <div key={i} className="uz-lr"><span>{s.time}</span><b>{s.opts[P(i)].c}</b><em>{STEPS[i]}</em></div>)}
+              </div>
+            )}
+            {step < 5 ? (
+              <div className="uz-scene" key={"s" + step} ref={sceneRef}>
+                {ev && <div className="uz-ev"><i>{ev.t.slice(0, 1)}</i><div><b>{ev.t}</b><span>{ev.m}</span></div>{fx(ev.e) && <em>{fx(ev.e)}</em>}</div>}
+                <div className="uz-time">● {sc.time}</div>
+                {sc.p.map((t, i) => <p key={i} className={t === sc.hit ? "uz-hit" : ""} style={{ animationDelay: i * 0.45 + "s" }}>{t}</p>)}
+                <div className="uz-opts" style={{ animationDelay: sc.p.length * 0.45 + 0.2 + "s" }}>
+                  {sc.opts.map((o, i) => (
+                    <button type="button" key={o.c} className={"uz-opt" + (o.hid ? " hid" : "") + (chosen === i ? " on" : has ? " off" : "")} disabled={has} onClick={() => choose(i)} aria-label={o.c + "，" + (o.hid ? "代价未知" : fx(o.e) || "无消耗")}>
+                      <b>{o.hid ? "?" : String.fromCharCode(65 + i)}</b>
+                      <span className="uz-oc"><span>{o.hid && <em>隐藏单 · </em>}{o.c}</span><small>{o.hid ? "代价 ？？？" : fx(o.e) || "无消耗"}</small></span>
+                      {wasPicked(step, i) && <span className="uz-tag">上一夜</span>}
+                    </button>
+                  ))}
+                </div>
+                {has && (
+                  <div ref={resRef}>
+                    <div className="uz-res">{sc.opts[chosen].r}<small>结算：{fx(sc.opts[chosen].e) || "无消耗"}</small></div>
+                    {over && <div className="uz-warn">{R.b <= 0 ? "电量 0%，屏幕开始闪烁。" : "记忆清零。你忘了自己为什么在送单。"}{R.b <= 0 && !charged && R.y >= 10 ? "借个充电宝，或许还能再撑一单。" : ""}</div>}
+                    <div className="uz-nm">{noteEl}</div>
+                    <button type="button" className="uz-next" onClick={next}>{over ? "这一夜提前结束 →" : step < 4 ? "继续 →" : "看这一夜写成一章 →"}</button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div key="end" ref={sceneRef}>
+                <div className="uz-time">● 天亮之前 · 成章</div>
+                <div className="uz-endh">{E.h}</div>
+                <div className="uz-eg">
+                  <div className="uz-card">
+                    <div className="uz-ct">本书设定 · 来自你的选择</div>
+                    {ROWS.map((r) => <div key={r[0]} className="uz-row"><span>{r[0]}</span><b>{r[2]()}</b></div>)}
+                  </div>
+                  <div className="uz-paper">
+                    <div className="uz-badge">演示样张</div>
+                    <div className="uz-pt">第 3 章　{E.t}</div>
+                    {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="uz-cur" />}</p>)}
+                    <div className="uz-checks">
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                    </div>
+                    <div className={"uz-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
+                  </div>
+                </div>
+                <div className="uz-nm">{noteEl}</div>
+                <div className="uz-ends" aria-label="结局收集">
+                  <span>结局收集 {seen.length}/4</span>
+                  {END_KEYS.map((k) => <b key={k} className={seen.includes(k) ? "on" : ""}>{seen.includes(k) ? ENDS[k].b : "？？？"}</b>)}
+                </div>
+                {!seen.includes("hid") && <div className="uz-hint">{loop < 2 ? "提示：再跑一夜，派单列表最底下会多出一条。" : "提示：那条涂黑的派单在最后一步，电量得撑到那时候。"}</div>}
+                <div className="uz-acts">
+                  <button type="button" className="uz-again" onClick={restart} aria-label={"再跑一夜，进入第 " + (loop + 1) + " 夜班"}>↻ 再跑一夜（第 {loop + 1} 夜班）</button>
+                  <a className="uz-start" href="/quickstart">用自己的灵感开书 →</a>
+                </div>
+              </div>
+            )}
+          </div>
+          <aside className="uz-aside">{noteEl}</aside>
+        </div>
+        <div className="uz-foot">演示：剧情、选项、资源数值和样张都是示意，用来说明创作流程；夜班次数和结局收集只在本次浏览中有效，刷新页面即重置。实际内容由你的灵感、设定和所选模型生成。</div>
       </div>
     </div>
   );
