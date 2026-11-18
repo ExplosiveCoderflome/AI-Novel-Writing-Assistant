@@ -6,6 +6,18 @@ export interface LlmInputCacheUsage {
   cacheUsageStatus: "reported" | "unavailable" | "invalid";
 }
 
+export interface LlmOutputBudgetTrace {
+  source: "task" | "route" | "automatic" | "frozen" | "endpoint" | "structured" | "provider";
+  requestedMaxTokens: number | null;
+  routeMaxTokens: number | null;
+  automaticMaxTokens: number | null;
+  endpointMaxTokens: number | null;
+  frozenMaxTokens: number | null;
+  structuredMaxTokens: number | null;
+  reasoningReserveTokens?: number;
+  finalMaxTokens: number | null;
+}
+
 export interface LlmInvocationUsageItem {
  invocationId:string; runId:string|null; generationJobId:string|null; workflowTaskId:string|null;
  novelId:string|null; chapterId:string|null; stage:string|null; provider:string|null; model:string|null;
@@ -13,6 +25,9 @@ export interface LlmInvocationUsageItem {
  status:string; startedAt:string; finishedAt:string;
  durationMs:number|null; firstTokenMs:number|null; attemptNumber:number; chainId:string|null; parentInvocationId:string|null; structuredMode:string|null;
  promptTokens:number|null; completionTokens:number|null; totalTokens:number|null; inputCache:LlmInputCacheUsage;
+ budgetTrace?: LlmOutputBudgetTrace | null;
+ finishReason?: string | null;
+ structureStatus?: "valid" | "invalid" | null;
 }
 export interface LlmInvocationUsagePage {
  items:LlmInvocationUsageItem[]; nextCursor:string|null;

@@ -4,6 +4,7 @@ import { claimModelRequest, currentModelRequestBudget } from "../../platform/llm
 import { HumanMessage, type BaseMessage, type BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../../llm/factory";
+import { createInvocationParseScope } from "../../llm/compatibility";
 import {
   invokeStructuredLlmDetailed,
   parseStructuredLlmRawContentDetailed,
@@ -685,6 +686,7 @@ async function resolveStructuredOutput<I, O, R = O>(input: {
         temperature: input.options?.temperature,
         reasoningEnabled: input.options?.reasoningEnabled,
         maxTokens: input.options?.maxTokens,
+        automaticMaxTokens: input.options?.automaticMaxTokens,
         timeoutMs: input.options?.timeoutMs,
         signal: input.options?.signal,
         taskType: input.asset.taskType,
@@ -789,6 +791,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       temperature: input.options?.temperature,
       reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      automaticMaxTokens: input.options?.automaticMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       signal: input.options?.signal,
       taskType: input.asset.taskType,
@@ -913,6 +916,7 @@ export async function runTextPrompt<I>(input: {
       temperature: input.options?.temperature,
       reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      automaticMaxTokens: input.options?.automaticMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1023,6 +1027,7 @@ export async function streamTextPrompt<I>(input: {
       temperature: input.options?.temperature,
       reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      automaticMaxTokens: input.options?.automaticMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1138,12 +1143,15 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   let captured: ReturnType<typeof captureStreamOutput>;
   let strategy!: ReturnType<typeof selectStructuredOutputStrategy>;
   let profile!: ReturnType<typeof resolveStructuredOutputProfile>;
+  const parseScope = createInvocationParseScope();
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
       fallbackProvider: "deepseek",
       model: input.options?.model,
       temperature: input.options?.temperature,
+      reasoningEnabled: input.options?.reasoningEnabled,
       maxTokens: input.options?.maxTokens,
+      automaticMaxTokens: input.options?.automaticMaxTokens,
       timeoutMs: input.options?.timeoutMs,
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
@@ -1171,7 +1179,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       invokeOptions.signal = input.options.signal;
     }
     liveSession.phase("streaming", "模型正在返回结构化结果");
-    const rawStream = await liveSession.observe(() => llm.stream(prepared.messages, invokeOptions));
+    const rawStream = await liveSession.observe(() => parseScope.run(() => llm.stream(prepared.messages, invokeOptions)));
     captured = captureStreamOutput(
       rawStream as AsyncIterable<BaseMessageChunk>,
       (content) => liveSession.delta(content),
@@ -1194,10 +1202,12 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
 
   return {
     stream: captured.stream,
-    complete: captured.completedText.then((rawContent) => liveSession.observe(async () => {
+    complete: captured.completedText.then((rawContent) => liveSession.observe(() => parseScope.run(async () => {
       liveSession.phase("validating", "正在检查生成结果");
       let repairStarted = false;
-      const parsed = rawContent.trim()
+      const hasContent = Boolean(rawContent.trim());
+      if (!hasContent) await parseScope.save(null, "模型没有返回结构化正文。");
+      const parsed = hasContent
         ? await parseStructuredLlmRawContentDetailed({
           rawContent,
           schema: outputSchema,
@@ -1229,6 +1239,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           temperature: input.options?.temperature,
           reasoningEnabled: input.options?.reasoningEnabled,
           maxTokens: input.options?.maxTokens,
+          automaticMaxTokens: input.options?.automaticMaxTokens,
           timeoutMs: input.options?.timeoutMs,
           signal: input.options?.signal,
           taskType: input.asset.taskType,
@@ -1240,6 +1251,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
           fallbackMaxRepairAttempts: resolveStructuredFallbackRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
           promptMeta: prepared.invocation,
         });
+      if (hasContent) await parseScope.save(parsed.data, null);
       const resolved = await resolveStructuredOutput({
         asset: input.asset,
         promptInput: input.promptInput,
@@ -1268,7 +1280,8 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
       } : null);
       liveSession.complete();
       return result;
-    })).catch((error) => {
+    }))).catch(async (error) => {
+      await parseScope.save(null, error instanceof Error ? error.message : String(error));
       liveSession.fail(error);
       recordPromptFailure({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,

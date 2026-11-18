@@ -5,4 +5,5 @@ const path = require('node:path');
 module.exports = function applyObservabilityMigration(db) {
   db.exec('CREATE TABLE IF NOT EXISTS "DirectorLlmUsageRecord" ("id" TEXT PRIMARY KEY, "durationMs" INTEGER)');
   db.exec(fs.readFileSync(path.join(__dirname, '../../src/prisma/migrations.sqlite/20261106090000_llm_observability/migration.sql'), 'utf8'));
+  db.exec(fs.readFileSync(path.join(__dirname, '../../src/prisma/migrations.sqlite/20261116135000_invocation_output_budget/migration.sql'), 'utf8'));
 };

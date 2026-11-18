@@ -1,5 +1,5 @@
 import type {DirectorChapterBudgetGrant, DirectorChapterBudgetStage, DirectorChapterBudgetView} from "@ai-novel/shared/types/director/chapterBudget";
-import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
+import {automaticDirectorChapterTopUp, directorChapterTokenLimitSchema, recommendDirectorChapterTokenLimit} from "@ai-novel/shared/types/director/chapterBudget";
 import type {PipelineDirectorSnapshot} from "../directorBridge";
 import {DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS, DIRECTOR_CHAPTER_TOKEN_LIMIT} from "./DirectorChapterUsageBudget";
 
@@ -10,14 +10,13 @@ export function chapterBudgetView(jobId: string, row: Checkpoint): DirectorChapt
   const reserveTokens = row.budgetPause?.reserveTokens
     ?? (row.endJobTokens === undefined ? DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS : 0);
   const tokenLimit = row.tokenLimit ?? DIRECTOR_CHAPTER_TOKEN_LIMIT;
-  // Cover the next step and one conservative fallback step, rounded for an editable recommendation.
-  const recommendedLimit = Math.min(10_000_000,
-    Math.ceil((Math.max(tokenLimit, usedTokens + reserveTokens) + DIRECTOR_CHAPTER_PREFLIGHT_RESERVE_TOKENS) / 1000) * 1000);
+  const recommendedLimit = recommendDirectorChapterTokenLimit(tokenLimit, usedTokens, reserveTokens);
   return {jobId, chapterId: row.chapterId, chapterOrder: row.chapterOrder,
     metric: row.metric ?? "raw_tokens_v1", usedTokens, rawTokens: row.totalTokens,
     ...(row.metric ? {promptTokens: row.promptTokens, completionTokens: row.completionTokens, cacheHitTokens: row.cacheHitTokens,
       ...(row.unclassifiedTokens ? {unclassifiedTokens: row.unclassifiedTokens} : {})} : {}),
-    tokenLimit, reserveTokens, recommendedLimit, stage: row.budgetPause?.stage ?? null, closed: row.endJobTokens !== undefined};
+    tokenLimit, automaticTopUpTokens: row.automaticTopUpTokens, reserveTokens, recommendedLimit,
+    stage: row.budgetPause?.stage ?? null, closed: row.endJobTokens !== undefined};
 }
 
 /** A structured saved decision, never error-text matching, identifies the paused chapter. */
@@ -43,14 +42,26 @@ export function authorizeChapterBudget(snapshot: PipelineDirectorSnapshot, jobId
   }
   const row = snapshot.chapterUsage!.find(item => item.chapterId === view.chapterId)!;
   row.tokenLimit = grant.tokenLimit;
-  if (grant.applyToRemaining) snapshot.chapterTokenLimit = grant.tokenLimit;
+  if (grant.applyToRemaining) {
+    snapshot.chapterTokenLimit = grant.tokenLimit;
+    snapshot.chapterBudgetAutomatic = false;
+  }
   delete row.budgetPause;
 }
 
-export function pauseChapterBudget(row: Checkpoint, reserveTokens: number, stage: DirectorChapterBudgetStage | null): boolean {
+export function pauseChapterBudget(row: Checkpoint, reserveTokens: number, stage: DirectorChapterBudgetStage | null,
+  automatic = false): boolean {
   if (!Number.isSafeInteger(reserveTokens) || reserveTokens < 0) throw new Error("下一步预算预估无效。");
   const view = chapterBudgetView("", row);
   if (view.usedTokens < view.tokenLimit && (reserveTokens === 0 || view.usedTokens + reserveTokens < view.tokenLimit)) return false;
+  if (automatic && row.automaticTopUpTokens == null && !row.budgetPause) {
+    const newLimit = automaticDirectorChapterTopUp(view.tokenLimit, view.usedTokens, reserveTokens);
+    if (newLimit !== null) {
+      row.automaticTopUpTokens = newLimit - view.tokenLimit;
+      row.tokenLimit = newLimit;
+      return false;
+    }
+  }
   row.budgetPause = {reserveTokens, stage};
   return true;
 }

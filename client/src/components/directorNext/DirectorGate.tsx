@@ -7,7 +7,7 @@ import {AppDialogContent, Dialog} from "@/components/ui/dialog";
 
 export type PlanEditorRenderer = (input: {runId:string; expectedVersion:number; onClose:()=>void}) => ReactNode;
 
-export default function DirectorGate({runId, novelId, expectedVersion, reviewType, renderPlanEditor}: {runId:string; novelId:string; expectedVersion:number; reviewType?:string; renderPlanEditor?:PlanEditorRenderer}) {
+export default function DirectorGate({runId, novelId, expectedVersion, reviewType, canConfirm = true, renderPlanEditor}: {runId:string; novelId:string; expectedVersion:number; reviewType?:string; canConfirm?:boolean; renderPlanEditor?:PlanEditorRenderer}) {
   const queries=useQueryClient();
   const [regenerating, setRegenerating]=useState(false);
   const [guidance, setGuidance]=useState("");
@@ -22,11 +22,13 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
     },
   });
   return <section className="space-y-3 border-t border-border/50 py-4">
-    <p className="text-xs leading-5 text-muted-foreground">核对左侧结果；满意后继续，也可以先修改内容{canGenerate ? "或请 AI 按你的建议重写" : ""}。</p>
-    <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>确认结果并继续</Button>
+    {canConfirm ? <>
+      <p className="text-xs leading-5 text-muted-foreground">核对左侧结果；满意后继续，也可以先修改内容{canGenerate ? "或请 AI 按你的建议重写" : ""}。</p>
+      <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>确认结果并继续</Button>
+    </> : null}
     <div className="flex flex-wrap gap-2">
-      {reviewType==="chapter_task_sheet" && renderPlanEditor ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>setEditing(true)}>编辑任务与场景</Button>
-        : <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm_after_edit")}>确认已保存的修改</Button>}
+      {canConfirm ? (reviewType==="chapter_task_sheet" && renderPlanEditor ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>setEditing(true)}>编辑任务与场景</Button>
+        : <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm_after_edit")}>确认已保存的修改</Button>) : null}
       {canGenerate ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>{mutation.reset();setRegenerating(true);}}>重新生成本阶段</Button>
         : reviewType==="chapter_execution_contract" ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("regenerate")}>重新同步执行计划</Button> : null}
     </div>
@@ -38,6 +40,6 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
         {mutation.isError ? <p role="alert" className="mt-3 text-sm text-destructive">{mutation.error.message}</p>:null}
       </AppDialogContent>
     </Dialog>
-    {editing ? renderPlanEditor?.({runId,expectedVersion,onClose:()=>setEditing(false)}) : null}
+    {canConfirm && editing ? renderPlanEditor?.({runId,expectedVersion,onClose:()=>setEditing(false)}) : null}
   </section>;
 }

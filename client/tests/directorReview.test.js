@@ -27,6 +27,11 @@ test('short review URLs resolve only saved current contexts and ignore forged or
  assert.equal(resolveSavedReview({...book,reviewContexts:[context,context]},query).ready,false);
  assert.equal(resolveSavedReview({...book,planning:{volumes:[{id:'v2',chapters:[row,{...row,id:'duplicate'}]}]}},query).ready,false);
  assert.equal(resolveSavedReview({...book,planning:{volumes:[{id:'v2',chapters:[{...row,taskSheet:{invalid:true}}]}]}},query).ready,false,'invalid stored values must not crash rendering');
+ const incomplete=resolveSavedReview({...book,planning:{volumes:[{id:'v2',chapters:[{...row,sceneCards:null}]}]}},query);
+ assert.equal(incomplete.ready,false);
+ assert.equal(incomplete.canRegenerate,true);
+ assert.equal(incomplete.controlVersion,3);
+ assert.match(incomplete.error,/第 7 章缺少已保存的场景安排/);
  for(const type of ['chapter_execution_contract','chapter_batch_closed'])assert.equal(resolveSavedReview({...book,reviewContexts:[{...context,type}]},new URLSearchParams('review='+type)).ready,false);
 });
 test('new director reviews show the saved target and only offer confirmation while reviewing its current gate', async () => {
@@ -61,6 +66,8 @@ export const noReview=render(<DirectorPanel view={view} novelId='book'/>);
 export const wrongReview=render(<DirectorPanel view={view} novelId='book' reviewTarget='/lab/director/book?review=volume_strategy' reviewReady/>);
 export const ready=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewReady reviewRunId={view.runId} reviewVersion={view.sourceTrace.controlVersion}/>);
 export const missing=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewReady={false}/>);
+export const recovery=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewCanRegenerate reviewRunId={view.runId} reviewVersion={view.sourceTrace.controlVersion}/>);
+export const staleRecovery=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewCanRegenerate reviewRunId={view.runId} reviewVersion={3}/>);
 export const stale=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewReady reviewRunId='older-run' reviewVersion={view.sourceTrace.controlVersion}/>);
 export const staleVersion=render(<DirectorPanel view={view} novelId='book' reviewTarget={target} reviewReady reviewRunId={view.runId} reviewVersion={3}/>);
 export const cast=render(<NovelWorkspace book={book} review={new URLSearchParams('review=character_cast')} preview/>);
@@ -89,6 +96,9 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     assert.doesNotMatch(m.closed,/role="alert"|text-destructive/);
     assert.match(m.contextError,/<p role="alert" class="text-sm text-destructive">保存结果归属异常/);
     for(const html of [m.noReview,m.wrongReview,m.missing,m.stale,m.staleVersion]) assert.ok(!html.includes('确认结果并继续'));
+    assert.match(m.recovery,/重新生成本阶段/);
+    assert.doesNotMatch(m.recovery,/确认结果并继续|确认已保存的修改|编辑任务与场景/);
+    assert.doesNotMatch(m.staleRecovery,/重新生成本阶段/);
     assert.ok(m.ready.includes('确认结果并继续'));
     assert.ok(m.ready.includes('请核对左侧本阶段结果，确认后 AI 按本次授权范围继续。'));
     for(const html of [m.ready,m.missing,m.stale,m.staleVersion]) {
@@ -105,6 +115,7 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
+    assert.match(m.page,/查看最新正文（第 9 章）/);
     assert.ok(m.page.includes('编辑任务与场景'),'the current readable chapter gate must offer its scoped plan editor');
     for(const html of [m.noReview,m.wrongReview,m.missing,m.stale,m.staleVersion,m.invalid]) assert.ok(!html.includes('编辑任务与场景'));
     const automaticHeader=m.page.match(/<header\b[^>]*>[\s\S]*?<\/header>/)?.[0] ?? '';

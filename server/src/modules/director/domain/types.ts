@@ -89,6 +89,7 @@ export interface RunLaunchInput {
   estimatedChapterCount: number;
   userPreferredVolumeCount?: number;
   chapterTokenLimit?: number;
+  chapterBudgetAutomatic?: boolean;
   temperature?: number;
   worldMode: "generate" | "reuse" | "skip";
   targetVolumeId?: string | null;

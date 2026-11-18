@@ -18,7 +18,7 @@ import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from 
 import { NovelCorePipelineService } from "../../services/novel/novelCorePipelineService";
 import {buildDirectorCompletionProfile} from "@ai-novel/shared/types/directorCompletion";
 import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
-import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow } from "./productionInputs";
+import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow, readExecutionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
 import {readExistingAssets} from "./existingAssets";
@@ -29,8 +29,8 @@ import {readProductionProjection} from "./projections/productionProgress";
 import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import {AppError} from "../../middleware/errorHandler";
 import {directorIssuePolicyService} from "../../services/novel/director/issues/DirectorIssuePolicyService";
-import {getDirectorChapterBudgetSettings} from "../../services/settings/chapterBudget";
-import {DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
+import {resolveDirectorChapterBudget} from "../../services/settings/chapterBudget";
+import {LEGACY_DIRECTOR_CHAPTER_TOKEN_LIMIT} from "@ai-novel/shared/types/director/chapterBudget";
 import { createKernelProductionStep, createNativeKernelRuntime, assertKernelOpenReadiness } from "./productionKernel";
 import {MANUAL_CHAPTER_PLAN_VERSION, readManualChapterRequest, type ManualChapterLaunchInput} from "./productionKernel/manual/contract";
 import {assertKernelStartReadiness} from "./productionKernel";
@@ -94,7 +94,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {...modelOptions(context), workspace, targets: executionWindow(context, workspace).targets};
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
     execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
-      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});return {workspace, executionRange: executionWindow(context, workspace).executionRange};
+      const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
+      return readExecutionWindow(context, workspace);
     }, contentHash}),
     chapter_batch: createKernelProductionStep({db: prisma, runtime: context => createNativeKernelRuntime(prisma, context),
       legacy: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
@@ -108,7 +109,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       }
       const policy = directorIssuePolicySchema.parse(context.contract.issuePolicy.pipelinePolicy);
       return {...modelOptions(context), startOrder: range.from, endOrder: range.to, directorNext: {runId: context.runId, decisions: [],
-        chapterTokenLimit: input.chapterTokenLimit ?? DEFAULT_DIRECTOR_CHAPTER_TOKEN_LIMIT},
+        chapterTokenLimit: input.chapterTokenLimit ?? LEGACY_DIRECTOR_CHAPTER_TOKEN_LIMIT,
+        ...(input.chapterBudgetAutomatic ? {chapterBudgetAutomatic: true} : {})},
         issueGovernanceVersion: 1 as const, issuePolicySnapshot: policy, autoReview: true, autoRepair: true,
         controlPolicy: {kickoffMode: "director_start" as const, advanceMode: range.to === input.estimatedChapterCount ? "full_book_autopilot" as const : "auto_to_execution" as const,
           reviewCheckpoints: [], autoExecutionRange: {mode: "chapter_range" as const, start: range.from, end: range.to}}};
@@ -169,7 +171,11 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     if (manual) await assertKernelStartReadiness(prisma, contract);
     else await assertKernelOpenReadiness(prisma, contract);
     const launch = requireLaunch(contract);
-    launch.chapterTokenLimit ??= (await getDirectorChapterBudgetSettings()).tokenLimit;
+    if (launch.chapterTokenLimit == null) {
+      const budget = await resolveDirectorChapterBudget();
+      launch.chapterTokenLimit = budget.tokenLimit;
+      if (budget.automatic) launch.chapterBudgetAutomatic = true;
+    }
     const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;
     if (configured && contract.issuePolicy.pipelinePolicy) contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...configured};
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});

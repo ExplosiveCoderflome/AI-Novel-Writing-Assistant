@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { LlmOutputBudgetTrace } from "@ai-novel/shared/types/llmUsage";
 import type { LlmTokenUsageSnapshot, UsageProtocol } from "../domain/types";
 export interface InvocationUsageRecord {
     invocationId: string;
@@ -8,6 +9,8 @@ export interface InvocationUsageRecord {
     chainId?: string | null;
     parentInvocationId?: string | null;
     structuredMode?: string | null;
+    budgetTrace?: LlmOutputBudgetTrace | null;
+    finishReason?: string | null;
     provider: string | null;
     model: string | null;
     requestProtocol: UsageProtocol;

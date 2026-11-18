@@ -13,6 +13,25 @@ test('physical calls have distinct ids and child invoke batch is not charged twi
  }finally{prisma.generationJob.updateMany=old}
 });
 test('SDK batch registers each unobserved result separately',async()=>{const records=[]; const llm={invoke:async()=>{},stream:async()=>{},batch:async()=>[answer(1000),answer(500)]};attachLLMUsageTracking(llm);await runWithInvocationUsageObserver(r=>records.push(r),()=>llm.batch([]));assert.equal(records.length,2)});
+
+test("physical attempt keeps the output budget and terminal reason without a response payload", async (t) => {
+  const records = [];
+  const saved = [];
+  const create = prisma.llmInvocationUsageRecord.create;
+  prisma.llmInvocationUsageRecord.create = async ({ data }) => { saved.push(data); return data; };
+  t.after(() => { prisma.llmInvocationUsageRecord.create = create; });
+  const budgetTrace = { source: "route", routeMaxTokens: 16384, requestedMaxTokens: null,
+    automaticMaxTokens: null, frozenMaxTokens: null, endpointMaxTokens: 32768, structuredMaxTokens: null, finalMaxTokens: 16384 };
+  const llm = attachLLMUsageTracking({
+    invoke: async () => ({ ...answer(1000), response_metadata: { finish_reason: "length" } }),
+    stream: async () => {}, batch: async () => [],
+  }, { budgetTrace });
+  await runWithInvocationUsageObserver(record => records.push(record), () => llm.invoke([]));
+  assert.deepEqual(records[0].budgetTrace, budgetTrace);
+  assert.equal(records[0].finishReason, "length");
+  assert.deepEqual(JSON.parse(saved[0].budgetTraceJson), budgetTrace);
+  assert.equal(saved[0].finishReason, "length");
+});
 test('session sums attempts, deduplicates notifications and ignores legacy last-attempt snapshot',()=>{
  const b=new LlmLiveBroker(),s=b.begin({label:'test',mode:'structured'});
  const usage=n=>({promptTokens:n,completionTokens:100,totalTokens:n+100,inputCache:{cacheHitTokens:n/2,cacheMissTokens:n/2,cacheWriteTokens:null,cacheUsageStatus:'reported'}});

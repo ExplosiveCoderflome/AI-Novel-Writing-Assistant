@@ -26,24 +26,28 @@ async function prepare(runId,chapterTokenLimit,novelId='book') {
 (async()=>{
  if(process.argv[2]==='create'){
   await ensureRuntimeDatabaseReady();
-  assert.deepEqual(await getDirectorChapterBudgetSettings(),{tokenLimit:100000});
+  assert.deepEqual(await getDirectorChapterBudgetSettings(),{tokenLimit:200000});
   await prisma.novel.create({data:{id:'book',title:'预算设置测试',directorVersion:'v2'}});
   await prisma.novel.create({data:{id:'book-explicit',title:'独立任务预算',directorVersion:'v2'}});
   for(const tokenLimit of [0,16000,10000001,20000.5,'200000',null]) {
    await assert.rejects(()=>saveDirectorChapterBudgetSettings({tokenLimit}));
   }
-  assert.deepEqual(await getDirectorChapterBudgetSettings(),{tokenLimit:100000});
+  assert.deepEqual(await getDirectorChapterBudgetSettings(),{tokenLimit:200000});
+  const automatic=await prepare('system-default');
+  assert.equal(automatic.launchInput.chapterTokenLimit,200000);
+  assert.equal(automatic.launchInput.chapterBudgetAutomatic,true);
   const app=express();app.use(express.json());registerChapterBudgetSettingsRoutes(app);app.use(errorHandler);
   const listener=app.listen(0,'127.0.0.1');await once(listener,'listening');
   const url='http://127.0.0.1:'+listener.address().port+'/auto-director/chapter-budget';
   try {
-   assert.deepEqual((await (await fetch(url)).json()).data,{tokenLimit:100000});
+   assert.deepEqual((await (await fetch(url)).json()).data,{tokenLimit:200000});
    const put=body=>fetch(url,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
    assert.equal((await put({tokenLimit:16000})).status,400);
    assert.equal((await put({tokenLimit:200000,unknown:true})).status,400);
    assert.equal((await put({tokenLimit:200000})).status,200);
   } finally {listener.close();await once(listener,'close');}
-  const saved=await prepare('saved-default');assert.equal(saved.launchInput.chapterTokenLimit,200000);await runs.open(saved);
+  const saved=await prepare('saved-default');assert.equal(saved.launchInput.chapterTokenLimit,200000);
+  assert.equal(saved.launchInput.chapterBudgetAutomatic,undefined);await runs.open(saved);
   await saveDirectorChapterBudgetSettings({tokenLimit:300000});
   const explicit=await prepare('explicit',180000,'book-explicit');assert.equal(explicit.launchInput.chapterTokenLimit,180000);await runs.open(explicit);
   assert.equal((await prepare('new-default')).launchInput.chapterTokenLimit,300000);

@@ -82,15 +82,23 @@ export function isGlmThinkingModeProvider(provider: LLMProvider, baseURL?: strin
 }
 export function resolveProviderReasoningBehavior(input: {
   provider: LLMProvider; baseURL: string; model: string; reasoningEnabled: boolean; reasoningEffort?: ReasoningEffort | null;
+  minimizeRequiredThinking?: boolean;
 }): ProviderReasoningBehavior {
   const profile = resolveCapability(input);
   const toggle = profile.thinkingToggle;
   const enabled = input.reasoningEnabled;
   const effort = normalizeReasoningEffort(input.reasoningEffort);
   let modelKwargs = profile.family === "ollama" && enabled ? undefined : thinkingControlKwargs(toggle, enabled, effort);
+  const geminiStructuredThinking = input.minimizeRequiredThinking && profile.family === "gemini"
+    && new URL(input.baseURL).hostname === "generativelanguage.googleapis.com";
+  const minimized = geminiStructuredThinking && profile.reasoningRequired;
+  if (minimized) modelKwargs = { ...modelKwargs, reasoning_effort: "low" };
+  if (geminiStructuredThinking && !minimized && /^gemini-2\.5-flash(?:[.-]|$)/i.test(input.model)) {
+    modelKwargs = { ...modelKwargs, reasoning_effort: "none" };
+  }
   const miniMax = profile.family === "minimax";
   if (miniMax) modelKwargs = { ...modelKwargs, reasoning_split: true };
-  return { reasoningEnabled: enabled, reasoningEffort: toggle.effort && enabled ? effort : null,
+  return { reasoningEnabled: enabled || minimized === true, reasoningEffort: minimized ? "low" : toggle.effort && enabled ? effort : null,
     modelKwargs, includeRawResponse: miniMax || profile.reasoningField !== "none", usesAccumulatedStreamDeltas: miniMax };
 }
 
