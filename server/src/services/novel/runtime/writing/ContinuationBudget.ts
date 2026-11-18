@@ -20,7 +20,8 @@ export function buildContinuationBudget(
     minAdditionalCharacters: Math.ceil(min - currentCharacters),
     targetAdditionalCharacters: Math.ceil(target - currentCharacters),
     maxAdditionalCharacters,
-    // Conservative allowance, not a tokenizer. Actual characters are checked before merging.
-    maxOutputTokens: Math.min(6000, Math.max(256, Math.ceil(maxAdditionalCharacters * 1.25) + 64)),
+    // This is a bounded estimate for one continuation call, not a tokenizer.
+    // Actual characters are checked before the continuation is merged.
+    maxOutputTokens: Math.max(256, Math.ceil(maxAdditionalCharacters * 1.25) + 64),
   };
 }
