@@ -4,6 +4,7 @@ import {parseChapterScenePlan, serializeChapterScenePlan} from "@ai-novel/shared
 import type {VolumePlanDocument} from "@ai-novel/shared/types/novel";
 import type {RunContract} from "../../../modules/director";
 import {AppError} from "../../../middleware/errorHandler";
+import {directorVolumeChapterPlanFilter} from "../planning";
 
 /** The gate transaction owns the save; client input never chooses another chapter or writes prose. */
 export async function saveChapterPlanEdit(contract: RunContract, raw: ChapterPlanEdit, tx: Prisma.TransactionClient): Promise<void> {
@@ -14,7 +15,7 @@ export async function saveChapterPlanEdit(contract: RunContract, raw: ChapterPla
   if (!scenePlan) throw new AppError("请填写至少 3 个完整场景，每个场景需包含目标、入场状态、离场状态与字数。", 400);
   const from = contract.chapterRange?.from;
   if (!from) throw new AppError("缺少本阶段的章节授权范围。", 400);
-  const rows = await tx.volumeChapterPlan.findMany({where: {volume: {novelId: contract.novelId, status: "active"}, chapterOrder: from}});
+  const rows = await tx.volumeChapterPlan.findMany({where: {volume: directorVolumeChapterPlanFilter(contract.novelId), chapterOrder: from}});
   const version = await tx.volumePlanVersion.findFirst({where: {novelId: contract.novelId, status: "active"}, orderBy: {version: "desc"}});
   if (rows.length !== 1 || !version) throw new AppError("无法定位当前章节计划，请刷新本书。", 409);
   const row = rows[0];

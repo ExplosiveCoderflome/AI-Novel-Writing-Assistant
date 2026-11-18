@@ -9,11 +9,12 @@ import {FactIntegrityError,PrismaRunRepository} from "../../modules/director";
 import {resolveSavedReviewContexts,type SavedReviewContext} from "./projections/confirmationRoutes";
 import {applySavedChapterPlanFields} from "./productionInputs";
 import {projectWorldMaterials,projectCharacterMaterials,savedStringList} from "./workspace/index";
+import {directorVolumeChapterPlanFilter} from "./planning";
 export {readDirectorLedgers} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {
-  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,novelWorld:true,bookContract:true,characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:{status:"active"},orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
+  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,novelWorld:true,bookContract:true,characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
   const bindingRow=await prisma.outlineBookBinding.findUnique({where:{novelId},select:{projectId:true}});
   const outlineBinding=bindingRow ? await outlineOpenBookService.getBinding(bindingRow.projectId) : null;
