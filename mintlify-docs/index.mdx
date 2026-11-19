@@ -1528,17 +1528,7 @@ export const XzScroll = () => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(-1);
   const [chars, setChars] = useState(0);
-  const [still, setStill] = useState(false);
   useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setStill(true);
-      setOpen(true);
-      setStep(STEPS.length - 1);
-      setChars(STEPS[STEPS.length - 1].t.length);
-    }
-  }, []);
-  useEffect(() => {
-    if (still) return;
     if (!open) {
       const t = setTimeout(() => { setOpen(true); setStep(0); setChars(0); }, 600);
       return () => clearTimeout(t);
@@ -1554,7 +1544,7 @@ export const XzScroll = () => {
       else { setOpen(false); setStep(-1); }
     }, step === STEPS.length - 1 ? 3600 : 500);
     return () => clearTimeout(t);
-  }, [open, step, chars, still]);
+  }, [open, step, chars]);
   return (
     <div className="not-prose xz-sc">
       <style>{`
@@ -1563,7 +1553,7 @@ export const XzScroll = () => {
         .xz-hd{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:40px}
         .xz-hk{font-size:13px;letter-spacing:.5em;color:#b4382a}
         .xz-hh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 0}
-        .xz-hp{max-width:420px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.8)}
+        .xz-hp{max-width:420px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.65)}
         .xz-roll{position:relative;padding:0 18px}
         .xz-rod{position:absolute;top:-10px;bottom:-10px;width:16px;border-radius:8px;background:linear-gradient(90deg,#5b3a24,#8a5a37 40%,#4a2e1c);box-shadow:0 6px 14px rgba(0,0,0,.25);z-index:2}
         .xz-rod.r{right:0}
@@ -1576,7 +1566,7 @@ export const XzScroll = () => {
         .xz-lab{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:#b4382a;color:#faf6ec;font-size:14px;font-weight:700;border-radius:3px}
         .xz-v{writing-mode:vertical-rl;font-size:clamp(15px,1.8vw,19px);letter-spacing:.25em;line-height:1.6;color:#2b2722;min-height:10px}
         .xz-v .cur{display:inline-block;width:1em;height:2px;background:#b4382a;animation:xzBk 1s steps(1) infinite}
-        .xz-v.done{color:rgba(28,26,23,.78)}
+        .xz-v.done{color:rgba(28,26,23,.62)}
         .xz-v.last{color:#1c1a17;font-weight:700}
         @keyframes xzBk{50%{opacity:0}}
       `}</style>
@@ -1628,7 +1618,7 @@ export const XzDirector = () => {
         .xz-di{max-width:1100px;margin:0 auto}
         .xz-dk{font-size:13px;letter-spacing:.5em;color:#b4382a}
         .xz-dh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 12px}
-        .xz-dp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.8);max-width:620px}
+        .xz-dp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.65);max-width:620px}
         .xz-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:18px 10px;margin-top:44px}
         .xz-st{background:none;border:0;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;font-family:inherit;color:inherit}
         .xz-st svg{width:78px;height:78px;overflow:visible}
@@ -1636,12 +1626,11 @@ export const XzDirector = () => {
         .xz-st.done .xz-ring{opacity:.45}
         .xz-st.on .xz-ring{opacity:1;stroke:#1c1a17;stroke-dasharray:.86 1;animation:xzEnso 1.2s cubic-bezier(.5,.1,.2,1) both}
         .xz-st:hover .xz-ring{opacity:.7}
-        .xz-st:focus-visible{outline:2px solid #b4382a;outline-offset:4px;border-radius:4px}
         .xz-nm{font-size:20px;font-weight:800;fill:#1c1a17;text-anchor:middle;dominant-baseline:central}
         .xz-st.on .xz-nm{fill:#b4382a}
-        .xz-sl{font-size:14px;letter-spacing:.08em;color:rgba(28,26,23,.75);transition:color .3s}
+        .xz-sl{font-size:14px;letter-spacing:.08em;color:rgba(28,26,23,.6);transition:color .3s}
         .xz-st.on .xz-sl{color:#1c1a17;font-weight:700}
-        .xz-note{margin-top:40px;display:flex;gap:22px;align-items:flex-start;padding:26px 30px;background:#faf6ec;border:1px solid rgba(180,56,42,.35);box-shadow:0 20px 40px -30px rgba(28,26,23,.5)}
+        .xz-note{margin-top:40px;display:flex;gap:22px;align-items:flex-start;padding:26px 30px;background:#faf6ec;border-left:4px solid #b4382a;box-shadow:0 20px 40px -30px rgba(28,26,23,.5)}
         .xz-note b{font-size:22px;letter-spacing:.1em}
         .xz-note p{margin:8px 0 0;font-size:16px;line-height:1.9;color:rgba(28,26,23,.75)}
         .xz-big{font-size:46px;font-weight:900;color:#b4382a;line-height:1;min-width:64px}
@@ -1653,7 +1642,7 @@ export const XzDirector = () => {
         <div className="xz-dp">从方向候选到修复回灌，十二个阶段串成一条完整的长篇生产线。可以全自动推进，也可以在关键阶段停下来由你确认。</div>
         <div className="xz-grid">
           {STAGES.map((s, i) => (
-            <button type="button" key={s} aria-pressed={i === cur} className={"xz-st" + (i === cur ? " on" : i < cur ? " done" : "")} onClick={() => { setCur(i); setPaused(true); }}>
+            <button type="button" key={s} className={"xz-st" + (i === cur ? " on" : i < cur ? " done" : "")} onClick={() => { setCur(i); setPaused(true); }}>
               <svg viewBox="0 0 80 80">
                 <circle key={i === cur ? "on" + cur : "off"} className="xz-ring" cx="40" cy="40" r="32" pathLength="1" transform="rotate(-70 40 40)" />
                 <text className="xz-nm" x="40" y="41" style={{ fontSize: NUM[i].length > 1 ? 16 : 20 }}>{NUM[i]}</text>
@@ -1708,13 +1697,11 @@ export const XzWeb = () => {
         .xz-wi{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:40px;align-items:center}
         .xz-wk{font-size:13px;letter-spacing:.5em;color:#b4382a}
         .xz-wh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 14px}
-        .xz-wp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.8)}
+        .xz-wp{font-size:15px;line-height:1.9;color:rgba(28,26,23,.65)}
         .xz-svg{width:100%;height:auto;overflow:visible}
         .xz-ln{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:xzDraw 1.6s ease forwards;transition:stroke .3s,opacity .3s}
         .xz-ln.on{stroke:#b4382a;opacity:1!important}
         .xz-nd{cursor:pointer;transition:opacity .35s}
-        .xz-nd:focus-visible{outline:none}
-        .xz-nd:focus-visible > circle:last-of-type{stroke:#b4382a;stroke-width:3}
         .xz-nd text{font-size:14px;fill:#1c1a17;text-anchor:middle;letter-spacing:.08em;pointer-events:none}
         .xz-nd.main text{font-size:17px;font-weight:800;fill:#faf6ec}
         .xz-halo{animation:xzHalo 4s ease-in-out infinite}
@@ -1727,6 +1714,7 @@ export const XzWeb = () => {
           <h2 className="xz-wh">一书之内，皆有牵连</h2>
           <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
         </div>
+        <StarMap3D theme="paper" nodes={NODES} edges={EDGES} cx={300} cy={215} ratio="600 / 440" label="世界、角色与章节的关系图" hover={hover} setHover={setHover}>
         <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
           <defs>
             <filter id="xzRough"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="3" /><feDisplacementMap in="SourceGraphic" scale="7" /></filter>
@@ -1736,7 +1724,7 @@ export const XzWeb = () => {
             <path key={i} d={curve(P[a], P[b])} pathLength="1" className={"xz-ln" + (on(a, b) ? " on" : "")} style={{ strokeWidth: i < 3 ? 3.2 : 1.3, opacity: hover && !on(a, b) ? 0.12 : i < 3 ? 0.8 : 0.4, animationDelay: i * 0.12 + "s" }} />
           ))}
           {NODES.map((n) => (
-            <g key={n.id} className={"xz-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} tabIndex="0" role="button" aria-label={n.l} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.id)} onBlur={() => setHover(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setHover(n.id); } if (e.key === "Escape") setHover(null); }}>
+            <g key={n.id} className={"xz-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
               {n.main && <circle className="xz-halo" cx={n.x} cy={n.y} r={n.r + 12} fill="rgba(28,26,23,.08)" style={{ transformOrigin: `${n.x}px ${n.y}px` }} />}
               <circle cx={n.x} cy={n.y} r={n.main ? n.r : n.r + 6} fill="transparent" />
               <circle cx={n.x} cy={n.y} r={n.r} fill={hover === n.id ? "#b4382a" : "url(#xzInkG)"} filter="url(#xzRough)" />
@@ -1744,6 +1732,7 @@ export const XzWeb = () => {
             </g>
           ))}
         </svg>
+        </StarMap3D>
       </div>
     </div>
   );
@@ -1773,7 +1762,7 @@ export const XzFeatures = () => {
         .xz-num{position:absolute;right:22px;top:8px;font-size:84px;font-weight:900;color:rgba(28,26,23,.07);transition:color .6s;line-height:1}
         .xz-card:hover .xz-num{color:rgba(250,246,236,.1)}
         .xz-ct{position:relative;font-size:21px;font-weight:800;letter-spacing:.06em;transition:color .5s}
-        .xz-cd{position:relative;margin-top:14px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.8);transition:color .2s;max-width:340px}
+        .xz-cd{position:relative;margin-top:14px;font-size:15px;line-height:1.9;color:rgba(28,26,23,.65);transition:color .5s;max-width:340px}
         .xz-card:hover .xz-ct{color:#faf6ec}
         .xz-card:hover .xz-cd{color:rgba(250,246,236,.75)}
         .xz-stamp{position:absolute;right:26px;bottom:24px;width:46px;height:46px;border:2.5px solid #b4382a;color:#b4382a;font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center;border-radius:4px;background:rgba(180,56,42,.06);opacity:0;transform:rotate(8deg) scale(1.8);transition:all .35s cubic-bezier(.3,1.6,.5,1)}
@@ -1798,8 +1787,6 @@ export const XzFeatures = () => {
 };
 
 export const XzShelf = () => {
-  const icR = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>;
-  const icD = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>;
   const BOOKS = [
     { t: "仙侠修真", c: "#24435a", h: 262, on: true, href: "/showcase/xianxia" },
     { t: "末世求生", c: "#5b4636", h: 234, on: true, href: "/showcase/wasteland" },
@@ -1861,7 +1848,7 @@ export const XzShelf = () => {
         .xz-shin{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:end}
         .xz-shk{font-size:13px;letter-spacing:.5em;color:#b4382a}
         .xz-shh{font-size:clamp(26px,3.8vw,38px);font-weight:800;letter-spacing:.08em;margin:10px 0 18px}
-        .xz-shp{font-size:15.5px;line-height:1.95;color:rgba(28,26,23,.8);max-width:470px}
+        .xz-shp{font-size:15.5px;line-height:1.95;color:rgba(28,26,23,.65);max-width:470px}
         .xz-shgos{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
         .xz-shgo{display:inline-block;padding:10px 22px;background:#b4382a;color:#faf6ec;text-decoration:none;font-size:15px;letter-spacing:.2em;border-radius:4px;box-shadow:0 12px 26px -12px rgba(180,56,42,.8);transition:transform .3s}
         .xz-shgo:hover{transform:translateY(-2px)}
@@ -1917,7 +1904,7 @@ export const XzShelf = () => {
         </div>
         <div ref={shelfRef} className="xz-shelf" onMouseLeave={() => setHov(null)}>
           <div className={"xz-hint" + (hov ? " on" : "")} aria-hidden="true">
-            {hov ? <>展卷「{hov}」<b>{icR}</b></> : db ? <><b>{icD}</b> 点书脊 · 展「{db.t}」</> : <><b>{icD}</b> 点书脊，入展厅</>}
+            {hov ? <>展卷「{hov}」<b>→</b></> : db ? <><b>↓</b> 点书脊 · 展「{db.t}」</> : <><b>↓</b> 点书脊，入展厅</>}
           </div>
           {BOOKS.map((b, i) => b.on ? (
             <a key={b.t} ref={(n) => { refs.current[i] = n; }} className={"xz-bk on" + (open === b.t ? " opening" : "") + (demo === i ? " demo" : "") + (hov && hov !== b.t ? " dim" : "")} href={b.href} style={sty(b, i)} aria-label={b.t + " 题材展厅"} title={"展卷「" + b.t + "」"} onMouseEnter={() => { setHov(b.t); setSeen(true); }} onFocus={() => { setHov(b.t); setSeen(true); }} onBlur={() => setHov(null)} onClick={(e) => go(e, b)}>{inner(b)}</a>
@@ -1945,14 +1932,14 @@ export const XzCta = () => (
       .xz-cta::before{content:"";position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;border:26px solid rgba(28,26,23,.05);border-right-color:transparent;transform:rotate(20deg);animation:xzSlow 40s linear infinite}
       .xz-ck{position:relative;font-size:13px;letter-spacing:.5em;color:#b4382a}
       .xz-ch{position:relative;font-size:clamp(28px,4.6vw,48px);font-weight:900;letter-spacing:.12em;margin:16px 0 0}
-      .xz-cp{position:relative;font-size:16px;line-height:1.9;color:rgba(28,26,23,.8);margin:18px auto 0;max-width:540px}
+      .xz-cp{position:relative;font-size:16px;line-height:1.9;color:rgba(28,26,23,.65);margin:18px auto 0;max-width:540px}
       .xz-os{position:relative;display:flex;justify-content:center;flex-wrap:wrap;gap:0;margin-top:30px}
       .xz-os span{font-size:14px;padding:4px 18px;letter-spacing:.06em;color:rgba(28,26,23,.75)}
       .xz-os span+span{border-left:1px solid rgba(28,26,23,.3)}
       .xz-go{position:relative;display:inline-flex;align-items:center;justify-content:center;margin-top:40px;width:120px;height:120px;background:#b4382a;color:#faf6ec;text-decoration:none;font-size:20px;font-weight:900;line-height:1.35;letter-spacing:.15em;border-radius:8px;transform:rotate(-4deg);box-shadow:0 18px 36px -16px rgba(180,56,42,.8);transition:transform .35s cubic-bezier(.3,1.6,.5,1)}
       .xz-go::after{content:"";position:absolute;inset:7px;border:1.5px solid rgba(250,246,236,.6);border-radius:4px}
       .xz-go:hover{transform:rotate(0) scale(1.06)}
-      .xz-small{position:relative;margin-top:22px;font-size:13px;color:rgba(28,26,23,.7);letter-spacing:.2em}
+      .xz-small{position:relative;margin-top:22px;font-size:13px;color:rgba(28,26,23,.45);letter-spacing:.2em}
       @keyframes xzSlow{to{transform:rotate(380deg)}}
     `}</style>
     <div className="xz-ck">七 · 落款</div>
@@ -1998,12 +1985,11 @@ export const RepoPulse = ({ theme }) => {
         .cm-k{font-size:13px;letter-spacing:.3em}
         .bn-cm .cm-k{color:#4ade80}
         .xz-cm .cm-k{color:#b4382a;letter-spacing:.5em}
-        .cm-h{font-size:clamp(28px,4vw,40px);font-weight:700;line-height:1.3;margin:12px 0 12px;padding:0;border:0}
-        .bn-cm .cm-h{margin-top:0}
+        .cm-h{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 12px}
         .xz-cm .cm-h{font-weight:800;letter-spacing:.08em}
         .cm-p{font-size:16px;line-height:1.75;max-width:640px}
-        .bn-cm .cm-p{color:rgba(231,245,236,.8)}
-        .xz-cm .cm-p{color:rgba(28,26,23,.8);line-height:1.9}
+        .bn-cm .cm-p{color:rgba(231,245,236,.65)}
+        .xz-cm .cm-p{color:rgba(28,26,23,.65);line-height:1.9}
         .cm-badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
         .cm-badges a{display:block;transition:transform .25s}
         .cm-badges a:hover{transform:translateY(-2px)}
@@ -2028,8 +2014,8 @@ export const RepoPulse = ({ theme }) => {
         @media (max-width:520px){.cm-acts{grid-template-columns:1fr}}
       `}</style>
       <div className="cm-in">
-        {!ink && <div className="cm-k">六 · 同道</div>}
-        <h2 className="cm-h">{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</h2>
+        <div className="cm-k">{ink ? "COMMUNITY" : "六 · 同道"}</div>
+        <div className="cm-h">{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</div>
         <div className="cm-p">Star 数和趋势实时来自 GitHub。遇到问题或有想法，直接在下面提交 Issue；附上使用版本、所选导演与模式、操作步骤和相关日志，会更容易定位问题。</div>
         <div className="cm-badges">
           {BADGES.map((b) => (
@@ -2045,7 +2031,7 @@ export const RepoPulse = ({ theme }) => {
             {ACTIONS.map((a) => (
               <a key={a.t} className="cm-a" href={a.h} target="_blank" rel="noopener noreferrer">
                 <span className="cm-ak">{a.k}</span>
-                <span className="cm-at">{a.t} <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></span>
+                <span className="cm-at">{a.t} →</span>
                 <span className="cm-ad">{a.d}</span>
               </a>
             ))}
