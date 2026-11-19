@@ -730,6 +730,7 @@ export const BnStarMap = () => {
           <h2 className="bn-smh">一本书的世界，彼此相连</h2>
           <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
         </div>
+        <StarMap3D theme="ink" nodes={NODES} edges={EDGES} cx={300} cy={210} ratio="600 / 430" label="世界、角色与章节的关系星图" hover={hover} setHover={setHover}>
         <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
           <defs>
             <radialGradient id="bnNg"><stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#14532d" /></radialGradient>
@@ -752,6 +753,342 @@ export const BnStarMap = () => {
             ))}
           </g>
         </svg>
+        </StarMap3D>
+      </div>
+    </div>
+  );
+};
+
+export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, setHover, children }) => {
+  const paper = theme === "paper";
+  const C = paper
+    ? { node: "#1c1a17", main: "#1c1a17", hi: "#b4382a", edge: "#1c1a17", edgeA: 0.4, edgeOn: "#b4382a", halo: "#1c1a17", haloA: 0.12, bg: "#f3ede1", text: "#1c1a17", ring: "#b4382a", fs: 14, fm: 17, fw: 800, ls: ".08em" }
+    : { node: "#16A34A", main: "#4ade80", hi: "#bbf7d0", edge: "#86efac", edgeA: 0.3, edgeOn: "#4ade80", halo: "#22c55e", haloA: 0.35, bg: "#05080a", text: "#e7f5ec", ring: "#bbf7d0", fs: 13, fm: 15, fw: 700, ls: "normal" };
+  const Z = { book: 0, world: -60, char: 60, chap: 30, rule: -140, force: 110, place: 40, tension: -90, rel: 130, trait: -110, state: -50, task: 120, scene: -130, fore: 80 };
+  const adj = {};
+  edges.forEach(([a, b]) => { (adj[a] = adj[a] || {})[b] = 1; (adj[b] = adj[b] || {})[a] = 1; });
+  const names = Object.fromEntries(nodes.map((n) => [n.id, n.l]));
+  const boxRef = useRef(null);
+  const mountRef = useRef(null);
+  const labelRefs = useRef({});
+  const hoverRef = useRef(hover);
+  const spinRef = useRef(true);
+  const rotRef = useRef({ x: 0, y: 0 });
+  const [ready, setReady] = useState(false);
+  const [spin, setSpin] = useState(true);
+
+  useEffect(() => { hoverRef.current = hover; }, [hover]);
+  useEffect(() => { spinRef.current = spin; }, [spin]);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box || !window.WebGLRenderingContext) return;
+    const reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (reduce) { setSpin(false); spinRef.current = false; }
+    let alive = true;
+    let started = false;
+    let inView = false;
+    let raf = 0;
+    let dispose = null;
+
+    const loadThree = () => new Promise((resolve, reject) => {
+      if (window.THREE && window.THREE.WebGLRenderer) { resolve(window.THREE); return; }
+      let s = document.getElementById("bn-three-js");
+      if (!s) {
+        s = document.createElement("script");
+        s.id = "bn-three-js";
+        s.src = "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js";
+        s.async = true;
+        document.head.appendChild(s);
+      }
+      s.addEventListener("load", () => { if (window.THREE) resolve(window.THREE); else reject(new Error("three")); }, { once: true });
+      s.addEventListener("error", () => { s.remove(); reject(new Error("three")); }, { once: true });
+    });
+
+    const build = (THREE) => {
+      const mount = mountRef.current;
+      if (!alive || !mount) return;
+      let renderer;
+      try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" }); } catch (err) { return; }
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x000000, 0);
+      const canvas = renderer.domElement;
+      canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab";
+      canvas.setAttribute("aria-hidden", "true");
+      mount.appendChild(canvas);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog(C.bg, 6, 12.5);
+      const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
+      camera.position.set(0, 0, 7.4);
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const P = {};
+      nodes.forEach((n) => { P[n.id] = new THREE.Vector3((n.x - cx) / 100, (cy - n.y) / 100, (Z[n.id] || 0) / 100); });
+
+      const tc = document.createElement("canvas");
+      tc.width = 64;
+      tc.height = 64;
+      const g2 = tc.getContext("2d");
+      const grd = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grd.addColorStop(0, "rgba(255,255,255,1)");
+      grd.addColorStop(1, "rgba(255,255,255,0)");
+      g2.fillStyle = grd;
+      g2.fillRect(0, 0, 64, 64);
+      const tex = new THREE.CanvasTexture(tc);
+      const blend = paper ? THREE.NormalBlending : THREE.AdditiveBlending;
+
+      const sphere = new THREE.SphereGeometry(1, 32, 16);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hits = [];
+      const items = nodes.map((n) => {
+        const r = n.r / 100;
+        const mat = new THREE.MeshBasicMaterial({ color: n.main ? C.main : C.node, transparent: true });
+        const mesh = new THREE.Mesh(sphere, mat);
+        mesh.scale.setScalar(r);
+        mesh.position.copy(P[n.id]);
+        const hm = new THREE.SpriteMaterial({ map: tex, color: C.halo, transparent: true, opacity: C.haloA, depthWrite: false, blending: blend });
+        const halo = new THREE.Sprite(hm);
+        halo.scale.setScalar(r * (n.main ? 4.2 : 3.6));
+        halo.position.copy(P[n.id]);
+        const hit = new THREE.Mesh(sphere, hitMat);
+        hit.scale.setScalar(Math.max(r * 1.5, 0.17));
+        hit.position.copy(P[n.id]);
+        hit.userData.id = n.id;
+        hits.push(hit);
+        group.add(halo, mesh, hit);
+        return { n, r, mat, hm };
+      });
+
+      const lines = edges.map(([a, b], i) => {
+        const A = P[a];
+        const B = P[b];
+        let pts = [A, B];
+        if (paper) {
+          const m = A.clone().add(B).multiplyScalar(0.5);
+          const dx = B.x - A.x;
+          const dy = B.y - A.y;
+          m.x += dy * 0.18;
+          m.y -= dx * 0.18;
+          pts = new THREE.QuadraticBezierCurve3(A, m, B).getPoints(24);
+        }
+        const base = C.edgeA * (i < 3 ? 1.7 : 1);
+        const mat = new THREE.LineBasicMaterial({ color: C.edge, transparent: true, opacity: base });
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+        group.add(line);
+        return { a, b, mat, base, line };
+      });
+
+      const pulses = !paper && !reduce ? [0, 1, 2].map((i) => {
+        const pm = new THREE.SpriteMaterial({ map: tex, color: "#86efac", transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+        const sp = new THREE.Sprite(pm);
+        sp.scale.setScalar(0.16);
+        group.add(sp);
+        return { sp, pm, a: P[edges[i][0]], b: P[edges[i][1]], off: i / 3 };
+      }) : [];
+
+      const restyle = (hv) => {
+        items.forEach((it) => {
+          const id = it.n.id;
+          const on = hv === id;
+          const near = !hv || on || !!(adj[hv] && adj[hv][id]);
+          it.mat.color.set(on ? C.hi : it.n.main ? C.main : C.node);
+          it.mat.opacity = near ? 1 : 0.22;
+          it.hm.opacity = near ? C.haloA * (on ? 1.8 : 1) : C.haloA * 0.3;
+        });
+        lines.forEach((l) => {
+          const lit = !!hv && (l.a === hv || l.b === hv);
+          l.mat.color.set(lit ? C.edgeOn : C.edge);
+          l.mat.opacity = lit ? 1 : hv ? 0.07 : l.base;
+        });
+      };
+
+      const ray = new THREE.Raycaster();
+      const ptr = new THREE.Vector2();
+      const rot = rotRef.current;
+      let drag = null;
+      const pick = (e) => {
+        const rc = canvas.getBoundingClientRect();
+        ptr.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
+        ray.setFromCamera(ptr, camera);
+        const hit = ray.intersectObjects(hits, false)[0];
+        return hit ? hit.object.userData.id : null;
+      };
+      const onDown = (e) => {
+        drag = { x: e.clientX, y: e.clientY, moved: 0 };
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        canvas.style.cursor = "grabbing";
+      };
+      const onMove = (e) => {
+        if (drag) {
+          const dx = e.clientX - drag.x;
+          const dy = e.clientY - drag.y;
+          drag.x = e.clientX;
+          drag.y = e.clientY;
+          drag.moved += Math.abs(dx) + Math.abs(dy);
+          rot.y += dx * 0.008;
+          rot.x = Math.max(-0.7, Math.min(0.7, rot.x + dy * 0.006));
+          return;
+        }
+        const id = pick(e);
+        if (id !== hoverRef.current) setHover(id);
+        canvas.style.cursor = id ? "pointer" : "grab";
+      };
+      const onUp = (e) => {
+        if (drag && drag.moved < 4) setHover(pick(e));
+        drag = null;
+        canvas.style.cursor = "grab";
+      };
+      const onCancel = () => { drag = null; canvas.style.cursor = "grab"; };
+      const onLeave = () => { if (!drag) setHover(null); };
+      canvas.addEventListener("pointerdown", onDown);
+      canvas.addEventListener("pointermove", onMove);
+      canvas.addEventListener("pointerup", onUp);
+      canvas.addEventListener("pointercancel", onCancel);
+      canvas.addEventListener("pointerleave", onLeave);
+
+      let W = 0;
+      let H = 0;
+      const size = () => {
+        W = mount.clientWidth;
+        H = mount.clientHeight;
+        if (!W || !H) return;
+        renderer.setSize(W, H, false);
+        camera.aspect = W / H;
+        camera.updateProjectionMatrix();
+      };
+      size();
+      const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(size) : null;
+      if (ro) ro.observe(mount);
+
+      const v = new THREE.Vector3();
+      const ppuBase = 1 / (2 * Math.tan((camera.fov * Math.PI) / 360));
+      let last = performance.now();
+      let shown;
+      const tick = (now) => {
+        raf = requestAnimationFrame(tick);
+        const dt = Math.min(now - last, 64);
+        last = now;
+        if (!inView || document.hidden || !W) return;
+        const hv = hoverRef.current;
+        if (spinRef.current && !hv && !drag) rot.y += dt * 0.00012;
+        group.rotation.set(rot.x, rot.y, 0);
+        if (hv !== shown) { shown = hv; restyle(hv); }
+        pulses.forEach((p) => {
+          const t = (now / 3200 + p.off) % 1;
+          p.sp.position.lerpVectors(p.a, p.b, t);
+          p.pm.opacity = hv ? 0.15 : 0.9 * Math.sin(t * Math.PI);
+        });
+        renderer.render(scene, camera);
+        const ppu = H * ppuBase;
+        items.forEach((it) => {
+          const el = labelRefs.current[it.n.id];
+          if (!el) return;
+          v.copy(P[it.n.id]).applyMatrix4(group.matrixWorld);
+          const depth = v.z;
+          const dist = camera.position.distanceTo(v);
+          v.project(camera);
+          const x = ((v.x + 1) / 2) * W;
+          const y = ((1 - v.y) / 2) * H + (it.r * ppu) / dist + 4;
+          const near = !hv || it.n.id === hv || !!(adj[hv] && adj[hv][it.n.id]);
+          const fade = Math.max(0.6, Math.min(1, 0.78 + depth * 0.08));
+          el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0) translateX(-50%)";
+          el.style.opacity = String((near ? 1 : 0.25) * fade);
+          el.style.zIndex = String(100 + Math.round(depth * 10));
+        });
+      };
+
+      dispose = () => {
+        cancelAnimationFrame(raf);
+        if (ro) ro.disconnect();
+        canvas.removeEventListener("pointerdown", onDown);
+        canvas.removeEventListener("pointermove", onMove);
+        canvas.removeEventListener("pointerup", onUp);
+        canvas.removeEventListener("pointercancel", onCancel);
+        canvas.removeEventListener("pointerleave", onLeave);
+        sphere.dispose();
+        tex.dispose();
+        hitMat.dispose();
+        items.forEach((it) => { it.mat.dispose(); it.hm.dispose(); });
+        lines.forEach((l) => { l.line.geometry.dispose(); l.mat.dispose(); });
+        pulses.forEach((p) => p.pm.dispose());
+        renderer.dispose();
+        renderer.forceContextLoss();
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      };
+      raf = requestAnimationFrame(tick);
+      setReady(true);
+    };
+
+    const start = () => {
+      if (started) return;
+      started = true;
+      loadThree().then(build).catch(() => {});
+    };
+    let io = null;
+    if ("IntersectionObserver" in window) {
+      io = new IntersectionObserver((ents) => { inView = ents[0].isIntersecting; if (inView) start(); }, { rootMargin: "300px 0px" });
+      io.observe(box);
+    } else {
+      inView = true;
+      start();
+    }
+    return () => { alive = false; if (io) io.disconnect(); if (dispose) dispose(); };
+  }, []);
+
+  const onKey = (e) => {
+    if (!ready) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      rotRef.current.y += e.key === "ArrowLeft" ? -0.25 : 0.25;
+    }
+    if (e.key === "Escape") setHover(null);
+  };
+  const sr = hover && names[hover] ? names[hover] + "，连着：" + Object.keys(adj[hover] || {}).map((k) => names[k]).join("、") : "";
+
+  return (
+    <div className="sm3" onKeyDown={onKey} style={{ "--sm3-ring": C.ring }}>
+      <style>{`
+        .sm3{position:relative;width:100%;min-width:0}
+        .sm3-st{position:relative;width:100%}
+        .sm3-gl{position:absolute;inset:0}
+        .sm3-lbs{position:absolute;inset:0;pointer-events:none}
+        .sm3-lb{position:absolute;left:0;top:0;margin:0;padding:2px 6px;border:0;border-radius:4px;background:none;font-family:inherit;line-height:1.3;white-space:nowrap;cursor:pointer;pointer-events:auto;opacity:0;will-change:transform}
+        .sm3-lb:focus-visible,.sm3-btn:focus-visible{outline:2px solid var(--sm3-ring);outline-offset:2px}
+        .sm3-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin-top:14px;min-height:32px;font-size:13px}
+        .sm3-tip{opacity:.8}
+        .sm3-btn{font:inherit;font-size:13px;padding:5px 14px;border-radius:999px;background:none;color:inherit;border:1px solid currentColor;cursor:pointer}
+        .sm3-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+      `}</style>
+      <div ref={boxRef} className="sm3-st" style={{ aspectRatio: ratio }}>
+        {!ready && children}
+        <div ref={mountRef} className="sm3-gl" style={{ visibility: ready ? "visible" : "hidden" }} />
+        {ready && (
+          <div className="sm3-lbs" role="group" aria-label={label}>
+            {nodes.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                ref={(el) => { labelRefs.current[n.id] = el; }}
+                className="sm3-lb"
+                style={{ color: hover === n.id ? C.hi : C.text, fontSize: n.main ? C.fm : C.fs, fontWeight: n.main ? C.fw : 400, letterSpacing: C.ls, textShadow: "0 0 4px " + C.bg + ", 0 0 10px " + C.bg }}
+                onMouseEnter={() => setHover(n.id)}
+                onMouseLeave={() => setHover(null)}
+                onFocus={() => setHover(n.id)}
+                onBlur={() => setHover(null)}
+                onClick={() => setHover(n.id)}
+              >
+                {n.l}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="sm3-sr" aria-live="polite">{sr}</div>
+      <div className="sm3-bar" style={{ visibility: ready ? "visible" : "hidden" }}>
+        <span className="sm3-tip">拖动或用方向键旋转，点选节点查看连线</span>
+        <button type="button" className="sm3-btn" onClick={() => setSpin((s) => !s)}>{spin ? "暂停旋转" : "自动旋转"}</button>
       </div>
     </div>
   );
@@ -1428,6 +1765,7 @@ export const XzWeb = () => {
           <h2 className="xz-wh">一书之内，皆有牵连</h2>
           <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
         </div>
+        <StarMap3D theme="paper" nodes={NODES} edges={EDGES} cx={300} cy={215} ratio="600 / 440" label="世界、角色与章节的关系图" hover={hover} setHover={setHover}>
         <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
           <defs>
             <filter id="xzRough"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="3" /><feDisplacementMap in="SourceGraphic" scale="7" /></filter>
@@ -1445,6 +1783,7 @@ export const XzWeb = () => {
             </g>
           ))}
         </svg>
+        </StarMap3D>
       </div>
     </div>
   );
