@@ -418,8 +418,8 @@ export const BnShelf = () => {
         .bn-bk.dim{filter:brightness(.45) saturate(.5)}
         .bn-ghost{position:absolute;left:50%;top:100%;z-index:3;width:0;height:0;pointer-events:none;opacity:0;transition:left .9s cubic-bezier(.65,0,.35,1),top .9s cubic-bezier(.65,0,.35,1),opacity .4s}
         .bn-ghost.show{opacity:1}
-        .bn-cur{position:absolute;left:-3px;top:-2px;width:26px;height:30px;overflow:visible;filter:drop-shadow(0 0 6px var(--g)) drop-shadow(0 0 14px var(--g));animation:bnPress 2.6s ease-in-out}
-        .bn-cur path{fill:rgba(5,8,10,.85);stroke:#ecfdf5;stroke-width:1.6;stroke-linejoin:round}
+        .bn-scur{position:absolute;left:-3px;top:-2px;width:26px;height:30px;overflow:visible;filter:drop-shadow(0 0 6px var(--g)) drop-shadow(0 0 14px var(--g));animation:bnPress 2.6s ease-in-out}
+        .bn-scur path{fill:rgba(5,8,10,.85);stroke:#ecfdf5;stroke-width:1.6;stroke-linejoin:round}
         .bn-ctag{position:absolute;left:22px;top:24px;font-weight:600;font-size:10px;line-height:1;font-family:inherit;letter-spacing:.25em;color:#05080a;background:var(--g);padding:4px 6px 4px 8px;border-radius:3px;box-shadow:0 0 16px -2px var(--g);animation:bnTag 2.6s ease-in-out}
         .bn-rip{position:absolute;left:0;top:0;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;border:2px solid var(--g);box-shadow:0 0 20px var(--g),inset 0 0 20px var(--g);opacity:0;transform:scale(0);animation:bnRip 1.1s .95s cubic-bezier(.2,.7,.3,1) forwards}
         .bn-rip.b{animation-delay:1.15s;border-width:1px}
@@ -459,7 +459,7 @@ export const BnShelf = () => {
           <div className={"bn-ghost" + (pos && db ? " show" : "")} style={pos ? { left: pos.x + "px", top: pos.y + "px", "--g": db ? db.g : "#4ade80" } : null} aria-hidden="true">
             <i key={"ra" + demo} className="bn-rip" />
             <i key={"rb" + demo} className="bn-rip b" />
-            <svg key={"c" + demo} className="bn-cur" viewBox="0 0 22 26"><path d="M3 2 L3 20 L7.8 15.6 L11 23 L14.2 21.6 L11.1 14.4 L17.6 14.2 Z" /></svg>
+            <svg key={"c" + demo} className="bn-scur" viewBox="0 0 22 26"><path d="M3 2 L3 20 L7.8 15.6 L11 23 L14.2 21.6 L11.1 14.4 L17.6 14.2 Z" /></svg>
             <span key={"t" + demo} className="bn-ctag">CLICK</span>
           </div>
           <i className="bn-run" />
@@ -730,7 +730,6 @@ export const BnStarMap = () => {
           <h2 className="bn-smh">一本书的世界，彼此相连</h2>
           <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
         </div>
-        <StarMap3D theme="ink" nodes={NODES} edges={EDGES} cx={300} cy={210} ratio="600 / 430" label="世界、角色与章节的关系星图" hover={hover} setHover={setHover}>
         <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
           <defs>
             <radialGradient id="bnNg"><stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#14532d" /></radialGradient>
@@ -753,7 +752,6 @@ export const BnStarMap = () => {
             ))}
           </g>
         </svg>
-        </StarMap3D>
       </div>
     </div>
   );
@@ -1765,7 +1763,6 @@ export const XzWeb = () => {
           <h2 className="xz-wh">一书之内，皆有牵连</h2>
           <div className="xz-wp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到墨点上，看它牵着哪些线。</div>
         </div>
-        <StarMap3D theme="paper" nodes={NODES} edges={EDGES} cx={300} cy={215} ratio="600 / 440" label="世界、角色与章节的关系图" hover={hover} setHover={setHover}>
         <svg className="xz-svg" viewBox="0 0 600 440" role="img" aria-label="世界、角色与章节的关系图">
           <defs>
             <filter id="xzRough"><feTurbulence type="fractalNoise" baseFrequency=".06" numOctaves="2" seed="3" /><feDisplacementMap in="SourceGraphic" scale="7" /></filter>
@@ -1783,7 +1780,6 @@ export const XzWeb = () => {
             </g>
           ))}
         </svg>
-        </StarMap3D>
       </div>
     </div>
   );
