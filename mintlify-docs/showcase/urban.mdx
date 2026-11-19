@@ -401,7 +401,7 @@ export const UbRadar = () => {
                         return (
                           <li key={i}>
                             <button type="button" className={"ur-row" + (on ? " ur-on" : "") + (s.crowd ? " ur-crowd" : "") + (s.diff ? " ur-diff" : "")} aria-pressed={s.crowd ? undefined : on} onClick={() => toggle(i)}>
-                              <span className="ur-ck" aria-hidden="true">{s.crowd ? "!" : on ? "✓" : ""}</span>
+                              <span className="ur-ck" aria-hidden="true">{s.crowd ? "!" : on ? <Ico n="check" /> : ""}</span>
                               <span className="ur-rt">
                                 <em>{s.ty}</em>
                                 <b>{s.t}</b>
@@ -719,7 +719,7 @@ export const UbChat = () => {
                         <>
                           <div className="uc-draft uc-fly" aria-hidden="true"><em>{x[2]}</em>{x[1]}</div>
                           <div className="uc-sent" role="status">
-                            ✓ 已送达至「{WHEN[when]}」
+                            <Ico n="check" /> 已送达至「{WHEN[when]}」
                             <button type="button" className="uc-undo" onClick={() => setSent(false)}>撤回</button>
                           </div>
                         </>
@@ -830,7 +830,7 @@ export const UbTitle = () => {
 .ut-dots{display:flex;gap:4px}
 .ut-dots i{width:10px;height:10px;border-radius:50%;background:#e0e7ff;transition:background .25s}
 .ut-dots i.ut-f{background:#6366f1}
-.ut-note{margin:14px 0 0;padding:12px 16px;font-size:14.5px;line-height:1.8;color:#3f3d5c;background:#fff;border-left:3px solid #a5b4fc;border-radius:0 12px 12px 0}
+.ut-note{margin:14px 0 0;padding:12px 16px;font-size:14.5px;line-height:1.8;color:#3f3d5c;background:#fff;border:1px solid rgba(165,180,252,.6);border-radius:12px}
 .ut-ok{border-left-color:#10b981}
 .ut-warn{color:#7f1d1d;background:#fef2f2;border-left-color:#ef4444}
 .ut-small{margin:16px 0 0;font-size:13.5px;line-height:1.85;color:#6b6990}
@@ -1073,7 +1073,7 @@ export const UbCall = () => {
                 </div>
                 <div className="uk-acts">
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-no" aria-label="挂断来电" onClick={() => setSt("miss")}>✕</button>
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断来电" onClick={() => setSt("miss")}><Ico n="x" /></button>
                     挂断
                   </div>
                   <div className="uk-act">
@@ -1094,7 +1094,7 @@ export const UbCall = () => {
                 </div>
                 <div className="uk-acts" style={{ justifyContent: "center" }}>
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-no" aria-label="挂断通话" onClick={() => setSt("end")}>✕</button>
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断通话" onClick={() => setSt("end")}><Ico n="x" /></button>
                     挂断
                   </div>
                 </div>
@@ -1447,7 +1447,7 @@ export const UbShift = () => {
         .uz-tool:hover:not(:disabled){background:rgba(103,232,249,.1)}
         .uz-tool:disabled{opacity:.35;cursor:default}
         .uz-log{display:grid;gap:6px;margin-bottom:20px}
-        .uz-lr{display:grid;grid-template-columns:130px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(167,139,250,.5)}
+        .uz-lr{display:grid;grid-template-columns:130px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border:1px solid rgba(167,139,250,.22);border-radius:6px}
         .uz-lr span{font-family:var(--mono);font-size:11.5px;color:rgba(233,228,245,.45)}
         .uz-lr b{font-weight:500;color:rgba(233,228,245,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .uz-lr em{font-style:normal;font-size:11.5px;color:#c4b5fd}
@@ -1474,7 +1474,7 @@ export const UbShift = () => {
         .uz-opt.off{opacity:.3}
         .uz-opt.hid{border-style:dashed;border-color:rgba(232,121,249,.6);background:rgba(192,38,211,.08)}
         .uz-tag{margin-left:auto;font-size:11px;color:#f0abfc;white-space:nowrap}
-        .uz-res{margin-top:22px;padding:16px 18px;border-left:3px solid #67e8f9;background:rgba(103,232,249,.05);font-size:17px;line-height:1.9;color:#f5f3ff;animation:uzIn .6s both}
+        .uz-res{margin-top:22px;padding:16px 18px;border:1px solid rgba(103,232,249,.35);border-radius:8px;background:rgba(103,232,249,.05);font-size:17px;line-height:1.9;color:#f5f3ff;animation:uzIn .6s both}
         .uz-res small{display:block;margin-top:6px;font-size:12.5px;color:#67e8f9}
         .uz-warn{margin-top:12px;padding:10px 14px;border:1px solid rgba(252,165,165,.45);background:rgba(252,165,165,.08);color:#fca5a5;font-size:14px;line-height:1.7;animation:uzIn .5s both}
         .uz-next{margin-top:20px;padding:13px 26px;border:none;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#c026d3);color:#fff;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:uzIn .6s .3s both}
@@ -1589,7 +1589,7 @@ export const UbShift = () => {
                     <div className="uz-pt">第 3 章　{E.t}</div>
                     {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="uz-cur" />}</p>)}
                     <div className="uz-checks">
-                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}><Ico n="check" /> {c}</span>)}
                     </div>
                     <div className={"uz-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
                   </div>

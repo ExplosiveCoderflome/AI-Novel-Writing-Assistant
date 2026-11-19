@@ -321,7 +321,7 @@ export const MsStory = () => {
         .mq-steps li.cur b{background:#fde047;color:#1a0c04;animation:mqPulse 1.6s ease-in-out infinite}
         .mq-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:44px;margin-top:30px}
         .mq-log{display:grid;gap:6px;margin-bottom:24px}
-        .mq-lr{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(249,115,22,.5)}
+        .mq-lr{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border:1px solid rgba(249,115,22,.22);border-radius:6px}
         .mq-lr span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:rgba(236,228,216,.45)}
         .mq-lr b{font-weight:500;color:rgba(236,228,216,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .mq-lr em{font-style:normal;font-size:11.5px;color:#fdba74}
@@ -338,7 +338,7 @@ export const MsStory = () => {
         .mq-opt.on b{background:#fde047;border-color:#fde047;color:#1a0c04}
         .mq-opt.off{opacity:.3}
         .mq-opt .mq-tag{font-size:11px;color:#f87171;margin-left:auto;white-space:nowrap}
-        .mq-res{margin-top:22px;padding:16px 18px;border-left:3px solid #fde047;background:rgba(253,224,71,.05);font-size:17px;line-height:1.9;color:#f5efe6;animation:mqIn .6s both}
+        .mq-res{margin-top:22px;padding:16px 18px;border:1px solid rgba(253,224,71,.35);border-radius:8px;background:rgba(253,224,71,.05);font-size:17px;line-height:1.9;color:#f5efe6;animation:mqIn .6s both}
         .mq-next{margin-top:20px;padding:13px 26px;border:none;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:mqIn .6s .3s both}
         .mq-next:hover{transform:translateY(-2px)}
         .mq-next:focus-visible{outline:2px solid #fde047;outline-offset:3px}
@@ -486,7 +486,7 @@ export const MsStory = () => {
                     <div className="mq-pt">第五章　门外的声音</div>
                     {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="mq-cur" />}</p>)}
                     <div className="mq-checks">
-                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}><Ico n="check" /> {c}</span>)}
                     </div>
                     <div className={"mq-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
                   </div>
@@ -554,7 +554,7 @@ export const MsRadio = () => {
         .mu-item span{flex:1;font-size:15px;line-height:1.6}
         .mu-lock{padding:6px 12px;border:1px solid rgba(251,146,60,.4);background:none;color:#fdba74;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
         .mu-lock.on{background:rgba(249,115,22,.15);border-color:#fb923c}
-        .mu-res{margin-top:18px;padding:18px;border-left:3px solid #fde047;background:rgba(253,224,71,.06);font-size:16px;line-height:1.85;color:#f5efe6}
+        .mu-res{margin-top:18px;padding:18px;border:1px solid rgba(253,224,71,.35);border-radius:8px;background:rgba(253,224,71,.06);font-size:16px;line-height:1.85;color:#f5efe6}
         .mu-res em{color:#fde047;font-style:normal}
         .mu-roll{padding:12px 24px;border:none;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.1em;cursor:pointer;margin-top:14px}
         .mu-roll:hover{transform:translateY(-2px)}
