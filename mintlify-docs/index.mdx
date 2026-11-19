@@ -144,6 +144,11 @@ export const BnHero = () => {
         .bn-pri:hover{background:#22c55e;transform:translateY(-2px)}
         .bn-sec{border:1px solid rgba(231,245,236,.2);color:#e7f5ec;background:rgba(255,255,255,.03)}
         .bn-sec:hover{border-color:#4ade80;color:#86efac;transform:translateY(-2px)}
+        .bn-show{margin-top:28px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:rgba(231,245,236,.65)}
+        .bn-show a{color:rgba(231,245,236,.85);text-decoration:none;padding:3px 0;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
+        .bn-show a:hover,.bn-show a:focus-visible{color:#4ade80;border-bottom-color:rgba(74,222,128,.45);outline:none}
+        .bn-show span{color:rgba(231,245,236,.35)}
+        .bn-show label{color:#86efac;font-size:12px;letter-spacing:.1em;margin-right:4px}
         .bn-book{position:relative;justify-self:center;width:min(380px,100%);aspect-ratio:3/4;perspective:1400px}
         .bn-page{position:absolute;inset:0;border-radius:6px 16px 16px 6px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid rgba(134,239,172,.22);backdrop-filter:blur(6px);padding:38px 34px;box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 60px -20px rgba(34,197,94,.45);animation:bnFloat 6s ease-in-out infinite}
         .bn-back{transform:rotate(-6deg) translate(-18px,10px);opacity:.45;animation:none}
