@@ -289,7 +289,7 @@ export const TsScript = () => {
 .ts-lk{margin-top:12px;font-size:13px;letter-spacing:.1em;color:#9d174d}
 .ts-opts{margin-top:18px;font-family:"Noto Sans SC","PingFang SC",sans-serif}
 .ts-ol{margin-bottom:4px;font-size:12px;letter-spacing:.25em;color:#be185d}
-.ts-op{position:relative;display:block;width:100%;margin-top:8px;padding:12px 76px 12px 18px;text-align:left;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:17px;line-height:1.6;color:#be123c;background:#fde7ef;border:none;border-left:4px solid #f472b6;border-radius:0 8px 8px 0;cursor:pointer;transition:translate .2s,background .2s}
+.ts-op{position:relative;display:block;width:100%;margin-top:8px;padding:12px 76px 12px 18px;text-align:left;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:17px;line-height:1.6;color:#be123c;background:#fde7ef;border:1px solid rgba(244,114,182,.5);border-radius:0 8px 8px 0;cursor:pointer;transition:translate .2s,background .2s}.ts-op::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(244,114,182,.6);border-radius:0 1px 1px 0}
 .ts-op:hover{background:#fbd5e3;translate:4px 0}
 .ts-op:focus-visible,.ts-reset:focus-visible,.ts-in a:focus-visible{outline:2px solid #be123c;outline-offset:2px}
 .ts-op.ts-out{cursor:not-allowed;color:rgba(59,29,36,.4);background:#f3eded;border-left-color:#d6c4c8;translate:0 0}
@@ -422,7 +422,7 @@ export const TsScript = () => {
                                 aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
                               >
                                 {dm.t}
-                                {dm.author && " 👤"}
+                                {dm.author && <Ico n="user" />}
                               </button>
                             ))}
                           </div>
@@ -445,7 +445,7 @@ export const TsScript = () => {
                                 aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
                               >
                                 {dm.t}
-                                {dm.author && " 👤"}
+                                {dm.author && <Ico n="user" />}
                               </button>
                             ))}
                           </div>
@@ -698,7 +698,7 @@ export const TsRemix = () => {
           onClick={() => { const n = [...lk]; n[lockIdx] = !n[lockIdx]; setLk(n); }}
           style={{ fontSize: 12, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: lk[lockIdx] ? "#be185d" : "transparent", color: lk[lockIdx] ? "#fff" : "#9d174d", cursor: "pointer" }}
         >
-          {lk[lockIdx] ? "🔒" : "🔓"}
+          {lk[lockIdx] ? <Ico n="lock" /> : <Ico n="lock-open" />}
         </button>
       </div>
       <div style={{ fontFamily: "\"Kaiti SC\",\"STKaiti\",\"KaiTi\",serif", fontSize: 20, color: "#be123c", lineHeight: 1.5, minHeight: 60, display: "flex", alignItems: "center" }}>
@@ -738,7 +738,7 @@ export const TsRemix = () => {
           <b>脑洞：</b>你穿成了{A[a]}，原著结局是{B[b]}，但你的金手指是「{C[c]}」。
         </div>
         <div className="tr-act">
-          <button type="button" onClick={roll}>🎲 再抽一次</button>
+          <button type="button" onClick={roll}><Ico n="dice" /> 再抽一次</button>
           <a href="/quickstart" style={{ display: "inline-flex", alignItems: "center", padding: "10px 22px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: "rgba(255,253,250,.7)", color: "#9d174d", textDecoration: "none", fontSize: 14, letterSpacing: ".1em" }}>去开书页写下灵感 →</a>
         </div>
         <div className="tr-demo">演示：随机拼出的脑洞，拿去开书页写成你的灵感。</div>

@@ -170,6 +170,18 @@ export const BnHero = () => {
             <a className="bn-btn bn-sec" href="/installation">下载桌面版</a>
             <a className="bn-btn bn-sec" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
+          <div className="bn-show">
+            <label>题材展厅</label>
+            <a href="/showcase/xianxia">仙侠修真</a>
+            <span>·</span>
+            <a href="/showcase/wasteland">末世求生</a>
+            <span>·</span>
+            <a href="/showcase/mystery">悬疑推理</a>
+            <span>·</span>
+            <a href="/showcase/romance">穿书女频</a>
+            <span>·</span>
+            <a href="/showcase/urban">都市异能</a>
+          </div>
           <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
             <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=0b1210&color=16A34A" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
           </a>
@@ -1223,7 +1235,12 @@ export const XzHero = () => {
         .xz-btn{z-index:0}
         .xz-red{background:#b4382a;border-color:#b4382a;color:#f8f1e4}
         .xz-red::before{background:#1c1a17}
-        .xz-hint{margin-top:26px;font-size:13px;color:rgba(28,26,23,.42);letter-spacing:.15em}
+        .xz-show{margin-top:24px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13.5px;color:rgba(28,26,23,.55)}
+        .xz-show a{color:rgba(28,26,23,.78);text-decoration:none;padding:3px 0;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
+        .xz-show a:hover,.xz-show a:focus-visible{color:#b4382a;border-bottom-color:rgba(180,56,42,.45);outline:none}
+        .xz-show span{color:rgba(28,26,23,.25)}
+        .xz-show label{color:#b4382a;font-size:12px;letter-spacing:.1em;margin-right:4px}
+        .xz-hint{margin-top:22px;font-size:13px;color:rgba(28,26,23,.42);letter-spacing:.15em}
         .xz-mt{position:absolute;left:0;right:0;bottom:0;height:260px;pointer-events:none}
         .xz-mt svg{position:absolute;bottom:0;width:200%;height:100%}
         .xz-m1{animation:xzDrift 90s linear infinite;opacity:.35}
@@ -1258,7 +1275,7 @@ export const XzHero = () => {
       {PETALS.map((p, i) => <span key={i} className={"xz-petal " + p.tone} style={{ left: p.left + "%", width: p.size, height: Math.round(p.size * 0.8), animationDuration: p.dur + "s", animationDelay: p.delay + "s", "--dx": p.dx + "px" }} />)}
       {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
       <div className="xz-wrap">
-        <div className="xz-title" aria-label="从一句灵感，走向一本完整小说">
+        <h1 className="xz-title" aria-label="从一句灵感，走向一本完整小说" style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit", lineHeight: "inherit" }}>
           <div className="xz-col">
             {colA.map((c, i) => <span key={i} className="xz-ch" style={{ animationDelay: 0.2 + i * 0.18 + "s" }}>{c}</span>)}
           </div>
@@ -1266,7 +1283,7 @@ export const XzHero = () => {
             {colB.map((c, i) => <span key={i} className={"xz-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 1.2 + i * 0.18 + "s" }}>{c}</span>)}
             <div style={{ marginTop: 22 }}><span className="xz-seal" style={{ writingMode: "horizontal-tb" }}>开源<br />创作</span></div>
           </div>
-        </div>
+        </h1>
         <div className="xz-left">
           <div className="xz-k">AI NOVEL STUDIO</div>
           <div className="xz-name">Biz Novel Studio</div>
@@ -1277,7 +1294,19 @@ export const XzHero = () => {
             <a className="xz-btn" href="/installation">下载桌面版</a>
             <a className="xz-btn" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
-          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
+          <div className="xz-show">
+            <label>题材展厅</label>
+            <a href="/showcase/xianxia">仙侠修真</a>
+            <span>·</span>
+            <a href="/showcase/wasteland">末世求生</a>
+            <span>·</span>
+            <a href="/showcase/mystery">悬疑推理</a>
+            <span>·</span>
+            <a href="/showcase/romance">穿书女频</a>
+            <span>·</span>
+            <a href="/showcase/urban">都市异能</a>
+          </div>
+          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 20 }} aria-label="GitHub Star 数">
             <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=1c1a17&color=b4382a" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
           </a>
           <div className="xz-hint">v0.8.9 · AGPL-3.0 · 点击纸面，滴一滴墨</div>

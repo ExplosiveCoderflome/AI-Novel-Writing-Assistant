@@ -301,6 +301,7 @@ export const MsStory = () => {
       <style>{`
         .mq{position:relative;background:radial-gradient(900px 420px at 50% 0,var(--glow),transparent 70%),#0b0a08;color:#ece4d8;padding:96px 24px 90px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;transition:background .8s;scroll-margin-top:70px}
         .mq-in{max-width:1080px;margin:0 auto}
+        .mq-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
         .mq-hd{max-width:700px}
         .mq-k{display:flex;align-items:center;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.4em;color:#fb923c}
         .mq-k i{width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:mqBlink 1.2s steps(1) infinite}
@@ -411,7 +412,7 @@ export const MsStory = () => {
               <div>
                 <div className="mq-torchbar">
                   <button type="button" className={"mq-torchbtn" + (torchOn ? " on" : "")} onClick={() => setTorchOn((v) => !v)} aria-label="切换手电照亮隐藏文字">
-                    {torchOn ? "☀ 关闭手电" : "☀ 打开手电"}
+                    {torchOn ? <><Ico n="sun" /> 关闭手电</> : <><Ico n="sun" /> 打开手电</>}
                   </button>
                   <span style={{ fontSize: 12, color: "rgba(236,228,216,.45)" }}>移动鼠标或手指，在故事区照一照</span>
                 </div>
@@ -585,12 +586,33 @@ export const MsRadio = () => {
           演示：随机拼出的脑洞，拿去开书页写成你的灵感：<br />
           <em>{ROLES[roleI]}，{MUTATIONS[mutI]}，{COSTS[costI]}</em>
         </div>
-        <button type="button" className="mu-roll" onClick={roll}>📻 摇一摇，换台</button>
+        <button type="button" className="mu-roll" onClick={roll}><Ico n="radio" /> 摇一摇，换台</button>
         <div className="mu-label">演示：随机拼出的脑洞，拿去开书页写成你的灵感</div>
         {!reduce && <div className={"mu-noise" + (noise ? " on" : "")} />}
       </div>
     </div>
   );
+};
+
+export const Ico = ({ n, s }) => {
+  const P = {
+    "arrow-right": <><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>,
+    "arrow-left": <><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>,
+    "arrow-down": <><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>,
+    "arrow-up": <><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></>,
+    "check": <path d="M20 6 9 17l-5-5" />,
+    "x": <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>,
+    "sparkle": <path d="M12 3l1.9 5.8L20 10.7l-5.8 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z" />,
+    "lock": <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+    "lock-open": <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></>,
+    "user": <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+    "dice": <><rect width="18" height="18" x="3" y="3" rx="3" /><path d="M8 8h.01" /><path d="M16 8h.01" /><path d="M12 12h.01" /><path d="M8 16h.01" /><path d="M16 16h.01" /></>,
+    "radio": <><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></>,
+    "sun": <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></>,
+    "phone": <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  };
+  const z = s || "1em";
+  return <svg width={z} height={z} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}>{P[n]}</svg>;
 };
 
 export const MsCta = () => {
