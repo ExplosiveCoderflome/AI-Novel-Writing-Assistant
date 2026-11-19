@@ -493,12 +493,13 @@ export const BnTyping = () => {
       <style>{`
         .bn-ty{background:#05080a;color:#e7f5ec;padding:70px 24px 90px}
         .bn-tin{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:48px;align-items:center}
-        .bn-th{font-size:clamp(28px,4vw,40px);font-weight:700;margin:0 0 14px}
-        .bn-tp{color:rgba(231,245,236,.8);font-size:16px;line-height:1.75}
+        .bn-tk{font-size:13px;letter-spacing:.3em;color:#4ade80}
+        .bn-th{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 14px}
+        .bn-tp{color:rgba(231,245,236,.65);font-size:16px;line-height:1.75}
         .bn-win{border-radius:16px;border:1px solid rgba(134,239,172,.18);background:linear-gradient(180deg,#0b1210,#070b09);box-shadow:0 40px 90px -40px rgba(34,197,94,.5);overflow:hidden;min-width:0}
         .bn-bar{display:flex;gap:7px;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(231,245,236,.06)}
         .bn-bar i{width:11px;height:11px;border-radius:50%;background:rgba(231,245,236,.15)}
-        .bn-bar span{margin-left:10px;font-size:12px;color:rgba(231,245,236,.7)}
+        .bn-bar span{margin-left:10px;font-size:12px;color:rgba(231,245,236,.45)}
         .bn-body{padding:20px 22px;display:grid;gap:10px;min-height:330px;align-content:start}
         .bn-row{display:flex;gap:12px;align-items:baseline;font-size:14.5px;opacity:0;transform:translateY(6px);transition:all .4s}
         .bn-row.show{opacity:1;transform:none}
@@ -510,6 +511,7 @@ export const BnTyping = () => {
       `}</style>
       <div className="bn-tin">
         <div>
+          <div className="bn-tk">FROM IDEA TO NOVEL</div>
           <h2 className="bn-th">一句灵感，一路展开成正文</h2>
           <div className="bn-tp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
         </div>
@@ -538,9 +540,6 @@ export const BnTyping = () => {
 };
 
 export const BnIntro = () => {
-  const icR = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>;
-  const icS = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M12 3l1.9 5.8L20 10.7l-5.8 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z" /></svg>;
-  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const IDEAS = [
     "全民觉醒系统那天，我觉醒的是「系统客服」：全世界的系统出了 bug，都得排队来找我售后。",
     "修仙界开始内卷考编，我靠一张五百年前的真题卷，成了全宗门唯一的上岸者。",
@@ -592,21 +591,21 @@ export const BnIntro = () => {
         .bi-p3 .bi-c{opacity:0;transform:scale(.96)}
         .bi-eb{font-size:12px;letter-spacing:.35em;color:#4ade80;margin-bottom:14px;animation:biUp .5s both}
         .bi-h{font-size:clamp(24px,3.6vw,32px);font-weight:600;text-align:center;animation:biUp .5s .05s both}
-        .bi-sub{margin-top:10px;font-size:14px;color:rgba(231,245,236,.78);text-align:center;animation:biUp .5s .1s both}
+        .bi-sub{margin-top:10px;font-size:14px;color:rgba(231,245,236,.55);text-align:center;animation:biUp .5s .1s both}
         .bi-card{margin-top:26px;width:min(640px,100%);border-radius:10px;background:rgba(255,255,255,.035);padding:16px;box-shadow:0 0 0 2px rgba(74,222,128,.28),0 30px 80px -30px rgba(34,197,94,.45);animation:biUp .55s .15s both}
         .bi-ta{min-height:96px;font-size:clamp(15px,1.8vw,18px);line-height:1.8;padding:2px 4px}
-        .bi-ph{color:rgba(231,245,236,.6)}
+        .bi-ph{color:rgba(231,245,236,.3)}
         .bi-cur{display:inline-block;width:2px;height:1.1em;background:#4ade80;margin-left:2px;vertical-align:-3px;animation:biBlink .8s steps(1) infinite}
-        .bi-hint{font-size:12px;color:rgba(231,245,236,.72);padding:4px 4px 12px}
+        .bi-hint{font-size:12px;color:rgba(231,245,236,.4);padding:4px 4px 12px}
         .bi-pref{border-top:1px solid rgba(231,245,236,.08);padding-top:12px}
-        .bi-pl{font-size:12px;color:rgba(231,245,236,.72);margin-bottom:8px}
+        .bi-pl{font-size:12px;color:rgba(231,245,236,.45);margin-bottom:8px}
         .bi-chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
         .bi-chip{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:6px;font-size:13px;background:rgba(0,0,0,.25);box-shadow:0 0 0 1px rgba(231,245,236,.1);transition:all .4s;white-space:nowrap;overflow:hidden}
         .bi-chip em{font-style:normal;font-size:11px;color:#4ade80;opacity:0;transition:opacity .4s}
         .bi-p1 .bi-chip,.bi-p2 .bi-chip,.bi-p3 .bi-chip{box-shadow:0 0 0 1px rgba(74,222,128,.45)}
         .bi-p1 .bi-chip em,.bi-p2 .bi-chip em,.bi-p3 .bi-chip em{opacity:1}
         .bi-act{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding-top:14px}
-        .bi-ghost{font-size:13px;color:rgba(231,245,236,.72)}
+        .bi-ghost{font-size:13px;color:rgba(231,245,236,.5)}
         .bi-outline{font-size:13px;padding:6px 12px;border-radius:6px;box-shadow:0 0 0 1px rgba(231,245,236,.15);margin-right:12px}
         .bi-go{font-size:13px;color:rgba(231,245,236,.55);padding:6px 10px;border-radius:6px;transition:all .25s}
         .bi-p2 .bi-go,.bi-p3 .bi-go{color:#fff;background:rgba(22,163,74,.25);box-shadow:0 0 0 1px #4ade80;transform:scale(.97)}
@@ -616,9 +615,8 @@ export const BnIntro = () => {
         .bi-s b{width:16px;height:16px;border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px currentColor;font-weight:600}
         .bi-s.on{color:#86efac;box-shadow:0 0 0 1px rgba(74,222,128,.5);background:rgba(22,163,74,.12)}
         .bi-s.on b{background:#16A34A;color:#fff;box-shadow:none}
-        .bi-skip{position:absolute;z-index:4;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.78);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer;font-family:inherit;transition:color .2s,border-color .2s}
+        .bi-skip{position:absolute;z-index:4;right:22px;bottom:22px;background:none;border:1px solid rgba(231,245,236,.2);color:rgba(231,245,236,.55);font-size:12px;padding:6px 14px;border-radius:999px;cursor:pointer}
         .bi-skip:hover{color:#fff;border-color:#4ade80}
-        .bi-skip:focus-visible{outline:2px solid #4ade80;outline-offset:2px}
         @keyframes biBlink{50%{opacity:0}}
         @keyframes biUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
         @media (max-width:560px){.bi-chips{grid-template-columns:1fr}.bi-outline,.bi-ghost{display:none}}
@@ -646,20 +644,20 @@ export const BnIntro = () => {
             </div>
           </div>
           <div className="bi-act">
-            <div><span className="bi-outline">{icS} 打开故事星图</span><span className="bi-ghost">直接给我几个想法</span></div>
+            <div><span className="bi-outline">✦ 打开故事星图</span><span className="bi-ghost">直接给我几个想法</span></div>
             <div>
               <span className="bi-go">{ph >= 2 ? "生成中..." : "用默认设置直接生成方向"}</span>
-              <span className="bi-btn">继续完善设定 {icR}</span>
+              <span className="bi-btn">继续完善设定 →</span>
             </div>
           </div>
         </div>
         <div className="bi-st">
           {ph >= 2 && STAGES.map((t, i) => (
-            <div key={t} className={"bi-s" + (i < s ? " on" : "")}><b>{i < s ? icC : i + 1}</b>{t}</div>
+            <div key={t} className={"bi-s" + (i < s ? " on" : "")}><b>{i < s ? "✓" : i + 1}</b>{t}</div>
           ))}
         </div>
       </div>
-      {ph < 3 && <button type="button" className="bi-skip" onClick={skip}>跳过</button>}
+      {ph < 3 && <button className="bi-skip" onClick={skip}>跳过</button>}
     </div>
   );
 };
@@ -691,8 +689,9 @@ export const BnStarMap = () => {
       <style>{`
         .bn-sm{background:#05080a;color:#e7f5ec;padding:90px 24px}
         .bn-smi{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;align-items:center}
-        .bn-smh{font-size:clamp(28px,4vw,40px);font-weight:700;margin:0 0 14px}
-        .bn-smp{color:rgba(231,245,236,.8);font-size:16px;line-height:1.75}
+        .bn-smk{font-size:13px;letter-spacing:.3em;color:#4ade80}
+        .bn-smh{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 14px}
+        .bn-smp{color:rgba(231,245,236,.65);font-size:16px;line-height:1.75}
         .bn-svg{width:100%;height:auto;overflow:visible}
         .bn-rot{transform-origin:300px 210px;animation:bnOrbit 80s linear infinite}
         .bn-svg:hover .bn-rot{animation-play-state:paused}
@@ -700,8 +699,6 @@ export const BnStarMap = () => {
         .bn-e.on{stroke:#4ade80;stroke-width:1.8}
         .bn-pulse{stroke:#86efac;stroke-width:2;stroke-dasharray:6 120;animation:bnDash 3.2s linear infinite;fill:none;opacity:.8}
         .bn-nd{cursor:pointer;transition:opacity .3s}
-        .bn-nd:focus-visible{outline:none}
-        .bn-nd:focus-visible > circle:last-of-type{stroke:#bbf7d0;stroke-width:3}
         .bn-nd text{font-size:13px;fill:#e7f5ec;text-anchor:middle;pointer-events:none}
         .bn-nd.main text{font-size:15px;font-weight:700}
         @keyframes bnOrbit{to{transform:rotate(360deg)}}
@@ -710,9 +707,11 @@ export const BnStarMap = () => {
       `}</style>
       <div className="bn-smi">
         <div>
+          <div className="bn-smk">WORLD & CHARACTERS</div>
           <h2 className="bn-smh">一本书的世界，彼此相连</h2>
           <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
         </div>
+        <StarMap3D theme="ink" nodes={NODES} edges={EDGES} cx={300} cy={210} ratio="600 / 430" label="世界、角色与章节的关系星图" hover={hover} setHover={setHover}>
         <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
           <defs>
             <radialGradient id="bnNg"><stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#14532d" /></radialGradient>
@@ -725,7 +724,7 @@ export const BnStarMap = () => {
               </g>
             ))}
             {NODES.map((n) => (
-              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} tabIndex="0" role="button" aria-label={n.l} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.id)} onBlur={() => setHover(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setHover(n.id); } if (e.key === "Escape") setHover(null); }}>
+              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
                 <circle cx={n.x} cy={n.y} r={n.r + 10} fill="rgba(34,197,94,.12)" style={{ animation: "bnGlow 3s ease-in-out infinite" }} />
                 <circle cx={n.x} cy={n.y} r={n.r} fill={n.main ? "url(#bnNg)" : "#16A34A"} stroke={hover === n.id ? "#bbf7d0" : "rgba(187,247,208,.4)"} strokeWidth={hover === n.id ? 2.5 : 1} />
                 <g transform={`rotate(0 ${n.x} ${n.y})`}>
@@ -735,6 +734,7 @@ export const BnStarMap = () => {
             ))}
           </g>
         </svg>
+        </StarMap3D>
       </div>
     </div>
   );
@@ -1168,13 +1168,12 @@ export const BnHome = ({ children }) => {
       {layers.map((L) => {
         const entering = fx && fx.id === L.id;
         const leaving = fx && fx.id !== L.id;
-        const isActive = L.theme === current && !leaving;
         const style = entering
           ? { position: "absolute", top: 0, left: 0, right: 0, zIndex: 3, clipPath: `circle(${fx.go ? fx.r : 0}px at ${fx.x}px ${fx.y}px)`, transition: `clip-path ${dur} ${ease}` }
           : leaving
           ? { position: "relative", transformOrigin: `${fx.x}px ${fx.y}px`, transform: fx.go ? "scale(.94)" : "none", filter: fx.go ? "brightness(.55) saturate(.5)" : "none", transition: `transform ${dur} ${ease}, filter ${dur} ${ease}` }
           : { position: "relative" };
-        return <div key={L.id} style={style} aria-hidden={!isActive}>{renderSet(L.theme)}</div>;
+        return <div key={L.id} style={style}>{renderSet(L.theme)}</div>;
       })}
 
       {fx && (
@@ -1291,7 +1290,7 @@ export const XzIntro = () => {
         .xzi-seal{position:absolute;left:13%;bottom:13%;width:clamp(44px,8vmin,64px);height:clamp(44px,8vmin,64px);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;background:#b4382a;color:#f8f1e4;border-radius:5px;font-weight:900;font-size:clamp(15px,2.6vmin,21px);box-shadow:inset 0 0 0 3px rgba(248,241,228,.35),0 6px 18px -6px rgba(180,56,42,.6);animation:xziStamp .55s cubic-bezier(.3,1.6,.5,1) both}
         .xzi-seal::after{content:"";position:absolute;inset:-10px;border:2px solid rgba(180,56,42,.5);border-radius:9px;animation:xziSealRing .7s .05s ease-out both}
         .xzi-cap{position:absolute;left:0;right:0;bottom:max(7vh,44px);text-align:center;animation:xziUp .8s 1.6s both}
-        .xzi-cap b{display:block;font-size:12px;letter-spacing:.5em;color:rgba(28,26,23,.72);font-weight:600}
+        .xzi-cap b{display:block;font-size:12px;letter-spacing:.5em;color:rgba(28,26,23,.55);font-weight:600}
         .xzi-cap span{display:block;margin-top:8px;font-size:14px;letter-spacing:.3em;color:rgba(28,26,23,.72)}
         .xzi-skip{position:absolute;z-index:4;right:22px;bottom:22px;padding:6px 14px;border-radius:999px;border:1px solid rgba(28,26,23,.25);background:rgba(243,237,225,.65);color:rgba(28,26,23,.6);font-family:inherit;font-size:12px;letter-spacing:.2em;cursor:pointer;transition:color .2s,border-color .2s}
         .xzi-skip:hover{color:#b4382a;border-color:#b4382a}
@@ -1429,7 +1428,7 @@ export const XzHero = () => {
         .xz-col.b .xz-ch{color:#2b2722}
         .xz-col.b .xz-ch.hl{color:#b4382a}
         .xz-seal{display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border:3px solid #b4382a;border-radius:6px;color:#b4382a;font-weight:900;font-size:17px;line-height:1.1;text-align:center;transform:rotate(-6deg);opacity:0;animation:xzStamp .6s 2.8s cubic-bezier(.3,1.6,.5,1) forwards;box-shadow:inset 0 0 0 2px rgba(180,56,42,.15)}
-        .xz-k{font-size:14px;letter-spacing:.5em;color:rgba(28,26,23,.72)}
+        .xz-k{font-size:14px;letter-spacing:.5em;color:rgba(28,26,23,.55)}
         .xz-name{font-size:clamp(26px,3.4vw,34px);font-weight:700;margin:14px 0 0;letter-spacing:.06em}
         .xz-rule{width:64px;height:2px;background:#1c1a17;margin:22px 0;opacity:.7}
         .xz-p{font-size:17px;line-height:2;color:rgba(28,26,23,.72);max-width:440px}
@@ -1441,13 +1440,7 @@ export const XzHero = () => {
         .xz-btn{z-index:0}
         .xz-red{background:#b4382a;border-color:#b4382a;color:#f8f1e4}
         .xz-red::before{background:#1c1a17}
-        .xz-show{margin-top:24px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13.5px;color:rgba(28,26,23,.72)}
-        .xz-show a{color:rgba(28,26,23,.78);text-decoration:none;padding:3px 0;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
-        .xz-show a:hover{color:#b4382a;border-bottom-color:rgba(180,56,42,.45)}
-        .xz-show a:focus-visible{color:#b4382a;outline:2px solid #b4382a;outline-offset:3px;border-radius:2px}
-        .xz-show span{color:rgba(28,26,23,.25)}
-        .xz-show label{color:#b4382a;font-size:12px;letter-spacing:.1em;margin-right:4px}
-        .xz-hint{margin-top:22px;font-size:13px;color:rgba(28,26,23,.7);letter-spacing:.15em}
+        .xz-hint{margin-top:26px;font-size:13px;color:rgba(28,26,23,.42);letter-spacing:.15em}
         .xz-mt{position:absolute;left:0;right:0;bottom:0;height:260px;pointer-events:none}
         .xz-mt svg{position:absolute;bottom:0;width:200%;height:100%}
         .xz-m1{animation:xzDrift 90s linear infinite;opacity:.35}
@@ -1482,7 +1475,7 @@ export const XzHero = () => {
       {PETALS.map((p, i) => <span key={i} className={"xz-petal " + p.tone} style={{ left: p.left + "%", width: p.size, height: Math.round(p.size * 0.8), animationDuration: p.dur + "s", animationDelay: p.delay + "s", "--dx": p.dx + "px" }} />)}
       {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
       <div className="xz-wrap">
-        <h1 className="xz-title" aria-label="从一句灵感，走向一本完整小说" style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit", lineHeight: "inherit" }}>
+        <div className="xz-title" aria-label="从一句灵感，走向一本完整小说">
           <div className="xz-col">
             {colA.map((c, i) => <span key={i} className="xz-ch" style={{ animationDelay: 0.2 + i * 0.18 + "s" }}>{c}</span>)}
           </div>
@@ -1490,7 +1483,7 @@ export const XzHero = () => {
             {colB.map((c, i) => <span key={i} className={"xz-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 1.2 + i * 0.18 + "s" }}>{c}</span>)}
             <div style={{ marginTop: 22 }}><span className="xz-seal" style={{ writingMode: "horizontal-tb" }}>开源<br />创作</span></div>
           </div>
-        </h1>
+        </div>
         <div className="xz-left">
           <div className="xz-k">AI NOVEL STUDIO</div>
           <div className="xz-name">Biz Novel Studio</div>
@@ -1501,19 +1494,7 @@ export const XzHero = () => {
             <a className="xz-btn" href="/installation">下载桌面版</a>
             <a className="xz-btn" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
-          <div className="xz-show">
-            <label>题材展厅</label>
-            <a href="/showcase/xianxia">仙侠修真</a>
-            <span>·</span>
-            <a href="/showcase/wasteland">末世求生</a>
-            <span>·</span>
-            <a href="/showcase/mystery">悬疑推理</a>
-            <span>·</span>
-            <a href="/showcase/romance">穿书女频</a>
-            <span>·</span>
-            <a href="/showcase/urban">都市异能</a>
-          </div>
-          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 20 }} aria-label="GitHub Star 数">
+          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
             <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=1c1a17&color=b4382a" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
           </a>
           <div className="xz-hint">v0.8.9 · AGPL-3.0 · 点击纸面，滴一滴墨</div>
