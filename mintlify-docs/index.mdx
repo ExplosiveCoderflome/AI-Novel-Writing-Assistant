@@ -831,6 +831,8 @@ export const BnStarMap = () => {
         .bn-e.on{stroke:#4ade80;stroke-width:1.8}
         .bn-pulse{stroke:#86efac;stroke-width:2;stroke-dasharray:6 120;animation:bnDash 3.2s linear infinite;fill:none;opacity:.8}
         .bn-nd{cursor:pointer;transition:opacity .3s}
+        .bn-nd:focus-visible{outline:none}
+        .bn-nd:focus-visible > circle:last-of-type{stroke:#bbf7d0;stroke-width:3}
         .bn-nd text{font-size:13px;fill:#e7f5ec;text-anchor:middle;pointer-events:none}
         .bn-nd.main text{font-size:15px;font-weight:700}
         @keyframes bnOrbit{to{transform:rotate(360deg)}}
@@ -855,7 +857,7 @@ export const BnStarMap = () => {
               </g>
             ))}
             {NODES.map((n) => (
-              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
+              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} tabIndex="0" role="button" aria-label={n.l} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.id)} onBlur={() => setHover(null)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); } }}>
                 <circle cx={n.x} cy={n.y} r={n.r + 10} fill="rgba(34,197,94,.12)" style={{ animation: "bnGlow 3s ease-in-out infinite" }} />
                 <circle cx={n.x} cy={n.y} r={n.r} fill={n.main ? "url(#bnNg)" : "#16A34A"} stroke={hover === n.id ? "#bbf7d0" : "rgba(187,247,208,.4)"} strokeWidth={hover === n.id ? 2.5 : 1} />
                 <g transform={`rotate(0 ${n.x} ${n.y})`}>
@@ -963,12 +965,13 @@ export const BnHome = ({ children }) => {
       {layers.map((L) => {
         const entering = fx && fx.id === L.id;
         const leaving = fx && fx.id !== L.id;
+        const isActive = L.theme === current && !leaving;
         const style = entering
           ? { position: "absolute", top: 0, left: 0, right: 0, zIndex: 3, clipPath: `circle(${fx.go ? fx.r : 0}px at ${fx.x}px ${fx.y}px)`, transition: `clip-path ${dur} ${ease}` }
           : leaving
           ? { position: "relative", transformOrigin: `${fx.x}px ${fx.y}px`, transform: fx.go ? "scale(.94)" : "none", filter: fx.go ? "brightness(.55) saturate(.5)" : "none", transition: `transform ${dur} ${ease}, filter ${dur} ${ease}` }
           : { position: "relative" };
-        return <div key={L.id} style={style}>{renderSet(L.theme)}</div>;
+        return <div key={L.id} style={style} aria-hidden={!isActive}>{renderSet(L.theme)}</div>;
       })}
 
       {fx && (
@@ -1514,6 +1517,8 @@ export const XzWeb = () => {
         .xz-ln{fill:none;stroke:#1c1a17;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;animation:xzDraw 1.6s ease forwards;transition:stroke .3s,opacity .3s}
         .xz-ln.on{stroke:#b4382a;opacity:1!important}
         .xz-nd{cursor:pointer;transition:opacity .35s}
+        .xz-nd:focus-visible{outline:none}
+        .xz-nd:focus-visible > circle:last-of-type{stroke:#b4382a;stroke-width:3}
         .xz-nd text{font-size:14px;fill:#1c1a17;text-anchor:middle;letter-spacing:.08em;pointer-events:none}
         .xz-nd.main text{font-size:17px;font-weight:800;fill:#faf6ec}
         .xz-halo{animation:xzHalo 4s ease-in-out infinite}
@@ -1825,7 +1830,7 @@ export const RepoPulse = ({ theme }) => {
       `}</style>
       <div className="cm-in">
         <div className="cm-k">{ink ? "COMMUNITY" : "六 · 同道"}</div>
-        <div className="cm-h">{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</div>
+        <h2 className="cm-h" style={{ margin: 0, fontSize: "inherit", fontWeight: "inherit", lineHeight: "inherit" }}>{ink ? "项目动态与快速反馈" : "星火相传，有问必答"}</h2>
         <div className="cm-p">Star 数和趋势实时来自 GitHub。遇到问题或有想法，直接在下面提交 Issue；附上使用版本、所选导演与模式、操作步骤和相关日志，会更容易定位问题。</div>
         <div className="cm-badges">
           {BADGES.map((b) => (

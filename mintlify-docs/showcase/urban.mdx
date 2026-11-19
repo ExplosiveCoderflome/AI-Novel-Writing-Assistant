@@ -113,7 +113,7 @@ export const UbLock = () => {
 .ul-date{font-size:14px;letter-spacing:.12em;color:rgba(255,255,255,.8)}
 .ul-time{font-family:system-ui,-apple-system,"Helvetica Neue",sans-serif;font-size:72px;font-weight:200;line-height:1.05;color:#fff}
 .ul-ns{list-style:none;width:100%;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
-.ul-n{display:flex;gap:10px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);animation:ulIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+.ul-n{display:flex;gap:10px;padding:10px 12px;border-radius:18px;background:rgba(28,18,58,.92);animation:ulIn .5s cubic-bezier(.2,.9,.3,1.2) both}
 @keyframes ulIn{from{opacity:0;transform:translateY(-14px) scale(.96)}}
 .ul-hot{background:rgba(139,92,246,.3);box-shadow:0 0 0 1px rgba(196,181,253,.6),0 0 24px rgba(168,85,247,.55)}
 .ul-ic{flex:0 0 30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;font-weight:700;color:#fff}
@@ -121,8 +121,8 @@ export const UbLock = () => {
 .ul-nh{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.65)}
 .ul-nh b{font-weight:600;color:#fff}
 .ul-nb p{margin:2px 0 0;font-size:13px;line-height:1.5;color:#fff}
-.ul-sl{position:absolute;left:18px;right:18px;bottom:26px;height:56px;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.ul-slt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font-size:15px;letter-spacing:.3em;color:transparent;background:linear-gradient(90deg,rgba(255,255,255,.45) 30%,#fff 50%,rgba(255,255,255,.45) 70%) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;animation:ulShine 2.4s linear infinite;pointer-events:none}
+.ul-sl{position:absolute;left:18px;right:18px;bottom:26px;height:56px;border-radius:999px;background:rgba(28,18,58,.92)}
+.ul-slt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font-size:15px;letter-spacing:.3em;color:rgba(255,255,255,.75);pointer-events:none}
 @keyframes ulShine{from{background-position:100% 0}to{background-position:-100% 0}}
 .ul-rg{-webkit-appearance:none;appearance:none;position:absolute;top:0;left:4px;width:calc(100% - 8px);height:100%;margin:0;background:transparent;cursor:grab}
 .ul-rg::-webkit-slider-runnable-track{height:56px;background:transparent}
@@ -132,7 +132,7 @@ export const UbLock = () => {
 .ul-rg:focus-visible{outline:2px solid #67e8f9;outline-offset:4px;border-radius:999px}
 .ul-home{padding:58px 18px 0;opacity:0;scale:1.08;pointer-events:none}
 .ul-on .ul-home{opacity:1;scale:1;pointer-events:auto}
-.ul-wd{padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.12);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 0 0 1px rgba(196,181,253,.35)}
+.ul-wd{padding:14px 16px;border-radius:22px;background:rgba(28,18,58,.9);box-shadow:0 0 0 1px rgba(196,181,253,.35)}
 .ul-wd span{display:block;font-size:11.5px;letter-spacing:.15em;color:#c4b5fd}
 .ul-wd b{display:block;margin-top:6px;font-size:18px;color:#fff}
 .ul-wd i{display:block;margin-top:6px;font-style:normal;font-size:13px;color:rgba(255,255,255,.78)}
@@ -147,7 +147,7 @@ export const UbLock = () => {
 .ul-ad{background:linear-gradient(135deg,#7c3aed,#c026d3);box-shadow:0 0 0 2px rgba(240,171,252,.6),0 0 22px rgba(217,70,239,.7);animation:ulPulse 2s ease-in-out infinite}
 @keyframes ulPulse{50%{box-shadow:0 0 0 2px rgba(240,171,252,.2),0 0 8px rgba(217,70,239,.3)}}
 .ul-hint{margin:22px 0 0;text-align:center;font-size:12px;color:rgba(255,255,255,.62)}
-.ul-dock{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;padding:11px 8px;border-radius:30px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.ul-dock{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;padding:11px 8px;border-radius:30px;background:rgba(28,18,58,.92)}
 .ul-dock span{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;font-size:18px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.18)}
 .ul-sheet{position:absolute;left:10px;right:10px;bottom:10px;z-index:7;padding:20px 18px 16px;border-radius:26px;background:rgba(20,12,40,.95);box-shadow:0 0 0 1px rgba(196,181,253,.35),0 -20px 40px rgba(0,0,0,.5);animation:ulUp .35s ease both}
 @keyframes ulUp{from{opacity:0;transform:translateY(40px)}}
@@ -1077,7 +1077,7 @@ export const UbCall = () => {
                     挂断
                   </div>
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-yes" aria-label="接听来电" onClick={() => { setSec(0); setSt("on"); }}>✆</button>
+                    <button type="button" className="uk-btn uk-yes" aria-label="接听来电" onClick={() => { setSec(0); setSt("on"); }}><Ico n="phone" /></button>
                     接听
                   </div>
                 </div>
@@ -1119,7 +1119,7 @@ export const UbCall = () => {
                   <b>这通电话，进了「未送达」。</b>
                   故事停在第 3 章，等人接着写。
                 </div>
-                <button type="button" className="uk-re" onClick={redial}>✆ 回拨</button>
+                <button type="button" className="uk-re" onClick={redial}><Ico n="phone" /> 回拨</button>
               </>
             )}
           </div>
@@ -1613,4 +1613,25 @@ export const UbShift = () => {
       </div>
     </div>
   );
+};
+
+export const Ico = ({ n, s }) => {
+  const P = {
+    "arrow-right": <><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>,
+    "arrow-left": <><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></>,
+    "arrow-down": <><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>,
+    "arrow-up": <><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></>,
+    "check": <path d="M20 6 9 17l-5-5" />,
+    "x": <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>,
+    "sparkle": <path d="M12 3l1.9 5.8L20 10.7l-5.8 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z" />,
+    "lock": <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>,
+    "lock-open": <><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></>,
+    "user": <><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
+    "dice": <><rect width="18" height="18" x="3" y="3" rx="3" /><path d="M8 8h.01" /><path d="M16 8h.01" /><path d="M12 12h.01" /><path d="M8 16h.01" /><path d="M16 16h.01" /></>,
+    "radio": <><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></>,
+    "sun": <><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></>,
+    "phone": <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  };
+  const z = s || "1em";
+  return <svg width={z} height={z} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}>{P[n]}</svg>;
 };

@@ -216,6 +216,7 @@ export const MsStory = () => {
   const rootRef = useRef(null);
   const sceneRef = useRef(null);
   const resRef = useRef(null);
+  const headingRef = useRef(null);
   const [step, setStep] = useState(0);
   const [picks, setPicks] = useState([]);
   const [n, setN] = useState(0);
@@ -247,6 +248,8 @@ export const MsStory = () => {
     setPicks([]); setStep(0); setN(0); setPh(0); setTorchOn(false);
     const el = rootRef.current;
     if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: "smooth" });
+    const t = setTimeout(() => { const h = headingRef.current; if (h) h.focus({ preventScroll: true }); }, 400);
+    return () => clearTimeout(t);
   };
   useEffect(() => {
     if (step === 0) return;
@@ -254,6 +257,8 @@ export const MsStory = () => {
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.top < 80 || r.top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + r.top - 110, behavior: "smooth" });
+    const h = headingRef.current;
+    if (h) setTimeout(() => h.focus({ preventScroll: true }), 120);
   }, [step]);
   useEffect(() => {
     if (!has) return;
@@ -390,6 +395,7 @@ export const MsStory = () => {
         @media (max-width:520px){.mq{padding:80px 18px}.mq-lr{grid-template-columns:1fr auto}.mq-lr span{display:none}.mq-scene p{font-size:16.5px}}
       `}</style>
       <div className="mq-in">
+        <div className="mq-sr-only" aria-live="polite" aria-atomic="true">{step < 5 ? `第 ${step + 1} 步：${STEPS[step]}` : `第 ${step + 1} 步：${STEPS[step]}`}</div>
         <div className="mq-hd">
           <div className="mq-k"><i />互动求生</div>
           <div className="mq-h">五个选择，写出一章</div>
@@ -445,11 +451,11 @@ export const MsStory = () => {
                     )}
                   </div>
                   <div className="mq-scene" key={"s" + step}>
-                    <div className="mq-time">● {sc.time}</div>
+                    <h2 ref={headingRef} tabIndex="-1" className="mq-time" style={{ outline: "none" }}>● {sc.time}</h2>
                     {sc.p.map((t, i) => <p key={i} className={t === sc.hit ? "mq-hit" : ""} style={{ animationDelay: i * 0.45 + "s" }}>{t}</p>)}
                     <div className="mq-opts" style={{ animationDelay: sc.p.length * 0.45 + 0.2 + "s" }}>
                       {sc.opts.map((o, i) => (
-                        <button type="button" key={o.c} className={"mq-opt" + (chosen === i ? " on" : has ? " off" : "")} disabled={has} onClick={() => choose(i)}>
+                        <button type="button" key={o.c} className={"mq-opt" + (chosen === i ? " on" : has ? " off" : "")} disabled={has} aria-pressed={chosen === i} onClick={() => choose(i)}>
                           <b>{i + 1}</b>
                           <span>{o.c}</span>
                           {wasPicked(step, i) && <span className="mq-tag">上周目</span>}
@@ -468,7 +474,7 @@ export const MsStory = () => {
               </div>
             ) : (
               <div className="mq-end" key="end" ref={sceneRef}>
-                <div className="mq-time">● 天亮之前 · 成章</div>
+                <h2 ref={headingRef} tabIndex="-1" className="mq-time" style={{ outline: "none" }}>● 天亮之前 · 成章</h2>
                 <div className="mq-endh">这一夜，写成了一章</div>
                 <div className="mq-eg">
                   <div className="mq-card">
