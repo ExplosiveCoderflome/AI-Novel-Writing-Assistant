@@ -6,6 +6,7 @@ import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
 import { ragServices } from "../services/rag";
 import { ragConfig } from "../config/rag";
+import { createRagConnectionTestRouter } from "../services/rag/connectivity";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ const jobParamsSchema = z.object({
 });
 
 router.use(authMiddleware);
+router.use("/connection-tests", createRagConnectionTestRouter());
 
 router.post("/reindex", validate({ body: reindexSchema }), async (req, res, next) => {
   try {
