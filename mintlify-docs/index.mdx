@@ -167,7 +167,7 @@ export const BnHero = () => {
           <h1 className="bn-h1">从一句灵感，<br /><span className="bn-grad">{typed}</span><span className="bn-caret" /></h1>
           <p className="bn-sub">Biz Novel Studio 是开源的 AI 小说创作工作台。AI 帮你规划世界与角色、逐章写作、检查和保存，让长篇创作有一条可以继续走下去的路。</p>
           <div className="bn-btns">
-            <a className="bn-btn bn-pri" href="/quickstart">开始使用 <Ico n="arrow-right" /></a>
+            <a className="bn-btn bn-pri" href="/quickstart">开始使用 <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></a>
             <a className="bn-btn bn-sec" href="/installation">下载桌面版</a>
             <a className="bn-btn bn-sec" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
           </div>
@@ -295,7 +295,7 @@ export const BnFeatures = () => {
               <a className="bn-card" href={it.h} onMouseMove={onMove}>
                 <div className="bn-ct">{it.t}</div>
                 <div className="bn-cd">{it.d}</div>
-                <span className="bn-go">了解更多 <Ico n="arrow-right" /></span>
+                <span className="bn-go">了解更多 <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></span>
               </a>
             </div>
           ))}
@@ -320,11 +320,13 @@ export const BnCta = () => (
     <h2 className="bn-ch2">现在开始写你的第一本书</h2>
     <p className="bn-cp">桌面版适合直接开始写作，源码版适合开发和自行部署。模型使用你自己的 API 配置。</p>
     <div className="bn-os"><span>Windows</span><span>macOS · Intel</span><span>macOS · Apple Silicon</span><span>Linux</span></div>
-    <a className="bn-cb" href="/installation">下载与安装 <Ico n="arrow-right" /></a>
+    <a className="bn-cb" href="/installation">下载与安装 <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></a>
   </div>
 );
 
 export const BnShelf = () => {
+  const icR = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>;
+  const icD = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>;
   const BOOKS = [
     { t: "仙侠修真", e: "XIANXIA", c: "#0f766e", tc: "#fde68a", g: "#2dd4bf", h: 262, on: true, href: "/showcase/xianxia" },
     { t: "末世求生", e: "WASTELAND", c: "#9a3412", tc: "#fed7aa", g: "#fb923c", h: 232, on: true, href: "/showcase/wasteland" },
@@ -440,16 +442,16 @@ export const BnShelf = () => {
           <h2 className="bn-shh">按题材，走进一本书</h2>
           <div className="bn-shp">每个题材一间展厅：从一句灵感、推进方式、世界星图到章节样张，沉浸式地看看用工作台写这一类小说是什么样子。已经开放：仙侠修真、末世求生、悬疑推理、穿书女频、都市异能。</div>
           <div className="bn-shgos">
-            <a className="bn-shgo" href="/showcase/xianxia">走进仙侠修真展厅 <Ico n="arrow-right" /></a>
-            <a className="bn-shgo" href="/showcase/wasteland">走进末世求生展厅 <Ico n="arrow-right" /></a>
-            <a className="bn-shgo" href="/showcase/mystery">走进悬疑推理展厅 <Ico n="arrow-right" /></a>
-            <a className="bn-shgo" href="/showcase/romance">走进穿书女频展厅 <Ico n="arrow-right" /></a>
-            <a className="bn-shgo" href="/showcase/urban">走进都市异能展厅 <Ico n="arrow-right" /></a>
+            <a className="bn-shgo" href="/showcase/xianxia">走进仙侠修真展厅 {icR}</a>
+            <a className="bn-shgo" href="/showcase/wasteland">走进末世求生展厅 {icR}</a>
+            <a className="bn-shgo" href="/showcase/mystery">走进悬疑推理展厅 {icR}</a>
+            <a className="bn-shgo" href="/showcase/romance">走进穿书女频展厅 {icR}</a>
+            <a className="bn-shgo" href="/showcase/urban">走进都市异能展厅 {icR}</a>
           </div>
         </div>
         <div ref={shelfRef} className="bn-shelf" onMouseLeave={() => setHov(null)}>
           <div className="bn-hint" aria-hidden="true" style={(hb || db) ? { color: (hb || db).tc, borderColor: (hb || db).g, boxShadow: "0 0 26px -4px " + (hb || db).g } : null}>
-            {hb ? <>进入「{hb.t}」展厅 <b><Ico n="arrow-right" /></b></> : db ? <><b><Ico n="arrow-down" /></b> 点击书脊 · 进入「{db.t}」</> : <><b><Ico n="arrow-down" /></b> 点击书脊，进入题材展厅</>}
+            {hb ? <>进入「{hb.t}」展厅 <b>{icR}</b></> : db ? <><b>{icD}</b> 点击书脊 · 进入「{db.t}」</> : <><b>{icD}</b> 点击书脊，进入题材展厅</>}
           </div>
           {BOOKS.map((b, i) => b.on ? (
             <a key={b.t} ref={(n) => { refs.current[i] = n; }} className={"bn-bk on" + (open === b.t ? " opening" : "") + (demo === i ? " demo" : "") + (hov && hov !== b.t ? " dim" : "")} href={b.href} style={sty(b, i)} aria-label={b.t + " 题材展厅"} title={"进入「" + b.t + "」展厅"} onMouseEnter={() => { setHov(b.t); setSeen(true); }} onFocus={() => { setHov(b.t); setSeen(true); }} onBlur={() => setHov(null)} onClick={(e) => go(e, b)}>{inner(b)}</a>
@@ -558,6 +560,9 @@ export const BnTyping = () => {
 };
 
 export const BnIntro = () => {
+  const icR = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>;
+  const icS = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M12 3l1.9 5.8L20 10.7l-5.8 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z" /></svg>;
+  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const IDEAS = [
     "全民觉醒系统那天，我觉醒的是「系统客服」：全世界的系统出了 bug，都得排队来找我售后。",
     "修仙界开始内卷考编，我靠一张五百年前的真题卷，成了全宗门唯一的上岸者。",
@@ -663,16 +668,16 @@ export const BnIntro = () => {
             </div>
           </div>
           <div className="bi-act">
-            <div><span className="bi-outline"><Ico n="sparkle" /> 打开故事星图</span><span className="bi-ghost">直接给我几个想法</span></div>
+            <div><span className="bi-outline">{icS} 打开故事星图</span><span className="bi-ghost">直接给我几个想法</span></div>
             <div>
               <span className="bi-go">{ph >= 2 ? "生成中..." : "用默认设置直接生成方向"}</span>
-              <span className="bi-btn">继续完善设定 <Ico n="arrow-right" /></span>
+              <span className="bi-btn">继续完善设定 {icR}</span>
             </div>
           </div>
         </div>
         <div className="bi-st">
           {ph >= 2 && STAGES.map((t, i) => (
-            <div key={t} className={"bi-s" + (i < s ? " on" : "")}><b>{i < s ? <Ico n="check" /> : i + 1}</b>{t}</div>
+            <div key={t} className={"bi-s" + (i < s ? " on" : "")}><b>{i < s ? icC : i + 1}</b>{t}</div>
           ))}
         </div>
       </div>
@@ -1834,6 +1839,8 @@ export const XzFeatures = () => {
 };
 
 export const XzShelf = () => {
+  const icR = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>;
+  const icD = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>;
   const BOOKS = [
     { t: "仙侠修真", c: "#24435a", h: 262, on: true, href: "/showcase/xianxia" },
     { t: "末世求生", c: "#5b4636", h: 234, on: true, href: "/showcase/wasteland" },
@@ -1951,7 +1958,7 @@ export const XzShelf = () => {
         </div>
         <div ref={shelfRef} className="xz-shelf" onMouseLeave={() => setHov(null)}>
           <div className={"xz-hint" + (hov ? " on" : "")} aria-hidden="true">
-            {hov ? <>展卷「{hov}」<b><Ico n="arrow-right" /></b></> : db ? <><b><Ico n="arrow-down" /></b> 点书脊 · 展「{db.t}」</> : <><b><Ico n="arrow-down" /></b> 点书脊，入展厅</>}
+            {hov ? <>展卷「{hov}」<b>{icR}</b></> : db ? <><b>{icD}</b> 点书脊 · 展「{db.t}」</> : <><b>{icD}</b> 点书脊，入展厅</>}
           </div>
           {BOOKS.map((b, i) => b.on ? (
             <a key={b.t} ref={(n) => { refs.current[i] = n; }} className={"xz-bk on" + (open === b.t ? " opening" : "") + (demo === i ? " demo" : "") + (hov && hov !== b.t ? " dim" : "")} href={b.href} style={sty(b, i)} aria-label={b.t + " 题材展厅"} title={"展卷「" + b.t + "」"} onMouseEnter={() => { setHov(b.t); setSeen(true); }} onFocus={() => { setHov(b.t); setSeen(true); }} onBlur={() => setHov(null)} onClick={(e) => go(e, b)}>{inner(b)}</a>
@@ -2079,7 +2086,7 @@ export const RepoPulse = ({ theme }) => {
             {ACTIONS.map((a) => (
               <a key={a.t} className="cm-a" href={a.h} target="_blank" rel="noopener noreferrer">
                 <span className="cm-ak">{a.k}</span>
-                <span className="cm-at">{a.t} <Ico n="arrow-right" /></span>
+                <span className="cm-at">{a.t} <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg></span>
                 <span className="cm-ad">{a.d}</span>
               </a>
             ))}
@@ -2399,15 +2406,4 @@ export const HomeFx = ({ children }) => {
       `}</style>
     </div>
   );
-};
-
-export const Ico = ({ n, s }) => {
-  const P = {
-    "arrow-right": <><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>,
-    "arrow-down": <><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></>,
-    "check": <path d="M20 6 9 17l-5-5" />,
-    "sparkle": <path d="M12 3l1.9 5.8L20 10.7l-5.8 1.9L12 18.5l-1.9-5.9L4 10.7l6.1-1.9z" />
-  };
-  const z = s || "1em";
-  return <svg width={z} height={z} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}>{P[n]}</svg>;
 };
