@@ -662,84 +662,6 @@ export const BnIntro = () => {
   );
 };
 
-export const BnStarMap = () => {
-  const NODES = [
-    { id: "book", x: 300, y: 210, r: 26, l: "本书", main: true },
-    { id: "world", x: 150, y: 120, r: 18, l: "世界", main: true },
-    { id: "char", x: 450, y: 120, r: 18, l: "角色", main: true },
-    { id: "chap", x: 300, y: 360, r: 18, l: "章节", main: true },
-    { id: "rule", x: 50, y: 60, r: 9, l: "规则" },
-    { id: "force", x: 70, y: 200, r: 9, l: "势力" },
-    { id: "place", x: 170, y: 30, r: 9, l: "地点" },
-    { id: "tension", x: 40, y: 290, r: 9, l: "冲突张力" },
-    { id: "rel", x: 550, y: 60, r: 9, l: "关系" },
-    { id: "trait", x: 430, y: 30, r: 9, l: "性格与能力" },
-    { id: "state", x: 560, y: 220, r: 9, l: "章节状态" },
-    { id: "task", x: 170, y: 400, r: 9, l: "章节任务" },
-    { id: "scene", x: 430, y: 400, r: 9, l: "场景卡" },
-    { id: "fore", x: 560, y: 340, r: 9, l: "伏笔" },
-  ];
-  const EDGES = [["book","world"],["book","char"],["book","chap"],["world","rule"],["world","force"],["world","place"],["world","tension"],["char","rel"],["char","trait"],["char","state"],["chap","task"],["chap","scene"],["chap","fore"],["force","rel"],["state","chap"],["fore","char"],["tension","task"]];
-  const [hover, setHover] = useState(null);
-  const pos = Object.fromEntries(NODES.map((n) => [n.id, n]));
-  const lit = (a, b) => hover && (a === hover || b === hover);
-  const near = (id) => !hover || id === hover || EDGES.some(([a, b]) => (a === hover && b === id) || (b === hover && a === id));
-  return (
-    <div className="not-prose bn-sm">
-      <style>{`
-        .bn-sm{background:#05080a;color:#e7f5ec;padding:90px 24px}
-        .bn-smi{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;align-items:center}
-        .bn-smk{font-size:13px;letter-spacing:.3em;color:#4ade80}
-        .bn-smh{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 14px}
-        .bn-smp{color:rgba(231,245,236,.65);font-size:16px;line-height:1.75}
-        .bn-svg{width:100%;height:auto;overflow:visible}
-        .bn-rot{transform-origin:300px 210px;animation:bnOrbit 80s linear infinite}
-        .bn-svg:hover .bn-rot{animation-play-state:paused}
-        .bn-e{stroke:rgba(134,239,172,.18);stroke-width:1;transition:all .3s}
-        .bn-e.on{stroke:#4ade80;stroke-width:1.8}
-        .bn-pulse{stroke:#86efac;stroke-width:2;stroke-dasharray:6 120;animation:bnDash 3.2s linear infinite;fill:none;opacity:.8}
-        .bn-nd{cursor:pointer;transition:opacity .3s}
-        .bn-nd text{font-size:13px;fill:#e7f5ec;text-anchor:middle;pointer-events:none}
-        .bn-nd.main text{font-size:15px;font-weight:700}
-        @keyframes bnOrbit{to{transform:rotate(360deg)}}
-        @keyframes bnDash{from{stroke-dashoffset:126}to{stroke-dashoffset:0}}
-        @keyframes bnGlow{50%{opacity:.35}}
-      `}</style>
-      <div className="bn-smi">
-        <div>
-          <div className="bn-smk">WORLD & CHARACTERS</div>
-          <h2 className="bn-smh">一本书的世界，彼此相连</h2>
-          <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
-        </div>
-        <StarMap3D theme="ink" nodes={NODES} edges={EDGES} cx={300} cy={210} ratio="600 / 430" label="世界、角色与章节的关系星图" hover={hover} setHover={setHover}>
-        <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
-          <defs>
-            <radialGradient id="bnNg"><stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#14532d" /></radialGradient>
-          </defs>
-          <g className="bn-rot">
-            {EDGES.map(([a, b], i) => (
-              <g key={i}>
-                <line className={"bn-e" + (lit(a, b) ? " on" : "")} x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} />
-                {i < 3 && <line className="bn-pulse" x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} style={{ animationDelay: i * -1 + "s" }} />}
-              </g>
-            ))}
-            {NODES.map((n) => (
-              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
-                <circle cx={n.x} cy={n.y} r={n.r + 10} fill="rgba(34,197,94,.12)" style={{ animation: "bnGlow 3s ease-in-out infinite" }} />
-                <circle cx={n.x} cy={n.y} r={n.r} fill={n.main ? "url(#bnNg)" : "#16A34A"} stroke={hover === n.id ? "#bbf7d0" : "rgba(187,247,208,.4)"} strokeWidth={hover === n.id ? 2.5 : 1} />
-                <g transform={`rotate(0 ${n.x} ${n.y})`}>
-                  <text x={n.x} y={n.y + n.r + 20} className="bn-lbl" style={{ animation: "bnOrbit 80s linear infinite reverse", transformOrigin: `${n.x}px ${n.y}px`, transformBox: "view-box" }}>{n.l}</text>
-                </g>
-              </g>
-            ))}
-          </g>
-        </svg>
-        </StarMap3D>
-      </div>
-    </div>
-  );
-};
-
 export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, setHover, children }) => {
   const paper = theme === "paper";
   const C = paper
@@ -947,6 +869,7 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       const ppuBase = 1 / (2 * Math.tan((camera.fov * Math.PI) / 360));
       let last = performance.now();
       let shown;
+      let first = true;
       const tick = (now) => {
         raf = requestAnimationFrame(tick);
         const dt = Math.min(now - last, 64);
@@ -962,6 +885,7 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
           p.pm.opacity = hv ? 0.15 : 0.9 * Math.sin(t * Math.PI);
         });
         renderer.render(scene, camera);
+        if (first && alive) { first = false; setReady(true); }
         const ppu = H * ppuBase;
         items.forEach((it) => {
           const el = labelRefs.current[it.n.id];
@@ -999,7 +923,6 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
       raf = requestAnimationFrame(tick);
-      setReady(true);
     };
 
     const start = () => {
@@ -1070,6 +993,84 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       <div className="sm3-bar" style={{ visibility: ready ? "visible" : "hidden" }}>
         <span className="sm3-tip">拖动或用方向键旋转，点选节点查看连线</span>
         <button type="button" className="sm3-btn" onClick={() => setSpin((s) => !s)}>{spin ? "暂停旋转" : "自动旋转"}</button>
+      </div>
+    </div>
+  );
+};
+
+export const BnStarMap = () => {
+  const NODES = [
+    { id: "book", x: 300, y: 210, r: 26, l: "本书", main: true },
+    { id: "world", x: 150, y: 120, r: 18, l: "世界", main: true },
+    { id: "char", x: 450, y: 120, r: 18, l: "角色", main: true },
+    { id: "chap", x: 300, y: 360, r: 18, l: "章节", main: true },
+    { id: "rule", x: 50, y: 60, r: 9, l: "规则" },
+    { id: "force", x: 70, y: 200, r: 9, l: "势力" },
+    { id: "place", x: 170, y: 30, r: 9, l: "地点" },
+    { id: "tension", x: 40, y: 290, r: 9, l: "冲突张力" },
+    { id: "rel", x: 550, y: 60, r: 9, l: "关系" },
+    { id: "trait", x: 430, y: 30, r: 9, l: "性格与能力" },
+    { id: "state", x: 560, y: 220, r: 9, l: "章节状态" },
+    { id: "task", x: 170, y: 400, r: 9, l: "章节任务" },
+    { id: "scene", x: 430, y: 400, r: 9, l: "场景卡" },
+    { id: "fore", x: 560, y: 340, r: 9, l: "伏笔" },
+  ];
+  const EDGES = [["book","world"],["book","char"],["book","chap"],["world","rule"],["world","force"],["world","place"],["world","tension"],["char","rel"],["char","trait"],["char","state"],["chap","task"],["chap","scene"],["chap","fore"],["force","rel"],["state","chap"],["fore","char"],["tension","task"]];
+  const [hover, setHover] = useState(null);
+  const pos = Object.fromEntries(NODES.map((n) => [n.id, n]));
+  const lit = (a, b) => hover && (a === hover || b === hover);
+  const near = (id) => !hover || id === hover || EDGES.some(([a, b]) => (a === hover && b === id) || (b === hover && a === id));
+  return (
+    <div className="not-prose bn-sm">
+      <style>{`
+        .bn-sm{background:#05080a;color:#e7f5ec;padding:90px 24px}
+        .bn-smi{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:40px;align-items:center}
+        .bn-smk{font-size:13px;letter-spacing:.3em;color:#4ade80}
+        .bn-smh{font-size:clamp(28px,4vw,40px);font-weight:700;margin:12px 0 14px}
+        .bn-smp{color:rgba(231,245,236,.65);font-size:16px;line-height:1.75}
+        .bn-svg{width:100%;height:auto;overflow:visible}
+        .bn-rot{transform-origin:300px 210px;animation:bnOrbit 80s linear infinite}
+        .bn-svg:hover .bn-rot{animation-play-state:paused}
+        .bn-e{stroke:rgba(134,239,172,.18);stroke-width:1;transition:all .3s}
+        .bn-e.on{stroke:#4ade80;stroke-width:1.8}
+        .bn-pulse{stroke:#86efac;stroke-width:2;stroke-dasharray:6 120;animation:bnDash 3.2s linear infinite;fill:none;opacity:.8}
+        .bn-nd{cursor:pointer;transition:opacity .3s}
+        .bn-nd text{font-size:13px;fill:#e7f5ec;text-anchor:middle;pointer-events:none}
+        .bn-nd.main text{font-size:15px;font-weight:700}
+        @keyframes bnOrbit{to{transform:rotate(360deg)}}
+        @keyframes bnDash{from{stroke-dashoffset:126}to{stroke-dashoffset:0}}
+        @keyframes bnGlow{50%{opacity:.35}}
+      `}</style>
+      <div className="bn-smi">
+        <div>
+          <div className="bn-smk">WORLD & CHARACTERS</div>
+          <h2 className="bn-smh">一本书的世界，彼此相连</h2>
+          <div className="bn-smp">世界规则、势力、地点和冲突张力，角色关系与章节状态，章节任务、场景卡与伏笔，都保存在同一本书里，为后续每一章提供资料。把鼠标移到节点上，看看它连着什么。</div>
+        </div>
+        <StarMap3D theme="ink" nodes={NODES} edges={EDGES} cx={300} cy={210} ratio="600 / 430" label="世界、角色与章节的关系星图" hover={hover} setHover={setHover}>
+        <svg className="bn-svg" viewBox="0 0 600 430" role="img" aria-label="世界、角色与章节的关系星图">
+          <defs>
+            <radialGradient id="bnNg"><stop offset="0%" stopColor="#4ade80" /><stop offset="100%" stopColor="#14532d" /></radialGradient>
+          </defs>
+          <g className="bn-rot">
+            {EDGES.map(([a, b], i) => (
+              <g key={i}>
+                <line className={"bn-e" + (lit(a, b) ? " on" : "")} x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} />
+                {i < 3 && <line className="bn-pulse" x1={pos[a].x} y1={pos[a].y} x2={pos[b].x} y2={pos[b].y} style={{ animationDelay: i * -1 + "s" }} />}
+              </g>
+            ))}
+            {NODES.map((n) => (
+              <g key={n.id} className={"bn-nd" + (n.main ? " main" : "")} style={{ opacity: near(n.id) ? 1 : 0.25 }} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)}>
+                <circle cx={n.x} cy={n.y} r={n.r + 10} fill="rgba(34,197,94,.12)" style={{ animation: "bnGlow 3s ease-in-out infinite" }} />
+                <circle cx={n.x} cy={n.y} r={n.r} fill={n.main ? "url(#bnNg)" : "#16A34A"} stroke={hover === n.id ? "#bbf7d0" : "rgba(187,247,208,.4)"} strokeWidth={hover === n.id ? 2.5 : 1} />
+                <g transform={`rotate(0 ${n.x} ${n.y})`}>
+                  <text x={n.x} y={n.y + n.r + 20} className="bn-lbl" style={{ animation: "bnOrbit 80s linear infinite reverse", transformOrigin: `${n.x}px ${n.y}px`, transformBox: "view-box" }}>{n.l}</text>
+                </g>
+              </g>
+            ))}
+          </g>
+        </svg>
+        </StarMap3D>
       </div>
     </div>
   );
