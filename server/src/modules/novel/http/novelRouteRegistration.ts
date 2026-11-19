@@ -5,6 +5,7 @@ import { registerNovelChapterEditorRoutes } from "../production/http/novelChapte
 import { registerNovelChapterRoutes } from "../production/http/novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "../production/http/novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "../characters/http/novelCharacterDynamicsRoutes";
+import { registerNovelCharacterForwardAdjustmentRoutes } from "../characters/http/novelCharacterForwardAdjustmentRoutes";
 import { registerNovelCharacterInfluenceRoutes } from "../characters/http/novelCharacterInfluenceRoutes";
 import { registerNovelCharacterDialogueRoutes } from "../characters/http/novelCharacterDialogueRoutes";
 import { registerNovelCharacterMindRoutes } from "../characters/http/novelCharacterMindRoutes";
@@ -90,6 +91,7 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
   registerShortStoryRoutes(router);
   registerWritingPlatformRoutes(router);
   registerDirectorIssuePolicyRoutes(router);
+  registerNovelCharacterForwardAdjustmentRoutes(router, characterParamsSchema);
 
   registerNovelFramingRoutes({
     router,

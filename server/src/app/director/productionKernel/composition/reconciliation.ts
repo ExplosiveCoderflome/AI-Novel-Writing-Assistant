@@ -13,6 +13,7 @@ import { timelineExtractorPrompt } from "../../../../prompting/prompts/novel/tim
 import { characterResourceLedgerService } from "../../../../services/novel/characterResource/CharacterResourceLedgerService";
 import { characterLocationService, formatCharacterLocationContext } from "../../../../services/novel/characters/locations";
 import { canonicalStateService } from "../../../../services/novel/state/CanonicalStateService";
+import { readChapterCharacterAdjustments } from "../../../../services/novel/characters/forwardAdjustments/chapterFields";
 import { stateVersionLog } from "../../../../services/novel/state/StateVersionLog";
 import { runKernelRequestScope } from "../execution/requestScope";
 import { nativeCandidates } from "./candidates";
@@ -48,6 +49,7 @@ export function nativeReconcile(deps: NativeStageDependencies) {
   }
   const extraction = createArtifactExtractionPort({ read: createArtifactSourceReader(db, {
     listResources: novelId => characterResourceLedgerService.listResources(novelId, db),
+    readCharacterAdjustments: (novelId, order) => readChapterCharacterAdjustments(db, novelId, order),
     readPreviousSnapshot: (novelId, order) => db.storyStateSnapshot.findFirst({ where: { novelId, sourceChapter: { order: { lt: order } } },
       orderBy: { createdAt: "desc" }, include: { characterStates: true, relationStates: true, informationStates: true, foreshadowStates: true } }),
     readLocationContext: async input => formatCharacterLocationContext(input.characters,

@@ -377,7 +377,8 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
           ? `缺席风险：${guide.absenceRisk}（跨度 ${guide.absenceSpan}）`
           : "",
       ], 4);
-      return `- ${character.name}：${parts.join(" | ")}`;
+      const development = compactText(character.authorAdjustedDevelopment);
+      return `- ${character.name}：${[...parts, development ? `成长方向：${development.slice(0, 480)}` : ""].filter(Boolean).join(" | ")}`;
     }),
   ].join("\n");
 }

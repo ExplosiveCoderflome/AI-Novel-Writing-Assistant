@@ -6,6 +6,7 @@ import type {
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { readChapterCharacterAdjustments } from "../characters/forwardAdjustments/chapterFields";
 
 function compactText(value: string | null | undefined, fallback = ""): string {
   return String(value ?? "").replace(/\s+/g, " ").trim() || fallback;
@@ -231,8 +232,11 @@ export class CanonicalStateService {
       }
     }
 
+    const forwardFields = typeof chapterOrder === "number" && (novel.directorVersion === "v2" || novel.directorVersion === null)
+      ? await readChapterCharacterAdjustments(db, novelId, chapterOrder, includeCurrent) : null;
     const characters = novel.characters.map((character) => {
       const state = snapshotCharacterStates.get(character.id);
+      const adjustment = forwardFields?.get(character.id);
       const relatedStages = relationStages.filter((item) => (
         item.sourceCharacterId === character.id || item.targetCharacterId === character.id
       ));
@@ -243,15 +247,18 @@ export class CanonicalStateService {
         characterId: character.id,
         name: character.name,
         role: character.role,
-        currentGoal: compactText(state?.currentGoal) || compactText(character.currentGoal) || null,
-        currentState: compactText(state?.summary) || compactText(character.currentState) || null,
+        currentGoal: adjustment?.currentGoal !== undefined
+          ? adjustment.currentGoal : compactText(state?.currentGoal) || compactText(character.currentGoal) || null,
+        currentState: adjustment?.currentState !== undefined
+          ? adjustment.currentState : compactText(state?.summary) || compactText(character.currentState) || null,
+        ...(adjustment ? { forwardAdjustment: adjustment } : {}),
         currentPressure: state?.stressLevel != null ? `stress=${state.stressLevel}` : null,
         currentSecret: compactText(character.secret) || compactText(state?.secretExposure) || null,
         emotion: compactText(state?.emotion) || null,
         knownFacts: parseStringArray(state?.knownFactsJson),
         relationStageLabels: takeUnique(relatedStages.map((item) => item.stageLabel), 4),
         resources: characterResourceLedgerService.buildCharacterSummaries(characterResources),
-        summary: compactText(state?.summary) || null,
+        summary: adjustment?.currentState !== undefined ? adjustment.currentState : compactText(state?.summary) || null,
         lastEventSummary: latestTimelineByCharacter.get(character.id) ?? null,
       };
     });

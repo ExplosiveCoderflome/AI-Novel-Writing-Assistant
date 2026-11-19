@@ -13,15 +13,17 @@ import {directorVolumeChapterPlanFilter} from "./planning";
 import { readActiveManuscriptChapters } from "../../modules/novel/manuscript/application/ManuscriptIsolation";
 import { readNovelBookDirector } from "../../services/novel/catalog";
 import { projectBookCompletion, readBookCompletionActivity } from "../../services/novel/production/completion";
+import { readCharacterForwardPlanNotices } from "../../services/novel/characters/forwardAdjustments/plans";
 export {readDirectorLedgers} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {
   const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,novelWorld:true,bookContract:true,manuscriptProject:{select:{id:true}},characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
-  const [activeChapters, bookDirector] = await Promise.all([
+  const [activeChapters, bookDirector, characterForwardPlanNotices] = await Promise.all([
     novel.manuscriptProject ? readActiveManuscriptChapters(prisma, novelId) : null,
     novel.estimatedChapterCount ? readNovelBookDirector(novel) : null,
+    readCharacterForwardPlanNotices(prisma, novelId),
   ]);
   const effectiveChapters: typeof novel.chapters = activeChapters ?? novel.chapters;
   const bookCompletion = novel.narrativeForm === "short_story" ? null : projectBookCompletion({
@@ -49,7 +51,7 @@ export async function readDirectorWorkspace(novelId: string) {
     return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:content ? Array.from(content).length:0,updatedAt:chapter.updatedAt.toISOString()};
   });
   const outlinePreparation=outlineBinding ? {storyMacro:await new StoryMacroPlanService().getPlan(novelId),hasBookContract:Boolean(novel.bookContract),worldMode:contract?.launchInput?.worldMode} : undefined;
-  return {...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,reviewContextError,
+  return {...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,reviewContextError,characterForwardPlanNotices,
     executionPlans:effectiveChapters.map(({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})=>({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})),
     materials:{description:novel.description,characterCount:novel.characters.length,volumeCount:planning.volumes.length,openQualityDebtCount:chapters.filter(chapter=>chapter.qualityDebt).length,
       story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null,

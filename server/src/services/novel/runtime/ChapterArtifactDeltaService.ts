@@ -4,6 +4,7 @@ import type {
 } from "@ai-novel/shared/types/canonicalState";
 import { prisma } from "../../../db/prisma";
 import {characterAppearanceService} from "../characters/appearances";
+import { readChapterCharacterAdjustments } from "../characters/forwardAdjustments/chapterFields";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   chapterArtifactDeltaPrompt,
@@ -299,7 +300,7 @@ export class ChapterArtifactDeltaService {
       throw new Error("章节正文为空，无法提取资产 delta。");
     }
 
-    const [novel, chapter, characters, existingResources, payoffRows] = await Promise.all([
+    const [novel, chapter, rawCharacters, existingResources, payoffRows] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: input.novelId },
         select: { title: true },
@@ -344,6 +345,9 @@ export class ChapterArtifactDeltaService {
     if (!novel || !chapter) {
       throw new Error("小说或章节不存在，无法提取资产 delta。");
     }
+    const adjustments = input.artifactSyncPolicy === "director_v2"
+      ? await readChapterCharacterAdjustments(prisma, input.novelId, chapter.order) : null;
+    const characters = rawCharacters.map(character => ({ ...character, ...adjustments?.get(character.id) }));
 
     const activeCharacterDialogueInfluences = await this.listActiveCharacterDialogueInfluences({
       novelId: input.novelId,

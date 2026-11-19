@@ -12,6 +12,7 @@ const chapterLabels = {
 
 export function ResourceDirectory({ book, selected, onSelect }: { book: WorkspaceBook; selected: Selection; onSelect: (item: Selection) => void }) {
   const tree = buildStoryDirectory(book, book.planning);
+  const plansToReview = new Set(book.characterForwardPlanNotices?.map(notice => notice.planId));
   function row(item: Selection, label: string, icon?: ReactNode, note?: string) {
     const active = sameSelection(selected, item) || (item.kind === "resources" && selected.kind === "character_resources");
     return <button type="button" key={"id" in item ? item.id : item.kind} aria-current={active ? "true" : undefined}
@@ -22,7 +23,7 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
   }
   function chapterRow(item: PlannedChapter) {
     return row(chapterSelection(item), `${item.chapter?.order ?? item.plan?.chapterOrder}. ${item.chapter?.title ?? item.plan?.title}`, undefined,
-      item.chapter ? chapterLabels[item.chapter.status] : "待写正文");
+      item.plan && plansToReview.has(item.plan.id) ? "待核对" : item.chapter ? chapterLabels[item.chapter.status] : "待写正文");
   }
   function contains(rows: PlannedChapter[]) { return rows.some(item => sameSelection(chapterSelection(item), selected)); }
   function group(label: string, icon: ReactNode, count: number, children: ReactNode) {
