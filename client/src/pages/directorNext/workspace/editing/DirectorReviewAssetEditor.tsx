@@ -26,6 +26,8 @@ export function DirectorReviewAssetEditor({book, type, runId, expectedVersion, o
 }) {
   const queries = useQueryClient();
   const [rows] = useState(() => editableRows(book, type));
+  const [selectedId, setSelectedId] = useState(rows[0]?.id);
+  const selectedRow = rows.find(row => row.id === selectedId);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [discarding, setDiscarding] = useState(false);
   const request = useRef({body: "", key: ""});
@@ -62,16 +64,19 @@ export function DirectorReviewAssetEditor({book, type, runId, expectedVersion, o
     <AppDialogContent title={type === "character_cast" ? "编辑角色阵容" : "编辑卷纲"} description="选择要调整的内容。保存后，导演将按修改后的资料继续。"
       footer={discarding ? <><p className="mr-auto text-sm">关闭会放弃未保存的修改。</p><Button variant="ghost" onClick={() => setDiscarding(false)}>继续编辑</Button><Button variant="outline" onClick={onClose}>放弃修改并关闭</Button></>
         : <><Button variant="ghost" disabled={save.isPending} onClick={close}>取消</Button><Button disabled={!changes.length || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "正在保存…" : "保存修改并继续"}</Button></>}>
-      {rows.map((row, index) => <details key={row.id} open={index === 0} className="border-b border-border/40 py-3">
-        <summary className="cursor-pointer font-medium">{row.title}</summary>
-        <div className="mt-3 grid gap-3">{row.fields.map(({field, value}) => {
-          const key = JSON.stringify([row.id, field]);
+      {rows.length > 1 ? <label className="grid gap-1 text-sm">{type === "character_cast" ? "选择角色" : "选择分卷"}
+        <select className="rounded-md border border-input bg-background px-3 py-2" value={selectedId} disabled={save.isPending} onChange={event => setSelectedId(event.target.value)}>
+          {rows.map(row => <option key={row.id} value={row.id}>{row.title}</option>)}
+        </select>
+      </label> : <h3 className="font-medium">{selectedRow?.title}</h3>}
+      {selectedRow ? <div className="mt-3 grid gap-3">{selectedRow.fields.map(({field, value}) => {
+          const key = JSON.stringify([selectedRow.id, field]);
           return <label key={field} className="grid gap-1 text-sm">{labels[field]}
             <textarea className="rounded-md border border-input bg-background px-3 py-2" rows={3} maxLength={12000} disabled={save.isPending}
               value={drafts[key] ?? value} onChange={event => {const next = event.target.value; setDrafts(previous => ({...previous, [key]: next}));}}/>
           </label>;
-        })}</div>
-      </details>)}
+        })}</div> : null}
+      {changes.length > 0 ? <p className="mt-3 text-xs text-muted-foreground" role="status">待保存 {changes.length} 处修改</p> : null}
       {save.isError ? <p role="alert" className="mt-3 text-sm text-destructive">{save.error.message}</p> : null}
     </AppDialogContent>
   </Dialog>;

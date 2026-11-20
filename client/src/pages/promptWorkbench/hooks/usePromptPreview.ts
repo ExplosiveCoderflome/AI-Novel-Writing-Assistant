@@ -228,7 +228,7 @@ function buildPreviewPromptInput(
       storyInput: "主角在旧城追查暗号，逐步发现身边人的隐瞒与组织压力。",
       optionTitle: "旧城追踪阵容",
       optionSummary: "主角、线索提供者和压力来源围绕旧城秘密形成互相试探的关系网。",
-      protagonistName: "林澈",
+      protagonistNames: ["林澈"],
       memberNames: ["林澈", "沈雾", "顾衡"],
       memberRosterText: "林澈：主角，年轻调查员。\n沈雾：线索提供者，知道旧城暗号来源。\n顾衡：压力来源，试图阻止调查。",
     };

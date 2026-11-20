@@ -317,6 +317,10 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
   };
 }
 
+export function authorEstimatedChapterCount(form: NovelBasicFormState): number | undefined {
+  return form.estimatedChapterCountSource === "default" ? undefined : form.estimatedChapterCount;
+}
+
 export function patchNovelBasicForm(
   previous: NovelBasicFormState,
   patch: Partial<Omit<NovelBasicFormState, "estimatedChapterCount">> & { estimatedChapterCount?: number | null },

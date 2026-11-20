@@ -315,8 +315,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
             },
           },
           characters: {
-            orderBy: { createdAt: "asc" },
-            take: 12,
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
             select: {
               id: true,
               name: true,

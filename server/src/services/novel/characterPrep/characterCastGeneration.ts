@@ -71,7 +71,8 @@ function shouldFallbackToStagedAutoCast(error: unknown): error is StructuredOutp
     return false;
   }
 
-  return error.category === "incomplete_json"
+  return error.category === "output_budget_exhausted"
+    || error.category === "incomplete_json"
     || error.category === "malformed_json"
     || error.category === "schema_mismatch";
 }
@@ -183,6 +184,7 @@ async function loadCastGenerationContext(
   });
   const contextBlocks = buildCharacterCastContextBlocks({
     projectTitle: novel.title,
+    estimatedChapterCount: novel.estimatedChapterCount,
     storyInput: storyInput || "暂无直接故事输入，请结合书级约束补齐真实可入戏角色。",
     genreName: novel.genre?.name ?? null,
     storyModeBlock,
@@ -286,17 +288,17 @@ async function generateAutoCharacterCastDraftViaStagedPrompts(
     },
   });
 
-  const memberRosterText = buildAutoCastMemberRosterText(membersGeneration.output);
-  const protagonistName = membersGeneration.output.members.find((member) => member.castRole === "protagonist")?.name
-    ?? membersGeneration.output.members[0]?.name
-    ?? "";
+  const roster = membersGeneration.output;
+  if (roster.members.length === 1) return {option: {...roster, relations: []}};
+  const memberRosterText = buildAutoCastMemberRosterText(roster);
+  const protagonistNames = roster.members.filter(member => member.castRole === "protagonist").map(member => member.name);
   const relationsGeneration = await runStructuredPrompt({
     asset: characterCastAutoRelationsPrompt,
     promptInput: {
       storyInput: context.storyInput,
       optionTitle: membersGeneration.output.title,
       optionSummary: membersGeneration.output.summary,
-      protagonistName,
+      protagonistNames,
       memberNames: membersGeneration.output.members.map((member) => member.name),
       memberRosterText,
     },

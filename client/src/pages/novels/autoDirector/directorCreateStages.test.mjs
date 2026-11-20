@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { parseEstimatedChapterCountInput } from "./estimatedChapterCountInput.ts";
-import { createDefaultNovelBasicFormState, patchNovelBasicForm } from "../novelBasicInfo.shared.ts";
+import { authorEstimatedChapterCount, createDefaultNovelBasicFormState, patchNovelBasicForm } from "../novelBasicInfo.shared.ts";
 import { buildAutoDirectorRequestPayload } from "../components/NovelAutoDirectorDialog.shared.ts";
 
 test('AI recommended chapter count is not replaced by an untouched form default, while explicit and legacy choices survive', () => {
@@ -49,4 +49,11 @@ test("parseEstimatedChapterCountInput only accepts the supported chapter range",
   assert.equal(parseEstimatedChapterCountInput("0"), null);
   assert.equal(parseEstimatedChapterCountInput("2001"), null);
   assert.equal(parseEstimatedChapterCountInput("30.5"), null);
+});
+
+test("clearing a manual chapter count removes the constraint used by execution ranges", () => {
+  const manual = patchNovelBasicForm(createDefaultNovelBasicFormState(), {estimatedChapterCount: 250});
+  assert.equal(authorEstimatedChapterCount(manual), 250);
+  const cleared = patchNovelBasicForm(manual, {estimatedChapterCountSource: "default"});
+  assert.equal(authorEstimatedChapterCount(cleared), undefined);
 });
