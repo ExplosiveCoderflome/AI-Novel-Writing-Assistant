@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import type { StoryWorldSliceOverrides } from "@ai-novel/shared/types/storyWorldSlice";
 import type {
   NovelWorldGenerateInput,
@@ -9,7 +10,9 @@ import type {
   NovelWorldSyncInput,
 } from "@ai-novel/shared/types/novelWorld";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ApiHttpError } from "@/api/client";
 import { queryKeys } from "@/api/queryKeys";
+import { toast } from "@/components/ui/toast";
 import {
   getNovelWorld,
   getNovelWorldSlice,
@@ -43,6 +46,7 @@ export function useNovelWorldSlice({
   onNovelWorldImported,
 }: UseNovelWorldSliceOptions) {
   const [worldSliceMessage, setWorldSliceMessage] = useState("");
+  const navigate = useNavigate();
 
   const novelWorldQuery = useQuery({
     queryKey: queryKeys.novels.novelWorld(novelId),
@@ -110,6 +114,13 @@ export function useNovelWorldSlice({
         model: llm.model,
         temperature: llm.temperature,
       }),
+    onError: (error) => {
+      const details = (error as ApiHttpError).details as { sourceRoute?: unknown } | undefined;
+      const route = details?.sourceRoute;
+      toast.error(error.message, route === "/settings/models" || route === "/settings/model-routes"
+        ? { action: { label: "打开模型设置", onClick: () => { void navigate(route); } } }
+        : undefined);
+    },
     onSuccess: async () => {
       setWorldSliceMessage("已根据本书主题生成世界，并保存到世界库供后续复用。");
       await Promise.all([
