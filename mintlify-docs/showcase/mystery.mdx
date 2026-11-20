@@ -263,7 +263,7 @@ export const MxBoard = () => {
 .mb-h{margin:14px 0 12px;font-family:"Noto Serif SC","Songti SC",serif;font-weight:900;font-size:clamp(28px,4vw,44px);letter-spacing:.06em;color:#f1f5f9}
 .mb-p{margin:0;font-size:16px;line-height:1.9;color:rgba(229,233,240,.72)}
 .mb-tools{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-.mb-bar{flex:1 1 360px;min-height:48px;display:flex;align-items:center;padding:10px 16px;background:#111a2e;border-left:3px solid #64748b;font-size:14.5px;line-height:1.7;color:#cbd5e1}
+.mb-bar{flex:1 1 360px;min-height:48px;display:flex;align-items:center;padding:10px 16px;background:#111a2e;border:1px solid rgba(100,116,139,.3);font-size:14.5px;line-height:1.7;color:#cbd5e1}
 .mb-bar-ok{border-color:#22c55e;color:#bbf7d0}
 .mb-bar-no{border-color:#f59e0b;color:#fde68a}
 .mb-bar-sel,.mb-bar-hint{border-color:#ef4444;color:#fecaca}
@@ -303,7 +303,7 @@ export const MxBoard = () => {
 .mb-low{display:grid;grid-template-columns:1.35fr 1fr;gap:20px;margin-top:22px;align-items:start}
 .mb-deds{display:flex;flex-direction:column;gap:12px}
 .mb-empty{padding:20px;border:1px dashed rgba(148,163,184,.35);color:rgba(203,213,225,.6);font-size:14px;line-height:1.8}
-.mb-ded{padding:16px 18px;background:#f5f1e8;color:#292524;border-left:4px solid #b91c1c;box-shadow:0 12px 26px -16px rgba(0,0,0,.8)}
+.mb-ded{padding:16px 18px;background:#f5f1e8;color:#292524;border:1px solid rgba(185,28,28,.35);background:rgba(245,241,232,.95);box-shadow:0 12px 26px -16px rgba(0,0,0,.8)}
 .mb-ded.mb-new{animation:mbIn .6s ease}
 @keyframes mbIn{from{opacity:0;transform:translateY(10px)}}
 .mb-ded b{display:block;font-family:"Noto Serif SC","Songti SC",serif;font-size:16.5px;color:#7f1d1d}
@@ -625,6 +625,7 @@ export const MxFlip = () => {
 };
 
 export const MxTypewriter = () => {
+  const icL = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
   const A = ["门从里面反锁的书店", "尸体凭空消失的停尸房", "所有人同时失忆的会议室", "监控只录到一半的电梯", "读者留言板上的凶案预告", "作者正在修改的文档页面"];
   const B = ["被作者从稿子里一笔一笔划掉", "在下一章开头自动复活", "变成了另一个角色的记忆", "藏进了唯一不能删的章节", "被读者的评论钉在原地", "在修订痕迹里留下求救信号"];
   const C = ["页边空白处的手写批注", "一章开头重复出现的句子", "角色名单上被涂掉的名字", "书脊里夹着的另一份大纲", "读者评论区的一条差评", "作者忘删的备用结尾"];
@@ -684,9 +685,9 @@ export const MxTypewriter = () => {
           <div className="mt-screen" aria-live="polite">{display}{typing && <span className="mt-cursor" />}</div>
         </div>
         <div className="mt-bar">
-          <button type="button" className={"mt-lock" + (la ? " on" : "")} onClick={() => setLa(!la)} aria-pressed={la}>🔒 {A[ia]}</button>
-          <button type="button" className={"mt-lock" + (lb ? " on" : "")} onClick={() => setLb(!lb)} aria-pressed={lb}>🔒 {B[ib]}</button>
-          <button type="button" className={"mt-lock" + (lc ? " on" : "")} onClick={() => setLc(!lc)} aria-pressed={lc}>🔒 {C[ic]}</button>
+          <button type="button" className={"mt-lock" + (la ? " on" : "")} onClick={() => setLa(!la)} aria-pressed={la}>{icL} {A[ia]}</button>
+          <button type="button" className={"mt-lock" + (lb ? " on" : "")} onClick={() => setLb(!lb)} aria-pressed={lb}>{icL} {B[ib]}</button>
+          <button type="button" className={"mt-lock" + (lc ? " on" : "")} onClick={() => setLc(!lc)} aria-pressed={lc}>{icL} {C[ic]}</button>
           <button type="button" className="mt-roll" onClick={roll}>再抽一张</button>
         </div>
         <div className="mt-dis">演示：随机拼出的脑洞，拿去开书页写成你的灵感。</div>

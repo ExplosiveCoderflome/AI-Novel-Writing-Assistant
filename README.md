@@ -54,17 +54,21 @@
 
 ## 最新更新
 
-### 2026-11-20
+### 2026-11-20 · v0.8.10
+
+#### 新增
+
+- V2 导演工作台可从下一个未完成章节开始调整角色状态、行动目标和成长弧。保存前可以预览受影响的章节计划，保存后可按提示核对，不改动已完成正文。
 
 #### 修复
 
 - 自动导演开书保留“章节数由 AI 推荐”的选择，恢复候选后可按修正意见继续生成，无需补填章节数。
-- 开发版修复了 Linux x86_64 AppImage 因缺少图像处理库而无法启动的问题。此修复尚未发布。
+- 修复 Linux x86_64 AppImage 因缺少图像处理库而无法启动的问题。
 - 本书世界生成默认从 12,000 Token 起步，整书设定会分配更多额度，实际请求仍受模型支持的上限约束。遇到额度耗尽或超时时可自动重试一次；仍失败或遇到限流时，会显示模型、实际申请的额度和对应的设置入口。
 
 [查看完整更新历史](docs/releases/release-notes.md)
 
-正式桌面版以 GitHub Release 的 **v0.8.9** 五平台安装包为准。打包期间可从 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest) 下载当前正式版。`v0.8.8`、`v0.8.7` 和 `v0.8.6` 均提供完整五平台安装包，`v0.8.5` 亦为完整五平台，`v0.8.4` 缺 Windows 包，`v0.8.3` 标签曾推送但打包失败、无安装包，`v0.8.2` 附注标签也不对应可下载版本。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。
+正式桌面版以 GitHub Release 的 **v0.8.10** 五平台安装包为准。新包发布前，可从 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest) 下载当前正式版。`v0.8.9`、`v0.8.8`、`v0.8.7` 和 `v0.8.6` 均提供完整五平台安装包，`v0.8.5` 亦为完整五平台，`v0.8.4` 缺 Windows 包，`v0.8.3` 标签曾推送但打包失败、无安装包，`v0.8.2` 附注标签也不对应可下载版本。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。
 
 
 ## 现在已经能做什么
