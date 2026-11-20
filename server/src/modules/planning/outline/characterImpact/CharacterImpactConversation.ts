@@ -1,10 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
 import type { ImpactConversationTurn, ImpactRequest, ImpactResultRef } from "@ai-novel/shared/types/outlineCharacterImpact";
-import { AgentConversationStore } from "../../../agentConversation";
+import { AgentConversationStore, agentReplyLive } from "../../../agentConversation";
 import { AppError } from "../../../../middleware/errorHandler";
 import { CharacterImpactService } from "./CharacterImpactService";
 
-const scope = (projectId: string, characterId: string) => JSON.stringify(["outline-character", projectId, characterId]);
+export const characterConversationScope = (projectId: string, characterId: string) => JSON.stringify(["outline-character", projectId, characterId]);
 type Input = ImpactRequest & { requestId: string; priorProposalId?: string };
 
 export class CharacterImpactConversation {
@@ -19,7 +19,7 @@ export class CharacterImpactConversation {
     const metadata = { id: true, status: true, baseVersion: true, createdAt: true, requestText: true, promptId: true } as const;
     const where = { projectId, kind: "character_impact" };
     const [rows, indexed, unindexed] = await this.db.$transaction([
-      this.turns.history(scope(projectId, characterId)),
+      this.turns.history(characterConversationScope(projectId, characterId)),
       this.db.outlineProposal.findMany({ where: { ...where, characterNodeId: characterId }, select: metadata }),
       this.db.outlineProposal.findMany({ where: { ...where, characterNodeId: null }, select: { ...metadata, proposalJson: true } }),
     ], { isolationLevel: "Serializable" });
@@ -44,14 +44,16 @@ export class CharacterImpactConversation {
   }
 
   async send(projectId: string, input: Input) {
-    const scopeKey = scope(projectId, input.characterId);
+    const scopeKey = characterConversationScope(projectId, input.characterId);
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
     const { turn, created } = await this.turns.start({ scopeKey, requestId: input.requestId, requestText: input.requestText,
       contextVersion: String(input.baseVersion), parentResultId: input.priorProposalId });
-    if (created) void this.generate(projectId, scopeKey, input).catch(error => {
+    if (!created) return { turnId: turn.id };
+    agentReplyLive.begin(turn.id);
+    void this.generate(projectId, scopeKey, input).catch(error => {
       console.error("[character-impact] failed to record conversation error", turn.id, error);
-    });
+    }).finally(() => agentReplyLive.end(turn.id));
     return { turnId: turn.id };
   }
 
@@ -91,7 +93,8 @@ export class CharacterImpactConversation {
     }
   }
 
-  interrupt(projectId: string, characterId: string, id: string) {
-    return this.turns.stop(scope(projectId, characterId), id, "interrupted", "本轮讨论已结束，未生成新提案。");
+  async interrupt(projectId: string, characterId: string, id: string) {
+    await this.turns.stop(characterConversationScope(projectId, characterId), id, "interrupted", "本轮讨论已结束，未生成新提案。");
+    agentReplyLive.end(id);
   }
 }

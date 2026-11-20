@@ -4,6 +4,8 @@ import { AppError } from "../../middleware/errorHandler";
 
 type Start = AgentTurnInput & { scopeKey: string; contextVersion: string };
 const running = "running";
+export { agentReplyLive } from "./AgentReplyLive";
+export { streamAgentReply } from "./http/streamReply";
 
 export class AgentConversationStore {
   constructor(private readonly db: PrismaClient) {}

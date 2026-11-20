@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import type { OutlineConversationResult, OutlineConversationTurn } from "@ai-novel/shared/types/agentConversation/outline";
 import type { AgentTurnInput } from "@ai-novel/shared/types/agentConversation/turn";
-import { AgentConversationStore } from "../../../agentConversation";
+import { AgentConversationStore, agentReplyLive } from "../../../agentConversation";
 import { AppError } from "../../../../middleware/errorHandler";
 import { outlineWorkbenchDialogue } from "../../../../prompting/prompts/outline/workbenchDialogue.prompt";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
@@ -12,7 +12,7 @@ import { assertValidOutlineEditOperations } from "../domain/outlineEditOperation
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 
 type Input = AgentTurnInput & { baseVersion: number };
-const scope = (id: string) => JSON.stringify(["outline-workbench", id]);
+export const outlineConversationScope = (id: string) => JSON.stringify(["outline-workbench", id]);
 const kinds = ["initial_generation", "edit"];
 const conflict = () => new AppError("大纲或提案已有更新，请根据最新版本继续讨论。", 409);
 
@@ -24,7 +24,7 @@ export class OutlineWorkbenchConversation {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
     const [rows, proposals] = await this.db.$transaction([
-      this.store.history(scope(projectId)),
+      this.store.history(outlineConversationScope(projectId)),
       this.db.outlineProposal.findMany({ where: { projectId, kind: { in: kinds } },
         select: { id: true, kind: true, status: true, baseVersion: true, createdAt: true, requestText: true } }),
     ], { isolationLevel: "Serializable" });
@@ -46,12 +46,14 @@ export class OutlineWorkbenchConversation {
   async send(projectId: string, input: Input) {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
-    const scopeKey = scope(projectId);
+    const scopeKey = outlineConversationScope(projectId);
     const { turn, created } = await this.store.start({ ...input, scopeKey, contextVersion: String(input.baseVersion) });
-    if (created) void this.generate(projectId, input).catch(async error => {
+    if (!created) return { turnId: turn.id };
+    agentReplyLive.begin(turn.id);
+    void this.generate(projectId, input).catch(async error => {
       const mapped = mapOutlineGenerateFailure(error, "edit");
       await this.store.stop(scopeKey, turn.id, "failed", mapped instanceof AppError ? mapped.message : "本轮未能生成回复，可以重新发送这条要求。");
-    }).catch(error => console.error("[outline-conversation] failed to record turn", turn.id, error));
+    }).catch(error => console.error("[outline-conversation] failed to record turn", turn.id, error)).finally(() => agentReplyLive.end(turn.id));
     return { turnId: turn.id };
   }
 
@@ -63,7 +65,7 @@ export class OutlineWorkbenchConversation {
       where: { id: input.parentResultId, projectId, kind: { in: kinds }, status: { in: ["pending", "applied", "partially_applied"] } },
     }) : null;
     if (input.parentResultId && !prior) throw conflict();
-    const rows = await this.store.history(scope(projectId));
+    const rows = await this.store.history(outlineConversationScope(projectId));
     const history: { author: string; assistant: string | null }[] = [];
     let remaining = 12000;
     for (const row of rows.reverse()) {
@@ -74,10 +76,11 @@ export class OutlineWorkbenchConversation {
       remaining -= author.length + (assistant?.length ?? 0);
       if (!remaining) break;
     }
-    const { output, meta } = await runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, promptInput: {
-      requestText: input.requestText, baseVersion: input.baseVersion, document, history,
-      priorProposal: prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) },
-    } });
+    const { output, meta } = await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
+      runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, options: {itemKey}, promptInput: {
+        requestText: input.requestText, baseVersion: input.baseVersion, document, history,
+        priorProposal: prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) },
+      } }));
     const answer = output.answer;
     if (answer.kind === "edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
     if (answer.kind === "initial_generation") {
@@ -103,11 +106,12 @@ export class OutlineWorkbenchConversation {
         await tx.outlineProposal.create({ data: { id: resultId, projectId, baseVersion: input.baseVersion, kind: answer.kind, status: "pending",
           requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: meta.invocation.promptId, promptVersion: meta.invocation.promptVersion } });
       }
-      await AgentConversationStore.complete(tx, scope(projectId), input.requestId, resultId, output.replyText);
+      await AgentConversationStore.complete(tx, outlineConversationScope(projectId), input.requestId, resultId, output.replyText);
     });
   }
 
-  interrupt(projectId: string, turnId: string) {
-    return this.store.stop(scope(projectId), turnId, "interrupted", "本轮讨论已结束。");
+  async interrupt(projectId: string, turnId: string) {
+    await this.store.stop(outlineConversationScope(projectId), turnId, "interrupted", "本轮讨论已结束。");
+    agentReplyLive.end(turnId);
   }
 }

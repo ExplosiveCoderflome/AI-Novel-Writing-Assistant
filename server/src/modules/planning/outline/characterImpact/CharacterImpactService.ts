@@ -2,13 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 import { impactDialogueReviewSchema, impactRoles, type ImpactRequest, type ImpactReview, type ImpactRole, type ImpactSnapshot, type ImpactSubmission, type ImpactSummary } from "@ai-novel/shared/types/outlineCharacterImpact";
-import { AgentConversationStore } from "../../../agentConversation";
+import { AgentConversationStore, agentReplyLive } from "../../../agentConversation";
 import { characterDialoguePrompt, characterImpactPrompt } from "../../../../prompting/prompts/outline/characterImpact.prompt";
 import { AppError } from "../../../../middleware/errorHandler";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
 import { mapOutlineGenerateFailure } from "../application/OutlineProposalService";
 import { composeImpact } from "./compose";
 import { readWrittenChapterIds } from "./writtenChapters";
+
+const reviewStages: Record<ImpactRole, string> = {character: "正在梳理人物动机…", plot: "正在核对相关卷章…", payoff: "正在综合伏笔与人物修改…"};
 
 export interface ImpactDialogueContext {
   scopeKey: string;
@@ -70,7 +72,8 @@ export class CharacterImpactService {
         const promptInput = {snapshot, requestText: request.requestText, role, prior: {...reviews}, previousProposal,
           ...(dialogue && {conversationHistory: dialogue.conversationHistory})};
         if (dialogue) {
-          const result = await runOutlineProposalStructuredCall({asset: characterDialoguePrompt, promptInput});
+          const result = await agentReplyLive.during(dialogue.turnId, reviewStages[role], role === "payoff", itemKey =>
+            runOutlineProposalStructuredCall({asset: characterDialoguePrompt, promptInput, options: {itemKey}}));
           const {replyText, responseKind, ...review} = impactDialogueReviewSchema.parse(result.output);
           reviews[role] = review;
           reply = {replyText, responseKind};

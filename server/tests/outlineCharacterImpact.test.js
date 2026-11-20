@@ -120,6 +120,66 @@ test("whole-outline chat drafts, explains, revises, reopens and writes only on e
   assert.equal(inputs.length,5);
 });
 
+test("SSE shows only the current turn's reply before completion, and reconnect replays it", {timeout:10000}, async t => {
+  const {project} = await fixture();
+  const {llmLiveBroker} = require("../dist/platform/llm/live/LlmLiveBroker");
+  let announce, finish;
+  const ready = new Promise(resolve => { announce = resolve; });
+  const gate = new Promise(resolve => { finish = resolve; });
+  const requestId = require("node:crypto").randomUUID();
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,options}) => {
+    const session = llmLiveBroker.begin({mode:"structured",label:"fixture",itemKey:options.itemKey,promptText:"private prompt"});
+    announce(session); await gate;
+    session.complete();
+    return {output:{replyText:"不妨让她在救人时暴露身份。",answer:{kind:"discussion"}},meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
+  });
+  const url = `http://127.0.0.1:${http.address().port}/api/outlines/${project.id}/conversation/turns/${requestId}/stream`;
+  async function connect() {
+    const controller = new AbortController();
+    const res = await fetch(url,{signal:controller.signal});
+    assert.equal(res.status,200);
+    assert.match(res.headers.get("content-type"),/text\/event-stream/);
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buffer = "";
+    return {close:() => controller.abort(), read:async predicate => {
+      for (;;) {
+        const split = buffer.indexOf("\n\n");
+        if (split < 0) {
+          const chunk = await reader.read();
+          assert.equal(chunk.done,false,"SSE closed before the expected frame");
+          buffer += decoder.decode(chunk.value,{stream:true}); continue;
+        }
+        const line = buffer.slice(0,split); buffer = buffer.slice(split+2);
+        if (!line.startsWith("data: ")) continue;
+        const frame = JSON.parse(line.slice(6));
+        assert.doesNotMatch(line,/private|replyText|operationId/);
+        if (predicate(frame)) return frame;
+      }
+    }};
+  }
+  await api(project,"conversation/turns",{requestId,baseVersion:1,requestText:"先说说你的想法"});
+  const session = await ready;
+  let connection;
+  try {
+    assert.equal((await fetch(url.replace("/conversation/turns/","/character-impact/conversation/turns/")+"?characterId=shen")).status,404);
+    connection = await connect();
+    session.reasoning("private reasoning");
+    session.delta('<think>{"replyText":"private thought"}</think>\n{"answer":{"kind":"discussion","replyText":"private nested"},"replyText":"不妨让她在救人时');
+    const partial = await connection.read(frame => frame.text?.startsWith("不妨"));
+    assert.equal(partial.done,false);
+    assert.equal((await api(project,"conversation"))[0].status,"running");
+    assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
+    connection.close(); connection = await connect();
+    assert.equal((await connection.read(frame=>!!frame.text)).text,partial.text);
+    session.delta('暴露身份。"}'); session.phase("validating","核对结果");
+    const preview = await connection.read(frame=>frame.text?.includes("暴露身份"));
+    assert.equal(preview.text,"不妨让她在救人时暴露身份。");
+    finish(); await connection.read(frame=>frame.done);
+    const [turn] = await api(project,"conversation");
+    assert.equal(turn.status,"completed"); assert.equal(turn.replyText,preview.text); assert.equal(turn.result,null);
+  } finally { finish(); connection?.close(); }
+});
+
 test("whole-outline conversation protects the saved revision and ignores a late reply after interruption", async t => {
   const {project} = await fixture();
   let started, release;
@@ -198,6 +258,35 @@ test("stored conversation supports explanations, revising a proposal, reopening 
   assert.equal(seen.at(-1).previousProposal.status,"partially_applied");
   assert.deepEqual(seen.at(-1).previousProposal.appliedOperationIds,["shen"]);
   assert.equal((await outlineProjectService.get(project.id)).currentVersion, 2);
+});
+
+test("character reviewers show their stage and stream only the combined author reply", async t => {
+  const {project,request} = await fixture();
+  const {agentReplyLive} = require("../dist/modules/agentConversation");
+  const {llmLiveBroker} = require("../dist/platform/llm/live/LlmLiveBroker");
+  let enter,release;
+  const entered = new Promise(resolve => {enter=resolve;});
+  const gate = new Promise(resolve => {release=resolve;});
+  const requestId = require("node:crypto").randomUUID(), frames = [];
+  t.mock.method(runner,"runOutlineProposalStructuredCall",async ({asset,promptInput,options}) => {
+    if (promptInput.role === "character") {enter();await gate;}
+    const replyText = promptInput.role === "payoff" ? "她仍然救师父。" : "内部审阅草稿";
+    const session=llmLiveBroker.begin({mode:"structured",label:"fixture",itemKey:options.itemKey});
+    session.delta(JSON.stringify({replyText})); session.complete();
+    return {output:asset.outputSchema.parse({...sample()[promptInput.role],replyText,responseKind:"proposal"})};
+  });
+  await api(project,conversation+"/turns",{...request,requestId});
+  await entered;
+  const unsubscribe=agentReplyLive.subscribe(requestId,frame=>frames.push(frame));
+  try {
+    release();
+    assert.equal((await settled(project,requestId)).status,"completed");
+    assert.ok(frames.some(frame=>frame.stage.includes("人物动机")));
+    assert.ok(frames.some(frame=>frame.stage.includes("相关卷章")));
+    assert.ok(frames.some(frame=>frame.text==="她仍然救师父。"));
+    assert.ok(frames.every(frame=>!frame.text.includes("内部审阅草稿")));
+    assert.equal(frames.at(-1).done,true);
+  } finally {release();unsubscribe();}
 });
 
 test("a running conversation can be reopened and ended without a late proposal or duplicate generation", async t => {

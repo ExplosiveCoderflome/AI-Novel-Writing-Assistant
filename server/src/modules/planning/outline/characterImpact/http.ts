@@ -4,7 +4,8 @@ import { impactGenerateSchema, impactSubmissionSchema, impactTurnSchema } from "
 import { AppError } from "../../../../middleware/errorHandler";
 import { prisma } from "../../../../db/prisma";
 import { CharacterImpactService } from "./CharacterImpactService";
-import { CharacterImpactConversation } from "./CharacterImpactConversation";
+import { streamOutlineReply } from "../http/outlineReplyStream";
+import { CharacterImpactConversation, characterConversationScope } from "./CharacterImpactConversation";
 
 const router = Router({mergeParams: true});
 const service = new CharacterImpactService(prisma);
@@ -18,6 +19,13 @@ const route = (action: (projectId: string, input: unknown) => Promise<unknown>, 
     } catch (error) { next(error instanceof z.ZodError ? new AppError("人物联动请求格式有误。", 400, error.issues) : error); }
   };
 
+router.get("/conversation/turns/:turnId/stream", async (req, res, next) => {
+  try {
+    const projectId = String((req.params as Record<string,string>).id);
+    const characterId = z.string().min(1).parse(req.query.characterId);
+    await streamOutlineReply(res, projectId, characterConversationScope(projectId, characterId), req.params.turnId);
+  } catch (error) { next(error); }
+});
 router.get("/conversation", route((id, input) => conversation.read(id, selection.pick({ characterId: true }).parse(input).characterId)));
 router.post("/conversation/turns", route((id, input) => conversation.send(id, impactTurnSchema.parse(input))));
 router.post("/conversation/interrupt", route(async (id, input) => {

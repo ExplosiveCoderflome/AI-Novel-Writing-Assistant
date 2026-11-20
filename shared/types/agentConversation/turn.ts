@@ -12,6 +12,14 @@ export interface AgentConversationTurn<Result> {
   result: Result | null;
 }
 
+/** Temporary text visible to the author. Only the saved turn can carry an actionable result. */
+export interface AgentReplyPreview {
+  turnId: string;
+  stage: string;
+  text: string;
+  done: boolean;
+}
+
 export interface AgentTurnInput {
   requestId: string;
   requestText: string;

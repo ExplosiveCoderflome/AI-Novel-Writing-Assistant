@@ -1,5 +1,6 @@
 import { prisma } from "../../../../db/prisma";
-import { OutlineWorkbenchConversation } from "../conversation/OutlineWorkbenchConversation";
+import { streamOutlineReply } from "./outlineReplyStream";
+import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
 import feedbackRoutes from "../feedback/http/feedbackRoutes";
 import characterImpactRoutes from "../characterImpact/http";
@@ -23,6 +24,10 @@ const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) 
 const conversation = new OutlineWorkbenchConversation(prisma);
 const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
   baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+router.get("/:id/conversation/turns/:turnId/stream", async (req, res, next) => {
+  try { await streamOutlineReply(res, req.params.id, outlineConversationScope(req.params.id), req.params.turnId); }
+  catch (error) { next(error); }
+});
 router.get("/:id/conversation", route(req => conversation.read(id.parse(req.params.id))));
 router.post("/:id/conversation/turns", route(req => conversation.send(id.parse(req.params.id), turnInput.parse(req.body))));
 router.post("/:id/conversation/interrupt", route(async req => {

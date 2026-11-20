@@ -40,6 +40,7 @@ export function OutlineConversation({ projectId, version, document, starting, di
   const queryKey = ["agent-conversation", "outline-workbench", projectId];
   const url = `/outlines/${projectId}/conversation`;
   const adapter: AgentConversationAdapter<OutlineConversationResult> = {
+    streamUrl: turnId => apiClient.getUri({url: url + "/turns/" + encodeURIComponent(turnId) + "/stream"}),
     queryKey, load: async () => (await apiClient.get(url, inline)).data.data as OutlineConversationTurn[],
     send: async input => { await apiClient.post(url + "/turns", { ...input, baseVersion: version }, inline); onDiscuss(); },
     interrupt: turnId => apiClient.post(url + "/interrupt", { turnId }, inline),

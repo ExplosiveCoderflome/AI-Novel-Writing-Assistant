@@ -178,6 +178,37 @@ test("从一个想法开始直接进入对话，讨论起点可编辑，中文�
   assert.equal(version, 2);
 });
 
+test("生成中的回复逐段渲染 Markdown，结束后以保存记录为准", async t => {
+  const sources = [];
+  const original = Object.getOwnPropertyDescriptor(globalThis, "EventSource");
+  class Source {
+    constructor(url, options) { this.url = url; this.options = options; sources.push(this); }
+    close() { this.closed = true; }
+    frame(payload) { this.onmessage({data:JSON.stringify(payload)}); }
+  }
+  Object.defineProperty(globalThis,"EventSource",{configurable:true,value:Source});
+  t.after(() => { if (original) Object.defineProperty(globalThis,"EventSource",original); else delete globalThis.EventSource; });
+  const turn = {id:"live-turn",createdAt:new Date().toISOString(),status:"running",requestText:"开篇写什么？",
+    replyText:null,contextVersion:"1",parentResultId:null,result:null};
+  const {writes} = await open(t,"/outlines/p?start=idea",url => url === "/outlines/p/conversation" ? [structuredClone(turn)] : undefined);
+  const source = await until(() => sources[0]);
+  assert.match(source.url,/\/conversation\/turns\/live-turn\/stream$/);
+  assert.equal(source.options.withCredentials,true);
+  const send = (text,done=false,turnId=turn.id) => runtime.act(async () => source.frame({turnId,stage:"正在回复…",text,done}));
+  await send("串线的回复",false,"other-turn");
+  assert.doesNotMatch(document.body.textContent,/串线的回复/);
+  await send("从**渡口**开篇");
+  assert.equal(document.querySelector(".agent-reply strong")?.textContent,"渡口");
+  assert.equal(button("发送给大纲搭档").disabled,true);
+  await send("从**渡口**开篇，让她自己决定。");
+  assert.ok(document.querySelector(".agent-reply").textContent.includes("自己决定"));
+  turn.status="completed"; turn.replyText="保存的回复：从渡口开篇。";
+  await send("",true);
+  await until(() => document.querySelector(".agent-reply").textContent.includes("保存的回复"));
+  assert.doesNotMatch(document.querySelector(".agent-reply").textContent,/自己决定/);
+  assert.ok(source.closed); assert.deepEqual(writes,[]);
+});
+
 test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返回仍保留草稿，冲突时保护输入", async t => {
   const { page, writes, conflict } = await open(t, "/outlines/p?nodeId=person");
   const directory = await until(() => document.querySelector('[aria-label="大纲目录"]'));

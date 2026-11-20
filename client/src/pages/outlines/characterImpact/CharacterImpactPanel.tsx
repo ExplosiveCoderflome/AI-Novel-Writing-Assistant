@@ -55,6 +55,7 @@ export function CharacterImpactPanel({ projectId, version, characterId, document
   const inline = { errorPresentation: "inline" } as const;
   const adapter: AgentConversationAdapter<ImpactResultRef> = {
     queryKey,
+    streamUrl: turnId => apiClient.getUri({url: url + "/turns/" + encodeURIComponent(turnId) + "/stream", params: {characterId}}),
     load: async () => (await apiClient.get(url, { params: { characterId }, ...inline })).data.data as ImpactConversationTurn[],
     send: async ({ requestId, requestText, parentResultId }) => {
       await apiClient.post(url + "/turns", { requestId, characterId, baseVersion: version, requestText, priorProposalId: parentResultId }, inline);

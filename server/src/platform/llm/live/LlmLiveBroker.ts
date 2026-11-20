@@ -21,6 +21,7 @@ interface SessionRecord {
 }
 
 export interface LlmLiveSubscriptionFilter {
+  itemKey?: string;
   taskId?: string;
   interactionId?: string;
 }
@@ -83,6 +84,7 @@ export class LlmLiveBroker {
       .filter((snapshot) => (
         (!filter.interactionId || snapshot.context.interactionId === filter.interactionId)
         && (!filter.taskId || snapshot.context.taskId === filter.taskId)
+        && (!filter.itemKey || snapshot.context.itemKey === filter.itemKey)
       ))
       .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
   }
@@ -273,11 +275,8 @@ export class LlmLiveBroker {
     if (filter.interactionId && interactionId !== filter.interactionId) {
       return false;
     }
-    if (!filter.taskId) {
-      return true;
-    }
-    const record = this.sessions.get(interactionId);
-    return record?.snapshot.context.taskId === filter.taskId;
+    const context = this.sessions.get(interactionId)?.snapshot.context;
+    return (!filter.taskId || context?.taskId === filter.taskId) && (!filter.itemKey || context?.itemKey === filter.itemKey);
   }
 
   private publish(event: LlmLiveEvent): void {
