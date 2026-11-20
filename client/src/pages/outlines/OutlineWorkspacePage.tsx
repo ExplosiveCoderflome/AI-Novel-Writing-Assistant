@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   applyOutlineProposal,
@@ -17,6 +17,7 @@ import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { OutlineProposalPanel } from "./OutlineProposalPanel";
+import { CharacterImpactPanel } from "./characterImpact/CharacterImpactPanel";
 import { OutlineFeedbackPanel } from "./OutlineFeedbackPanel";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
 import "./outlineWorkspace.css";
@@ -24,6 +25,7 @@ import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./out
 
 export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
+  const decidingCharacterImpact = useIsMutating({mutationKey: ["outline-character-impact-decision", id]}) > 0;
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
@@ -127,6 +129,8 @@ export default function OutlineWorkspacePage() {
   const selectedFields = selected
     ? Object.entries(selected as unknown as Record<string, unknown>).filter(([key, value]) => key !== "nodeId" && key !== "volumeNodeId" && typeof value === "string") as Array<[string, string]>
     : [];
+  const selectedCharacter = document.characters.find(person => person.nodeId === node);
+  const GeneralSuggestions = selectedCharacter ? "details" : "section";
 
   return (
     <div className="outline-workspace mx-auto max-w-[1800px]">
@@ -175,6 +179,7 @@ export default function OutlineWorkspacePage() {
                       rows={4}
                       className="outline-textarea min-h-24 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
                       value={value}
+                      disabled={decidingCharacterImpact}
                       onChange={event => updateSelectedField(key, event.target.value)}
                     />
                   </label>
@@ -183,7 +188,7 @@ export default function OutlineWorkspacePage() {
               <div className="outline-save-bar sticky bottom-0 z-10 border-t border-border/50 bg-background py-3">
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   {save.isSuccess ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
-                  <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
+                  <Button onClick={() => save.mutate()} disabled={save.isPending || decidingCharacterImpact}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
                 </div>
                 {save.isError ? <p role="alert" className="mt-2 text-sm text-destructive">{save.error instanceof Error ? save.error.message : "保存失败，请重试。"}</p> : null}
               </div>
@@ -192,6 +197,17 @@ export default function OutlineWorkspacePage() {
         </section>
 
         <aside aria-label="大纲建议与历史" className="outline-inspector space-y-4 border-t border-border/50 pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
+          {selectedCharacter && query.data && (
+            <CharacterImpactPanel key={JSON.stringify([id, query.data.currentVersion, selectedCharacter.nodeId])}
+              projectId={id} version={query.data.currentVersion} characterId={selectedCharacter.nodeId} document={document}
+              dirty={save.isPending || JSON.stringify(document) !== JSON.stringify(query.data.document)}
+              onApplied={async () => {
+                await queryClient.invalidateQueries({queryKey: ["outline-revisions", id]});
+                await refreshOutline();
+              }}/>
+          )}
+          <GeneralSuggestions className="space-y-4">
+          {selectedCharacter && <summary className="cursor-pointer text-sm font-medium">整份大纲的 AI 建议</summary>}
           <div>
             <h2 className="font-semibold">AI 协作</h2>
             <p className="mt-1 text-sm text-muted-foreground">告诉 AI 你希望调整什么，建议会先展示给你检查。</p>
@@ -236,6 +252,7 @@ export default function OutlineWorkspacePage() {
               </Button>
             </div>
           ) : null}
+          </GeneralSuggestions>
           {showHistory ? (
             <OutlineRevisionPanel
               outlineId={id}

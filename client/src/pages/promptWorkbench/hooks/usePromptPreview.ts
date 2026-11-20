@@ -111,6 +111,15 @@ function buildPreviewPromptInput(
   previewNovel?: PreviewNovel | null,
   previewChapter?: PreviewChapter | null,
 ): Record<string, unknown> {
+  if (prompt.id === "outline.character_impact") {
+    return {
+      role: "character", requestText: "让沈禾提前怀疑账册来源，但保留救师父的动机。", prior: {},
+      snapshot: {projectId: "sample", baseVersion: 1, characterId: "shen", writtenChapterIds: [], recentCharacterChanges: [],
+        document: {schemaVersion: 1, story: {nodeId: "story", title: "旧账", premise: "查清账册来历", synopsis: "", theme: "", tone: "", endingDirection: ""},
+          characters: [{nodeId: "shen", name: "沈禾", motivation: "相信师父", appearanceNodeIds: []}],
+          volumes: [], chapters: [], payoffs: [], facts: []}},
+    };
+  }
   if (prompt.id === "audit.chapter.light" || prompt.id === "audit.chapter.full") {
     const chapterContent = previewChapter
       ? previewChapter.content?.trim()

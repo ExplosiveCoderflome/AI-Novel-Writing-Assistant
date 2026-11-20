@@ -9,6 +9,7 @@ const testsRoot = path.join(serverRoot, "tests");
 const pgLiveTests = new Set(["pgCloudAcceptance.harness.test.js"]);
 
 const integrationTests = new Set([
+  "outlineCharacterImpact.test.js",
   "directorLegacyPauseSqlite.test.js",
   "directorVolumeStrategyFreshBookSqlite.test.js",
   "characterForwardAdjustmentSqlite.test.js",

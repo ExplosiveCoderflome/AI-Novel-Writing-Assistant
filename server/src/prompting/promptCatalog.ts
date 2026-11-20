@@ -1,4 +1,5 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "outline.character_impact": "人物调整的卷章与伏笔审阅",
   "outline.text_feedback": "章节摘要反馈大纲",
   "novel.chapter.writer": "章节正文生成",
   "novel.short_story.segment.write": "短篇正文生成",

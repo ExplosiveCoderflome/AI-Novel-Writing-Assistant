@@ -69,7 +69,7 @@ export interface OutlineProposal {
   id: string;
   projectId: string;
   baseVersion: number;
-  kind: OutlineProposalKind;
+  kind: OutlineProposalKind | "character_impact";
   status: string;
   requestText?: string | null;
   proposalJson: string;
