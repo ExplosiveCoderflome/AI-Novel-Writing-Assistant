@@ -12,6 +12,42 @@ keywords:
 
 Below is a summary of recent desktop release updates. For the full history, visit the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) or the GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) page.
 
+<Update label="2026-11-19" description="v0.8.9">
+
+- Read a completed novel from the bookshelf or Director workspace and export it as TXT. Open the relevant project directly from a home-page item that needs attention.
+- Resume book analysis from the missing source notes and sections. Compare your edits with the AI-generated version, then save the text you want to use for new books, continuations, and publishing.
+- Chapter drafts and continuations honor the model route’s output allowance and can recover from saved progress after an interruption. Short-story planning and outline suggestions can retry with a higher allowance when needed.
+- Confirm chapter plans for projects started from an outline and view the chapters under each volume in Director V2. The desktop app remembers dismissed onboarding tips after a restart.
+
+</Update>
+
+<Update label="2026-11-19" description="v0.8.9">
+  - After finishing a long novel, you can read the whole book from the simple bookshelf or the director desk and export it as TXT. Pending items on the home screen link straight to the matching work.
+  - Book breakdown recovery now only reruns the missing source notes and sections. You can compare hand-edited text with the AI-generated version and save your choice for reference book starting, continuation, and publishing.
+  - First drafts and continuations follow the output limit set on the model route, and an interrupted generation can resume from saved progress. Short story planning and outline suggestions automatically raise the limit and retry when they hit the output cap.
+  - After starting a book from an outline, chapter plans can be confirmed normally, and the V2 director desk shows the chapters under each volume. The desktop app remembers a dismissed book-starting tip after restart.
+</Update>
+
+<Update label="2026-11-17" description="v0.8.8">
+  Desktop `v0.8.8`: chapter-by-chapter outline confirmation links straight to the saved text, and selecting several chapters at once on the director desk now writes their text smoothly. The automatic output limit is higher and shows a budget breakdown, with a continue option when the limit runs out.
+
+  #### New
+
+  - The call details in "AI Usage" show the effective output limit, where the limit came from, the finish reason, and the structure validation result.
+
+  #### Improvements
+
+  - The Chinese and English homepages, installation downloads, and changelog on the docs site now follow the official desktop release, so you can read release notes and get installers in your language.
+  - When a model route has no output limit set, the automatic output limit starts at 16,384 tokens. Book-level plans and volume-to-chapter splits adjust the limit to the task size, within the model cap and any manual setting.
+  - The default per-chapter usage limit for new auto director tasks is raised to 200,000 tokens. With the system default, if the current chapter runs short, one automatic top-up happens first. If it is still not enough, you see a suggested limit and a continue option.
+
+  #### Fixes
+
+  - Structured tasks turn off deep thinking by default. For models that require thinking, the automatic limit leaves room for it, so task sheets and chapter outlines are cut off less often.
+  - The confirmation page for chapter-by-chapter outline writing shows the latest saved task and scenes for the current chapter, offers regeneration when items are missing, and can open the latest saved text directly.
+  - When writing several chapters at once on the director desk, all authorized chapters start together, and the execution contract is prepared from each chapter's latest saved task and scenes.
+</Update>
+
 <Update label="2026-11-16" description="v0.8.7">
   Desktop `v0.8.7`: outline "interactive refinement" proposals with a wrong dependency, a chapter without a volume, or an accidental change to a volume's chapter list now show a readable message and are rejected instead of a generic server error, and a failed adoption leaves no partial results. Book-level plan generation always turns off deep thinking, scales its output limit with the number of candidates, retries automatically on the token limit, and offers one-click recovery on the failure card.
 
