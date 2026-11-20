@@ -665,8 +665,8 @@ export const BnIntro = () => {
 export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, setHover, children }) => {
   const paper = theme === "paper";
   const C = paper
-    ? { node: "#1c1a17", main: "#1c1a17", hi: "#b4382a", edge: "#1c1a17", edgeA: 0.4, edgeOn: "#b4382a", halo: "#1c1a17", haloA: 0.12, bg: "#f3ede1", text: "#1c1a17", ring: "#b4382a", fs: 14, fm: 17, fw: 800, ls: ".08em" }
-    : { node: "#16A34A", main: "#4ade80", hi: "#bbf7d0", edge: "#86efac", edgeA: 0.3, edgeOn: "#4ade80", halo: "#22c55e", haloA: 0.35, bg: "#05080a", text: "#e7f5ec", ring: "#bbf7d0", fs: 13, fm: 15, fw: 700, ls: "normal" };
+    ? { node: "#1c1a17", main: "#1c1a17", hi: "#b4382a", edge: "#1c1a17", edgeA: 0.4, edgeOn: "#b4382a", halo: "#1c1a17", haloA: 0.12, bg: "#f3ede1", text: "#1c1a17", ring: "#b4382a", spec: "#6b6b6b", shine: 70, amb: 1, fs: 14, fm: 17, fw: 800, ls: ".08em" }
+    : { node: "#16A34A", main: "#4ade80", hi: "#bbf7d0", edge: "#86efac", edgeA: 0.3, edgeOn: "#4ade80", halo: "#22c55e", haloA: 0.35, bg: "#05080a", text: "#e7f5ec", ring: "#bbf7d0", spec: "#a7f3d0", shine: 45, amb: 0.6, fs: 13, fm: 15, fw: 700, ls: "normal" };
   const Z = { book: 0, world: -60, char: 60, chap: 30, rule: -140, force: 110, place: 40, tension: -90, rel: 130, trait: -110, state: -50, task: 120, scene: -130, fore: 80 };
   const adj = {};
   edges.forEach(([a, b]) => { (adj[a] = adj[a] || {})[b] = 1; (adj[b] = adj[b] || {})[a] = 1; });
@@ -721,14 +721,21 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       mount.appendChild(canvas);
 
       const scene = new THREE.Scene();
-      scene.fog = new THREE.Fog(C.bg, 6, 12.5);
+      scene.fog = new THREE.Fog(C.bg, 7, 15);
       const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
-      camera.position.set(0, 0, 7.4);
+      camera.position.set(0, 0, 8.2);
       const group = new THREE.Group();
       scene.add(group);
+      scene.add(new THREE.AmbientLight(0xffffff, C.amb));
+      const sun = new THREE.DirectionalLight(0xffffff, 3.2);
+      sun.position.set(-3, 4, 6);
+      scene.add(sun);
+      const rim = new THREE.DirectionalLight(paper ? 0xffffff : C.main, paper ? 0.5 : 1.4);
+      rim.position.set(4, -2, -5);
+      scene.add(rim);
 
       const P = {};
-      nodes.forEach((n) => { P[n.id] = new THREE.Vector3((n.x - cx) / 100, (cy - n.y) / 100, (Z[n.id] || 0) / 100); });
+      nodes.forEach((n) => { P[n.id] = new THREE.Vector3((n.x - cx) / 100, (cy - n.y) / 100, ((Z[n.id] || 0) / 100) * 1.8); });
 
       const tc = document.createElement("canvas");
       tc.width = 64;
@@ -747,7 +754,8 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       const hits = [];
       const items = nodes.map((n) => {
         const r = n.r / 100;
-        const mat = new THREE.MeshBasicMaterial({ color: n.main ? C.main : C.node, transparent: true });
+        const col = n.main ? C.main : C.node;
+        const mat = new THREE.MeshPhongMaterial({ color: col, emissive: paper ? 0x000000 : col, emissiveIntensity: paper ? 0 : 0.14, specular: C.spec, shininess: C.shine, transparent: true });
         const mesh = new THREE.Mesh(sphere, mat);
         mesh.scale.setScalar(r);
         mesh.position.copy(P[n.id]);
@@ -791,12 +799,28 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
         return { sp, pm, a: P[edges[i][0]], b: P[edges[i][1]], off: i / 3 };
       }) : [];
 
+      const dustN = paper ? 150 : 320;
+      const dp = new Float32Array(dustN * 3);
+      for (let i = 0; i < dustN; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const rr = 0.6 + Math.sqrt(Math.random()) * 4;
+        dp[i * 3] = Math.cos(ang) * rr;
+        dp[i * 3 + 1] = (Math.random() - 0.5) * 5.6;
+        dp[i * 3 + 2] = Math.sin(ang) * rr;
+      }
+      const dustGeo = new THREE.BufferGeometry();
+      dustGeo.setAttribute("position", new THREE.BufferAttribute(dp, 3));
+      const dustMat = new THREE.PointsMaterial({ map: tex, color: paper ? C.node : "#86efac", size: paper ? 0.05 : 0.07, transparent: true, opacity: paper ? 0.28 : 0.6, depthWrite: false, blending: blend, sizeAttenuation: true });
+      group.add(new THREE.Points(dustGeo, dustMat));
+
       const restyle = (hv) => {
         items.forEach((it) => {
           const id = it.n.id;
           const on = hv === id;
           const near = !hv || on || !!(adj[hv] && adj[hv][id]);
-          it.mat.color.set(on ? C.hi : it.n.main ? C.main : C.node);
+          const c = on ? C.hi : it.n.main ? C.main : C.node;
+          it.mat.color.set(c);
+          if (!paper) it.mat.emissive.set(c);
           it.mat.opacity = near ? 1 : 0.22;
           it.hm.opacity = near ? C.haloA * (on ? 1.8 : 1) : C.haloA * 0.3;
         });
@@ -811,6 +835,7 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       const ptr = new THREE.Vector2();
       const rot = rotRef.current;
       let drag = null;
+      const par = { x: 0, y: 0 };
       const pick = (e) => {
         const rc = canvas.getBoundingClientRect();
         ptr.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
@@ -834,6 +859,9 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
           rot.x = Math.max(-0.7, Math.min(0.7, rot.x + dy * 0.006));
           return;
         }
+        const pr = canvas.getBoundingClientRect();
+        par.x = (e.clientX - pr.left) / pr.width - 0.5;
+        par.y = (e.clientY - pr.top) / pr.height - 0.5;
         const id = pick(e);
         if (id !== hoverRef.current) setHover(id);
         canvas.style.cursor = id ? "pointer" : "grab";
@@ -844,7 +872,7 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
         canvas.style.cursor = "grab";
       };
       const onCancel = () => { drag = null; canvas.style.cursor = "grab"; };
-      const onLeave = () => { if (!drag) setHover(null); };
+      const onLeave = () => { par.x = 0; par.y = 0; if (!drag) setHover(null); };
       canvas.addEventListener("pointerdown", onDown);
       canvas.addEventListener("pointermove", onMove);
       canvas.addEventListener("pointerup", onUp);
@@ -870,14 +898,23 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
       let last = performance.now();
       let shown;
       let first = true;
+      let intro = reduce ? 1 : 0;
+      let wobT = 0;
       const tick = (now) => {
         raf = requestAnimationFrame(tick);
         const dt = Math.min(now - last, 64);
         last = now;
         if (!inView || document.hidden || !W) return;
         const hv = hoverRef.current;
-        if (spinRef.current && !hv && !drag) rot.y += dt * 0.00012;
-        group.rotation.set(rot.x, rot.y, 0);
+        if (intro < 1) intro = Math.min(1, intro + dt / 1800);
+        const ease = intro < 0.5 ? 4 * intro * intro * intro : 1 - Math.pow(-2 * intro + 2, 3) / 2;
+        if (spinRef.current && !hv && !drag) { rot.y += dt * 0.0002; wobT += dt; }
+        group.rotation.set(rot.x + ease * 0.3 + Math.sin(wobT * 0.00045) * 0.1, rot.y - ease * 0.6, 0);
+        if (!reduce) {
+          camera.position.x += (par.x * 1.2 - camera.position.x) * 0.05;
+          camera.position.y += (-par.y * 0.8 - camera.position.y) * 0.05;
+          camera.lookAt(0, 0, 0);
+        }
         if (hv !== shown) { shown = hv; restyle(hv); }
         pulses.forEach((p) => {
           const t = (now / 3200 + p.off) % 1;
@@ -897,8 +934,9 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
           const x = ((v.x + 1) / 2) * W;
           const y = ((1 - v.y) / 2) * H + (it.r * ppu) / dist + 4;
           const near = !hv || it.n.id === hv || !!(adj[hv] && adj[hv][it.n.id]);
-          const fade = Math.max(0.6, Math.min(1, 0.78 + depth * 0.08));
-          el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0) translateX(-50%)";
+          const fade = Math.max(0.4, Math.min(1, 0.8 + depth * 0.12));
+          const sc = Math.max(0.78, Math.min(1.3, 8.2 / dist));
+          el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0) translateX(-50%) scale(" + sc.toFixed(3) + ")";
           el.style.opacity = String((near ? 1 : 0.25) * fade);
           el.style.zIndex = String(100 + Math.round(depth * 10));
         });
@@ -918,6 +956,8 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
         items.forEach((it) => { it.mat.dispose(); it.hm.dispose(); });
         lines.forEach((l) => { l.line.geometry.dispose(); l.mat.dispose(); });
         pulses.forEach((p) => p.pm.dispose());
+        dustGeo.dispose();
+        dustMat.dispose();
         renderer.dispose();
         renderer.forceContextLoss();
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
@@ -958,7 +998,7 @@ export const StarMap3D = ({ theme, nodes, edges, cx, cy, ratio, label, hover, se
         .sm3-st{position:relative;width:100%}
         .sm3-gl{position:absolute;inset:0}
         .sm3-lbs{position:absolute;inset:0;pointer-events:none}
-        .sm3-lb{position:absolute;left:0;top:0;margin:0;padding:2px 6px;border:0;border-radius:4px;background:none;font-family:inherit;line-height:1.3;white-space:nowrap;cursor:pointer;pointer-events:auto;opacity:0;will-change:transform}
+        .sm3-lb{position:absolute;left:0;top:0;margin:0;padding:2px 6px;border:0;border-radius:4px;background:none;font-family:inherit;line-height:1.3;white-space:nowrap;cursor:pointer;pointer-events:auto;opacity:0;transform-origin:50% 0;will-change:transform}
         .sm3-lb:focus-visible,.sm3-btn:focus-visible{outline:2px solid var(--sm3-ring);outline-offset:2px}
         .sm3-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:12px;margin-top:14px;min-height:32px;font-size:13px}
         .sm3-tip{opacity:.8}
