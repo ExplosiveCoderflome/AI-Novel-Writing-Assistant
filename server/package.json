@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "pnpm run dev:api",
-    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && tsx watch --clear-screen=false src/app.ts",
+    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && tsx watch --clear-screen=false --include src/prisma/schema.sqlite.prisma --include src/prisma/schema.prisma --require ./scripts/ensure-dev-prisma.cjs src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "start:api": "node dist/app.js",
