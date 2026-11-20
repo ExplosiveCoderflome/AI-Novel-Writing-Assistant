@@ -514,6 +514,7 @@ export function buildWorkflowSeedPayload(
     postGenerationStyleReviewEnabled: input.postGenerationStyleReviewEnabled ?? true,
     defaultChapterLength: input.defaultChapterLength ?? 2800,
     estimatedChapterCount: input.estimatedChapterCount ?? null,
+    estimatedChapterCountSource: input.estimatedChapterCount == null ? "default" : "user",
     userPreferredVolumeCount: input.userPreferredVolumeCount,
     projectStatus: input.projectStatus ?? "not_started",
     storylineStatus: input.storylineStatus ?? "not_started",

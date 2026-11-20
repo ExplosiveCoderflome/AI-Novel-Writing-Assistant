@@ -319,10 +319,18 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
 
 export function patchNovelBasicForm(
   previous: NovelBasicFormState,
-  patch: Partial<NovelBasicFormState>,
+  patch: Partial<Omit<NovelBasicFormState, "estimatedChapterCount">> & { estimatedChapterCount?: number | null },
 ): NovelBasicFormState {
-  const next = { ...previous, ...patch };
-  if (patch.estimatedChapterCount !== undefined && patch.estimatedChapterCountSource === undefined) {
+  const next: NovelBasicFormState = {
+    ...previous,
+    ...patch,
+    estimatedChapterCount: patch.estimatedChapterCount ?? previous.estimatedChapterCount,
+  };
+  // Persisted AI-recommended counts are null, not an explicit author choice.
+  if (Object.hasOwn(patch, "estimatedChapterCount") && patch.estimatedChapterCount == null) {
+    next.estimatedChapterCount = DEFAULT_ESTIMATED_CHAPTER_COUNT;
+    next.estimatedChapterCountSource = "default";
+  } else if (patch.estimatedChapterCount !== undefined && patch.estimatedChapterCountSource === undefined) {
     next.estimatedChapterCountSource = "user";
   }
   if (

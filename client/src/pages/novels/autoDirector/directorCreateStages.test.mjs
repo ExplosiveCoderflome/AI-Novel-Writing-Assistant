@@ -26,6 +26,23 @@ test("parseEstimatedChapterCountInput keeps an empty numeric field as an editing
   assert.equal(parseEstimatedChapterCountInput("30"), 30);
 });
 
+test("restoring a persisted null chapter count keeps AI recommendation through refinement and confirmation", () => {
+  const initial = createDefaultNovelBasicFormState();
+  const previous = patchNovelBasicForm(initial, {estimatedChapterCount: 12});
+  for (const source of [undefined, "default", "user"]) {
+    const saved = JSON.parse(JSON.stringify({estimatedChapterCount: null, estimatedChapterCountSource: source}));
+    const restored = patchNovelBasicForm(previous, saved);
+    assert.equal(restored.estimatedChapterCountSource, "default");
+    assert.equal(restored.estimatedChapterCount, initial.estimatedChapterCount);
+    const request = buildAutoDirectorRequestPayload(restored, "原想法及修正", {provider: "deepseek", model: "test"}, "auto_to_ready", "saved-task");
+    assert.equal(request.estimatedChapterCount, undefined);
+    assert.equal(Object.hasOwn(JSON.parse(JSON.stringify(request)), "estimatedChapterCount"), false);
+    const explicit = patchNovelBasicForm(restored, {estimatedChapterCount: 260});
+    assert.equal(explicit.estimatedChapterCount, 260);
+    assert.equal(explicit.estimatedChapterCountSource, "user");
+  }
+});
+
 test("parseEstimatedChapterCountInput only accepts the supported chapter range", () => {
   assert.equal(parseEstimatedChapterCountInput("1"), 1);
   assert.equal(parseEstimatedChapterCountInput("2000"), 2000);
