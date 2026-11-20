@@ -52,6 +52,111 @@ async function api(project, suffix, body, status=200) {
   return json.data;
 }
 
+const conversation = "character-impact/conversation";
+const timeline = (project, characterId = "shen") => api(project, conversation + "?characterId=" + characterId);
+async function settled(project, id) {
+  for (let i = 0; i < 100; i++) {
+    const turn = (await timeline(project)).find(item => item.id === id);
+    if (turn && turn.status !== "running") return turn;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  assert.fail("Conversation did not settle");
+}
+
+test("stored conversation supports explanations, revising a proposal, reopening and explicit partial adoption", async t => {
+  const {project, request} = await fixture();
+  const seen = [];
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset, promptInput: input}) => {
+    assert.equal(asset.version, "v2");
+    seen.push(input);
+    const review = sample()[input.role];
+    if (input.snapshot.baseVersion > 1) {
+      for (const change of review.changes) change.dependsOnNodeIds = change.dependsOnNodeIds.filter(id => id !== "shen");
+    }
+    return {output: asset.outputSchema.parse({...review, replyText: input.requestText + "：她仍然欠师父一条命。",
+      responseKind: input.requestText === "为什么还要救师父？" ? "explanation" : "proposal"})};
+  });
+  const send = async (text, priorProposalId) => {
+    const body = {...request, requestText:text, requestId: require("node:crypto").randomUUID(), priorProposalId};
+    await api(project, conversation + "/turns", body);
+    const turn = await settled(project, body.requestId);
+    assert.equal(turn.status, "completed", turn.replyText);
+    return {turn, body};
+  };
+  const first = await send("让沈禾提前起疑");
+  const id = first.turn.result.id;
+  const explain = await send("为什么还要救师父？", id);
+  assert.equal(explain.turn.result, null);
+  assert.match(explain.turn.replyText, /欠师父/);
+  assert.equal((await timeline(project))[0].result.status, "pending");
+  const revised = await send("保留救人的情节，真相留到第三卷", id);
+  const lastInput = seen.at(-1);
+  assert.equal(lastInput.previousProposal.operations.length, 4);
+  assert.deepEqual(lastInput.conversationHistory.map(row => row.author), [first.body.requestText, explain.body.requestText]);
+  assert.equal(revised.turn.parentResultId, id);
+  await api(project, conversation + "/turns", revised.body);
+  assert.equal(seen.length, 9);
+  assert.equal((await timeline(project))[0].result.status, "superseded");
+  assert.deepEqual(await timeline(project, "teacher"), []);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 1);
+  await api(project, `proposals/${id}/apply`, {operationIds:["shen"]},409);
+  const resultId = revised.turn.result.id;
+  await api(project, `proposals/${resultId}/apply`, {operationIds:["shen"]});
+  const reopened = await timeline(project);
+  assert.deepEqual(reopened.map(turn => turn.requestText), [first.body.requestText, explain.body.requestText, revised.body.requestText]);
+  assert.equal(reopened.at(-1).result.status,"partially_applied");
+  const detail = await api(project, `proposals/${resultId}`);
+  assert.deepEqual(JSON.parse(detail.proposalJson).impact.appliedOperationIds, ["shen"]);
+  const nextVersion = {...request, baseVersion:2, requestText:"按保存后的动机再看看伏笔", priorProposalId:resultId,requestId:require("node:crypto").randomUUID()};
+  await api(project,conversation+"/turns",nextVersion);
+  assert.equal((await settled(project,nextVersion.requestId)).result.baseVersion,2);
+  assert.equal(seen.at(-1).snapshot.baseVersion,2);
+  assert.equal(seen.at(-1).previousProposal.status,"partially_applied");
+  assert.deepEqual(seen.at(-1).previousProposal.appliedOperationIds,["shen"]);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 2);
+});
+
+test("a running conversation can be reopened and ended without a late proposal or duplicate generation", async t => {
+  const {project,request} = await fixture();
+  let finish, entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { finish = resolve; });
+  let calls = 0;
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({promptInput}) => {
+    calls++; entered(); await gate;
+    return {output:{...sample()[promptInput.role],replyText:"已核对",responseKind:"proposal"}};
+  });
+  const body = {...request, requestId: require("node:crypto").randomUUID()};
+  try {
+    await api(project, conversation + "/turns", body);
+    await started;
+    assert.equal((await timeline(project))[0].status, "running");
+    await api(project, conversation + "/turns", body);
+    await api(project, conversation + "/turns", {...body,requestId:"other-request"},409);
+    await api(project, conversation + "/interrupt", {characterId:"teacher", turnId:body.requestId},409);
+    await api(project, conversation + "/interrupt", {characterId:"shen", turnId:body.requestId});
+    assert.equal((await timeline(project))[0].status,"interrupted");
+  } finally { finish(); }
+  await new Promise(resolve => setTimeout(resolve,100));
+  assert.equal(calls,1);
+  assert.equal(await prisma.outlineProposal.count({where:{projectId:project.id,kind:"character_impact"}}),0);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
+});
+
+test("failed chat reply remains readable and a new request can continue on the same proposal", async t => {
+  const {project,request} = await fixture();
+  const original = await api(project,"character-impact/proposals",{...request,reviews:sample()},201);
+  // Simulate a result written by an older application before character indexing existed.
+  await prisma.outlineProposal.update({where:{id:original.id},data:{characterNodeId:null}});
+  t.mock.method(runner,"runOutlineProposalStructuredCall",async () => {throw Error("模型暂时不可用");});
+  const body = {...request,priorProposalId:original.id,requestId:require("node:crypto").randomUUID()};
+  await api(project, conversation + "/turns", body);
+  assert.equal((await settled(project, body.requestId)).status,"failed");
+  assert.equal((await timeline(project)).find(row => row.result?.id === original.id).result.status,"pending");
+  await api(project,`proposals/${original.id}/reject`,{});
+  assert.equal((await timeline(project)).find(row => row.result?.id === original.id).result.status,"rejected");
+});
+
 test("three reviewers share one revision and produce one author-selectable atomic change", async t => {
   const {project,request} = await fixture();
   const roles = [];

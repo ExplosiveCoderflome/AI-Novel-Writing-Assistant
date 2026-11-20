@@ -85,7 +85,12 @@ export class OutlineRepository {
       const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion + 1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "proposal", sourceProposalId: proposalId } });
       const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id } });
       if (update.count !== 1) throw new Error("OUTLINE_VERSION_CONFLICT");
-      const decided = await tx.outlineProposal.updateMany({ where: { id: proposalId, status: "pending" }, data: { status: selected.size === operations.length ? "applied" : "partially_applied" } });
+      const payload = proposal.kind === "character_impact" ? JSON.parse(proposal.proposalJson) : null;
+      if (payload) payload.impact.appliedOperationIds = [...selected];
+      const decided = await tx.outlineProposal.updateMany({ where: { id: proposalId, status: "pending" }, data: {
+        status: selected.size === operations.length ? "applied" : "partially_applied",
+        ...(payload && { proposalJson: JSON.stringify(payload) }),
+      } });
       if (!decided.count) throw new Error("OUTLINE_PROPOSAL_STALE");
       return { revision, document };
     });

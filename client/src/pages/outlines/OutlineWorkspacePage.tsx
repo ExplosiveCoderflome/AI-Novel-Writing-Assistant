@@ -33,8 +33,16 @@ function OutlineWorkspace({ id }: { id: string }) {
   const fromIdea = params.get("start") === "idea";
   const feedbackLink = hash === "#outline-feedback-panel";
   const requestedNode = params.get("nodeId");
-  const [nodeId, setNodeId] = useState(requestedNode);
-  const [pane, setPane] = useState<Pane>(fromIdea || feedbackLink ? "assistant" : "editor");
+  const bookmarkKey = `outline-character-discussion:${id}`;
+  const [lastDiscussion] = useState(() => {
+    try { return !requestedNode && !fromIdea && !feedbackLink ? window.localStorage.getItem(bookmarkKey) : null; }
+    catch { return null; }
+  });
+  const [nodeId, setNodeId] = useState(requestedNode ?? lastDiscussion);
+  function rememberDiscussion(person: string) {
+    try { window.localStorage.setItem(bookmarkKey, person); } catch { /* Server history is still available by selecting the person. */ }
+  }
+  const [pane, setPane] = useState<Pane>(fromIdea || feedbackLink || lastDiscussion ? "assistant" : "editor");
   const [inspector, setInspector] = useState<Inspector>(feedbackLink ? "feedback" : "suggestions");
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>(fromIdea ? "initial_generation" : "edit");
   const [request, setRequest] = useState("");
@@ -111,7 +119,7 @@ function OutlineWorkspace({ id }: { id: string }) {
     return () => window.removeEventListener("beforeunload", protect);
   }, [hasUnsavedChanges]);
 
-  const selected = document && (nodeId && nodeId !== "story" ? findOutlineNode(document, nodeId) : document.story);
+  const selected = document && (nodeId && nodeId !== "story" ? findOutlineNode(document, nodeId) ?? (nodeId === lastDiscussion ? document.story : undefined) : document.story);
   const selectedCharacter = selected && "appearanceNodeIds" in selected ? selected : null;
 
   function updateField(field: string, value: string | boolean) {
@@ -180,6 +188,7 @@ function OutlineWorkspace({ id }: { id: string }) {
       <section aria-label="大纲内容编辑" className="outline-editor">
         {selected ? <OutlineNodeEditor key={selected.nodeId} document={document} node={selected} disabled={writing} onChange={updateField}
           onSelect={selectNode} onReviewCharacter={() => {
+            rememberDiscussion(selected.nodeId);
             setInspector("suggestions"); setPane("assistant");
             requestAnimationFrame(() => inspectorRef.current?.querySelector<HTMLTextAreaElement>('[aria-label="人物联动审阅"] textarea')?.focus());
           }} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
@@ -212,11 +221,11 @@ function OutlineWorkspace({ id }: { id: string }) {
         <div className="outline-inspector-body">
           {draft && <p role="status" className="mb-4 text-sm text-muted-foreground">先保存手动修改，再生成建议或采用其他版本。</p>}
           <div hidden={activeInspector !== "suggestions"} className="space-y-5">
-            {selectedCharacter && query.data?.document?.characters.some(person => person.nodeId === selectedCharacter.nodeId) && <CharacterImpactPanel key={JSON.stringify([id, version, selectedCharacter.nodeId])} projectId={id} version={version}
+            {selectedCharacter && query.data?.document?.characters.some(person => person.nodeId === selectedCharacter.nodeId) && <CharacterImpactPanel key={JSON.stringify([id, selectedCharacter.nodeId])} projectId={id} version={version}
               characterId={selectedCharacter.nodeId} document={document} dirty={blockRevision}
               requestText={characterRequests[selectedCharacter.nodeId] ?? ""}
               onRequestChange={text => setCharacterRequests(previous => ({ ...previous, [selectedCharacter.nodeId]: text }))}
-              onApplied={refresh} />}
+              onDiscuss={() => rememberDiscussion(selectedCharacter.nodeId)} onApplied={refresh} />}
             {selectedCharacter && <button type="button" aria-expanded={showGeneralSuggestions} aria-controls="outline-general-suggestions"
               className="text-sm font-medium text-primary hover:underline" onClick={() => setShowGeneralSuggestions(open => !open)}>
               {showGeneralSuggestions ? "收起整份大纲的 AI 建议" : "查看整份大纲的 AI 建议"}

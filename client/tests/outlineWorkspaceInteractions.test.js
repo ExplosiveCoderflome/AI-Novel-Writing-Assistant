@@ -64,7 +64,7 @@ function fixture() {
   };
 }
 
-async function open(t, path) {
+async function open(t, path, respond = () => undefined) {
   const writes = [];
   let saved = fixture(), version = 1;
   runtime.apiClient.defaults.adapter = async config => {
@@ -72,23 +72,32 @@ async function open(t, path) {
     const body = config.data && JSON.parse(config.data);
     if (method !== "get") writes.push({ url, body });
     const record = () => ({ id: "p", title: saved.story.title, currentVersion: version, document: saved });
+    const reply = data => ({ config, data: { success: true, data }, headers: {}, status: 200, statusText: "OK" });
+    const custom = respond(url, method, body);
+    if (custom !== undefined) return reply(custom);
     let data;
     if (url === "/outlines") data = method === "post" ? { project: record() } : [];
     else if (url === "/outlines/p") data = record();
     else if (url.endsWith("/book-binding")) data = null;
-    else if (url.endsWith("/character-impact/proposals")) data = [];
+    else if (url.endsWith("/character-impact/conversation")) data = [];
     else if (url.endsWith("/revisions")) data = [{ id: "r", version }];
     else if (url.endsWith("/revisions/r")) data = { id: "r", version, document: saved };
     else if (url.endsWith("/document")) {
       saved = body.document;
       data = { revision: { version: ++version }, document: saved };
     } else throw Error("Unexpected outline endpoint " + url);
-    return { config, data: { success: true, data }, headers: {}, status: 200, statusText: "OK" };
+    return reply(data);
   };
   let page;
   await runtime.act(async () => { page = runtime.mount(path); });
-  t.after(async () => { await runtime.act(async () => page.app.unmount()); page.cache.clear(); });
-  return { writes, page, conflict: () => { version++; } };
+  let mounted = true;
+  const close = async () => {
+    if (!mounted) return;
+    mounted = false;
+    await runtime.act(async () => page.app.unmount()); page.cache.clear();
+  };
+  t.after(close);
+  return { writes, page, close, conflict: () => { version++; } };
 }
 
 const button = (label, scope = document) => [...scope.querySelectorAll("button")].find(item => item.textContent.trim() === label);
@@ -139,6 +148,64 @@ test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返�
   assert.equal(motivation().value, "找回父亲的航海日志");
   assert.equal(button("保存为新修订").disabled, true);
   assert.deepEqual(writes, []);
+});
+
+test("人物对话重进后自动恢复，追问绑定上一版，旧提案只读，勾选后才写入", async t => {
+  const turns = [], proposals = new Map(), accepted = [];
+  const op = (id, title) => ({ operationId: id, kind: "update_fields", nodeId: id, fields: { role: title },
+    reason: "保留救人的动机", dependsOn: [], affectedNodeIds: [id], risks: [] });
+  function respond(url, method, body) {
+    if (url.endsWith("/character-impact/conversation")) return structuredClone(turns);
+    if (url.endsWith("/conversation/turns")) {
+      const previous = turns.at(-1);
+      assert.equal(body.priorProposalId, previous?.result.id);
+      if (previous) { previous.result.status = "superseded"; proposals.get(previous.result.id).status = "superseded"; }
+      const id = "proposal-" + (turns.length + 1);
+      const result = { id, status: "pending", baseVersion: 1, source: "workbench" };
+      turns.push({ id: body.requestId, requestText: body.requestText, contextVersion: "1", createdAt: new Date().toISOString(),
+        parentResultId: body.priorProposalId ?? null, replyText: "可以保留救人的决定。", status: "completed", result });
+      proposals.set(id, { ...result, projectId: "p", kind: "character_impact",
+        proposalJson: JSON.stringify({ operations: [op("person","提前起疑"),op("风暴","坚持救人")],
+          impact: { characterId: "person", retained: [], writtenChapterIds: [] } }) });
+      return { turnId: body.requestId };
+    }
+    if (url.includes("/proposals/")) {
+      const id = url.split("/proposals/")[1].split("/")[0];
+      if (method === "get") return structuredClone(proposals.get(id));
+      if (url.endsWith("/apply")) {
+        accepted.push(body.operationIds);
+        proposals.get(id).status = "partially_applied"; turns.at(-1).result.status = "partially_applied";
+        return {};
+      }
+    }
+  }
+  window.localStorage.clear();
+  const first = await open(t, "/outlines/p?nodeId=person", respond);
+  const input = () => document.querySelector('[aria-label="人物联动审阅"] textarea');
+  await change(await until(input), "让阿黎提前起疑");
+  await click(await until(() => !button("分析相关卷章与伏笔")?.disabled && button("分析相关卷章与伏笔")));
+  await until(() => button("继续讨论第 1 轮提案"));
+  await first.close();
+
+  await open(t, "/outlines/p", respond);
+  await until(() => button("继续讨论第 1 轮提案"));
+  assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "assistant");
+  assert.match(document.querySelector('[aria-label="对话记录"]').textContent, /让阿黎提前起疑/);
+  await change(input(), "仍然救师父");
+  await click(button("继续讨论第 1 轮提案"));
+  await until(() => button("继续讨论第 2 轮提案"));
+  assert.deepEqual(accepted, []);
+  await click(button("查看第 1 轮提案 · 已有后续提案"));
+  await until(() => document.querySelector('[aria-label="人物联动审阅"]').textContent.includes("提案内容"));
+  assert.equal(button("采纳所选（2）"), undefined);
+  await click(button("查看第 2 轮提案 · 待确认"));
+  const boxes = await until(() => {
+    const items = document.querySelectorAll('[aria-label="人物联动审阅"] input[type="checkbox"]');
+    return items.length === 2 && items;
+  });
+  await click(boxes[1]); await click(button("采纳所选（1）"));
+  await until(() => button("查看第 2 轮提案 · 部分采纳"));
+  assert.deepEqual(accepted, [["person"]]);
 });
 
 test("选卷添加章节后统一保存，修订同时保留章节归属和卷内顺序", async t => {

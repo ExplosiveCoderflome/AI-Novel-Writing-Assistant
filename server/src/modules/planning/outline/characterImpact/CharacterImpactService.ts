@@ -1,13 +1,21 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import { validateOutlineDocument } from "../domain/outlineDocument";
-import { impactRoles, type ImpactRequest, type ImpactReview, type ImpactRole, type ImpactSnapshot, type ImpactSubmission, type ImpactSummary } from "@ai-novel/shared/types/outlineCharacterImpact";
-import { characterImpactPrompt } from "../../../../prompting/prompts/outline/characterImpact.prompt";
+import { impactDialogueReviewSchema, impactRoles, type ImpactRequest, type ImpactReview, type ImpactRole, type ImpactSnapshot, type ImpactSubmission, type ImpactSummary } from "@ai-novel/shared/types/outlineCharacterImpact";
+import { AgentConversationStore } from "../../../agentConversation";
+import { characterDialoguePrompt, characterImpactPrompt } from "../../../../prompting/prompts/outline/characterImpact.prompt";
 import { AppError } from "../../../../middleware/errorHandler";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
 import { mapOutlineGenerateFailure } from "../application/OutlineProposalService";
 import { composeImpact } from "./compose";
 import { readWrittenChapterIds } from "./writtenChapters";
+
+export interface ImpactDialogueContext {
+  scopeKey: string;
+  turnId: string;
+  conversationHistory: { author: string; assistant: string | null }[];
+  priorProposalId?: string;
+}
 
 export class CharacterImpactService {
   constructor(private readonly db: PrismaClient) {}
@@ -36,39 +44,56 @@ export class CharacterImpactService {
     return {projectId, characterId, baseVersion, document, writtenChapterIds, recentCharacterChanges};
   }
 
-  async generate(projectId: string, request: ImpactRequest & {priorProposalId?: string}) {
+  async generate(projectId: string, request: ImpactRequest & {priorProposalId?: string}, dialogue?: ImpactDialogueContext) {
     const snapshot = await this.context(projectId, request.characterId, request.baseVersion);
     let previousProposal;
+    let replacesPending = false;
     if (request.priorProposalId) {
       const previous = await this.db.outlineProposal.findFirst({where: {id: request.priorProposalId, projectId,
-        baseVersion: snapshot.baseVersion, kind: "character_impact", status: "pending"}});
+        kind: "character_impact", ...(dialogue ? {} : {baseVersion: snapshot.baseVersion, status: "pending"})}});
       const payload = previous && JSON.parse(previous.proposalJson);
       if (payload?.impact.characterId !== request.characterId) throw new AppError("原建议与当前人物或版本不符，请刷新待审建议。", 409);
-      previousProposal = {requestText: previous!.requestText, operations: payload.operations, retained: payload.impact.retained};
+      if (!previous || (dialogue && !["pending", "applied", "partially_applied"].includes(previous.status))) {
+        throw new AppError("请基于仍可讨论的提案继续。", 409);
+      }
+      replacesPending = previous.status === "pending" && previous.baseVersion === snapshot.baseVersion;
+      previousProposal = {requestText: previous.requestText, operations: payload.operations, retained: payload.impact.retained,
+        ...(dialogue && {status: previous.status, baseVersion: previous.baseVersion, appliedOperationIds: payload.impact.appliedOperationIds})};
     }
     const reviews: Partial<Record<ImpactRole, ImpactReview>> = {};
+    let reply: { replyText: string; responseKind: "explanation" | "proposal" } | undefined;
     for (const role of impactRoles) {
+      if (dialogue && !await this.db.agentConversationTurn.count({where: {id: dialogue.turnId, scopeKey: dialogue.scopeKey, status: "running"}})) {
+        throw new AppError("本轮讨论已结束。", 409);
+      }
       try {
-        const result = await runOutlineProposalStructuredCall({asset: characterImpactPrompt,
-          promptInput: {snapshot, requestText: request.requestText, role, prior: {...reviews}, previousProposal}});
-        reviews[role] = result.output;
+        const promptInput = {snapshot, requestText: request.requestText, role, prior: {...reviews}, previousProposal,
+          ...(dialogue && {conversationHistory: dialogue.conversationHistory})};
+        if (dialogue) {
+          const result = await runOutlineProposalStructuredCall({asset: characterDialoguePrompt, promptInput});
+          const {replyText, responseKind, ...review} = impactDialogueReviewSchema.parse(result.output);
+          reviews[role] = review;
+          reply = {replyText, responseKind};
+        } else {
+          reviews[role] = (await runOutlineProposalStructuredCall({asset: characterImpactPrompt, promptInput})).output;
+        }
         composeImpact(snapshot, reviews, "workbench");
       } catch (error) { throw mapOutlineGenerateFailure(error, "edit"); }
     }
-    return this.store(projectId, request, reviews, "workbench");
+    return this.store(projectId, request, reviews, "workbench", dialogue && reply ? { ...dialogue, ...reply, replacesPending } : undefined);
   }
 
   submit(projectId: string, submission: ImpactSubmission) {
     return this.store(projectId, submission, submission.reviews, "external");
   }
 
-  private async store(projectId: string, request: ImpactRequest, reviews: Partial<Record<ImpactRole, ImpactReview>>, origin: ImpactSummary["origin"]) {
+  private async store(projectId: string, request: ImpactRequest, reviews: Partial<Record<ImpactRole, ImpactReview>>, origin: ImpactSummary["origin"], dialogue?: ImpactDialogueContext & { replyText: string; responseKind: "explanation" | "proposal"; replacesPending: boolean }) {
     const snapshot = await this.context(projectId, request.characterId, request.baseVersion);
     const payload = composeImpact(snapshot, reviews, origin);
     const data = {
-      projectId, baseVersion: snapshot.baseVersion, status: "pending", kind: "character_impact",
+      projectId, characterNodeId: request.characterId, baseVersion: snapshot.baseVersion, status: "pending", kind: "character_impact",
       requestText: request.requestText, proposalJson: JSON.stringify(payload),
-      ...(origin === "workbench" ? {promptId: characterImpactPrompt.id, promptVersion: characterImpactPrompt.version} : {}),
+      ...(origin === "workbench" ? {promptId: characterImpactPrompt.id, promptVersion: dialogue ? characterDialoguePrompt.version : characterImpactPrompt.version} : {}),
     };
     return this.db.$transaction(async tx => {
       // Serialize publication with revision saves, after all model calls have finished.
@@ -80,7 +105,20 @@ export class CharacterImpactService {
         const id = createHash("sha256").update(JSON.stringify([projectId, snapshot.baseVersion, request.characterId, request.requestText, reviews])).digest("hex");
         return tx.outlineProposal.upsert({where: {id}, create: {...data, id}, update: {}});
       }
-      return tx.outlineProposal.create({data: {...data, id: randomUUID()}});
+      if (dialogue?.responseKind === "explanation") {
+        await AgentConversationStore.complete(tx, dialogue.scopeKey, dialogue.turnId, null, dialogue.replyText);
+        return null;
+      }
+      if (dialogue?.priorProposalId && dialogue.replacesPending) {
+        const parent = await tx.outlineProposal.updateMany({ where: { id: dialogue.priorProposalId, projectId,
+          baseVersion: snapshot.baseVersion, kind: "character_impact", status: "pending" }, data: { status: "superseded" } });
+        if (!parent.count) throw new AppError("上一版提案已处理，请刷新后再发起讨论。", 409);
+      }
+      const proposal = await tx.outlineProposal.create({data: {...data, id: randomUUID()}});
+      if (dialogue) {
+        await AgentConversationStore.complete(tx, dialogue.scopeKey, dialogue.turnId, proposal.id, dialogue.replyText);
+      }
+      return proposal;
     });
   }
 

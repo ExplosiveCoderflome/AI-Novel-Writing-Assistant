@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AgentConversationTurn } from "./agentConversation/turn";
 import type { OutlineDocument } from "./outline";
 
 export const impactRoles = ["character", "plot", "payoff"] as const;
@@ -11,6 +12,15 @@ export const impactRequestSchema = z.object({
 export type ImpactRequest = z.infer<typeof impactRequestSchema>;
 export const impactGenerateSchema = impactRequestSchema.extend({priorProposalId: text.optional()});
 
+export const impactTurnSchema = impactGenerateSchema.extend({ requestId: text.max(128) });
+export interface ImpactResultRef {
+  id: string;
+  status: string;
+  baseVersion: number;
+  source: "workbench" | "external";
+}
+export type ImpactConversationTurn = AgentConversationTurn<ImpactResultRef>;
+
 export const impactReviewSchema = z.object({
   changes: z.array(z.object({
     nodeId: text, field: text, value: z.string().max(12000), reason: text,
@@ -18,6 +28,9 @@ export const impactReviewSchema = z.object({
   }).strict()),
   retained: z.array(z.object({nodeId: text, reason: text}).strict()),
 }).strict();
+export const impactDialogueReviewSchema = impactReviewSchema.extend({
+  replyText: text.max(2400), responseKind: z.enum(["explanation", "proposal"]),
+});
 export type ImpactReview = z.infer<typeof impactReviewSchema>;
 export const impactReviewsSchema = z.object({
   character: impactReviewSchema, plot: impactReviewSchema, payoff: impactReviewSchema,
@@ -34,4 +47,5 @@ export interface ImpactSummary {
   origin: "workbench" | "external";
   retained: {nodeId: string; reason: string; role: ImpactRole}[];
   writtenChapterIds: string[];
+  appliedOperationIds?: string[];
 }

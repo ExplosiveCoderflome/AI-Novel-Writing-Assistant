@@ -7,6 +7,7 @@ test('outline prompts are registered with structured schemas and isolated contex
     ['outline.initial_generate', 'v1'],
     ['outline.edit_proposal', 'v2'],
     ['outline.character_impact', 'v1'],
+    ['outline.character_impact', 'v2'],
     ['outline.import_parse', 'v1'],
   ]) {
     const asset = getRegisteredPromptAsset(id, version);

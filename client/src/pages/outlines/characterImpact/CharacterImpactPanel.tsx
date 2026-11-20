@@ -1,10 +1,9 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
-import type { ImpactSummary } from "@ai-novel/shared/types/outlineCharacterImpact";
+import type { ImpactConversationTurn, ImpactResultRef, ImpactSummary } from "@ai-novel/shared/types/outlineCharacterImpact";
 import { apiClient } from "@/api/client";
 import { applyOutlineProposal, type OutlineEditProposalPayload, type OutlineProposal } from "@/api/outlines";
-import { Button } from "@/components/ui/button";
+import { AgentConversation, type AgentConversationAdapter } from "@/components/agentConversation/AgentConversation";
 import { OutlineProposalPanel } from "../OutlineProposalPanel";
 import { findOutlineNodeTitle } from "../outlineNodes";
 
@@ -17,73 +16,72 @@ type Props = {
   requestText: string;
   onRequestChange: (text: string) => void;
   onApplied: () => Promise<void>;
+  onDiscuss: () => void;
 };
 
-export function CharacterImpactPanel({projectId, version, characterId, document, dirty, requestText, onRequestChange, onApplied}: Props) {
-  const [selectedId, setSelected] = useState("");
-  const queries = useQueryClient();
-  const key = ["outline-character-impact", projectId, version, characterId];
-  const url = `/outlines/${projectId}/character-impact`;
-  const selection = {baseVersion: version, characterId};
-  const list = useQuery({
-    queryKey: key, queryFn: async () => (await apiClient.get(url + "/proposals", {params: selection})).data.data as OutlineProposal[],
+const labels: Record<string, string> = {
+  pending: "待确认", applied: "已采纳", partially_applied: "部分采纳", rejected: "已结束", superseded: "已有后续提案",
+};
+
+function ImpactProposal({ projectId, characterId, result, document, busy, dirty, editable, onDecision }: {
+  projectId: string; characterId: string; result: ImpactResultRef; document: OutlineDocument; busy: boolean; dirty: boolean; editable: boolean;
+  onDecision: (id: string, selection?: string[]) => void;
+}) {
+  const detail = useQuery({
+    queryKey: ["outline-impact-detail", projectId, result.id, result.status],
+    queryFn: async () => (await apiClient.get(`/outlines/${projectId}/proposals/${result.id}`)).data.data as OutlineProposal | null,
   });
-  const proposals = list.data ?? [];
-  const proposal = proposals.find(row => row.id === selectedId) ?? proposals[0];
-  const payload = proposal ? JSON.parse(proposal.proposalJson) as OutlineEditProposalPayload & {impact: ImpactSummary} : undefined;
-  const generate = useMutation({
-    mutationFn: async (priorProposalId?: string) => (await apiClient.post(url + "/generate", {...selection, requestText, priorProposalId}, {errorPresentation: "inline"})).data.data as OutlineProposal,
-    onSuccess: async row => {
-      setSelected(row.id);
-      queries.setQueryData<OutlineProposal[]>(key, old => [row, ...(old ?? []).filter(item => item.id !== row.id)]);
-      await queries.invalidateQueries({queryKey: key});
-    },
-  });
-  const decide = useMutation({
-    mutationKey: ["outline-character-impact-decision", projectId],
-    mutationFn: async ({id, operations}: {id: string; operations?: string[]}) => {
-      if (operations) await applyOutlineProposal(projectId, id, operations);
-      else await apiClient.post(`/outlines/${projectId}/proposals/${id}/reject`);
-    },
-    onSuccess: async (_result, {operations}) => {
-      if (operations) await onApplied();
-      await queries.invalidateQueries({queryKey: key});
-    },
-  });
-  const busy = generate.isPending || decide.isPending;
-  return <section aria-label="人物联动审阅" className="space-y-3 border-b border-border/50 pb-4">
-    <h3 className="font-semibold">调整{findOutlineNodeTitle(document, characterId)}的故事线</h3>
-    <label className="block space-y-1 text-sm">
-      <span>希望人物怎么变？哪些情节要保留？</span>
-      <textarea className="outline-field outline-textarea" rows={3} value={requestText}
-        placeholder="例如：让她提前怀疑师父，但保留救师父的情节，第三卷才揭晓真相。"
-        maxLength={6000} onChange={e => onRequestChange(e.target.value)}/>
-    </label>
-    <Button disabled={dirty || busy || !requestText.trim()} onClick={() => {decide.reset(); generate.mutate(undefined);}}>
-      {generate.isPending ? "正在核对人物、卷章和伏笔…" : "分析相关卷章与伏笔"}
-    </Button>
-    <Button variant="ghost" size="sm" disabled={busy || list.isFetching} onClick={() => void list.refetch()}>刷新待审建议</Button>
-    {(generate.error || decide.error || list.error) && <p role="alert" className="text-sm text-destructive">{(generate.error || decide.error || list.error)?.message}</p>}
-    {proposals.length > 1 && <label className="block text-sm">选择待审提案
-      <select className="mt-1 w-full rounded-md border border-input bg-background p-2" value={proposal?.id} disabled={busy}
-        onChange={e => {setSelected(e.target.value); decide.reset();}}>
-        {proposals.map(row => <option key={row.id} value={row.id}>{row.requestText}</option>)}
-      </select>
-    </label>}
-    {proposal && payload && <>
-      <p className="text-sm">{payload.impact.origin === "external" ? "接入工具提交" : "工作台审阅"} · {proposal.requestText}</p>
-      <Button size="sm" variant="outline" disabled={dirty || busy || !requestText.trim()}
-        onClick={() => generate.mutate(proposal.id)}>用上方要求调整这份提案</Button>
+  if (detail.isLoading) return <p role="status">正在读取提案…</p>;
+  const proposal = detail.data;
+  if (!proposal || proposal.kind !== "character_impact" || proposal.projectId !== projectId) return <p role="alert">未能读取这份提案。<button className="underline" onClick={() => void detail.refetch()}>重试</button></p>;
+  const payload = JSON.parse(proposal.proposalJson) as OutlineEditProposalPayload & { impact: ImpactSummary };
+  if (payload.impact.characterId !== characterId) return <p role="alert">这份提案属于其他人物。</p>;
+  return <OutlineProposalPanel proposal={proposal} document={document} isApplying={busy} applyDisabled={dirty}
+    readOnly={!editable || proposal.status !== "pending"} appliedIds={payload.impact.appliedOperationIds}
+    onApply={ids => onDecision(proposal.id, ids)} onDiscard={() => onDecision(proposal.id)}
+    renderContext={base => <>
       {payload.impact.writtenChapterIds.length > 0 && <details className="text-sm"><summary>已有正文的章节（仅供核对）</summary>
-        <p>{payload.impact.writtenChapterIds.map(id => findOutlineNodeTitle(document, id)).join("、")}</p></details>}
+        <p>{payload.impact.writtenChapterIds.map(id => findOutlineNodeTitle(base, id)).join("、")}</p></details>}
       {payload.impact.retained.length > 0 && <div className="space-y-1 text-sm"><h4 className="font-medium">建议保留</h4>
         <ul className="list-disc space-y-1 pl-5">{payload.impact.retained.map((item, i) =>
-          <li key={i}>{findOutlineNodeTitle(document, item.nodeId)} · {item.reason}</li>)}</ul></div>}
-      {payload.operations.length ? <OutlineProposalPanel key={proposal.id} proposal={proposal} document={document}
-        isApplying={busy} applyDisabled={dirty} onApply={operations => decide.mutate({id: proposal.id, operations})}
-        onDiscard={() => decide.mutate({id: proposal.id})}/> : <>
-        <p className="text-sm">这次审阅建议保留现有大纲。</p><Button size="sm" variant="outline" disabled={busy} onClick={() => decide.mutate({id: proposal.id})}>结束审阅</Button>
-      </>}
-    </>}
-  </section>;
+          <li key={i}>{findOutlineNodeTitle(base, item.nodeId)} · {item.reason}</li>)}</ul></div>}
+    </>} />;
+}
+
+export function CharacterImpactPanel({ projectId, version, characterId, document, dirty, requestText, onRequestChange, onApplied, onDiscuss }: Props) {
+  const queries = useQueryClient();
+  const queryKey = ["agent-conversation", "outline-character", projectId, characterId];
+  const url = `/outlines/${projectId}/character-impact/conversation`;
+  const inline = { errorPresentation: "inline" } as const;
+  const adapter: AgentConversationAdapter<ImpactResultRef> = {
+    queryKey,
+    load: async () => (await apiClient.get(url, { params: { characterId }, ...inline })).data.data as ImpactConversationTurn[],
+    send: async ({ requestId, requestText, parentResultId }) => {
+      await apiClient.post(url + "/turns", { requestId, characterId, baseVersion: version, requestText, priorProposalId: parentResultId }, inline);
+      onDiscuss();
+    },
+    interrupt: turnId => apiClient.post(url + "/interrupt", { characterId, turnId }, inline),
+  };
+  const decide = useMutation({
+    mutationKey: ["outline-character-impact-decision", projectId],
+    mutationFn: async ({ id, selection }: { id: string; selection?: string[] }) => {
+      if (selection) await applyOutlineProposal(projectId, id, selection);
+      else await apiClient.post(`/outlines/${projectId}/proposals/${id}/reject`, {}, inline);
+    },
+    onSuccess: async (_, { selection }) => { if (selection) await onApplied(); },
+    onSettled: () => queries.invalidateQueries({ queryKey }),
+  });
+  const editable = (r: ImpactResultRef) => r.baseVersion === version && r.status === "pending";
+  return <div aria-label="人物联动审阅" className="space-y-2">
+    <AgentConversation adapter={adapter} title={`与 AI 讨论${findOutlineNodeTitle(document, characterId)}的故事线`}
+      inputLabel="希望人物怎么变？哪些情节要保留？" placeholder="例如：让她提前怀疑师父，但保留救师父的情节。"
+      initialAction="分析相关卷章与伏笔" disabled={dirty || decide.isPending} maxLength={6000} value={requestText} onChange={onRequestChange}
+      versionLabel={value => `大纲 v${value}`}
+      followUpAction={(result, n) => editable(result) ? `继续讨论第 ${n} 轮提案` : `按当前大纲重审第 ${n} 轮`}
+      canContinue={r => ["pending", "applied", "partially_applied"].includes(r.status)} describeResult={r => r.status === "pending" && r.baseVersion !== version ? "大纲有新修订" : labels[r.status] ?? "已结束"}
+      renderResult={(result, busy) => <ImpactProposal projectId={projectId} characterId={characterId} result={result} document={document}
+        busy={busy || decide.isPending} dirty={dirty} editable={editable(result)}
+        onDecision={(id, selection) => decide.mutate({ id, selection })} />} />
+    {decide.isError && <p role="alert" className="text-sm text-destructive">{decide.error.message}</p>}
+  </div>;
 }
