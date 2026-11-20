@@ -1116,6 +1116,59 @@ export const BnStarMap = () => {
   );
 };
 
+export const bnFreeFixed = (start) => {
+  if (typeof window === "undefined" || !start) return () => {};
+  const G = window.__bnFF || (window.__bnFF = { n: 0, saved: [] });
+  G.n += 1;
+  const put = (el, prop, val) => {
+    G.saved.push([el, prop, el.style.getPropertyValue(prop), el.style.getPropertyPriority(prop)]);
+    el.style.setProperty(prop, val, "important");
+  };
+  const on = (v) => !!v && v !== "none";
+  const scan = () => {
+    let el = start.parentElement;
+    while (el && el !== document.documentElement) {
+      const cs = window.getComputedStyle(el);
+      if (on(cs.transform)) put(el, "transform", "none");
+      if (on(cs.translate)) put(el, "translate", "none");
+      if (on(cs.rotate)) put(el, "rotate", "none");
+      if (on(cs.scale)) put(el, "scale", "none");
+      if (on(cs.filter)) put(el, "filter", "none");
+      if (on(cs.perspective)) put(el, "perspective", "none");
+      if (on(cs.backdropFilter)) put(el, "backdrop-filter", "none");
+      if (on(cs.webkitBackdropFilter)) put(el, "-webkit-backdrop-filter", "none");
+      if (cs.transformStyle === "preserve-3d") put(el, "transform-style", "flat");
+      if (/transform|translate|rotate|scale|filter|perspective|contain/.test(cs.willChange || "")) put(el, "will-change", "auto");
+      if (/paint|layout|strict|content/.test(cs.contain || "")) put(el, "contain", "none");
+      if (cs.containerType && cs.containerType !== "normal") put(el, "container-type", "normal");
+      if (cs.contentVisibility === "auto") put(el, "content-visibility", "visible");
+      el = el.parentElement;
+    }
+  };
+  scan();
+  const ts = [150, 700, 1600, 3500].map((ms) => setTimeout(scan, ms));
+  let last = 0;
+  const onScroll = () => {
+    const now = Date.now();
+    if (now - last < 400) return;
+    last = now;
+    scan();
+  };
+  window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+  return () => {
+    ts.forEach(clearTimeout);
+    window.removeEventListener("scroll", onScroll, { capture: true });
+    G.n -= 1;
+    if (G.n > 0) return;
+    for (let i = G.saved.length - 1; i >= 0; i--) {
+      const [el, prop, v, p] = G.saved[i];
+      if (v) el.style.setProperty(prop, v, p);
+      else el.style.removeProperty(prop);
+    }
+    G.saved = [];
+  };
+};
+
 export const BnHome = ({ children }) => {
   const wrapRef = useRef(null);
   const busy = useRef(false);
@@ -1123,6 +1176,8 @@ export const BnHome = ({ children }) => {
   const [fx, setFx] = useState(null);
   const xzSeen = useRef(false);
   const current = layers[layers.length - 1].theme;
+
+  useEffect(() => bnFreeFixed(wrapRef.current), []);
 
   useEffect(() => {
     const onSwap = () => setLayers([{ id: Date.now(), theme: "paper" }]);
@@ -1248,6 +1303,7 @@ export const XzIntro = () => {
   }), [run]);
   const timers = useRef([]);
   const swapped = useRef(false);
+  const rootRef = useRef(null);
   const emit = (name) => window.dispatchEvent(new CustomEvent(name));
   const clearAll = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   const later = (ms, fn) => { timers.current.push(setTimeout(fn, ms)); };
@@ -1286,6 +1342,11 @@ export const XzIntro = () => {
     later(6150, finish);
   }, [run]);
 
+  useEffect(() => {
+    if (!run || !rootRef.current) return;
+    return bnFreeFixed(rootRef.current);
+  }, [run]);
+
   if (!run) return null;
 
   const skip = () => {
@@ -1298,7 +1359,7 @@ export const XzIntro = () => {
   const show = ph >= 2 && ph < 5;
 
   return (
-    <div className={"not-prose xzi xzi-p" + ph}>
+    <div ref={rootRef} className={"not-prose xzi xzi-p" + ph}>
       <style>{`
         .xzi{position:fixed;inset:0;z-index:9999;overflow:hidden;color:#1c1a17;font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif}
         .xzi-p4,.xzi-p5{pointer-events:none}
