@@ -35,6 +35,13 @@
 .agent-result-link { background: hsl(var(--muted) / .6); border-radius: .35rem; padding: .45rem .55rem; }
 .agent-result-link[aria-expanded=true] svg:last-child { transform: rotate(180deg); }
 .agent-result-link:hover, .agent-text-action:hover { text-decoration: underline; }
+.agent-thinking { margin-block: .4rem; font-size: .8rem; }
+.agent-thinking button { display: inline-flex; align-items: center; gap: .25rem; min-height: 1.8rem; color: hsl(var(--muted-foreground)); }
+.agent-thinking button[aria-expanded=true] svg { transform: rotate(90deg); }
+.agent-thinking-content { border-inline-start: 2px solid hsl(var(--border)); padding-inline-start: .65rem; }
+.agent-thinking-content p { white-space: pre-wrap; line-height: 1.65; overflow-wrap: anywhere; }
+.agent-thinking-content > div + div { margin-top: .5rem; }
+.agent-reply > .agent-thinking-note { color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .agent-review { margin-top: .45rem; }
 .agent-compose { padding-top: .65rem; }
 .agent-reference { margin: 0 .15rem .45rem; }

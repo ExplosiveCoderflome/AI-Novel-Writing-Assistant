@@ -33,7 +33,7 @@ export class OutlineWorkbenchConversation {
     }]));
     const turns: OutlineConversationTurn[] = rows.map(row => ({ id: row.id, requestText: row.requestText,
       createdAt: row.createdAt.toISOString(), contextVersion: row.contextVersion, status: row.status as OutlineConversationTurn["status"],
-      replyText: row.replyText, parentResultId: row.parentResultId, result: results.get(row.resultId ?? "") ?? null }));
+      thinking: agentReplyLive.recentThinking(row.id, row.status), replyText: row.replyText, parentResultId: row.parentResultId, result: results.get(row.resultId ?? "") ?? null }));
     const linked = new Set(rows.map(row => row.resultId));
     for (const row of proposals) if (!linked.has(row.id)) turns.push({
       id: row.id, requestText: row.requestText ?? "", createdAt: row.createdAt.toISOString(), contextVersion: String(row.baseVersion),

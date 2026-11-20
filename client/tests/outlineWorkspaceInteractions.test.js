@@ -178,7 +178,7 @@ test("从一个想法开始直接进入对话，讨论起点可编辑，中文�
   assert.equal(version, 2);
 });
 
-test("生成中的回复逐段渲染 Markdown，结束后以保存记录为准", async t => {
+test("模型返回的思考先独立显示，回复逐段渲染，重新打开可回看本轮预览", async t => {
   const sources = [];
   const original = Object.getOwnPropertyDescriptor(globalThis, "EventSource");
   class Source {
@@ -190,23 +190,54 @@ test("生成中的回复逐段渲染 Markdown，结束后以保存记录为准",
   t.after(() => { if (original) Object.defineProperty(globalThis,"EventSource",original); else delete globalThis.EventSource; });
   const turn = {id:"live-turn",createdAt:new Date().toISOString(),status:"running",requestText:"开篇写什么？",
     replyText:null,contextVersion:"1",parentResultId:null,result:null};
-  const {writes} = await open(t,"/outlines/p?start=idea",url => url === "/outlines/p/conversation" ? [structuredClone(turn)] : undefined);
+  const read = url => url === "/outlines/p/conversation" ? [structuredClone(turn)] : undefined;
+  const {writes,close} = await open(t,"/outlines/p?start=idea",read);
   const source = await until(() => sources[0]);
   assert.match(source.url,/\/conversation\/turns\/live-turn\/stream$/);
   assert.equal(source.options.withCredentials,true);
-  const send = (text,done=false,turnId=turn.id) => runtime.act(async () => source.frame({turnId,stage:"正在回复…",text,done}));
+  const thinking = [{stage:"大纲搭档",text:"先理清她为何下船。",enabled:false}];
+  const send = (text,done=false,turnId=turn.id) => runtime.act(async () => source.frame({turnId,stage:"正在回复…",text,done,thinking}));
   await send("串线的回复",false,"other-turn");
-  assert.doesNotMatch(document.body.textContent,/串线的回复/);
+  assert.doesNotMatch(document.body.textContent,/串线的回复|先理清她为何下船/);
+  await send("");
+  assert.equal(button("思考过程").getAttribute("aria-expanded"),"true");
+  assert.equal(document.querySelector(".agent-thinking-content p").textContent,thinking[0].text);
+  assert.equal(document.querySelector(".agent-thinking-note"),null);
+  await click(button("思考过程"));
+  assert.equal(document.querySelector(".agent-thinking-content").hidden,true);
   await send("从**渡口**开篇");
   assert.equal(document.querySelector(".agent-reply strong")?.textContent,"渡口");
   assert.equal(button("发送给大纲搭档").disabled,true);
   await send("从**渡口**开篇，让她自己决定。");
   assert.ok(document.querySelector(".agent-reply").textContent.includes("自己决定"));
-  turn.status="completed"; turn.replyText="保存的回复：从渡口开篇。";
+  turn.status="completed"; turn.replyText="保存的回复：从渡口开篇。"; turn.thinking=thinking;
   await send("",true);
   await until(() => document.querySelector(".agent-reply").textContent.includes("保存的回复"));
   assert.doesNotMatch(document.querySelector(".agent-reply").textContent,/自己决定/);
   assert.ok(source.closed); assert.deepEqual(writes,[]);
+  await close();
+  await open(t,"/outlines/p?start=idea",read);
+  const toggle = await until(() => button("思考过程"));
+  assert.equal(toggle.getAttribute("aria-expanded"),"false");
+  await click(toggle);
+  assert.equal(document.querySelector(".agent-thinking-content").hidden,false);
+  assert.equal(document.querySelector(".agent-thinking-content p").textContent,thinking[0].text);
+});
+
+test("只有思考用量时展示实际数值，历史空记录不补写思考", async t => {
+  const base = {createdAt:new Date().toISOString(),status:"completed",requestText:"帮我看动机",replyText:"可以。",contextVersion:"1",parentResultId:null,result:null};
+  const turns = [
+    {...base,id:"usage",thinking:[{stage:"大纲搭档",text:"",enabled:false,reasoningTokens:697}]},
+    {...base,id:"disabled",thinking:[{stage:"大纲搭档",text:"",enabled:false}]},
+    {...base,id:"old"},
+  ];
+  await open(t,"/outlines/p?start=idea",url => url === "/outlines/p/conversation" ? turns : undefined);
+  await until(() => document.querySelector(".agent-thinking-note"));
+  const notes = [...document.querySelectorAll(".agent-thinking-note")].map(el => el.textContent);
+  assert.equal(notes.length,2);
+  assert.match(notes[0],/697 个思考 token/);
+  assert.match(notes[1],/关闭思考/);
+  assert.equal(button("思考过程"),undefined);
 });
 
 test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返回仍保留草稿，冲突时保护输入", async t => {

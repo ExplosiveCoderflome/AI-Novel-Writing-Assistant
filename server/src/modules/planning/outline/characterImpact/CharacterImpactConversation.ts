@@ -37,7 +37,7 @@ export class CharacterImpactConversation {
     }
     const turns: ImpactConversationTurn[] = rows.map(row => ({
       id: row.id, createdAt: row.createdAt.toISOString(), status: row.status as ImpactConversationTurn["status"],
-      requestText: row.requestText, replyText: row.replyText, contextVersion: row.contextVersion, parentResultId: row.parentResultId,
+      requestText: row.requestText, thinking: agentReplyLive.recentThinking(row.id, row.status), replyText: row.replyText, contextVersion: row.contextVersion, parentResultId: row.parentResultId,
       result: row.resultId ? results.get(row.resultId) ?? null : null,
     }));
     return [...legacy, ...turns].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));

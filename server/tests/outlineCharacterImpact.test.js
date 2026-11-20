@@ -120,7 +120,7 @@ test("whole-outline chat drafts, explains, revises, reopens and writes only on e
   assert.equal(inputs.length,5);
 });
 
-test("SSE shows only the current turn's reply before completion, and reconnect replays it", {timeout:10000}, async t => {
+test("SSE replays the current turn’s reasoning and reply, even when a large frame precedes the first reply token", {timeout:10000}, async t => {
   const {project} = await fixture();
   const {llmLiveBroker} = require("../dist/platform/llm/live/LlmLiveBroker");
   let announce, finish;
@@ -128,7 +128,7 @@ test("SSE shows only the current turn's reply before completion, and reconnect r
   const gate = new Promise(resolve => { finish = resolve; });
   const requestId = require("node:crypto").randomUUID();
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,options}) => {
-    const session = llmLiveBroker.begin({mode:"structured",label:"fixture",itemKey:options.itemKey,promptText:"private prompt"});
+    const session = llmLiveBroker.begin({mode:"structured",label:"fixture",itemKey:options.itemKey,reasoningEnabled:false,promptText:"private prompt"});
     announce(session); await gate;
     session.complete();
     return {output:{replyText:"不妨让她在救人时暴露身份。",answer:{kind:"discussion"}},meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
@@ -163,21 +163,64 @@ test("SSE shows only the current turn's reply before completion, and reconnect r
   try {
     assert.equal((await fetch(url.replace("/conversation/turns/","/character-impact/conversation/turns/")+"?characterId=shen")).status,404);
     connection = await connect();
-    session.reasoning("private reasoning");
+    const thought = "先核对她在渡口的选择。".repeat(2600);
+    session.reasoning(thought);
+    const thinkingOnly = await connection.read(frame => frame.thinking?.[0]?.text);
+    assert.equal(thinkingOnly.text, "");
+    assert.equal(thinkingOnly.thinking[0].text, thought);
+    assert.equal(thinkingOnly.thinking[0].enabled, false);
     session.delta('<think>{"replyText":"private thought"}</think>\n{"answer":{"kind":"discussion","replyText":"private nested"},"replyText":"不妨让她在救人时');
     const partial = await connection.read(frame => frame.text?.startsWith("不妨"));
     assert.equal(partial.done,false);
     assert.equal((await api(project,"conversation"))[0].status,"running");
     assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
     connection.close(); connection = await connect();
-    assert.equal((await connection.read(frame=>!!frame.text)).text,partial.text);
+    assert.deepEqual(await connection.read(frame=>!!frame.text), partial);
     session.delta('暴露身份。"}'); session.phase("validating","核对结果");
     const preview = await connection.read(frame=>frame.text?.includes("暴露身份"));
     assert.equal(preview.text,"不妨让她在救人时暴露身份。");
+    session.usage({promptTokens:40,completionTokens:500,totalTokens:540,reasoningTokens:408});
     finish(); await connection.read(frame=>frame.done);
     const [turn] = await api(project,"conversation");
     assert.equal(turn.status,"completed"); assert.equal(turn.replyText,preview.text); assert.equal(turn.result,null);
+    assert.deepEqual(turn.thinking, [{...thinkingOnly.thinking[0], reasoningTokens:408}]);
   } finally { finish(); connection?.close(); }
+});
+
+test("OpenAI-compatible reasoning_content and reasoning_tokens reach a saved outline turn with thinking requested off", async t => {
+  const {project} = await fixture();
+  const factory = require("../dist/llm/factory");
+  const upstream = express();
+  const thought = "先确认渡船为何停航。";
+  const answer = {replyText:"暴风雨迫使她停航。",answer:{kind:"discussion"}};
+  upstream.post("/v1/chat/completions", (req,res) => {
+    res.setHeader("Content-Type","text/event-stream");
+    const chunk = (delta, finish_reason = null) => ({index:0,delta,finish_reason});
+    const emit = (choices,usage) => res.write("data: " + JSON.stringify({id:"fixture",object:"chat.completion.chunk",
+      model:"deepseek-v4-flash",created:1,choices,usage}) + "\n\n");
+    emit([chunk({role:"assistant",reasoning_content:thought})]);
+    emit([chunk({content:JSON.stringify(answer)})]);
+    emit([chunk({},"stop")]);
+    emit([], {prompt_tokens:16,completion_tokens:50,total_tokens:66,completion_tokens_details:{reasoning_tokens:32}});
+    res.end("data: [DONE]\n\n");
+  });
+  const upstreamHttp = upstream.listen(0,"127.0.0.1");
+  await once(upstreamHttp,"listening");
+  t.after(() => new Promise(resolve => upstreamHttp.close(resolve)));
+  const resolve = factory.resolveLLMClientOptions;
+  t.mock.method(factory, "resolveLLMClientOptions", (_provider,options) => resolve("custom_fixture",{
+    ...options, model:"deepseek-v4-flash",baseURL:`http://127.0.0.1:${upstreamHttp.address().port}/v1`,
+    apiKey:"fixture",reasoningEnabled:false,timeoutMs:5000,
+  }));
+  const requestId = require("node:crypto").randomUUID();
+  await api(project,"conversation/turns",{requestId,baseVersion:1,requestText:"渡船为何停航？"});
+  const turn = await settled(project,requestId,project => api(project,"conversation"));
+  assert.equal(turn.status,"completed",turn.replyText);
+  assert.equal(turn.replyText,answer.replyText);
+  assert.equal(turn.thinking[0].text,thought);
+  assert.equal(turn.thinking[0].enabled,false);
+  assert.equal(turn.thinking[0].reasoningTokens,32);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
 });
 
 test("whole-outline conversation protects the saved revision and ignores a late reply after interruption", async t => {
@@ -260,7 +303,7 @@ test("stored conversation supports explanations, revising a proposal, reopening 
   assert.equal((await outlineProjectService.get(project.id)).currentVersion, 2);
 });
 
-test("character reviewers show their stage and stream only the combined author reply", async t => {
+test("character reviewers retain separate reasoning and stream only the combined author reply", async t => {
   const {project,request} = await fixture();
   const {agentReplyLive} = require("../dist/modules/agentConversation");
   const {llmLiveBroker} = require("../dist/platform/llm/live/LlmLiveBroker");
@@ -272,6 +315,11 @@ test("character reviewers show their stage and stream only the combined author r
     if (promptInput.role === "character") {enter();await gate;}
     const replyText = promptInput.role === "payoff" ? "她仍然救师父。" : "内部审阅草稿";
     const session=llmLiveBroker.begin({mode:"structured",label:"fixture",itemKey:options.itemKey});
+    if (promptInput.role === "plot") {
+      session.usage({promptTokens:40,completionTokens:700,totalTokens:740,reasoningTokens:697});
+    } else {
+      session.reasoning("已核对 " + promptInput.role);
+    }
     session.delta(JSON.stringify({replyText})); session.complete();
     return {output:asset.outputSchema.parse({...sample()[promptInput.role],replyText,responseKind:"proposal"})};
   });
@@ -280,7 +328,12 @@ test("character reviewers show their stage and stream only the combined author r
   const unsubscribe=agentReplyLive.subscribe(requestId,frame=>frames.push(frame));
   try {
     release();
-    assert.equal((await settled(project,requestId)).status,"completed");
+    const turn = await settled(project,requestId);
+    assert.equal(turn.status,"completed");
+    assert.deepEqual(turn.thinking.map(step => step.text), ["已核对 character", "", "已核对 payoff"]);
+    assert.equal(turn.thinking[1].reasoningTokens, 697);
+    assert.match(turn.thinking[1].stage, /相关卷章/);
+    assert.deepEqual((await timeline(project))[0].thinking, turn.thinking);
     assert.ok(frames.some(frame=>frame.stage.includes("人物动机")));
     assert.ok(frames.some(frame=>frame.stage.includes("相关卷章")));
     assert.ok(frames.some(frame=>frame.text==="她仍然救师父。"));

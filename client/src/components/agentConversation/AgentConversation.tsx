@@ -4,6 +4,7 @@ import { ArrowUp, ArrowUpRight, Bookmark, ChevronDown, Feather, FileText, Refres
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 import { subscribeSnapshots } from "@/lib/streaming/subscribeSnapshots";
 import type { AgentConversationTurn, AgentTurnInput, AgentReplyPreview } from "@ai-novel/shared/types/agentConversation/turn";
+import { AgentThinking } from "./AgentThinking";
 import "./agentConversation.css";
 
 export interface AgentConversationAdapter<Result> {
@@ -63,6 +64,8 @@ export function AgentConversation<Result extends { id: string }>({
       const frame = raw as Partial<AgentReplyPreview> | null;
       if (!frame || frame.turnId !== running?.id || typeof frame.text !== "string"
         || typeof frame.stage !== "string" || typeof frame.done !== "boolean") return;
+      if (frame.thinking !== undefined && (!Array.isArray(frame.thinking) ||
+        !frame.thinking.every(step => step && typeof step.stage === "string" && typeof step.text === "string"))) return;
       if (frame.done) { close(); void refetch(); }
       else setPreview(frame as AgentReplyPreview);
     });
@@ -70,7 +73,7 @@ export function AgentConversation<Result extends { id: string }>({
   }, [streamUrl, running?.id, refetch]);
   useEffect(() => {
     const feed = feedRef.current;
-    if (preview?.text && followReply.current && feed) feed.scrollTop = feed.scrollHeight;
+    if (preview && followReply.current && feed) feed.scrollTop = feed.scrollHeight;
   }, [preview]);
   useEffect(() => {
     // Scroll only the conversation. Moving the workbench itself steals the author's place in the editor.
@@ -125,6 +128,7 @@ export function AgentConversation<Result extends { id: string }>({
           return <li key={turn.id} ref={index === turns.length - 1 ? lastTurn : undefined}>
             <div className="agent-author"><small>你{from && ` · 追问第 ${from.number} 轮`}</small><p>{turn.requestText}</p></div>
             <div className="agent-reply"><small><Feather size={13} aria-hidden="true" />{title} · {versionLabel(turn.contextVersion)}</small>
+              <AgentThinking steps={live?.thinking ?? turn.thinking} running={turn.status === "running"} />
               {turn.status === "running" ? <>
                 <p role="status" className="text-muted-foreground">{live?.stage || "正在整理你的想法…"}</p>
                 {live?.text && <MarkdownViewer content={live.text} />}
