@@ -131,6 +131,7 @@ export interface PromptExecutionOptions {
   maxTokens?: number;
   automaticMaxTokens?: number;
   structuredDiagnosticContext?: StructuredDiagnosticContext;
+  structuredTransportRetryCount?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   novelId?: string;
