@@ -226,6 +226,7 @@ export class GenerationContextAssembler {
           characterId: true, currentInterpretation: true, privateIntent: true, activePlan: true,
           emotionalStance: true, actionTendency: true, decisionTrigger: true, beliefsJson: true,
           misbeliefsJson: true, evidenceJson: true, confidence: true, sourceChapterId: true,
+          sourceChapter: { select: { order: true } },
         },
         orderBy: { updatedAt: "desc" },
       }),
@@ -376,13 +377,15 @@ export class GenerationContextAssembler {
       ? await characterLocationService.readBeforeChapter({novelId, chapterOrder: chapter.order, characters: novel.characters}) : null;
     const mappedCharacterRoster = novel.characters.map((item) => {
       const canonicalCharacter = canonicalCharacterMap.get(item.id);
+      const adjustment = canonicalCharacter?.forwardAdjustment;
       return {
         id: item.id,
         name: item.name,
         role: item.role,
         personality: item.personality ?? null,
         background: item.background ?? null,
-        development: item.development ?? null,
+        development: adjustment?.development !== undefined ? adjustment.development : item.development ?? null,
+        ...(adjustment?.development !== undefined ? { authorAdjustedDevelopment: adjustment.development } : {}),
         identityLabel: item.identityLabel ?? null,
         factionLabel: item.factionLabel ?? null,
         stanceLabel: item.stanceLabel ?? null,
@@ -392,8 +395,8 @@ export class GenerationContextAssembler {
         ...(characterLocations?.has(item.id) ? {locationState: characterLocations.get(item.id)} : {}),
         availability: item.availability ?? null,
         prohibitions: parseCharacterProhibitionsJson(item.prohibitionsJson),
-        currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
-        currentGoal: canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
+        currentState: adjustment?.currentState !== undefined ? adjustment.currentState : canonicalCharacter?.currentState ?? item.currentState ?? null,
+        currentGoal: adjustment?.currentGoal !== undefined ? adjustment.currentGoal : canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
         appearance: item.appearance ?? null,
         physique: item.physique ?? null,
         attireStyle: item.attireStyle ?? null,
@@ -414,7 +417,10 @@ export class GenerationContextAssembler {
         return [];
       }
     };
-    const characterMindStates = characterMindRows.map((item) => ({
+    const characterMindStates = characterMindRows.filter(item => (
+      !canonicalCharacterMap.get(item.characterId)?.forwardAdjustment
+      || (item.sourceChapter && item.sourceChapter.order < chapter.order)
+    )).map((item) => ({
       characterId: item.characterId,
       currentInterpretation: item.currentInterpretation,
       privateIntent: item.privateIntent,
@@ -524,7 +530,17 @@ export class GenerationContextAssembler {
       stateSnapshot: mappedStateSnapshot,
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
-      characterDynamics,
+      characterDynamics: characterDynamics && {
+        ...characterDynamics,
+        characters: characterDynamics.characters.map(item => {
+          const adjustment = canonicalCharacterMap.get(item.characterId)?.forwardAdjustment;
+          return {
+            ...item,
+            currentState: adjustment?.currentState !== undefined ? adjustment.currentState : item.currentState,
+            currentGoal: adjustment?.currentGoal !== undefined ? adjustment.currentGoal : item.currentGoal,
+          };
+        }),
+      },
       characterMindStates,
       characterDialogueGuidances,
       characterRoster: mappedCharacterRoster,
@@ -641,9 +657,14 @@ export class GenerationContextAssembler {
     });
     let ragText = "";
     try {
+      const adjustedCharacterIds = canonicalState.characters.filter(item => item.forwardAdjustment).map(item => item.characterId).sort();
+      const visibleChapters = adjustedCharacterIds.length ? await prisma.chapter.findMany({
+        where: { novelId, order: { lte: chapter.order } }, select: { id: true }, orderBy: { order: "asc" },
+      }) : null;
       ragText = await ragServices.hybridRetrievalService.buildContextBlock(ragQuery, {
         novelId,
         currentChapterOrder: chapter.order,
+        ...(visibleChapters ? { chapterCharacterScope: { adjustedCharacterIds, visibleChapterIds: visibleChapters.map(item => item.id) } } : {}),
       });
     } catch {
       ragText = "";

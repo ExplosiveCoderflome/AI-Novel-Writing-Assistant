@@ -9,11 +9,14 @@ import { visibleCharacterHistory } from "./model";
 import type { WorkspaceBook, WorkspaceCharacter } from "./model";
 import { previewCharacterHistory } from "./previewBook";
 import {CharacterAppearances} from "./characters/CharacterAppearances";
+import { characterForwardPreviewKey, getCharacterForwardPreview } from "@/api/characterForwardAdjustment";
+import type { CharacterForwardPreview } from "@ai-novel/shared/types/characterForwardAdjustment";
 
-export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources }: {
+export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources, onAdjust }: {
   book: WorkspaceBook; character: WorkspaceCharacter; readingOrder: number | null; preview: boolean;
   onClose: () => void; onChapter: (id: string) => void; onPlan: (id: string) => void;
   onResources?: (id:string) => void;
+  onAdjust?: (preview: CharacterForwardPreview) => void;
 }) {
   const [latest, setLatest] = useState(false);
   const historyQuery = useQuery({
@@ -30,6 +33,12 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
   const latestCharacter = latestQuery.data?.data?.characters.find(row => row.characterId === character.id);
   const currentGoal = preview ? character.currentGoal : latestCharacter?.currentGoal;
   const currentState = preview ? (character.id === "lin" ? "接纳沈知入城，开始调查旧城印记。" : null) : latestCharacter?.currentState;
+  const adjustmentQuery = useQuery({
+    queryKey: characterForwardPreviewKey(book.novel.id, character.id),
+    queryFn: () => getCharacterForwardPreview(book.novel.id, character.id),
+    enabled: !preview && !!onAdjust, retry: false, refetchInterval: 10000,
+  });
+  const adjustment = adjustmentQuery.data;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <AppDialogContent title={character.name} description="查看角色变化及其章节来源" className="left-auto right-0 top-0 h-dvh max-h-dvh w-full max-w-md translate-x-0 translate-y-0 rounded-none sm:w-[420px]">
       <div className="flex gap-2" role="group" aria-label="角色记录范围">
@@ -38,13 +47,20 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
       </div>
       <p className="mt-3 text-xs leading-6 text-muted-foreground">{latest ? "包含全书已保存的记录，可能透露后续剧情。" : readingOrder === null ? "先选择一个阅读章节，再查看对应范围的变化记录。" : `仅展示第 ${readingOrder} 章及以前的变化记录。`}</p>
       {onResources ? <Button size="sm" variant="ghost" className="mt-3" onClick={()=>onResources(character.id)}>查看背包与资源</Button> : null}
+      {!preview && onAdjust ? <div className="mt-3 space-y-2">
+        <Button size="sm" variant="outline" disabled={!adjustment || !!adjustment.blockedReason || adjustmentQuery.isError}
+          onClick={() => { if (adjustment) onAdjust(adjustment); }}>从后续章节起调整</Button>
+        {adjustmentQuery.isError ? <p role="alert" className="text-xs text-destructive">
+          {adjustmentQuery.error.message}<Button size="sm" variant="ghost" onClick={() => void adjustmentQuery.refetch()}>重试</Button>
+        </p> : adjustment?.blockedReason ? <p className="text-xs text-muted-foreground">{adjustment.blockedReason}</p> : null}
+      </div> : null}
       {latest ? <section className="mt-6 space-y-3 rounded-md bg-muted/40 p-4">
         <h3 className="text-sm font-medium">最新保存状态</h3>
         {!preview && latestQuery.isError ? <p role="alert" className="text-sm text-destructive">最新状态读取失败。<Button size="sm" variant="ghost" onClick={() => void latestQuery.refetch()}>重新读取</Button></p>
           : latestQuery.isLoading && !preview ? <p className="text-sm text-muted-foreground">正在读取最新状态…</p>
             : <><p className="whitespace-pre-wrap text-sm leading-7">{currentState || "暂无状态描述"}</p><p className="whitespace-pre-wrap text-sm leading-7"><span className="text-muted-foreground">行动目标：</span>{currentGoal || "暂无行动目标"}</p><p className="text-xs text-muted-foreground">此状态未提供逐章历史快照。</p></>}
       </section> : null}
-      <CharacterAppearances novelId={book.novel.id} characterId={character.id} preview={preview} boundary={latest ? "latest" : readingOrder} planning={book.planning} onSelect={target=>{if(target.kind==="chapter") onChapter(target.id);else onPlan(target.id);onClose();}}/>
+      <CharacterAppearances novelId={book.novel.id} characterId={character.id} preview={preview} boundary={latest ? "latest" : readingOrder} planning={book.planning} notices={book.characterForwardPlanNotices} onSelect={target=>{if(target.kind==="chapter") onChapter(target.id);else onPlan(target.id);onClose();}}/>
       <section className="mt-7"><h3 className="text-sm font-semibold">其他变化记录</h3>
         {!preview && historyQuery.isError ? <p role="alert" className="mt-4 text-sm text-destructive">变化记录读取失败。<Button size="sm" variant="ghost" onClick={() => void historyQuery.refetch()}>重新读取</Button></p>
           : !preview && historyQuery.isLoading ? <p className="mt-4 text-sm text-muted-foreground">正在读取变化记录…</p>

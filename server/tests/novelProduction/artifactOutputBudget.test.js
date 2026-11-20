@@ -11,6 +11,7 @@ const {buildChapterArtifactLedgerContext} = require('../../dist/services/novel/r
 
 function extractionService() {
   const {ChapterArtifactDeltaService} = loadRuntimeSource('ChapterArtifactDeltaService.ts', {
+    '../characters/forwardAdjustments/chapterFields': {},
     '../../../db/prisma': {prisma: {
       novel: {findUnique: async () => ({title: '药铺'})},
       chapter: {findFirst: async () => ({id: 'chapter-test', order: 2, title: '开门', taskSheet: '收好钥匙'})},

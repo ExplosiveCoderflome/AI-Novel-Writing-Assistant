@@ -405,6 +405,7 @@ model Novel {
   characterInfluenceProposals CharacterInfluenceProposal[]
   characterDialogueSessions CharacterDialogueSession[]
   characterDialogueInfluences CharacterDialogueInfluence[]
+  characterForwardAdjustments CharacterForwardAdjustment[]
   characterResourceItems CharacterResourceLedgerItem[]
   characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
@@ -914,6 +915,7 @@ model Character {
   influenceProposals CharacterInfluenceProposal[]
   dialogueSessions CharacterDialogueSession[]
   dialogueInfluences CharacterDialogueInfluence[]
+  forwardAdjustments CharacterForwardAdjustment[]
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -1199,6 +1201,23 @@ model CharacterCastOptionRelation {
   updatedAt       DateTime @updatedAt
 
   @@index([optionId, sortOrder])
+}
+
+model CharacterForwardAdjustment {
+  id                        String    @id @default(cuid())
+  novelId                   String
+  characterId               String
+  revision                  Int
+  effectiveFromChapterOrder Int
+  beforeJson                String
+  afterJson                 String
+  runId                     String?
+  createdAt                 DateTime  @default(now())
+  novel                     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character                 Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, revision], map: "CharacterForwardAdjustment_character_revision_key")
+  @@index([novelId, effectiveFromChapterOrder], map: "CharacterForwardAdjustment_novel_chapter_idx")
 }
 
 model CharacterTimeline {

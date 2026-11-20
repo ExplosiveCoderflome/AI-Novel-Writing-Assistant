@@ -49,6 +49,7 @@
 - Windows：真实 Prisma 生产 probe（`windows-publish-path-verify`）、PE／布局验证（`verify-desktop-package`）、NSIS／portable 打包与构建期签名。
 - 已在 Ubuntu `test:all`／`test:quality` 覆盖的迁移与 quality 门禁不在 Windows 发布路径重复执行。
 - macOS／Linux：本平台打包契约与原生构建检查保留在对应 `build-*` job。
+- Linux AppImage：Sharp 的 `.node` 和同架构 `libvips-cpp.so.*` 必须按原有相邻依赖结构部署在 `app.asar.unpacked`。ELF loader 按 Sharp 的相对 RPATH 从磁盘加载共享库，无法读取 ASAR 内的文件。`afterPack` 必须校验两者的磁盘路径和 ELF 架构，不能只看归档文件清单。
 
 ### 非发布三平台打包验收
 

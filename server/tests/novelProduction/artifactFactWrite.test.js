@@ -25,6 +25,7 @@ test('V2 summary and fact writes consume AI deltas rather than rerunning legacy 
     '../ChapterArtifactContentVersion':version,
   }):{};
   const {ChapterArtifactDeltaService}=loadRuntimeSource('ChapterArtifactDeltaService.ts',{
+    '../characters/forwardAdjustments/chapterFields':{},
     '../characters/appearances':{characterAppearanceService:{applyFinalChapter:async()=>{throw Error('fact writing must not write appearances');}}},
     '../../../db/prisma':{prisma},'../../../prompting/core/promptRunner':{},
     '../../../prompting/prompts/novel/chapterArtifactDelta.prompts':{},'../../rag':{ragServices:{ragIndexService:{enqueueUpsert:async(type,id)=>{queued.push([type,id]);}}}},
@@ -90,6 +91,7 @@ test('notify failures do not block V2 summary and fact persistence',async()=>{
     '../ChapterArtifactContentVersion':version,
   });
   const {ChapterArtifactDeltaService}=loadRuntimeSource('ChapterArtifactDeltaService.ts',{
+    '../characters/forwardAdjustments/chapterFields':{},
     '../characters/appearances':{characterAppearanceService:{applyFinalChapter:async()=>{throw Error('fact writing must not write appearances');}}},
     '../../../db/prisma':{prisma},'../../../prompting/core/promptRunner':{},
     '../../../prompting/prompts/novel/chapterArtifactDelta.prompts':{},'../../rag':{ragServices:{ragIndexService:{enqueueUpsert:async(type,id)=>{queued.push([type,id]);}}}},

@@ -98,6 +98,7 @@ test('retrieval filters outdated and future fact chunks before topK fusion, reta
     chunk('ordinary',{}, {ownerType:'world',ownerId:'w'}),
   ];
   const {HybridRetrievalService} = loadRuntimeSource('../../rag/HybridRetrievalService.ts', {
+    './facts/ChapterCharacterScope':loadRuntimeSource('../../rag/facts/ChapterCharacterScope.ts', {}),
     '../../db/prisma':{prisma:f.prisma},'../../config/rag':{ragConfig:{enabled:true,defaultTenantId:'tenant',finalTopK:2,rerankerEnabled:false}},
     './utils':ragUtils,'./EmbeddingService':{},'./VectorStoreService':{},
     '../knowledge/common':{resolveKnowledgeDocumentIds:async()=>[]},

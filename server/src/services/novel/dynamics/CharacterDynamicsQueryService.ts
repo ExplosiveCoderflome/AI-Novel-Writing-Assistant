@@ -132,6 +132,7 @@ export class CharacterDynamicsQueryService {
             where: {
               novelId,
               chapterOrder: { in: Array.from(currentVolumeChapterOrders) },
+              source: { not: "author_adjust" },
             },
             select: {
               characterId: true,

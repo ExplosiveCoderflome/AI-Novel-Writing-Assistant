@@ -1,7 +1,10 @@
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection } from "./planning";
+import { Button } from "@/components/ui/button";
 
-export function PlanningDetail({book,selected,onSelect}: {book:WorkspaceBook;selected:Selection;onSelect:(item:Selection)=>void}) {
+export function PlanningDetail({book,selected,onSelect,onOpenChapterReview}: {
+  book:WorkspaceBook;selected:Selection;onSelect:(item:Selection)=>void;onOpenChapterReview?:()=>void;
+}) {
   const tree = buildStoryDirectory(book,book.planning);
   const group = tree.volumes.find(group => selected.kind === "volume" ? group.volume.id === selected.id
     : selected.kind === "beat" ? group.volume.id === selected.volumeId
@@ -15,6 +18,8 @@ export function PlanningDetail({book,selected,onSelect}: {book:WorkspaceBook;sel
   const chapters = selected.kind === "beat" ? beatGroup?.chapters ?? [] : group.chapters;
   const text = (label:string,value?:string|null) => value ? <section className="py-3"><h3 className="mb-2 text-sm font-medium text-muted-foreground">{label}</h3><p className="whitespace-pre-wrap leading-8">{value}</p></section> : null;
   const targets = entry?.plan;
+  const notice = book.characterForwardPlanNotices?.find(item => item.planId === targets?.id);
+  const reviewReady = !!notice && book.reviewContexts?.some(context => context.type === "chapter_task_sheet" && context.chapterId === notice.planId);
   const goal = <>{text("剧情目标",targets?.purpose)}{text("章节概要",targets?.summary)}{text("核心事件",targets?.exclusiveEvent)}{text("结尾状态",targets?.endingState)}</>;
   return <div className="mx-auto max-w-[42rem] px-2 pb-5 sm:px-6">
     <nav aria-label="故事归属" className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -22,6 +27,11 @@ export function PlanningDetail({book,selected,onSelect}: {book:WorkspaceBook;sel
       {beat ? <><span>/</span><button className="hover:text-primary focus-visible:underline" onClick={()=>onSelect(beatSelection(volume.id,beat))}>{beat.title || beat.label}</button></> : entry ? <span>/ 节奏段待关联</span> : null}
       {entry ? <span>/ 第{entry.plan?.chapterOrder}章</span> : null}
     </nav>
+    {notice ? <div className="mb-4 space-y-2 rounded-md bg-muted/40 p-3 text-sm">
+      <p>待核对 · 本章计划涉及调整过的角色。</p>
+      {reviewReady && onOpenChapterReview ? <Button size="sm" variant="outline" onClick={onOpenChapterReview}>前往章节确认</Button>
+        : <p className="text-xs text-muted-foreground">可查看本章安排，并在章节任务待确认时编辑。</p>}
+    </div> : null}
     {compact ? targets ? <details className="bg-muted/25 px-4 py-3"><summary className="cursor-pointer text-sm">本章目标</summary>{goal}</details> : null : <>
       <h2 className="mb-4 text-2xl font-semibold">{selected.kind === "volume" ? volume.title : selected.kind === "beat" ? beat?.title || beat?.label : targets?.title}</h2>
       {selected.kind === "volume" ? <>

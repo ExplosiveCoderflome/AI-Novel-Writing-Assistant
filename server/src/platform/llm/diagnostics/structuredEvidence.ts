@@ -47,7 +47,9 @@ export function classifyResponseEvidence(
     const item = record(current);
     const code = token(item.code ?? record(item.error).code);
     const httpStatus = status(item.status ?? item.statusCode);
-    evidence.errorChain.push({ name: token(item.name) ?? "Error", code, status: httpStatus });
+    const name = token(item.name);
+    const className = current instanceof Error && (!name || name === "Error") ? token(current.constructor.name) : null;
+    evidence.errorChain.push({ name: className ?? name ?? "Error", code, status: httpStatus });
     evidence.httpStatus ??= httpStatus;
     evidence.providerCode ??= code;
     const headers = item.headers as { get?: (key: string) => unknown } | undefined;
@@ -70,7 +72,7 @@ export function classifyResponseEvidence(
   if (evidence.refused || evidence.finishReason === "content_filter" || evidence.finishReason === "refusal") return "blocked";
   if (evidence.httpStatus === 429) return "rate_limited";
   if (evidence.errorChain.some((item) => ["ETIMEDOUT", "ESOCKETTIMEDOUT"].includes(item.code ?? "")
-    || ["TimeoutError", "APITimeoutError"].includes(item.name))) return "timeout";
+    || ["TimeoutError", "APITimeoutError", "APIConnectionTimeoutError"].includes(item.name))) return "timeout";
   if (evidence.errorChain.some((item) => ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ECONNABORTED"].includes(item.code ?? "")
     || item.name === "APIConnectionError")) return "network";
   if (evidence.finishReason === "length" || evidence.finishReason === "max_tokens") {

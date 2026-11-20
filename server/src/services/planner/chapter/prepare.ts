@@ -10,7 +10,7 @@ import type { ChapterPlanPreparationDependencies,GenerateChapterPlanOptions } fr
 
 /** Read-only native source assembly. Caller owns dispatch and persistence. */
 export async function prepareChapterPlan(novelId: string, chapterId: string, options: GenerateChapterPlanOptions, deps: ChapterPlanPreparationDependencies) {
-  const {novel,chapter,bible,plotBeats,summaries,characters,bookPlan,arcPlans,volumePlans,recentAuditReports,recentDecisions,storyMacroPlanRow,styleEngine,pendingReviewProposalCount}=await readChapterPlanInputs(novelId,chapterId,options,deps);
+  const {novel,chapter,bible,plotBeats,summaries,characters: rawCharacters,bookPlan,arcPlans,volumePlans,recentAuditReports,recentDecisions,storyMacroPlanRow,styleEngine,pendingReviewProposalCount}=await readChapterPlanInputs(novelId,chapterId,options,deps);
   const storyModeBlock = buildPlannerStoryModeBlock(novel);
   const storyMacroPlan = storyMacroPlanRow ? mapRowToPlan(storyMacroPlanRow) : null;
   const payoffLedger = await deps.readPayoff(novelId, {
@@ -111,6 +111,14 @@ export async function prepareChapterPlan(novelId: string, chapterId: string, opt
     openAuditIssueCount: openAuditIssues.length,
     hasRepairableDraft: Boolean(chapter.content?.trim()),
   });
+  const adjustedFields = new Map(resolvedStateDrivenContext.snapshot.characters?.flatMap(item => (
+    item.forwardAdjustment ? [[item.characterId, item.forwardAdjustment] as const] : []
+  )));
+  const characters = rawCharacters.map(item => ({ ...item, ...adjustedFields.get(item.id) }));
+  const chapterSummaries = adjustedFields.size ? await deps.db.chapterSummary.findMany({
+    where: { novelId, chapter: { order: { lt: chapter.order } } },
+    orderBy: { chapter: { order: "desc" } }, take: 4,
+  }) : summaries;
   const plannerStateGoalText = buildPlannerStateGoalText({
     summary: resolvedStateDrivenContext.chapterStateGoal?.summary ?? null,
     targetConflicts: resolvedStateDrivenContext.chapterStateGoal?.targetConflicts ?? [],
@@ -179,8 +187,11 @@ export async function prepareChapterPlan(novelId: string, chapterId: string, opt
     arcPlans: arcPlans.length > 0
       ? arcPlans.map((plan) => `${plan.externalRef ?? "-"} ${plan.title} | ${plan.objective}${plan.phaseLabel ? ` | 阶段=${plan.phaseLabel}` : ""}`).join("\n")
       : "无",
-    characters: characters.map((item) => `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`).join("\n") || "无",
-    recentSummaries: summaries.map((item) => `${item.summary}`).join("\n") || "无",
+    characters: characters.map((item) => [
+      `${item.id}|${item.name}|${item.role}|goal=${item.currentGoal ?? ""}|state=${item.currentState ?? ""}`,
+      item.development ? `成长方向=${item.development.slice(0, 480)}` : "",
+    ].filter(Boolean).join("|")).join("\n") || "无",
+    recentSummaries: chapterSummaries.map((item) => `${item.summary}`).join("\n") || "无",
     plotBeats: plotBeats.map((item) => `${item.chapterOrder ?? "-"} ${item.title} ${item.content}`).join("\n") || "无",
     stateSnapshot: buildStateContextBlockFromCanonical(resolvedStateDrivenContext.snapshot),
     openAuditIssues: openAuditIssues.join("\n") || "无",
