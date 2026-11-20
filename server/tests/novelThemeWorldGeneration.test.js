@@ -6,6 +6,7 @@ const { prisma } = require("../dist/db/prisma.js");
 const factory = require("../dist/llm/factory.js");
 const modelRouter = require("../dist/llm/modelRouter.js");
 const settings = require("../dist/llm/structuredFallbackSettings.js");
+const { resolveCapability, saveCapability } = require("../dist/llm/compatibility/store.js");
 const { setWorldGenerationTimeoutForTests } = require("../dist/services/settings/worldGeneration/timeoutSettings.js");
 const { NovelWorldInstanceService } = require("../dist/services/novel/worldContext/NovelWorldInstanceService.js");
 const { runNovelThemeWorldGeneration } = require("../dist/services/novel/worldContext/novelThemeWorldGeneration.js");
@@ -15,7 +16,7 @@ const model = "flash-lite-fixture";
 const alternateModel = "fallback-fixture";
 class APIConnectionTimeoutError extends Error {}
 
-const fullBudget = 6_000;
+const fullBudget = DEFAULT_MODEL_OUTPUT_TOKENS;
 const selected = { provider, model, timeoutMs: 120_000 };
 const promptInput = {
   novelTitle: "长夜提灯人", description: "灯塔守夜人寻找真相", targetAudience: "", bookSellingPoint: "",
@@ -29,7 +30,7 @@ const world = {
   },
 };
 
-function mockRequests(t, results, { routeMaxTokens, fallback = false } = {}) {
+function mockRequests(t, results, { routeMaxTokens, fallback = false, fallbackMaxTokens = null } = {}) {
   const calls = [];
   factory.setProviderSecretCache(provider, { key: "test-key", baseURL: "https://models.invalid/v1", model });
   t.after(() => factory.setProviderSecretCache(provider, null));
@@ -39,7 +40,7 @@ function mockRequests(t, results, { routeMaxTokens, fallback = false } = {}) {
     requestProtocol: "openai_compatible", structuredResponseFormat: "prompt_json", routeKey,
   }));
   t.mock.method(settings, "getStructuredFallbackSettings", async () => ({
-    enabled: fallback, provider, model: alternateModel, temperature: 0.2, maxTokens: null,
+    enabled: fallback, provider, model: alternateModel, temperature: 0.2, maxTokens: fallbackMaxTokens,
     retryCount: 3,
   }));
   t.mock.method(factory, "createLLMFromResolvedOptions", options => ({
@@ -87,7 +88,7 @@ test("opening scope starts smaller and retries a timeout once using the configur
   const result = await runNovelThemeWorldGeneration({ ...promptInput, openingOnly: true }, selected);
   assert.equal(result.output.title, world.title);
   assert.deepEqual(calls.map(call => [call.maxTokens, call.timeoutMs]), [
-    [4_800, selected.timeoutMs], [4_800, selected.timeoutMs],
+    [12_000, selected.timeoutMs], [12_000, selected.timeoutMs],
   ]);
 });
 
@@ -97,7 +98,7 @@ test("a timeout after a truncation retry reports the resolved model, wait and ra
     assert.equal(error.statusCode, 504);
     assert.equal(error.category, "transport_error");
     assert.equal(error.details.sourceRoute, "/settings/models");
-    assert.match(error.message, /flash-lite-fixture.*本次等待 [\d.]+ 秒.*12,000 Token.*模型与厂商/);
+    assert.match(error.message, /flash-lite-fixture.*本次等待 [\d.]+ 秒.*32,768 Token.*模型与厂商/);
     return true;
   });
   assert.equal(calls.length, 2);
@@ -117,21 +118,33 @@ test("two timeouts leave the existing world binding unchanged", async t => {
   assert.equal((await prisma.novel.findUnique({ where: { id: novel.id } })).worldId, original.id);
 });
 
-test("an explicit route limit is never raised and the failure reports the actual cap", async t => {
-  const calls = mockRequests(t, ["thinking"], { routeMaxTokens: 6_000 });
+test("legacy route settings below the world budget floor do not shrink either attempt", async t => {
+  const calls = mockRequests(t, ["thinking", "success"], { routeMaxTokens: 3_200 });
+  await runNovelThemeWorldGeneration({ ...promptInput, openingOnly: true }, selected);
+  assert.deepEqual(calls.map(call => call.maxTokens), [12_000, 24_000]);
+});
+
+test("a route limit above the floor clamps the initial budget", async t => {
+  const calls = mockRequests(t, ["success"], { routeMaxTokens: 14_000 });
+  await runNovelThemeWorldGeneration(promptInput, selected);
+  assert.deepEqual(calls.map(call => call.maxTokens), [14_000]);
+});
+
+test("a truncation retry stops at the route cap and reports the cap if it still fails", async t => {
+  const calls = mockRequests(t, ["thinking", "thinking"], { routeMaxTokens: 20_000 });
   await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), error => {
     assert.equal(error.statusCode, 502);
     assert.equal(error.category, "reasoning_budget_exhausted");
     assert.equal(error.details.sourceRoute, "/settings/model-routes");
-    assert.match(error.message, /6,000 Token.*大纲策划/);
+    assert.match(error.message, /20,000 Token.*大纲策划/);
     return true;
   });
-  assert.deepEqual(calls.map(call => call.maxTokens), [6_000]);
+  assert.deepEqual(calls.map(call => call.maxTokens), [fullBudget, 20_000]);
 });
 
 test("a configured fallback remains the only retry and reports its own model on failure", async t => {
-  const calls = mockRequests(t, ["timeout", "timeout"], { fallback: true });
-  await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), /模型「fallback-fixture」生成世界设定超时/);
+  const calls = mockRequests(t, ["timeout", "timeout"], { fallback: true, fallbackMaxTokens: 22_000 });
+  await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), /模型「fallback-fixture」生成世界设定超时.*22,000 Token/);
   assert.deepEqual(calls.map(call => call.model), [model, alternateModel]);
 });
 
@@ -140,7 +153,7 @@ test("a rate limit reports the model and the requested allowance without a silen
   await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), error => {
     assert.equal(error.statusCode, 429);
     assert.equal(error.category, "transport_error");
-    assert.match(error.message, /模型「flash-lite-fixture」触发了限流（429）。本次实际申请上限为 6,000 Token/);
+    assert.match(error.message, /模型「flash-lite-fixture」触发了限流（429）。本次实际申请上限为 16,384 Token/);
     return true;
   });
   assert.equal(calls.length, 1);
@@ -153,4 +166,12 @@ test("a network error is not treated as a timeout or output exhaustion", async t
     return true;
   });
   assert.equal(calls.length, 1);
+});
+
+test("a known endpoint capability below the application floor still caps the physical request", async t => {
+  const calls = mockRequests(t, ["thinking"]);
+  const identity = { provider, model, baseURL: "https://models.invalid/v1" };
+  await saveCapability(identity, { ...resolveCapability(identity), source: "user_override", maxOutputTokens: 8_000 });
+  await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), /8,000 Token.*模型兼容性/);
+  assert.deepEqual(calls.map(call => call.maxTokens), [8_000]);
 });

@@ -46,8 +46,8 @@ test("generating a novel world keeps the selected model instead of forcing DeepS
     assert.equal(captured[0].provider, "ollama");
     assert.equal(captured[0].model, "qwen3:8b");
     assert.equal(captured[0].temperature, 0.35);
-    assert.equal(captured[0].maxTokens, undefined);
-    assert.equal(captured[0].automaticMaxTokens, DEFAULT_MODEL_OUTPUT_TOKENS * 1.25);
+    assert.equal(captured[0].maxTokens, DEFAULT_MODEL_OUTPUT_TOKENS);
+    assert.equal(captured[0].automaticMaxTokens, undefined);
     assert.equal(captured[0].reasoningEnabled, false);
     assert.equal(captured[0].transportRetryCount, 0);
     assert.equal(captured[0].timeoutMs, 120_000);
