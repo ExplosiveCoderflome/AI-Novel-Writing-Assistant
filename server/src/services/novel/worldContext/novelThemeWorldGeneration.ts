@@ -1,4 +1,3 @@
-import { DEFAULT_MODEL_OUTPUT_TOKENS } from "@ai-novel/shared/types/llm";
 import type { StructuredResponseEvidence } from "@ai-novel/shared/types/structuredDiagnostics";
 import { runWithInvocationChain } from "../../../llm/compatibility";
 import { StructuredOutputError } from "../../../llm/structuredOutput";
@@ -13,8 +12,13 @@ import { rethrowWithWorldGenerationTimeoutHint } from "../../settings/worldGener
 const WORLD_BUDGET_RETRY_CEILING = 48 * 1024;
 
 function retryBudget(response?: StructuredResponseEvidence): number | undefined {
-  if (response?.budgetTrace?.source !== "automatic" || response.maxTokens == null) return undefined;
+  if (response == null) return undefined;
   const trace = response.budgetTrace;
+  if (trace == null || response.maxTokens == null) return undefined;
+  // A frozen budget is a scoped override: raising it is a no-op.
+  if (trace.source === "frozen") return undefined;
+  // Never raise above an explicit route cap.
+  if (trace.routeMaxTokens != null && response.maxTokens >= trace.routeMaxTokens) return undefined;
   const limit = response.maxTokens;
   // Some providers report visible tokens only even when thinking exhausted the request.
   const truncated = response.finishReason === "length" || response.finishReason === "max_tokens";
@@ -44,15 +48,23 @@ export function runNovelThemeWorldGeneration(
   promptInput: NovelThemeWorldGenerationPromptInput,
   options: PromptExecutionOptions,
 ) {
-  // Full-book scope covers more rules and relationships than the opening slice.
-  let automaticMaxTokens = DEFAULT_MODEL_OUTPUT_TOKENS * (promptInput.openingOnly ? 1 : 1.25);
+  // Some endpoints bill the requested allowance against their TPM limit:
+  // SenseNova accepts 6,000 but rejects 8,192+ outright with 429 before any
+  // token is generated, so start small and let truncation double the budget.
+  // This must be an explicit maxTokens: the automatic mechanism floors at
+  // the planner default (16,384), which already trips the limit.
+  const WORLD_GENERATION_START_BUDGET = 6_000;
+  const WORLD_GENERATION_OPENING_START_BUDGET = 4_800;
+  let requestedMaxTokens = promptInput.openingOnly
+    ? WORLD_GENERATION_OPENING_START_BUDGET
+    : WORLD_GENERATION_START_BUDGET;
   return runWithInvocationChain(async () => {
     for (let attempt = 0; ; attempt++) {
       try {
         return await runStructuredPrompt({
           asset: novelThemeWorldGenerationPrompt,
           promptInput,
-          options: { ...options, reasoningEnabled: false, automaticMaxTokens, structuredTransportRetryCount: 0 },
+          options: { ...options, reasoningEnabled: false, maxTokens: requestedMaxTokens, structuredTransportRetryCount: 0 },
         });
       } catch (error) {
         if (!(error instanceof StructuredOutputError)) rethrowWithWorldGenerationTimeoutHint(error);
@@ -60,6 +72,24 @@ export function runNovelThemeWorldGeneration(
         const budgetFailure = error.category === "reasoning_budget_exhausted" || error.category === "output_budget_exhausted";
         const timedOut = error.category === "transport_error"
           && (response?.failureReason === "timeout" || response?.httpStatus === 408 || response?.httpStatus === 504);
+        const rateLimited = error.category === "transport_error"
+          && (response?.failureReason === "rate_limited" || response?.httpStatus === 429);
+        const model = target?.model ?? options.model;
+        const modelLabel = model ? `模型「${model}」` : "模型";
+        // Pre-stream failures report the route default instead of the allowance
+        // this attempt actually requested, so clamp to the requested budget.
+        const requestLimit = response?.maxTokens == null
+          ? requestedMaxTokens
+          : Math.min(requestedMaxTokens, response.maxTokens);
+        const limit = `本次实际申请上限为 ${requestLimit.toLocaleString("zh-CN")} Token。`;
+        if (rateLimited) {
+          // A reservation-based 429 cannot clear by retrying the same allowance.
+          throw new NovelThemeWorldGenerationError(
+            `${modelLabel}触发了限流（429）。${limit}请稍后再试，或更换模型后重试。`,
+            429,
+            error,
+          );
+        }
         if (!budgetFailure && !timedOut) throw error;
 
         // A configured fallback is the second chance; don't restart the primary chain afterwards.
@@ -67,16 +97,12 @@ export function runNovelThemeWorldGeneration(
           && currentModelRequestBudget()?.remaining() !== 0) {
           const nextBudget = budgetFailure ? retryBudget(response) : undefined;
           if (nextBudget != null) {
-            automaticMaxTokens = nextBudget;
+            requestedMaxTokens = nextBudget;
             continue;
           }
           if (timedOut) continue;
         }
 
-        const model = target?.model ?? options.model;
-        const modelLabel = model ? `模型「${model}」` : "模型";
-        const requestLimit = response?.maxTokens;
-        const limit = requestLimit == null ? "" : `本次实际申请上限为 ${requestLimit.toLocaleString("zh-CN")} Token。`;
         if (timedOut) {
           const waited = response?.durationMs == null ? "" : `（本次等待 ${(response.durationMs / 1000).toFixed(1)} 秒）`;
           throw new NovelThemeWorldGenerationError(
@@ -87,7 +113,7 @@ export function runNovelThemeWorldGeneration(
         }
         const reason = error.category === "reasoning_budget_exhausted"
           ? "用完输出额度仍未返回世界设定" : "在世界设定完整返回前耗尽了输出额度";
-        const routeLimited = response?.budgetTrace?.source === "route";
+        const routeLimited = response?.budgetTrace?.routeMaxTokens != null;
         const settingsHint = routeLimited
           ? "请在「设置 → 模型路由管理 → 大纲策划」核对最大输出长度，或更换模型后重试。"
           : "请在「设置 → 模型与厂商 → 模型兼容性」核对模型输出上限，或更换模型后重试。";

@@ -138,6 +138,10 @@
 - 诊断路径：结构化调用的错误信息里保留了围栏原文「正文准备包含未登记的模型请求」，说明请求死在发出前而不是网络层；再比对切片 `metadata.storyInputDigest` 与当前解析输入的摘要，可确认是来源不一致导致的永久过期。
 - 相关模块：`NovelWorldSliceService`、`WorldContextGateway`、生产内核 `preparation` 组合层、伏笔账本 `readScope`（同一作用域模式的先例）。
 
+- 症状（2026-11-20 实证）：世界设定生成在 SenseNova flash-lite 上约 1 秒内报 429 `RateLimitExceeded.EndpointRPMExceeded`，而同一 key、同一端点、max_tokens=50 的请求能通过。
+- 诊断路径：该端点按申请的 maxTokens 计 TPM/RPM——20480、16384、8192 都直接拒收，6000 及以下可通过；429 是预留检查，不是时间窗耗尽，重试同一额度不会恢复。注意自动额度机制有 16384 的下限（`factory.ts` 的 `Math.max(DEFAULT_MODEL_OUTPUT_TOKENS, …)`），低于该值的起始预算必须用显式 maxTokens 传入；显式额度会覆盖路由上限，重试时需用 `budgetTrace.routeMaxTokens` 守住路由上限。
+- 相关模块：`runNovelThemeWorldGeneration`、`server/src/llm/factory.ts`（额度解析）、`structuredEvidence.ts`（429 归类为 `rate_limited`）。
+
 ## 世界资产预留
 
 `WorldAsset` 是世界模块面向地图和图谱能力的扩展点。它可以挂在外部 `World` 样本上，也可以挂在小说内部 `NovelWorld` 副本上，两者不能通过自动同步隐式覆盖。后续地图、势力图谱、世界时间线、角色关系网和力量体系树都应写入 `WorldAsset.renderDataJson`，而不是塞回 `World.structureJson` 或 `NovelWorld.storySliceJson`。

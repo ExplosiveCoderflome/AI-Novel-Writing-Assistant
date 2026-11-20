@@ -15,7 +15,7 @@ const model = "flash-lite-fixture";
 const alternateModel = "fallback-fixture";
 class APIConnectionTimeoutError extends Error {}
 
-const fullBudget = DEFAULT_MODEL_OUTPUT_TOKENS * 1.25;
+const fullBudget = 6_000;
 const selected = { provider, model, timeoutMs: 120_000 };
 const promptInput = {
   novelTitle: "长夜提灯人", description: "灯塔守夜人寻找真相", targetAudience: "", bookSellingPoint: "",
@@ -49,6 +49,7 @@ function mockRequests(t, results, { routeMaxTokens, fallback = false } = {}) {
       assert.ok(result, "unexpected model request");
       if (result === "timeout") throw new APIConnectionTimeoutError("Request timed out.");
       if (result === "network") throw Object.assign(new Error("socket reset"), { code: "ECONNRESET" });
+      if (result === "rate_limited") throw Object.assign(new Error("429 inference exceeds tpm/rpm limit"), { status: 429 });
       if (result === "success") {
         yield { content: JSON.stringify(world), response_metadata: { finish_reason: "stop" } };
       } else {
@@ -86,7 +87,7 @@ test("opening scope starts smaller and retries a timeout once using the configur
   const result = await runNovelThemeWorldGeneration({ ...promptInput, openingOnly: true }, selected);
   assert.equal(result.output.title, world.title);
   assert.deepEqual(calls.map(call => [call.maxTokens, call.timeoutMs]), [
-    [DEFAULT_MODEL_OUTPUT_TOKENS, selected.timeoutMs], [DEFAULT_MODEL_OUTPUT_TOKENS, selected.timeoutMs],
+    [4_800, selected.timeoutMs], [4_800, selected.timeoutMs],
   ]);
 });
 
@@ -96,7 +97,7 @@ test("a timeout after a truncation retry reports the resolved model, wait and ra
     assert.equal(error.statusCode, 504);
     assert.equal(error.category, "transport_error");
     assert.equal(error.details.sourceRoute, "/settings/models");
-    assert.match(error.message, /flash-lite-fixture.*本次等待 [\d.]+ 秒.*40,960 Token.*模型与厂商/);
+    assert.match(error.message, /flash-lite-fixture.*本次等待 [\d.]+ 秒.*12,000 Token.*模型与厂商/);
     return true;
   });
   assert.equal(calls.length, 2);
@@ -132,6 +133,17 @@ test("a configured fallback remains the only retry and reports its own model on 
   const calls = mockRequests(t, ["timeout", "timeout"], { fallback: true });
   await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), /模型「fallback-fixture」生成世界设定超时/);
   assert.deepEqual(calls.map(call => call.model), [model, alternateModel]);
+});
+
+test("a rate limit reports the model and the requested allowance without a silent retry", async t => {
+  const calls = mockRequests(t, ["rate_limited"]);
+  await assert.rejects(runNovelThemeWorldGeneration(promptInput, selected), error => {
+    assert.equal(error.statusCode, 429);
+    assert.equal(error.category, "transport_error");
+    assert.match(error.message, /模型「flash-lite-fixture」触发了限流（429）。本次实际申请上限为 6,000 Token/);
+    return true;
+  });
+  assert.equal(calls.length, 1);
 });
 
 test("a network error is not treated as a timeout or output exhaustion", async t => {
