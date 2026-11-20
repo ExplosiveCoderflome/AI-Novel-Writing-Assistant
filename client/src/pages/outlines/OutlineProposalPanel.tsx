@@ -47,6 +47,7 @@ interface OutlineProposalPanelProps {
   proposal: OutlineProposal;
   document: OutlineDocument;
   isApplying: boolean;
+  applyDisabled?: boolean;
   onApply: (operationIds: string[]) => void;
   onDiscard: () => void;
 }
@@ -116,7 +117,7 @@ function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPa
   );
 }
 
-export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, onApply, onDiscard }: OutlineProposalPanelProps) {
+export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, applyDisabled, onApply, onDiscard }: OutlineProposalPanelProps) {
   const revisions = useQuery({ queryKey: ["outline-revisions", proposal.projectId], queryFn: () => listOutlineRevisions(proposal.projectId) });
   const baseRevision = revisions.data?.find(item => item.version === proposal.baseVersion);
   const base = useQuery({ queryKey: ["outline-revision", proposal.projectId, baseRevision?.id], queryFn: () => getOutlineRevision(proposal.projectId, baseRevision!.id), enabled: !!baseRevision });
@@ -161,24 +162,28 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
     <section className="space-y-4 border-t border-border/50 pt-4">
       <div>
         <h3 className="font-medium">待确认的建议</h3>
-        <p className="mt-1 text-xs text-muted-foreground">基于修订 v{proposal.baseVersion}。勾选需要的操作，依赖项必须一起采纳。</p>
+        <p className="mt-1 text-xs text-muted-foreground">基于修订 v{proposal.baseVersion}。{"operations" in payload ? "选中想保留的修改，再一起采纳。" : "检查故事安排，采纳后即可逐项编辑。"}</p>
       </div>
 
       {"operations" in payload ? (
         <>
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="text-muted-foreground">已选择 {selectedIds.length} / {operations.length} 项</span>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedIds(allOperationIds)}>全选</Button>
+            <Button type="button" size="sm" variant="ghost" disabled={isApplying}
+              onClick={() => setSelectedIds(selectedIds.length === operations.length ? [] : allOperationIds)}>
+              {selectedIds.length === operations.length ? "取消全选" : "全选"}
+            </Button>
           </div>
-          <ul className="space-y-3">
+          <ul className="divide-y divide-border/60">
             {operations.map(operation => {
               const ownMissing = missingDependencies.find(result => result.operationId === operation.operationId);
               return (
-                <li key={operation.operationId} className="space-y-3 bg-muted/25 p-3">
+                <li key={operation.operationId} className="space-y-3 py-4">
                   <label className="flex cursor-pointer items-start gap-2">
                     <input
                       type="checkbox"
                       className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                      disabled={isApplying}
                       checked={selected.has(operation.operationId)}
                       onChange={() => toggleOperation(operation.operationId)}
                     />
@@ -205,24 +210,19 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
             })}
           </ul>
           {!selectedIds.length ? <p role="alert" className="text-xs text-destructive">至少选择一项操作后才能部分采纳。</p> : null}
-          {missingDependencies.length ? <p role="alert" className="text-xs text-destructive">当前组合缺少前置操作，请按提示补齐，或改为采纳全部。</p> : null}
+          {missingDependencies.length ? <p role="alert" className="text-xs text-destructive">请一起勾选上面标出的关联修改。</p> : null}
           {allMissingDependencies.length ? <p role="alert" className="text-xs text-destructive">提案包含未知的依赖操作，请放弃后重新生成建议。</p> : null}
         </>
       ) : <InitialProposalPreview payload={payload} />}
 
       <div className="space-y-2">
         {"operations" in payload ? (
-          <Button className="w-full" onClick={() => onApply(allOperationIds)} disabled={isApplying || allMissingDependencies.length > 0}>
-            采纳全部
+          <Button className="w-full" onClick={() => onApply(selectedIds)} disabled={isApplying || applyDisabled || !selectedIsComplete}>
+            {isApplying ? "正在处理…" : `采纳所选（${selectedIds.length}）`}
           </Button>
         ) : (
-          <Button className="w-full" onClick={() => onApply([])} disabled={isApplying}>采纳这份大纲</Button>
+          <Button className="w-full" onClick={() => onApply([])} disabled={isApplying || applyDisabled}>采纳这份大纲</Button>
         )}
-        {"operations" in payload ? (
-          <Button className="w-full" variant="secondary" onClick={() => onApply(selectedIds)} disabled={isApplying || !selectedIsComplete}>
-            采纳所选（{selectedIds.length}）
-          </Button>
-        ) : null}
         <Button className="w-full" variant="ghost" onClick={onDiscard} disabled={isApplying}>放弃</Button>
       </div>
     </section>

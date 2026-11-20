@@ -8,10 +8,18 @@ import { Button } from "@/components/ui/button";
 import { OutlineProposalPanel } from "../OutlineProposalPanel";
 import { findOutlineNodeTitle } from "../outlineNodes";
 
-type Props = {projectId: string; version: number; characterId: string; document: OutlineDocument; dirty: boolean; onApplied: () => Promise<void>};
+type Props = {
+  projectId: string;
+  version: number;
+  characterId: string;
+  document: OutlineDocument;
+  dirty: boolean;
+  requestText: string;
+  onRequestChange: (text: string) => void;
+  onApplied: () => Promise<void>;
+};
 
-export function CharacterImpactPanel({projectId, version, characterId, document, dirty, onApplied}: Props) {
-  const [requestText, setRequest] = useState("");
+export function CharacterImpactPanel({projectId, version, characterId, document, dirty, requestText, onRequestChange, onApplied}: Props) {
   const [selectedId, setSelected] = useState("");
   const queries = useQueryClient();
   const key = ["outline-character-impact", projectId, version, characterId];
@@ -47,11 +55,10 @@ export function CharacterImpactPanel({projectId, version, characterId, document,
     <h3 className="font-semibold">调整{findOutlineNodeTitle(document, characterId)}的故事线</h3>
     <label className="block space-y-1 text-sm">
       <span>希望人物怎么变？哪些情节要保留？</span>
-      <textarea className="outline-textarea w-full rounded-md border border-input bg-background px-3 py-2" rows={3} value={requestText}
+      <textarea className="outline-field outline-textarea" rows={3} value={requestText}
         placeholder="例如：让她提前怀疑师父，但保留救师父的情节，第三卷才揭晓真相。"
-        maxLength={6000} onChange={e => setRequest(e.target.value)}/>
+        maxLength={6000} onChange={e => onRequestChange(e.target.value)}/>
     </label>
-    {dirty && <p className="text-sm text-muted-foreground">请先保存手动修改，再按这版大纲分析或采纳。</p>}
     <Button disabled={dirty || busy || !requestText.trim()} onClick={() => {decide.reset(); generate.mutate(undefined);}}>
       {generate.isPending ? "正在核对人物、卷章和伏笔…" : "分析相关卷章与伏笔"}
     </Button>
@@ -73,7 +80,7 @@ export function CharacterImpactPanel({projectId, version, characterId, document,
         <ul className="list-disc space-y-1 pl-5">{payload.impact.retained.map((item, i) =>
           <li key={i}>{findOutlineNodeTitle(document, item.nodeId)} · {item.reason}</li>)}</ul></div>}
       {payload.operations.length ? <OutlineProposalPanel key={proposal.id} proposal={proposal} document={document}
-        isApplying={busy || dirty} onApply={operations => decide.mutate({id: proposal.id, operations})}
+        isApplying={busy} applyDisabled={dirty} onApply={operations => decide.mutate({id: proposal.id, operations})}
         onDiscard={() => decide.mutate({id: proposal.id})}/> : <>
         <p className="text-sm">这次审阅建议保留现有大纲。</p><Button size="sm" variant="outline" disabled={busy} onClick={() => decide.mutate({id: proposal.id})}>结束审阅</Button>
       </>}
