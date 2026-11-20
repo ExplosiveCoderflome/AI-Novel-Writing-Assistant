@@ -4,15 +4,15 @@ import { ArrowLeft, Check, FilePenLine, History, ListTree, MessageSquareText, Sp
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import {
-  applyOutlineProposal, exportOutline, generateOutlineProposal, getOutline, getOutlineBookBinding,
-  listOutlineRevisions, saveOutline, type OutlineProject, type OutlineProposal, type OutlineProposalKind,
+  exportOutline, getOutline, getOutlineBookBinding,
+  listOutlineRevisions, saveOutline, type OutlineProject,
 } from "@/api/outlines";
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { featureFlags } from "@/config/featureFlags";
 import { CharacterImpactPanel } from "./characterImpact/CharacterImpactPanel";
 import { OutlineFeedbackPanel, shouldShowOutlineFeedbackPanel } from "./OutlineFeedbackPanel";
-import { OutlineProposalPanel } from "./OutlineProposalPanel";
+import { OutlineConversation } from "./workspace/OutlineConversation";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
 import { findOutlineNode, type OutlineNode } from "./outlineNodes";
 import { OutlineDirectory } from "./workspace/OutlineDirectory";
@@ -38,17 +38,15 @@ function OutlineWorkspace({ id }: { id: string }) {
     try { return !requestedNode && !fromIdea && !feedbackLink ? window.localStorage.getItem(bookmarkKey) : null; }
     catch { return null; }
   });
-  const [nodeId, setNodeId] = useState(requestedNode ?? lastDiscussion);
+  const [nodeId, setNodeId] = useState(requestedNode ?? (lastDiscussion === "story" ? null : lastDiscussion));
   function rememberDiscussion(person: string) {
     try { window.localStorage.setItem(bookmarkKey, person); } catch { /* Server history is still available by selecting the person. */ }
   }
   const [pane, setPane] = useState<Pane>(fromIdea || feedbackLink || lastDiscussion ? "assistant" : "editor");
   const [inspector, setInspector] = useState<Inspector>(feedbackLink ? "feedback" : "suggestions");
-  const [proposalKind, setProposalKind] = useState<OutlineProposalKind>(fromIdea ? "initial_generation" : "edit");
   const [request, setRequest] = useState("");
   const [characterRequests, setCharacterRequests] = useState<Record<string, string>>({});
-  const [showGeneralSuggestions, setShowGeneralSuggestions] = useState(false);
-  const [proposal, setProposal] = useState<OutlineProposal | null>(null);
+  const [wholeForCharacter, setWholeForCharacter] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ baseVersion: number; document: OutlineDocument } | null>(null);
   const inspectorRef = useRef<HTMLElement>(null);
   const client = useQueryClient();
@@ -64,7 +62,8 @@ function OutlineWorkspace({ id }: { id: string }) {
   const hasUnsavedChanges = draft !== null;
   const hasConflict = !!draft && draft.baseVersion !== version;
   const nestedDecisions = useIsMutating({ mutationKey: ["outline-character-impact-decision", id] })
-    + useIsMutating({ mutationKey: ["outline-revision-decision", id] });
+    + useIsMutating({ mutationKey: ["outline-revision-decision", id] })
+    + useIsMutating({ mutationKey: ["outline-discussion-decision", id] });
   const refresh = async () => {
     await Promise.all(["outline", "outline-revisions", "outline-book-binding", "outlines"].map(key =>
       client.invalidateQueries({ queryKey: key === "outlines" ? [key] : [key, id] })));
@@ -80,22 +79,6 @@ function OutlineWorkspace({ id }: { id: string }) {
     },
     onError: () => query.refetch().then(() => undefined),
   });
-  const propose = useMutation({
-    mutationFn: () => generateOutlineProposal(id, request, proposalKind),
-    onSuccess: setProposal,
-  });
-  const apply = useMutation({
-    mutationFn: (operations: string[]) => applyOutlineProposal(id, proposal!.id, operations),
-    onSuccess: async () => {
-      setProposal(null);
-      if (proposal?.kind === "initial_generation") {
-        setPane("editor"); setNodeId(null); setProposalKind("edit"); setRequest("");
-        setParams(previous => { previous.delete("start"); previous.delete("nodeId"); return previous; }, { replace: true });
-      }
-      await refresh();
-    },
-    onError: () => query.refetch().then(() => undefined),
-  });
   const download = useMutation({
     mutationFn: async (format: "json" | "markdown") => {
       const value = await exportOutline(id, format);
@@ -107,9 +90,9 @@ function OutlineWorkspace({ id }: { id: string }) {
       URL.revokeObjectURL(url);
     },
   });
-  const writing = save.isPending || apply.isPending || nestedDecisions > 0;
+  const writing = save.isPending || nestedDecisions > 0;
   const blockRevision = !!draft || writing;
-  const selectNode = (id: string) => { setNodeId(id); setPane("editor"); };
+  const selectNode = (id: string) => { setNodeId(id); setPane("editor"); setWholeForCharacter(null); };
   useEffect(() => { if (requestedNode) { setNodeId(requestedNode); setPane("editor"); } }, [requestedNode]);
   useEffect(() => { if (feedbackLink) { setPane("assistant"); setInspector("feedback"); } }, [feedbackLink]);
   useEffect(() => {
@@ -188,7 +171,7 @@ function OutlineWorkspace({ id }: { id: string }) {
       <section aria-label="大纲内容编辑" className="outline-editor">
         {selected ? <OutlineNodeEditor key={selected.nodeId} document={document} node={selected} disabled={writing} onChange={updateField}
           onSelect={selectNode} onReviewCharacter={() => {
-            rememberDiscussion(selected.nodeId);
+            setWholeForCharacter(null); rememberDiscussion(selected.nodeId);
             setInspector("suggestions"); setPane("assistant");
             requestAnimationFrame(() => inspectorRef.current?.querySelector<HTMLTextAreaElement>('[aria-label="人物联动审阅"] textarea')?.focus());
           }} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
@@ -218,41 +201,29 @@ function OutlineWorkspace({ id }: { id: string }) {
           <button aria-pressed={activeInspector === "history"} onClick={() => setInspector("history")}><History />修订历史</button>
           {showFeedback && <button aria-pressed={activeInspector === "feedback"} onClick={() => setInspector("feedback")}><MessageSquareText />章节反馈</button>}
         </div>
-        <div className="outline-inspector-body">
+        <div className="outline-inspector-body" data-conversation={activeInspector === "suggestions"}>
           {draft && <p role="status" className="mb-4 text-sm text-muted-foreground">先保存手动修改，再生成建议或采用其他版本。</p>}
-          <div hidden={activeInspector !== "suggestions"} className="space-y-5">
-            {selectedCharacter && query.data?.document?.characters.some(person => person.nodeId === selectedCharacter.nodeId) && <CharacterImpactPanel key={JSON.stringify([id, selectedCharacter.nodeId])} projectId={id} version={version}
-              characterId={selectedCharacter.nodeId} document={document} dirty={blockRevision}
-              requestText={characterRequests[selectedCharacter.nodeId] ?? ""}
-              onRequestChange={text => setCharacterRequests(previous => ({ ...previous, [selectedCharacter.nodeId]: text }))}
-              onDiscuss={() => rememberDiscussion(selectedCharacter.nodeId)} onApplied={refresh} />}
-            {selectedCharacter && <button type="button" aria-expanded={showGeneralSuggestions} aria-controls="outline-general-suggestions"
-              className="text-sm font-medium text-primary hover:underline" onClick={() => setShowGeneralSuggestions(open => !open)}>
-              {showGeneralSuggestions ? "收起整份大纲的 AI 建议" : "查看整份大纲的 AI 建议"}
-            </button>}
-            <section id="outline-general-suggestions" hidden={!!selectedCharacter && !showGeneralSuggestions} className="space-y-3">
-              <label className="block space-y-2 text-sm font-medium">希望 AI 帮你做什么？
-                <select className="outline-field" aria-label="AI 建议类型" value={proposalKind} disabled={propose.isPending}
-                  onChange={event => setProposalKind(event.target.value as OutlineProposalKind)}>
-                  <option value="edit">调整当前大纲</option><option value="initial_generation">从想法生成初版</option>
-                </select>
-              </label>
-              <label className="block space-y-2 text-sm font-medium">{proposalKind === "initial_generation" ? "你的故事想法" : "你的修改要求"}
-                <textarea autoFocus={fromIdea} aria-label={proposalKind === "initial_generation" ? "你的故事想法" : "给 AI 的修改要求"}
-                  rows={4} className="outline-field outline-textarea" placeholder={proposalKind === "initial_generation" ? "例如：一个能替人保存记忆的女孩，发现自己最想找回的那段记忆属于别人。" : "例如：把第二卷的真相揭晓推迟到结尾，保留主角和妹妹的和解。"}
-                  value={request} onChange={event => setRequest(event.target.value)} />
-              </label>
-              <p className="text-xs leading-relaxed text-muted-foreground">先查看建议和影响范围，采纳后保存为新修订。</p>
-              <Button className="w-full" disabled={!request.trim() || blockRevision || propose.isPending} onClick={() => propose.mutate()}>
-                {propose.isPending ? "正在生成建议…" : proposalKind === "initial_generation" ? "生成大纲建议" : "提出修改建议"}</Button>
-              {propose.isError && <p role="alert" className="text-sm text-destructive">{propose.error.message}</p>}
-              {proposal && <>
-                {proposal.baseVersion !== version && <p role="status" className="text-sm text-warning">这份建议基于旧修订，请重新生成后采纳。</p>}
-                <OutlineProposalPanel key={proposal.id} proposal={proposal} document={document} isApplying={apply.isPending}
-                  applyDisabled={blockRevision || proposal.baseVersion !== version} onApply={ids => apply.mutate(ids)} onDiscard={() => setProposal(null)} />
-              </>}
-              {apply.isError && <p role="alert" className="text-sm text-destructive">{apply.error.message}</p>}
-            </section>
+          <div hidden={activeInspector !== "suggestions"} className="outline-conversations">
+            {selectedCharacter && <div className="outline-scope" role="group" aria-label="对话范围">
+              <button type="button" aria-pressed={wholeForCharacter !== selectedCharacter.nodeId}
+                onClick={() => { setWholeForCharacter(null); rememberDiscussion(selectedCharacter.nodeId); }}>人物 · {selectedCharacter.name}</button>
+              <button type="button" aria-pressed={wholeForCharacter === selectedCharacter.nodeId}
+                onClick={() => { setWholeForCharacter(selectedCharacter.nodeId); rememberDiscussion("story"); }}>整份大纲</button>
+            </div>}
+            {selectedCharacter && wholeForCharacter !== selectedCharacter.nodeId
+              ? query.data?.document?.characters.some(person => person.nodeId === selectedCharacter.nodeId)
+                ? <CharacterImpactPanel key={selectedCharacter.nodeId} projectId={id} version={version}
+                    characterId={selectedCharacter.nodeId} document={document} dirty={blockRevision}
+                    requestText={characterRequests[selectedCharacter.nodeId] ?? ""}
+                    onRequestChange={text => setCharacterRequests(previous => ({ ...previous, [selectedCharacter.nodeId]: text }))}
+                    onDiscuss={() => rememberDiscussion(selectedCharacter.nodeId)} onApplied={refresh} />
+                : <p className="p-4 text-sm text-muted-foreground">先保存这个人物，再讨论关联卷章与伏笔。</p>
+              : <OutlineConversation projectId={id} version={version} document={document} starting={fromIdea}
+                  dirty={blockRevision} value={request} onChange={setRequest} onDiscuss={() => rememberDiscussion("story")}
+                  onApplied={async () => {
+                    if (fromIdea) setParams(previous => { previous.delete("start"); return previous; }, { replace: true });
+                    await refresh();
+                  }} />}
           </div>
           {activeInspector === "history" && <OutlineRevisionPanel outlineId={id} currentVersion={version} document={document} restoreDisabled={blockRevision} onRestored={refresh} />}
           {showFeedback && <div hidden={activeInspector !== "feedback"}><OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} applyDisabled={blockRevision} document={document} /></div>}

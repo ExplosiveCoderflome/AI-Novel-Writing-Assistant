@@ -54,14 +54,98 @@ async function api(project, suffix, body, status=200) {
 
 const conversation = "character-impact/conversation";
 const timeline = (project, characterId = "shen") => api(project, conversation + "?characterId=" + characterId);
-async function settled(project, id) {
+async function settled(project, id, read = timeline) {
   for (let i = 0; i < 100; i++) {
-    const turn = (await timeline(project)).find(item => item.id === id);
+    const turn = (await read(project)).find(item => item.id === id);
     if (turn && turn.status !== "running") return turn;
     await new Promise(resolve => setTimeout(resolve, 50));
   }
   assert.fail("Conversation did not settle");
 }
+
+test("whole-outline chat drafts, explains, revises, reopens and writes only on explicit acceptance", async t => {
+  const {project} = await outlineProjectService.create("渡口");
+  const inputs = [];
+  const draft = title => ({ storyFields: {title, premise:"末班渡船遇上风暴", synopsis:"她自己作决定。", theme:"勇气", tone:"悬疑", endingDirection:"靠岸"},
+    volumes: [{clientRef:"v", title:"渡河", summary:"起航", reason:"建立困境", sourceFragment:"渡船"}],
+    chapters: [{clientRef:"c", volumeRef:"v", title:"末班船", summary:"启航", reason:"人物出场", sourceFragment:"末班"}],
+    characters:[], facts:[], payoffs:[] });
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset, promptInput}) => {
+    inputs.push(promptInput);
+    assert.equal(asset.id, "outline.workbench_dialogue");
+    const answers = [
+      {kind:"discussion"}, {kind:"initial_generation", payload:draft("出航")}, {kind:"discussion"},
+      {kind:"initial_generation", payload:draft("归航")}, {kind:"edit", payload:{operations:[{
+        operationId:"tone", kind:"update_fields", nodeId:promptInput.document.story.nodeId, fields:{tone:"温和"},
+        reason:"保留平静的结局", affectedNodeIds:[], dependsOn:[], risks:[],
+      }]}},
+    ];
+    return { output:asset.outputSchema.parse({replyText:"先看主人公怎样选择。", answer:answers[inputs.length-1]}),
+      meta:{invocation:{promptId:asset.id, promptVersion:asset.version}} };
+  });
+  const read = project => api(project, "conversation");
+  async function send(requestText, parentResultId, baseVersion = 1) {
+    const body = { requestId:require("node:crypto").randomUUID(), requestText, parentResultId, baseVersion };
+    await api(project,"conversation/turns",body);
+    const turn = await settled(project,body.requestId,read);
+    assert.equal(turn.status,"completed",turn.replyText);
+    await api(project,"conversation/turns",body);
+    return turn;
+  }
+  assert.deepEqual(await read(project),[]);
+  assert.equal((await send("先聊故事方向")).result,null);
+  const first = await send("按渡船的方向列个初稿");
+  assert.equal(inputs[1].history[0].author,"先聊故事方向");
+  const originalId = first.result.id;
+  assert.equal((await send("为什么让她出航？",originalId)).result,null);
+  assert.equal((await read(project))[1].result.status,"pending");
+  const revision = await send("结尾让她回家",originalId);
+  assert.equal(inputs[3].priorProposal.payload.storyFields.title,"出航");
+  assert.equal(inputs[3].history.at(-1).author,"为什么让她出航？");
+  assert.deepEqual(await timeline(project),[]);
+  assert.equal((await read(project))[1].result.status,"superseded");
+  await api(project,`proposals/${originalId}/apply`,{},409);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
+  const applied = await api(project,`proposals/${revision.result.id}/apply`,{});
+  assert.equal(applied.document.story.title,"归航");
+  assert.equal(applied.document.chapters[0].volumeNodeId,applied.document.volumes[0].nodeId);
+  const edit = await send("语气再温和一点",revision.result.id,2);
+  assert.equal(inputs[4].priorProposal.status,"applied");
+  assert.equal(inputs[4].document.story.title,"归航");
+  await api(project,`proposals/${edit.result.id}/apply`,{operationIds:[]},400);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,2);
+  await api(project,`proposals/${edit.result.id}/apply`,{operationIds:["tone"]});
+  assert.equal((await outlineProjectService.get(project.id)).document.story.tone,"温和");
+  assert.deepEqual(JSON.parse((await api(project,`proposals/${edit.result.id}`)).proposalJson).appliedOperationIds,["tone"]);
+  assert.equal(inputs.length,5);
+});
+
+test("whole-outline conversation protects the saved revision and ignores a late reply after interruption", async t => {
+  const {project} = await fixture();
+  let started, release;
+  const startedPromise = new Promise(resolve => { started = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset}) => {
+    started(); await gate;
+    return {output:asset.outputSchema.parse({replyText:"她可以再迟一些出发。",answer:{kind:"edit",payload:{operations:[{
+      operationId:"leave", kind:"update_fields", nodeId:"c12", fields:{summary:"稍后出发"}, affectedNodeIds:[], dependsOn:[], risks:[], reason:"留出抉择时间"
+    }]}}}),meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
+  });
+  const read = p => api(p,"conversation");
+  const body = {requestId:require("node:crypto").randomUUID(),requestText:"推迟出发",baseVersion:1};
+  await api(project,"conversation/turns",body);
+  try {
+    await startedPromise;
+    assert.equal((await read(project))[0].status,"running");
+    await api(project,"conversation/interrupt",{turnId:body.requestId});
+  } finally { release(); }
+  const stale = {...body,requestId:require("node:crypto").randomUUID(),baseVersion:2};
+  await api(project,"conversation/turns",stale);
+  assert.equal((await settled(project,stale.requestId,read)).status,"failed");
+  assert.equal((await read(project))[0].status,"interrupted");
+  assert.equal(await prisma.outlineProposal.count({where:{projectId:project.id,kind:"edit"}}),0);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
+});
 
 test("stored conversation supports explanations, revising a proposal, reopening and explicit partial adoption", async t => {
   const {project, request} = await fixture();

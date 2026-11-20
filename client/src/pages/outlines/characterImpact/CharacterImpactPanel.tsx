@@ -72,8 +72,11 @@ export function CharacterImpactPanel({ projectId, version, characterId, document
     onSettled: () => queries.invalidateQueries({ queryKey }),
   });
   const editable = (r: ImpactResultRef) => r.baseVersion === version && r.status === "pending";
-  return <div aria-label="人物联动审阅" className="space-y-2">
-    <AgentConversation adapter={adapter} title={`与 AI 讨论${findOutlineNodeTitle(document, characterId)}的故事线`}
+  return <div aria-label="人物联动审阅" className="outline-conversation-host">
+    <AgentConversation adapter={adapter} confirmationHint="由你确认后写入大纲" title="人物搭档" context={`${findOutlineNodeTitle(document, characterId)}的故事线 · 修订 v${version}`}
+      welcome={{ title: `想让${findOutlineNodeTitle(document, characterId)}怎么变？`, body: "从动机、关系或一次选择说起。我会对照涉及的卷章与伏笔，帮你看清哪些地方需要一起改。",
+        starters: [{ label: "先梳理人物牵动的情节", text: "先帮我梳理这个人物牵动了哪些卷章和伏笔，解释它们的联系。" },
+          { label: "一起推敲人物的动机", text: "请读一下这个人物的动机和关键选择，和我讨论哪里可以更有说服力。" }] }}
       inputLabel="希望人物怎么变？哪些情节要保留？" placeholder="例如：让她提前怀疑师父，但保留救师父的情节。"
       initialAction="分析相关卷章与伏笔" disabled={dirty || decide.isPending} maxLength={6000} value={requestText} onChange={onRequestChange}
       versionLabel={value => `大纲 v${value}`}

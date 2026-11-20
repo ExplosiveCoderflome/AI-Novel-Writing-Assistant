@@ -9,6 +9,7 @@ export interface PromptAssetLoaderEntry {
 }
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
+  { key: "outline.workbench_dialogue@v1", load: () => require("../prompts/outline/workbenchDialogue.prompt").outlineWorkbenchDialogue as UnknownPromptAsset },
   { key: "outline.character_impact@v2", load: () => require("../prompts/outline/characterImpact.prompt").characterDialoguePrompt as UnknownPromptAsset },
   { key: "outline.character_impact@v1", load: () => require("../prompts/outline/characterImpact.prompt").characterImpactPrompt as UnknownPromptAsset },
   { key: "manuscript.chapter.extract@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptExtractPrompt as UnknownPromptAsset },

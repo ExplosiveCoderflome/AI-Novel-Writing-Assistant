@@ -111,6 +111,10 @@ function buildPreviewPromptInput(
   previewNovel?: PreviewNovel | null,
   previewChapter?: PreviewChapter | null,
 ): Record<string, unknown> {
+  if (prompt.id === "outline.workbench_dialogue") {
+    return { requestText: "我想写一个替人保管记忆的女孩。帮我比较两种开篇方向。", baseVersion: 1,
+      document: { story: { title: "记忆寄存处" }, volumes: [], chapters: [], characters: [], facts: [], payoffs: [] }, priorProposal: null, history: [] };
+  }
   if (prompt.id === "outline.character_impact") {
     return {
       role: "character", requestText: "让沈禾提前怀疑账册来源，但保留救师父的动机。", prior: {},

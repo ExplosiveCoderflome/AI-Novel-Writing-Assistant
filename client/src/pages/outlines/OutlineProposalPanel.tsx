@@ -129,6 +129,8 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
     () => JSON.parse(proposal.proposalJson) as OutlineInitialProposalPayload | { operations: OutlineProposalOperation[] },
     [proposal.proposalJson],
   );
+  const replacesOutline = proposal.kind === "initial_generation" && (Object.entries(document.story).some(([key, value]) =>
+    key !== "title" && key !== "nodeId" && Boolean(value)) || [document.volumes, document.chapters, document.characters, document.payoffs, document.facts].some(group => group.length));
   const operations = "operations" in payload ? payload.operations : [];
   const titles: Record<string, string> = {};
   for (const operation of operations) {
@@ -165,7 +167,7 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
     <section className="space-y-4 border-t border-border/50 pt-4">
       <div>
         <h3 className="font-medium">{readOnly ? "提案内容" : "待确认的建议"}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">基于修订 v{proposal.baseVersion}。{readOnly ? "可对照当时的修改内容。" : "operations" in payload ? "选中想保留的修改，再一起采纳。" : "检查故事安排，采纳后即可逐项编辑。"}</p>
+        <p className="mt-1 text-xs text-muted-foreground">基于修订 v{proposal.baseVersion}。{readOnly ? "可对照当时的修改内容。" : "operations" in payload ? "选中想保留的修改，再一起采纳。" : replacesOutline ? "采纳会以此初稿替换整份大纲。原稿可在修订历史中查看。" : "检查故事安排，采纳后即可逐项编辑。"}</p>
       </div>
 
       {renderContext?.(document)}
@@ -226,7 +228,7 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
             {isApplying ? "正在处理…" : `采纳所选（${selectedIds.length}）`}
           </Button>
         ) : (
-          <Button className="w-full" onClick={() => onApply([])} disabled={isApplying || applyDisabled}>采纳这份大纲</Button>
+          <Button className="w-full" onClick={() => onApply([])} disabled={isApplying || applyDisabled}>{replacesOutline ? "确认用此初稿替换整份大纲" : "采纳这份大纲"}</Button>
         )}
         <Button className="w-full" variant="ghost" onClick={onDiscard} disabled={isApplying}>{"operations" in payload && !operations.length ? "结束审阅" : "放弃"}</Button>
       </div>}

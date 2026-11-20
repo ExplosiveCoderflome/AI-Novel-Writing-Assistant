@@ -79,7 +79,7 @@ async function open(t, path, respond = () => undefined) {
     if (url === "/outlines") data = method === "post" ? { project: record() } : [];
     else if (url === "/outlines/p") data = record();
     else if (url.endsWith("/book-binding")) data = null;
-    else if (url.endsWith("/character-impact/conversation")) data = [];
+    else if (url.endsWith("/conversation")) data = [];
     else if (url.endsWith("/revisions")) data = [{ id: "r", version }];
     else if (url.endsWith("/revisions/r")) data = { id: "r", version, document: saved };
     else if (url.endsWith("/document")) {
@@ -116,13 +116,66 @@ const change = (el, value) => runtime.act(async () => {
   el.dispatchEvent(new window.Event(el.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
 });
 
-test("从想法起草打开初版输入框，只在作者提交时生成", async t => {
-  const { writes } = await open(t, "/outlines");
+test("从一个想法开始直接进入对话，讨论起点可编辑，中文选词不发消息，重进后接着提案聊", async t => {
+  window.localStorage.clear();
+  const turns = [];
+  const result = { id: "first", kind: "initial_generation", baseVersion: 1, status: "pending" };
+  const blank = { ...fixture(), volumes: [], chapters: [], characters: [], facts: [], payoffs: [] };
+  const storyFields = { ...blank.story, title: "末班渡船", synopsis: "女孩驶入风暴。" };
+  let version = 1;
+  function respond(url, method, body) {
+    if (url === "/outlines/p") {
+      const doc = version === 1 ? blank : { ...blank, story: storyFields };
+      return { id: "p", title: doc.story.title, currentVersion: version, document: doc };
+    }
+    if (url.endsWith("/revisions")) return [{ id: "r", version: 1 }, ...(version === 2 ? [{ id: "r2", version: 2 }] : [])];
+    if (url.endsWith("/revisions/r")) return { id: "r", version: 1, document: blank };
+    if (url === "/outlines/p/conversation") return structuredClone(turns);
+    if (url === "/outlines/p/conversation/turns") {
+      turns.push({ id: body.requestId, requestText: body.requestText, contextVersion: "1", createdAt: new Date().toISOString(),
+        parentResultId: body.parentResultId ?? null, replyText: turns.length ? "风暴让她自己做决定。" : "可以从一次渡河写起。",
+        status: "completed", result: turns.length ? null : result });
+      return { turnId: body.requestId };
+    }
+    if (url.endsWith("/proposals/first")) return { ...result, projectId: "p", proposalJson: JSON.stringify({
+      storyFields, volumes: [], chapters: [], characters: [], facts: [], payoffs: [],
+    }) };
+    if (url.endsWith("/proposals/first/apply")) {
+      version = 2; result.status = "applied";
+      return { revision: { version }, document: { ...blank, story: storyFields } };
+    }
+  }
+  const first = await open(t, "/outlines", respond);
   await click(await until(() => button("从一个想法开始")));
-  await until(() => document.querySelector('[aria-label="你的故事想法"]'));
-  assert.equal(document.querySelector('[aria-label="AI 建议类型"]').value, "initial_generation");
+  const input = () => document.querySelector('[aria-label="给大纲搭档发消息"]');
+  const sendKey = init => runtime.act(async () => input().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init })));
+  await click(await until(() => button("我只有一个画面")));
+  assert.equal(document.activeElement, input());
+  assert.match(input().value, /画面/);
+  assert.equal(document.querySelector('[aria-label="AI 建议类型"]'), null);
   assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "assistant");
-  assert.deepEqual(writes.map(item => item.url), ["/outlines"]);
+  await change(input(), "帮我调整开篇的渡河。");
+  await sendKey({ isComposing: true });
+  await sendKey({ shiftKey: true });
+  assert.deepEqual(first.writes.map(item => item.url), ["/outlines"]);
+  await sendKey({});
+  await until(() => button("查看第 1 轮提案 · 待确认"));
+  await first.close();
+  const reopened = await open(t, "/outlines/p", respond);
+  await until(() => button("继续讨论第 1 轮提案"));
+  assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "assistant");
+  assert.match(document.querySelector('[aria-label="对话记录"]').textContent, /帮我调整开篇的渡河/);
+  await change(input(), "为什么要安排风暴？");
+  await click(button("继续讨论第 1 轮提案"));
+  await until(() => document.querySelector('[aria-label="对话记录"]').textContent.includes("自己做决定"));
+  assert.equal(reopened.writes.length, 1);
+  assert.equal(reopened.writes[0].body.parentResultId, "first");
+  assert.equal(version, 1);
+  await click(button("查看第 1 轮提案 · 待确认"));
+  await click(await until(() => button("采纳这份大纲")));
+  await until(() => document.querySelector(".outline-title").value === "末班渡船");
+  await until(() => button("查看第 1 轮提案 · 已采纳"));
+  assert.equal(version, 2);
 });
 
 test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返回仍保留草稿，冲突时保护输入", async t => {
@@ -135,6 +188,11 @@ test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返�
   await change(search, "");
   const motivation = () => [...document.querySelectorAll(".outline-editor label")].find(item => item.querySelector("span")?.textContent === "动机").querySelector("textarea");
   await change(document.querySelector('[aria-label="人物联动审阅"] textarea'), "让阿黎在第二卷才知道真相");
+  await click(button("整份大纲", document.querySelector('[aria-label="对话范围"]')));
+  assert.equal(document.querySelectorAll(".agent-conversation").length, 1);
+  await change(document.querySelector('[aria-label="给大纲搭档发消息"]'), "保留渡口这一章");
+  await click(button("人物 · 阿黎"));
+  assert.equal(document.querySelector('[aria-label="人物联动审阅"] textarea').value, "让阿黎在第二卷才知道真相");
   await change(motivation(), "找回父亲的航海日志");
   assert.equal(button("分析相关卷章与伏笔").disabled, true);
   await click(button("风暴", document.querySelector('[aria-label="关联内容"]')));

@@ -1,3 +1,5 @@
+import { prisma } from "../../../../db/prisma";
+import { OutlineWorkbenchConversation } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
 import feedbackRoutes from "../feedback/http/feedbackRoutes";
 import characterImpactRoutes from "../characterImpact/http";
@@ -18,6 +20,16 @@ router.get("/:id/book-binding", async (req, res, next) => { try { res.json({succ
 router.post("/:id/book-binding/retry-setup", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.retrySetup(String(req.params.id), outlineRetrySetupSchema.parse(req.body).expectedPolicyVersion)}); } catch (e) { next(openBookError(e)); } });
 const id = z.string().min(1);
 const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await handler(req, res) }); } catch (error) { next(error); } };
+const conversation = new OutlineWorkbenchConversation(prisma);
+const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
+  baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+router.get("/:id/conversation", route(req => conversation.read(id.parse(req.params.id))));
+router.post("/:id/conversation/turns", route(req => conversation.send(id.parse(req.params.id), turnInput.parse(req.body))));
+router.post("/:id/conversation/interrupt", route(async req => {
+  const { turnId } = z.object({ turnId: id }).parse(req.body);
+  await conversation.interrupt(id.parse(req.params.id), turnId);
+  return { turnId };
+}));
 router.get("/", route(async req => outlineProjectService.list()));
 router.post("/", route(async req => outlineProjectService.create(z.object({ title: z.string().min(1).max(200).optional() }).parse(req.body).title), 201));
 router.post("/import/preview", route(async req => {
