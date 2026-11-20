@@ -41,7 +41,10 @@ function verifyUnpackedElf(unpacked, entry, name, expected) {
 
 function verifyLinuxSharpRuntime(unpacked, entries, expected) {
   const sharpPackage = `sharp-linux-${expected}`;
-  const modules = entries.filter(entry => entry.endsWith(`/@img/${sharpPackage}/lib/${sharpPackage}.node`));
+  // Sharp ships the prebuilt addon with its version in the filename
+  // (sharp-linux-x64-0.35.1.node); match both the versioned and the bare name.
+  const modulePattern = new RegExp(`/@img/${sharpPackage}/lib/${sharpPackage}(?:-\\d+\\.\\d+\\.\\d+)?\\.node$`);
+  const modules = entries.filter(entry => modulePattern.test(entry));
   if (!modules.length) throw new Error(`Packaged Linux Sharp module @img/${sharpPackage} is missing`);
   for (const module of modules) {
     verifyUnpackedElf(unpacked, module, "Sharp", expected);

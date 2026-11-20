@@ -46,7 +46,7 @@ function binary(platform, arch) {
 
 const sqliteFile = "node_modules/better-sqlite3/build/Release/better_sqlite3.node";
 const schemaFile = "node_modules/@prisma/client/generated-client/schema.prisma";
-const sharpFile = "node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64.node";
+const sharpFile = "node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64-0.35.1.node";
 const libvipsFile = "node_modules/@img/sharp-libvips-linux-x64/lib/libvips-cpp.so.8.18.3";
 
 function nativeFixture(t, platform, arch) {
