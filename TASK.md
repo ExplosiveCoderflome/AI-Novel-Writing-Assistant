@@ -1,6 +1,6 @@
 # 当前开发任务：照着一本书写的创作承接合同
 
-更新时间：2026-11-19
+更新时间：2026-11-20
 工作分支：`feature/creative-carryover-contract`  
 开发基线：`2c035ac7`（`main` / `beta`）  
 阶段状态：第一部分已完成代码核对与针对性验证，等待用户人工入口验收；第二、三部分尚未完成。
@@ -269,6 +269,22 @@
 本区块由 `$task-md-sync` 自动维护，用于同步开发计划与实现进度。
 
 <!-- task-md-sync:start -->
+<!-- task-md-sync:item:linux-appimage-281:start -->
+### Linux AppImage 启动修复（#281）
+- 标识：`linux-appimage-281`
+- 状态：已完成
+- 最近更新：2026-11-20 09:46
+- 概要：修复 Linux AppImage 因 Sharp 的 libvips 共享库未解包而无法启动的问题。
+
+计划清单：
+- [ ] 让 Linux 打包将 libvips 共享库与 Sharp 原生模块一起解包
+- [ ] 增加打包后校验和回归测试
+
+进度记录：
+- 2026-11-20 09:42 [开发中] 已核对 #281 与当前打包配置，在 beta 基线上开始修复。
+- 2026-11-20 09:46 [已完成] 已修复 Linux 打包的 Sharp/libvips 解包布局；桌面编译与 34 项发布检查通过，覆盖旧布局拒绝、正确解包和错误架构。尚未在 Linux x86_64 构建并启动真实 AppImage。
+<!-- task-md-sync:item:linux-appimage-281:end -->
+
 <!-- task-md-sync:item:v2-268:start -->
 ### V2 角色前向调整（#268）
 - 标识：`v2-268`
