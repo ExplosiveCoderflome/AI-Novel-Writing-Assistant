@@ -80,6 +80,16 @@ cache.setQueryData(['directorNovelMetadata','book'],{success:true,data:{descript
 export const page=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
 cache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:{...view,driver:'assisted'}});
 cache.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view:{...view,driver:'assisted'},timeline:[]}});
+function assetGatePage(type) {
+  const url = '/lab/director/book?review=' + type;
+  const next = {...view, driver:'assisted', availableActions:[{id:'review:'+type,kind:'navigate',primary:true,label:'核对结果',target:url}]};
+  const assetCache = new QueryClient();
+  assetCache.setQueryData(['directorBookWorkspace','book'],{success:true,data:book});
+  assetCache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:next});
+  return renderToStaticMarkup(<MemoryRouter initialEntries={[url]}><QueryClientProvider client={assetCache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
+}
+export const castGate = assetGatePage('character_cast');
+export const volumeGate = assetGatePage('volume_strategy');
 export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
 `,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(root,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const m=await import(pathToFileURL(output).href);
@@ -114,6 +124,9 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     for(const html of [m.ready,m.noReview]) assert.doesNotMatch(html,/href="\/novels\//);
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
+    assert.ok(m.castGate.includes('编辑角色阵容'));
+    assert.ok(m.volumeGate.includes('编辑卷纲'));
+    for (const html of [m.castGate, m.volumeGate]) assert.ok(!html.includes('确认已保存的修改'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
     assert.match(m.page,/查看最新正文（第 9 章）/);
     assert.ok(m.page.includes('编辑任务与场景'),'the current readable chapter gate must offer its scoped plan editor');
