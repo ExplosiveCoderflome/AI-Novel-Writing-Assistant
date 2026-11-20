@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import LLMSelector from "@/components/common/LLMSelector";
 import {
+  type WorldStructurePayload,
   answerWorldDeepeningQuestions,
   backfillWorldStructure,
   deleteWorld,
@@ -59,8 +60,13 @@ import {
 } from "./components/workspace/worldWorkspaceShared";
 
 export default function WorldWorkspace() {
-  const navigate = useNavigate();
   const { id = "" } = useParams();
+  return <WorldWorkspaceContent key={id} id={id} />;
+}
+
+function WorldWorkspaceContent({ id }: { id: string }) {
+  const navigate = useNavigate();
+  const [handbookDraft, setHandbookDraft] = useState<Pick<WorldStructurePayload, "structure" | "bindingSupport"> | null>(null);
   const llm = useLLMStore();
   const queryClient = useQueryClient();
 
@@ -374,7 +380,7 @@ export default function WorldWorkspace() {
           <WorldOverviewTab
             summary={overviewQuery.data?.data?.summary}
             sections={overviewQuery.data?.data?.sections ?? []}
-            structure={structureQuery.data?.data?.structure}
+            structure={handbookDraft?.structure ?? structureQuery.data?.data?.structure}
             visualization={visualizationQuery.data?.data}
             onOpenStructure={() => setActiveTab("structure")}
             onOpenLayers={() => setActiveTab("layers")}
@@ -385,11 +391,17 @@ export default function WorldWorkspace() {
           {!advancedStructureOpen ? (
             <WorldHandbookEditor
               initialPayload={structureQuery.data?.data}
+              draft={handbookDraft}
+              setDraft={setHandbookDraft}
               savePending={saveStructureMutation.isPending}
               backfillPending={backfillStructureMutation.isPending}
               generatePending={generateStructureMutation.isPending}
               onSave={async (structure, bindingSupport) => {
-                await saveStructureMutation.mutateAsync({ structure, bindingSupport });
+                const response = await saveStructureMutation.mutateAsync({ structure, bindingSupport });
+                if (response.data) queryClient.setQueryData<typeof structureQuery.data>(queryKeys.worlds.structure(id), {
+                  ...response, data: { worldId: id, hasStructuredData: true, structure: response.data.structure, bindingSupport: response.data.bindingSupport },
+                });
+                setHandbookDraft(current => current?.structure === structure && current.bindingSupport === bindingSupport ? null : current);
                 await invalidateWorld();
               }}
               onBackfill={async () => {

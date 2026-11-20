@@ -6,7 +6,6 @@ import {
   exportOutline,
   generateOutlineProposal,
   getOutline,
-  getOutlineRevision,
   listOutlineRevisions,
   getOutlineBookBinding,
   saveOutline,
@@ -24,14 +23,18 @@ import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./out
 
 export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
+  return <OutlineWorkspace key={id} id={id} />;
+}
+
+function OutlineWorkspace({ id }: { id: string }) {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
   const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id), enabled: !!id });
   const bindingQuery = useQuery({ queryKey: ["outline-book-binding", id], queryFn: () => getOutlineBookBinding(id), enabled: !!id });
   const currentRevisionId = revisionQuery.data?.find(revision => revision.version === query.data?.currentVersion)?.id ?? "";
-  const currentRevisionQuery = useQuery({ queryKey: ["outline-revision", id, currentRevisionId], queryFn: () => getOutlineRevision(id, currentRevisionId), enabled: !!id && !!currentRevisionId });
-  const [document, setDocument] = useState<OutlineDocument | null>(null);
+  const [draft, setDraft] = useState<{ baseVersion: number; document: OutlineDocument } | null>(null);
+  const document = draft?.document ?? query.data?.document;
   const [node, setNode] = useState("story");
   useEffect(()=>{const requested=searchParams.get("nodeId");if(requested)setNode(requested);},[id,searchParams]);
   const [request, setRequest] = useState("");
@@ -39,18 +42,21 @@ export default function OutlineWorkspacePage() {
   const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");
   const [showHistory, setShowHistory] = useState(false);
   const isMobileViewport = useIsMobileViewport();
-  const hasUnsavedChanges = !!currentRevisionQuery.data?.document && JSON.stringify(document) !== JSON.stringify(currentRevisionQuery.data.document);
-
-  useEffect(() => {
-    if (query.data?.document) setDocument(query.data.document);
-  }, [query.data]);
+  const hasUnsavedChanges = draft !== null;
+  const hasConflict = !!draft && draft.baseVersion !== query.data?.currentVersion;
 
   const refreshOutline = async () => {
     await queryClient.invalidateQueries({ queryKey: ["outline", id] });
   };
   const save = useMutation({
-    mutationFn: () => saveOutline(id, query.data!.currentVersion, document!),
-    onSuccess: async () => {
+    mutationFn: () => saveOutline(id, draft!.baseVersion, draft!.document),
+    onError: refreshOutline,
+    onSuccess: async result => {
+      queryClient.setQueryData<typeof query.data>(["outline", id], current => current && result.revision.version >= current.currentVersion
+        ? { ...current, document: result.document, currentVersion: result.revision.version }
+        : current);
+      setDraft(null);
+      setProposal(null);
       await queryClient.invalidateQueries({ queryKey: ["outline-revisions", id] });
       await refreshOutline();
     },
@@ -81,23 +87,28 @@ export default function OutlineWorkspacePage() {
   }, [document, node]);
 
   if (query.isLoading || (!document && !query.isError)) return <p className="text-sm text-muted-foreground">正在打开大纲…</p>;
-  if (query.isError || !document) return <p role="alert" className="text-sm text-destructive">大纲读取失败，请返回列表后重试。</p>;
+  if (!document) return <p role="alert" className="text-sm text-destructive">大纲读取失败，请返回列表后重试。</p>;
 
   const updateSelectedField = (field: string, value: string) => {
-    setDocument(current => {
-      if (!current) return current;
+    if (!query.data?.document || save.isPending || apply.isPending) return;
+    const saved = query.data;
+    setDraft(previous => {
+      const current = previous?.document ?? saved.document!;
+      const baseVersion = previous?.baseVersion ?? saved.currentVersion;
+      const edit = (next: OutlineDocument) => baseVersion === saved.currentVersion && JSON.stringify(next) === JSON.stringify(saved.document)
+        ? null : { baseVersion, document: next };
       if (node === "story" || current.story.nodeId === node) {
-        return { ...current, story: { ...current.story, [field]: value } };
+        return edit({ ...current, story: { ...current.story, [field]: value } });
       }
       for (const collection of ["volumes", "chapters", "characters", "payoffs", "facts"] as const) {
         if (current[collection].some(item => item.nodeId === node)) {
-          return {
+          return edit({
             ...current,
             [collection]: current[collection].map(item => item.nodeId === node ? { ...item, [field]: value } : item),
-          } as OutlineDocument;
+          } as OutlineDocument);
         }
       }
-      return current;
+      return previous;
     });
   };
 
@@ -172,6 +183,7 @@ export default function OutlineWorkspacePage() {
                   <label key={key} className="block space-y-1.5">
                     <span className="text-sm text-muted-foreground">{outlineFieldLabels[key] ?? key}</span>
                     <textarea
+                      disabled={save.isPending || apply.isPending}
                       rows={4}
                       className="outline-textarea min-h-24 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
                       value={value}
@@ -182,9 +194,15 @@ export default function OutlineWorkspacePage() {
               </div>
               <div className="outline-save-bar sticky bottom-0 z-10 border-t border-border/50 bg-background py-3">
                 <div className="flex flex-wrap items-center justify-end gap-3">
-                  {save.isSuccess ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
-                  <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
+                  {save.isSuccess && !hasUnsavedChanges ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
+                  <Button onClick={() => save.mutate()} disabled={!hasUnsavedChanges || hasConflict || save.isPending || apply.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
                 </div>
+                {hasConflict ? <p role="alert" className="mt-2 text-sm text-warning">
+                  另一个版本已保存。请复制要保留的修改，再载入最新修订。
+                  <Button size="sm" variant="ghost" onClick={() => {
+                    if (window.confirm("载入最新修订会替换编辑框里的未保存修改。继续吗？")) setDraft(null);
+                  }}>载入最新修订</Button>
+                </p> : hasUnsavedChanges ? <p role="status" className="mt-2 text-sm text-muted-foreground">请先保存手改内容，再根据新修订生成和采纳 AI 建议。</p> : null}
                 {save.isError ? <p role="alert" className="mt-2 text-sm text-destructive">{save.error instanceof Error ? save.error.message : "保存失败，请重试。"}</p> : null}
               </div>
             </>
@@ -213,16 +231,20 @@ export default function OutlineWorkspacePage() {
             value={request}
             onChange={event => setRequest(event.target.value)}
           />
-          <Button className="w-full" onClick={() => propose.mutate()} disabled={!request.trim() || propose.isPending}>
+          <Button className="w-full" onClick={() => propose.mutate()} disabled={!request.trim() || hasUnsavedChanges || save.isPending || apply.isPending || propose.isPending}>
             {propose.isPending ? "正在生成建议…" : proposalKind === "initial_generation" ? "生成大纲建议" : "提出修改建议"}
           </Button>
           {propose.isError ? <p role="alert" className="text-sm text-destructive">{propose.error instanceof Error ? propose.error.message : "建议生成失败，请重试。"}</p> : null}
+          {proposal && !hasUnsavedChanges && proposal.baseVersion !== query.data?.currentVersion ? (
+            <p role="status" className="text-sm text-warning">这份建议基于旧修订，请重新生成后采纳。</p>
+          ) : null}
           {proposal ? (
             <OutlineProposalPanel
               key={proposal.id}
               proposal={proposal}
               document={document}
               isApplying={apply.isPending}
+              applyDisabled={hasUnsavedChanges || save.isPending || proposal.baseVersion !== query.data?.currentVersion}
               onApply={operationIds => apply.mutate(operationIds)}
               onDiscard={() => setProposal(null)}
             />

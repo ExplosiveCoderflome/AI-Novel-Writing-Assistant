@@ -47,6 +47,7 @@ interface OutlineProposalPanelProps {
   proposal: OutlineProposal;
   document: OutlineDocument;
   isApplying: boolean;
+  applyDisabled?: boolean;
   onApply: (operationIds: string[]) => void;
   onDiscard: () => void;
 }
@@ -116,7 +117,7 @@ function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPa
   );
 }
 
-export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, onApply, onDiscard }: OutlineProposalPanelProps) {
+export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, applyDisabled, onApply, onDiscard }: OutlineProposalPanelProps) {
   const revisions = useQuery({ queryKey: ["outline-revisions", proposal.projectId], queryFn: () => listOutlineRevisions(proposal.projectId) });
   const baseRevision = revisions.data?.find(item => item.version === proposal.baseVersion);
   const base = useQuery({ queryKey: ["outline-revision", proposal.projectId, baseRevision?.id], queryFn: () => getOutlineRevision(proposal.projectId, baseRevision!.id), enabled: !!baseRevision });
@@ -212,14 +213,14 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
 
       <div className="space-y-2">
         {"operations" in payload ? (
-          <Button className="w-full" onClick={() => onApply(allOperationIds)} disabled={isApplying || allMissingDependencies.length > 0}>
+          <Button className="w-full" onClick={() => onApply(allOperationIds)} disabled={applyDisabled || isApplying || allMissingDependencies.length > 0}>
             采纳全部
           </Button>
         ) : (
-          <Button className="w-full" onClick={() => onApply([])} disabled={isApplying}>采纳这份大纲</Button>
+          <Button className="w-full" onClick={() => onApply([])} disabled={applyDisabled || isApplying}>采纳这份大纲</Button>
         )}
         {"operations" in payload ? (
-          <Button className="w-full" variant="secondary" onClick={() => onApply(selectedIds)} disabled={isApplying || !selectedIsComplete}>
+          <Button className="w-full" variant="secondary" onClick={() => onApply(selectedIds)} disabled={applyDisabled || isApplying || !selectedIsComplete}>
             采纳所选（{selectedIds.length}）
           </Button>
         ) : null}

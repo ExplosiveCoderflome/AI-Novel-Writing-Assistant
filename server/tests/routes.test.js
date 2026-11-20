@@ -334,6 +334,27 @@ test("DELETE /api/rag/jobs/finished clears finished job records", async () => {
   }
 });
 
+test("GET /api/llm/model-routes/connectivity reads the last report without probing", async (t) => {
+  const report = { testedAt: "2026-01-01T00:00:00.000Z", statuses: [] };
+  const read = t.mock.method(llmConnectivityService, "getModelRouteReport", async () => null);
+  const probe = t.mock.method(llmConnectivityService, "testModelRoutes", () => assert.fail("GET must not probe"));
+  const server = http.createServer(createApp());
+  const port = await listen(server);
+  try {
+    const url = `http://127.0.0.1:${port}/api/llm/model-routes/connectivity`;
+    const empty = await fetch(url);
+    assert.equal(empty.status, 200);
+    assert.equal((await empty.json()).data, null);
+    read.mock.mockImplementation(async () => report);
+    const saved = await fetch(url);
+    assert.equal(saved.status, 200);
+    assert.deepEqual((await saved.json()).data, report);
+    assert.equal(probe.mock.callCount(), 0);
+  } finally {
+    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  }
+});
+
 test("POST /api/llm/model-routes/connectivity returns per-task connectivity statuses", async () => {
   const originalTestModelRoutes = llmConnectivityService.testModelRoutes;
   llmConnectivityService.testModelRoutes = async () => ({

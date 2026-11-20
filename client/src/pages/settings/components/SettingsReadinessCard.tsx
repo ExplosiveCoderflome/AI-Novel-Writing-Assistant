@@ -16,7 +16,7 @@ export type SettingsReadinessItem = {
   key: "model" | "routes" | "rag" | "style";
   title: string;
   description: string;
-  state: "ready" | "warning" | "optional" | "checking";
+  state: "ready" | "warning" | "optional" | "checking" | "untested";
 };
 
 function getReadinessIcon(state: SettingsReadinessItem["state"]) {
@@ -26,7 +26,7 @@ function getReadinessIcon(state: SettingsReadinessItem["state"]) {
   if (state === "checking") {
     return <Loader2 className="h-4 w-4 animate-spin text-amber-600" />;
   }
-  if (state === "optional") {
+  if (state === "optional" || state === "untested") {
     return <CircleDashed className="h-4 w-4 text-sky-600" />;
   }
   return <CircleAlert className="h-4 w-4 text-amber-600" />;
@@ -36,6 +36,8 @@ function getReadinessBadge(state: SettingsReadinessItem["state"]) {
   switch (state) {
     case "ready":
       return "可用";
+    case "untested":
+      return "尚未检测";
     case "checking":
       return "检查中";
     case "optional":
@@ -52,6 +54,7 @@ export function buildSettingsReadinessItems(input: {
   modelRoutes?: ModelRoutesResponse | null;
   modelRouteConnectivity?: ModelRouteConnectivityResponse | null;
   isModelRoutesChecking: boolean;
+  routeReadFailed: boolean;
   isStyleSettingsLoaded: boolean;
 }): SettingsReadinessItem[] {
   const {
@@ -88,12 +91,11 @@ export function buildSettingsReadinessItems(input: {
     {
       key: "routes",
       title: "模型路由",
-      state: isModelRoutesChecking ? "checking" : hasRoutes && failedRouteCount === 0 ? "ready" : "warning",
-      description: isModelRoutesChecking
-        ? "正在检查开书、拆章、正文生成和审核任务的模型兼容性。"
-        : hasRoutes && failedRouteCount === 0
-          ? "创作任务已有可用路由，后续流程会按任务选择模型。"
-          : "部分创作任务还需要补齐或修复模型路由。",
+      state: input.routeReadFailed ? "warning" : isModelRoutesChecking ? "checking" : !routeStatuses.length ? "untested" : failedRouteCount ? "warning" : "ready",
+      description: input.routeReadFailed ? "读取模型路由或上次检测结果失败，请到模型路由页查看。"
+        : isModelRoutesChecking ? "正在读取模型设置和上次检测结果。"
+        : !modelRouteConnectivity ? `${hasRoutes ? "已配置任务模型。" : "创作任务使用默认路由。"}可到模型路由页检测连接。`
+        : `上次检测于 ${new Date(modelRouteConnectivity.testedAt).toLocaleString()}，${failedRouteCount ? `${failedRouteCount} 条路由异常` : "路由连接正常"}。`,
     },
     {
       key: "rag",
@@ -121,13 +123,13 @@ export default function SettingsReadinessCard(props: {
   const modelItem = items.find((item) => item.key === "model");
   const routesItem = items.find((item) => item.key === "routes");
   const hasModel = modelItem?.state === "ready";
-  const hasHealthyRoutes = routesItem?.state === "ready";
+  const hasHealthyRoutes = routesItem?.state === "ready" || routesItem?.state === "untested";
   const blockingCount = items.filter((item) => item.key !== "rag" && item.state === "warning").length;
   const canStart = hasModel && hasHealthyRoutes && blockingCount === 0;
   const primaryAction = !hasModel
     ? { label: "配置正文模型", to: "/settings/models" }
     : !hasHealthyRoutes
-      ? { label: "检查模型路由", to: "/settings/models" }
+      ? { label: "检查模型路由", to: "/settings/model-routes" }
       : { label: "开始创建小说", to: "/novels/create" };
 
   return (
@@ -167,7 +169,7 @@ export default function SettingsReadinessCard(props: {
         </div>
         <div className={`text-sm ${canStart ? "text-emerald-700" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
           {canStart
-            ? "基础创作链路已经可用，可以开始创建或继续推进小说。"
+            ? "可以开始创作，也可以先到模型路由页检测连接。"
             : "先处理标记为“需要处理”的项目，完成后再进入自动导演或章节生产会更稳。"}
         </div>
       </CardContent>
