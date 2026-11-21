@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Panel, getViewportForBounds, useNodesInitialized, useReactFlow, useStore, useStoreApi, type Viewport } from "@xyflow/react";
 import { Maximize, Minus, Plus } from "lucide-react";
-import { layoutBookMap, sideWidth, stepHeight, stepWidth } from "./bookMapLayout";
+import { layoutBookMap, promptConnectionBounds, sideWidth, stepHeight, stepWidth } from "./bookMapLayout";
 
 type Layout = ReturnType<typeof layoutBookMap>;
 function travel(duration: number) {
@@ -73,6 +73,14 @@ export function BookMapCamera({ layout, selected, touring, jump, pause }: {
       return;
     }
     if (!bookmark.current) bookmark.current = view;
+    const endpoints = selected && promptConnectionBounds(layout, selected);
+    if (endpoints) {
+      if (freshLayout || prior?.focus !== selected || prior.width !== width || prior.height !== height) {
+        const frame = getViewportForBounds(endpoints, width, height, 0.08, 1.25, 0.1);
+        void setViewport(frame, travel(300));
+      }
+      return;
+    }
     const reference = layout.prompts.get(focus);
     if (reference) {
       const zoom = Math.max(view.zoom, 0.87);

@@ -7,7 +7,45 @@ const flow = "../../client/src/pages/promptWorkbench/creationFlow/";
 const { atlasScopes, relatedAtlasLocation } = loadTypeScript(flow + "atlas/atlasTopics.ts", __filename);
 const { indexAtlasPrompts } = loadTypeScript(flow + "atlas/atlasIndex.ts", __filename);
 const { stages, stageSteps } = loadTypeScript(flow + "flowDefinition.ts", __filename);
-const { layoutBookMap } = loadTypeScript(flow + "overview/bookMapLayout.ts", __filename);
+const { layoutBookMap, promptConnectionBounds } = loadTypeScript(flow + "overview/bookMapLayout.ts", __filename);
+const { stepPromptRelations, relationsFor } = loadTypeScript(flow + "atlas/stepPromptRelations.ts", __filename);
+
+test("step-to-prompt lines use the actual registered asset for every scene and explicit companion endpoints", () => {
+  const map = layoutBookMap(stages, true);
+  const pairs = list => list.map(({ stepId, promptId, kind }) => [stepId, promptId, kind].join("/")).sort();
+  const expected = [];
+  for (const step of stages.flatMap(stageSteps)) {
+    for (const [scene] of step.templates ?? []) {
+      expected.push([step.id, readCreationFlowTemplate(scene).id, "uses"].join("/"));
+    }
+  }
+  for (const scope of atlasScopes) for (const topic of scope.topics) {
+    for (const [id, , steps] of topic.prompts) for (const step of steps ?? []) {
+      expected.push([step, id, "companion"].join("/"));
+    }
+  }
+  assert.deepEqual(pairs(map.promptLinks), expected.sort());
+  assert.deepEqual(pairs(stepPromptRelations), expected);
+  assert.equal(new Set(expected).size, expected.length);
+  for (const link of map.promptLinks) {
+    const row = map.prompts.get(link.promptId);
+    assert.equal(row.scope, link.scope);
+    for (const focus of [link.stepId, link.promptId]) {
+      assert.ok(relationsFor(focus).some(r => r.stepId === link.stepId && r.promptId === link.promptId));
+      const bounds = promptConnectionBounds(map, focus);
+      assert.ok(bounds.x <= row.x && bounds.y <= row.y && bounds.x + bounds.width >= row.x + row.width
+        && bounds.y + bounds.height >= row.y + row.height);
+    }
+  }
+  const review = relationsFor("review");
+  assert.deepEqual(review.filter(r => r.kind === "uses").map(r => r.promptId), ["novel.chapter.acceptance_assessment"]);
+  assert.deepEqual(review.filter(r => r.kind === "companion").map(r => r.promptId), ["audit.chapter.light", "audit.chapter.full", "novel.review.chapter"]);
+  assert.deepEqual(relationsFor("novel.chapter.acceptance_assessment").map(r => r.stepId), ["review", "verify"]);
+  assert.deepEqual(relationsFor("comic.panelScript"), []);
+  const collapsed = layoutBookMap(stages, false);
+  assert.deepEqual(collapsed.promptLinks, []);
+  assert.equal(promptConnectionBounds(collapsed, "review"), undefined);
+});
 
 test("the expanded book map displays every prompt once outside the production route and includes it in fit-to-map", () => {
   const map = layoutBookMap(stages, true);

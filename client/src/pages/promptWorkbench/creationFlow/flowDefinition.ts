@@ -6,7 +6,7 @@ export interface Step {
   artifact: string;
   input: string;
   output: string;
-  templates?: readonly (readonly [key: string, title: string])[];
+  templates?: readonly (readonly [key: string, title: string, assetId?: string])[];
   destination?: string;
 }
 export interface Branch {
@@ -23,8 +23,8 @@ export interface FlowStage {
   main: Step[];
   branches?: Branch[];
 }
-function ai(id: string, title: string, artifact: string, input: string, output: string, key: string): Step {
-  return { id, title, artifact, input, output, kind: "ai", templates: [[key, title]] };
+function ai(id: string, title: string, artifact: string, input: string, output: string, key: string, assetId = key): Step {
+  return { id, title, artifact, input, output, kind: "ai", templates: [[key, title, assetId]] };
 }
 function link(id: string, title: string, artifact: string, destination: string, input: string, output: string): Step {
   return { id, title, artifact, kind: "destination", destination, input, output };
@@ -46,7 +46,7 @@ export const stages: FlowStage[] = [
           templates: [["novel.director.idea_inspiration", "直接生成灵感"], ["novel.director.idea_constellation_options", "寻找故事元素"], ["novel.director.idea_constellation_compose", "组合选中元素"]] },
       ] },
       { from: "candidates", label: "两套都不合适", join: "candidates", steps: [
-        ai("new-directions", "重新构思方向", "新一轮故事路线", "上一轮方案与本轮希望改变的内容。", "新一轮的两条方向，供再次展开候选方案。", "next-direction-pair"),
+        ai("new-directions", "重新构思方向", "新一轮故事路线", "上一轮方案与本轮希望改变的内容。", "新一轮的两条方向，供再次展开候选方案。", "next-direction-pair", "novel.director.direction_pair"),
       ] },
       { from: "titles", label: "想打磨其中一套", join: "choose", steps: [
         ai("discuss", "讨论候选方案", "可采纳的修改建议", "当前方案、讨论历史和作者的问题。", "对方案的解释或可逐项采纳的修改建议。", "novel.director.candidate_dialogue"),
@@ -101,7 +101,7 @@ export const stages: FlowStage[] = [
     branches: [
       { from: "review", label: "需要修文", join: "save", steps: [
         ai("repair", "局部修文", "局部修订稿", "原稿与明确的修复要求。", "只修改相关段落的候选稿。", "novel.review.patch"),
-        ai("verify", "复核修订稿", "修订稿复核意见", "修订稿、原审校问题与事实基线。", "对修订效果和事实保留情况的复核。", "verify-repair"),
+        ai("verify", "复核修订稿", "修订稿复核意见", "修订稿、原审校问题与事实基线。", "对修订效果和事实保留情况的复核。", "verify-repair", "novel.chapter.acceptance_assessment"),
       ] },
       { from: "extract", label: "本卷未完", steps: [
         link("next-chapter", "准备下一章", "下一章的写作任务", "mission", "本章保存后的进展。", "回到本章准备，细化下一章的任务与场景。"),

@@ -185,6 +185,11 @@
   .book-atlas-spread.reading .book-map-reader { position: absolute; inset: 0; }
   .book-map-reader .flow-expand { display: none; }
   .book-map-reader .flow-reader { border-left: 0; }
+  .book-atlas-spread.inspecting:not(.focused) { grid-template-rows: minmax(0, 2fr) minmax(0, 3fr); }
+  .book-atlas-spread.inspecting:not(.focused) .book-map-pane { visibility: visible; }
+  .book-atlas-spread.inspecting:not(.focused) .book-map-reader { position: static; border-top: 1px solid var(--atlas-hair); }
+  .book-atlas-spread.inspecting .flow-expand { display: inline-flex; }
+  .book-atlas-spread.inspecting .book-map-key { display: none; }
 }
 @container (max-width: 620px) {
   .atlas-masthead { padding: 12px 14px; gap: 8px; }

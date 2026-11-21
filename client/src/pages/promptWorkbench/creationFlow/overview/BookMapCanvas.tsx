@@ -3,6 +3,7 @@ import { Background, BackgroundVariant, BaseEdge, Handle, MarkerType, Position, 
 import { ArrowUpRight, BookCheck, CornerDownLeft, Feather, Hand, Layers2, LibraryBig } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import type { FlowStage } from "../flowDefinition";
+import { relationsFor, type RelationKind } from "../atlas/stepPromptRelations";
 import { MapReferences, type ReferenceNode } from "./MapReferences";
 import { BookMapCamera } from "./BookMapCamera";
 import { StageImprint } from "./StageImprint";
@@ -11,16 +12,15 @@ import { coverHeight, layoutBookMap, sideWidth, spineX, stepHeight, stepWidth,
 
 type CoverNode = Node<{ cover: BookMapCover; enter: (stage: FlowStage) => void; locateScope: (scope: string) => void; lit: boolean }, "cover">;
 type StepNode = Node<{
-  station: BookMapStation; active: boolean; traced: boolean; neighbor: boolean; ports: string;
+  station: BookMapStation; active: boolean; traced: boolean; neighbor: boolean; ports: string; related?: RelationKind;
   read: (id: string) => void; preview: (id: string | null) => void;
 }, "step">;
 type BookNode = CoverNode | StepNode | ReferenceNode;
 type RouteEdge = Edge<{ link: BookMapLink; stage: string; trace: string | null }, "route">;
-type ReferenceEdge = Edge<{ scope: string }, "reference">;
+type ReferenceEdge = Edge<ReturnType<typeof layoutBookMap>["promptLinks"][number], "reference">;
 
 function Cover({ data: { cover: { stage, order }, enter, locateScope, lit } }: NodeProps<CoverNode>) {
   return <div className="atlas-cover-stack" data-stage={stage.id}>
-    <Handle id="reference-out" type="source" position={Position.Left} style={{ top: coverHeight - 15 }} />
     <button type="button" data-stage={stage.id} className={`book-map-cover nodrag nopan ${lit ? "lit" : ""}`} onClick={() => enter(stage)}
       aria-label={`单独查看${stage.title}阶段`}>
       <StageImprint stage={stage.id} />
@@ -33,12 +33,12 @@ function Cover({ data: { cover: { stage, order }, enter, locateScope, lit } }: N
 }
 
 const marks = { author: Hand, ai: Feather, system: Layers2, destination: CornerDownLeft };
-function Station({ data: { station: { stage, step, side, condition }, active, traced, neighbor, ports, read, preview } }: NodeProps<StepNode>) {
+function Station({ data: { station: { stage, step, side, condition }, active, traced, neighbor, related, ports, read, preview } }: NodeProps<StepNode>) {
   const finish = step.id === "finish";
   const Mark = finish ? BookCheck : marks[step.kind];
   const compact = useStore(s => s.transform[2] < 0.76);
   return <div className={`book-map-station ${side ? "optional" : ""} ${traced ? "traced" : ""} ${neighbor ? "neighbor" : ""} ${finish ? "terminus" : ""}`}
-    data-stage={stage.id} data-compact={compact} data-ports={ports}>
+    data-stage={stage.id} data-compact={compact} data-ports={ports} data-relation={related}>
     <Handle id="top-in" type="target" position={Position.Top} />
     <Handle id="bottom-out" type="source" position={Position.Bottom} />
     <Handle id="left-in" type="target" position={Position.Left} />
@@ -82,9 +82,12 @@ function Route({ id, sourceX, sourceY, targetX, targetY, markerEnd, data }: Edge
 }
 
 function ReferenceLine({ id, data, sourceX, sourceY, targetX, targetY }: EdgeProps<ReferenceEdge>) {
-  const gutter = Math.min(sourceX, targetX) - 9;
-  return <g data-stage={data?.scope}><BaseEdge id={id} interactionWidth={0} path={roundedRoute([
-    { x: sourceX, y: sourceY }, { x: gutter, y: sourceY }, { x: gutter, y: targetY }, { x: targetX, y: targetY },
+  if (!data) return null;
+  const { sourceLane, targetLane, crossY } = data;
+  return <g data-stage={data.scope}><BaseEdge id={id} interactionWidth={0} path={roundedRoute([
+    { x: sourceX, y: sourceY }, { x: sourceLane, y: sourceY },
+    ...(sourceLane === targetLane ? [] : [{ x: sourceLane, y: crossY }, { x: targetLane, y: crossY }]),
+    { x: targetLane, y: targetY }, { x: targetX, y: targetY },
   ])} /></g>;
 }
 const nodeTypes = { cover: Cover, step: Station, references: MapReferences };
@@ -102,10 +105,19 @@ export function BookMapCanvas({ layout, selected, touring, enter, jump, locateSc
       handles.get(link.source)!.add(link.sourceHandle);
       handles.get(link.target)!.add(link.targetHandle);
     }
+    for (const link of layout.promptLinks) handles.get(link.stepId)?.add(link.sourceHandle);
     return handles;
   }, [layout]);
   const [hover, preview] = useState<string | null>(null);
-  const trace = touring ?? (selected && byId.has(selected) ? selected : null) ?? (hover && byId.has(hover) ? hover : null);
+  const focus = selected ?? touring ?? hover;
+  const trace = focus && byId.has(focus) ? focus : null;
+  const highlighted = useMemo(() => {
+    const endpoints = new Map<string, RelationKind>();
+    for (const link of relationsFor(focus)) {
+      endpoints.set(link.stepId === focus ? link.promptId : link.stepId, link.kind);
+    }
+    return endpoints;
+  }, [focus]);
   const neighbors = useMemo(() => {
     const ids = new Set<string>();
     for (const link of layout.links) {
@@ -117,18 +129,18 @@ export function BookMapCanvas({ layout, selected, touring, enter, jump, locateSc
   const references = useMemo<ReferenceNode[]>(() => layout.sections.map(section => ({
     id: "references-" + section.scope.id, type: "references", position: { x: section.x, y: section.y },
     width: section.width, height: section.height, focusable: false,
-    data: { section, selected: selected && layout.prompts.get(selected)?.scope === section.scope.id ? selected : null, read: readReference, openScope },
-  })), [layout, selected, openScope, readReference]);
+    data: { section, selected, read: readReference, openScope, preview, highlighted },
+  })), [layout, selected, openScope, readReference, highlighted]);
   const nodes = useMemo<BookNode[]>(() => [
     ...layout.covers.map((cover): CoverNode => ({ id: `stage-${cover.stage.id}`, type: "cover",
       data: { cover, enter, locateScope, lit: !!trace && byId.get(trace)?.stage === cover.stage },
       position: { x: cover.x, y: 0 }, width: cover.width, height: coverHeight, focusable: false })),
     ...layout.stations.map((station): StepNode => ({ id: station.step.id, type: "step",
       data: { station, active: station.step.id === selected, traced: station.step.id === trace, neighbor: neighbors.has(station.step.id),
-        ports: [...ports.get(station.step.id)!].join(" "), read, preview },
+        ports: [...ports.get(station.step.id)!].join(" "), related: highlighted.get(station.step.id), read, preview },
       position: { x: station.x, y: station.y }, width: station.side ? sideWidth : stepWidth, height: stepHeight, focusable: false })),
     ...references,
-  ], [layout, trace, byId, neighbors, selected, ports, read, enter, locateScope, references]);
+  ], [layout, trace, byId, neighbors, selected, ports, read, enter, locateScope, references, highlighted]);
   const edges = useMemo<(RouteEdge | ReferenceEdge)[]>(() => [...layout.links.map((link): RouteEdge => {
     const active = link.source === trace || link.target === trace;
     const source = byId.get(link.source)!;
@@ -139,12 +151,14 @@ export function BookMapCanvas({ layout, selected, touring, enter, jump, locateSc
       className: `book-link book-link-${link.kind}${active ? " is-current" : ""}`,
       markerEnd: { type: MarkerType.ArrowClosed, width: 9, height: 9, color: "context-stroke" },
     };
-  }), ...layout.sections.filter(s => s.scope.id !== "tools").map(({ scope }): ReferenceEdge => ({
-    id: "scope-link-" + scope.id, source: "stage-" + scope.id, target: "references-" + scope.id,
-    type: "reference", sourceHandle: "reference-out", targetHandle: "reference-in", data: { scope: scope.id },
-    selectable: false, className: "book-reference-link", ariaLabel: scope.title + "的相关提示词",
-  }))], [layout, byId, trace]);
-  return <div className={`flow-canvas book-map-canvas ${trace ? "is-tracing" : ""}`} style={{ "--spine-x": `${spineX}px` } as CSSProperties}
+  }), ...layout.promptLinks.map((link): ReferenceEdge => {
+    const active = focus === link.stepId || focus === link.promptId;
+    return { id: `use-${link.stepId}-${link.promptId}`, source: link.stepId, target: "references-" + link.scope,
+      type: "reference", sourceHandle: link.sourceHandle, targetHandle: link.promptId, data: link,
+      selectable: false, zIndex: active ? 1 : 0, className: `book-reference-link ${link.kind}${active ? " is-current" : ""}`,
+      ariaLabel: `${link.stepTitle} · ${link.kind === "uses" ? "本步使用" : "配套工具"} · ${link.promptTitle}` };
+  })], [layout, byId, trace, focus]);
+  return <div className={`flow-canvas book-map-canvas ${trace || highlighted.size ? "is-tracing" : ""}`} style={{ "--spine-x": `${spineX}px` } as CSSProperties}
     role="region" aria-label="从开书到整本正文的连续流程图">
     <ReactFlow<BookNode, RouteEdge | ReferenceEdge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
       minZoom={0.08} maxZoom={2.5} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} edgesFocusable={false}
