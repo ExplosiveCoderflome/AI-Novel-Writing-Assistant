@@ -176,27 +176,26 @@
 .outline-reading-link { display: inline-flex; padding: .4rem .2rem .4rem 0; margin-right: .7rem; color: hsl(var(--primary)); text-align: left; font-size: .88rem; }
 .outline-reading-link:hover, .outline-reading-meta button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .outline-local-review { margin-top: .85rem; }
-.outline-local-review .outline-review-followup { margin: .8rem 0; }
 .outline-local-note, .outline-local-history small { font-size: .8rem; color: hsl(var(--muted-foreground)); }
 .outline-local-note { margin: .5rem 0 .8rem; }
-.outline-chapter-dock {
+.outline-local-dock {
   position: sticky; bottom: 0; flex: none;
   padding: .65rem var(--local-page-inset) max(.85rem, env(safe-area-inset-bottom));
   background: hsl(var(--background));
 }
-.outline-chapter-composer {
+.outline-local-composer {
   padding: .65rem .8rem; border: 1px solid hsl(var(--input)); border-radius: .65rem;
 }
-.outline-chapter-composer:focus-within { border-color: hsl(var(--ring)); }
-.outline-chapter-composer textarea {
+.outline-local-composer:focus-within { border-color: hsl(var(--ring)); }
+.outline-local-composer textarea {
   display: block; width: 100%; min-height: 2.8rem; max-height: min(8rem, 22dvh);
   padding: .15rem; resize: vertical; background: transparent; font: inherit; font-size: .9rem; line-height: 1.55;
 }
-.outline-chapter-composer:has(textarea:focus-visible) { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-.outline-chapter-composer textarea:focus-visible { outline: none; }
-.outline-chapter-composer > .outline-local-note { max-height: 3.2em; overflow-y: auto; overflow-wrap: anywhere; }
-.outline-chapter-send { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; margin-top: .35rem; }
-.outline-chapter-send .outline-local-note { margin: 0; }
+.outline-local-composer:has(textarea:focus-visible) { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.outline-local-composer textarea:focus-visible { outline: none; }
+.outline-local-composer > .outline-local-note { max-height: 3.2em; overflow-y: auto; overflow-wrap: anywhere; }
+.outline-local-send { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; margin-top: .35rem; }
+.outline-local-send .outline-local-note { margin: 0; }
 .outline-local-history { margin: .6rem 0; }
 .outline-local-history summary { width: fit-content; cursor: pointer; font-size: .86rem; }
 .outline-local-history small { margin-left: .4rem; }

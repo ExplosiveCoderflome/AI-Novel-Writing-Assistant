@@ -28,30 +28,24 @@ export function OutlineLocalReview({ projectId, target, title, version, expanded
   const input = useRef<HTMLTextAreaElement>(null);
   const person = target.kind === "character";
   useEffect(() => {
-    if (!expanded || !input.current) return;
-    if (person) {
-      const body = input.current.closest<HTMLElement>(".outline-reading-body");
-      if (body) body.scrollTop = 0;
-    }
-    input.current.focus({ preventScroll: !person });
-  }, [expanded, person]);
+    if (expanded) input.current?.focus({ preventScroll: true });
+  }, [expanded]);
   const prior = turns.find(turn => turn.result && turn.result.id === draft.priorId);
-  const composer = expanded && <form id="outline-local-form" className={person ? "outline-review-followup" : "outline-chapter-composer"}
-    aria-label={person ? undefined : "章节局部修改"} onSubmit={event => {
+  const composer = <form id="outline-local-form" className="outline-local-composer"
+    aria-label={person ? "人物局部修改" : "章节局部修改"} onSubmit={event => {
       event.preventDefault();
       if (draft.text.trim() && !disabled && !running && history.isSuccess) onSend(draft.text.trim(), draft.priorId);
     }}>
-      <label><span className={person ? undefined : "sr-only"}>{person ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}</span>
-        <textarea ref={input} rows={person ? 3 : 2} maxLength={6000} value={draft.text} onChange={e => onChange({...draft, text:e.target.value})}
+      <label><span className="sr-only">{person ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}</span>
+        <textarea ref={input} rows={2} maxLength={6000} value={draft.text} onChange={e => onChange({...draft, text:e.target.value})}
           placeholder={person ? `例如，丰富一下${title}的目标和动机。` : "想怎样调整这一章？例如，让结尾的悬念更强。"} /></label>
       {prior && <p className="outline-local-note">沿用建议「{prior.requestText}」 <button type="button" className="underline" onClick={() => onChange({text:draft.text})}>取消引用</button></p>}
-      <div className={person ? undefined : "outline-chapter-send"}>
-        <p className="outline-local-note">{person ? "会一起核对出场卷章与伏笔。先看建议，确认后保存为新版本。" : "仅调整本章，采纳后写入大纲。"}</p>
-        <Button size={person ? "default" : "sm"} disabled={disabled || !!running || !history.isSuccess || !draft.text.trim()}>生成修改建议</Button>
+      <div className="outline-local-send">
+        <p className="outline-local-note">{person ? "一并核对出场卷章和伏笔，采纳后写入大纲。" : "仅调整本章，采纳后写入大纲。"}</p>
+        <Button size="sm" disabled={disabled || !!running || !history.isSuccess || !draft.text.trim()}>生成修改建议</Button>
       </div>
     </form>;
-  const activity = <section className="outline-local-review" aria-label={person ? "人物局部修改" : "章节修改记录"}>
-    {person && composer}
+  const activity = <section className="outline-local-review" aria-label={person ? "人物修改记录" : "章节修改记录"}>
     {running && <div role="status" className="outline-local-reply"><p>{live?.stage || "正在整理修改建议…"}</p>
       <AgentThinking steps={live?.thinking ?? running.thinking} running />{live?.text && <MarkdownViewer content={live.text} />}
       <button type="button" className="outline-reading-link" disabled={stop.isPending} onClick={() => stop.mutate(running.id)}>结束本轮</button></div>}
@@ -66,17 +60,17 @@ export function OutlineLocalReview({ projectId, target, title, version, expanded
             : turn.status === "completed" ? "讨论回复" : turn.status === "running" ? "生成中" : turn.status === "interrupted" ? "已结束" : "生成失败"}</small>
           {result && <button className="outline-reading-link" onClick={() => onOpen(result.id)}>{result.baseVersion !== version && result.status === "pending" ? "与当前稿对照" : "查看建议"}</button>}
           {result && ["applied","partially_applied","pending"].includes(result.status) && <button className="outline-reading-link" onClick={() => {
-            onChange({...draft, priorId:result.id}); onExpand(); input.current?.focus();
+            onChange({...draft, priorId:result.id}); onExpand(); input.current?.focus({ preventScroll: true });
           }}>沿用这份建议</button>}
           {(turn.replyText || !!turn.thinking?.length) && <details><summary>查看本轮回复</summary><AgentThinking steps={turn.thinking} running={false} />{turn.replyText && <MarkdownViewer content={turn.replyText} />}</details>}
           {(turn.status === "failed" || turn.status === "interrupted") && <button className="outline-reading-link" onClick={() => {
-            onChange({text:turn.requestText, priorId:turn.parentResultId ?? undefined}); onExpand(); input.current?.focus();
+            onChange({text:turn.requestText, priorId:turn.parentResultId ?? undefined}); onExpand(); input.current?.focus({ preventScroll: true });
           }}>用这条要求继续</button>}
         </li>;
       })}</ol></details>}
   </section>;
   return <>
     <div className="outline-reading-body">{activity}{children}</div>
-    {!person && expanded && <footer className="outline-chapter-dock">{composer}</footer>}
+    {expanded && <footer className="outline-local-dock">{composer}</footer>}
   </>;
 }
