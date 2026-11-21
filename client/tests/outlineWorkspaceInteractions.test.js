@@ -74,7 +74,7 @@ async function open(t, path, respond = () => undefined) {
     const record = () => ({ id: "p", title: saved.story.title, currentVersion: version, document: saved });
     const reply = data => ({ config, data: { success: true, data }, headers: {}, status: 200, statusText: "OK" });
     const custom = respond(url, method, body);
-    if (custom !== undefined) return reply(custom);
+    if (custom !== undefined) return reply(await custom);
     let data;
     if (url === "/outlines") data = method === "post" ? { project: record() } : [];
     else if (url === "/outlines/p") data = record();
@@ -313,6 +313,42 @@ test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返�
   assert.equal(motivation().value, "找回父亲的航海日志");
   assert.equal(button("保存为新修订").disabled, true);
   assert.deepEqual(writes, []);
+});
+
+test("手动保存的回执晚于新版大纲返回时，阅读区保留新版修订和书名", async t => {
+  let latest, finishSave;
+  const { page } = await open(t, "/outlines/p?nodeId=s", (url, method, body) => {
+    if (url.endsWith("/document")) return new Promise(resolve => {
+      finishSave = () => resolve({ revision: { version: 2 }, document: body.document });
+    });
+    if (url === "/outlines/p" && method === "get") return latest;
+  });
+  await click(await until(() => button("手动编辑")));
+  await change(document.querySelector(".outline-title"), "第二版书名");
+  await click(button("保存为新修订"));
+  await until(() => finishSave);
+
+  const key = ["outline", "p"];
+  const original = page.cache.getQueryData(key);
+  latest = { ...original, currentVersion: 3, title: "第三版书名",
+    document: { ...original.document, story: { ...original.document.story, title: "第三版书名" } } };
+  await runtime.act(async () => { await page.cache.refetchQueries({ queryKey: key, exact: true }); });
+  const seenVersions = [];
+  const unsubscribe = page.cache.getQueryCache().subscribe(event => {
+    if (event.type === "updated" && event.query === page.cache.getQueryCache().find({ queryKey: key, exact: true })) {
+      seenVersions.push(event.query.state.data.currentVersion);
+    }
+  });
+  try {
+    await runtime.act(async () => { finishSave(); });
+    await until(() => !page.cache.isMutating());
+    assert.ok(seenVersions.length > 0);
+    assert.ok(seenVersions.every(version => version === 3), seenVersions.join(", "));
+    assert.equal(page.cache.getQueryData(key).title, latest.title);
+    assert.equal(page.cache.getQueryData(key).document.story.title, latest.title);
+  } finally {
+    unsubscribe();
+  }
 });
 
 test("人物对话重进后自动恢复，追问绑定上一版，旧提案只读，勾选后才写入", async t => {

@@ -88,9 +88,10 @@ function OutlineWorkspace({ id }: { id: string }) {
   const save = useMutation({
     mutationFn: () => saveOutline(id, draft!.baseVersion, draft!.document),
     onSuccess: async result => {
-      client.setQueryData<OutlineProject>(["outline", id], old => old && ({
-        ...old, currentVersion: result.revision.version, document: result.document, title: result.document.story.title,
-      }));
+      client.setQueryData<OutlineProject>(["outline", id], old => {
+        if (!old || result.revision.version < old.currentVersion) return old;
+        return { ...old, currentVersion: result.revision.version, document: result.document, title: result.document.story.title };
+      });
       setDraft(null);
       await refresh();
     },
