@@ -18,7 +18,7 @@ export interface AgentConversationAdapter<Result> {
 interface Props<Result extends { id: string; status: string }> {
   adapter: AgentConversationAdapter<Result>;
   title: string;
-  context: string;
+  context: ReactNode;
   confirmationHint: string;
   welcome: { title: string; body: string; starters: { label: string; text: string }[] };
   inputLabel: string;
@@ -94,7 +94,7 @@ export function AgentConversation<Result extends { id: string; status: string }>
   return <section className="agent-conversation" aria-label={title}>
     <header className="agent-heading">
       <span className="agent-mark" aria-hidden="true"><Feather size={20} /></span>
-      <div><h3>{title}</h3><p>{context}</p></div>
+      <div><h3>{title}</h3>{typeof context === "string" ? <p>{context}</p> : context}</div>
       <button type="button" className="agent-refresh" title="刷新对话" aria-label="刷新对话" disabled={history.isFetching} onClick={() => void history.refetch()}><RefreshCw size={15} /></button>
     </header>
     <div className="agent-feed" ref={feedRef} onScroll={event => {

@@ -1,4 +1,4 @@
-import { CandidateDiscussion } from "../autoDirector/candidateReview/CandidateDiscussion";
+import { candidateAnchor } from "../autoDirector/candidateReview/candidateScope";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, RefreshCw, Wand2 } from "lucide-react";
@@ -19,8 +19,6 @@ interface NovelAutoDirectorCandidateBatchesProps {
   feedback: string;
   onFeedbackChange: (value: string) => void;
   onTogglePreset: (preset: DirectorCorrectionPreset) => void;
-  workflowTaskId: string;
-  onReviewedCandidate: (batchId: string, candidate: DirectorCandidate) => void;
   titlePatchFeedbacks: Record<string, string>;
   onTitlePatchFeedbackChange: (candidateId: string, value: string) => void;
   isGenerating: boolean;
@@ -86,8 +84,6 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
     feedback,
     onFeedbackChange,
     onTogglePreset,
-    workflowTaskId,
-    onReviewedCandidate,
     titlePatchFeedbacks,
     onTitlePatchFeedbackChange,
     isGenerating,
@@ -110,7 +106,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
   }
 
   return (
-    <div className="space-y-8">
+    <div className="candidate-batches space-y-8">
       {batches.map((batch, batchIndex) => (
         <motion.section
           key={batch.id}
@@ -141,6 +137,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
               return (
                 <motion.article
                   key={candidate.id}
+                  id={candidateAnchor(batch.id, candidate.id)}
                   initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
@@ -149,8 +146,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   }}
                   className="group min-w-0 py-7 first:pt-2 last:pb-2"
                 >
-                  <div className="grid min-w-0 gap-5 lg:grid-cols-[3.25rem_minmax(0,1fr)_220px]">
-                    <div className="hidden lg:block">
+                  <div className="candidate-overview grid min-w-0 gap-5">
+                    <div className="candidate-number">
                       <div className="text-3xl font-semibold leading-none text-muted-foreground/45">
                         {String(candidateIndex + 1).padStart(2, "0")}
                       </div>
@@ -161,9 +158,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-                        <span className="lg:hidden">方案 {candidateIndex + 1}</span>
-                        {candidateIndex === 0 ? <span className="lg:hidden">· 推荐先看</span> : null}
-                        <span className="lg:hidden">·</span>
+                        <span className="candidate-inline-number">方案 {candidateIndex + 1} {candidateIndex === 0 && "· 推荐先看"} ·</span>
                         <span>约 {candidate.targetChapterCount} 章</span>
                         {toneSummary ? (
                           <>
@@ -207,7 +202,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         </div>
                       ) : null}
 
-                      <dl className="mt-6 grid gap-x-8 gap-y-4 text-sm md:grid-cols-3">
+                      <dl className="candidate-story-fields mt-6 grid gap-x-8 gap-y-4 text-sm">
                         {renderPrimaryCandidateDetails(candidate).map((item) => (
                           <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                             <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
@@ -249,9 +244,6 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       </div>
                     </aside>
                   </div>
-
-                  {workflowTaskId && <CandidateDiscussion taskId={workflowTaskId} batchId={batch.id} candidate={candidate}
-                    disabled={isGenerating || isRefiningTitle || isConfirming || isApplying} onApplied={onReviewedCandidate} />}
 
                   <details className="group mt-6">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">

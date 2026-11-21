@@ -1,4 +1,3 @@
-import { useIsMutating } from "@tanstack/react-query";
 import NovelAutoDirectorCandidateBatches from "../components/NovelAutoDirectorCandidateBatches";
 import NovelAutoDirectorProgressPanel from "../components/NovelAutoDirectorProgressPanel";
 import { Button } from "@/components/ui/button";
@@ -11,15 +10,16 @@ type AutoDirectorCreateController = ReturnType<typeof useAutoDirectorCreateContr
 
 interface StageCandidatesProps {
   controller: AutoDirectorCreateController;
+  isApplying: boolean;
   onRegenerateSettings: () => void;
 }
 
 export default function StageCandidates({
   controller,
+  isApplying,
   onRegenerateSettings,
 }: StageCandidatesProps) {
   const directorTask = controller.directorTask;
-  const applying = useIsMutating({ mutationKey: ["apply-opening-candidate", controller.workflowTaskId] }) > 0;
   if (
     directorTask
     && isProductionExperienceChoicePending(directorTask)
@@ -82,8 +82,6 @@ export default function StageCandidates({
         feedback={controller.feedback}
         onFeedbackChange={controller.setFeedback}
         onTogglePreset={controller.togglePreset}
-        workflowTaskId={controller.workflowTaskId}
-        onReviewedCandidate={controller.onReviewedCandidate}
         titlePatchFeedbacks={controller.titlePatchFeedbacks}
         onTitlePatchFeedbackChange={(candidateId, value) => controller.setTitlePatchFeedbacks((prev) => ({
           ...prev,
@@ -92,7 +90,7 @@ export default function StageCandidates({
         isGenerating={controller.generateMutation.isPending}
         isRefiningTitle={controller.refineTitleMutation.isPending}
         isConfirming={controller.confirmMutation.isPending}
-        isApplying={applying}
+        isApplying={isApplying}
         onApplyCandidateTitleOption={controller.applyCandidateTitleOption}
         onRefineTitle={(batchId, candidate, nextFeedback) => controller.refineTitleMutation.mutate({
           batchId,

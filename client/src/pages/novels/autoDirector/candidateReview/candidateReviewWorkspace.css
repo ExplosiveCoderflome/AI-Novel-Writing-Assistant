@@ -1,0 +1,38 @@
+.candidate-workspace {
+  container: opening-workspace / inline-size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-width: 112.5rem;
+  margin-inline: auto;
+}
+.candidate-workspace-columns { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); }
+.candidate-reading, .candidate-inspector { min-height: 0; }
+.candidate-reading { overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.candidate-inspector { container-type: inline-size; display: flex; flex-direction: column; }
+.candidate-inspector .agent-conversation { flex: 1; }
+.candidate-inspector .agent-heading > div { flex: 1; min-width: 0; }
+.candidate-inspector .agent-mark, .candidate-inspector .agent-refresh { flex-shrink: 0; }
+.candidate-inspector .agent-feed { overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.candidate-context-select { max-width: 100%; padding-block: .25rem; font-size: .8125rem; color: hsl(var(--foreground)); background: hsl(var(--background)); }
+.candidate-context-select:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.candidate-pane-switch { display: flex; justify-content: flex-end; gap: .25rem; margin-block-end: .5rem; }
+@container opening-workspace (width < 46rem) {
+  .candidate-workspace-columns[data-pane="candidates"] > .candidate-inspector,
+  .candidate-workspace-columns[data-pane="assistant"] > .candidate-reading { display: none; }
+}
+@container opening-workspace (min-width: 46rem) {
+  .candidate-pane-switch { display: none; }
+  .candidate-workspace-columns { --show-dividers: block; grid-template-columns: var(--workspace-tracks); column-gap: var(--workspace-gap); }
+}
+.candidate-number { display: none; }
+.candidate-batches { container: candidate-list / inline-size; }
+@container candidate-list (min-width: 36rem) {
+  .candidate-story-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container candidate-list (min-width: 52rem) {
+  .candidate-overview { grid-template-columns: 3.25rem minmax(0, 1fr) 13.75rem; }
+  .candidate-number { display: block; }
+  .candidate-inline-number { display: none; }
+}
