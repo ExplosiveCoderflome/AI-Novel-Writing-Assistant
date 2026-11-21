@@ -69,7 +69,7 @@ export function isCompactBookFinaleBeat(params: {
     >= params.completionProfile.endingRequiredBy;
 }
 
-function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
+export function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
   let nextChapterOrder = 1;
   return beatSheet.beats.map((beat) => {
     const chapterCount = Math.max(1, getBeatExpectedChapterCount(beat));

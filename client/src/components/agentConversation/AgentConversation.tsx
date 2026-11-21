@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ArrowUpRight, Bookmark, ChevronDown, Feather, FileText, RefreshCw, Square } from "lucide-react";
+import { ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Feather, FileText, RefreshCw, Square } from "lucide-react";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
-import { subscribeSnapshots } from "@/lib/streaming/subscribeSnapshots";
-import type { AgentConversationTurn, AgentTurnInput, AgentReplyPreview } from "@ai-novel/shared/types/agentConversation/turn";
+import { useAgentReplyPreview } from "./useAgentReplyPreview";
+import type { AgentConversationTurn, AgentTurnInput } from "@ai-novel/shared/types/agentConversation/turn";
 import { AgentThinking } from "./AgentThinking";
 import "./agentConversation.css";
 
@@ -15,7 +15,7 @@ export interface AgentConversationAdapter<Result> {
   interrupt: (turnId: string) => Promise<unknown>;
 }
 
-interface Props<Result extends { id: string }> {
+interface Props<Result extends { id: string; status: string }> {
   adapter: AgentConversationAdapter<Result>;
   title: string;
   context: string;
@@ -23,6 +23,7 @@ interface Props<Result extends { id: string }> {
   welcome: { title: string; body: string; starters: { label: string; text: string }[] };
   inputLabel: string;
   placeholder: string;
+  followUpPlaceholder: string;
   initialAction: string;
   followUpAction: (result: Result, number: number) => string;
   versionLabel: (version: string) => string;
@@ -32,12 +33,15 @@ interface Props<Result extends { id: string }> {
   onChange: (value: string) => void;
   canContinue: (result: Result) => boolean;
   describeResult: (result: Result) => string;
-  renderResult: (result: Result, busy: boolean) => ReactNode;
+  draftPreview?: (result: Result) => { title: string; counts: string } | undefined;
+  followUpTopic: (result: Result, number: number) => string;
+  onOpenResult?: (resultId: string) => void;
+  renderResult?: (result: Result, busy: boolean, round: number) => ReactNode;
 }
 
-export function AgentConversation<Result extends { id: string }>({
-  adapter, title, context, confirmationHint, welcome, inputLabel, placeholder, initialAction, followUpAction, versionLabel,
-  maxLength, disabled, value, onChange, canContinue, describeResult, renderResult,
+export function AgentConversation<Result extends { id: string; status: string }>({
+  adapter, title, context, confirmationHint, welcome, inputLabel, placeholder, followUpPlaceholder, initialAction, followUpAction, versionLabel,
+  maxLength, disabled, value, onChange, canContinue, describeResult, draftPreview, followUpTopic, renderResult, onOpenResult,
 }: Props<Result>) {
   const client = useQueryClient();
   const [openedId, setOpenedId] = useState<string | null>(null);
@@ -46,6 +50,7 @@ export function AgentConversation<Result extends { id: string }>({
   const feedRef = useRef<HTMLDivElement>(null);
   const followReply = useRef(true);
   const editor = useRef<HTMLTextAreaElement>(null);
+  const topicId = useId();
   const history = useQuery({ queryKey: adapter.queryKey, queryFn: adapter.load,
     refetchInterval: query => query.state.data?.some(turn => turn.status === "running") ? 1500 : false });
   const turns = history.data ?? [];
@@ -55,22 +60,7 @@ export function AgentConversation<Result extends { id: string }>({
   const parent = opened && canContinue(opened.result) ? opened : [...results].reverse().find(item => canContinue(item.result));
   const running = turns.find(turn => turn.status === "running");
   const streamUrl = running && adapter.streamUrl?.(running.id);
-  const [preview, setPreview] = useState<AgentReplyPreview | null>(null);
-  const { refetch } = history;
-  useEffect(() => {
-    setPreview(null);
-    if (!streamUrl || typeof EventSource === "undefined") return;
-    const close = subscribeSnapshots(streamUrl, raw => {
-      const frame = raw as Partial<AgentReplyPreview> | null;
-      if (!frame || frame.turnId !== running?.id || typeof frame.text !== "string"
-        || typeof frame.stage !== "string" || typeof frame.done !== "boolean") return;
-      if (frame.thinking !== undefined && (!Array.isArray(frame.thinking) ||
-        !frame.thinking.every(step => step && typeof step.stage === "string" && typeof step.text === "string"))) return;
-      if (frame.done) { close(); void refetch(); }
-      else setPreview(frame as AgentReplyPreview);
-    });
-    return close;
-  }, [streamUrl, running?.id, refetch]);
+  const preview = useAgentReplyPreview(streamUrl, running?.id, history.refetch);
   useEffect(() => {
     const feed = feedRef.current;
     if (preview && followReply.current && feed) feed.scrollTop = feed.scrollHeight;
@@ -124,32 +114,49 @@ export function AgentConversation<Result extends { id: string }>({
         {turns.map((turn, index) => {
           const from = turn.parentResultId ? byResultId.get(turn.parentResultId) : undefined;
           const result = turn.result;
+          const draft = result && draftPreview?.(result);
+          const expanded = !!result && opened?.result.id === result.id;
           const live = turn.status === "running" && preview?.turnId === turn.id ? preview : null;
           return <li key={turn.id} ref={index === turns.length - 1 ? lastTurn : undefined}>
             <div className="agent-author"><small>你{from && ` · 追问第 ${from.number} 轮`}</small><p>{turn.requestText}</p></div>
-            <div className="agent-reply"><small><Feather size={13} aria-hidden="true" />{title} · {versionLabel(turn.contextVersion)}</small>
+            <div className="agent-reply"><small><Feather size={13} aria-hidden="true" />{title}{!draft && ` · ${versionLabel(turn.contextVersion)}`}</small>
               <AgentThinking steps={live?.thinking ?? turn.thinking} running={turn.status === "running"} />
               {turn.status === "running" ? <>
                 <p role="status" className="text-muted-foreground">{live?.stage || "正在整理你的想法…"}</p>
-                {live?.text && <MarkdownViewer content={live.text} />}
-              </> : turn.status === "completed" && turn.replyText ? <MarkdownViewer content={turn.replyText} />
-                : <p role={turn.status === "failed" ? "alert" : undefined}>{turn.replyText}</p>}
-              {result && <button type="button" className="agent-result-link" aria-expanded={opened?.result.id === result.id}
-                onClick={() => setOpenedId(opened?.result.id === result.id ? null : result.id)}><FileText size={14} aria-hidden="true" />查看第 {index + 1} 轮提案 · {describeResult(result)}<ChevronDown size={13} aria-hidden="true" /></button>}
+                {live?.text && <div className="agent-prose"><MarkdownViewer content={live.text} /></div>}
+              </> : turn.status === "completed" && turn.replyText ? <div className="agent-prose"><MarkdownViewer content={turn.replyText} /></div>
+                : turn.replyText && <p role={turn.status === "failed" ? "alert" : undefined}>{turn.replyText}</p>}
+              {result && <button type="button" className={draft ? "agent-draft" : "agent-result-link"} aria-expanded={onOpenResult ? undefined : expanded}
+                onClick={() => { setOpenedId(expanded && !onOpenResult ? null : result.id); onOpenResult?.(result.id); }}>
+                {draft ? <>
+                  <span className="agent-draft-heading">
+                    <strong>{draft.title}</strong>
+                    <span className="agent-draft-status" data-adopted={result.status === "applied"}>
+                      {result.status === "applied" && <Check size={13} aria-hidden="true" />}{describeResult(result)}
+                    </span>
+                  </span>
+                  <span className="agent-draft-footer"><span>{draft.counts}</span><span className="agent-draft-action">
+                    {expanded && !onOpenResult ? "收起大纲" : "查看大纲"}<ChevronDown size={14} aria-hidden="true" /></span></span>
+                </> : <><FileText size={14} aria-hidden="true" />查看第 {index + 1} 轮提案 · {describeResult(result)}<ChevronDown size={13} aria-hidden="true" /></>}
+              </button>}
               {(turn.status === "failed" || turn.status === "interrupted") && <button className="agent-text-action" type="button" disabled={busy || disabled}
                 onClick={() => { if (from) setOpenedId(from.result.id); compose(turn.requestText); }}>用这条要求继续</button>}
               {running?.id === turn.id && <button className="agent-text-action" type="button" disabled={stop.isPending} onClick={() => stop.mutate(turn.id)}><Square size={11} />结束本轮</button>}
-              {opened && result?.id === opened.result.id && <div className="agent-review" key={result.id}>{renderResult(result, busy)}</div>}
+              {result && expanded && renderResult && <div className="agent-review" data-draft={!!draft} key={result.id}>
+                {renderResult(result, busy, index + 1)}
+              </div>}
             </div>
           </li>;
         })}
       </ol>}
     </div>
     <form className="agent-compose" onSubmit={e => { e.preventDefault(); submit(); }}>
-      {parent && <div className="agent-reference"><Bookmark size={12} />接着第 {parent.number} 轮提案讨论</div>}
       <div className="agent-input">
-        <textarea ref={editor} aria-label={inputLabel} rows={2} value={value} maxLength={maxLength}
-          placeholder={turns.length ? "继续追问，或写下你想调整的地方…" : placeholder} disabled={send.isPending} onChange={event => onChange(event.target.value)}
+        {parent && <div className="agent-reference" id={topicId} title={`第 ${parent.number} 轮提案`}>
+          <BookOpen size={14} aria-hidden="true" />{followUpTopic(parent.result, parent.number)}
+        </div>}
+        <textarea ref={editor} aria-label={inputLabel} aria-describedby={parent ? topicId : undefined} rows={2} value={value} maxLength={maxLength}
+          placeholder={parent ? followUpPlaceholder : turns.length ? "接着说说你的想法…" : placeholder} disabled={send.isPending} onChange={event => onChange(event.target.value)}
           onKeyDown={event => {
             if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey
               || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;

@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw, Save } from "lucide-react";
@@ -75,7 +76,9 @@ export function WritingPlatformProfileManager(props: { open: boolean; onOpenChan
           <DialogTitle>平台写法</DialogTitle>
           <DialogDescription>同一套生产链会按这里的版本调整定位、规划、正文、审校和修复。已有作品继续使用创建时保存的快照。</DialogDescription>
         </DialogHeader>
-        <div className="grid min-h-0 flex-1 md:grid-cols-[220px_minmax(0,1fr)_260px]">
+        <WorkspaceColumns layoutId="writing-platform" className="grid min-h-0 flex-1 md:workspace-split" gap={0}
+          left={{ label: "调整平台列表宽度", initial: "220px", min: 128 }}
+          right={{ label: "调整写法版本宽度", initial: "260px", min: 160 }}>
           <nav className="space-y-1 border-r bg-muted/20 p-3">
             {PLATFORMS.map((item) => (
               <button key={item.key} type="button" onClick={() => setPlatform(item.key)} className={cn("w-full rounded-lg px-3 py-2.5 text-left text-sm", item.key === platform ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:bg-background/70")}>{item.label}</button>
@@ -114,7 +117,7 @@ export function WritingPlatformProfileManager(props: { open: boolean; onOpenChan
               ))}
             </div>
           </aside>
-        </div>
+        </WorkspaceColumns>
         <div className="flex items-center justify-end gap-2 border-t px-5 py-3">
           <Button variant="outline" onClick={() => restoreMutation.mutate()} disabled={restoreMutation.isPending}><RotateCcw className="mr-2 h-4 w-4" />恢复官方写法</Button>
           <Button onClick={() => saveMutation.mutate()} disabled={!draft || saveMutation.isPending}><Save className="mr-2 h-4 w-4" />保存新版本</Button>

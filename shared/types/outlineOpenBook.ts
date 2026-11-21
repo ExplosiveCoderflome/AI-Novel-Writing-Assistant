@@ -32,7 +32,7 @@ export interface OutlineVolumeSlot { volumeId: string; chapterQuota: number; fro
 export interface OutlineBookMapping {
   runtimeVolumes?: OutlineVolumeSlot[];
   volumes: Array<{ nodeId: string; volumeId: string; chapterQuota: number; from: number; to: number }>;
-  chapters: Array<{ nodeId: string; volumeId: string; planId: string; chapterId: string; chapterOrder: number }>;
+  chapters: Array<{ nodeId: string; volumeId: string; planId: string; chapterId: string; chapterOrder: number; beatKey?: string }>;
   characters: Array<{ nodeId: string; characterId: string }>;
   payoffs: Array<{ nodeId: string; ledgerKey: string; ledgerItemId: string | null }>;
 }

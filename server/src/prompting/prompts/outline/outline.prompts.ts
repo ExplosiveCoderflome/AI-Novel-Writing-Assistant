@@ -2,8 +2,63 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 
+import { volumeBeatsSchema, volumeBeatSlotKeySchema } from "@ai-novel/shared/types/volumeBeatSheet";
+import { inferRequiredChapterCountFromBeatSheet, validateBeatSheetChapterCoverage } from "@ai-novel/shared/types/volumeBeatCoverage";
+import { beatPlanningInstruction } from "./volumeBeats.prompt";
+
 const nodeSchema = z.object({ clientRef: z.string().min(1), title: z.string(), summary: z.string(), planningDepth: z.enum(["rough", "detailed"]).default("rough"), reason: z.string(), sourceFragment: z.string() });
 export const initialSchema = z.object({ storyFields: z.object({ title: z.string(), premise: z.string(), synopsis: z.string(), theme: z.string(), tone: z.string(), endingDirection: z.string() }), volumes: z.array(nodeSchema), chapters: z.array(nodeSchema.extend({ volumeRef: z.string() })), characters: z.array(nodeSchema.extend({ role: z.string() })), payoffs: z.array(nodeSchema.extend({ setupDescription: z.string(), payoffDescription: z.string() })), facts: z.array(nodeSchema.extend({ content: z.string() })) });
+const draftSchema = initialSchema.extend({
+  characters: z.array(nodeSchema.extend({
+    title: z.string().trim().min(1), summary: z.string().trim().min(1),
+    role: z.string(), appearanceRefs: z.array(z.string().min(1)),
+  })),
+});
+const pacedDraftSchema = draftSchema.extend({
+  volumes: z.array(nodeSchema.extend({beats: volumeBeatsSchema.optional()})),
+  chapters: z.array(nodeSchema.extend({volumeRef:z.string(), beatKey:volumeBeatSlotKeySchema})),
+});
+export type InitialOutlineDraft = z.infer<typeof pacedDraftSchema>;
+export type SavedInitialOutlineDraft = Omit<InitialOutlineDraft, "characters" | "chapters"> & {
+  chapters: Array<Omit<InitialOutlineDraft["chapters"][number], "beatKey"> & {beatKey?: InitialOutlineDraft["chapters"][number]["beatKey"]}>;
+  characters: Array<z.infer<typeof initialSchema>["characters"][number] & { appearanceRefs?: string[] }>;
+};
+
+export function initialReferenceError(draft: SavedInitialOutlineDraft): string | undefined {
+  const { volumes, chapters, characters, payoffs, facts } = draft;
+  const allRefs = [...volumes, ...chapters, ...characters, ...payoffs, ...facts].map(node => node.clientRef);
+  if (new Set(allRefs).size !== allRefs.length) return "初稿中多个节点使用了同一引用。";
+  const volumeRefs = new Set(volumes.map(node => node.clientRef));
+  if (chapters.some(chapter => !volumeRefs.has(chapter.volumeRef))) return "初稿中有章节找不到所属卷。";
+  for (const vol of volumes) {
+    const local = chapters.filter(ch => ch.volumeRef === vol.clientRef);
+    if (local.some(ch => ch.beatKey && !vol.beats?.some(b => b.key === ch.beatKey))) return `「${vol.title}」的章节须关联本卷已有节奏段。`;
+    if (vol.beats) {
+      const target = Math.max(local.length, inferRequiredChapterCountFromBeatSheet({beats: vol.beats}));
+      const coverage = validateBeatSheetChapterCoverage({beatSheet:{beats:vol.beats}, targetChapterCount:target});
+      if (!coverage.accepted) return coverage.message!;
+    }
+  }
+  const locations = new Set([...volumeRefs, ...chapters.map(node => node.clientRef)]);
+  for (const person of characters) {
+    if (person.appearanceRefs?.some(ref => !locations.has(ref))) return `人物「${person.title}」的出场位置必须指向本初稿的卷或章节。`;
+  }
+}
+export const initialDraftSchema = draftSchema.superRefine((draft, context) => {
+  if (!draft.storyFields.premise.trim() && !draft.storyFields.synopsis.trim() &&
+      ![draft.volumes, draft.chapters, draft.characters, draft.payoffs, draft.facts].some(group => group.length)) {
+    context.addIssue({ code: "custom", message: "请把本轮讨论整理为实际的故事初稿。" });
+  }
+  const message = initialReferenceError(draft);
+  if (message) context.addIssue({ code: "custom", message });
+});
+export const pacedInitialDraftSchema = pacedDraftSchema.superRefine((draft, ctx) => {
+  const issue = initialReferenceError(draft);
+  if (issue) ctx.addIssue({code:"custom", message:issue});
+  if (!draft.storyFields.premise.trim() && !draft.storyFields.synopsis.trim() && ![draft.volumes,draft.characters,draft.payoffs,draft.facts].some(group => group.length))
+    ctx.addIssue({code:"custom",message:"请提供实际的故事初稿。"});
+});
+export const initialCastInstruction = "为推动情节的主要人物建档。title 沿用作者确定的姓名或称呼，role 写故事作用，summary 保留讨论中确定的来历、身份变化与处境。appearanceRefs 列出实际计划出场的章节 clientRef；只确定到卷时写卷 clientRef。仅被提及或尚未安排出场时可填空数组。";
 const operationSchema = z.object({
   operationId: z.string().min(1),
   kind: z.enum(["add_node", "update_fields", "remove_node", "move_node"]),
@@ -69,10 +124,28 @@ export const editSchema = z.object({ operations: z.array(operationSchema).min(1)
 });
 const importSchema = z.object({ nodes: z.array(nodeSchema.extend({ nodeType: z.enum(["volume", "chapter", "character", "payoff", "fact"]), parentRef: z.string().optional(), sourceFragment: z.string() })), unclassifiedFragments: z.array(z.string()), coverageNotes: z.array(z.string()) });
 
-export const outlineInitialGeneratePrompt: PromptAsset<{ idea: string; genre?: string; audience?: string; rough: boolean }, z.infer<typeof initialSchema>> = {
+type InitialInput = { idea: string; genre?: string; audience?: string; rough: boolean };
+export const outlineInitialGenerateV1 = {
   id: "outline.initial_generate", version: "v1", taskType: "planner", mode: "structured", language: "zh", contextPolicy: { maxTokensBudget: 8000 }, outputSchema: initialSchema,
   render: input => [new SystemMessage("你是帮助写作新手完成长篇小说大纲的规划助手。根据想法生成完整总纲、适量卷与首批章节；远期章节保持粗纲。卷数与章节数按内容需要决定，不要固定五卷。节点只给 clientRef，不要生成稳定 ID。输出严格符合结构。"), new HumanMessage(JSON.stringify(input))],
+} satisfies PromptAsset<InitialInput, z.infer<typeof initialSchema>>;
+export const outlineInitialGenerateV2: PromptAsset<InitialInput & { conversation?: {
+  history: { author: string; assistant: string | null }[]; document: unknown;
+  priorProposal: { status: string; kind: string; payload: unknown } | null; draftDirection: string;
+} }, z.infer<typeof initialDraftSchema>> = {
+  ...outlineInitialGenerateV1, version: "v2", outputSchema: initialDraftSchema,
+  render: input => [new SystemMessage([
+    "为作者生成一份可采纳的完整小说初稿。结合创作要求、已保存的大纲、对话中的决定及上一份提案，把总纲、分卷、首批章节、人物、伏笔和设定直接写入相应字段。近期章节具体，远期可保留粗纲；按故事需要决定数量。",
+    "每个节点使用唯一的 clientRef，章节 volumeRef 指向本次生成的卷。", initialCastInstruction,
+  ].join("\n")), new HumanMessage(JSON.stringify(input))],
 };
+export const outlineInitialGeneratePrompt = {
+  ...outlineInitialGenerateV1, version:"v3", outputSchema:pacedInitialDraftSchema,
+  render: (input, context) => {
+    const [system, user] = outlineInitialGenerateV2.render(input, context);
+    return [new SystemMessage(String(system.content) + "\n" + beatPlanningInstruction), user];
+  },
+} satisfies PromptAsset<Parameters<typeof outlineInitialGenerateV2.render>[0], InitialOutlineDraft>;
 export const outlineEditProposalPrompt: PromptAsset<{ request: string; baseVersion: number; document: unknown; scope: string }, z.infer<typeof editSchema>> = {
   id: "outline.edit_proposal", version: "v2", taskType: "planner", mode: "structured", language: "zh", contextPolicy: { maxTokensBudget: 8000 }, outputSchema: editSchema,
   render: input => [new SystemMessage([

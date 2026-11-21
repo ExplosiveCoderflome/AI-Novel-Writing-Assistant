@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
@@ -229,14 +230,15 @@ export default function PromptWorkbenchPage() {
     : !selectedPrompt?.slotSupported || slotState.isNovelScopeDisabled;
 
   return (
-    <div
+    <WorkspaceColumns layoutId="prompt-workbench" gap={0} minCenter={440}
+      left={!immersiveMode && !writingLab ? { label: "调整提示词目录宽度", initial: "260px", min: 160 } : undefined}
       className={cn(
-        "prompt-workbench-theme flex h-full min-h-0 overflow-hidden bg-background text-foreground",
+        "prompt-workbench-theme flex h-full min-h-0 overflow-hidden bg-background text-foreground lg:workspace-split",
         immersiveMode && "fixed inset-0 z-50 h-screen bg-background",
       )}
     >
       {!immersiveMode && !writingLab ? (
-        <div className="flex h-full min-h-0 w-[260px] min-w-[220px] max-w-[300px] shrink-0 overflow-hidden">
+        <div className="flex h-full min-h-0 w-[260px] shrink-0 overflow-hidden lg:w-auto">
           <PromptCatalogSidebar
             keyword={keyword}
             onKeywordChange={setKeyword}
@@ -440,6 +442,6 @@ export default function PromptWorkbenchPage() {
         </AppDialogContent>
       </Dialog>
       <WritingPlatformProfileManager open={platformManagerOpen} onOpenChange={setPlatformManagerOpen} />
-    </div>
+    </WorkspaceColumns>
   );
 }

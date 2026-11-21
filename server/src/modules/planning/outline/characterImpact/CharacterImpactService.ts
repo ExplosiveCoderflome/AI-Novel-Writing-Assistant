@@ -7,7 +7,7 @@ import { characterDialoguePrompt, characterImpactPrompt, impactScopeRetryHints, 
 import { AppError } from "../../../../middleware/errorHandler";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
 import { mapOutlineGenerateFailure } from "../application/OutlineProposalService";
-import { buildNoUsableImpactError, composeImpact, type ImpactComposeResult } from "./compose";
+import { buildNoUsableImpactError, composeImpact, reviewHandoff, type ImpactComposeResult } from "./compose";
 import { readWrittenChapterIds } from "./writtenChapters";
 
 const reviewStages: Record<ImpactRole, string> = {character: "正在梳理人物动机…", plot: "正在核对相关卷章…", payoff: "正在综合伏笔与人物修改…"};
@@ -73,10 +73,10 @@ export class CharacterImpactService {
         const promptInput: CharacterImpactPromptInput = {snapshot, requestText: request.requestText, role, prior: {...reviews}, previousProposal,
           ...(dialogue && {conversationHistory: dialogue.conversationHistory})};
         const first = await this.invokeRole(role, promptInput, dialogue);
-        reviews[role] = first.review;
+        reviews[role] = reviewHandoff(first.review, reviews);
         if (first.reply) reply = first.reply;
         composed = composeImpact(snapshot, reviews, "workbench");
-        if (this.roleChangesAllDropped(role, first.review, composed)) {
+        if (this.roleChangesAllDropped(role, reviews[role]!, composed)) {
           // One targeted retry: the model slipped out of this role's scope.
           // Restate the scope and ask only for in-scope changes. The dropped
           // review is discarded, so the retry starts from the other
@@ -84,7 +84,7 @@ export class CharacterImpactService {
           delete reviews[role];
           const retryInput: CharacterImpactPromptInput = {...promptInput, prior: {...reviews}, scopeRetryHint: impactScopeRetryHints[role]};
           const second = await this.invokeRole(role, retryInput, dialogue);
-          reviews[role] = second.review;
+          reviews[role] = reviewHandoff(second.review, reviews);
           if (second.reply) reply = second.reply;
           composed = composeImpact(snapshot, reviews, "workbench");
         }

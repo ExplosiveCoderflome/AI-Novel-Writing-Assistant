@@ -27,11 +27,12 @@ const assignments: Record<ImpactRole, string> = {
 const asset = {
   id: "outline.character_impact", taskType: "planner", mode: "structured", language: "zh", contextPolicy: {maxTokensBudget: 8000},
 } as const;
-export const characterImpactPrompt: PromptAsset<CharacterImpactPromptInput, ImpactReview> = {
+export const characterImpactV1: PromptAsset<CharacterImpactPromptInput, ImpactReview> = {
   ...asset, version: "v1", outputSchema: impactReviewSchema,
   render: input => renderImpact(input),
 };
-function renderImpact(input: CharacterImpactPromptInput, dialogue = false) {
+const handoff = "prior 保存本轮前序审阅者已通过校验的修改，会自动并入最终提案。changes 只列当前职责内、本轮仍需新增的字段修改。保留前序建议时直接引用其结论，本阶段无需新增修改时返回 changes: []。作者只要求补充人物字段，且现有卷章和伏笔仍然成立时，保留原有安排。";
+function renderImpact(input: CharacterImpactPromptInput, dialogue = false, handoffInstruction?: string) {
   return [
     new SystemMessage([
       "你为作者审阅独立大纲中的一次人物调整。三位审阅者使用同一份已保存的大纲。", assignments[input.role],
@@ -43,11 +44,19 @@ function renderImpact(input: CharacterImpactPromptInput, dialogue = false) {
       dialogue
         ? "previousProposal 是作者正在讨论的方案。若来源版本或状态有变化，参考既往取舍和已采纳项，重新核对当前快照。只提出仍有必要的修改。"
         : "如附有 previousProposal，它是尚未采纳的旧建议。用作者的反馈修订整套建议，每项仍须与当前已保存的大纲对比。",
-    ].join("\n")),
+      handoffInstruction,
+    ].filter(Boolean).join("\n")),
     new HumanMessage(JSON.stringify(input)),
   ];
 }
 
-export const characterDialoguePrompt: PromptAsset<CharacterImpactPromptInput, ImpactReview & { replyText: string; responseKind: "explanation" | "proposal" }> = {
+export const characterDialogueV2: PromptAsset<CharacterImpactPromptInput, ImpactReview & { replyText: string; responseKind: "explanation" | "proposal" }> = {
   ...asset, version: "v2", outputSchema: impactDialogueReviewSchema, render: input => renderImpact(input, true),
+};
+export const characterImpactPrompt: typeof characterImpactV1 = {
+  ...characterImpactV1, version: "v3", render: input => renderImpact(input, false, handoff),
+};
+export const characterDialoguePrompt: typeof characterDialogueV2 = {
+  ...characterDialogueV2, version: "v4", render: input => renderImpact(input, true,
+    handoff + "responseKind 描述作者整轮请求。作者要求改稿且前序已有修改时，最终答复仍返回 proposal，即使当前 changes 为空。replyText 可以综合说明三方意见。"),
 };

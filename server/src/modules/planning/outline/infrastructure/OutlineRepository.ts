@@ -18,6 +18,18 @@ export class OutlineRepository {
   listRevisionRows(projectId: string) { return this.db.outlineRevision.findMany({ where: { projectId }, orderBy: { version: "desc" } }); }
   findRevision(projectId: string, id: string) { return this.db.outlineRevision.findFirst({ where: { id, projectId } }); }
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
+  async listPendingProposals(projectId: string) {
+    const rows = await this.db.outlineProposal.findMany({
+      where: { projectId, status: "pending", kind: { in: ["character_impact", "chapter_edit", "volume_beats", "edit", "initial_generation"] } },
+      select: { id: true, kind: true, baseVersion: true, characterNodeId: true, requestText: true, proposalJson: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    return rows.map(({ proposalJson, characterNodeId, ...row }) => {
+      const payload = JSON.parse(proposalJson);
+      const targetNodeIds = (payload.operations ?? []).flatMap((op: { nodeId?: string }) => op.nodeId ? [op.nodeId] : []);
+      return { ...row, volumeId: payload.volumeId ?? null, chapterId: payload.chapterId ?? null, targetNodeIds: [...new Set(targetNodeIds)], characterId: characterNodeId ?? payload.impact?.characterId ?? null, title: payload.storyFields?.title ?? null };
+    });
+  }
   findProposal(projectId: string, id: string) { return this.db.outlineProposal.findFirst({ where: { id, projectId } }); }
   async updateProposalStatus(id: string, status: string) {
     const result = await this.db.outlineProposal.updateMany({where: {id, status: "pending"}, data: {status}});
@@ -52,7 +64,7 @@ export class OutlineRepository {
       const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
       const proposal = await tx.outlineProposal.findUnique({ where: { id: proposalId } });
       if (!project || project.currentVersion !== baseVersion || !proposal || proposal.status !== "pending") throw new Error("OUTLINE_PROPOSAL_STALE");
-      if (proposal.kind === "character_impact") {
+      if (proposal.kind === "character_impact" || proposal.kind === "chapter_edit") {
         const written = new Set(await readWrittenChapterIds(tx, projectId));
         if (operations.some(op => selected.has(op.operationId) && op.nodeId && written.has(op.nodeId))) {
           throw new AppError("所选章节已有正文，请保留该章或重新分析后续章节。", 409);
@@ -77,6 +89,7 @@ export class OutlineRepository {
         } else if (op.kind === "move_node" && op.nodeId && op.parentNodeId) {
           const chapter = doc.chapters.find((item:any)=>item.nodeId===op.nodeId);
           if (!chapter) throw new Error("当前仅支持移动章节");
+          if (chapter.volumeNodeId !== op.parentNodeId) delete chapter.beatKey;
           chapter.volumeNodeId = op.parentNodeId;
         }
       }
@@ -85,7 +98,7 @@ export class OutlineRepository {
       const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion + 1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "proposal", sourceProposalId: proposalId } });
       const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id, title: document.story.title } });
       if (update.count !== 1) throw new Error("OUTLINE_VERSION_CONFLICT");
-      const payload = proposal.kind === "character_impact" || proposal.kind === "edit" ? JSON.parse(proposal.proposalJson) : null;
+      const payload = proposal.kind === "character_impact" || proposal.kind === "edit" || proposal.kind === "chapter_edit" ? JSON.parse(proposal.proposalJson) : null;
       if (proposal.kind === "character_impact") payload.impact.appliedOperationIds = [...selected];
       else if (payload) payload.appliedOperationIds = [...selected];
       const decided = await tx.outlineProposal.updateMany({ where: { id: proposalId, status: "pending" }, data: {

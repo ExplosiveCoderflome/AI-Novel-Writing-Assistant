@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -758,17 +759,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   // reject controls live in the right panel.
   const effectiveLayout = session.status !== "idle" ? "standard" : layoutMode;
   const rightPanelCollapsed = panelsCollapsed.right && session.status === "idle";
-  const gridClassName = effectiveLayout === "wide"
-    ? "xl:grid-cols-[minmax(0,1fr)_384px]"
-    : effectiveLayout === "immersive"
-      ? "xl:grid-cols-[minmax(0,1fr)]"
-      : panelsCollapsed.left && rightPanelCollapsed
-        ? "xl:grid-cols-[44px_minmax(0,1fr)_44px]"
-        : panelsCollapsed.left
-          ? "xl:grid-cols-[44px_minmax(0,1fr)_400px]"
-          : rightPanelCollapsed
-            ? "xl:grid-cols-[320px_minmax(0,1fr)_44px]"
-            : "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
+  const leftCollapsed = panelsCollapsed.left;
+  const rightCollapsed = effectiveLayout === "standard" && rightPanelCollapsed;
 
   const openQualityNotice = () => {
     setLayoutMode("standard");
@@ -833,7 +825,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           ) : null}
         </div>
       ) : null}
-      <div className={`grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden ${gridClassName}`}>
+      <WorkspaceColumns layoutId="chapter-editor" className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden xl:workspace-split"
+        left={effectiveLayout === "standard" ? { label: "调整本章信息宽度", initial: leftCollapsed ? "44px" : "320px", min: leftCollapsed ? 44 : 176, collapsed: leftCollapsed } : undefined}
+        right={effectiveLayout !== "immersive" ? { label: "调整 AI 改写宽度", initial: rightCollapsed ? "44px" : effectiveLayout === "wide" ? "384px" : "400px", min: rightCollapsed ? 44 : 224, collapsed: rightCollapsed } : undefined}>
         {effectiveLayout === "standard" && panelsCollapsed.left ? (
         <div className="order-1 flex min-h-0 flex-col items-center gap-2 py-2 xl:order-none">
           <Button size="icon" variant="ghost" className="h-8 w-8" title="展开左栏" onClick={() => setPanelsCollapsed((current) => ({ ...current, left: false }))}>
@@ -978,7 +972,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             />
         </div>
         ) : null}
-      </div>
+      </WorkspaceColumns>
       <ChapterVersionDrawer
         novelId={novelId}
         chapterId={chapter.id}

@@ -5,5 +5,7 @@ export interface OutlineConversationResult {
   baseVersion: number;
   status: string;
   kind: "edit" | "initial_generation";
+  draftSummary?: { title: string; volumeCount: number; chapterCount: number; characterCount: number };
+  adoptedVersion?: number;
 }
 export type OutlineConversationTurn = AgentConversationTurn<OutlineConversationResult>;

@@ -26,6 +26,17 @@ export interface ImpactComposeResult {
 }
 const invalid = (message: string) => new AppError(message, 400);
 
+// A reviewer receives earlier validated edits as context. Keep their original
+// attribution, and validate any new value, dependency or risk in the current role.
+export function reviewHandoff(review: ImpactReview, prior: Partial<Record<ImpactRole, ImpactReview>>): ImpactReview {
+  const earlier = Object.values(prior).flatMap(previous => previous.changes);
+  const changes = review.changes.filter(item => !earlier.some(previous =>
+    previous.nodeId === item.nodeId && previous.field === item.field && previous.value === item.value
+    && item.dependsOnNodeIds.every(id => previous.dependsOnNodeIds.includes(id))
+    && item.risks.every(risk => previous.risks.includes(risk))));
+  return { changes, retained: review.retained };
+}
+
 // Two policies for the same scope rules. Model output on the workbench is
 // noisy: one reviewer overreaching must not void the other reviewers' usable
 // changes, so out-of-scope items are skipped and recorded instead of failing

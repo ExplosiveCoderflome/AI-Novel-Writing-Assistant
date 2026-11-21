@@ -1,4 +1,6 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "outline.volume_beats": "按卷安排节奏段与章节归属",
+  "outline.chapter_review": "选中章节的章纲修改建议",
   "outline.workbench_dialogue": "整份大纲的连续创作对话",
   "outline.character_impact": "人物调整的卷章与伏笔审阅",
   "outline.text_feedback": "章节摘要反馈大纲",

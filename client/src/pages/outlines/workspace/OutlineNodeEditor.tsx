@@ -1,3 +1,4 @@
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { ArrowUpRight } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { formatOutlineValue, getOutlineNodes, getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "../outlineNodes";
@@ -6,7 +7,7 @@ const forms = {
   story: { label: "总纲", main: ["premise", "synopsis"], more: ["endingDirection", "theme", "tone", "genre", "targetAudience", "notes"] },
   volume: { label: "卷", main: ["summary", "promise"], more: ["pressure", "protagonistChange", "climax", "endingHook", "planningDepth"] },
   chapter: { label: "章节", main: ["summary", "conflict"], more: ["purpose", "emotionalBeat", "endingHook", "planningDepth"] },
-  character: { label: "人物", main: ["role", "goal", "motivation"], more: ["conflict", "secret", "arcDirection"] },
+  character: { label: "人物", main: ["role", "summary", "goal", "motivation"], more: ["conflict", "secret", "arcDirection"] },
   payoff: { label: "伏笔与钩子", main: ["setupDescription", "payoffDescription"], more: ["kind"] },
   fact: { label: "固定设定", main: ["content"], more: ["category", "immutable"] },
 };
@@ -22,7 +23,7 @@ const prompts: Record<string, string> = {
   payoffDescription: "真相揭晓时，读者会重新理解什么？",
 };
 
-function formFor(node: OutlineNode) {
+export function formFor(node: OutlineNode) {
   if ("premise" in node) return forms.story;
   if ("volumeNodeId" in node) return forms.chapter;
   if ("chapterNodeIds" in node) return forms.volume;
@@ -31,7 +32,7 @@ function formFor(node: OutlineNode) {
   return forms.fact;
 }
 
-function references(node: OutlineNode): string[] {
+export function references(node: OutlineNode): string[] {
   if ("chapterNodeIds" in node) return node.chapterNodeIds;
   if ("volumeNodeId" in node) return [node.volumeNodeId, ...node.characterNodeIds, ...node.payoffNodeIds];
   if ("appearanceNodeIds" in node) return node.appearanceNodeIds;
@@ -46,10 +47,9 @@ interface Props {
   disabled: boolean;
   onChange: (field: string, value: string | boolean) => void;
   onSelect: (id: string) => void;
-  onReviewCharacter: () => void;
 }
 
-export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect, onReviewCharacter }: Props) {
+export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect }: Props) {
   const form = formFor(node);
   const titleField = "name" in node ? "name" : "title";
   const current = node as unknown as Record<string, unknown>;
@@ -59,7 +59,8 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
     other !== node && (outgoing.has(other.nodeId) || references(other).includes(node.nodeId)));
 
   function field(key: string) {
-    const label = outlineFieldLabels[key];
+    const characterSummary = key === "summary" && "appearanceNodeIds" in node;
+    const label = characterSummary ? "人物说明" : outlineFieldLabels[key];
     if (key === "immutable") return <label key={key} className="flex items-center gap-2 text-sm">
       <input type="checkbox" checked={!!current[key]} disabled={disabled} className="accent-primary"
         onChange={event => onChange(key, event.target.checked)} />情节发展必须遵守这条设定
@@ -71,7 +72,7 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
         onChange={event => onChange(key, event.target.value)}>
         {choices.map(value => <option key={value} value={value}>{formatOutlineValue(value, key)}</option>)}
       </select> : <textarea className="outline-field outline-textarea" rows={key === "synopsis" || key === "summary" || key === "content" ? 4 : 2}
-        disabled={disabled} value={String(current[key] ?? "")} placeholder={prompts[key]} onChange={event => onChange(key, event.target.value)} />}
+        disabled={disabled} value={String(current[key] ?? "")} placeholder={characterSummary ? "写下这个人的来历和处境。" : prompts[key]} onChange={event => onChange(key, event.target.value)} />}
     </label>;
   }
 
@@ -79,13 +80,15 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
     <header className="mb-6">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{parent ? `${parent.title} / ${form.label}` : form.label}</span>
-        {"appearanceNodeIds" in node && <button type="button" onClick={onReviewCharacter} className="inline-flex items-center gap-1 text-primary hover:underline">
-          分析人物改动<ArrowUpRight size={14} aria-hidden /></button>}
       </div>
       <input className="outline-title" aria-label={outlineFieldLabels[titleField]} disabled={disabled}
         placeholder={titleField === "name" ? "填写人物姓名" : "填写标题"} value={String(current[titleField])}
         onChange={event => onChange(titleField, event.target.value)} />
     </header>
+    {parent?.beats && <label className="mb-4 block space-y-2 text-sm">所属节奏段
+      <select className="outline-field" disabled={disabled} value={String(current.beatKey ?? "")} onChange={e=>onChange("beatKey",e.target.value)}>
+        <option value="">暂未关联</option>{parent.beats.map(b=><option key={b.key} value={b.key}>{formatVolumeBeatDisplayLabel(b)}</option>)}
+      </select></label>}
     <div className="space-y-5">{form.main.map(field)}</div>
     <details className="outline-more">
       <summary>更多{form.label === "固定设定" ? "选项" : "设定"}</summary>

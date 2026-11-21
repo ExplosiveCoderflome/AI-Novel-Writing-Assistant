@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ export interface FullscreenViewProps {
   headerClassName?: string;
   bodyClassName?: string;
   fullscreenBodyClassName?: string;
+  columns?: Pick<ComponentProps<typeof WorkspaceColumns>, "layoutId" | "left" | "right" | "gap" | "minCenter">;
   toggleLabel?: string;
   exitLabel?: string;
 }
@@ -70,6 +72,7 @@ export default function FullscreenView(props: FullscreenViewProps) {
     };
   }, [isFullscreen, setFullscreen]);
 
+  const bodyClass = cn("min-h-0", bodyClassName, isFullscreen && "flex-1 overflow-hidden", isFullscreen && fullscreenBodyClassName);
   return (
     <section
       aria-labelledby={headingId}
@@ -117,14 +120,9 @@ export default function FullscreenView(props: FullscreenViewProps) {
           </div>
         </div>
       </div>
-      <div className={cn(
-        "min-h-0",
-        bodyClassName,
-        isFullscreen && "flex-1 overflow-hidden",
-        isFullscreen && fullscreenBodyClassName,
-      )}>
-        {children}
-      </div>
+      {props.columns
+        ? <WorkspaceColumns {...props.columns} className={bodyClass}>{children}</WorkspaceColumns>
+        : <div className={bodyClass}>{children}</div>}
     </section>
   );
 }

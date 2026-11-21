@@ -1,4 +1,7 @@
 import { prisma } from "../../../../db/prisma";
+import { generateVolumeBeatProposal } from "../application/volumeBeatProposal";
+import { OutlineRepository } from "../infrastructure/OutlineRepository";
+import { readChapterReviews, chapterConversationScope } from "../conversation/chapterReview";
 import { streamOutlineReply } from "./outlineReplyStream";
 import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
@@ -23,7 +26,28 @@ const id = z.string().min(1);
 const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await handler(req, res) }); } catch (error) { next(error); } };
 const conversation = new OutlineWorkbenchConversation(prisma);
 const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
-  baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+  action: z.literal("generate_initial").optional(), baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+router.post("/:id/volumes/:volumeId/beat-proposals", route(async req => {
+  const input = z.object({baseVersion:z.number().int().positive(), targetChapterCount:z.number().int().min(1).max(2000)}).parse(req.body);
+  return generateVolumeBeatProposal(new OutlineRepository(prisma), id.parse(req.params.id), id.parse(req.params.volumeId), input.baseVersion, input.targetChapterCount);
+}));
+const chapterPath = "/:id/chapters/:chapterId/conversation";
+router.get(chapterPath, route(req => readChapterReviews(prisma, id.parse(req.params.id), id.parse(req.params.chapterId))));
+router.post(chapterPath + "/turns", route(req => conversation.send(id.parse(req.params.id), {
+  ...turnInput.omit({ action: true }).parse(req.body), chapterId: id.parse(req.params.chapterId),
+})));
+router.post(chapterPath + "/interrupt", route(async req => {
+  const { turnId } = z.object({ turnId: id }).parse(req.body);
+  await conversation.interrupt(id.parse(req.params.id), turnId, id.parse(req.params.chapterId));
+  return { turnId };
+}));
+router.get(chapterPath + "/turns/:turnId/stream", async (req, res, next) => {
+  try {
+    const projectId = id.parse(req.params.id);
+    await streamOutlineReply(res, projectId, chapterConversationScope(projectId, id.parse(req.params.chapterId)), id.parse(req.params.turnId));
+  }
+  catch (error) { next(error); }
+});
 router.get("/:id/conversation/turns/:turnId/stream", async (req, res, next) => {
   try { await streamOutlineReply(res, req.params.id, outlineConversationScope(req.params.id), req.params.turnId); }
   catch (error) { next(error); }
@@ -74,6 +98,7 @@ router.post("/:id/proposals/generate", route(async req => {
   const body = z.object({ kind: z.enum(["edit", "initial_generation"]), requestText: z.string().min(1), scope: z.string().optional() }).parse(req.body);
   return outlineProposalService.generate(id.parse(req.params.id), body);
 }));
+router.get("/:id/proposals", route(req => outlineProposalService.listPending(id.parse(req.params.id))));
 router.get("/:id/proposals/:proposalId", route(async req => outlineProposalService.get(id.parse(req.params.id), id.parse(req.params.proposalId))));
 router.post("/:id/proposals/:proposalId/apply", route(async req => {
   const body = z.object({ operationIds: z.array(z.string()).optional() }).parse(req.body);

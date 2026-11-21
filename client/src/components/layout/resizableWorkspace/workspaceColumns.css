@@ -1,0 +1,47 @@
+:where(.workspace-columns) { position: relative; --show-dividers: none; }
+.workspace-columns {
+  min-width: 0;
+  --left-preferred: initial;
+  --right-preferred: initial;
+  --show-left-divider: initial;
+  --show-right-divider: initial;
+  --available-sides: calc(100% - var(--workspace-center-min) - var(--left-gap) - var(--right-gap));
+  --left-track: clamp(var(--left-min), var(--left-preferred, var(--left-default)), var(--available-sides) - var(--right-min));
+  --right-track: clamp(var(--right-min), var(--right-preferred, var(--right-default)), var(--available-sides) - var(--left-track));
+}
+.workspace-columns > :not([data-column-divider]) { min-width: 0; }
+.workspace-columns > [data-column-divider] {
+  position: absolute;
+  grid-row: 1 / 2;
+  inset-block: 0;
+  width: 14px;
+  z-index: 2;
+  touch-action: none;
+  user-select: none;
+  cursor: col-resize;
+}
+.workspace-columns > [data-column-divider="left"] {
+  display: var(--show-left-divider, var(--show-dividers, none));
+  grid-column: 1 / 2;
+  right: calc(0px - var(--workspace-gap) / 2);
+  transform: translateX(50%);
+}
+.workspace-columns > [data-column-divider="right"] {
+  display: var(--show-right-divider, var(--show-dividers, none));
+  grid-column: -2 / -1;
+  left: calc(0px - var(--workspace-gap) / 2);
+  transform: translateX(-50%);
+}
+.workspace-columns > [data-column-divider]::before,
+.workspace-columns > [data-column-divider]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.workspace-columns > [data-column-divider]::before { inset-block: 0; width: 1px; background: hsl(var(--border)); }
+.workspace-columns > [data-column-divider]::after { top: min(calc(50% - 14px), 42vh); height: 28px; width: 3px; border-radius: 3px; background: hsl(var(--muted-foreground) / .55); }
+.workspace-columns > [data-column-divider]:is(:hover, :focus-visible, :active)::after,
+.workspace-columns > [data-column-divider]:is(:hover, :focus-visible, :active)::before { background: hsl(var(--primary)); }
+.workspace-columns > [data-column-divider]:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -3px; }
+@media (pointer: coarse) { .workspace-columns > [data-column-divider] { width: 24px; } }
