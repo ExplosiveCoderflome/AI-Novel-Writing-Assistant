@@ -18,6 +18,17 @@ export class OutlineRepository {
   listRevisionRows(projectId: string) { return this.db.outlineRevision.findMany({ where: { projectId }, orderBy: { version: "desc" } }); }
   findRevision(projectId: string, id: string) { return this.db.outlineRevision.findFirst({ where: { id, projectId } }); }
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
+  async listPendingProposals(projectId: string) {
+    const rows = await this.db.outlineProposal.findMany({
+      where: { projectId, status: "pending", kind: { in: ["character_impact", "edit", "initial_generation"] } },
+      select: { id: true, kind: true, baseVersion: true, characterNodeId: true, requestText: true, proposalJson: true },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    return rows.map(({ proposalJson, characterNodeId, ...row }) => {
+      const payload = JSON.parse(proposalJson);
+      return { ...row, characterId: characterNodeId ?? payload.impact?.characterId ?? null, title: payload.storyFields?.title ?? null };
+    });
+  }
   findProposal(projectId: string, id: string) { return this.db.outlineProposal.findFirst({ where: { id, projectId } }); }
   async updateProposalStatus(id: string, status: string) {
     const result = await this.db.outlineProposal.updateMany({where: {id, status: "pending"}, data: {status}});

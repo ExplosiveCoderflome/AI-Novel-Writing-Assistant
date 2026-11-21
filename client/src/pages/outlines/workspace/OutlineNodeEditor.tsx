@@ -22,7 +22,7 @@ const prompts: Record<string, string> = {
   payoffDescription: "真相揭晓时，读者会重新理解什么？",
 };
 
-function formFor(node: OutlineNode) {
+export function formFor(node: OutlineNode) {
   if ("premise" in node) return forms.story;
   if ("volumeNodeId" in node) return forms.chapter;
   if ("chapterNodeIds" in node) return forms.volume;
@@ -31,7 +31,7 @@ function formFor(node: OutlineNode) {
   return forms.fact;
 }
 
-function references(node: OutlineNode): string[] {
+export function references(node: OutlineNode): string[] {
   if ("chapterNodeIds" in node) return node.chapterNodeIds;
   if ("volumeNodeId" in node) return [node.volumeNodeId, ...node.characterNodeIds, ...node.payoffNodeIds];
   if ("appearanceNodeIds" in node) return node.appearanceNodeIds;

@@ -12,7 +12,7 @@ import { validateOutlineDocument } from "../domain/outlineDocument";
 import { assertValidOutlineEditOperations } from "../domain/outlineEditOperations";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 
-type Input = AgentTurnInput & { baseVersion: number };
+type Input = AgentTurnInput & { baseVersion: number; action?: "generate_initial" };
 export const outlineConversationScope = (id: string) => JSON.stringify(["outline-workbench", id]);
 const kinds = ["initial_generation", "edit"];
 const conflict = () => new AppError("大纲或提案已有更新，请根据最新版本继续讨论。", 409);
@@ -96,11 +96,12 @@ export class OutlineWorkbenchConversation {
       if (!remaining) break;
     }
     const priorProposal = prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) };
-    const dialogue = await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
+    const dialogue = input.action === "generate_initial" ? null : await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
       runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, options: {itemKey},
         promptInput: { requestText: input.requestText, baseVersion: input.baseVersion, document, history, priorProposal } }));
-    let { answer, replyText } = dialogue.output;
-    let { invocation } = dialogue.meta;
+    let answer: NonNullable<typeof dialogue>["output"]["answer"] = dialogue?.output.answer ?? { kind: "initial_generation", payload: null };
+    let replyText = dialogue?.output.replyText ?? "";
+    let invocation = dialogue?.meta.invocation;
     if (answer.kind === "initial_generation" && !answer.payload) {
       const draft = await agentReplyLive.during(input.requestId, "正在根据讨论生成完整初稿…", false, itemKey =>
         runOutlineProposalStructuredCall({
@@ -129,7 +130,7 @@ export class OutlineWorkbenchConversation {
         }
         resultId = randomUUID();
         await tx.outlineProposal.create({ data: { id: resultId, projectId, baseVersion: input.baseVersion, kind: answer.kind, status: "pending",
-          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: invocation.promptId, promptVersion: invocation.promptVersion } });
+          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: invocation?.promptId, promptVersion: invocation?.promptVersion } });
       }
       await AgentConversationStore.complete(tx, outlineConversationScope(projectId), input.requestId, resultId, replyText);
     });

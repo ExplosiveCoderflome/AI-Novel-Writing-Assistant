@@ -76,12 +76,25 @@ export interface OutlineProposal {
   proposalJson: string;
 }
 
+export interface PendingOutlineProposal {
+  id: string;
+  kind: OutlineProposal["kind"];
+  baseVersion: number;
+  characterId: string | null;
+  requestText: string | null;
+  title: string | null;
+}
+
+export const listPendingOutlineProposals = async (id: string) =>
+  (await apiClient.get(`/outlines/${id}/proposals`, { errorPresentation: "inline" })).data.data as PendingOutlineProposal[];
+
 export interface OutlineRevisionSummary {
   id: string;
   projectId: string;
   version: number;
   parentRevisionId?: string | null;
   sourceType: string;
+  sourceProposalId?: string | null;
   diffSummary?: string | null;
   createdAt: string;
 }

@@ -293,6 +293,62 @@ test("OpenAI-compatible reasoning_content and reasoning_tokens reach a saved out
   assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
 });
 
+
+test("从赵高初稿到李斯 v3 旧建议重审，v4 仅在作者确认后推进", async t => {
+  const {project} = await outlineProjectService.create("沙丘故事");
+  const seed = await outlineProjectService.get(project.id);
+  await outlineProjectService.save(project.id, 1, {...seed.document, story: {...seed.document.story, premise:"沙丘诏书"}});
+  const node = (clientRef, title) => ({clientRef, title, summary:title + "的故事", reason:"影响诏书", sourceFragment:title});
+  const names = ["赵高", "李斯", "胡亥", "扶苏", "蒙恬"];
+  const draft = {storyFields:{title:"赵高倒计时", premise:"诏书的去向", synopsis:"沙丘之后的抉择", theme:"秦法", tone:"悬疑", endingDirection:"诏书送达"},
+    volumes:[node("v","沙丘")],chapters:[{...node("c","第二章《不发的诏书》"), volumeRef:"v"}],
+    characters:names.map((name,i) => ({...node("p"+i,name), role:"参与者",appearanceRefs:["c"]})),payoffs:[],facts:[]};
+  let personId;
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,promptInput}) => {
+    if (asset.id === "outline.initial_generate") {
+      assert.equal(promptInput.idea, "把赵高的故事写成倒计时。");
+      return {output:asset.outputSchema.parse(draft),meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
+    }
+    assert.equal(promptInput.snapshot.baseVersion, 4);
+    assert.equal(promptInput.previousProposal.baseVersion, 3);
+    assert.equal(promptInput.previousProposal.operations[0].fields.goal, "保护家人");
+    assert.equal(promptInput.snapshot.document.characters[1].goal, "用秦法约束赵高");
+    return {output:asset.outputSchema.parse({responseKind:"proposal",replyText:"请核对李斯的三处修改。",retained:[],
+      changes:promptInput.role === "character" ? ["goal","motivation","conflict"].map(field => change(personId,field,"依秦法保全家人"+field)) : []})};
+  });
+  const start = await api(project,"conversation/turns",{requestId:"outline-draft-button",baseVersion:2,requestText:"把赵高的故事写成倒计时。",action:"generate_initial"});
+  const first = await settled(project,start.turnId,p => api(p,"conversation"));
+  assert.equal(first.result?.status,"pending",first.replyText);
+  assert.equal((await api(project,"proposals"))[0].title,"赵高倒计时");
+  const v3 = await api(project,`proposals/${first.result.id}/apply`,{operationIds:[]});
+  assert.equal(v3.revision.version,3);
+  assert.deepEqual(v3.document.characters.map(p => p.name),names);
+  personId = v3.document.characters[1].nodeId;
+  const request = {characterId:personId,baseVersion:3,requestText:"丰富一下李斯的目标和动机"};
+  async function propose(goal) {
+    const reviews = {character:{changes:[change(personId,"goal",goal)],retained:[]},plot:{changes:[],retained:[]},payoff:{changes:[],retained:[]}};
+    return api(project,"character-impact/proposals",{...request,reviews},201);
+  }
+  const old = await propose("保护家人");
+  const current = await propose("用秦法约束赵高");
+  const v4 = await api(project,`proposals/${current.id}/apply`,{operationIds:[personId]});
+  assert.equal(v4.revision.version,4);
+  const pending = await api(project,"proposals");
+  assert.deepEqual(pending.map(p => [p.id,p.baseVersion,p.characterId]), [[old.id,3,personId]]);
+  await api(project,`proposals/${old.id}/apply`,{operationIds:[personId]},409);
+  const rebased = await api(project,conversation+"/turns",{...request,baseVersion:4,priorProposalId:old.id,requestId:"li-rebase",requestText:"保留家人的牵挂"});
+  const result = await settled(project,rebased.turnId,p => timeline(p,personId));
+  assert.equal(result.result?.baseVersion,4,result.replyText);
+  assert.equal(result.result.status,"pending");
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion,4);
+  const v5 = await api(project,`proposals/${result.result.id}/apply`,{operationIds:[personId]});
+  assert.equal(v5.revision.version,5);
+  for (const key of ["goal","motivation","conflict"]) assert.equal(v5.document.characters[1][key],"依秦法保全家人"+key);
+  assert.deepEqual(v5.document.characters.map(p => [p.summary,p.appearanceNodeIds]),v3.document.characters.map(p => [p.summary,p.appearanceNodeIds]));
+  assert.deepEqual(v5.document.chapters[0].characterNodeIds,v3.document.chapters[0].characterNodeIds);
+  assert.deepEqual((await api(project,"revisions")).map(r => r.version).sort(),[1,2,3,4,5]);
+});
+
 test("whole-outline conversation protects the saved revision and ignores a late reply after interruption", async t => {
   const {project} = await fixture();
   let started, release;

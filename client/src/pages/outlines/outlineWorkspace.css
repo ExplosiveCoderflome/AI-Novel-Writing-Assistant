@@ -136,9 +136,6 @@
     --show-dividers: block;
     grid-template-columns: var(--workspace-tracks);
   }
-  .outline-workspace-grid:has(.outline-conversations:not([hidden]) .agent-review[data-draft="true"]) {
-    --outline-inspector-width: min(53%, 48rem);
-  }
 }
 @media (min-width: 768px) and (min-height: 600px) {
   .outline-workspace { height: 100%; min-height: 0; }
@@ -149,4 +146,63 @@
   .outline-inspector-body { flex: 1; min-height: 0; }
   .outline-inspector-body[data-conversation="true"] { overflow: hidden; scrollbar-gutter: auto; }
   .outline-save-bar, .outline-inspector-nav { flex-shrink: 0; }
+}
+
+/* Reading and reviewing share one manuscript column; discussion opens beside it. */
+.outline-reading-scroll { container: outline-page / inline-size; flex: 1; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.outline-reading, .outline-pending { width: min(100%, 49rem); margin-inline: auto; padding-inline: clamp(1rem, 5cqi, 4rem); }
+.outline-reading { padding-block: clamp(1.2rem, 3.8cqi, 3rem) 3rem; }
+.outline-reading-meta, .outline-reading-meta > *, .outline-reading-actions, .outline-reading-link, .outline-activity { display: flex; align-items: center; gap: .5rem; }
+.outline-reading-meta { flex-wrap: wrap; justify-content: space-between; margin-bottom: 1.15rem; font-size: .8rem; color: hsl(var(--muted-foreground)); }
+.outline-reading h2 { font-family: var(--font-serif, ui-serif), "Songti SC", SimSun, serif; font-size: clamp(1.75rem, 4.2cqi, 2.55rem); line-height: 1.35; font-weight: 600; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.outline-reading-counts { margin: .6rem 0 1.8rem; font-size: .85rem; color: hsl(var(--muted-foreground)); }
+.outline-reading-counts i { margin-inline: .4rem; }
+.outline-reading-link { display: inline-flex; padding: .4rem .2rem .4rem 0; margin-right: .7rem; color: hsl(var(--primary)); text-align: left; font-size: .88rem; }
+.outline-reading-link:hover, .outline-reading-meta button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.outline-reading h2 + .outline-reading-link { margin-top: .8rem; }
+.outline-passage { margin-top: 1.8rem; }
+.outline-passage h3, .outline-pending h3, .outline-impact-context h3 { margin-bottom: .45rem; color: hsl(var(--muted-foreground)); font-size: .8rem; font-weight: 600; }
+.outline-passage p, .outline-volume p, .outline-base-text p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; font-size: .94rem; }
+.outline-volume, .outline-person-list > div { padding-block: .8rem; border-bottom: 1px solid hsl(var(--border) / .6); }
+.outline-volume h4, .outline-person-list button { font-weight: 600; }
+.outline-volume small, .outline-pending small { font-size: .76rem; color: hsl(var(--muted-foreground)); font-weight: 400; }
+.outline-volume summary, .outline-impact-context summary, .outline-base-text summary, .outline-review-options summary { cursor: pointer; width: fit-content; }
+.outline-volume details > summary, .outline-base-text summary, .outline-review-options summary { margin-block: .45rem; font-size: .82rem; color: hsl(var(--muted-foreground)); }
+.outline-chapter { margin: .85rem 0 .85rem .6rem; padding-left: .8rem; border-left: 2px solid hsl(var(--border)); }
+.outline-chapter[data-selected=true] { border-color: hsl(var(--primary)); }
+.outline-idea { max-width: 43rem; margin-block: min(6vh,3.5rem) 0; }
+.outline-idea > svg { color: hsl(var(--primary)); margin-bottom: 1rem; }
+.outline-idea > p { margin: .8rem 0 1.7rem; line-height: 1.85; color: hsl(var(--muted-foreground)); }
+.outline-idea label, .outline-review-followup label { font-weight: 600; font-size: .88rem; }
+.outline-idea textarea, .outline-review-followup textarea { display: block; width: 100%; margin: .55rem 0 1rem; padding: .85rem; border: 1px solid hsl(var(--input)); border-radius: .5rem; font: inherit; font-weight: 400; line-height: 1.7; resize: vertical; background: hsl(var(--background)); }
+.outline-blank-edit { display: block; margin: 0 auto 1.25rem; font-size: .8rem; text-decoration: underline; color: hsl(var(--muted-foreground)); }
+.outline-reading-actions { flex-wrap: wrap; gap: .6rem; }
+.outline-pending { padding-top: 1.4rem; }
+.outline-pending h3 small { margin-left: .4rem; }
+.outline-pending button { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; padding: .7rem 1rem; background: hsl(var(--primary) / .065); color: hsl(var(--primary)); text-align: left; }
+.outline-pending button + button { margin-top: .25rem; }
+.outline-pending span { min-width: 0; }
+.outline-pending b { display: block; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-pending button:hover { background: hsl(var(--primary) / .12); }
+.outline-version-note, .outline-request-quote, .outline-activity { margin: .9rem 0; line-height: 1.7; font-size: .9rem; }
+.outline-version-note { padding: .85rem 1rem; background: hsl(var(--muted) / .65); }
+.outline-request-quote { padding-left: .9rem; border-left: 2px solid hsl(var(--primary) / .4); color: hsl(var(--muted-foreground)); white-space: pre-wrap; }
+.outline-proposal-body { margin-top: 1rem; }
+.outline-proposal-body .outline-comparison { align-items: stretch; }
+.outline-proposal-body .outline-comparison > div { padding: .85rem; background: hsl(var(--muted) / .5); }
+.outline-proposal-body .outline-comparison > div + div { background: hsl(var(--primary) / .06); }
+.outline-proposal-body .outline-comparison dd { font-size: .93rem; line-height: 1.8; }
+.outline-proposal-body .outline-comparison dt { font-size: .76rem; font-weight: 600; }
+.outline-proposal-body > ul > li > div > div + div { margin-top: 1rem; }
+.outline-impact-context, .outline-review-followup { margin-block: 1.2rem; padding-top: 1.1rem; border-top: 1px solid hsl(var(--border) / .65); font-size: .88rem; }
+.outline-impact-context details, .outline-impact-context li { margin-block: .6rem; line-height: 1.7; }
+.outline-activity { flex-wrap: wrap; padding: .65rem 1.2rem; margin: 0; background: hsl(var(--primary) / .07); }
+.outline-activity button, .outline-review-options button { color: hsl(var(--primary)); text-decoration: underline; }
+.outline-close-inspector { margin-left: auto; }
+@container outline-desk (min-width: 66rem) {
+  .outline-workspace-grid:not([data-pane="assistant"]) > .outline-inspector { display: none; }
+  .outline-workspace-grid:not([data-pane="assistant"]) { --outline-directory-width: clamp(12rem,21%,17rem); }
+}
+@container outline-page (width < 29rem) {
+  .outline-proposal-body .outline-comparison { grid-template-columns: minmax(0,1fr); }
 }

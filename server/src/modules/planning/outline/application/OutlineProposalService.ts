@@ -131,6 +131,7 @@ export class OutlineProposalService {
       mapOutlineApplyFailure(error);
     }
   }
+  listPending(projectId: string) { return this.repository.listPendingProposals(projectId); }
   get(projectId: string, proposalId: string) { return this.repository.findProposal(projectId, proposalId); }
   async reject(projectId: string, proposalId: string) {
     const proposal = await this.repository.findProposal(projectId, proposalId);
