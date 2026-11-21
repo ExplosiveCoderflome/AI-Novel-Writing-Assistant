@@ -1,0 +1,58 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { readCreationFlowTemplate } = require("../dist/prompting/workbench/creationFlow");
+const { listRegisteredPromptAssets } = require("../dist/prompting/registry");
+const { require: loadTypeScript } = require("tsx/cjs/api");
+const flow = "../../client/src/pages/promptWorkbench/creationFlow/";
+const { atlasScopes, relatedAtlasLocation } = loadTypeScript(flow + "atlas/atlasTopics.ts", __filename);
+const { indexAtlasPrompts } = loadTypeScript(flow + "atlas/atlasIndex.ts", __filename);
+const { stages, stageSteps } = loadTypeScript(flow + "flowDefinition.ts", __filename);
+
+test("each registered prompt belongs to one topic and exposes every registered version", () => {
+  const catalog = listRegisteredPromptAssets().map(({ id, version }) => ({ id, version, key: id + "@" + version }));
+  const topics = atlasScopes.flatMap(scope => scope.topics);
+  assert.deepEqual(atlasScopes.map(scope => scope.id), [...stages.map(stage => stage.id), "tools"]);
+  assert.equal(new Set(topics.map(topic => topic.id)).size, topics.length);
+  const ids = topics.flatMap(topic => topic.prompts.map(([id]) => id));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual(new Set(ids), new Set(catalog.map(item => item.id)));
+  const indexed = indexAtlasPrompts(catalog);
+  assert.deepEqual(indexed.map(prompt => prompt.id), ids);
+  assert.deepEqual(new Set(indexed.flatMap(prompt => prompt.versions.map(v => v.key))), new Set(catalog.map(v => v.key)));
+  for (const { id, versions } of indexed) {
+    assert.ok(versions.every(v => v.id === id), id);
+    assert.deepEqual(versions.map(v => v.version), versions.map(v => v.version).sort((a, b) => b.localeCompare(a, "en", { numeric: true })), id);
+  }
+  assert.deepEqual(indexAtlasPrompts([]), []);
+});
+
+test("every flow step opens a related topic, including the routes back to another chapter or volume", () => {
+  const anchors = atlasScopes.flatMap(scope => scope.topics.flatMap(topic =>
+    topic.steps.map(step => ({ step, location: { scope: scope.id, topic: topic.id } }))));
+  const expected = stages.flatMap(stage => stageSteps(stage).map(step => step.id));
+  assert.deepEqual(anchors.map(a => a.step).sort(), expected.sort());
+  for (const { step, location } of anchors) {
+    assert.deepEqual(relatedAtlasLocation("writing", step), location, step);
+  }
+  assert.equal(relatedAtlasLocation("writing", "next-volume").scope, "volumes");
+  assert.equal(relatedAtlasLocation("writing", "next-chapter").scope, "preparation");
+});
+
+test("every registered prompt version has a complete readable official template", () => {
+  const assets = listRegisteredPromptAssets();
+  for (const asset of assets) {
+    const key = `${asset.id}@${asset.version}`;
+    const result = readCreationFlowTemplate(key);
+    assert.ok(result, key);
+    assert.equal(result.id, asset.id, key);
+    assert.equal(result.version, asset.version, key);
+    assert.ok(result.messages.length > 0, key);
+    for (const message of result.messages) {
+      assert.ok(message.content.trim(), key);
+      assert.doesNotMatch(message.content, /\bundefined\b|\[object Object\]|\bNaN\b/, key);
+    }
+  }
+  assert.equal(readCreationFlowTemplate("unregistered.prompt@v1"), null);
+  assert.equal(readCreationFlowTemplate("novel.chapter.writer@missing"), null);
+  assert.equal(readCreationFlowTemplate("verify-repair@v1"), null);
+});

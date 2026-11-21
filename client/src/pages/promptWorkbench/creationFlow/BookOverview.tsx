@@ -1,14 +1,16 @@
 import { useCallback, useRef, useState } from "react";
-import { ArrowRight, GitBranch, Play, Square } from "lucide-react";
+import { ArrowRight, GitBranch, LibraryBig, Play, Square } from "lucide-react";
+import { relatedAtlasLocation, type AtlasLocation } from "./atlas/atlasTopics";
 import { locateFlowStep, type FlowStage } from "./flowDefinition";
 import { BookMapCanvas } from "./overview/BookMapCanvas";
 import { TourDesk, useBookTour } from "./overview/BookTour";
 import { PromptReader } from "./PromptReader";
 import "./overview/bookMap.css";
 
-export function BookOverview({ enter, onOpenCatalog }: {
+export function BookOverview({ enter, onOpenCatalog, openAtlas }: {
   enter: (stage: FlowStage) => void;
   onOpenCatalog: (prompt: { id: string; version: string }) => void;
+  openAtlas: (location: AtlasLocation) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
@@ -51,6 +53,10 @@ export function BookOverview({ enter, onOpenCatalog }: {
     setFocused(false);
     requestAnimationFrame(() => tourTrigger.current?.focus({ preventScroll: true }));
   }
+  function openPrompts(location: AtlasLocation) {
+    tour.pause();
+    openAtlas(location);
+  }
 
   return <section ref={root} className="book-atlas" aria-labelledby="atlas-title">
     <header className="atlas-masthead">
@@ -63,11 +69,13 @@ export function BookOverview({ enter, onOpenCatalog }: {
         <button type="button" className="atlas-branches" aria-pressed={expanded} onClick={toggleBranches}>
           <GitBranch size={15} />{expanded ? "收起分支" : "展开分支"}</button>
         <button type="button" className="atlas-shortcut" onClick={() => read("draft")}>查看正文写作提示词<ArrowRight size={14} /></button>
+        <button type="button" className="atlas-shortcut" onClick={() => openPrompts({ scope: "tools" })}><LibraryBig size={15} />独立创作工具</button>
       </div>
     </header>
     <div className={`book-atlas-spread ${entry ? "reading" : ""} ${focused ? "focused" : ""}`}>
       <div className="book-map-pane">
-        <BookMapCanvas expanded={expanded} selected={selected} touring={entry ? null : tour.current?.step.id ?? null} enter={enter} read={read} pause={tour.pause} />
+        <BookMapCanvas expanded={expanded} selected={selected} touring={entry ? null : tour.current?.step.id ?? null} enter={enter}
+          openPrompts={stage => openPrompts({ scope: stage.id })} read={read} pause={tour.pause} />
         {tour.current && !entry ? <TourDesk tour={tour} read={read} /> : <footer className="book-map-key" aria-label="连线图例">
           <span><i />主流程</span>
           {expanded && <span><i className="key-branch" />可选分支</span>}
@@ -77,6 +85,7 @@ export function BookOverview({ enter, onOpenCatalog }: {
       </div>
       {entry && <div data-stage={entry.stage.id} className="book-map-reader">
         <PromptReader key={entry.step.id} step={entry.step} stageTitle={entry.stage.title} next={entry.next}
+          openRelated={() => openPrompts(relatedAtlasLocation(entry.stage.id, entry.step.id))}
           go={read} onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} />
       </div>}
     </div>

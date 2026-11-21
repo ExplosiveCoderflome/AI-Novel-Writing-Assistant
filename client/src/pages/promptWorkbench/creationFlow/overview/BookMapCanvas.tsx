@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { Background, BackgroundVariant, BaseEdge, Handle, MarkerType, Position, ReactFlow, useStore, type Edge, type EdgeProps, type Node, type NodeProps } from "@xyflow/react";
-import { ArrowUpRight, BookCheck, CornerDownLeft, Feather, Hand, Layers2 } from "lucide-react";
+import { ArrowUpRight, BookCheck, CornerDownLeft, Feather, Hand, Layers2, LibraryBig } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { stages, type FlowStage } from "../flowDefinition";
 import { BookMapCamera } from "./BookMapCamera";
@@ -8,7 +8,7 @@ import { StageImprint } from "./StageImprint";
 import { coverHeight, layoutBookMap, sideWidth, spineX, stepHeight, stepWidth,
   type BookMapCover, type BookMapLink, type BookMapStation, type Point } from "./bookMapLayout";
 
-type CoverNode = Node<{ cover: BookMapCover; enter: (stage: FlowStage) => void; lit: boolean }, "cover">;
+type CoverNode = Node<{ cover: BookMapCover; enter: (stage: FlowStage) => void; openPrompts: (stage: FlowStage) => void; lit: boolean }, "cover">;
 type StepNode = Node<{
   station: BookMapStation; active: boolean; traced: boolean; neighbor: boolean; ports: string;
   read: (id: string) => void; preview: (id: string | null) => void;
@@ -16,13 +16,17 @@ type StepNode = Node<{
 type BookNode = CoverNode | StepNode;
 type RouteEdge = Edge<{ link: BookMapLink; stage: string; trace: string | null }, "route">;
 
-function Cover({ data: { cover: { stage, order }, enter, lit } }: NodeProps<CoverNode>) {
-  return <button type="button" data-stage={stage.id} className={`book-map-cover nodrag nopan ${lit ? "lit" : ""}`} onClick={() => enter(stage)}
-    aria-label={`单独查看${stage.title}阶段`}>
-    <StageImprint stage={stage.id} />
-    <span className="book-cover-number">{String(order + 1).padStart(2, "0")}</span>
-    <span className="book-cover-title"><strong>{stage.title}</strong><ArrowUpRight size={14} /></span>
-  </button>;
+function Cover({ data: { cover: { stage, order }, enter, openPrompts, lit } }: NodeProps<CoverNode>) {
+  return <div className="atlas-cover-stack" data-stage={stage.id}>
+    <button type="button" data-stage={stage.id} className={`book-map-cover nodrag nopan ${lit ? "lit" : ""}`} onClick={() => enter(stage)}
+      aria-label={`单独查看${stage.title}阶段`}>
+      <StageImprint stage={stage.id} />
+      <span className="book-cover-number">{String(order + 1).padStart(2, "0")}</span>
+      <span className="book-cover-title"><strong>{stage.title}</strong><ArrowUpRight size={14} /></span>
+    </button>
+    <button type="button" className="atlas-cover-related nodrag nopan" onClick={() => openPrompts(stage)}
+      aria-label={`查看${stage.title}的阶段提示词`}><LibraryBig size={13} />阶段提示词<ArrowUpRight size={13} /></button>
+  </div>;
 }
 
 const marks = { author: Hand, ai: Feather, system: Layers2, destination: CornerDownLeft };
@@ -77,9 +81,9 @@ function Route({ id, sourceX, sourceY, targetX, targetY, markerEnd, data }: Edge
 const nodeTypes = { cover: Cover, step: Station };
 const edgeTypes = { route: Route };
 
-export function BookMapCanvas({ expanded, selected, touring, enter, read, pause }: {
+export function BookMapCanvas({ expanded, selected, touring, enter, openPrompts, read, pause }: {
   expanded: boolean; selected: string | null; touring: string | null; enter: (stage: FlowStage) => void;
-  read: (id: string) => void; pause: () => void;
+  openPrompts: (stage: FlowStage) => void; read: (id: string) => void; pause: () => void;
 }) {
   const layout = useMemo(() => layoutBookMap(stages, expanded), [expanded]);
   const byId = useMemo(() => new Map(layout.stations.map(station => [station.step.id, station])), [layout]);
@@ -103,13 +107,13 @@ export function BookMapCanvas({ expanded, selected, touring, enter, read, pause 
   }, [layout, trace]);
   const nodes = useMemo<BookNode[]>(() => [
     ...layout.covers.map((cover): CoverNode => ({ id: `stage-${cover.stage.id}`, type: "cover",
-      data: { cover, enter, lit: !!trace && byId.get(trace)?.stage === cover.stage },
+      data: { cover, enter, openPrompts, lit: !!trace && byId.get(trace)?.stage === cover.stage },
       position: { x: cover.x, y: 0 }, width: cover.width, height: coverHeight, focusable: false })),
     ...layout.stations.map((station): StepNode => ({ id: station.step.id, type: "step",
       data: { station, active: station.step.id === selected, traced: station.step.id === trace, neighbor: neighbors.has(station.step.id),
         ports: [...ports.get(station.step.id)!].join(" "), read, preview },
       position: { x: station.x, y: station.y }, width: station.side ? sideWidth : stepWidth, height: stepHeight, focusable: false })),
-  ], [layout, trace, byId, neighbors, selected, ports, read, enter]);
+  ], [layout, trace, byId, neighbors, selected, ports, read, enter, openPrompts]);
   const edges = useMemo<RouteEdge[]>(() => layout.links.map(link => {
     const active = link.source === trace || link.target === trace;
     const source = byId.get(link.source)!;
