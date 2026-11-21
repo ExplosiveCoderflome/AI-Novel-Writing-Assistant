@@ -533,8 +533,8 @@ export const XgHero = () => {
         .xgh-path{stroke-dasharray:3 7;animation:xghFlow 2.4s linear infinite}
         .xgh-cl{animation:xghDrift 26s ease-in-out infinite alternate}
         .xgh-motes i{position:absolute;border-radius:50%;background:#9ff5e2;box-shadow:0 0 8px #5fe3c8;opacity:0;animation:xghMote linear infinite}
-        .xgh-sword{position:absolute;top:30%;left:-20%;width:260px;height:2px;background:linear-gradient(90deg,transparent,rgba(127,216,255,.25),#e6faff);box-shadow:0 0 12px #7fd8ff;opacity:0;animation:xghSword 8s ease-in 2s infinite;pointer-events:none}
-        .xgh-top{position:absolute;z-index:4;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 26px;font-size:13px;letter-spacing:.3em;color:rgba(232,237,246,.7);background:linear-gradient(180deg,rgba(4,7,19,.85),transparent)}
+        .xgh-sword{position:absolute;top:30%;left:-20%;width:260px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,241,207,.3),#fffaf0);box-shadow:0 0 12px #f6dd9a;opacity:0;animation:xghSword 8s ease-in 2s infinite;pointer-events:none}
+        .xgh-top{position:absolute;z-index:4;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 26px;font-size:13px;letter-spacing:.3em;color:#cfe0dc;background:linear-gradient(180deg,rgba(3,16,22,.85),transparent)}
         .xgh-back{color:var(--gl);text-decoration:none;letter-spacing:.2em}
         .xgh-back:hover{color:#fff}
         .xgh-back:focus-visible{outline:2px solid var(--jd);outline-offset:3px}
@@ -544,11 +544,11 @@ export const XgHero = () => {
         .xgh-tg:focus-visible,.xgh-act:focus-visible,.xgh-x:focus-visible{outline:2px solid var(--jd);outline-offset:2px}
         .xgh-act{display:block;width:100%;margin-top:10px;padding:8px 10px;font:inherit;font-size:13px;letter-spacing:.18em;cursor:pointer;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 50%,#c08a2a);border:1px solid #fff1c2;box-shadow:0 0 14px -2px rgba(240,201,106,.7);animation:xghGlow 2s ease-in-out infinite}
         .xgh-act.ghost{color:var(--gl);background:rgba(240,201,106,.08);border-color:rgba(240,201,106,.45);box-shadow:none;animation:none}
-        .xgh-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,6,16,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:xghFade .25s ease-out both}
+        .xgh-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,14,20,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:xghFade .25s ease-out both}
         .xgh-x{position:absolute;right:6px;top:4px;z-index:1;width:30px;height:30px;padding:0;font:inherit;font-size:20px;line-height:1;cursor:pointer;color:var(--mu);background:none;border:0}
         .xgh-x:hover{color:#fff}
         .xgh-hud{position:relative;display:flex;gap:14px;align-items:center;padding:10px 16px 12px 10px;background:linear-gradient(90deg,rgba(5,22,30,.88),rgba(5,22,30,.45));border:1px solid rgba(240,201,106,.3);border-radius:44px 6px 6px 44px}
-        .xgh-ava{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 40% 35%,#26457a,#0b1630);box-shadow:0 0 0 2px #f0c96a,0 0 0 4px rgba(5,22,30,.9),0 0 0 5px rgba(240,201,106,.5),0 0 20px rgba(240,201,106,.35)}
+        .xgh-ava{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 40% 35%,#23606a,#0a2a33);box-shadow:0 0 0 2px #f0c96a,0 0 0 4px rgba(5,22,30,.9),0 0 0 5px rgba(240,201,106,.5),0 0 20px rgba(240,201,106,.35)}
         .xgh-ava b{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;font-weight:400;color:var(--gl)}
         .xgh-ava em{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);padding:1px 7px;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.05em;white-space:nowrap;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a);border-radius:2px}
         .xgh-info{width:214px}
@@ -564,7 +564,7 @@ export const XgHero = () => {
         .xgh-tr{display:flex;align-items:center;margin-top:8px;font-size:10.5px;line-height:1;color:var(--mu)}
         .xgh-tr i{position:relative;flex:none;width:20px;height:10px}
         .xgh-tr i:last-of-type{width:12px}
-        .xgh-tr i::before{content:"";position:absolute;left:1px;top:1px;width:7px;height:7px;transform:rotate(45deg);background:#0a1224;border:1px solid rgba(240,201,106,.55)}
+        .xgh-tr i::before{content:"";position:absolute;left:1px;top:1px;width:7px;height:7px;transform:rotate(45deg);background:#08202a;border:1px solid rgba(240,201,106,.55)}
         .xgh-tr i::after{content:"";position:absolute;left:11px;right:1px;top:5px;height:1px;background:rgba(240,201,106,.3)}
         .xgh-tr i:last-of-type::after{display:none}
         .xgh-tr i.ok::before{background:var(--jd);border-color:var(--jd)}
@@ -572,10 +572,10 @@ export const XgHero = () => {
         .xgh-tr i.cur::before{background:var(--gl);border-color:#fff;box-shadow:0 0 8px var(--gd)}
         .xgh-tr span{margin-left:6px;letter-spacing:.06em;white-space:nowrap}
         .xgh-tr em{margin-left:6px;padding:2px 5px;font-style:normal;font-size:10px;color:#e3d0ff;border:1px solid rgba(185,140,255,.6)}
-        .xgh-quest{position:relative;width:268px;padding:12px 14px 12px 16px;text-align:left;background:linear-gradient(90deg,rgba(6,11,24,.88),rgba(6,11,24,.62) 70%,rgba(6,11,24,.2));border-left:2px solid var(--gd)}
+        .xgh-quest{position:relative;width:268px;padding:12px 14px 12px 16px;text-align:left;background:linear-gradient(90deg,rgba(4,18,25,.92),rgba(4,18,25,.84) 70%,rgba(4,18,25,.6));border-left:2px solid var(--gd);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
         .xgh-quest::before{content:"";position:absolute;left:-6px;top:-5px;width:10px;height:10px;transform:rotate(45deg);background:var(--gd);box-shadow:0 0 10px var(--gd)}
         .xgh-qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;font-size:13px;letter-spacing:.3em;color:var(--gd);border-bottom:1px solid rgba(240,201,106,.22)}
-        .xgh-dlg{position:relative;width:100%;max-width:400px;padding:28px 18px 16px;text-align:left;background:linear-gradient(180deg,rgba(16,28,54,.95),rgba(6,11,24,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
+        .xgh-dlg{position:relative;width:100%;max-width:400px;padding:28px 18px 16px;text-align:left;background:linear-gradient(180deg,rgba(12,40,48,.95),rgba(4,18,25,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
         .xgh-dh{position:absolute;left:14px;top:-12px;z-index:1;padding:3px 14px;font-size:12px;letter-spacing:.3em;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 55%,#c08a2a);box-shadow:0 0 12px rgba(240,201,106,.45)}
         .xgh-dq{margin:0 0 8px;font-size:12px;letter-spacing:.15em;color:var(--jd)}
         .xgh-qh em{font-style:normal;font-size:11.5px;letter-spacing:.1em;color:var(--mu)}
@@ -598,7 +598,7 @@ export const XgHero = () => {
         .xgh-loot em{display:inline-block;padding:0 8px;font-style:normal;font-size:10.5px;letter-spacing:.2em;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a)}
         .xgh-loot b{display:block;margin:4px 0 6px;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-weight:400;font-size:22px;letter-spacing:.15em;color:#fff6d8;text-shadow:0 0 14px #f0c96a}
         .xgh-loot a{font-size:12.5px;color:var(--jd);text-decoration:none}
-        .xgh-again{margin-left:12px;padding:0;font:inherit;font-size:12px;color:var(--mu);background:none;border:0;border-bottom:1px dashed rgba(154,168,194,.5);cursor:pointer}
+        .xgh-again{margin-left:12px;padding:0;font:inherit;font-size:12px;color:var(--mu);background:none;border:0;border-bottom:1px dashed rgba(163,186,184,.5);cursor:pointer}
         .xgh-cl.b{animation-duration:34s;animation-direction:alternate-reverse}
         .xgh-rays,.xgh-ring,.xgh-wing,.xgh-mer{transform-box:fill-box;transform-origin:center}
         .xgh-rays{animation:xgSpin 120s linear infinite}
@@ -629,7 +629,7 @@ export const XgHero = () => {
         .xgh-fx span.gold{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;color:#fff6d8;text-shadow:0 0 16px #f0c96a,0 2px 0 #3a2506}
         .xgh-fx span.vi{color:#e3d0ff;text-shadow:0 0 10px #b98cff,0 2px 0 #1e0b3a}
         .xgh-brk{position:absolute;z-index:6;left:50%;bottom:calc(100% + 80px);transform:translateX(-50%);padding:14px 52px;white-space:nowrap;font-family:"STKaiti","KaiTi",serif;font-size:clamp(26px,4vw,40px);letter-spacing:.3em;color:#fff6d8;text-shadow:0 0 18px #f0c96a;background:linear-gradient(90deg,transparent,rgba(5,22,30,.88) 20%,rgba(5,22,30,.88) 80%,transparent);border-top:1px solid rgba(240,201,106,.6);border-bottom:1px solid rgba(240,201,106,.6);pointer-events:none;animation:xghBrk 2.4s ease-out forwards}
-        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:320px;padding:7px 10px;font-size:12px;line-height:1.6;text-align:left;color:rgba(232,237,246,.85);background:rgba(4,8,18,.66);border:1px solid rgba(255,255,255,.08);border-radius:3px}
+        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:320px;padding:7px 10px;font-size:12px;line-height:1.6;text-align:left;color:#dce8e4;background:rgba(3,16,22,.84);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:3px}
         .xgh-log .xgh-tg{float:right;margin:1px 0 0 8px}
         .xgh-lg div{padding:1px 0;animation:xgIn .35s both}
         .xgh-log:not(.open) .xgh-lg div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -637,8 +637,8 @@ export const XgHero = () => {
         .xgh-lg div.c{color:#fff;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:13px}
         .xgh-lg div.v{color:#d6b8ff}
         .xgh-lg div.r{color:#ff9d84}
-        .xgh-skills{position:absolute;z-index:4;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;padding:12px 16px 30px;background:linear-gradient(180deg,rgba(5,22,30,.6),rgba(5,22,30,.92));border:1px solid rgba(240,201,106,.3);border-radius:6px}
-        .xgh-sk{position:relative;width:66px;height:78px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;cursor:pointer;font:inherit;color:var(--gl);background:radial-gradient(circle at 50% 30%,#2b4b80,#0c1730);border:1px solid rgba(240,201,106,.55);border-radius:6px;box-shadow:inset 0 0 12px rgba(0,0,0,.6);transition:transform .15s,box-shadow .25s}
+        .xgh-skills{position:absolute;z-index:4;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;padding:12px 16px 30px;background:linear-gradient(180deg,rgba(5,22,30,.82),rgba(5,22,30,.94));border:1px solid rgba(240,201,106,.3);border-radius:6px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+        .xgh-sk{position:relative;width:66px;height:78px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;cursor:pointer;font:inherit;color:var(--gl);background:radial-gradient(circle at 50% 30%,#2a6670,#0a2a33);border:1px solid rgba(240,201,106,.55);border-radius:6px;box-shadow:inset 0 0 12px rgba(0,0,0,.6);transition:transform .15s,box-shadow .25s}
         .xgh-sk:hover{transform:translateY(-2px);box-shadow:inset 0 0 12px rgba(0,0,0,.6),0 0 16px rgba(240,201,106,.55)}
         .xgh-sk:active{transform:scale(.94)}
         .xgh-sk:focus-visible{outline:2px solid var(--jd);outline-offset:3px}
@@ -842,21 +842,21 @@ export const XgHero = () => {
         <g filter="url(#xghBl)"><ellipse cx="1180" cy="262" rx="210" ry="14" fill="#f4faf7" opacity=".6" /></g>
         <g filter="url(#xghBl)" opacity=".7"><ellipse cx="800" cy="488" rx="900" ry="30" fill="#f4faf7" /></g>
         <path d={SEA1} fill="url(#xghSeaF)" opacity=".86" stroke="#ffffff" strokeOpacity=".7" strokeWidth="1.2" />
-        <polyline points={ST} fill="none" stroke="#070d1f" strokeOpacity=".75" strokeWidth="10" strokeLinejoin="round" />
+        <polyline points={ST} fill="none" stroke="#05171e" strokeOpacity=".75" strokeWidth="10" strokeLinejoin="round" />
         <polyline points={ST} fill="none" stroke="#c9a15a" strokeOpacity=".6" strokeWidth="7" strokeDasharray="1.4 3" strokeLinejoin="round" />
         <polyline className="xgh-path" points={ST} fill="none" stroke="#f6dd9a" strokeOpacity=".85" strokeWidth="1.3" strokeLinejoin="round" />
         <polyline points={ST} fill="none" stroke="#e8edf6" strokeOpacity=".5" strokeWidth="2.4" strokeDasharray="0.1 8" strokeLinecap="round" />
         {LAMPS.map((p, i) => <g key={i} className="xgh-lamp" style={{ animationDelay: i * 0.4 + "s" }}><circle cx={p[0]} cy={p[1]} r="10" fill="url(#xghLan)" /><circle cx={p[0]} cy={p[1]} r="1.8" fill="#fff1c2" /></g>)}
         <g transform="translate(1075 342)">
           <path d="M-40 6 L4 40 M-18 6 L12 28" stroke="#c9a15a" strokeOpacity=".55" strokeWidth="2" />
-          <path d="M-50 0 L50 0 L44 6 L-44 6 Z" fill="#1a2c55" stroke="#f0c96a" strokeWidth="1" />
-          <rect x="-30" y="-18" width="60" height="18" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <path d="M-50 0 L50 0 L44 6 L-44 6 Z" fill="#17434e" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-30" y="-18" width="60" height="18" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-25 -13 h9 v9 h-9 Z M-11.5 -13 h9 v9 h-9 Z M2.5 -13 h9 v9 h-9 Z M16 -13 h9 v9 h-9 Z" fill="#ffd98a" />
           <path d="M-44 -17 Q-34 -19 -30 -27 L30 -27 Q34 -19 44 -17 L38 -15 L-38 -15 Z" fill="url(#xghGold)" />
-          <rect x="-20" y="-42" width="40" height="15" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-20" y="-42" width="40" height="15" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-14 -38 h8 v8 h-8 Z M6 -38 h8 v8 h-8 Z" fill="#ffd98a" />
           <path d="M-32 -41 Q-24 -43 -20 -50 L20 -50 Q24 -43 32 -41 L27 -39 L-27 -39 Z" fill="url(#xghGold)" />
-          <rect x="-10" y="-62" width="20" height="12" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-10" y="-62" width="20" height="12" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-3 -59 h6 v6 h-6 Z" fill="#ffd98a" />
           <path d="M-20 -61 Q-14 -63 -11 -70 L11 -70 Q14 -63 20 -61 Z" fill="url(#xghGold)" />
           <path d="M0 -70 V-79" stroke="#f6dd9a" strokeWidth="1.5" />
@@ -877,13 +877,13 @@ export const XgHero = () => {
           <rect className="xgh-beam" x="-26" y="-320" width="52" height="380" fill="url(#xghBeam)" />
           <rect x="-4" y="-320" width="8" height="380" fill="url(#xghBeam)" />
           <ellipse cy="-34" rx="54" ry="46" fill="url(#xghHalo)" />
-          <path d="M-62 4 Q-30 14 -12 34 L12 34 Q30 14 62 4 Z" fill="#152a55" />
-          <path d="M-60 0 L60 0 L54 6 L-54 6 Z" fill="#1a2c55" stroke="#f0c96a" strokeWidth="1" />
+          <path d="M-62 4 Q-30 14 -12 34 L12 34 Q30 14 62 4 Z" fill="#15404a" />
+          <path d="M-60 0 L60 0 L54 6 L-54 6 Z" fill="#17434e" stroke="#f0c96a" strokeWidth="1" />
           <rect x="-14" y="-47" width="28" height="47" fill="#fff6d8" opacity=".22" />
-          <path d="M-46 -40 h6 v40 h-6 Z M40 -40 h6 v40 h-6 Z M-20 -56 h6 v56 h-6 Z M14 -56 h6 v56 h-6 Z" fill="#14254c" stroke="#f0c96a" strokeWidth=".8" />
+          <path d="M-46 -40 h6 v40 h-6 Z M40 -40 h6 v40 h-6 Z M-20 -56 h6 v56 h-6 Z M14 -56 h6 v56 h-6 Z" fill="#123a44" stroke="#f0c96a" strokeWidth=".8" />
           <path d="M-50 -38 h36 v4 h-36 Z M14 -38 h36 v4 h-36 Z M-23 -52 h46 v5 h-46 Z" fill="url(#xghGold)" />
           <path d="M-58 -40 Q-49 -41 -46 -48 L-16 -48 Q-14 -42 -12 -40 Z M12 -40 Q14 -42 16 -48 L46 -48 Q49 -41 58 -40 Z" fill="url(#xghGold)" />
-          <rect x="-11" y="-66" width="22" height="13" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-11" y="-66" width="22" height="13" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <text y="-56.5" textAnchor="middle" fontSize="8.5" fill="#fbe7a8">天门</text>
           <path d="M-38 -69 Q-25 -71 -21 -80 L21 -80 Q25 -71 38 -69 L31 -66 L-31 -66 Z" fill="url(#xghGold)" />
           <path d="M-38 -69 Q-44 -70 -45 -76 M38 -69 Q44 -70 45 -76" stroke="#f6dd9a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
@@ -941,13 +941,13 @@ export const XgHero = () => {
         <path d="M0 600 L0 446 Q80 404 160 424 Q240 388 330 414 Q420 436 500 474 Q600 522 700 600 Z" fill="url(#xghNear)" stroke="#5fe3c8" strokeOpacity=".15" />
         <path d="M1290 600 Q1370 500 1450 474 Q1530 452 1600 470 L1600 600 Z" fill="url(#xghNear)" stroke="#5fe3c8" strokeOpacity=".15" />
         <g transform="translate(300 418)">
-          <path d="M0 0 C-4 -20 6 -36 -2 -54 C-8 -68 4 -80 14 -88" stroke="#070b16" strokeWidth="7" fill="none" strokeLinecap="round" />
-          <path d="M1 -40 C24 -44 54 -40 88 -54 M-4 -60 C-22 -64 -40 -60 -54 -70 M8 -80 C20 -84 30 -92 44 -94" stroke="#070b16" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-          <use href="#xghPad" transform="translate(96 -58)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(52 -50) scale(.7)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(-54 -72) scale(.85)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(16 -92) scale(1.1)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(48 -98) scale(.7)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
+          <path d="M0 0 C-4 -20 6 -36 -2 -54 C-8 -68 4 -80 14 -88" stroke="#04141a" strokeWidth="7" fill="none" strokeLinecap="round" />
+          <path d="M1 -40 C24 -44 54 -40 88 -54 M-4 -60 C-22 -64 -40 -60 -54 -70 M8 -80 C20 -84 30 -92 44 -94" stroke="#04141a" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+          <use href="#xghPad" transform="translate(96 -58)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(52 -50) scale(.7)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(-54 -72) scale(.85)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(16 -92) scale(1.1)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(48 -98) scale(.7)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
         </g>
         <path d={SEA2} fill="url(#xghSeaF)" stroke="#ffffff" strokeOpacity=".9" strokeWidth="1.4" />
         <g className="xgh-cl" filter="url(#xghBl)">
@@ -969,7 +969,7 @@ export const XgHero = () => {
           <circle className="xgh-mer" r="9" fill="none" stroke="#9ff5e2" strokeWidth="1.5" />
           <circle ref={meRef} r="4.5" fill="#effffb" stroke="#5fe3c8" strokeWidth="1.5" />
           <g transform={"translate(0 " + (lv === top ? 30 : -28) + ")"}>
-            <rect x="-22" y="-10" width="44" height="17" rx="2" fill="#060b18" fillOpacity=".88" stroke="#f0c96a" strokeOpacity=".8" />
+            <rect x="-22" y="-10" width="44" height="17" rx="2" fill="#04141a" fillOpacity=".88" stroke="#f0c96a" strokeOpacity=".8" />
             <text y="3" textAnchor="middle" fontSize="10.5" fill="#fbe7a8">林砚</text>
           </g>
         </g>
@@ -1233,7 +1233,7 @@ export const XgIdea = () => {
         .xi-q.ok i{background:var(--jd);border-color:var(--jd)}
         .xi-body{padding:22px 24px 26px}
         .xi-lab{margin:0 0 8px;font-size:12px;letter-spacing:.3em;color:var(--mu)}
-        .xi-idea{min-height:92px;padding:14px 16px;font-size:16.5px;line-height:1.85;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(127,216,255,.25);box-shadow:inset 0 0 18px rgba(127,216,255,.06)}
+        .xi-idea{min-height:92px;padding:14px 16px;font-size:16.5px;line-height:1.85;color:#fff;background:rgba(2,16,22,.45);border:1px solid rgba(214,236,230,.24);box-shadow:inset 0 0 18px rgba(95,227,200,.06)}
         .xi-ph{color:#7f9896}
         .xi-cur{display:inline-block;width:2px;height:1.1em;margin-left:2px;vertical-align:-3px;background:var(--jd);animation:xgBlink 1s steps(2) infinite}
         .xi-attrs{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0 22px}
@@ -1362,7 +1362,7 @@ export const XgStair = () => {
         .xs-hd{max-width:780px}
         .xs-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:28px;margin-top:40px;align-items:stretch}
         .xs-tree{display:flex;flex-direction:column}
-        .xs-ticket{display:flex;justify-content:space-between;align-items:baseline;margin:16px 18px 0;padding:8px 12px;background:rgba(0,0,0,.35);border:1px solid rgba(127,216,255,.25)}
+        .xs-ticket{display:flex;justify-content:space-between;align-items:baseline;margin:16px 18px 0;padding:8px 12px;background:rgba(2,16,22,.45);border:1px solid rgba(214,236,230,.24)}
         .xs-ticket em{font-style:normal;font-size:12px;letter-spacing:.25em;color:var(--mu)}
         .xs-ticket b{font-size:17px;letter-spacing:.06em;color:var(--sk);font-variant-numeric:tabular-nums;animation:xgIn .4s both}
         .xs-track{position:relative;flex:1;min-height:400px;margin:40px 24px 40px 30px}
@@ -1370,7 +1370,7 @@ export const XgStair = () => {
         .xs-rail{top:0;background:repeating-linear-gradient(180deg,rgba(240,201,106,.35) 0 6px,transparent 6px 12px)}
         .xs-fill{background:linear-gradient(0deg,#5fe3c8,#f0c96a);box-shadow:0 0 12px #5fe3c8;transition:height .7s cubic-bezier(.2,.8,.2,1)}
         .xs-node{position:absolute;left:0;right:0;display:flex;align-items:center;gap:14px;padding:0;font:inherit;text-align:left;color:var(--mu);background:none;border:0;cursor:pointer;transform:translateY(50%)}
-        .xs-orb{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;color:var(--mu);background:radial-gradient(circle at 40% 35%,#1d3157,#0a1428);border:1px solid rgba(255,255,255,.18);transition:all .4s}
+        .xs-orb{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;color:var(--mu);background:radial-gradient(circle at 40% 35%,#1a4450,#08222b);border:1px solid rgba(255,255,255,.18);transition:all .4s}
         .xs-node.done .xs-orb{color:#06231d;background:radial-gradient(circle at 40% 35%,#b9fff0,#3ccfb0);border-color:#9ff5e2}
         .xs-node.on .xs-orb{color:#2a1a04;background:radial-gradient(circle at 40% 35%,#fff6d8,#f0c96a 60%,#b07d1c);border-color:#fff1c2;animation:xsPulse 2s ease-in-out infinite}
         .xs-nm b{display:block;font-size:16px;letter-spacing:.1em;color:var(--tx)}
@@ -1523,17 +1523,17 @@ export const XgMap = () => {
         .xm-info p{margin:0;font-size:14.5px;line-height:1.85;color:var(--tx)}
         .xm-hint{margin-top:12px;font-size:14px;line-height:1.8;color:#c9b3ff}
         .xm-map{padding:14px}
-        .xm-stage{position:relative;cursor:crosshair;background:radial-gradient(ellipse at 50% 50%,rgba(30,60,110,.35),transparent 75%),linear-gradient(rgba(127,216,255,.06) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(127,216,255,.06) 1px,transparent 1px) 0 0/40px 40px,#081226;border:1px solid rgba(127,216,255,.18)}
+        .xm-stage{position:relative;cursor:crosshair;background:radial-gradient(ellipse at 50% 50%,rgba(40,100,104,.35),transparent 75%),radial-gradient(60% 40% at 80% 0%,rgba(255,226,160,.08),transparent 70%),linear-gradient(rgba(214,236,230,.05) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(214,236,230,.05) 1px,transparent 1px) 0 0/40px 40px,#071b23;border:1px solid rgba(214,236,230,.18)}
         .xm-svg{display:block;width:100%;height:auto}
         .xm-ct{fill:rgba(240,201,106,.65);font-size:12px}
-        .xm-e{stroke:rgba(127,216,255,.22);stroke-width:1;stroke-dasharray:3 5;transition:all .3s}
+        .xm-e{stroke:rgba(214,236,230,.24);stroke-width:1;stroke-dasharray:3 5;transition:all .3s}
         .xm-e.on{stroke:#f0c96a;stroke-opacity:.95;stroke-width:1.8;stroke-dasharray:none}
         .xm-n{cursor:pointer;outline:none}
-        .xm-dia{fill:#0d1a33;stroke:#5fe3c8;stroke-width:1.5;transition:all .3s}
+        .xm-dia{fill:#0b2730;stroke:#5fe3c8;stroke-width:1.5;transition:all .3s}
         .xm-n.on .xm-dia{fill:#3a2a0a;stroke:#f6dd9a;stroke-width:2}
         .xm-ml{fill:#e8edf6;font-size:15px;letter-spacing:2px;font-family:"STKaiti","KaiTi","Kaiti SC",serif}
         .xm-n.on .xm-ml{fill:#fff6d8}
-        .xm-dot{fill:#0d1a33;stroke:#f0c96a;stroke-width:2;transition:all .3s}
+        .xm-dot{fill:#0b2730;stroke:#f0c96a;stroke-width:2;transition:all .3s}
         .xm-n.on .xm-dot{fill:#f0c96a}
         .xm-sl{fill:rgba(232,237,246,.5);font-size:12.5px;transition:fill .3s}
         .xm-n.nr .xm-sl{fill:#e8edf6}
@@ -1766,11 +1766,11 @@ export const XgLots = () => {
       <style>{`
         .xq-hd{max-width:720px;margin:0 auto;text-align:center}
         .xq-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:900px;margin:44px auto 0;perspective:900px}
-        .xq-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:16px;min-height:250px;padding:22px 18px 18px;text-align:center;background:radial-gradient(circle at 50% 30%,rgba(185,140,255,.2),transparent 65%),linear-gradient(180deg,#16244a,#0a1226);border:1px solid rgba(240,201,106,.45);border-radius:8px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.25),0 20px 40px -20px rgba(0,0,0,.9);transition:box-shadow .4s,border-color .4s}
+        .xq-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:16px;min-height:250px;padding:22px 18px 18px;text-align:center;background:radial-gradient(circle at 50% 22%,rgba(255,226,160,.18),transparent 62%),radial-gradient(90% 60px at 50% 100%,rgba(214,236,230,.1),transparent 70%),linear-gradient(180deg,#143a44,#08202a);border:1px solid rgba(240,201,106,.45);border-radius:8px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.25),0 20px 40px -20px rgba(0,0,0,.9);transition:box-shadow .4s,border-color .4s}
         .xq-card.kept{border-color:#5fe3c8;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(95,227,200,.45),0 0 32px -6px rgba(95,227,200,.75)}
         .xq-tag{display:inline-flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.4em;color:var(--gd)}
         .xq-tag::before,.xq-tag::after{content:"";width:5px;height:5px;background:var(--gd);transform:rotate(45deg)}
-        .xq-txt{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;line-height:1.7;letter-spacing:.04em;color:#fff6d8;text-shadow:0 0 12px rgba(185,140,255,.5)}
+        .xq-txt{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;line-height:1.7;letter-spacing:.04em;color:#fff6d8;text-shadow:0 0 12px rgba(240,201,106,.45)}
         .xq-txt.flip{animation:xqFlip .55s cubic-bezier(.2,.8,.2,1) both}
         .xq-lock{padding:5px 14px;font:inherit;font-size:12.5px;letter-spacing:.2em;cursor:pointer;color:var(--mu);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);transition:all .25s}
         .xq-lock[aria-pressed="true"]{color:#06231d;background:var(--jd);border-color:var(--jd)}
@@ -1824,11 +1824,11 @@ export const XgEnd = () => {
   return (
     <div className="not-prose xg xg-sec xw">
       <style>{`
-        .xw{padding:120px 24px 130px;text-align:center;background:radial-gradient(700px 380px at 50% 40%,rgba(240,201,106,.12),transparent 70%),linear-gradient(180deg,#0b1426,#050913)}
+        .xw{padding:120px 24px 130px;text-align:center;background:radial-gradient(760px 340px at 50% 0%,rgba(255,226,160,.17),transparent 70%),radial-gradient(700px 380px at 50% 45%,rgba(240,201,106,.1),transparent 70%),radial-gradient(130% 200px at 50% 100%,rgba(214,236,230,.13),transparent 72%),linear-gradient(180deg,#0a2029,#0b2630 60%,#10323c)}
         .xw-in{max-width:780px}
         .xw .xg-p{max-width:640px;margin:0 auto}
         .xw-loot{display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:40px}
-        .xw-chest{position:relative;width:200px;height:120px;display:grid;place-items:center;padding:0;font:inherit;cursor:pointer;color:var(--gl);background:linear-gradient(180deg,#1d3157,#0a1428);border:1px solid rgba(240,201,106,.6);border-radius:6px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.3),0 0 30px -8px rgba(240,201,106,.6);overflow:hidden;transition:transform .2s,box-shadow .3s}
+        .xw-chest{position:relative;width:200px;height:120px;display:grid;place-items:center;padding:0;font:inherit;cursor:pointer;color:var(--gl);background:linear-gradient(180deg,#1a4450,#08222b);border:1px solid rgba(240,201,106,.6);border-radius:6px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.3),0 0 30px -8px rgba(240,201,106,.6);overflow:hidden;transition:transform .2s,box-shadow .3s}
         .xw-chest:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.5),0 0 40px -6px rgba(240,201,106,.8)}
         .xw-chest:focus-visible{outline:2px solid var(--jd);outline-offset:4px}
         .xw-chest::before{content:"";position:absolute;left:50%;top:50%;width:320px;height:320px;margin:-160px 0 0 -160px;background:conic-gradient(from 0deg,transparent 0 10%,rgba(240,201,106,.28) 12%,transparent 16% 35%,rgba(240,201,106,.28) 37%,transparent 41% 60%,rgba(240,201,106,.28) 62%,transparent 66% 85%,rgba(240,201,106,.28) 87%,transparent 91%);opacity:0;transition:opacity .4s;animation:xgSpin 10s linear infinite}
@@ -1848,7 +1848,7 @@ export const XgEnd = () => {
         .xw-chips a.r{color:#f9a8d4;border-color:rgba(249,168,212,.45)}
         .xw-chips a.u{color:#c4b5fd;border-color:rgba(196,181,253,.45)}
         .xw-chips a:hover{background:rgba(255,255,255,.08)}
-        .xw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:var(--mu);text-decoration:none;border-bottom:1px solid rgba(154,168,194,.35)}
+        .xw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:var(--mu);text-decoration:none;border-bottom:1px solid rgba(163,186,184,.35)}
         .xw-back:hover{color:var(--gl);border-color:var(--gl)}
         @keyframes xwPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
       `}</style>
