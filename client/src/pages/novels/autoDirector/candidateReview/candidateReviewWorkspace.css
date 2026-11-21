@@ -38,27 +38,49 @@
 .candidate-round nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin-top: .375rem; }
 .candidate-round nav button { padding-block: .375rem; color: hsl(var(--primary)); font-size: .875rem; text-align: start; text-decoration: underline; text-decoration-color: hsl(var(--border)); text-underline-offset: .25em; }
 .candidate-round nav button:hover { text-decoration-color: currentColor; }
-.candidate-manuscript { container: candidate-story / inline-size; min-width: 0; padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
+.candidate-manuscript { min-width: 0; padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
 .candidate-byline, .candidate-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .875rem; }
-.candidate-title-row { margin-top: .35rem; }
+.candidate-title-row { container-type: inline-size; margin-top: .35rem; }
 .candidate-title-row h4 { font: 600 clamp(1.5rem, 3.6cqi, 2rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
 .candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .candidate-logline { max-width: 44em; margin-block: .7rem 1.25rem; font-size: 1rem; line-height: 1.85; white-space: pre-line; }
 .candidate-fields { display: grid; gap: .875rem; font-size: .9375rem; line-height: 1.8; }
-.candidate-fields > div { display: grid; align-items: baseline; gap: .125rem; }
-.candidate-fields dt { font-size: .8125rem; color: hsl(var(--muted-foreground)); }
-.candidate-fields dd { max-width: 44em; white-space: pre-line; }
+.candidate-fields[hidden] { display: none; }
+.candidate-fields > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem 1rem; }
+.candidate-fields dt { flex: 0 0 6rem; font-size: .8125rem; color: hsl(var(--muted-foreground)); }
+.candidate-fields dd { flex: 1 1 29rem; min-width: 0; max-width: 44em; white-space: pre-line; }
 .candidate-story-notes { margin-top: 1.25rem; }
-.candidate-story-notes > summary { display: flex; align-items: center; gap: .5rem; width: fit-content; cursor: pointer; font-size: .875rem; font-weight: 600; list-style: none; }
-.candidate-story-notes > summary::-webkit-details-marker { display: none; }
-.candidate-story-notes[open] > summary svg { transform: rotate(180deg); }
+.candidate-story-notes > button { display: flex; align-items: center; gap: .5rem; width: fit-content; font-size: .875rem; font-weight: 600; }
+.candidate-story-notes > button[aria-expanded="true"] svg { transform: rotate(180deg); }
 .candidate-story-notes .candidate-fields { margin-top: .875rem; }
 .candidate-decision { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1.25rem; margin-top: 1.25rem; }
 .candidate-round :focus-visible, .candidate-manuscript :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-@container candidate-story (min-width: 36rem) {
-  .candidate-fields > div { grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; }
-}
 @container candidate-list (min-width: 64rem) {
-  .candidate-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2rem; align-items: start; }
-  .candidate-comparison > .candidate-round { grid-column: 1 / -1; max-width: none; }
+  .candidate-round { max-width: none; }
+  .candidate-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2rem; }
+
+  @supports (grid-template-rows: subgrid) {
+    /* A missing field leaves its named row available to the other story in this pair. */
+    .candidate-comparison {
+      grid-template-rows:
+        [byline] auto [title] auto [logline] auto
+        [coreConflict] auto [protagonistPath] auto [sellingPoint] auto
+        [notes] auto [positioning] auto [hookStrategy] auto [progressionLoop] auto
+        [endingDirection] auto [whyItFits] auto [platform] auto [foundation] auto
+        [titleOptions] auto [decision] auto [end];
+    }
+    .candidate-comparison > article,
+    .candidate-comparison > article > header,
+    .candidate-comparison .candidate-story-notes,
+    .candidate-comparison .candidate-fields:not([hidden]) { display: grid; grid-template-rows: subgrid; row-gap: 0; }
+    .candidate-comparison > article { grid-row: 1 / -1; }
+    .candidate-comparison > article > header { grid-row: byline / coreConflict; align-items: start; }
+    .candidate-comparison > article > .candidate-fields { grid-row: coreConflict / notes; }
+    .candidate-comparison .candidate-story-notes { grid-row: notes / titleOptions; }
+    .candidate-comparison .candidate-story-notes > button { grid-row: notes; align-self: start; }
+    .candidate-comparison .candidate-story-notes > .candidate-fields { grid-row: positioning / titleOptions; }
+    .candidate-comparison .candidate-fields > div { grid-row: var(--candidate-field-row); align-self: start; padding-bottom: .875rem; }
+    .candidate-comparison .candidate-title-options { grid-row: titleOptions; align-self: start; }
+    .candidate-comparison .candidate-decision { grid-row: decision; align-self: start; }
+  }
 }

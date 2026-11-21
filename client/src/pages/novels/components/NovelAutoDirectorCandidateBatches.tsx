@@ -1,5 +1,6 @@
+import { useId, useState, type CSSProperties, type ReactElement } from "react";
 import { candidateAnchor } from "../autoDirector/candidateReview/candidateScope";
-import { candidateFieldLabel } from "@ai-novel/shared/types/director/candidateReview";
+import { candidateFieldLabel, type CandidateStoryField } from "@ai-novel/shared/types/director/candidateReview";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, MessageCircle, RefreshCw, Wand2 } from "lucide-react";
@@ -50,12 +51,43 @@ function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactor
   return [buildFallbackTitleOption(candidate)];
 }
 
-function StoryFields({ fields }: { fields: { label: string; value?: string }[] }) {
-  return <dl className="candidate-fields">
+interface StoryField {
+  row: Exclude<CandidateStoryField, "logline"> | "platform" | "foundation";
+  value?: string | null;
+}
+
+const fieldLabels = { ...candidateFieldLabel, platform: "平台建议", foundation: "创作基础" };
+
+function StoryFields({ fields, id, hidden }: { fields: StoryField[]; id?: string; hidden?: boolean }) {
+  return <dl className="candidate-fields" id={id} hidden={hidden}>
     {fields.filter(field => field.value?.trim()).map(field =>
-      <div key={field.label}><dt>{field.label}</dt><dd>{field.value}</dd></div>
+      <div key={field.row} style={{ "--candidate-field-row": field.row } as CSSProperties}>
+        <dt>{fieldLabels[field.row]}</dt><dd>{field.value}</dd>
+      </div>
     )}
   </dl>;
+}
+
+function CandidateStoryNotes({ fields }: { fields: StoryField[] }) {
+  const [open, setOpen] = useState(true);
+  const id = useId();
+  return <section className="candidate-story-notes">
+    <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+      完整设定与推荐理由<ChevronDown size={15} />
+    </button>
+    <StoryFields id={id} hidden={!open} fields={fields} />
+  </section>;
+}
+
+function CandidatePairs({ children }: { children: ReactElement[] }) {
+  if (children.length < 2) return children;
+  const pairs: ReactElement[] = [];
+  for (let index = 0; index < children.length; index += 2) {
+    pairs.push(<div className="candidate-comparison" key={children[index].key}>
+      {children.slice(index, index + 2)}
+    </div>);
+  }
+  return pairs;
 }
 
 function foundationSourceLabel(source: "user_selected" | "ai_recommended" | "market_recommended" | undefined): string {
@@ -102,7 +134,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
           initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.18, delay: reducedMotion ? 0 : batchIndex * 0.04 }}
-          className={cn("min-w-0", batch.candidates.length > 1 && "candidate-comparison")}
+          className="min-w-0"
         >
           <header className="candidate-round">
             <h3 id={candidateAnchor(batch.id, "")} tabIndex={-1}>{batch.roundLabel} · {batch.candidates.length} 套方向</h3>
@@ -120,7 +152,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             </nav>}
           </header>
 
-          {batch.candidates.map((candidate, candidateIndex) => {
+          <CandidatePairs>{batch.candidates.map((candidate, candidateIndex) => {
             const anchor = candidateAnchor(batch.id, candidate.id);
             const titleOptions = resolveCandidateTitleOptions(candidate);
             const platform = candidate.recommendedWritingPlatform === "qidian_male" ? "起点男频"
@@ -140,30 +172,27 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   <p className="candidate-logline">{candidate.logline}</p>
                 </header>
                 <StoryFields fields={[
-                  { label: candidateFieldLabel.coreConflict, value: candidate.coreConflict },
-                  { label: candidateFieldLabel.protagonistPath, value: candidate.protagonistPath },
-                  { label: candidateFieldLabel.sellingPoint, value: candidate.sellingPoint },
+                  { row: "coreConflict", value: candidate.coreConflict },
+                  { row: "protagonistPath", value: candidate.protagonistPath },
+                  { row: "sellingPoint", value: candidate.sellingPoint },
                 ]} />
 
-                <details className="candidate-story-notes" open>
-                  <summary>完整设定与推荐理由<ChevronDown size={15} /></summary>
-                  <StoryFields fields={[
-                    { label: candidateFieldLabel.positioning, value: candidate.positioning },
-                    { label: candidateFieldLabel.hookStrategy, value: candidate.hookStrategy },
-                    { label: candidateFieldLabel.progressionLoop, value: candidate.progressionLoop },
-                    { label: candidateFieldLabel.endingDirection, value: candidate.endingDirection },
-                    { label: candidateFieldLabel.whyItFits, value: candidate.whyItFits },
-                    { label: "平台建议", value: [platform, candidate.writingPlatformReason].filter(Boolean).join(" · ") },
-                  ]} />
-                  {candidate.productionFoundation && <StoryFields fields={[{ label: "创作基础", value: [
+                <CandidateStoryNotes fields={[
+                  { row: "positioning", value: candidate.positioning },
+                  { row: "hookStrategy", value: candidate.hookStrategy },
+                  { row: "progressionLoop", value: candidate.progressionLoop },
+                  { row: "endingDirection", value: candidate.endingDirection },
+                  { row: "whyItFits", value: candidate.whyItFits },
+                  { row: "platform", value: [platform, candidate.writingPlatformReason].filter(Boolean).join(" · ") },
+                  { row: "foundation", value: candidate.productionFoundation && [
                     `${candidate.productionFoundation.genre.path}（${foundationSourceLabel(candidate.productionFoundation.genre.source)}）`,
                     `${candidate.productionFoundation.primaryStoryMode.path}（${foundationSourceLabel(candidate.productionFoundation.primaryStoryMode.source)}）`,
                     candidate.productionFoundation.secondaryStoryMode &&
                       `${candidate.productionFoundation.secondaryStoryMode.path}（${foundationSourceLabel(candidate.productionFoundation.secondaryStoryMode.source)}）`,
-                  ].filter(Boolean).join(" · ") }]} />}
-                </details>
+                  ].filter(Boolean).join(" · ") },
+                ]} />
 
-                <details className="group mt-4">
+                <details className="candidate-title-options group mt-4">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
                     调整书名
                     <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
@@ -244,7 +273,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                 </footer>
               </article>
             );
-          })}
+          })}</CandidatePairs>
         </motion.section>
       ))}
 
