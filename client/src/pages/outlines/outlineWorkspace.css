@@ -130,6 +130,9 @@
 @container outline-desk (min-width: 66rem) {
   .outline-pane-switch { display: none; }
   .outline-workspace-grid { grid-template-columns: clamp(10.5rem, 16%, 14rem) minmax(0, 1fr) clamp(21rem, 31%, 30rem); }
+  .outline-workspace-grid:has(.outline-conversations:not([hidden]) .agent-review[data-draft="true"]) {
+    grid-template-columns: clamp(10.5rem, 16%, 14rem) minmax(0, 1fr) min(53%, 48rem);
+  }
 }
 @media (min-width: 768px) and (min-height: 600px) {
   .outline-workspace { height: 100%; min-height: 0; }

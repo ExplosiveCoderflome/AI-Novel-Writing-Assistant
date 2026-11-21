@@ -112,6 +112,8 @@ test("赵高初稿缺失时带回对话重写，经采纳保留人物说明和�
   const turn = await send("直接开始吧");
   assert.equal(turn.status, "completed", turn.replyText);
   assert.equal(turn.result.status, "pending");
+  assert.deepEqual(turn.result.draftSummary, { title: "全知者无力回天", volumeCount: 1, chapterCount: 1, characterCount: 4 });
+  assert.equal(turn.result.adoptedVersion, undefined);
   failDraft = true;
   assert.equal((await send("保留这个人物阵容，再细化结局", turn.result.id)).status, "failed");
   assert.equal(draftRequests.length, 2);
@@ -180,6 +182,10 @@ test("whole-outline chat drafts, explains, revises, reopens and writes only on e
   assert.equal((await outlineProjectService.get(project.id)).currentVersion,2);
   await api(project,`proposals/${edit.result.id}/apply`,{operationIds:["tone"]});
   assert.equal((await outlineProjectService.get(project.id)).document.story.tone,"温和");
+  const historical = await read(project);
+  assert.equal(historical.find(t => t.result?.id === revision.result.id).result.adoptedVersion, 2);
+  assert.equal(historical.find(t => t.result?.id === edit.result.id).result.adoptedVersion, 3);
+  assert.equal(historical.find(t => t.result?.id === originalId).result.adoptedVersion, undefined);
   assert.deepEqual(JSON.parse((await api(project,`proposals/${edit.result.id}`)).proposalJson).appliedOperationIds,["tone"]);
   assert.equal(inputs.length,5);
 });

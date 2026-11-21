@@ -44,6 +44,7 @@ const initialGroupLabels = {
 } as const;
 
 interface OutlineProposalPanelProps {
+  round?: number;
   proposal: OutlineProposal;
   document: OutlineDocument;
   isApplying: boolean;
@@ -123,7 +124,7 @@ function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPa
   );
 }
 
-export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, applyDisabled, readOnly, appliedIds, renderContext, onApply, onDiscard }: OutlineProposalPanelProps) {
+export function OutlineProposalPanel({ proposal, document: currentDocument, isApplying, applyDisabled, readOnly, appliedIds, renderContext, onApply, onDiscard, round }: OutlineProposalPanelProps) {
   const revisions = useQuery({ queryKey: ["outline-revisions", proposal.projectId], queryFn: () => listOutlineRevisions(proposal.projectId) });
   const baseRevision = revisions.data?.find(item => item.version === proposal.baseVersion);
   const base = useQuery({ queryKey: ["outline-revision", proposal.projectId, baseRevision?.id], queryFn: () => getOutlineRevision(proposal.projectId, baseRevision!.id), enabled: !!baseRevision });
@@ -170,7 +171,7 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
     <section className="space-y-4 border-t border-border/50 pt-4">
       <div>
         <h3 className="font-medium">{readOnly ? "提案内容" : "待确认的建议"}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">基于修订 v{proposal.baseVersion}。{readOnly ? "可对照当时的修改内容。" : "operations" in payload ? "选中想保留的修改，再一起采纳。" : replacesOutline ? "采纳会以此初稿替换整份大纲。原稿可在修订历史中查看。" : "检查故事安排，采纳后即可逐项编辑。"}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{round && `第 ${round} 轮 · `}基于修订 v{proposal.baseVersion}。{readOnly ? "可对照当时的修改内容。" : "operations" in payload ? "选中想保留的修改，再一起采纳。" : replacesOutline ? "采纳会以此初稿替换整份大纲。原稿可在修订历史中查看。" : "检查故事安排，采纳后即可逐项编辑。"}</p>
       </div>
 
       {renderContext?.(document)}

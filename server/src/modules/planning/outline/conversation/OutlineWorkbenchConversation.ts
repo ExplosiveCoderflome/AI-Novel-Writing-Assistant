@@ -17,6 +17,17 @@ export const outlineConversationScope = (id: string) => JSON.stringify(["outline
 const kinds = ["initial_generation", "edit"];
 const conflict = () => new AppError("大纲或提案已有更新，请根据最新版本继续讨论。", 409);
 
+function summarizeDraft(json: string): OutlineConversationResult["draftSummary"] {
+  try {
+    const draft = JSON.parse(json);
+    const title = draft?.storyFields?.title;
+    if (typeof title === "string" && title.trim() && Array.isArray(draft.volumes)
+      && Array.isArray(draft.chapters) && Array.isArray(draft.characters)) {
+      return { title, volumeCount: draft.volumes.length, chapterCount: draft.chapters.length, characterCount: draft.characters.length };
+    }
+  } catch { /* Older unreadable proposals still have a place in the conversation history. */ }
+}
+
 export class OutlineWorkbenchConversation {
   private readonly store: AgentConversationStore;
   constructor(private readonly db: PrismaClient) { this.store = new AgentConversationStore(db); }
@@ -24,13 +35,20 @@ export class OutlineWorkbenchConversation {
   async read(projectId: string): Promise<OutlineConversationTurn[]> {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
-    const [rows, proposals] = await this.db.$transaction([
+    const metadata = { id: true, kind: true, status: true, baseVersion: true, createdAt: true, requestText: true } as const;
+    const [rows, edits, drafts, revisions] = await this.db.$transaction([
       this.store.history(outlineConversationScope(projectId)),
-      this.db.outlineProposal.findMany({ where: { projectId, kind: { in: kinds } },
-        select: { id: true, kind: true, status: true, baseVersion: true, createdAt: true, requestText: true } }),
+      this.db.outlineProposal.findMany({ where: { projectId, kind: "edit" }, select: metadata }),
+      this.db.outlineProposal.findMany({ where: { projectId, kind: "initial_generation" }, select: { ...metadata, proposalJson: true } }),
+      this.db.outlineRevision.findMany({ where: { projectId, sourceType: { in: ["proposal", "initial_generation"] }, sourceProposalId: { not: null } },
+        select: { sourceProposalId: true, version: true } }),
     ], { isolationLevel: "Serializable" });
+    const adoptedVersions = new Map(revisions.map(row => [row.sourceProposalId, row.version]));
+    const summaries = new Map(drafts.map(row => [row.id, summarizeDraft(row.proposalJson)]));
+    const proposals = [...edits, ...drafts];
     const results = new Map<string, OutlineConversationResult>(proposals.map(row => [row.id, {
       id: row.id, status: row.status, baseVersion: row.baseVersion, kind: row.kind as OutlineConversationResult["kind"],
+      draftSummary: summaries.get(row.id), adoptedVersion: adoptedVersions.get(row.id),
     }]));
     const turns: OutlineConversationTurn[] = rows.map(row => ({ id: row.id, requestText: row.requestText,
       createdAt: row.createdAt.toISOString(), contextVersion: row.contextVersion, status: row.status as OutlineConversationTurn["status"],
@@ -38,7 +56,7 @@ export class OutlineWorkbenchConversation {
     const linked = new Set(rows.map(row => row.resultId));
     for (const row of proposals) if (!linked.has(row.id)) turns.push({
       id: row.id, requestText: row.requestText ?? "", createdAt: row.createdAt.toISOString(), contextVersion: String(row.baseVersion),
-      status: "completed", replyText: row.kind === "edit" ? "这是一份大纲修改建议。" : "这是一份大纲初稿。",
+      status: "completed", replyText: null,
       parentResultId: null, result: results.get(row.id)!,
     });
     return turns.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));

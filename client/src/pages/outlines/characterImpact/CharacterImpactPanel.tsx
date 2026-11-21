@@ -79,8 +79,10 @@ export function CharacterImpactPanel({ projectId, version, characterId, document
         starters: [{ label: "先梳理人物牵动的情节", text: "先帮我梳理这个人物牵动了哪些卷章和伏笔，解释它们的联系。" },
           { label: "一起推敲人物的动机", text: "请读一下这个人物的动机和关键选择，和我讨论哪里可以更有说服力。" }] }}
       inputLabel="希望人物怎么变？哪些情节要保留？" placeholder="例如：让她提前怀疑师父，但保留救师父的情节。"
+      followUpPlaceholder="想改一处人物动机，还是追问某个出场安排？"
       initialAction="分析相关卷章与伏笔" disabled={dirty || decide.isPending} maxLength={6000} value={requestText} onChange={onRequestChange}
       versionLabel={value => `大纲 v${value}`}
+      followUpTopic={() => `正在讨论「${findOutlineNodeTitle(document, characterId)}」的人物调整`}
       followUpAction={(result, n) => editable(result) ? `继续讨论第 ${n} 轮提案` : `按当前大纲重审第 ${n} 轮`}
       canContinue={r => ["pending", "applied", "partially_applied"].includes(r.status)} describeResult={r => r.status === "pending" && r.baseVersion !== version ? "大纲有新修订" : labels[r.status] ?? "已结束"}
       renderResult={(result, busy) => <ImpactProposal projectId={projectId} characterId={characterId} result={result} document={document}

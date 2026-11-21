@@ -119,7 +119,8 @@ const change = (el, value) => runtime.act(async () => {
 test("从一个想法开始直接进入对话，讨论起点可编辑，中文选词不发消息，重进后接着提案聊", async t => {
   window.localStorage.clear();
   const turns = [];
-  const result = { id: "first", kind: "initial_generation", baseVersion: 1, status: "pending" };
+  const result = { id: "first", kind: "initial_generation", baseVersion: 1, status: "pending",
+    draftSummary: { title: "末班渡船", volumeCount: 0, chapterCount: 0, characterCount: 0 } };
   const blank = { ...fixture(), volumes: [], chapters: [], characters: [], facts: [], payoffs: [] };
   const storyFields = { ...blank.story, title: "末班渡船", synopsis: "女孩驶入风暴。" };
   let version = 1;
@@ -141,7 +142,7 @@ test("从一个想法开始直接进入对话，讨论起点可编辑，中文�
       storyFields, volumes: [], chapters: [], characters: [], facts: [], payoffs: [],
     }) };
     if (url.endsWith("/proposals/first/apply")) {
-      version = 2; result.status = "applied";
+      version = 2; result.status = "applied"; result.adoptedVersion = 2;
       return { revision: { version }, document: { ...blank, story: storyFields } };
     }
   }
@@ -159,22 +160,25 @@ test("从一个想法开始直接进入对话，讨论起点可编辑，中文�
   await sendKey({ shiftKey: true });
   assert.deepEqual(first.writes.map(item => item.url), ["/outlines"]);
   await sendKey({});
-  await until(() => button("查看第 1 轮提案 · 待确认"));
+  const draft = await until(() => document.querySelector("button.agent-draft"));
+  assert.equal(draft.getAttribute("aria-expanded"), "false");
+  assert.match(draft.textContent, /末班渡船.*待确认.*0 卷 · 0 章 · 0 位人物.*查看大纲/);
+  assert.equal(document.querySelector(".agent-reference").textContent, "正在讨论《末班渡船》");
   await first.close();
   const reopened = await open(t, "/outlines/p", respond);
-  await until(() => button("继续讨论第 1 轮提案"));
+  await until(() => button("继续讨论《末班渡船》"));
   assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "assistant");
   assert.match(document.querySelector('[aria-label="对话记录"]').textContent, /帮我调整开篇的渡河/);
   await change(input(), "为什么要安排风暴？");
-  await click(button("继续讨论第 1 轮提案"));
+  await click(button("继续讨论《末班渡船》"));
   await until(() => document.querySelector('[aria-label="对话记录"]').textContent.includes("自己做决定"));
   assert.equal(reopened.writes.length, 1);
   assert.equal(reopened.writes[0].body.parentResultId, "first");
   assert.equal(version, 1);
-  await click(button("查看第 1 轮提案 · 待确认"));
+  await click(document.querySelector("button.agent-draft"));
   await click(await until(() => button("采纳这份大纲")));
   await until(() => document.querySelector(".outline-title").value === "末班渡船");
-  await until(() => button("查看第 1 轮提案 · 已采纳"));
+  await until(() => document.querySelector(".agent-draft-status")?.textContent === "已采纳为 v2");
   assert.equal(version, 2);
 });
 
