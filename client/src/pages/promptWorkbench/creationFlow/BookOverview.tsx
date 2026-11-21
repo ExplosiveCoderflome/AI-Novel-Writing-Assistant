@@ -10,7 +10,7 @@ export function BookOverview({ enter, onOpenCatalog }: {
   enter: (stage: FlowStage) => void;
   onOpenCatalog: (prompt: { id: string; version: string }) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const root = useRef<HTMLElement>(null);
