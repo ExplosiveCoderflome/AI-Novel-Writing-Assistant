@@ -6,7 +6,7 @@ const forms = {
   story: { label: "总纲", main: ["premise", "synopsis"], more: ["endingDirection", "theme", "tone", "genre", "targetAudience", "notes"] },
   volume: { label: "卷", main: ["summary", "promise"], more: ["pressure", "protagonistChange", "climax", "endingHook", "planningDepth"] },
   chapter: { label: "章节", main: ["summary", "conflict"], more: ["purpose", "emotionalBeat", "endingHook", "planningDepth"] },
-  character: { label: "人物", main: ["role", "goal", "motivation"], more: ["conflict", "secret", "arcDirection"] },
+  character: { label: "人物", main: ["role", "summary", "goal", "motivation"], more: ["conflict", "secret", "arcDirection"] },
   payoff: { label: "伏笔与钩子", main: ["setupDescription", "payoffDescription"], more: ["kind"] },
   fact: { label: "固定设定", main: ["content"], more: ["category", "immutable"] },
 };
@@ -59,7 +59,8 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
     other !== node && (outgoing.has(other.nodeId) || references(other).includes(node.nodeId)));
 
   function field(key: string) {
-    const label = outlineFieldLabels[key];
+    const characterSummary = key === "summary" && "appearanceNodeIds" in node;
+    const label = characterSummary ? "人物说明" : outlineFieldLabels[key];
     if (key === "immutable") return <label key={key} className="flex items-center gap-2 text-sm">
       <input type="checkbox" checked={!!current[key]} disabled={disabled} className="accent-primary"
         onChange={event => onChange(key, event.target.checked)} />情节发展必须遵守这条设定
@@ -71,7 +72,7 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
         onChange={event => onChange(key, event.target.value)}>
         {choices.map(value => <option key={value} value={value}>{formatOutlineValue(value, key)}</option>)}
       </select> : <textarea className="outline-field outline-textarea" rows={key === "synopsis" || key === "summary" || key === "content" ? 4 : 2}
-        disabled={disabled} value={String(current[key] ?? "")} placeholder={prompts[key]} onChange={event => onChange(key, event.target.value)} />}
+        disabled={disabled} value={String(current[key] ?? "")} placeholder={characterSummary ? "写下这个人的来历和处境。" : prompts[key]} onChange={event => onChange(key, event.target.value)} />}
     </label>;
   }
 

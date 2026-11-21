@@ -63,6 +63,70 @@ async function settled(project, id, read = timeline) {
   assert.fail("Conversation did not settle");
 }
 
+test("赵高初稿缺失时带回对话重写，经采纳保留人物说明和双向出场引用", async t => {
+  const { project } = await outlineProjectService.create("全知者无力回天");
+  const idea = "一个大学生穿越回秦朝，发现自己竟然是赵高。";
+  const ending = "试了但没成，即使全知，依然无力回天。";
+  const node = (clientRef, title, summary) => ({ clientRef, title, summary, reason: summary, sourceFragment: title });
+  const draft = {
+    storyFields: { title: "全知者无力回天", premise: idea, synopsis: ending, theme: "全知与无力", tone: "悲怆", endingDirection: ending },
+    volumes: [node("v", "沙丘之后", "胡亥已立")],
+    chapters: [{ ...node("c", "第一份诏书", "赵高与李斯面议诏书"), volumeRef: "v" }],
+    characters: [
+      { ...node("z", "赵高", "穿越成赵高的大学生，知道结局，仍试图改写诏书。"), role: "主角", appearanceRefs: ["c", "c"] },
+      { ...node("l", "李斯", "诏书指向的丞相。"), role: "丞相", appearanceRefs: ["c"] },
+      { ...node("h", "胡亥", "登基后猜疑群臣。"), role: "皇帝", appearanceRefs: ["v"] },
+      { ...node("f", "扶苏", "开篇前身亡。"), role: "历史背景", appearanceRefs: [] },
+    ], payoffs: [], facts: [],
+  };
+  const draftRequests = [];
+  let failDraft = false;
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({ asset, promptInput }) => {
+    let raw;
+    if (asset.id === "outline.workbench_dialogue") {
+      raw = promptInput.requestText === idea
+        ? { replyText: ending, answer: { kind: "discussion" } }
+        : { replyText: "我按这个方向起草。", answer: { kind: "initial_generation" } };
+    } else {
+      assert.equal(asset.id, "outline.initial_generate");
+      draftRequests.push(promptInput);
+      assert.equal(asset.repairPolicy.maxAttempts, 0);
+      assert.deepEqual(promptInput.conversation.history[0], { author: idea, assistant: ending });
+      assert.equal(promptInput.conversation.draftDirection, "我按这个方向起草。");
+      assert.equal(promptInput.conversation.document.story.title, "全知者无力回天");
+      if (failDraft) {
+        raw = structuredClone(draft);
+        raw.characters[0].appearanceRefs = ["l"]; // a character is not an appearance location
+      } else raw = draft;
+    }
+    return { output: asset.outputSchema.parse(raw), meta: { invocation: { promptId: asset.id, promptVersion: asset.version } } };
+  });
+  const read = p => api(p, "conversation");
+  async function send(requestText, parentResultId) {
+    const { turnId } = await api(project, "conversation/turns", {
+      requestId: require("node:crypto").randomUUID(), baseVersion: 1, requestText, parentResultId,
+    });
+    return settled(project, turnId, read);
+  }
+  assert.equal((await send(idea)).result, null);
+  const turn = await send("直接开始吧");
+  assert.equal(turn.status, "completed", turn.replyText);
+  assert.equal(turn.result.status, "pending");
+  failDraft = true;
+  assert.equal((await send("保留这个人物阵容，再细化结局", turn.result.id)).status, "failed");
+  assert.equal(draftRequests.length, 2);
+  assert.equal(draftRequests[1].conversation.priorProposal.payload.characters[0].title, "赵高");
+  assert.equal((await read(project))[1].result.status, "pending");
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 1);
+  await api(project, `proposals/${turn.result.id}/apply`, {});
+  const saved = await outlineProjectService.get(project.id);
+  assert.equal(saved.currentVersion, 2);
+  const { characters, chapters, volumes } = saved.document;
+  assert.deepEqual(characters.map(p => [p.name, p.role, p.summary]), draft.characters.map(p => [p.title, p.role, p.summary]));
+  assert.deepEqual(characters.map(p => p.appearanceNodeIds), [[chapters[0].nodeId], [chapters[0].nodeId], [volumes[0].nodeId], []]);
+  assert.deepEqual(chapters[0].characterNodeIds, characters.slice(0, 2).map(p => p.nodeId));
+});
+
 test("whole-outline chat drafts, explains, revises, reopens and writes only on explicit acceptance", async t => {
   const {project} = await outlineProjectService.create("渡口");
   const inputs = [];

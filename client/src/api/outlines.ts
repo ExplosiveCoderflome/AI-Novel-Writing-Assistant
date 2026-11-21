@@ -43,6 +43,7 @@ export interface OutlineInitialNode {
   planningDepth: "rough" | "detailed";
   reason?: string;
   volumeRef?: string;
+  appearanceRefs?: string[];
   role?: string;
   setupDescription?: string;
   payoffDescription?: string;

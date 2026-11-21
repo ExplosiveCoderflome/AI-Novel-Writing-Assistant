@@ -96,6 +96,7 @@ function FieldChanges({ operation, document, titles }: { operation: OutlinePropo
 }
 
 function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPayload }) {
+  const locations = new Map([...payload.volumes, ...payload.chapters].map(node => [node.clientRef, node.title]));
   return (
     <div className="space-y-4 text-sm">
       <section>
@@ -110,6 +111,8 @@ function InitialProposalPreview({ payload }: { payload: OutlineInitialProposalPa
               <li key={item.clientRef}>
                 <p className="text-sm font-medium">{item.title}</p>
                 <p className="mt-0.5 whitespace-pre-wrap text-xs text-muted-foreground">{item.summary}</p>
+                {group === "characters" && !!item.appearanceRefs?.length &&
+                  <p className="mt-1 text-xs text-muted-foreground">计划出场于{item.appearanceRefs.map(ref => locations.get(ref)).join("、")}</p>}
                 {item.reason ? <p className="mt-1 text-xs text-muted-foreground">建议理由：{item.reason}</p> : null}
               </li>
             ))}

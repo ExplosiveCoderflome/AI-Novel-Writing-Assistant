@@ -5,6 +5,7 @@ import type { AgentTurnInput } from "@ai-novel/shared/types/agentConversation/tu
 import { AgentConversationStore, agentReplyLive } from "../../../agentConversation";
 import { AppError } from "../../../../middleware/errorHandler";
 import { outlineWorkbenchDialogue } from "../../../../prompting/prompts/outline/workbenchDialogue.prompt";
+import { outlineInitialGeneratePrompt } from "../../../../prompting/prompts/outline/outline.prompts";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
 import { mapOutlineGenerateFailure } from "../application/OutlineProposalService";
 import { validateOutlineDocument } from "../domain/outlineDocument";
@@ -76,21 +77,27 @@ export class OutlineWorkbenchConversation {
       remaining -= author.length + (assistant?.length ?? 0);
       if (!remaining) break;
     }
-    const { output, meta } = await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
-      runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, options: {itemKey}, promptInput: {
-        requestText: input.requestText, baseVersion: input.baseVersion, document, history,
-        priorProposal: prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) },
-      } }));
-    const answer = output.answer;
-    if (answer.kind === "edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
-    if (answer.kind === "initial_generation") {
-      const { volumes, chapters, characters, payoffs, facts } = answer.payload;
-      const refs = [...volumes, ...chapters, ...characters, ...payoffs, ...facts].map(node => node.clientRef);
-      const parents = new Set(volumes.map(v => v.clientRef));
-      if (new Set(refs).size !== refs.length || chapters.some(chapter => !parents.has(chapter.volumeRef))) {
-        throw new AppError("初稿的卷章引用不完整，请重新生成。", 422);
-      }
+    const priorProposal = prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) };
+    const dialogue = await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
+      runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, options: {itemKey},
+        promptInput: { requestText: input.requestText, baseVersion: input.baseVersion, document, history, priorProposal } }));
+    let { answer, replyText } = dialogue.output;
+    let { invocation } = dialogue.meta;
+    if (answer.kind === "initial_generation" && !answer.payload) {
+      const draft = await agentReplyLive.during(input.requestId, "正在根据讨论生成完整初稿…", false, itemKey =>
+        runOutlineProposalStructuredCall({
+          // This is already the contextual regeneration. A context-free repair cannot supply a missing story.
+          asset: { ...outlineInitialGeneratePrompt, repairPolicy: { maxAttempts: 0 } }, options: { itemKey },
+          promptInput: { idea: input.requestText, rough: true, conversation: { document, history, priorProposal, draftDirection: replyText } },
+        })).catch(error => { throw mapOutlineGenerateFailure(error, "initial_generation"); });
+      answer = { kind: "initial_generation", payload: draft.output };
+      invocation = draft.meta.invocation;
+      replyText = "";
     }
+    if (!replyText && answer.kind === "initial_generation" && answer.payload) {
+      replyText = `《${answer.payload.storyFields.title}》的初稿已整理好，你可以查看卷章、人物和伏笔，再决定是否采纳。`;
+    }
+    if (answer.kind === "edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
     await this.db.$transaction(async tx => {
       const latest = await tx.outlineProject.findUniqueOrThrow({ where: { id: projectId }, select: { updatedAt: true } });
       const guard = await tx.outlineProject.updateMany({ where: { id: projectId, status: "active", currentVersion: input.baseVersion },
@@ -104,9 +111,9 @@ export class OutlineWorkbenchConversation {
         }
         resultId = randomUUID();
         await tx.outlineProposal.create({ data: { id: resultId, projectId, baseVersion: input.baseVersion, kind: answer.kind, status: "pending",
-          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: meta.invocation.promptId, promptVersion: meta.invocation.promptVersion } });
+          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: invocation.promptId, promptVersion: invocation.promptVersion } });
       }
-      await AgentConversationStore.complete(tx, outlineConversationScope(projectId), input.requestId, resultId, output.replyText);
+      await AgentConversationStore.complete(tx, outlineConversationScope(projectId), input.requestId, resultId, replyText);
     });
   }
 

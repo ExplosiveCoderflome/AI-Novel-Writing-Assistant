@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { outlineInitialGeneratePrompt, outlineEditProposalPrompt } from "../../../../prompting/prompts/outline/outline.prompts";
+import { initialReferenceError, outlineInitialGeneratePrompt, outlineEditProposalPrompt, type SavedInitialOutlineDraft } from "../../../../prompting/prompts/outline/outline.prompts";
 import { runOutlineProposalStructuredCall } from "./outlineProposalStructuredCall";
 import {
   extractStructuredOutputErrorCategory,
@@ -92,21 +92,29 @@ export class OutlineProposalService {
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
     if (proposal.kind === "character_impact" && !operationIds.length) throw new AppError("请选择要采纳的人物联动修改。", 400);
     if (proposal.kind === "edit" && proposal.promptId === "outline.workbench_dialogue" && !operationIds.length) throw new AppError("请选择要采纳的修改。", 400);
-    const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     if (proposal.kind === "initial_generation") {
-      const initial = JSON.parse(proposal.proposalJson) as { storyFields: Record<string, unknown>; volumes: Array<Record<string, any>>; chapters: Array<Record<string, any>>; characters: Array<Record<string, any>>; payoffs: Array<Record<string, any>>; facts: Array<Record<string, any>> };
+      const initial = JSON.parse(proposal.proposalJson) as SavedInitialOutlineDraft;
+      const referenceError = initialReferenceError(initial);
+      if (referenceError) throw new AppError(referenceError, 422);
       const refs = new Map<string, string>();
       for (const item of [...initial.volumes, ...initial.chapters, ...initial.characters, ...initial.payoffs, ...initial.facts]) refs.set(item.clientRef, randomUUID());
       const document = createEmptyOutlineDocument(String(initial.storyFields.title ?? "新大纲"));
       Object.assign(document.story, initial.storyFields);
       document.volumes = initial.volumes.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, chapterNodeIds: [] }));
-      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef) ?? document.volumes[0]?.nodeId ?? "", title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] })).filter(x=>!!x.volumeNodeId);
+      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] }));
       document.volumes.forEach(volume=>volume.chapterNodeIds=document.chapters.filter(chapter=>chapter.volumeNodeId===volume.nodeId).map(chapter=>chapter.nodeId));
-      document.characters = initial.characters.map(x=>({ nodeId: refs.get(x.clientRef)!, name: x.title, role: x.role, appearanceNodeIds: [] }));
+      const chaptersById = new Map(document.chapters.map(chapter => [chapter.nodeId, chapter]));
+      document.characters = initial.characters.map(person => {
+        const nodeId = refs.get(person.clientRef)!;
+        const appearanceNodeIds = [...new Set(person.appearanceRefs ?? [])].map(ref => refs.get(ref)!);
+        for (const location of appearanceNodeIds) chaptersById.get(location)?.characterNodeIds.push(nodeId);
+        return { nodeId, name: person.title, role: person.role, summary: person.summary, appearanceNodeIds };
+      });
       document.payoffs = initial.payoffs.map(x=>({ nodeId: refs.get(x.clientRef)!, title: x.title, kind: "other", setupDescription: x.setupDescription ?? x.summary, payoffDescription: x.payoffDescription ?? "", setupChapterNodeIds: [], payoffChapterNodeIds: [], relatedNodeIds: [] }));
       document.facts = initial.facts.map(x=>({ nodeId: refs.get(x.clientRef)!, title: x.title, content: x.content ?? x.summary, scope: { type: "story" }, relatedNodeIds: [], immutable: false }));
       return this.repository.applyInitialProposal(projectId, proposalId, proposal.baseVersion, document);
     }
+    const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     const document = validateOutlineDocument(JSON.parse(current.revision!.documentJson));
     const selectedIds = operationIds.length ? operationIds : payload.operations.map((operation) => operation.operationId);
     try {
