@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
@@ -8,6 +8,7 @@ import { outlineReviewThread, type LocalTarget } from "./outlineReviewThread";
 
 export type LocalReviewDraft = { text: string; priorId?: string };
 interface Props {
+  children: ReactNode;
   projectId: string; target: LocalTarget; title: string; version: number;
   expanded: boolean; disabled: boolean; draft: LocalReviewDraft;
   onExpand: () => void; onChange: (draft: LocalReviewDraft) => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 const statusLabels: Record<string, string> = { pending: "待采纳", applied: "已采纳", partially_applied: "部分采纳", rejected: "已放弃", superseded: "已有后续建议", stale: "旧建议" };
 
-export function OutlineLocalReview({ projectId, target, title, version, expanded, disabled, draft, onExpand, onChange, onSend, onOpen }: Props) {
+export function OutlineLocalReview({ projectId, target, title, version, expanded, disabled, draft, onExpand, onChange, onSend, onOpen, children }: Props) {
   const thread = outlineReviewThread(projectId, target);
   const history = useQuery({ queryKey: thread.queryKey, queryFn: thread.load,
     refetchInterval: query => query.state.data?.some(turn => turn.status === "running") ? 1500 : false });
@@ -25,26 +26,32 @@ export function OutlineLocalReview({ projectId, target, title, version, expanded
   const live = useAgentReplyPreview(running && thread.streamUrl(running.id), running?.id, history.refetch);
   const stop = useMutation({ mutationFn: thread.interrupt, onSettled: () => history.refetch() });
   const input = useRef<HTMLTextAreaElement>(null);
+  const person = target.kind === "character";
   useEffect(() => {
     if (!expanded || !input.current) return;
-    const body = input.current.closest<HTMLElement>(".outline-reading-body");
-    if (body) body.scrollTop = 0;
-    input.current.focus();
-  }, [expanded]);
+    if (person) {
+      const body = input.current.closest<HTMLElement>(".outline-reading-body");
+      if (body) body.scrollTop = 0;
+    }
+    input.current.focus({ preventScroll: !person });
+  }, [expanded, person]);
   const prior = turns.find(turn => turn.result && turn.result.id === draft.priorId);
-  const person = target.kind === "character";
-  return <section className="outline-local-review" aria-label={person ? "人物局部修改" : "章节局部修改"}>
-    {expanded && <form id="outline-local-form" className="outline-review-followup" onSubmit={event => {
+  const composer = expanded && <form id="outline-local-form" className={person ? "outline-review-followup" : "outline-chapter-composer"}
+    aria-label={person ? undefined : "章节局部修改"} onSubmit={event => {
       event.preventDefault();
       if (draft.text.trim() && !disabled && !running && history.isSuccess) onSend(draft.text.trim(), draft.priorId);
     }}>
-      <label>{person ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}
-        <textarea ref={input} rows={3} maxLength={6000} value={draft.text} onChange={e => onChange({...draft, text:e.target.value})}
-          placeholder={person ? `例如，丰富一下${title}的目标和动机。` : "例如，让本章的冲突更明确，保留结尾的悬念。"} /></label>
+      <label><span className={person ? undefined : "sr-only"}>{person ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}</span>
+        <textarea ref={input} rows={person ? 3 : 2} maxLength={6000} value={draft.text} onChange={e => onChange({...draft, text:e.target.value})}
+          placeholder={person ? `例如，丰富一下${title}的目标和动机。` : "想怎样调整这一章？例如，让结尾的悬念更强。"} /></label>
       {prior && <p className="outline-local-note">沿用建议「{prior.requestText}」 <button type="button" className="underline" onClick={() => onChange({text:draft.text})}>取消引用</button></p>}
-      <p className="outline-local-note">{person ? "会一起核对出场卷章与伏笔。" : "只拟定本章的修改。"}先看建议，确认后保存为新版本。</p>
-      <div className="outline-reading-actions"><Button disabled={disabled || !!running || !history.isSuccess || !draft.text.trim()}>生成修改建议</Button></div>
-    </form>}
+      <div className={person ? undefined : "outline-chapter-send"}>
+        <p className="outline-local-note">{person ? "会一起核对出场卷章与伏笔。先看建议，确认后保存为新版本。" : "仅调整本章，采纳后写入大纲。"}</p>
+        <Button size={person ? "default" : "sm"} disabled={disabled || !!running || !history.isSuccess || !draft.text.trim()}>生成修改建议</Button>
+      </div>
+    </form>;
+  const activity = <section className="outline-local-review" aria-label={person ? "人物局部修改" : "章节修改记录"}>
+    {person && composer}
     {running && <div role="status" className="outline-local-reply"><p>{live?.stage || "正在整理修改建议…"}</p>
       <AgentThinking steps={live?.thinking ?? running.thinking} running />{live?.text && <MarkdownViewer content={live.text} />}
       <button type="button" className="outline-reading-link" disabled={stop.isPending} onClick={() => stop.mutate(running.id)}>结束本轮</button></div>}
@@ -68,4 +75,8 @@ export function OutlineLocalReview({ projectId, target, title, version, expanded
         </li>;
       })}</ol></details>}
   </section>;
+  return <>
+    <div className="outline-reading-body">{activity}{children}</div>
+    {!person && expanded && <footer className="outline-chapter-dock">{composer}</footer>}
+  </>;
 }

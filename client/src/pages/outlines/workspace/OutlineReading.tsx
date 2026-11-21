@@ -62,9 +62,9 @@ export function PendingSuggestions({ proposals, version, document, onOpen }: {
   </section>;
 }
 
-export function OutlineReading({ document, node, version, onEdit, reviewAction, localReview, notices, volumeRhythm, onSelect }: {
+export function OutlineReading({ document, node, version, onEdit, reviewAction, renderLocalReview, notices, volumeRhythm, onSelect }: {
   document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; onSelect: (id: string) => void;
-  reviewAction?: ReactNode; localReview?: ReactNode; notices?: ReactNode; volumeRhythm?: ReactNode;
+  reviewAction?: ReactNode; renderLocalReview?: (passages: ReactNode) => ReactNode; notices?: ReactNode; volumeRhythm?: ReactNode;
 }) {
   const form = formFor(node);
   const isStory = node.nodeId === document.story.nodeId;
@@ -74,14 +74,8 @@ export function OutlineReading({ document, node, version, onEdit, reviewAction, 
   const related = getOutlineNodes(document).filter(other => other !== node && (links.has(other.nodeId) || references(other).includes(node.nodeId)));
   const link = (item: OutlineNode) => <button className="outline-reading-link" type="button" key={item.nodeId} onClick={() => onSelect(item.nodeId)}>{getOutlineNodeTitle(item)} <ArrowUpRight size={13} /></button>;
   const title = getOutlineNodeTitle(node);
-  return <article className={reviewAction ? "outline-reading outline-local-page" : "outline-reading"}>
-    <header className="outline-reading-heading">
-      <div className="outline-reading-meta"><span><BookOpen size={14} /> {form.label} · 当前稿 v{version}</span><button onClick={onEdit}><PencilLine size={14} /> 手动编辑</button></div>
-      <div className="outline-reading-title"><h2 title={title}>{title}</h2>{reviewAction}</div>
-    </header>
-    <div className="outline-reading-body">
+  const passages = <>
       {"volumeNodeId" in node && node.beatKey && <p className="outline-reading-counts">所属节奏段 · {formatVolumeBeatDisplayLabel(document.volumes.find(v=>v.nodeId===node.volumeNodeId)?.beats?.find(b=>b.key===node.beatKey) ?? {key:node.beatKey})}</p>}
-      {localReview}
       {notices}
       {isStory && <p className="outline-reading-counts">{document.volumes.length} 卷 <i>·</i> {document.chapters.length} 章 <i>·</i> {document.characters.length} 位人物</p>}
       {[...form.main, ...form.more].filter(key => fields[key] !== undefined && fields[key] !== "" && key !== "planningDepth").map(key => <section className="outline-passage" key={key}>
@@ -102,6 +96,12 @@ export function OutlineReading({ document, node, version, onEdit, reviewAction, 
         {!related.some(item => "volumeNodeId" in item || "chapterNodeIds" in item) && <p>还没有安排出场。</p>}</section>}
       {related.some(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)) && <section className="outline-passage" aria-label="关联内容"><h3>关联内容</h3>
         {related.filter(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)).map(link)}</section>}
-    </div>
+  </>;
+  return <article className={reviewAction ? "outline-reading outline-local-page" : "outline-reading"}>
+    <header className="outline-reading-heading">
+      <div className="outline-reading-meta"><span><BookOpen size={14} /> {form.label} · 当前稿 v{version}</span><button onClick={onEdit}><PencilLine size={14} /> 手动编辑</button></div>
+      <div className="outline-reading-title"><h2 title={title}>{title}</h2>{reviewAction}</div>
+    </header>
+    {renderLocalReview ? renderLocalReview(passages) : <div className="outline-reading-body">{passages}</div>}
   </article>;
 }

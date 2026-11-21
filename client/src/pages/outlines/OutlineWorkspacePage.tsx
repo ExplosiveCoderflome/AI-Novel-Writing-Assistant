@@ -293,7 +293,7 @@ function OutlineWorkspace({ id }: { id: string }) {
               reviewAction={localTarget && <Button type="button" size="sm" variant="secondary" className="outline-local-toggle"
                 aria-expanded={localExpanded} aria-controls={localExpanded ? "outline-local-form" : undefined} title={reviewLabel}
                 onClick={() => setLocalEditorId(localExpanded ? null : localTarget.id)}><Feather size={15} /><span>{reviewLabel}</span></Button>}
-              localReview={localTarget && <OutlineLocalReview projectId={id} target={localTarget} title={getOutlineNodeTitle(selected)} version={version}
+              renderLocalReview={localTarget && (passages => <OutlineLocalReview projectId={id} target={localTarget} title={getOutlineNodeTitle(selected)} version={version}
                 expanded={localExpanded} disabled={blockRevision || turn.busy} draft={localDrafts[localTarget.id] ?? {text:""}}
                 onExpand={() => setLocalEditorId(localTarget.id)} onChange={value => setLocalDrafts(prev => ({...prev,[localTarget.id]:value}))}
                 onOpen={proposal => openReview(proposal, localTarget.id)} onSend={(requestText, priorId) => {
@@ -302,7 +302,7 @@ function OutlineWorkspace({ id }: { id: string }) {
                     rememberDiscussion(localTarget.id);
                     setLocalDrafts(prev => prev[localTarget.id] === submitted ? {...prev,[localTarget.id]:{text:""}} : prev);
                   }});
-                }} />} />}
+                }}>{passages}</OutlineLocalReview>)} />}
           </div>
         : selected ? <OutlineNodeEditor key={selected.nodeId} document={document} node={selected} disabled={writing} onChange={updateField}
           onSelect={selectNode} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
