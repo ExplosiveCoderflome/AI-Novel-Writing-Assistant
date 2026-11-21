@@ -25,17 +25,21 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
       import { createRoot } from "react-dom/client";
       import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
       import { CandidateReviewWorkspace } from "./src/pages/novels/autoDirector/candidateReview/CandidateReviewWorkspace";
+      import { useCandidateSelection } from "./src/pages/novels/autoDirector/candidateReview/useCandidateSelection";
       import Batches from "./src/pages/novels/components/NovelAutoDirectorCandidateBatches";
       export { act } from "react";
       export { apiClient } from "./src/api/client";
       export function mount(batches, confirm) {
         const cache = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: Infinity}}});
         const app = createRoot(document.querySelector("main"));
-        app.render(<QueryClientProvider client={cache}>
-          <CandidateReviewWorkspace taskId="test" batches={batches} disabled={false}>
-            <Batches batches={batches} selectedPresets={[]} titlePatchFeedbacks={{}} feedback="" onConfirmCandidate={confirm} />
-          </CandidateReviewWorkspace>
-        </QueryClientProvider>);
+        function Workspace() {
+          const selection = useCandidateSelection(batches);
+          return <CandidateReviewWorkspace taskId="test" selection={selection} disabled={false}>
+            <Batches batches={batches} discussionKey={selection.active.key} selectedPresets={[]} titlePatchFeedbacks={{}}
+              feedback="" onConfirmCandidate={confirm} />
+          </CandidateReviewWorkspace>;
+        }
+        app.render(<QueryClientProvider client={cache}><Workspace /></QueryClientProvider>);
         return () => { app.unmount(); cache.clear(); };
       }
     ` }, bundle: true, jsx: "automatic", platform: "node", packages: "external", format: "esm", outfile: fileURLToPath(bundle),
@@ -50,8 +54,10 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
   };
   const batches = ["first", "next"].map((id, i) => ({
     id, roundLabel: `第 ${i + 1} 轮`, presets: [],
-    candidates: [{ id: "same", workingTitle: "渡口", toneKeywords: [], targetChapterCount: 40 }],
+    candidates: [{ id: "same", workingTitle: "渡口", toneKeywords: [], targetChapterCount: 40,
+      logline: "渡船送信", hookStrategy: `开篇场景${i + 1}`, endingDirection: `结局${i + 1}` }],
   }));
+  batches[1].candidates.push({ ...batches[1].candidates[0], id: "another", workingTitle: "夜船" });
   let cleanup;
   try {
     await act(async () => { cleanup = mount(batches, (candidate, batch) => confirmations.push(batch.id)); });
@@ -61,9 +67,16 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.ok(inspector.querySelector(".agent-conversation"));
     assert.equal(reader.querySelector(".agent-conversation"), null);
     const select = () => inspector.querySelector("select");
-    const [first, second] = Array.from(select().options, option => option.value);
+    const [first, second, third] = Array.from(select().options, option => option.value);
     assert.notEqual(first, second);
     assert.ok(reader.contains(document.getElementById(second)));
+    assert.equal(reader.querySelectorAll("article").length, 3);
+    assert.equal(reader.querySelectorAll(".candidate-story-notes[open]").length, 3);
+    assert.ok(document.getElementById(first).textContent.includes("结局1"));
+    assert.ok(document.getElementById(second).textContent.includes("结局2"));
+    await act(async () => reader.querySelectorAll("nav button")[1].click());
+    assert.equal(document.activeElement.id, third + "-title");
+    assert.equal(select().value, first, "跳读另一套全文应保留右栏正在讨论的对象");
     Object.defineProperty(reader, "clientHeight", { value: 400 });
     t.mock.method(reader, "getBoundingClientRect", () => ({ top: 40 }));
     t.mock.method(document.getElementById(second), "getBoundingClientRect", () => ({ top: 640 }));
@@ -83,11 +96,15 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
       await act(async () => inspector.querySelectorAll(".agent-starters button")[index].click());
     }
     await useStarter(0);
+    assert.match(inspector.querySelector(".agent-welcome").textContent, /开篇场景1/);
     const firstDraft = draft();
     await switchTo(second);
     assert.equal(reader.scrollTop, 600);
     assert.equal(draft(), "");
     await useStarter(1);
+    assert.match(inspector.querySelector(".agent-welcome").textContent, /开篇场景2/);
+    assert.ok(document.getElementById(second).querySelector(".candidate-discussing"));
+    assert.equal(reader.querySelectorAll(".candidate-discussing").length, 1);
     assert.notEqual(draft(), firstDraft);
     await switchTo(first);
     assert.equal(draft(), firstDraft);

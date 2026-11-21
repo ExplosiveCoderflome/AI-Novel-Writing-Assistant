@@ -68,9 +68,10 @@ export function CandidateDiscussion({ taskId, batchId, candidate, disabled, onAp
   return <>
       <AgentConversation adapter={adapter} title="开书助手" context={context}
         confirmationHint="采纳会更新这套候选，选用后开书" inputLabel="这套开书方向想讨论什么"
-        welcome={{ title: "这个故事里，你最想保留什么？", body: "可以先问问主角为什么这样做，也可以说出想换掉的情节。",
-          starters: [{ label: "聊聊主角的选择", text: "这个主角为什么一定要卷入故事？先和我聊聊。" },
-            { label: "试一种开场", text: "保留主角和故事背景，给我一个从小事开始的开场。" }] }}
+        welcome={{ title: candidate.hookStrategy?.trim() ? candidateFieldLabel.hookStrategy : "故事梗概",
+          body: candidate.hookStrategy?.trim() || candidate.logline,
+          starters: [{ label: "第一章可以从哪一幕开始？", text: "结合这套方向，聊聊第一章可以从哪一幕切入，以及为什么。" },
+            { label: "主角还有别的选择吗？", text: "保留故事背景，让主角在开局做一个不同的选择，会怎样改变后面的冲突？" }] }}
         placeholder="喜欢哪些地方？哪里想换一种写法？" followUpPlaceholder="想保留或调整上一份建议里的哪些内容？"
         initialAction="发送给开书助手" followUpAction={(_, n) => `追问第 ${n} 轮建议`} followUpTopic={(_, n) => `讨论第 ${n} 轮建议`}
         versionLabel={v => `方向稿 ${Number(v) + 1}`} disabled={disabled || apply.isPending} maxLength={4000}

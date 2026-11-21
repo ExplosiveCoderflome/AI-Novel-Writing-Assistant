@@ -46,6 +46,7 @@ import {
 import StageBasicSetup from "./StageBasicSetup";
 import StageCandidates from "./StageCandidates";
 import { CandidateReviewWorkspace } from "./candidateReview/CandidateReviewWorkspace";
+import { useCandidateSelection } from "./candidateReview/useCandidateSelection";
 import StageIdea from "./StageIdea";
 import StageModelRun from "./StageModelRun";
 import StageSummaryCard from "./StageSummaryCard";
@@ -383,6 +384,7 @@ function AutoDirectorCreatePage() {
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
   const applyingCandidate = useIsMutating({ mutationKey: ["apply-opening-candidate", controller.workflowTaskId] }) > 0;
+  const candidateSelection = useCandidateSelection(controller.batches);
   useEffect(() => {
     const seed = marketBriefQuery.data?.data?.creativeSeed;
     if (!marketBriefId || !seed || marketBriefIdeaAppliedRef.current === marketBriefId) {
@@ -798,6 +800,7 @@ function AutoDirectorCreatePage() {
     return (
       <StageCandidates
         controller={controller}
+        selection={candidateSelection}
         isApplying={applyingCandidate}
         onRegenerateSettings={() => setActiveStage("model_run")}
       />
@@ -1028,7 +1031,7 @@ function AutoDirectorCreatePage() {
   );
   return <Dialog open={carryoverDialogOpen} onOpenChange={setCarryoverDialogOpen}>
     {showCandidateWorkspace ? <CandidateReviewWorkspace key={controller.workflowTaskId} taskId={controller.workflowTaskId}
-      batches={controller.batches} onApplied={controller.onReviewedCandidate}
+      selection={candidateSelection} onApplied={controller.onReviewedCandidate}
       disabled={applyingCandidate || controller.generateMutation.isPending || controller.refineTitleMutation.isPending || controller.confirmMutation.isPending}>
       {creationContent}
     </CandidateReviewWorkspace> : creationContent}
