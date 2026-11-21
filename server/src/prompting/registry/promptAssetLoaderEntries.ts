@@ -9,6 +9,9 @@ export interface PromptAssetLoaderEntry {
 }
 
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
+  { key: "outline.workbench_dialogue@v1", load: () => require("../prompts/outline/workbenchDialogue.prompt").outlineWorkbenchDialogue as UnknownPromptAsset },
+  { key: "outline.character_impact@v2", load: () => require("../prompts/outline/characterImpact.prompt").characterDialoguePrompt as UnknownPromptAsset },
+  { key: "outline.character_impact@v1", load: () => require("../prompts/outline/characterImpact.prompt").characterImpactPrompt as UnknownPromptAsset },
   { key: "manuscript.chapter.extract@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptExtractPrompt as UnknownPromptAsset },
   { key: "manuscript.outline.merge@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptMergePrompt as UnknownPromptAsset },
   { key: "manuscript.outline.verify@v1", load: () => require("../prompts/manuscript/manuscript.prompts").manuscriptVerifyPrompt as UnknownPromptAsset },
@@ -386,43 +389,43 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/characterResource.prompts").characterResourceExtractionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castOptions@v4",
+    key: "novel.character.castOptions@v5",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastOptionPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castOptions.repair@v2",
+    key: "novel.character.castOptions.repair@v3",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastOptionRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castOptions.zhNormalize@v1",
+    key: "novel.character.castOptions.zhNormalize@v2",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastOptionNormalizePrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castAuto@v3",
+    key: "novel.character.castAuto@v4",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastAutoPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castAuto.members@v3",
+    key: "novel.character.castAuto.members@v4",
     load: () => require("../prompts/novel/characterPreparation.autoFallback.prompts").characterCastAutoMembersPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castAuto.relations@v1",
+    key: "novel.character.castAuto.relations@v2",
     load: () => require("../prompts/novel/characterPreparation.autoFallback.prompts").characterCastAutoRelationsPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castAuto.repair@v2",
+    key: "novel.character.castAuto.repair@v3",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastAutoRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.castAuto.zhNormalize@v1",
+    key: "novel.character.castAuto.zhNormalize@v2",
     load: () => require("../prompts/novel/characterPreparation.prompts").characterCastAutoNormalizePrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.supplemental@v3",
+    key: "novel.character.supplemental@v4",
     load: () => require("../prompts/novel/characterPreparation.prompts").supplementalCharacterPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.character.supplemental.zhNormalize@v1",
+    key: "novel.character.supplemental.zhNormalize@v2",
     load: () => require("../prompts/novel/characterPreparation.prompts").supplementalCharacterNormalizePrompt as UnknownPromptAsset,
   },
   {
@@ -494,7 +497,7 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/draftOptimize.prompts").novelDraftOptimizeFullPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.production.characters@v1",
+    key: "novel.production.characters@v2",
     load: () => require("../prompts/novel/production.prompts").novelProductionCharactersPrompt as UnknownPromptAsset,
   },
   {

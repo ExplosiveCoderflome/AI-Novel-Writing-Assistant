@@ -111,6 +111,19 @@ function buildPreviewPromptInput(
   previewNovel?: PreviewNovel | null,
   previewChapter?: PreviewChapter | null,
 ): Record<string, unknown> {
+  if (prompt.id === "outline.workbench_dialogue") {
+    return { requestText: "我想写一个替人保管记忆的女孩。帮我比较两种开篇方向。", baseVersion: 1,
+      document: { story: { title: "记忆寄存处" }, volumes: [], chapters: [], characters: [], facts: [], payoffs: [] }, priorProposal: null, history: [] };
+  }
+  if (prompt.id === "outline.character_impact") {
+    return {
+      role: "character", requestText: "让沈禾提前怀疑账册来源，但保留救师父的动机。", prior: {},
+      snapshot: {projectId: "sample", baseVersion: 1, characterId: "shen", writtenChapterIds: [], recentCharacterChanges: [],
+        document: {schemaVersion: 1, story: {nodeId: "story", title: "旧账", premise: "查清账册来历", synopsis: "", theme: "", tone: "", endingDirection: ""},
+          characters: [{nodeId: "shen", name: "沈禾", motivation: "相信师父", appearanceNodeIds: []}],
+          volumes: [], chapters: [], payoffs: [], facts: []}},
+    };
+  }
   if (prompt.id === "audit.chapter.light" || prompt.id === "audit.chapter.full") {
     const chapterContent = previewChapter
       ? previewChapter.content?.trim()
@@ -228,7 +241,7 @@ function buildPreviewPromptInput(
       storyInput: "主角在旧城追查暗号，逐步发现身边人的隐瞒与组织压力。",
       optionTitle: "旧城追踪阵容",
       optionSummary: "主角、线索提供者和压力来源围绕旧城秘密形成互相试探的关系网。",
-      protagonistName: "林澈",
+      protagonistNames: ["林澈"],
       memberNames: ["林澈", "沈雾", "顾衡"],
       memberRosterText: "林澈：主角，年轻调查员。\n沈雾：线索提供者，知道旧城暗号来源。\n顾衡：压力来源，试图阻止调查。",
     };

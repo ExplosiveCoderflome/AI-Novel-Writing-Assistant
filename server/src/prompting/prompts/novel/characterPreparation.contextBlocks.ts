@@ -53,6 +53,7 @@ function stringifyJsonLike(value: string | null | undefined, fallback: string): 
 
 export interface CharacterCastContextBlocksInput {
   projectTitle: string;
+  estimatedChapterCount?: number | null;
   storyInput: string;
   genreName?: string | null;
   storyModeBlock?: string | null;
@@ -108,6 +109,7 @@ export function buildCharacterCastContextBlocks(input: CharacterCastContextBlock
       content: joinLines([
         "【故事输入】",
         input.storyInput,
+        input.estimatedChapterCount ? `预计篇幅：${input.estimatedChapterCount} 章。结合叙事需要安排开书人物，后续出场者可以留待正文引入。` : null,
       ]),
     }),
     createBlock({

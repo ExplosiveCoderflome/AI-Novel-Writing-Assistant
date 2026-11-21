@@ -114,7 +114,7 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
     isDeletingCharacter,
     deletingCharacterId,
   } = props;
-  const protagonist = characters.find(isProtagonistCharacter);
+  const protagonists = characters.filter(isProtagonistCharacter);
   const supportingCharacters = characters.filter((character) => !isProtagonistCharacter(character));
 
   return (
@@ -125,10 +125,11 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
             <Crown className="h-3.5 w-3.5 text-emerald-600" />
             主角位
           </div>
-          {protagonist ? <Badge variant="outline">主角</Badge> : null}
+          {protagonists.length > 0 ? <Badge variant="outline">{protagonists.length} 人</Badge> : null}
         </div>
-        {protagonist ? (
+        {protagonists.length > 0 ? protagonists.map((protagonist) => (
           <CharacterCard
+            key={protagonist.id}
             character={protagonist}
             selectedCharacterId={selectedCharacterId}
             onSelectedCharacterChange={onSelectedCharacterChange}
@@ -137,7 +138,7 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
             deletingCharacterId={deletingCharacterId}
             isProtagonist
           />
-        ) : (
+        )) : (
           <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-xs leading-5 text-muted-foreground">
             当前阵容还没有标记主角，可在角色定位中补充主角信息。
           </div>

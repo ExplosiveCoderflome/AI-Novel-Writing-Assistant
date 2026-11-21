@@ -24,3 +24,27 @@ export type ChapterPlanEdit = z.infer<typeof chapterPlanEditSchema>;
 export function chapterPlanRevisionKey(plan: {taskSheet?: string | null; sceneCards?: string | null; targetWordCount?: number | null; mustAvoid?: string | null}): string {
   return JSON.stringify([plan.taskSheet?.trim() ?? "", plan.sceneCards?.trim() ?? "", plan.targetWordCount ?? null, plan.mustAvoid?.trim() ?? ""]);
 }
+
+export const castReviewFields = ["personality", "storyFunction", "currentGoal"] as const;
+export const volumeReviewFields = ["summary", "mainPromise", "climax", "nextVolumeHook"] as const;
+
+const fieldChange = z.object({
+  id: z.string().min(1),
+  before: z.string(),
+  after: z.string().trim().max(12000),
+}).strict();
+
+export const reviewAssetEditSchema = z.discriminatedUnion("type", [
+  z.object({type: z.literal("character_cast"), changes: z.array(fieldChange.extend({field: z.enum(castReviewFields)})).min(1).max(100)}).strict(),
+  z.object({type: z.literal("volume_strategy"), changes: z.array(fieldChange.extend({field: z.enum(volumeReviewFields)})).min(1).max(100)}).strict(),
+]).superRefine((edit, context) => {
+  const seen = new Set<string>();
+  for (const change of edit.changes) {
+    const key = JSON.stringify([change.id, change.field]);
+    if (seen.has(key) || change.before.trim() === change.after) {
+      context.addIssue({code: "custom", message: "请为每个字段提交一次实际修改。"});
+    }
+    seen.add(key);
+  }
+});
+export type ReviewAssetEdit = z.infer<typeof reviewAssetEditSchema>;

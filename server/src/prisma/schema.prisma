@@ -2268,11 +2268,28 @@ model OutlineRevision {
   @@index([projectId, createdAt])
 }
 
+model AgentConversationTurn {
+  id             String   @id
+  scopeKey       String
+  activeSlot     String?
+  contextVersion String
+  parentResultId String?
+  requestText    String
+  status         String
+  replyText      String?
+  resultId       String?
+  createdAt      DateTime @default(now())
+  @@unique([scopeKey, resultId])
+  @@unique([scopeKey, activeSlot])
+  @@index([scopeKey, createdAt])
+}
+
 model OutlineProposal {
   id            String   @id @default(cuid())
   projectId     String
   baseVersion   Int
   kind          String
+  characterNodeId String?
   status        String
   requestText   String?
   proposalJson  String
@@ -2283,6 +2300,7 @@ model OutlineProposal {
   updatedAt     DateTime @updatedAt
   project       OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   @@index([projectId, status, createdAt])
+  @@index([projectId, kind, characterNodeId])
   @@index([projectId, baseVersion])
 }
 

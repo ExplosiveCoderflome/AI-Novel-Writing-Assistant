@@ -8,6 +8,8 @@ import {AppError} from "../../middleware/errorHandler";
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
 import {revalidateSavedPlanning} from "./recovery/missingPlanning";
+import {saveReviewAssetEdit} from "./revisions/reviewAssets";
+import type {ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
 import {saveChapterPlanEdit} from "./revisions/chapterPlan";
 import {authorizeChapterBudget, readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../services/novel/production/usage";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
@@ -15,7 +17,11 @@ import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProd
 import {directorVolumeChapterPlanFilter} from "./planning";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
-export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
+export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
+  if (input.assetEdit) {
+    if (input.assetEdit.type !== input.type) throw new AppError("修改的内容与本次确认阶段不符。", 400);
+    await saveReviewAssetEdit(input.contract.novelId, input.assetEdit, tx);
+  }
   if (input.chapterPlanEdit) {
     if (input.type !== "chapter_task_sheet") throw new AppError("只能编辑当前章节任务与场景。", 400);
     await saveChapterPlanEdit(input.contract, input.chapterPlanEdit, tx);

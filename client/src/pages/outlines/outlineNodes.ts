@@ -53,6 +53,11 @@ export const outlineFieldLabels: Record<string, string> = {
   relatedNodeIds: "关联节点",
 };
 
+/** Works in the desktop app and on LAN HTTP where randomUUID may be unavailable. */
+export function createOutlineId(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export function getOutlineNodes(document: OutlineDocument): OutlineNode[] {
   return [
     document.story,

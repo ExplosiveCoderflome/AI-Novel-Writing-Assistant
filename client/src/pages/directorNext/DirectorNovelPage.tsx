@@ -16,7 +16,7 @@ import { previewStates, previewTimeline, previewView } from "./preview";
 import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow, useWorkspaceActivity } from "./generation";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
-import { DirectorChapterEditor, DirectorChapterPlanEditor } from "./workspace/editing";
+import { DirectorChapterEditor, DirectorChapterPlanEditor, DirectorReviewAssetEditor } from "./workspace/editing";
 import NovelBookDeliveryActions from "@/pages/novels/components/NovelBookDeliveryActions";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
@@ -57,6 +57,13 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   }, [metadata?.directorVersion, navigate, novelId, preview]);
   const startForm = !preview && book && metadata ? (range: {from:number;to:number}|null, driver: DirectorDriver = "assisted") => book.outlineBinding ? <OutlineWritingControls key={`${view?.runId ?? novelId}:${book.chapters.filter(chapter=>chapter.content?.trim()).length}`} book={book} initialStory={metadata.description ?? ""} worldId={metadata.worldId}/> : <DirectorStart key={`${view?.runId ?? novelId}:${range?.from ?? "planning"}`} novelId={novelId} estimatedChapterCount={book.novel.estimatedChapterCount} nextChapter={Math.max(0,...book.chapters.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order))+1} initialStory={metadata.description ?? ""} worldId={metadata.worldId} suggestedRange={range} initialDriver={driver}/> : null;
 
+  const reviewType = savedReview?.type;
+  const plan = savedReview?.plan;
+  const renderReviewEditor: import("@/components/directorNext/DirectorGate").PlanEditorRenderer | undefined =
+    preview || bookQuery.isError || !book || !savedReview?.ready ? undefined
+      : reviewType === "chapter_task_sheet" && plan ? input => <DirectorChapterPlanEditor novelId={novelId} plan={plan} {...input}/>
+      : reviewType === "character_cast" || reviewType === "volume_strategy" ? input => <DirectorReviewAssetEditor book={book} type={reviewType} {...input}/>
+      : undefined;
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-3">
       <header className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border/60 pb-2">
@@ -91,7 +98,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
             {diagnostic ? <div className="space-y-2 text-sm"><p>保存的运行状态：{diagnostic.status} · 版本 {diagnostic.controlVersion}</p>{diagnostic.lastFailure ? <p>最近中断原因：{diagnostic.lastFailure.message}</p> : null}<p className="text-muted-foreground">正文进度暂不可读取，请处理原因后重新读取。</p></div> : diagnosticQuery.isError ? <p className="text-sm">运行诊断也暂时无法读取。</p> : null}
             <Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), ...(runId ? [detailQuery.refetch()] : []), diagnosticQuery.refetch()])}>重新读取</Button></div>
             : view ? <DirectorPanel view={view} novelId={novelId} outlineBound={Boolean(book?.outlineBinding)} timeline={preview ? previewTimeline : detail?.timeline} preview={preview} startForm={startForm} reviewTarget={savedReview ? location.pathname+location.search : undefined} reviewReady={Boolean(savedReview?.ready) && !bookQuery.isError} reviewCanRegenerate={Boolean(savedReview?.canRegenerate) && !bookQuery.isError} reviewRunId={savedReview?.runId} reviewVersion={savedReview?.controlVersion}
-                renderPlanEditor={!preview && !bookQuery.isError && savedReview?.ready && savedReview.type==="chapter_task_sheet" && savedReview.plan ? input=><DirectorChapterPlanEditor novelId={novelId} plan={savedReview.plan!} {...input}/> : undefined}/>
+                renderPlanEditor={renderReviewEditor}/>
               : <p className="py-4 text-sm text-muted-foreground">{summaryQuery.isLoading || detailQuery.isLoading ? "正在读取导演信息…" : "选择创作范围，让 AI 从本书内容继续。"}</p>}
           {!error && !view ? startForm?.(null):null}
         </aside> : null}/>

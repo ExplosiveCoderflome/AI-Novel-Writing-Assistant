@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 
 const nodeSchema = z.object({ clientRef: z.string().min(1), title: z.string(), summary: z.string(), planningDepth: z.enum(["rough", "detailed"]).default("rough"), reason: z.string(), sourceFragment: z.string() });
-const initialSchema = z.object({ storyFields: z.object({ title: z.string(), premise: z.string(), synopsis: z.string(), theme: z.string(), tone: z.string(), endingDirection: z.string() }), volumes: z.array(nodeSchema), chapters: z.array(nodeSchema.extend({ volumeRef: z.string() })), characters: z.array(nodeSchema.extend({ role: z.string() })), payoffs: z.array(nodeSchema.extend({ setupDescription: z.string(), payoffDescription: z.string() })), facts: z.array(nodeSchema.extend({ content: z.string() })) });
+export const initialSchema = z.object({ storyFields: z.object({ title: z.string(), premise: z.string(), synopsis: z.string(), theme: z.string(), tone: z.string(), endingDirection: z.string() }), volumes: z.array(nodeSchema), chapters: z.array(nodeSchema.extend({ volumeRef: z.string() })), characters: z.array(nodeSchema.extend({ role: z.string() })), payoffs: z.array(nodeSchema.extend({ setupDescription: z.string(), payoffDescription: z.string() })), facts: z.array(nodeSchema.extend({ content: z.string() })) });
 const operationSchema = z.object({
   operationId: z.string().min(1),
   kind: z.enum(["add_node", "update_fields", "remove_node", "move_node"]),
@@ -49,7 +49,7 @@ const operationSchema = z.object({
     });
   }
 });
-const editSchema = z.object({ operations: z.array(operationSchema).min(1) }).superRefine((payload, context) => {
+export const editSchema = z.object({ operations: z.array(operationSchema).min(1) }).superRefine((payload, context) => {
   const ids = payload.operations.map((operation) => operation.operationId);
   if (new Set(ids).size !== ids.length) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: "operationId 必须唯一", path: ["operations"] });

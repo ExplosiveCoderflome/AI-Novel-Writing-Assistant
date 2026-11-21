@@ -8,7 +8,7 @@ import type {
   PlanDefinition,
 } from "../domain";
 import type { RunEvent } from "../domain/control";
-import type {ChapterPlanEdit} from "@ai-novel/shared/types/director/revision";
+import type {ChapterPlanEdit, ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 export interface PlanRegistry {
@@ -49,6 +49,7 @@ export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unk
 export interface GateResolution {
   guidance?: string;
   chapterPlanEdit?: ChapterPlanEdit;
+  assetEdit?: ReviewAssetEdit;
   decision: "confirm" | "confirm_after_edit" | "regenerate";
   scope: string;
   artifacts: readonly {type: string; expectedVersion: number}[];

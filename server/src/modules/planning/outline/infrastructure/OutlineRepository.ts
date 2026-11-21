@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { validateOutlineDocument } from "../domain/outlineDocument";
+import { readWrittenChapterIds } from "../characterImpact/writtenChapters";
+import { AppError } from "../../../../middleware/errorHandler";
 
 export class OutlineRepository {
   constructor(private readonly db: PrismaClient, private readonly inTransaction = false) {}
@@ -17,7 +19,11 @@ export class OutlineRepository {
   findRevision(projectId: string, id: string) { return this.db.outlineRevision.findFirst({ where: { id, projectId } }); }
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
   findProposal(projectId: string, id: string) { return this.db.outlineProposal.findFirst({ where: { id, projectId } }); }
-  updateProposalStatus(id: string, status: string) { return this.db.outlineProposal.update({ where: { id }, data: { status } }); }
+  async updateProposalStatus(id: string, status: string) {
+    const result = await this.db.outlineProposal.updateMany({where: {id, status: "pending"}, data: {status}});
+    if (!result.count) throw new AppError("这份提案已处理，请刷新建议。", 409);
+    return this.db.outlineProposal.findUniqueOrThrow({where: {id}});
+  }
   createProposal(data: Parameters<PrismaClient["outlineProposal"]["create"]>[0]["data"]) { return this.db.outlineProposal.create({ data }); }
   async createImport(title: string, document: ReturnType<typeof validateOutlineDocument>, sourceText: string) {
     const id = randomUUID();
@@ -46,6 +52,12 @@ export class OutlineRepository {
       const project = await tx.outlineProject.findUnique({ where: { id: projectId } });
       const proposal = await tx.outlineProposal.findUnique({ where: { id: proposalId } });
       if (!project || project.currentVersion !== baseVersion || !proposal || proposal.status !== "pending") throw new Error("OUTLINE_PROPOSAL_STALE");
+      if (proposal.kind === "character_impact") {
+        const written = new Set(await readWrittenChapterIds(tx, projectId));
+        if (operations.some(op => selected.has(op.operationId) && op.nodeId && written.has(op.nodeId))) {
+          throw new AppError("所选章节已有正文，请保留该章或重新分析后续章节。", 409);
+        }
+      }
       const doc = structuredClone(source) as any;
       const refs = new Map<string,string>();
       for (const op of operations.filter(x=>selected.has(x.operationId) && x.kind === "add_node")) refs.set(op.clientRef ?? "", randomUUID());
@@ -57,7 +69,7 @@ export class OutlineRepository {
           for (const [key, value] of Object.entries(fields)) if (typeof value === "string" && refs.has(value)) fields[key] = refs.get(value);
           groups[op.nodeType].push({ nodeId: id, order: groups[op.nodeType].length, planningDepth: "rough", chapterNodeIds: [], characterNodeIds: [], payoffNodeIds: [], appearanceNodeIds: [], setupChapterNodeIds: [], payoffChapterNodeIds: [], relatedNodeIds: [], scope: { type: "story" }, immutable: false, ...fields });
         } else if (op.kind === "update_fields" && op.nodeId && op.fields) {
-          const node = Object.values(groups).flat().find(item=>item.nodeId===op.nodeId);
+          const node = doc.story.nodeId === op.nodeId ? doc.story : Object.values(groups).flat().find(item=>item.nodeId===op.nodeId);
           if (!node) throw new Error("提案目标节点不存在");
           Object.assign(node, op.fields);
         } else if (op.kind === "remove_node" && op.nodeId) {
@@ -71,9 +83,16 @@ export class OutlineRepository {
       for (const volume of doc.volumes) volume.chapterNodeIds = doc.chapters.filter((chapter:any)=>chapter.volumeNodeId===volume.nodeId).map((chapter:any)=>chapter.nodeId);
       const document = validateOutlineDocument(doc);
       const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion + 1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "proposal", sourceProposalId: proposalId } });
-      const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id } });
+      const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id, title: document.story.title } });
       if (update.count !== 1) throw new Error("OUTLINE_VERSION_CONFLICT");
-      await tx.outlineProposal.update({ where: { id: proposalId }, data: { status: selected.size === operations.length ? "applied" : "partially_applied" } });
+      const payload = proposal.kind === "character_impact" || proposal.kind === "edit" ? JSON.parse(proposal.proposalJson) : null;
+      if (proposal.kind === "character_impact") payload.impact.appliedOperationIds = [...selected];
+      else if (payload) payload.appliedOperationIds = [...selected];
+      const decided = await tx.outlineProposal.updateMany({ where: { id: proposalId, status: "pending" }, data: {
+        status: selected.size === operations.length ? "applied" : "partially_applied",
+        ...(payload && { proposalJson: JSON.stringify(payload) }),
+      } });
+      if (!decided.count) throw new Error("OUTLINE_PROPOSAL_STALE");
       return { revision, document };
     });
   }
@@ -84,8 +103,9 @@ export class OutlineRepository {
       const proposal = await tx.outlineProposal.findUnique({ where: { id: proposalId } });
       if (!project || project.currentVersion !== baseVersion || !proposal || proposal.status !== "pending") throw new Error("OUTLINE_PROPOSAL_STALE");
       const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion+1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "initial_generation", sourceProposalId: proposalId } });
-      await tx.outlineProject.update({ where: { id: projectId }, data: { currentVersion: baseVersion+1, currentRevisionId: revision.id, title: document.story.title } });
-      await tx.outlineProposal.update({ where: { id: proposalId }, data: { status: "applied" } });
+      const update = await tx.outlineProject.updateMany({ where: { id: projectId, status: "active", currentVersion: baseVersion }, data: { currentVersion: baseVersion+1, currentRevisionId: revision.id, title: document.story.title } });
+      const decision = await tx.outlineProposal.updateMany({ where: { id: proposalId, projectId, status: "pending" }, data: { status: "applied" } });
+      if (!update.count || !decision.count) throw new AppError("大纲或提案已更新，请刷新后确认。", 409);
       return { revision, document };
     });
   }

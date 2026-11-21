@@ -27,7 +27,8 @@ test("model risk prose translates known fields and hides internal operation IDs"
 test("outline layout is scoped, independently scrollable and comparison columns use pane width", () => {
   const css = readFileSync(new URL("../src/pages/outlines/outlineWorkspace.css", import.meta.url), "utf8");
   assert.match(css, /@container \(min-width: 400px\)/);
-  assert.match(css, /clamp\(420px, 32vw, 480px\)/);
+  assert.match(css, /@container outline-desk \(min-width: 66rem\)/);
+  assert.match(css, /data-pane="assistant"/);
   assert.match(css, /overflow-y: auto/);
   const sidebar = readFileSync(new URL("../src/components/layout/Sidebar.tsx", import.meta.url), "utf8");
   assert.ok(!sidebar.includes('"bg-primary/5 hover:bg-primary/10"'));

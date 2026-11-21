@@ -36,6 +36,7 @@ import { toast } from "@/components/ui/toast";
 import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
 import { useLLMStore } from "@/store/llmStore";
 import {
+  authorEstimatedChapterCount,
   patchNovelBasicForm,
   type NovelBasicFormState,
 } from "../novelBasicInfo.shared";
@@ -244,7 +245,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (runMode === "auto_to_execution") {
       return buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, {
         usage: "new_book",
-        maxChapterCount: directorBasicForm.estimatedChapterCount,
+        maxChapterCount: authorEstimatedChapterCount(directorBasicForm),
       });
     }
     return undefined;
@@ -410,7 +411,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       seedPayload: {
         directorVersion,
         basicForm: {...directorBasicForm,
-          estimatedChapterCount: directorBasicForm.estimatedChapterCountSource === "default" ? undefined : directorBasicForm.estimatedChapterCount},
+          estimatedChapterCount: authorEstimatedChapterCount(directorBasicForm)},
         idea: nextIdea,
         batches,
         runMode,
@@ -648,7 +649,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
           lane: "auto_director",
           title: nextForm.title.trim() || undefined,
           seedPayload: {
-            basicForm: {...nextForm, estimatedChapterCount: nextForm.estimatedChapterCountSource === "default" ? undefined : nextForm.estimatedChapterCount},
+            basicForm: {...nextForm, estimatedChapterCount: authorEstimatedChapterCount(nextForm)},
             genreId: nextForm.genreId || null,
             primaryStoryModeId: nextForm.primaryStoryModeId || null,
             secondaryStoryModeId: nextForm.secondaryStoryModeId || null,

@@ -15,7 +15,7 @@ export type DirectorCommand =
   | { type: "pause"; runId: string; expectedVersion: number; idempotencyKey: string }
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
+  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant; resolveUnknownClaims?: import("./ports").UnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
@@ -197,7 +197,7 @@ export class CommandService {
     if (control.status !== "waiting_gate") {
       throw new InvalidDirectorCommandError("只有等待确认的创作可以处理门控。");
     }
-    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {guidance: command.guidance, chapterPlanEdit: command.chapterPlanEdit}) : undefined;
+    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {guidance: command.guidance, chapterPlanEdit: command.chapterPlanEdit, assetEdit: command.assetEdit}) : undefined;
     if (resolution && this.deps.prepareGate) {
       const contract = await this.deps.runRepository.getContract(command.runId);
       if (!contract) throw new InvalidDirectorCommandError("找不到要确认的创作。");

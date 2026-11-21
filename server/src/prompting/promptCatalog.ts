@@ -1,4 +1,6 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "outline.workbench_dialogue": "整份大纲的连续创作对话",
+  "outline.character_impact": "人物调整的卷章与伏笔审阅",
   "outline.text_feedback": "章节摘要反馈大纲",
   "novel.chapter.writer": "章节正文生成",
   "novel.short_story.segment.write": "短篇正文生成",

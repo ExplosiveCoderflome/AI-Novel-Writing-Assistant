@@ -35,9 +35,29 @@ test('contract generation routes each actual generation and quality request thro
     assert.equal(generations.length, 2);
     assert.equal(assessments.length, 2);
     assert.match(generations[1].promptInput.guidance, /保留钟内纸条来源/);
-    assert.equal(generations[0].options.maxTokens, 3200);
+    for (const request of generations) assert.equal(request.options.maxTokens, undefined);
     assert.equal(assessments[1].candidate.sceneCards, result.sceneCards);
   } finally {runner.runStructuredPrompt = original;}
+});
+
+test('cancelling after the first quality check prevents spending a second planning request', async () => {
+  const controller = new AbortController();
+  let calls = 0;
+  await assert.rejects(generateChapterTaskSheetDetail(generationInput({
+    signal: controller.signal, chapterTaskSheetQualityMode: 'full_book_autopilot',
+    chapterContractPorts: {
+      invokePrompt: async () => {
+        calls++;
+        const output = candidate();
+        return {output: {...output, sceneCards: JSON.parse(output.sceneCards).scenes}};
+      },
+      semanticAssessor: async () => {
+        controller.abort();
+        return {...safe, verdict:'repairable', safeToSync:false, recommendedHandling:'repair_contract'};
+      },
+    },
+  })), {name:'AbortError'});
+  assert.equal(calls, 1);
 });
 
 test('injected continuity assessment uses full preceding prose without legacy model resolution or cache writes', async () => {

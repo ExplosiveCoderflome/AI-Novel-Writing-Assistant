@@ -90,6 +90,8 @@ export class OutlineProposalService {
     if (!proposal || !["pending"].includes(proposal.status)) throw new AppError("此提案不可采纳", 409, "请重新生成提案后再采纳。");
     const current = await this.repository.getCurrent(projectId);
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
+    if (proposal.kind === "character_impact" && !operationIds.length) throw new AppError("请选择要采纳的人物联动修改。", 400);
+    if (proposal.kind === "edit" && proposal.promptId === "outline.workbench_dialogue" && !operationIds.length) throw new AppError("请选择要采纳的修改。", 400);
     const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     if (proposal.kind === "initial_generation") {
       const initial = JSON.parse(proposal.proposalJson) as { storyFields: Record<string, unknown>; volumes: Array<Record<string, any>>; chapters: Array<Record<string, any>>; characters: Array<Record<string, any>>; payoffs: Array<Record<string, any>>; facts: Array<Record<string, any>> };
