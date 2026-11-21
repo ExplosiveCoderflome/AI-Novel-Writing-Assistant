@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   type DirectorCandidate,
@@ -12,6 +12,7 @@ import {
   refineDirectorCandidateTitles,
   refineDirectorCandidates,
 } from "@/api/novelDirector";
+import { waitForCandidateResult } from "../autoDirector/domain/waitForCandidateResult";
 import { toast } from "@/components/ui/toast";
 import type { buildAutoDirectorRequestPayload } from "./NovelAutoDirectorDialog.shared";
 import type { DirectorExecutionViewMode } from "./NovelAutoDirector.types";
@@ -23,6 +24,7 @@ interface UseNovelAutoDirectorCandidateMutationsInput {
   selectedPresets: DirectorCorrectionPreset[];
   feedback: string;
   workflowTaskId: string;
+  pendingManualRecovery: boolean;
   ensureWorkflowTask: () => Promise<string>;
   buildRequestPayload: (workflowTaskId: string) => DirectorRequestPayload;
   applyUpdatedBatch: (batch: DirectorCandidateBatch, nextWorkflowTaskId?: string) => void;
@@ -38,29 +40,12 @@ interface UseNovelAutoDirectorCandidateMutationsInput {
   setExecutionError: Dispatch<SetStateAction<string>>;
 }
 
-async function waitForCandidateCommandResult<T extends { batch: DirectorCandidateBatch; workflowTaskId?: string }>(
-  commandId: string,
-): Promise<T> {
-  for (let attempt = 0; attempt < 90; attempt += 1) {
-    const response = await getDirectorCommandResult<T>(commandId);
-    const result = response.data?.result;
-    if (result?.batch) {
-      return result;
-    }
-    const status = response.data?.status;
-    if (status === "failed" || status === "cancelled" || status === "stale") {
-      throw new Error(response.data?.errorMessage || "Director candidate command failed.");
-    }
-    await new Promise((resolve) => window.setTimeout(resolve, 2000));
-  }
-  throw new Error("Director candidate command timed out. Check Task Center for progress.");
-}
-
 export function useNovelAutoDirectorCandidateMutations({
   batches,
   selectedPresets,
   feedback,
   workflowTaskId,
+  pendingManualRecovery,
   ensureWorkflowTask,
   buildRequestPayload,
   applyUpdatedBatch,
@@ -75,6 +60,17 @@ export function useNovelAutoDirectorCandidateMutations({
   setExecutionRequested,
   setExecutionError,
 }: UseNovelAutoDirectorCandidateMutationsInput) {
+  const polling = useRef<AbortController | null>(null);
+  useEffect(() => () => polling.current?.abort(), []);
+  useEffect(() => {
+    if (pendingManualRecovery) polling.current?.abort();
+  }, [pendingManualRecovery]);
+
+  const beginPolling = () => {
+    polling.current?.abort();
+    polling.current = new AbortController();
+    return polling.current.signal;
+  };
   const onCandidateCommandStart = () => {
     setCandidateDialogOpen(false);
     setDialogMode("execution_progress");
@@ -84,6 +80,7 @@ export function useNovelAutoDirectorCandidateMutations({
   const generateMutation = useMutation({
     onMutate: onCandidateCommandStart,
     mutationFn: async () => {
+      const signal = beginPolling();
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const payload = buildRequestPayload(currentWorkflowTaskId);
       const response = batches.length === 0
@@ -102,8 +99,8 @@ export function useNovelAutoDirectorCandidateMutations({
         setWorkflowTaskId(command.taskId);
         onWorkflowTaskChange?.(command.taskId);
       }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; workflowTaskId?: string }>(
-        command.commandId,
+      const result = await waitForCandidateResult(
+        () => getDirectorCommandResult<{ batch: DirectorCandidateBatch; workflowTaskId?: string }>(command.commandId, signal), signal,
       );
       return {
         batch: result.batch ?? null,
@@ -129,6 +126,7 @@ export function useNovelAutoDirectorCandidateMutations({
       toast.success(`${batch.roundLabel} 已生成 ${batch.candidates.length} 套方案。`);
     },
     onError: (error) => {
+      if (error.name === "AbortError") return;
       setDialogMode("execution_failed");
       setExecutionError(error instanceof Error ? error.message : "导演候选方案生成失败。");
     },
@@ -137,6 +135,7 @@ export function useNovelAutoDirectorCandidateMutations({
   const refineTitleMutation = useMutation({
     onMutate: onCandidateCommandStart,
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
+      const signal = beginPolling();
       const currentWorkflowTaskId = await ensureWorkflowTask();
       const response = await refineDirectorCandidateTitles({
         ...buildRequestPayload(currentWorkflowTaskId),
@@ -149,8 +148,8 @@ export function useNovelAutoDirectorCandidateMutations({
       if (!command?.commandId) {
         throw new Error("Director title refinement command was not accepted.");
       }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
-        command.commandId,
+      const result = await waitForCandidateResult(
+        () => getDirectorCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(command.commandId, signal), signal,
       );
       return {
         batch: result.batch ?? null,
@@ -170,6 +169,7 @@ export function useNovelAutoDirectorCandidateMutations({
       toast.success("已重做这套方案的标题组。");
     },
     onError: (error) => {
+      if (error.name === "AbortError") return;
       setDialogMode("execution_failed");
       setExecutionError(error instanceof Error ? error.message : "标题组修正失败。");
     },

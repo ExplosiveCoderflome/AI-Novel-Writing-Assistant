@@ -467,6 +467,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     generateMutation,
     refineTitleMutation,
   } = useNovelAutoDirectorCandidateMutations({
+    pendingManualRecovery: Boolean(directorTask?.pendingManualRecovery),
     batches,
     selectedPresets,
     feedback,

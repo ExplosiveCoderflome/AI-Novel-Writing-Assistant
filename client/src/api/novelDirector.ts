@@ -166,9 +166,9 @@ export async function confirmDirectorCandidate(payload: DirectorConfirmRequest) 
   return data;
 }
 
-export async function getDirectorCommandResult<T = unknown>(commandId: string) {
+export async function getDirectorCommandResult<T = unknown>(commandId: string, signal?: AbortSignal) {
   const { data } = await apiClient.get<ApiResponse<DirectorCommandResultResponse<T>>>(
-    `/novels/director/commands/${commandId}/result`,
+    `/novels/director/commands/${commandId}/result`, {signal, errorPresentation: "inline"},
   );
   return data;
 }
