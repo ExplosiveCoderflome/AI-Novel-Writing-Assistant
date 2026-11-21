@@ -38,6 +38,7 @@
 .candidate-round nav button:hover { text-decoration-color: currentColor; }
 .candidate-manuscript { min-width: 0; padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
 .candidate-byline, .candidate-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .875rem; }
+.candidate-direction-choice { font-size: 1rem; font-weight: 600; line-height: 1.5; color: hsl(var(--foreground)); }
 .candidate-title-row { container-type: inline-size; margin-top: .35rem; }
 .candidate-title-row h4 { font: 600 clamp(1.625rem, 4.5cqi, 2.125rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
 .candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }

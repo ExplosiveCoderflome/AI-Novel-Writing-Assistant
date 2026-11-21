@@ -88,6 +88,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
       hookStrategy: `开篇场景${i + 1}`, endingDirection: `结局${i + 1}` }],
   }));
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "another", workingTitle: "夜船", coreConflict: "守桥",
+    plannedDirection: "接力运走名册上仍活着的人",
     toneKeywords: ["双线追查", "身份错位"], protagonistPath: "从逃避到守护", writingPlatformReason: "适合悬疑连载" });
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影" });
   let cleanup;
@@ -112,6 +113,8 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.deepEqual(rowNames(second), ["sellingPoint", "coreConflict", "hookStrategy", "endingDirection"]);
     assert.deepEqual(rowNames(third), ["sellingPoint", "coreConflict", "protagonistPath", "hookStrategy", "endingDirection", "platform"]);
     assert.ok(!document.getElementById(second).querySelector(".candidate-keywords"));
+    assert.ok(!document.getElementById(second).querySelector(".candidate-direction-choice"), "旧方案保留原来的阅读方式");
+    assert.equal(document.getElementById(third).querySelector("header .candidate-direction-choice").textContent, "接力运走名册上仍活着的人");
     assert.deepEqual([...document.getElementById(third).querySelectorAll(".candidate-keywords li")].map(item => item.textContent), ["双线追查", "身份错位"]);
     assert.equal(reader.querySelectorAll('.candidate-story-notes > button[aria-expanded="true"]').length, 4);
     const toggle = document.getElementById(second).querySelector(".candidate-story-notes > button");

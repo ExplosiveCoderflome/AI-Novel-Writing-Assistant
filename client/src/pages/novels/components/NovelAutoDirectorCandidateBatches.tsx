@@ -149,7 +149,9 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
               <article key={candidate.id} id={anchor} className="candidate-manuscript" aria-labelledby={anchor + "-title"}>
                 <header>
                   <div className="candidate-byline">
-                    <span>方案 {candidateIndex + 1}</span><span>约 {candidate.targetChapterCount} 章</span>
+                    <span>方案 {candidateIndex + 1}</span>
+                    {candidate.plannedDirection && <strong className="candidate-direction-choice">{candidate.plannedDirection}</strong>}
+                    <span>约 {candidate.targetChapterCount} 章</span>
                   </div>
                   <div className="candidate-title-row">
                     <h4 id={anchor + "-title"} tabIndex={-1}>{candidate.workingTitle}</h4>

@@ -18,11 +18,13 @@ import {
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runCandidateStructuredCall } from "./candidateStructuredCall";
+import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
   directorCandidatePrompt,
+  directorDirectionPairPrompt,
 } from "../../../../prompting/prompts/novel/directorPlanning.prompts";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
@@ -187,43 +189,39 @@ export class NovelDirectorCandidateStageService {
     await this.markCandidateProgress(
       context.workflowTaskId,
       "candidate_direction_batch",
-      context.batches.length === 0 ? "正在生成第一批书级方案" : "正在按修正意见生成新方案",
+      "正在为你的想法寻找两条不同的故事方向",
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runCandidateStructuredCall({
-      asset: directorCandidatePrompt,
-      promptInput: {
-        idea: context.idea,
-        context: context.request,
-        count: context.count,
-        batches: context.batches,
-        presets: context.presets,
-        feedback: context.feedback,
-      },
-      contextBlocks: buildDirectorCandidateContextBlocks({
-        idea: context.idea,
-        context: context.request,
-        latestBatch: context.batches.at(-1),
-        presets: context.presets,
-        feedback: context.feedback,
-      }),
-      options: {
-        provider: context.options.provider,
-        model: context.options.model,
-        temperature: clampTemperature(context.options.temperature, 0.45),
-        taskId: context.workflowTaskId,
-        stage: "auto_director",
-        itemKey: "candidate_direction_batch",
-        entrypoint: "auto_director_create",
-      },
-      candidateCount: context.count,
-    });
-
+    const latestBatch = context.batches.at(-1);
     const productionFoundation = context.productionFoundation
-      ?? context.batches.at(-1)?.candidates[0]?.productionFoundation;
-    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => ({
-      ...normalizeCandidate(candidate, index),
+      ?? latestBatch?.candidates[0]?.productionFoundation;
+    const request = {
+      ...context.request,
+      productionFoundationPrompt: context.request.productionFoundationPrompt || JSON.stringify(productionFoundation),
+    };
+    const promptInput = {
+      idea: context.idea, context: request, count: context.count, batches: context.batches,
+      presets: context.presets, feedback: context.feedback,
+    };
+    const contextBlocks = buildDirectorCandidateContextBlocks({ ...promptInput, latestBatch });
+    const options = {
+      provider: context.options.provider, model: context.options.model,
+      temperature: clampTemperature(context.options.temperature, 0.45),
+      taskId: context.workflowTaskId, stage: "auto_director", itemKey: "candidate_direction_batch", entrypoint: "auto_director_create",
+    };
+    const { output: directions } = await runStructuredPrompt({
+      asset: directorDirectionPairPrompt, promptInput, contextBlocks,
+      options: { ...options, reasoningEnabled: false, automaticMaxTokens: 1500 },
+    });
+    await this.markCandidateProgress(context.workflowTaskId, "candidate_direction_batch",
+      "正在分别展开两条方向的冲突、人物和故事走向", DIRECTOR_PROGRESS.candidateDirectionBatch);
+    const { output: cards } = await runCandidateStructuredCall({
+      asset: directorCandidatePrompt, promptInput: { ...promptInput, directions }, contextBlocks, options, candidateCount: context.count,
+    });
+    const normalizedCandidates = (["A", "B"] as const).map((key, index) => ({
+      ...normalizeCandidate(cards[key], index),
+      plannedDirection: directions[key].choice,
       productionFoundation,
     }));
 
@@ -520,6 +518,7 @@ export class NovelDirectorCandidateStageService {
     const enrichedCandidate = await enhanceCandidateTitles({
       ...normalizeCandidate(parsed.output, 0),
       id: targetCandidate.id,
+      plannedDirection: targetCandidate.plannedDirection,
       reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,
       productionFoundation: targetCandidate.productionFoundation,
     }, {

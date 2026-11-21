@@ -402,6 +402,8 @@ export interface BookSpec {
 export interface DirectorCandidate {
   id: string;
   reviewRevision?: number;
+  /** The short direction chosen for this candidate when its round was planned. */
+  plannedDirection?: string;
   workingTitle: string;
   titleOptions?: TitleFactorySuggestion[];
   logline: string;

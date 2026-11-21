@@ -7,7 +7,7 @@ import {
   type DirectorProjectContextInput,
 } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import type { PromptAsset } from "../../core/promptTypes";
+import type { PromptAsset, PromptRenderContext } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import {
   buildDirectorBookContractContextBlocks,
@@ -19,6 +19,8 @@ import {
   directorBookContractSchema,
   directorCandidateSchema,
   directorCandidateResponseSchema,
+  directorDirectionPairSchema,
+  directorPlannedCandidatesSchema,
   directorPlanBlueprintSchema,
 } from "../../../services/novel/director/runtime/novelDirectorSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
@@ -72,6 +74,7 @@ function formatPresetHints(presets: DirectorCorrectionPreset[]): string {
 function formatCandidateDigest(candidate: DirectorCandidate, index: number): string {
   return [
     `option ${index + 1}: ${candidate.workingTitle}`,
+    ...(candidate.plannedDirection ? [`planned direction: ${candidate.plannedDirection}`] : []),
     `logline: ${candidate.logline}`,
     `positioning: ${candidate.positioning}`,
     `selling point: ${candidate.sellingPoint}`,
@@ -94,7 +97,17 @@ function formatLatestBatchDigest(batches: DirectorCandidateBatch[]): string {
   ].join("\n\n");
 }
 
-export const directorCandidatePrompt: PromptAsset<
+function candidateInputs(input: DirectorCandidatePromptInput, context: PromptRenderContext) {
+  return [
+    "【分层上下文】", renderSelectedContextBlocks(context),
+    "", "【项目上下文补充】", formatProjectContext(input.context) || "none",
+    "", "【上一轮候选】", formatLatestBatchDigest(input.batches),
+    "", "【预设修正】", formatPresetHints(input.presets),
+    "", "【自由修正意见】", input.feedback?.trim() || "none",
+  ].join("\n");
+}
+
+export const directorCandidatePromptV2: PromptAsset<
   DirectorCandidatePromptInput,
   typeof directorCandidateResponseSchema._output
 > = {
@@ -110,7 +123,58 @@ export const directorCandidatePrompt: PromptAsset<
     dropOrder: ["latest_batch"],
   },
   outputSchema: directorCandidateResponseSchema,
+  render: (input, context) => renderCandidateCards(input, context),
+};
+
+type DirectionPair = typeof directorDirectionPairSchema._output;
+
+export const directorDirectionPairPrompt: PromptAsset<DirectorCandidatePromptInput, DirectionPair> = {
+  id: "novel.director.direction_pair", version: "v1", taskType: "planner", mode: "structured", language: "zh",
+  management: { productPrompt: true, editModes: ["readonly"] },
+  contextPolicy: directorCandidatePromptV2.contextPolicy,
+  outputSchema: directorDirectionPairSchema,
+  semanticRetryPolicy: { maxAttempts: 1 },
+  postValidate: pair => {
+    if (pair.A.choice === pair.B.choice || pair.A.engine === pair.B.engine) {
+      throw new Error("两条路线的选择句或推进方式重复，请从本次灵感重新找出一个会改变整本书写法的分岔。");
+    }
+    return pair;
+  },
   render: (input, context) => [
+    new SystemMessage([
+      "你帮第一次写长篇的作者决定想写哪一种故事。此步只定两条方向，完整候选稍后分别展开。",
+      "保留种子里的关键事实、作者明确要写的内容、题材与主辅推进模式。结合本轮反馈，从仍可选择之处找到最影响整书的一处分岔。",
+      "沿这处分岔提出两种都值得写的答案。A、B 只用于对应各自的路线，两者地位相同；根据本次灵感决定方向，不套用固定的题材或商业/文艺等配对。",
+      "在作者留有选择的地方，让两条路线至少在主角追求的结果、持续面对的阻力、反复采取的行动、每轮成败的回报中拉开两项。作者钉死的目标或身份两边都要保留。",
+      "每条用 choice 给作者一句简短的选择：用具体的人、动词、目标或代价说清选这条会写什么。尽量 12 至 28 个字，脱离书名和标签也能读懂。",
+      "每条再用 engine 说明主角长期要达成什么、会反复采取什么行动、一次成败如何改变下一步，以及读者期待看到什么。",
+      "把两套的典型行动和阶段回报互换试试。如果换个书名、道具、叙述视角或气氛后仍是相同的故事，就重选分岔，直到两条会写出不同的关键决定和后果。",
+      "换一批时吸收用户要求并对照上一轮已经给过的路线。只输出包含 A、B 的 JSON，每项各含 choice 和 engine。",
+    ].join("\n")),
+    new HumanMessage(candidateInputs(input, context)),
+  ],
+};
+
+export const directorCandidatePrompt: PromptAsset<
+  DirectorCandidatePromptInput & { directions: DirectionPair },
+  typeof directorPlannedCandidatesSchema._output
+> = {
+  id: "novel.director.candidates", version: "v3", taskType: "planner", mode: "structured", language: "zh",
+  management: { productPrompt: true, editModes: ["readonly"] },
+  contextPolicy: directorCandidatePromptV2.contextPolicy,
+  outputSchema: directorPlannedCandidatesSchema,
+  semanticRetryPolicy: { maxAttempts: 1 },
+  postValidate: cards => {
+    if (cards.A.progressionLoop === cards.B.progressionLoop || cards.A.coreConflict === cards.B.coreConflict) {
+      throw new Error("两套方案重复了主线冲突或推进循环，请分别对照给定路线重新展开。");
+    }
+    return cards;
+  },
+  render: (input, context) => renderCandidateCards(input, context, directorDirectionPairSchema.parse(input.directions)),
+};
+
+function renderCandidateCards(input: DirectorCandidatePromptInput, context: PromptRenderContext, directions?: DirectionPair) {
+  return [
     new SystemMessage([
       "你是长篇小说书级方向规划导演，服务对象是不懂写作流程的新手用户。",
       "你的任务不是展开大纲，也不是写章节，而是基于种子想法生成一批现在就可以继续推进整本书规划的候选方向卡片。",
@@ -159,20 +223,13 @@ export const directorCandidatePrompt: PromptAsset<
     new HumanMessage([
       "请基于以下上下文，生成书级候选方向。",
       "",
-      "【分层上下文】",
-      renderSelectedContextBlocks(context),
-      "",
-      "【项目上下文补充】",
-      formatProjectContext(input.context) || "none",
-      "",
-      "【上一轮候选】",
-      formatLatestBatchDigest(input.batches),
-      "",
-      "【预设修正】",
-      formatPresetHints(input.presets),
-      "",
-      "【自由修正意见】",
-      input.feedback?.trim() || "none",
+      candidateInputs(input, context),
+      ...(directions ? [
+        "", "【本轮已定的两条方向】", JSON.stringify(directions),
+        "按同名键 A、B 分别写出完整方向卡。逐条落实各自的 choice 和 engine，让它决定主冲突、主角行动、开篇选择、后续每轮的推进和回报。",
+        "toneKeywords 根据展开后的读感填写。检查去掉关键词和书名后，读者只读两套的梗概仍能认出各自是哪条路线。",
+        "输出顶层对象只含 A、B，每个键对应一张完整卡片。",
+      ] : []),
       "",
       "【输出要求】",
       `- 必须精准输出 ${input.count} 套候选`,
@@ -180,8 +237,8 @@ export const directorCandidatePrompt: PromptAsset<
       "- 每套候选都必须可直接进入后续整书规划",
       "- 优先保证候选差异度、可执行性与新手可理解性",
     ].join("\n")),
-  ],
-};
+  ];
+}
 
 export const directorCandidatePatchPrompt: PromptAsset<
   DirectorCandidatePatchPromptInput,
