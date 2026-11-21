@@ -1,5 +1,6 @@
 import { BeatList } from "./volumeRhythm/BeatList";
 import type { ReactNode } from "react";
+import { useIsMutating, useQuery } from "@tanstack/react-query";
 import { ArrowRight, ArrowUpRight, BookOpen, Feather, PencilLine } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type { PendingOutlineProposal } from "@/api/outlines";
@@ -7,16 +8,36 @@ import { Button } from "@/components/ui/button";
 import { findOutlineNodeTitle, formatOutlineValue, getOutlineNodes, getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "../outlineNodes";
 import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { formFor, references } from "./OutlineNodeEditor";
+import { outlineReviewThread } from "./outlineReviewThread";
 
 export function isEmptyOutline(doc: OutlineDocument) {
   return !Object.entries(doc.story).some(([key, value]) => key !== "title" && key !== "nodeId" && value)
     && ![doc.volumes, doc.chapters, doc.characters, doc.facts, doc.payoffs].some(group => group.length);
 }
 
-export function IdeaStarter({ value, onChange, busy, onGenerate, onDiscuss }: {
-  value: string; onChange: (text: string) => void; busy: boolean; onGenerate: () => void; onDiscuss: () => void;
+export function IdeaStarter({ projectId, value, onChange, busy, onGenerate, onDiscuss, onEdit, children }: {
+  projectId: string; value: string; onChange: (text: string) => void; busy: boolean;
+  onGenerate: () => void; onDiscuss: () => void; onEdit: () => void; children: ReactNode;
 }) {
-  return <article className="outline-reading outline-idea">
+  const thread = outlineReviewThread(projectId);
+  const history = useQuery({ queryKey: thread.queryKey, queryFn: thread.load });
+  const sending = useIsMutating({ mutationKey: thread.queryKey, exact: true }) > 0;
+  const manual = <button type="button" className="outline-blank-edit" onClick={onEdit}>自己填写大纲</button>;
+  if (!history.data) return <div className="outline-reading">
+    {history.isError ? <p role="alert">故事讨论读取失败。<Button variant="ghost" onClick={() => void history.refetch()}>重试</Button></p>
+      : <p role="status">正在读取故事讨论…</p>}
+    {manual}
+  </div>;
+  if (history.data.length) return <div className="outline-idea-thread">
+    {children}
+    <div className="outline-idea-next">
+      <Button variant="secondary" disabled={busy || sending || history.data.some(turn => turn.status === "running")} onClick={onGenerate}>
+        根据讨论生成初稿 <ArrowRight />
+      </Button>
+      {manual}
+    </div>
+  </div>;
+  return <><article className="outline-reading outline-idea">
     <Feather size={32} aria-hidden="true" />
     <h2>你想写一个什么故事？</h2>
     <p>写下一个人、一个困境，或你一直想写的画面。初稿会把它展开成卷章和人物，读过后由你决定是否采用。</p>
@@ -25,7 +46,7 @@ export function IdeaStarter({ value, onChange, busy, onGenerate, onDiscuss }: {
       disabled={busy} onChange={e => onChange(e.target.value)} />
     <div className="outline-reading-actions"><Button disabled={busy || !value.trim()} onClick={onGenerate}>根据这个想法生成初稿 <ArrowRight /></Button>
       <Button variant="ghost" disabled={busy} onClick={onDiscuss}>先帮我想一想</Button></div>
-  </article>;
+  </article>{manual}</>;
 }
 
 export function PendingSuggestions({ proposals, version, document, onOpen }: {

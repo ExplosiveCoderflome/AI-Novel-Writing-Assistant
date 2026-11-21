@@ -193,12 +193,16 @@ test("从故事想法生成初稿，在主栏预览，重进继续追问并采�
   const input = () => document.querySelector('[aria-label="给大纲助手发消息"]');
   const sendKey = init => runtime.act(async () => input().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init })));
   const idea = await until(() => document.querySelector("#outline-story-idea"));
+  assert.equal(document.querySelectorAll("textarea").length, 1);
+  assert.equal(document.querySelector(".outline-inspector"), null);
   await change(idea, "帮我调整开篇的渡河。");
   assert.deepEqual(first.writes.map(item => item.url), ["/outlines"]);
   await click(button("根据这个想法生成初稿"));
   assert.equal(first.writes[1].body.action, "generate_initial");
   await until(() => button("采用这份初稿"));
   const draft = await until(() => document.querySelector("button.agent-draft"));
+  assert.ok(document.querySelector(".outline-inspector").contains(draft));
+  assert.equal(document.querySelector("#outline-story-idea"), null);
   assert.equal(document.querySelector(".outline-editor h2").textContent, "末班渡船");
   assert.match(draft.textContent, /末班渡船.*待确认.*0 卷 · 0 章 · 0 位人物.*查看大纲/);
   assert.equal(document.querySelector(".agent-reference").textContent, "正在讨论《末班渡船》");
@@ -220,6 +224,60 @@ test("从故事想法生成初稿，在主栏预览，重进继续追问并采�
   await until(() => document.querySelector(".outline-reading h2")?.textContent === "末班渡船");
   await until(() => document.querySelector(".agent-draft-status")?.textContent === "已采纳为 v2");
   assert.equal(version, 2);
+});
+
+test("空白大纲共用一个构思入口，历史与手填可来回切换，再次打开可接着讨论生成初稿", async t => {
+  const blank = { ...fixture(), volumes: [], chapters: [], characters: [] };
+  const turns = [];
+  let releaseFollowUp;
+  function respond(url, method, body) {
+    if (url === "/outlines/p") return { id: "p", title: blank.story.title, currentVersion: 1, document: blank };
+    if (url === "/outlines/p/conversation") return structuredClone(turns);
+    if (url === "/outlines/p/conversation/turns") {
+      const finish = () => {
+        turns.push({ id: body.requestId, requestText: body.requestText, status: "completed",
+          contextVersion: "1", createdAt: new Date().toISOString(), replyText: "船上还有谁？", result: null });
+        return { turnId: body.requestId };
+      };
+      if (turns.length === 1) return new Promise(resolve => { releaseFollowUp = () => resolve(finish()); });
+      return finish();
+    }
+  }
+  const first = await open(t, "/outlines/p", respond);
+  const idea = () => document.querySelector("#outline-story-idea");
+  const chat = () => document.querySelector('.outline-editor [aria-label="给大纲助手发消息"]');
+  await until(idea);
+  assert.equal(button("根据这个想法生成初稿").disabled, true);
+  assert.equal(button("先帮我想一想").disabled, false);
+  await change(idea(), "一艘无人渡船每晚准时靠岸");
+  await click(button("版本历史"));
+  assert.equal(document.querySelectorAll("textarea").length, 1);
+  await click(button("整书讨论"));
+  await click(button("自己填写大纲"));
+  await click(button("回到阅读"));
+  assert.equal(idea().value, "一艘无人渡船每晚准时靠岸");
+  assert.deepEqual(first.writes, []);
+  await click(button("先帮我想一想"));
+  await until(chat);
+  assert.match(turns[0].requestText, /一艘无人渡船每晚准时靠岸/);
+  assert.equal(first.writes.length, 1);
+  assert.equal(first.writes[0].body.action, undefined);
+  assert.equal(idea(), null);
+  await first.close();
+
+  const reopened = await open(t, "/outlines/p?start=idea", respond);
+  await until(chat);
+  assert.equal(document.querySelectorAll("textarea").length, 1);
+  assert.match(document.querySelector('.outline-editor [aria-label="对话记录"]').textContent, /船上还有谁/);
+  await change(chat(), "船上只有一只鸟");
+  await click(button("发送给大纲助手"));
+  await until(() => releaseFollowUp && button("根据讨论生成初稿").disabled);
+  await runtime.act(async () => { releaseFollowUp(); });
+  await until(() => !button("根据讨论生成初稿").disabled);
+  await click(button("根据讨论生成初稿"));
+  await until(() => reopened.writes.length === 2);
+  assert.equal(reopened.writes[1].body.action, "generate_initial");
+  assert.equal(reopened.writes[1].body.baseVersion, 1);
 });
 
 test("模型返回的思考先独立显示，回复逐段渲染，重新打开可回看本轮预览", async t => {

@@ -197,11 +197,19 @@
 .outline-chapter { margin: .85rem 0 .85rem .6rem; padding-left: .8rem; border-left: 2px solid hsl(var(--border)); }
 .outline-chapter[data-selected=true] { border-color: hsl(var(--primary)); }
 .outline-idea { max-width: 43rem; margin-block: min(6vh,3.5rem) 0; }
+.outline-idea-page { display: flex; flex-direction: column; }
+.outline-idea-thread {
+  display: flex; flex: 1; flex-direction: column; min-height: 0;
+  width: min(100%, 48rem); margin-inline: auto; padding-inline: clamp(.5rem, 3cqi, 2rem);
+}
+.outline-idea-thread .agent-feed { overflow-y: auto; overscroll-behavior-y: contain; }
+.outline-idea-next { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: 0 1.1rem 1rem; }
+.outline-idea-next .outline-blank-edit { margin: 0; }
 .outline-idea > svg { color: hsl(var(--primary)); margin-bottom: 1rem; }
 .outline-idea > p { margin: .8rem 0 1.7rem; line-height: 1.85; color: hsl(var(--muted-foreground)); }
 .outline-idea label, .outline-review-followup label { font-weight: 600; font-size: .88rem; }
 .outline-idea textarea, .outline-review-followup textarea { display: block; width: 100%; margin: .55rem 0 1rem; padding: .85rem; border: 1px solid hsl(var(--input)); border-radius: .5rem; font: inherit; font-weight: 400; line-height: 1.7; resize: vertical; background: hsl(var(--background)); }
-.outline-blank-edit { display: block; margin: 0 auto 1.25rem; font-size: .8rem; text-decoration: underline; color: hsl(var(--muted-foreground)); }
+.outline-blank-edit { display: block; width: fit-content; margin: 0 auto 1.25rem; font-size: .8rem; text-decoration: underline; color: hsl(var(--muted-foreground)); }
 .outline-reading-actions { flex-wrap: wrap; gap: .6rem; }
 .outline-pending { padding-top: 1.4rem; }
 .outline-pending h3 small { margin-left: .4rem; }

@@ -74,7 +74,7 @@ export function AgentConversation<Result extends { id: string; status: string }>
     }
   }, [turns.length]);
   const refresh = () => client.invalidateQueries({ queryKey: adapter.queryKey, exact: true });
-  const send = useMutation({ mutationFn: adapter.send,
+  const send = useMutation({ mutationKey: adapter.queryKey, mutationFn: adapter.send,
     onSuccess: () => { onChange(""); setOpenedId(null); attempted.current = null; }, onSettled: refresh });
   const stop = useMutation({ mutationFn: adapter.interrupt, onSettled: refresh });
   const busy = send.isPending || !!running || stop.isPending;
