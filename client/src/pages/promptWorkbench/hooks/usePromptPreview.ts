@@ -11,6 +11,7 @@ import {
 } from "@/api/promptWorkbench";
 import { useSSE } from "@/hooks/useSSE";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
+import { buildOpeningDirectionPreview } from "../openingDirectionPreview";
 
 interface PreviewNovel {
   id: string;
@@ -394,9 +395,10 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     const executionNovelId = novelId || undefined;
     const executionChapterId = novelId ? chapterId || previewChapter?.id : undefined;
     const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
+    const openingPreview = buildOpeningDirectionPreview(prompt);
     return {
       promptKey: prompt.key,
-      promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
+      promptInput: openingPreview?.promptInput ?? buildPreviewPromptInput(prompt, previewNovel, previewChapter),
       executionContext: {
         entrypoint,
         novelId: executionNovelId,
@@ -406,7 +408,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
           novelId: executionNovelId,
           ...(executionChapterId ? { chapterId: executionChapterId } : {}),
         },
-        metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
+        metadata: openingPreview?.metadata ?? buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
       },
       maxContextTokens: prompt.contextPolicy.maxTokensBudget,
       slotOverrides,

@@ -1,4 +1,9 @@
 const CONTEXT_GROUP_LABELS: Record<string, string> = {
+  idea_seed: "起始想法",
+  project_context: "开书设置",
+  preset_hints: "方向调整偏好",
+  freeform_feedback: "本轮修改要求",
+  latest_batch: "上一轮方案",
   writing_platform: "目标平台写法",
   creation_intent: "创作意图",
   creation_reference: "参考创作约定",

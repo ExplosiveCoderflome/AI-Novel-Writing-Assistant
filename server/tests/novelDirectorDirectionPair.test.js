@@ -84,16 +84,27 @@ test("首轮和换一批先定方向，展开时按键对应并保留书名重�
     recommendation: foundation, promptBlock: "历史架空，边关悬疑",
   }));
   t.mock.method(titleGenerationService, "generateTitleIdeas", async () => ({ titles: [] }));
+  const { promptSlotOverrideService } = require("../dist/prompting/slots/PromptSlotOverrideService.js");
+  const customFork = "两条路线上，主角各欠不同的人一份人情。";
+  const customExpansion = "写清每个承诺怎样在下一次救人时兑现。";
+  t.mock.method(promptSlotOverrideService, "getOverrideMaps", async ({ promptId, novelId }) => {
+    assert.equal(novelId, undefined);
+    const global = promptId === plan.id
+      ? { "directions.fork": { value: customFork } }
+      : { "candidates.progression": { value: customExpansion } };
+    return { global, novel: {} };
+  });
   const calls = [];
-  function render(call) {
-    return call.asset.render(call.promptInput, {
-      blocks: call.contextBlocks, selectedBlockIds: call.contextBlocks.map(block => block.id),
-    }).map(message => message.content).join("\n");
+  async function render(call) {
+    const overlays = await runner.resolvePromptOverlaysForAsset(call);
+    return runner.preparePromptExecution({ ...call, resolvedSlots: overlays.resolvedSlots }).messages
+      .map(message => message.content).join("\n");
   }
   const planningCall = t.mock.method(runner, "runStructuredPrompt", async call => {
     calls.push("plan");
     assert.equal(call.asset, plan);
-    const prompt = render(call);
+    const prompt = await render(call);
+    assert.ok(prompt.includes(customFork) && !prompt.includes(customExpansion));
     assert.ok(prompt.includes(idea) && prompt.includes("历史架空"));
     if (call.promptInput.batches.length) {
       assert.ok(prompt.includes(feedback) && prompt.includes(directions.A.choice) && prompt.includes("冲突更强"));
@@ -103,7 +114,8 @@ test("首轮和换一批先定方向，展开时按键对应并保留书名重�
   t.mock.method(candidateCalls, "runCandidateStructuredCall", async call => {
     calls.push("expand");
     assert.equal(call.asset, expand);
-    const prompt = render(call);
+    const prompt = await render(call);
+    assert.ok(prompt.includes(customExpansion) && !prompt.includes(customFork));
     assert.ok(prompt.includes(directions.A.engine) && prompt.includes(directions.B.engine));
     return { output: expand.postValidate(expand.outputSchema.parse(cards)) };
   });
