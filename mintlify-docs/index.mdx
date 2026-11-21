@@ -64,7 +64,11 @@ export const BnHero = () => {
   const canvasRef = useRef(null);
   const full = "走向一本完整小说";
   const [typed, setTyped] = useState("");
-  const [lines, setLines] = useState(0);
+  const SAMPLE_IDEA = "飞升天梯堵了三百年，我在第九千级开了家客栈。";
+  const SAMPLE_TITLE = "第三章　雷劫券";
+  const SAMPLE = ["第九千级的风很硬。客栈门口的队伍排进了云里，看不见尾。", "一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。", "“抵三十年房钱。”", "林砚翻开账簿，又合上。", "不收。", "“您欠的是一百年。”他把券推回去，“而且天门不开，这张券，三百年内都用不上。”"];
+  const SAMPLE_LEN = SAMPLE.join("").length;
+  const [chars, setChars] = useState(0);
 
   useEffect(() => {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(full); return; }
@@ -78,8 +82,8 @@ export const BnHero = () => {
   }, []);
 
   useEffect(() => {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setLines(9); return; }
-    const t = setInterval(() => { if (!document.hidden) setLines((n) => (n >= 9 ? 0 : n + 1)); }, 650);
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setChars(SAMPLE_LEN); return; }
+    const t = setInterval(() => { if (!document.hidden) setChars((n) => (n >= SAMPLE_LEN + 60 ? 0 : n + 1)); }, 60);
     return () => clearInterval(t);
   }, []);
 
@@ -124,7 +128,10 @@ export const BnHero = () => {
     return () => { cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect(); };
   }, []);
 
-  const widths = [92, 78, 88, 64, 95, 82, 70, 90, 58];
+  let offset = 0;
+  const shown = SAMPLE.map((p) => { const s = p.slice(0, Math.max(0, chars - offset)); offset += p.length; return s; });
+  const done = chars >= SAMPLE_LEN;
+  const cur = done ? SAMPLE.length - 1 : shown.findIndex((s, i) => s.length < SAMPLE[i].length);
 
   return (
     <div className="not-prose bn-hero">
@@ -147,9 +154,17 @@ export const BnHero = () => {
         .bn-book{position:relative;justify-self:center;width:min(380px,100%);aspect-ratio:3/4;perspective:1400px}
         .bn-page{position:absolute;inset:0;border-radius:6px 16px 16px 6px;background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:1px solid rgba(134,239,172,.22);backdrop-filter:blur(6px);padding:38px 34px;box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 60px -20px rgba(34,197,94,.45);animation:bnFloat 6s ease-in-out infinite}
         .bn-back{transform:rotate(-6deg) translate(-18px,10px);opacity:.45;animation:none}
-        .bn-ch{font-size:12px;letter-spacing:.3em;color:#86efac;opacity:.8}
-        .bn-title{height:14px;width:55%;border-radius:4px;background:rgba(231,245,236,.55);margin:16px 0 26px}
-        .bn-line{height:8px;border-radius:4px;background:rgba(231,245,236,.22);margin-bottom:15px;transform-origin:left;transition:transform .5s ease,opacity .5s}
+        a.bn-page{display:flex;flex-direction:column;text-decoration:none;color:inherit;padding:30px 30px 24px}
+        .bn-ch{font-size:12px;letter-spacing:.2em;color:#86efac;opacity:.85}
+        .bn-idea{margin:8px 0 0;font-size:13px;line-height:1.6;color:rgba(231,245,236,.55)}
+        .bn-title{margin:18px 0 12px;font-size:18px;font-weight:700;color:#e7f5ec;letter-spacing:.04em}
+        .bn-prose{flex:1;min-height:0;overflow:hidden}
+        .bn-prose p{margin:0 0 6px;font-size:14px;line-height:1.85;color:rgba(231,245,236,.82);text-indent:2em}
+        .bn-pc{display:inline-block;width:2px;height:1em;background:#4ade80;margin-left:2px;vertical-align:-2px;animation:bnBlink 1s steps(1) infinite}
+        .bn-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding-top:12px;border-top:1px solid rgba(134,239,172,.15);font-size:12px}
+        .bn-check{color:#4ade80;transition:opacity .4s}
+        .bn-more{color:#86efac;white-space:nowrap}
+        a.bn-page:hover .bn-more{color:#bbf7d0}
         @keyframes bnBlink{50%{opacity:0}}
         @keyframes bnPulse{50%{opacity:.35}}
         @keyframes bnFloat{0%,100%{transform:translateY(0) rotate(1deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
@@ -169,15 +184,22 @@ export const BnHero = () => {
             <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=0b1210&color=16A34A" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
           </a>
         </div>
-        <div className="bn-book" aria-hidden="true">
-          <div className="bn-page bn-back" />
-          <div className="bn-page">
-            <div className="bn-ch">CHAPTER · 01</div>
-            <div className="bn-title" />
-            {widths.map((wd, i) => (
-              <div key={i} className="bn-line" style={{ width: wd + "%", transform: i < lines ? "scaleX(1)" : "scaleX(0)", opacity: i < lines ? 1 : 0, background: i === lines - 1 ? "rgba(74,222,128,.7)" : undefined }} />
-            ))}
-          </div>
+        <div className="bn-book">
+          <div className="bn-page bn-back" aria-hidden="true" />
+          <a className="bn-page" href="/showcase/xianxia" aria-label="查看仙侠题材完整样章">
+            <div className="bn-ch">样章 · 仙侠修真</div>
+            <div className="bn-idea">灵感：{SAMPLE_IDEA}</div>
+            <div className="bn-title">{SAMPLE_TITLE}</div>
+            <div className="bn-prose" aria-hidden="true">
+              {shown.map((s, i) => i <= cur ? (
+                <p key={i}>{s}{!done && i === cur && <span className="bn-pc" />}</p>
+              ) : null)}
+            </div>
+            <div className="bn-foot">
+              <span className="bn-check" style={{ opacity: done ? 1 : 0 }}>✓ 章节检查通过</span>
+              <span className="bn-more">看完整样章 →</span>
+            </div>
+          </a>
         </div>
       </div>
     </div>
