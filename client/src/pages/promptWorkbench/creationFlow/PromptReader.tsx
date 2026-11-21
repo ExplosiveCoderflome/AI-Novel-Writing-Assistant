@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronLeft, Copy, FileText, Maximize2, Minimize2, PanelTop, RefreshCw } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Check, Copy, FileText, Maximize2, Minimize2, PanelTop, RefreshCw, X } from "lucide-react";
 import { getCreationFlowTemplate } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
 import { kindLabels } from "./FlowCanvas";
@@ -37,7 +37,9 @@ function PromptText({ templateKey, onOpenCatalog }: { templateKey: string; onOpe
     </p>
     {messages.map((message, index) => <section className="reader-message" key={index}>
       <h4><FileText size={14} aria-hidden />{roleName(message.role)}<span>{String(index + 1).padStart(2, "0")}</span></h4>
-      <div className="reader-prose">{message.content}</div>
+      <div className="reader-prose">{message.content.split(/(〈[^〈〉\r\n]+〉|【[^【】\r\n]+】)/gu).map((part, i) =>
+        part.startsWith("〈") && part.endsWith("〉") ? <mark key={i}>{part}</mark>
+          : part.startsWith("【") && part.endsWith("】") ? <strong key={i}>{part}</strong> : part)}</div>
     </section>)}
   </>;
 }
@@ -51,17 +53,19 @@ export function PromptReader({ step, stageTitle, next, go, focused, toggleFocus,
   const templates = step.templates ?? [];
   const template = templates[templateIndex];
   const destination = step.destination;
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { titleRef.current?.focus({ preventScroll: true }); }, [step.id]);
   return <section className="flow-reader" aria-label={step.title + "步骤详情"}>
     <div className="flow-reader-bar">
-      <button className="flow-return-map" type="button" onClick={backToMap}><ChevronLeft size={15} />流程图</button>
       <span className="flow-reader-breadcrumb"><BookOpen size={15} />{stageTitle}<span>/</span>{kindLabels[step.kind]}</span>
       <button type="button" className="flow-expand" onClick={toggleFocus} aria-pressed={focused}>
         {focused ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{focused ? "返回分栏" : "专注阅读"}
       </button>
+      <button className="reader-close" type="button" aria-label="收起详情，返回流程图" title="收起详情，返回流程图" onClick={backToMap}><X size={17} /></button>
     </div>
     <div className="reader-scroll" key={step.id} tabIndex={0} aria-label="阅读步骤和完整提示词">
       <div className="reader-paper">
-        <h2>{step.title}</h2>
+        <h2 tabIndex={-1} ref={titleRef}>{step.title}</h2>
         <dl className="reader-io"><dt>输入</dt><dd>{step.input}</dd><dt>产出</dt><dd>{step.output}</dd></dl>
         {templates.length > 1 && <div className="reader-variants" aria-label="此步骤的提示词">{templates.map(([key, title], index) =>
           <button key={key} type="button" aria-pressed={index === templateIndex} onClick={() => setTemplateIndex(index)}>{title}</button>)}</div>}

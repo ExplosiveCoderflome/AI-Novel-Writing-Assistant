@@ -1,55 +1,61 @@
-import { useCallback, useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Feather, Layers3, ListTree, NotebookPen } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, ChevronLeft, LibraryBig } from "lucide-react";
+import { BookOverview } from "./BookOverview";
 import { FlowCanvas } from "./FlowCanvas";
 import { PromptReader } from "./PromptReader";
-import { stages, stageSteps, type Step } from "./flowDefinition";
+import { stages, stageSteps, type FlowStage, type Step } from "./flowDefinition";
 import "./creationFlow.css";
 
-const stageIcons = [Feather, BookOpen, ListTree, Layers3, NotebookPen];
-
 export default function CreationFlow({ onOpenCatalog }: { onOpenCatalog: (prompt: { id: string; version: string }) => void }) {
-  const [selectedId, setSelectedId] = useState("directions");
+  const [stage, setStage] = useState<FlowStage | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
-  const [mobileReader, setMobileReader] = useState(false);
-  const stageIndex = stages.findIndex(item => stageSteps(item).some(step => step.id === selectedId));
-  const stage = stages[stageIndex];
-  const step = stageSteps(stage).find(item => item.id === selectedId)!;
-  const mainIndex = stage.main.indexOf(step);
-  const branch = stage.branches?.find(item => item.steps.includes(step));
-  const afterBranch = branch?.join ? stage.main.find(item => item.id === branch.join) : undefined;
-  const next = branch ? branch.steps[branch.steps.indexOf(step) + 1] ?? afterBranch
-    : stage.main[mainIndex + 1] ?? stages[stageIndex + 1]?.main[0];
-  function openStage(index: number) {
-    setSelectedId(stages[index].main[0].id);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const go = useCallback((id: string) => {
+    const owner = stages.find(item => stageSteps(item).some(step => step.id === id));
+    if (owner) { setStage(owner); setSelectedId(id); }
+  }, []);
+  const select = useCallback((step: Step) => go(step.id), [go]);
+  function openStage(item: FlowStage | null) {
+    setStage(item);
+    setSelectedId(null);
     setFocused(false);
-    setMobileReader(false);
   }
-  const select = useCallback((value: Step) => { setSelectedId(value.id); setMobileReader(true); }, []);
-  const go = (id: string) => { setSelectedId(id); setMobileReader(true); };
-  return <main className={`creation-flow ${focused ? "reader-focused" : ""} ${mobileReader ? "mobile-reading" : ""}`}>
+  function closeReader() {
+    setFocused(false);
+    setSelectedId(null);
+    requestAnimationFrame(() => heading.current?.focus({ preventScroll: true }));
+  }
+  if (!stage) return <BookOverview enter={openStage} read={go} />;
+  const index = stages.indexOf(stage);
+  const step = stageSteps(stage).find(item => item.id === selectedId);
+  const branch = stage.branches?.find(item => step && item.steps.includes(step));
+  const afterBranch = branch?.join ? stage.main.find(item => item.id === branch.join) : undefined;
+  const next = step && (branch ? branch.steps[branch.steps.indexOf(step) + 1] ?? afterBranch
+    : stage.main[stage.main.indexOf(step) + 1] ?? stages[index + 1]?.main[0]);
+
+  return <section className={`creation-flow ${step ? "has-reader" : ""} ${focused ? "reader-focused" : ""}`} data-stage={stage.id}>
     <nav className="flow-itinerary" aria-label="创作阶段">
-      {stages.map((item, index) => {
-        const Icon = stageIcons[index];
-        return <button key={item.id} type="button" aria-current={index === stageIndex ? "step" : undefined}
-          onClick={() => openStage(index)}><span className="stage-seal"><Icon size={18} strokeWidth={1.65} /></span>
-          <span className="stage-number">{String(index + 1).padStart(2, "0")}</span><strong>{item.title}</strong></button>;
-      })}
+      <button type="button" className="itinerary-home" onClick={() => openStage(null)}><LibraryBig size={16} />全书总览</button>
+      <div>{stages.map((item, i) => <button key={item.id} type="button" data-stage={item.id}
+        aria-current={item === stage ? "step" : undefined} onClick={() => openStage(item)}>
+        <span>{String(i + 1).padStart(2, "0")}</span>{item.title}</button>)}</div>
     </nav>
     <div className="flow-spread">
       <section className="flow-map-pane" aria-label="阶段流程图">
-        <header className="flow-map-heading"><div className="stage-folio" aria-hidden>{String(stageIndex + 1).padStart(2, "0")}</div>
-          <div><h2>{stage.title}</h2><p>{stage.description}</p></div>
+        <header className="flow-map-heading"><span className="stage-folio" aria-hidden>{String(index + 1).padStart(2, "0")}</span>
+          <div><h2 ref={heading} tabIndex={-1}>{stage.title}</h2><p>{stage.description}</p></div>
         </header>
-        <FlowCanvas stage={stage} current={selectedId} select={select} />
-        <div className="flow-page-turn">
-          <button type="button" disabled={!stageIndex} aria-label="上一阶段" onClick={() => openStage(stageIndex - 1)}><ChevronLeft size={16} />上一阶段</button>
-          <button type="button" disabled={stageIndex === stages.length - 1} onClick={() => openStage(stageIndex + 1)}>
-            {stages[stageIndex + 1]?.title ?? "最后阶段"}<ChevronRight size={16} /></button>
-        </div>
+        <FlowCanvas stage={stage} current={selectedId ?? undefined} select={select} jump={go} />
+        <footer className="flow-page-turn">
+          <button type="button" onClick={() => openStage(stages[index - 1] ?? null)}><ChevronLeft size={14} />{stages[index - 1]?.title ?? "全书总览"}</button>
+          <span className="stage-counter">{String(index + 1).padStart(2, "0")} / 05</span>
+          <button type="button" onClick={() => openStage(stages[index + 1] ?? null)}>
+            {stages[index + 1]?.title ?? "全书总览"}{index === 4 ? <ArrowLeft size={14} /> : <ArrowRight size={14} />}</button>
+        </footer>
       </section>
-      <PromptReader key={step.id} step={step} stageTitle={stage.title} next={next} go={go}
-        onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => { setFocused(value => !value); setMobileReader(true); }}
-        backToMap={() => { setFocused(false); setMobileReader(false); }} />
+      {step && <PromptReader key={step.id} step={step} stageTitle={stage.title} next={next} go={go}
+        onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} />}
     </div>
-  </main>;
+  </section>;
 }
