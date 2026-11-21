@@ -39,19 +39,24 @@
 .candidate-manuscript { min-width: 0; padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
 .candidate-byline, .candidate-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .875rem; }
 .candidate-title-row { container-type: inline-size; margin-top: .35rem; }
-.candidate-title-row h4 { font: 600 clamp(1.5rem, 3.6cqi, 2rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
+.candidate-title-row h4 { font: 600 clamp(1.625rem, 4.5cqi, 2.125rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
 .candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .candidate-workspace[data-next-round] .candidate-discussing { display: none; }
-.candidate-logline { max-width: 44em; margin-block: .7rem 1.25rem; font-size: 1rem; line-height: 1.85; white-space: pre-line; }
+.candidate-keywords { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; margin-top: .5rem; font-size: .9375rem; font-weight: 600; line-height: 1.6; color: hsl(var(--foreground)); }
+.candidate-keywords li:not(:last-child)::after { content: "·"; margin-inline-start: .75rem; color: hsl(var(--muted-foreground)); }
+.candidate-logline { max-width: 44em; margin-block: .75rem 1.25rem; font-size: 1rem; line-height: 1.85; white-space: pre-line; }
 .candidate-fields { display: grid; gap: .875rem; font-size: .9375rem; line-height: 1.8; }
 .candidate-fields[hidden] { display: none; }
 .candidate-fields > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem 1rem; }
-.candidate-fields dt { flex: 0 0 6rem; font-size: .8125rem; color: hsl(var(--muted-foreground)); }
+.candidate-fields dt { flex: 0 0 6rem; font-size: .875rem; font-weight: 500; color: hsl(var(--muted-foreground)); }
 .candidate-fields dd { flex: 1 1 29rem; min-width: 0; max-width: 44em; white-space: pre-line; }
-.candidate-story-notes { margin-top: 1.25rem; }
-.candidate-story-notes > button { display: flex; align-items: center; gap: .5rem; width: fit-content; font-size: .875rem; font-weight: 600; }
+.candidate-fields > [data-field="sellingPoint"] { display: block; padding: .875rem 1rem; background: hsl(var(--muted) / .65); border-radius: .375rem; }
+.candidate-fields > [data-field="sellingPoint"] dt { margin-bottom: .25rem; font-weight: 650; color: hsl(var(--foreground)); }
+.candidate-story-notes { margin-top: 1.25rem; padding-top: 1rem; border-block-start: 1px solid hsl(var(--border) / .65); }
+.candidate-story-notes > button { display: flex; align-items: center; gap: .5rem; width: fit-content; font-size: .9375rem; font-weight: 600; }
 .candidate-story-notes > button[aria-expanded="true"] svg { transform: rotate(180deg); }
 .candidate-story-notes .candidate-fields { margin-top: .875rem; }
+.candidate-story-notes dd { color: color-mix(in srgb, hsl(var(--foreground)) 78%, hsl(var(--muted-foreground))); }
 .candidate-decision { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1.25rem; margin-top: 1.25rem; }
 .candidate-round :focus-visible, .candidate-manuscript :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 @container candidate-list (min-width: 64rem) {
@@ -62,8 +67,8 @@
     /* A missing field leaves its named row available to the other story in this pair. */
     .candidate-comparison {
       grid-template-rows:
-        [byline] auto [title] auto [logline] auto
-        [coreConflict] auto [protagonistPath] auto [sellingPoint] auto
+        [byline] auto [title] auto [keywords] auto [logline] auto
+        [sellingPoint] auto [coreConflict] auto [protagonistPath] auto
         [notes] auto [positioning] auto [hookStrategy] auto [progressionLoop] auto
         [endingDirection] auto [whyItFits] auto [platform] auto [foundation] auto
         [titleOptions] auto [decision] auto [end];
@@ -73,12 +78,15 @@
     .candidate-comparison .candidate-story-notes,
     .candidate-comparison .candidate-fields:not([hidden]) { display: grid; grid-template-rows: subgrid; row-gap: 0; }
     .candidate-comparison > article { grid-row: 1 / -1; }
-    .candidate-comparison > article > header { grid-row: byline / coreConflict; align-items: start; }
-    .candidate-comparison > article > .candidate-fields { grid-row: coreConflict / notes; }
+    .candidate-comparison > article > header { grid-row: byline / sellingPoint; align-items: start; }
+    .candidate-comparison .candidate-keywords { grid-row: keywords; }
+    .candidate-comparison .candidate-logline { grid-row: logline; }
+    .candidate-comparison > article > .candidate-fields { grid-row: sellingPoint / notes; }
     .candidate-comparison .candidate-story-notes { grid-row: notes / titleOptions; }
     .candidate-comparison .candidate-story-notes > button { grid-row: notes; align-self: start; }
     .candidate-comparison .candidate-story-notes > .candidate-fields { grid-row: positioning / titleOptions; }
     .candidate-comparison .candidate-fields > div { grid-row: var(--candidate-field-row); align-self: start; padding-bottom: .875rem; }
+    .candidate-comparison .candidate-fields > [data-field="sellingPoint"] { align-self: stretch; margin-bottom: .875rem; }
     .candidate-comparison .candidate-title-options { grid-row: titleOptions; align-self: start; }
     .candidate-comparison .candidate-decision { grid-row: decision; align-self: start; }
   }

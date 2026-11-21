@@ -54,7 +54,7 @@ const fieldLabels = { ...candidateFieldLabel, platform: "平台建议", foundati
 function StoryFields({ fields, id, hidden }: { fields: StoryField[]; id?: string; hidden?: boolean }) {
   return <dl className="candidate-fields" id={id} hidden={hidden}>
     {fields.filter(field => field.value?.trim()).map(field =>
-      <div key={field.row} style={{ "--candidate-field-row": field.row } as CSSProperties}>
+      <div key={field.row} data-field={field.row} style={{ "--candidate-field-row": field.row } as CSSProperties}>
         <dt>{fieldLabels[field.row]}</dt><dd>{field.value}</dd>
       </div>
     )}
@@ -150,18 +150,20 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                 <header>
                   <div className="candidate-byline">
                     <span>方案 {candidateIndex + 1}</span><span>约 {candidate.targetChapterCount} 章</span>
-                    {candidate.toneKeywords.length > 0 && <span>{candidate.toneKeywords.join(" · ")}</span>}
                   </div>
                   <div className="candidate-title-row">
                     <h4 id={anchor + "-title"} tabIndex={-1}>{candidate.workingTitle}</h4>
                     {discussionKey === anchor && <span className="candidate-discussing"><MessageCircle size={14} />当前讨论方向</span>}
                   </div>
+                  {candidate.toneKeywords.length > 0 && <ul className="candidate-keywords" aria-label="故事关键词">
+                    {candidate.toneKeywords.map((keyword, index) => <li key={index}>{keyword}</li>)}
+                  </ul>}
                   <p className="candidate-logline">{candidate.logline}</p>
                 </header>
                 <StoryFields fields={[
+                  { row: "sellingPoint", value: candidate.sellingPoint },
                   { row: "coreConflict", value: candidate.coreConflict },
                   { row: "protagonistPath", value: candidate.protagonistPath },
-                  { row: "sellingPoint", value: candidate.sellingPoint },
                 ]} />
 
                 <CandidateStoryNotes fields={[

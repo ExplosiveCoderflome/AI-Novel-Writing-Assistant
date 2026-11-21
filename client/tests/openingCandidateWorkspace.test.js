@@ -17,7 +17,7 @@ test("并排对照从每对方案继承同一组自适应行，窄栏使用自�
     return values;
   };
   const tracks = declarations(".candidate-comparison")["grid-template-rows"].trim().split(/\s+/);
-  const names = ["byline", "title", "logline", "coreConflict", "protagonistPath", "sellingPoint", "notes",
+  const names = ["byline", "title", "keywords", "logline", "sellingPoint", "coreConflict", "protagonistPath", "notes",
     "positioning", "hookStrategy", "progressionLoop", "endingDirection", "whyItFits", "platform", "foundation", "titleOptions", "decision"];
   assert.deepEqual(tracks, [...names.flatMap(name => [`[${name}]`, "auto"]), "[end]"]);
   for (const selector of [".candidate-comparison > article", ".candidate-comparison > article > header",
@@ -25,6 +25,7 @@ test("并排对照从每对方案继承同一组自适应行，窄栏使用自�
     assert.equal(declarations(selector)["grid-template-rows"], "subgrid");
   }
   assert.equal(declarations(".candidate-comparison .candidate-fields > div")["grid-row"], "var(--candidate-field-row)");
+  assert.equal(declarations(".candidate-comparison .candidate-logline")["grid-row"], "logline", "旧方案缺少关键词时梗概仍横向对齐");
 });
 
 test("开书候选共用右栏，同名方案跨轮切换时保留各自输入与开书范围", async t => {
@@ -87,7 +88,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
       hookStrategy: `开篇场景${i + 1}`, endingDirection: `结局${i + 1}` }],
   }));
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "another", workingTitle: "夜船", coreConflict: "守桥",
-    protagonistPath: "从逃避到守护", writingPlatformReason: "适合悬疑连载" });
+    toneKeywords: ["双线追查", "身份错位"], protagonistPath: "从逃避到守护", writingPlatformReason: "适合悬疑连载" });
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影" });
   let cleanup;
   try {
@@ -108,8 +109,10 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.equal(document.getElementById(first).closest(".candidate-comparison"), null, "单方案轮次独立排版");
     const rowNames = id => [...document.getElementById(id).querySelectorAll(".candidate-fields > div")]
       .map(field => field.style.getPropertyValue("--candidate-field-row"));
-    assert.deepEqual(rowNames(second), ["coreConflict", "sellingPoint", "hookStrategy", "endingDirection"]);
-    assert.deepEqual(rowNames(third), ["coreConflict", "protagonistPath", "sellingPoint", "hookStrategy", "endingDirection", "platform"]);
+    assert.deepEqual(rowNames(second), ["sellingPoint", "coreConflict", "hookStrategy", "endingDirection"]);
+    assert.deepEqual(rowNames(third), ["sellingPoint", "coreConflict", "protagonistPath", "hookStrategy", "endingDirection", "platform"]);
+    assert.ok(!document.getElementById(second).querySelector(".candidate-keywords"));
+    assert.deepEqual([...document.getElementById(third).querySelectorAll(".candidate-keywords li")].map(item => item.textContent), ["双线追查", "身份错位"]);
     assert.equal(reader.querySelectorAll('.candidate-story-notes > button[aria-expanded="true"]').length, 4);
     const toggle = document.getElementById(second).querySelector(".candidate-story-notes > button");
     const extraFields = document.getElementById(toggle.getAttribute("aria-controls"));
