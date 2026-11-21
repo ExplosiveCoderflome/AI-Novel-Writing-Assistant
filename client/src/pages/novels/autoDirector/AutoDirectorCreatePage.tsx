@@ -46,6 +46,7 @@ import {
 import StageBasicSetup from "./StageBasicSetup";
 import StageCandidates from "./StageCandidates";
 import { CandidateReviewWorkspace } from "./candidateReview/CandidateReviewWorkspace";
+import { candidateAnchor } from "./candidateReview/candidateScope";
 import { useCandidateSelection } from "./candidateReview/useCandidateSelection";
 import StageIdea from "./StageIdea";
 import StageModelRun from "./StageModelRun";
@@ -809,7 +810,7 @@ function AutoDirectorCreatePage() {
 
   const showSummaryBar = activeStage !== "idea" || completedStages.size > 0 || controller.workflowTaskId;
   const showCandidateWorkspace = activeStage === "candidates" && controller.dialogMode === "candidate_selection"
-    && controller.workflowTaskId && controller.batches.some(batch => batch.candidates.length > 0)
+    && controller.batches.length > 0
     && !(isProductionExperienceChoicePending(controller.directorTask) && controller.directorTask?.resumeTarget?.novelId);
 
   const creationContent = (
@@ -1032,6 +1033,16 @@ function AutoDirectorCreatePage() {
   return <Dialog open={carryoverDialogOpen} onOpenChange={setCarryoverDialogOpen}>
     {showCandidateWorkspace ? <CandidateReviewWorkspace key={controller.workflowTaskId} taskId={controller.workflowTaskId}
       selection={candidateSelection} onApplied={controller.onReviewedCandidate}
+      nextRound={{
+        selectedPresets: controller.selectedPresets, feedback: controller.feedback,
+        onTogglePreset: controller.togglePreset, onFeedbackChange: controller.setFeedback,
+        onGenerate: () => controller.generateMutation.mutate(undefined, {
+          onSuccess: ({ batch }) => {
+            const first = batch?.candidates[0];
+            if (batch && first) candidateSelection.select(candidateAnchor(batch.id, first.id));
+          },
+        }),
+      }}
       disabled={applyingCandidate || controller.generateMutation.isPending || controller.refineTitleMutation.isPending || controller.confirmMutation.isPending}>
       {creationContent}
     </CandidateReviewWorkspace> : creationContent}

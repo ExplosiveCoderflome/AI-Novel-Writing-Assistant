@@ -45,20 +45,26 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
   await build({
     stdin: { resolveDir: root, loader: "tsx", contents: `
       import { createRoot } from "react-dom/client";
+      import { useState } from "react";
       import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
       import { CandidateReviewWorkspace } from "./src/pages/novels/autoDirector/candidateReview/CandidateReviewWorkspace";
       import { useCandidateSelection } from "./src/pages/novels/autoDirector/candidateReview/useCandidateSelection";
       import Batches from "./src/pages/novels/components/NovelAutoDirectorCandidateBatches";
+      import { toggleDirectorCorrectionPreset } from "./src/pages/novels/components/directorCandidateSelectionHandlers";
       export { act } from "react";
       export { apiClient } from "./src/api/client";
-      export function mount(batches, confirm) {
+      export function mount(batches, confirm, generate) {
         const cache = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: Infinity}}});
         const app = createRoot(document.querySelector("main"));
         function Workspace() {
           const selection = useCandidateSelection(batches);
-          return <CandidateReviewWorkspace taskId="test" selection={selection} disabled={false}>
-            <Batches batches={batches} discussionKey={selection.active.key} selectedPresets={[]} titlePatchFeedbacks={{}}
-              feedback="" onConfirmCandidate={confirm} />
+          const [feedback, setFeedback] = useState("");
+          const [selectedPresets, setPresets] = useState([]);
+          return <CandidateReviewWorkspace taskId="test" selection={selection} disabled={false}
+            nextRound={{ feedback, selectedPresets, onFeedbackChange: setFeedback,
+              onTogglePreset: preset => setPresets(previous => toggleDirectorCorrectionPreset(previous, preset)),
+              onGenerate: () => generate({ feedback, selectedPresets }) }}>
+            <Batches batches={batches} discussionKey={selection.active.key} titlePatchFeedbacks={{}} onConfirmCandidate={confirm} />
           </CandidateReviewWorkspace>;
         }
         app.render(<QueryClientProvider client={cache}><Workspace /></QueryClientProvider>);
@@ -69,7 +75,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
   });
   t.after(() => unlink(bundle));
   const { act, apiClient, mount } = await import(bundle.href);
-  const reads = [], confirmations = [];
+  const reads = [], confirmations = [], newRounds = [];
   apiClient.defaults.adapter = async config => {
     reads.push([config.method, config.url]);
     return { config, data: { data: [] }, status: 200, statusText: "OK", headers: {} };
@@ -85,7 +91,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影" });
   let cleanup;
   try {
-    await act(async () => { cleanup = mount(batches, (candidate, batch) => confirmations.push(batch.id)); });
+    await act(async () => { cleanup = mount(batches, (candidate, batch) => confirmations.push(batch.id), input => newRounds.push(input)); });
     const inspector = document.querySelector("aside.candidate-inspector");
     const reader = document.querySelector(".candidate-reading");
     assert.equal(document.querySelectorAll(".agent-conversation").length, 1);
@@ -126,7 +132,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
         select().value = key;
         select().dispatchEvent(new window.Event("change", { bubbles: true }));
       });
-      assert.equal(document.activeElement, select());
+      assert.ok(document.activeElement === select());
     }
     const draft = () => inspector.querySelector("textarea").value;
     async function useStarter(index) {
@@ -157,6 +163,35 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.equal(tabs[1].getAttribute("aria-pressed"), "true");
     await act(async () => tabs[0].click());
     assert.equal(draft(), firstDraft);
+    const changeRound = [...reader.querySelectorAll("button")].find(button => button.textContent === "都不合适，换一批");
+    const nextForm = () => inspector.querySelector('section[aria-label="生成下一轮方向"] form');
+    const strongerConflict = () => [...nextForm().querySelectorAll("button")].find(button => button.textContent === "冲突更强");
+    assert.ok(!reader.querySelector("textarea"));
+    assert.ok(!nextForm());
+    await act(async () => changeRound.click());
+    assert.equal(tabs[1].getAttribute("aria-pressed"), "true", "窄屏也切到助手");
+    assert.equal(document.activeElement.textContent, "生成下一轮方向");
+    assert.ok(select().closest("[hidden]"));
+    assert.equal(nextForm().querySelector("textarea").value, "");
+    const requirements = "保留渡船，换一个主角";
+    await act(async () => {
+      strongerConflict().click();
+      const input = nextForm().querySelector("textarea");
+      Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set.call(input, requirements);
+      input.dispatchEvent(new window.Event("input", { bubbles: true }));
+    });
+    await act(async () => [...inspector.querySelectorAll("button")].find(button => button.textContent === "返回方案讨论").click());
+    assert.ok(!nextForm());
+    assert.ok(document.activeElement === select());
+    assert.equal(draft(), firstDraft);
+    await act(async () => changeRound.click());
+    assert.equal(strongerConflict().getAttribute("aria-pressed"), "true");
+    assert.equal(nextForm().querySelector("textarea").value, requirements);
+    assert.deepEqual(newRounds, [], "打开表单、选方向和返回讨论均不启动生成");
+    await act(async () => nextForm().querySelector('[type="submit"]').click());
+    assert.deepEqual(newRounds, [{ feedback: requirements, selectedPresets: ["stronger_conflict"] }]);
+    assert.ok(reads.every(([method]) => method === "get"), "下一轮的要求不写入单套方案对话");
+    await act(async () => [...inspector.querySelectorAll("button")].find(button => button.textContent === "返回方案讨论").click());
     assert.deepEqual(confirmations, []);
     const confirm = [...document.getElementById(second).querySelectorAll("button")].find(button => button.textContent.includes("选用这套"));
     await act(async () => confirm.click());

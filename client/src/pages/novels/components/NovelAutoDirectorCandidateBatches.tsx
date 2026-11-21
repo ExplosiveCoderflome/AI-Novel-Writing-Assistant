@@ -8,7 +8,6 @@ import {
   DIRECTOR_CORRECTION_PRESETS,
   type DirectorCandidate,
   type DirectorCandidateBatch,
-  type DirectorCorrectionPreset,
 } from "@ai-novel/shared/types/novelDirector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,20 +17,14 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 interface NovelAutoDirectorCandidateBatchesProps {
   batches: DirectorCandidateBatch[];
   discussionKey?: string;
-  selectedPresets: DirectorCorrectionPreset[];
-  feedback: string;
-  onFeedbackChange: (value: string) => void;
-  onTogglePreset: (preset: DirectorCorrectionPreset) => void;
   titlePatchFeedbacks: Record<string, string>;
   onTitlePatchFeedbackChange: (candidateId: string, value: string) => void;
-  isGenerating: boolean;
   isRefiningTitle: boolean;
   isConfirming: boolean;
   isApplying: boolean;
   onApplyCandidateTitleOption: (batchId: string, candidateId: string, option: TitleFactorySuggestion) => void;
   onRefineTitle: (batchId: string, candidate: DirectorCandidate, feedback: string) => void;
   onConfirmCandidate: (candidate: DirectorCandidate, batch: DirectorCandidateBatch) => void | Promise<void>;
-  onGenerateNext: () => void;
 }
 
 function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
@@ -101,20 +94,14 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
   const {
     batches,
     discussionKey,
-    selectedPresets,
-    feedback,
-    onFeedbackChange,
-    onTogglePreset,
     titlePatchFeedbacks,
     onTitlePatchFeedbackChange,
-    isGenerating,
     isRefiningTitle,
     isConfirming,
     isApplying,
     onApplyCandidateTitleOption,
     onRefineTitle,
     onConfirmCandidate,
-    onGenerateNext,
   } = props;
   const reducedMotion = useReducedMotion();
 
@@ -276,57 +263,6 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
           })}</CandidatePairs>
         </motion.section>
       ))}
-
-      <section className="min-w-0 pt-4">
-        <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">没有合适的方向</div>
-        <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
-          点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。
-        </div>
-
-        <div className="mt-4 flex min-w-0 flex-wrap gap-2">
-          {DIRECTOR_CORRECTION_PRESETS.map((preset) => {
-            const active = selectedPresets.includes(preset.value);
-            return (
-              <button
-                key={preset.value}
-                type="button"
-                className={`rounded-full px-3 py-1.5 text-sm transition ${
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted/45 text-foreground hover:bg-muted"
-                }`}
-                onClick={() => onTogglePreset(preset.value)}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 space-y-2">
-          <label htmlFor="director-refine-feedback" className="text-sm font-medium text-foreground">
-            再补一句修正建议
-          </label>
-          <Input
-            id="director-refine-feedback"
-            value={feedback}
-            onChange={(event) => onFeedbackChange(event.target.value)}
-            placeholder="例如：我想要女频成长感更强一点，别太像纯爱文，也不要太黑。"
-          />
-        </div>
-
-        <div className={AUTO_DIRECTOR_MOBILE_CLASSES.actionRow}>
-          <Button
-            type="button"
-            className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-            onClick={onGenerateNext}
-            disabled={isApplying || isGenerating}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {isGenerating ? "生成中..." : "带修正建议继续生成"}
-          </Button>
-        </div>
-      </section>
     </div>
   );
 }

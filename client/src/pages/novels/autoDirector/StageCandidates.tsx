@@ -75,16 +75,11 @@ export default function StageCandidates({
       <NovelAutoDirectorCandidateBatches
         batches={controller.batches}
         discussionKey={controller.workflowTaskId ? selection.active?.key : undefined}
-        selectedPresets={controller.selectedPresets}
-        feedback={controller.feedback}
-        onFeedbackChange={controller.setFeedback}
-        onTogglePreset={controller.togglePreset}
         titlePatchFeedbacks={controller.titlePatchFeedbacks}
         onTitlePatchFeedbackChange={(candidateId, value) => controller.setTitlePatchFeedbacks((prev) => ({
           ...prev,
           [candidateId]: value,
         }))}
-        isGenerating={controller.generateMutation.isPending}
         isRefiningTitle={controller.refineTitleMutation.isPending}
         isConfirming={controller.confirmMutation.isPending}
         isApplying={isApplying}
@@ -95,7 +90,6 @@ export default function StageCandidates({
           feedback: nextFeedback,
         })}
         onConfirmCandidate={controller.handleConfirmCandidate}
-        onGenerateNext={() => controller.generateMutation.mutate()}
       />
     </section>
   );

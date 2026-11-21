@@ -41,6 +41,7 @@
 .candidate-title-row { container-type: inline-size; margin-top: .35rem; }
 .candidate-title-row h4 { font: 600 clamp(1.5rem, 3.6cqi, 2rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
 .candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
+.candidate-workspace[data-next-round] .candidate-discussing { display: none; }
 .candidate-logline { max-width: 44em; margin-block: .7rem 1.25rem; font-size: 1rem; line-height: 1.85; white-space: pre-line; }
 .candidate-fields { display: grid; gap: .875rem; font-size: .9375rem; line-height: 1.8; }
 .candidate-fields[hidden] { display: none; }
