@@ -150,6 +150,27 @@
 .outline-reading-meta, .outline-reading-meta > *, .outline-reading-actions, .outline-reading-link, .outline-activity { display: flex; align-items: center; gap: .5rem; }
 .outline-reading-meta { flex-wrap: wrap; justify-content: space-between; margin-bottom: 1.15rem; font-size: .8rem; color: hsl(var(--muted-foreground)); }
 .outline-reading h2 { font-family: var(--font-serif, ui-serif), "Songti SC", SimSun, serif; font-size: clamp(1.75rem, 4.2cqi, 2.55rem); line-height: 1.35; font-weight: 600; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.outline-reading-scroll:has(> .outline-local-page) { overflow: visible; scrollbar-gutter: auto; }
+.outline-local-page {
+  width: 100%; padding: 0;
+  --local-page-inset: calc(max(0px, (100% - 49rem) / 2) + clamp(1rem, 5cqi, 4rem));
+}
+.outline-local-page .outline-reading-heading {
+  position: sticky; top: 0; z-index: 1;
+  padding: clamp(1.2rem, 3.8cqi, 3rem) var(--local-page-inset) .75rem;
+  background: hsl(var(--background));
+}
+.outline-local-page .outline-reading-title { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.outline-local-page h2 { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.outline-local-toggle { flex: none; max-width: 48%; }
+.outline-local-toggle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.outline-local-page .outline-reading-body { padding: 0 var(--local-page-inset) 3rem; }
+.outline-local-page .outline-pending { width: 100%; padding-inline: 0; }
+@media (min-width: 768px) and (min-height: 600px) {
+  .outline-local-page { height: 100%; display: flex; flex-direction: column; }
+  .outline-local-page .outline-reading-heading { position: static; flex: none; }
+  .outline-local-page .outline-reading-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+}
 .outline-reading-counts { margin: .6rem 0 1.8rem; font-size: .85rem; color: hsl(var(--muted-foreground)); }
 .outline-reading-counts i { margin-inline: .4rem; }
 .outline-reading-link { display: inline-flex; padding: .4rem .2rem .4rem 0; margin-right: .7rem; color: hsl(var(--primary)); text-align: left; font-size: .88rem; }

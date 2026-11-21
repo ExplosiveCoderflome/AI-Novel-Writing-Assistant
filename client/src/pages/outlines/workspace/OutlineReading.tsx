@@ -39,8 +39,9 @@ export function PendingSuggestions({ proposals, version, document, onOpen }: {
   </section>;
 }
 
-export function OutlineReading({ document, node, version, onEdit, localReview, onSelect }: {
-  document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; localReview?: ReactNode; onSelect: (id: string) => void;
+export function OutlineReading({ document, node, version, onEdit, reviewAction, localReview, notices, onSelect }: {
+  document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; onSelect: (id: string) => void;
+  reviewAction?: ReactNode; localReview?: ReactNode; notices?: ReactNode;
 }) {
   const form = formFor(node);
   const isStory = node.nodeId === document.story.nodeId;
@@ -49,25 +50,31 @@ export function OutlineReading({ document, node, version, onEdit, localReview, o
   const links = new Set(references(node));
   const related = getOutlineNodes(document).filter(other => other !== node && (links.has(other.nodeId) || references(other).includes(node.nodeId)));
   const link = (item: OutlineNode) => <button className="outline-reading-link" type="button" key={item.nodeId} onClick={() => onSelect(item.nodeId)}>{getOutlineNodeTitle(item)} <ArrowUpRight size={13} /></button>;
-  return <article className="outline-reading">
-    <header className="outline-reading-meta"><span><BookOpen size={14} /> {form.label} · 当前稿 v{version}</span><button onClick={onEdit}><PencilLine size={14} /> 手动编辑</button></header>
-    <h2>{getOutlineNodeTitle(node)}</h2>
-    {isStory && <p className="outline-reading-counts">{document.volumes.length} 卷 <i>·</i> {document.chapters.length} 章 <i>·</i> {document.characters.length} 位人物</p>}
-    {localReview}
-    {[...form.main, ...form.more].filter(key => fields[key] !== undefined && fields[key] !== "" && key !== "planningDepth").map(key => <section className="outline-passage" key={key}>
-      <h3>{person && key === "summary" ? "人物说明" : outlineFieldLabels[key]}</h3><p>{formatOutlineValue(fields[key], key, document)}</p>
-    </section>)}
-    {isStory && <>
-      {!!document.volumes.length && <section className="outline-passage"><h3>卷章安排</h3>{[...document.volumes].sort((a,b) => a.order-b.order).map(vol =>
-        <details key={vol.nodeId} className="outline-volume"><summary>{vol.title} <small>{vol.chapterNodeIds.length} 章</small></summary>
-          <p>{vol.summary}</p><div>{vol.chapterNodeIds.map(id => document.chapters.find(ch => ch.nodeId === id)).map(ch => ch && link(ch))}</div>
-        </details>)}</section>}
-      {!!document.characters.length && <section className="outline-passage"><h3>人物</h3><div className="outline-person-list">{document.characters.map(p => <div key={p.nodeId}>{link(p)}<p>{p.role || p.summary}</p></div>)}</div></section>}
-    </>}
-    {person && <section className="outline-passage"><h3>出场卷章</h3>
-      {related.filter(item => "volumeNodeId" in item || "chapterNodeIds" in item).map(link)}
-      {!related.some(item => "volumeNodeId" in item || "chapterNodeIds" in item) && <p>还没有安排出场。</p>}</section>}
-    {related.some(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)) && <section className="outline-passage" aria-label="关联内容"><h3>关联内容</h3>
-      {related.filter(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)).map(link)}</section>}
+  const title = getOutlineNodeTitle(node);
+  return <article className={reviewAction ? "outline-reading outline-local-page" : "outline-reading"}>
+    <header className="outline-reading-heading">
+      <div className="outline-reading-meta"><span><BookOpen size={14} /> {form.label} · 当前稿 v{version}</span><button onClick={onEdit}><PencilLine size={14} /> 手动编辑</button></div>
+      <div className="outline-reading-title"><h2 title={title}>{title}</h2>{reviewAction}</div>
+    </header>
+    <div className="outline-reading-body">
+      {localReview}
+      {notices}
+      {isStory && <p className="outline-reading-counts">{document.volumes.length} 卷 <i>·</i> {document.chapters.length} 章 <i>·</i> {document.characters.length} 位人物</p>}
+      {[...form.main, ...form.more].filter(key => fields[key] !== undefined && fields[key] !== "" && key !== "planningDepth").map(key => <section className="outline-passage" key={key}>
+        <h3>{person && key === "summary" ? "人物说明" : outlineFieldLabels[key]}</h3><p>{formatOutlineValue(fields[key], key, document)}</p>
+      </section>)}
+      {isStory && <>
+        {!!document.volumes.length && <section className="outline-passage"><h3>卷章安排</h3>{[...document.volumes].sort((a,b) => a.order-b.order).map(vol =>
+          <details key={vol.nodeId} className="outline-volume"><summary>{vol.title} <small>{vol.chapterNodeIds.length} 章</small></summary>
+            <p>{vol.summary}</p><div>{vol.chapterNodeIds.map(id => document.chapters.find(ch => ch.nodeId === id)).map(ch => ch && link(ch))}</div>
+          </details>)}</section>}
+        {!!document.characters.length && <section className="outline-passage"><h3>人物</h3><div className="outline-person-list">{document.characters.map(p => <div key={p.nodeId}>{link(p)}<p>{p.role || p.summary}</p></div>)}</div></section>}
+      </>}
+      {person && <section className="outline-passage"><h3>出场卷章</h3>
+        {related.filter(item => "volumeNodeId" in item || "chapterNodeIds" in item).map(link)}
+        {!related.some(item => "volumeNodeId" in item || "chapterNodeIds" in item) && <p>还没有安排出场。</p>}</section>}
+      {related.some(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)) && <section className="outline-passage" aria-label="关联内容"><h3>关联内容</h3>
+        {related.filter(item => !person || !("volumeNodeId" in item || "chapterNodeIds" in item)).map(link)}</section>}
+    </div>
   </article>;
 }

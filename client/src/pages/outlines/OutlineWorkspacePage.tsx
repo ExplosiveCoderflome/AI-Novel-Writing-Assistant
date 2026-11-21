@@ -1,7 +1,7 @@
 import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, FilePenLine, History, ListTree, MessageSquareText, Sparkles } from "lucide-react";
+import { ArrowLeft, Check, Feather, FilePenLine, History, ListTree, MessageSquareText, Sparkles } from "lucide-react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import {
@@ -206,6 +206,13 @@ function OutlineWorkspace({ id }: { id: string }) {
     <span>大纲读取失败。</span><Button variant="secondary" onClick={() => void query.refetch()}>重试</Button><Link to="/outlines">返回列表</Link>
   </div>;
 
+  const localExpanded = !!localTarget && localEditorId === localTarget.id;
+  const reviewLabel = localExpanded ? "收起修改" : localTarget?.kind === "character" ? "修改" + getOutlineNodeTitle(selected) : "调整本章";
+  const readingNotices = <>
+    {params.get("returnProposalId") && <button className="outline-reading-link px-4" onClick={() => openReview(params.get("returnProposalId")!)}><ArrowLeft size={14} />回到刚才的建议</button>}
+    {pending.isError && <button className="outline-reading-link" onClick={() => void pending.refetch()}>重新读取待处理建议</button>}
+    <PendingSuggestions document={document} proposals={visiblePending} version={version} onOpen={proposal => openReview(proposal, visiblePending.find(p => p.id === proposal)?.characterId ?? undefined)} />
+  </>;
   return <div className="outline-workspace mx-auto max-w-[1800px]">
     <header className="outline-workspace-heading">
       <div className="min-w-0">
@@ -257,15 +264,17 @@ function OutlineWorkspace({ id }: { id: string }) {
           }}
           onApplied={(appliedVersion, node) => { setReceipt(appliedVersion); setEditing(false); navigateContent(node ?? null); }} /></div>
         : !editing && selected ? <div className="outline-reading-scroll" key={selected.nodeId}>
-          {params.get("returnProposalId") && <button className="outline-reading-link px-4" onClick={() => openReview(params.get("returnProposalId")!)}><ArrowLeft size={14} />回到刚才的建议</button>}
-          {pending.isError && <button className="outline-reading-link" onClick={() => void pending.refetch()}>重新读取待处理建议</button>}
-          <PendingSuggestions document={document} proposals={visiblePending} version={version} onOpen={proposal => openReview(proposal, visiblePending.find(p => p.id === proposal)?.characterId ?? undefined)} />
+          {!localTarget && readingNotices}
           {starter ? <IdeaStarter value={idea} onChange={setIdea} busy={turn.busy || blockRevision} onGenerate={() => turn.send({requestText:idea.trim(), baseVersion:version, action:"generate_initial"})}
             onDiscuss={() => { showInspector("suggestions"); turn.send({requestText: idea.trim() ? `我想写这样的故事，请先问我一个问题，帮我想清楚方向。\\n${idea.trim()}`.slice(0,6000) : "我还没有具体的故事想法，请先问我一个问题，帮我找到方向。", baseVersion:version}); }} />
             : <OutlineReading document={document} node={selected} version={version} onSelect={selectNode} onEdit={() => setEditing(true)}
+              notices={localTarget && readingNotices}
+              reviewAction={localTarget && <Button type="button" size="sm" variant="secondary" className="outline-local-toggle"
+                aria-expanded={localExpanded} aria-controls={localExpanded ? "outline-local-form" : undefined} title={reviewLabel}
+                onClick={() => setLocalEditorId(localExpanded ? null : localTarget.id)}><Feather size={15} /><span>{reviewLabel}</span></Button>}
               localReview={localTarget && <OutlineLocalReview projectId={id} target={localTarget} title={getOutlineNodeTitle(selected)} version={version}
-                expanded={localEditorId === localTarget.id} disabled={blockRevision || turn.busy} draft={localDrafts[localTarget.id] ?? {text:""}}
-                onExpand={open => setLocalEditorId(open ? localTarget.id : null)} onChange={value => setLocalDrafts(prev => ({...prev,[localTarget.id]:value}))}
+                expanded={localExpanded} disabled={blockRevision || turn.busy} draft={localDrafts[localTarget.id] ?? {text:""}}
+                onExpand={() => setLocalEditorId(localTarget.id)} onChange={value => setLocalDrafts(prev => ({...prev,[localTarget.id]:value}))}
                 onOpen={proposal => openReview(proposal, localTarget.id)} onSend={(requestText, priorId) => {
                   const submitted = localDrafts[localTarget.id];
                   turn.send({requestText, priorId, target:localTarget, baseVersion:version}, {onSuccess: () => {
