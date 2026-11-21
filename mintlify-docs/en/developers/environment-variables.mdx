@@ -113,6 +113,10 @@ API keys and models can also be saved in system settings. For details, see [Mode
 | `RAG_EMBEDDING_RETRY_BASE_MS` | `500` | Embedding retry base interval |
 | `RAG_HTTP_TIMEOUT_MS` | `30000` | RAG HTTP timeout |
 
+<Note>
+  These variables only provide initial defaults. Embedding, vector DB URL, API Key, and the RAG switch saved in the app under **Knowledge Base → Retrieval Settings** (知识库 → 检索设置) are stored in the database and take priority over environment variables. The desktop app has no `.env` to edit and does not bundle Qdrant; configure it in the app instead. See [Configure retrieval and the vector database](/en/features/knowledge-base#configure-retrieval-and-the-vector-database).
+</Note>
+
 ### Book Breakdown
 
 | Variable | Default | Description |

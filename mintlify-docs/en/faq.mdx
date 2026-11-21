@@ -65,6 +65,10 @@ This page answers "what is it, how to choose, and can it" types of usage questio
   <Accordion title="Can I use it without configuring Qdrant">
     Yes. Qdrant is only used for Knowledge Base vector retrieval; it is not a prerequisite for starting a book and writing Chapter 1. To first run through the main line, set `RAG_ENABLED=false` when running from source.
   </Accordion>
+
+  <Accordion title="How does the desktop app connect to Qdrant">
+    The desktop app does not bundle Qdrant, so prepare one separately (Qdrant Cloud, local Docker, or your own server). Then go to **Knowledge Base → Retrieval Settings** (知识库 → 检索设置), enter the **Vector DB URL** (向量库 URL) and **Vector DB API Key** (向量库 API Key), and click **Save retrieval settings** (保存检索设置). You do not need to edit any `.env` file. See [Configure retrieval and the vector database](/en/features/knowledge-base#configure-retrieval-and-the-vector-database) for full steps.
+  </Accordion>
 </AccordionGroup>
 
 ## Reporting Issues

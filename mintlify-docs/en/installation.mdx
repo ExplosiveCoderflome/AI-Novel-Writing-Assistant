@@ -62,11 +62,23 @@ For regular writing, use the desktop version. No need to install Node.js, pnpm, 
   <Tab title="macOS">
     1. Double-click the `.dmg` and drag Biz Novel Studio into "Applications".
     2. If blocked by the system on first open, go to **System Settings → Privacy & Security**, find the blocked app at the bottom, and click **Still Open**.
-    3. If prompted "damaged, cannot open", execute the following command in Terminal and reopen:
+    3. If prompted "damaged, cannot open", open Terminal, run the following command, then reopen the app:
 
     ```bash
     xattr -dr com.apple.quarantine "/Applications/Biz Novel Studio.app"
     ```
+
+    **How to open Terminal** (any one of these):
+
+    - Press **Command + Space** to open Spotlight, type `Terminal`, and press Return.
+    - Open **Finder → Applications → Utilities** and double-click Terminal.
+    - Open **Launchpad** and click Terminal in the "Other" folder.
+
+    Once the Terminal window opens, paste the whole command above and press Return. A successful run prints nothing, which is normal. Then go back to Applications and open Biz Novel Studio again.
+
+    <Note>
+      If you see `No such file or directory`, the app is not in the Applications folder. Finish step 1 to drag it into Applications first, or replace the path in the command with the app's actual location (type `xattr -dr com.apple.quarantine ` and then drag the app icon into the Terminal window to fill in the path).
+    </Note>
 
     The current Mac installer is not signed or notarized by Apple, so manual approval is required on first open.
   </Tab>
