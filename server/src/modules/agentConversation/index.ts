@@ -1,11 +1,13 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { AgentTurnInput } from "@ai-novel/shared/types/agentConversation/turn";
 import { AppError } from "../../middleware/errorHandler";
+import { agentReplyLive } from "./AgentReplyLive";
 
 type Start = AgentTurnInput & { scopeKey: string; contextVersion: string };
 const running = "running";
-export { agentReplyLive } from "./AgentReplyLive";
+export { agentReplyLive };
 export { streamAgentReply } from "./http/streamReply";
+export { recentAgentDiscussion } from "./discussionHistory";
 
 export class AgentConversationStore {
   constructor(private readonly db: PrismaClient) {}
@@ -30,6 +32,18 @@ export class AgentConversationStore {
       }
       throw new AppError("请刷新对话，查看正在处理的这一轮。", 409);
     }
+  }
+
+  /** Persist before dispatch. A replay returns the original receipt without a second model call. */
+  async startReply(input: Start, answer: () => Promise<void>, failureMessage: (error: unknown) => string) {
+    const { turn, created } = await this.start(input);
+    if (created) {
+      agentReplyLive.begin(turn.id);
+      void answer().catch(error => this.stop(input.scopeKey, turn.id, "failed", failureMessage(error)))
+        .catch(error => console.error("[agent-conversation] failed to close turn", turn.id, error))
+        .finally(() => agentReplyLive.end(turn.id));
+    }
+    return { turnId: turn.id };
   }
 
   /** Publish the message and its domain result in the same transaction. */

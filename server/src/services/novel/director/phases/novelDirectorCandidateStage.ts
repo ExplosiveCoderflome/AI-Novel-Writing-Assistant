@@ -520,6 +520,7 @@ export class NovelDirectorCandidateStageService {
     const enrichedCandidate = await enhanceCandidateTitles({
       ...normalizeCandidate(parsed.output, 0),
       id: targetCandidate.id,
+      reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,
       productionFoundation: targetCandidate.productionFoundation,
     }, {
       idea: input.idea,
@@ -616,6 +617,7 @@ export class NovelDirectorCandidateStageService {
     const titleOptions = mergeTitleOptions(response.titles, targetCandidate);
     const nextCandidate: DirectorCandidate = {
       ...targetCandidate,
+      reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,
       workingTitle: titleOptions[0]?.title?.trim() || targetCandidate.workingTitle,
       titleOptions,
     };

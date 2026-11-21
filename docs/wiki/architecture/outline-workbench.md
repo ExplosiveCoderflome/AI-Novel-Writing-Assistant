@@ -130,6 +130,8 @@ AI 生成和文本导入也不能直接覆盖用户正在编辑的大纲。用�
 
 ## 相关模块
 
+正式开书复用相同对话轮次的接入示例见[开书候选的讨论、采纳与建书](../workflows/opening-candidate-conversation.md)。
+
 - `server/src/modules/planning/outline/`：独立大纲领域、应用服务、持久化和 HTTP 门面。
 - `shared/types/outline.ts`：跨端文档合同与引用校验。
 - `server/src/prompting/prompts/outline/`：初始生成、修改提案和导入解析 Prompt。

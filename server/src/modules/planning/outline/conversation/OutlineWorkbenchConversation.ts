@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import type { OutlineConversationResult, OutlineConversationTurn } from "@ai-novel/shared/types/agentConversation/outline";
 import type { AgentTurnInput } from "@ai-novel/shared/types/agentConversation/turn";
-import { AgentConversationStore, agentReplyLive } from "../../../agentConversation";
+import { AgentConversationStore, agentReplyLive, recentAgentDiscussion } from "../../../agentConversation";
 import { AppError } from "../../../../middleware/errorHandler";
 import { outlineWorkbenchDialogue } from "../../../../prompting/prompts/outline/workbenchDialogue.prompt";
 import { outlineInitialGeneratePrompt } from "../../../../prompting/prompts/outline/outline.prompts";
@@ -69,14 +69,11 @@ export class OutlineWorkbenchConversation {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
     const scopeKey = scopeFor(projectId, input.chapterId);
-    const { turn, created } = await this.store.start({ ...input, scopeKey, contextVersion: String(input.baseVersion) });
-    if (!created) return { turnId: turn.id };
-    agentReplyLive.begin(turn.id);
-    void this.generate(projectId, input).catch(async error => {
+    return this.store.startReply({ ...input, scopeKey, contextVersion: String(input.baseVersion) },
+      () => this.generate(projectId, input), error => {
       const mapped = mapOutlineGenerateFailure(error, "edit");
-      await this.store.stop(scopeKey, turn.id, "failed", mapped instanceof AppError ? mapped.message : "本轮未能生成回复，可以重新发送这条要求。");
-    }).catch(error => console.error("[outline-conversation] failed to record turn", turn.id, error)).finally(() => agentReplyLive.end(turn.id));
-    return { turnId: turn.id };
+      return mapped instanceof AppError ? mapped.message : "本轮未能生成回复，可以重新发送这条要求。";
+    });
   }
 
   private async generate(projectId: string, input: Input) {
@@ -89,16 +86,7 @@ export class OutlineWorkbenchConversation {
     if (input.parentResultId && !prior) throw conflict();
     const scopeKey = scopeFor(projectId, input.chapterId);
     const rows = await this.store.history(scopeKey);
-    const history: { author: string; assistant: string | null }[] = [];
-    let remaining = 12000;
-    for (const row of rows.reverse()) {
-      if (row.status !== "completed") continue;
-      const author = row.requestText.slice(0, remaining);
-      const assistant = row.replyText?.slice(0, remaining - author.length) ?? null;
-      history.unshift({ author, assistant });
-      remaining -= author.length + (assistant?.length ?? 0);
-      if (!remaining) break;
-    }
+    const history = recentAgentDiscussion(rows);
     const priorProposal = prior && { kind: prior.kind, status: prior.status, baseVersion: prior.baseVersion, requestText: prior.requestText, payload: JSON.parse(prior.proposalJson) };
     const chapterId = input.chapterId;
     if (chapterId && priorProposal && priorProposal.payload.chapterId !== chapterId) throw conflict();

@@ -2269,6 +2269,7 @@ model OutlineRevision {
 }
 
 model AgentConversationTurn {
+  openingCandidateProposal OpeningCandidateProposal?
   id             String   @id
   scopeKey       String
   activeSlot     String?
@@ -2282,6 +2283,14 @@ model AgentConversationTurn {
   @@unique([scopeKey, resultId])
   @@unique([scopeKey, activeSlot])
   @@index([scopeKey, createdAt])
+}
+
+model OpeningCandidateProposal {
+  id                String @id
+  turn              AgentConversationTurn @relation(fields: [id], references: [id], onDelete: Cascade)
+  status            String
+  changesJson       String
+  appliedFieldsJson String?
 }
 
 model OutlineProposal {

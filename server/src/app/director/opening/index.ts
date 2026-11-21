@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { candidateConversationRouter } from "../../../modules/novel/setup/candidateReview";
 import { prisma } from "../../../db/prisma";
 import { scheduleOpeningCommand } from "./execution";
 import { prepareOpeningRetry } from "./recovery";
@@ -13,6 +14,7 @@ export function createOriginalOpeningEntry(deps: {
   readVersion?: typeof readOpeningVersion;
 } = {readTask: id => prisma.novelWorkflowTask.findUnique({where:{id},select:{novelId:true}}), schedule: scheduleOpeningCommand}) {
   const router = Router();
+  router.use(candidateConversationRouter());
   router.post("/tasks/:taskId/opening-retry", async (req,res,next) => {
     try {
       const command = await prepareOpeningRetry(String(req.params.taskId));

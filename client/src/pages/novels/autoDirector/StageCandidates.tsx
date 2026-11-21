@@ -1,3 +1,4 @@
+import { useIsMutating } from "@tanstack/react-query";
 import NovelAutoDirectorCandidateBatches from "../components/NovelAutoDirectorCandidateBatches";
 import NovelAutoDirectorProgressPanel from "../components/NovelAutoDirectorProgressPanel";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export default function StageCandidates({
   onRegenerateSettings,
 }: StageCandidatesProps) {
   const directorTask = controller.directorTask;
+  const applying = useIsMutating({ mutationKey: ["apply-opening-candidate", controller.workflowTaskId] }) > 0;
   if (
     directorTask
     && isProductionExperienceChoicePending(directorTask)
@@ -80,26 +82,18 @@ export default function StageCandidates({
         feedback={controller.feedback}
         onFeedbackChange={controller.setFeedback}
         onTogglePreset={controller.togglePreset}
-        candidatePatchFeedbacks={controller.candidatePatchFeedbacks}
-        onCandidatePatchFeedbackChange={(candidateId, value) => controller.setCandidatePatchFeedbacks((prev) => ({
-          ...prev,
-          [candidateId]: value,
-        }))}
+        workflowTaskId={controller.workflowTaskId}
+        onReviewedCandidate={controller.onReviewedCandidate}
         titlePatchFeedbacks={controller.titlePatchFeedbacks}
         onTitlePatchFeedbackChange={(candidateId, value) => controller.setTitlePatchFeedbacks((prev) => ({
           ...prev,
           [candidateId]: value,
         }))}
         isGenerating={controller.generateMutation.isPending}
-        isPatchingCandidate={controller.patchCandidateMutation.isPending}
         isRefiningTitle={controller.refineTitleMutation.isPending}
         isConfirming={controller.confirmMutation.isPending}
+        isApplying={applying}
         onApplyCandidateTitleOption={controller.applyCandidateTitleOption}
-        onPatchCandidate={(batchId, candidate, nextFeedback) => controller.patchCandidateMutation.mutate({
-          batchId,
-          candidate,
-          feedback: nextFeedback,
-        })}
         onRefineTitle={(batchId, candidate, nextFeedback) => controller.refineTitleMutation.mutate({
           batchId,
           candidate,

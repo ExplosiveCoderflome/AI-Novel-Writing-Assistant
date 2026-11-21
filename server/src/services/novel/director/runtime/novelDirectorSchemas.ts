@@ -135,6 +135,7 @@ export const directorCandidateSchema = z.object({
 
 export const directorPersistedCandidateSchema = directorCandidateSchema.extend({
   id: nonEmptyString,
+  reviewRevision: z.number().int().nonnegative().optional(),
 });
 
 export const directorCandidateResponseSchema = z.object({

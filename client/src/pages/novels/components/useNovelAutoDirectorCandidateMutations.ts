@@ -9,7 +9,6 @@ import {
 import {
   generateDirectorCandidates,
   getDirectorCommandResult,
-  patchDirectorCandidate,
   refineDirectorCandidateTitles,
   refineDirectorCandidates,
 } from "@/api/novelDirector";
@@ -32,7 +31,6 @@ interface UseNovelAutoDirectorCandidateMutationsInput {
   setBatches: Dispatch<SetStateAction<DirectorCandidateBatch[]>>;
   setFeedback: Dispatch<SetStateAction<string>>;
   setSelectedPresets: Dispatch<SetStateAction<DirectorCorrectionPreset[]>>;
-  setCandidatePatchFeedbacks: Dispatch<SetStateAction<Record<string, string>>>;
   setTitlePatchFeedbacks: Dispatch<SetStateAction<Record<string, string>>>;
   setDialogMode: Dispatch<SetStateAction<DirectorExecutionViewMode>>;
   setCandidateDialogOpen: Dispatch<SetStateAction<boolean>>;
@@ -71,7 +69,6 @@ export function useNovelAutoDirectorCandidateMutations({
   setBatches,
   setFeedback,
   setSelectedPresets,
-  setCandidatePatchFeedbacks,
   setTitlePatchFeedbacks,
   setDialogMode,
   setCandidateDialogOpen,
@@ -137,47 +134,6 @@ export function useNovelAutoDirectorCandidateMutations({
     },
   });
 
-  const patchCandidateMutation = useMutation({
-    onMutate: onCandidateCommandStart,
-    mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
-      const currentWorkflowTaskId = await ensureWorkflowTask();
-      const response = await patchDirectorCandidate({
-        ...buildRequestPayload(currentWorkflowTaskId),
-        previousBatches: batches,
-        batchId: payload.batchId,
-        candidateId: payload.candidate.id,
-        feedback: payload.feedback.trim(),
-      });
-      const command = response.data;
-      if (!command?.commandId) {
-        throw new Error("Director candidate patch command was not accepted.");
-      }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
-        command.commandId,
-      );
-      return {
-        batch: result.batch ?? null,
-        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
-        candidateId: payload.candidate.id,
-      };
-    },
-    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
-      if (!batch) {
-        toast.error("定向修正失败，未返回更新后的方案。");
-        return;
-      }
-      applyUpdatedBatch(batch, nextWorkflowTaskId);
-      setCandidatePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
-      setDialogMode("candidate_selection");
-      setCandidateDialogOpen(true);
-      toast.success("已按你的意见修正这套方案。");
-    },
-    onError: (error) => {
-      setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "定向修正方案失败。");
-    },
-  });
-
   const refineTitleMutation = useMutation({
     onMutate: onCandidateCommandStart,
     mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
@@ -221,7 +177,6 @@ export function useNovelAutoDirectorCandidateMutations({
 
   return {
     generateMutation,
-    patchCandidateMutation,
     refineTitleMutation,
   };
 }

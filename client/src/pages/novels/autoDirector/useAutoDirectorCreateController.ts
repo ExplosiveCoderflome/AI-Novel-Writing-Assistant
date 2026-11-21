@@ -153,7 +153,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   );
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [ideaConstellationOptions, setIdeaConstellationOptions] = useState<DirectorIdeaConstellationOption[]>([]);
-  const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
   const issuePolicyQuery = useQuery({
@@ -200,7 +199,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     const restoredVersion = restoredTask.meta?.directorVersion;
     if (restoredVersion === "v1" || restoredVersion === "v2") setDirectorVersion(restoredVersion);
     if (Array.isArray(seedPayload?.batches) && seedPayload.batches.length > 0) {
-      setBatches(seedPayload.batches);
+      const restoredBatches = seedPayload.batches;
+      setBatches(previous => restoredTask.id === workflowTaskId
+        ? mergeDirectorCandidateBatches(previous, restoredBatches) : restoredBatches);
     }
     if (typeof seedPayload?.runMode === "string" && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)) {
       setRunMode(seedPayload.runMode);
@@ -335,7 +336,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     },
   });
 
-  const latestBatch = batches.at(-1) ?? null;
   const requestIdea = idea.trim() || resolveIdeaFromCandidateBatches(batches);
   const directorTask = useMemo(() => {
     const loadedTask = directorTaskQuery.data?.data ?? null;
@@ -465,7 +465,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
 
   const {
     generateMutation,
-    patchCandidateMutation,
     refineTitleMutation,
   } = useNovelAutoDirectorCandidateMutations({
     batches,
@@ -480,7 +479,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setBatches,
     setFeedback,
     setSelectedPresets,
-    setCandidatePatchFeedbacks,
     setTitlePatchFeedbacks,
     setDialogMode,
     setCandidateDialogOpen,
@@ -489,7 +487,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   });
 
   const confirmMutation = useMutation({
-    mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
+    mutationFn: async (payload: { candidate: DirectorCandidate; batch: DirectorCandidateBatch; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
       if (!requestIdea) {
         throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
@@ -502,8 +500,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
           worldSetupMode,
           marketBriefId,
         }),
-        batchId: latestBatch?.id,
-        round: latestBatch?.round,
+        batchId: payload.batch.id,
+        round: payload.batch.round,
         candidate: payload.candidate,
         autoExecutionPlan,
         autoApproval: {
@@ -669,7 +667,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         setBatches([]);
         setFeedback("");
         setSelectedPresets([]);
-        setCandidatePatchFeedbacks({});
         setTitlePatchFeedbacks({});
         setCandidateDialogOpen(false);
         setDialogMode("candidate_selection");
@@ -686,7 +683,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     }
   };
 
-  const handleConfirmCandidate = async (candidate: DirectorCandidate) => {
+  const handleConfirmCandidate = async (candidate: DirectorCandidate, batch: DirectorCandidateBatch) => {
     if (confirmSubmitLockedRef.current || confirmMutation.isPending) {
       return;
     }
@@ -704,7 +701,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         });
       }
       confirmMutation.mutate({
-        candidate,
+        candidate, batch,
         workflowTaskId: currentWorkflowTaskId,
       });
     } catch (error) {
@@ -759,8 +756,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setFeedback,
     selectedPresets,
     togglePreset,
-    candidatePatchFeedbacks,
-    setCandidatePatchFeedbacks,
     titlePatchFeedbacks,
     setTitlePatchFeedbacks,
     isUpdatingFoundation,
@@ -773,12 +768,17 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     retryDirectorVersions: () => void versionsQuery.refetch(),
     directorVersionsError: versionsQuery.isError,
     generateMutation,
-    patchCandidateMutation,
     refineTitleMutation,
     confirmMutation,
     continueMutation,
     onBasicFormChange,
     applyCandidateTitleOption,
+    onReviewedCandidate: (batchId: string, candidate: DirectorCandidate) => {
+      setBatches(previous => previous.map(batch => batch.id !== batchId ? batch : {
+        ...batch, candidates: batch.candidates.map(current => current.id !== candidate.id ? current :
+          { ...candidate, workingTitle: current.workingTitle, titleOptions: current.titleOptions }),
+      }));
+    },
     handleConfirmCandidate,
   };
 }

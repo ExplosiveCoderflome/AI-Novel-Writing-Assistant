@@ -1,3 +1,4 @@
+import { CandidateDiscussion } from "../autoDirector/candidateReview/CandidateDiscussion";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, RefreshCw, Wand2 } from "lucide-react";
@@ -18,18 +19,17 @@ interface NovelAutoDirectorCandidateBatchesProps {
   feedback: string;
   onFeedbackChange: (value: string) => void;
   onTogglePreset: (preset: DirectorCorrectionPreset) => void;
-  candidatePatchFeedbacks: Record<string, string>;
-  onCandidatePatchFeedbackChange: (candidateId: string, value: string) => void;
+  workflowTaskId: string;
+  onReviewedCandidate: (batchId: string, candidate: DirectorCandidate) => void;
   titlePatchFeedbacks: Record<string, string>;
   onTitlePatchFeedbackChange: (candidateId: string, value: string) => void;
   isGenerating: boolean;
-  isPatchingCandidate: boolean;
   isRefiningTitle: boolean;
   isConfirming: boolean;
+  isApplying: boolean;
   onApplyCandidateTitleOption: (batchId: string, candidateId: string, option: TitleFactorySuggestion) => void;
-  onPatchCandidate: (batchId: string, candidate: DirectorCandidate, feedback: string) => void;
   onRefineTitle: (batchId: string, candidate: DirectorCandidate, feedback: string) => void;
-  onConfirmCandidate: (candidate: DirectorCandidate) => void | Promise<void>;
+  onConfirmCandidate: (candidate: DirectorCandidate, batch: DirectorCandidateBatch) => void | Promise<void>;
   onGenerateNext: () => void;
 }
 
@@ -86,16 +86,15 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
     feedback,
     onFeedbackChange,
     onTogglePreset,
-    candidatePatchFeedbacks,
-    onCandidatePatchFeedbackChange,
+    workflowTaskId,
+    onReviewedCandidate,
     titlePatchFeedbacks,
     onTitlePatchFeedbackChange,
     isGenerating,
-    isPatchingCandidate,
     isRefiningTitle,
     isConfirming,
+    isApplying,
     onApplyCandidateTitleOption,
-    onPatchCandidate,
     onRefineTitle,
     onConfirmCandidate,
     onGenerateNext,
@@ -222,8 +221,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       <Button
                         type="button"
                         className={cn("h-11 justify-between", AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction)}
-                        onClick={() => void onConfirmCandidate(candidate)}
-                        disabled={isConfirming}
+                        onClick={() => void onConfirmCandidate(candidate, batch)}
+                        disabled={isConfirming || isApplying}
                       >
                         {isConfirming ? "创建中..." : "选用这套"}
                         <ArrowRight className="h-4 w-4" />
@@ -251,6 +250,9 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                     </aside>
                   </div>
 
+                  {workflowTaskId && <CandidateDiscussion taskId={workflowTaskId} batchId={batch.id} candidate={candidate}
+                    disabled={isGenerating || isRefiningTitle || isConfirming || isApplying} onApplied={onReviewedCandidate} />}
+
                   <details className="group mt-6">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
                       展开完整设定
@@ -268,7 +270,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
                   <details className="group mt-4">
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
-                      调整书名与方向
+                      调整书名
                       <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
                     </summary>
                     <div className="mt-4 space-y-5">
@@ -307,7 +309,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         </div>
                       </div>
 
-                      <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="max-w-xl">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                             <RefreshCw className="h-4 w-4 text-muted-foreground" />
@@ -325,7 +327,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                               variant="secondary"
                               size="sm"
                               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-                              disabled={isRefiningTitle || !titlePatchFeedbacks[candidate.id]?.trim()}
+                              disabled={isApplying || isRefiningTitle || !titlePatchFeedbacks[candidate.id]?.trim()}
                               onClick={() => onRefineTitle(batch.id, candidate, titlePatchFeedbacks[candidate.id] ?? "")}
                             >
                               <Wand2 className="h-4 w-4" />
@@ -334,31 +336,6 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                           </div>
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                            <Wand2 className="h-4 w-4 text-muted-foreground" />
-                            调整方向
-                          </div>
-                          <Input
-                            className="mt-2 bg-background"
-                            value={candidatePatchFeedbacks[candidate.id] ?? ""}
-                            onChange={(event) => onCandidatePatchFeedbackChange(candidate.id, event.target.value)}
-                            placeholder="例如：保留这套，但主角更主动一点。"
-                          />
-                          <div className="mt-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-                              disabled={isPatchingCandidate || !candidatePatchFeedbacks[candidate.id]?.trim()}
-                              onClick={() => onPatchCandidate(batch.id, candidate, candidatePatchFeedbacks[candidate.id] ?? "")}
-                            >
-                              <Wand2 className="h-4 w-4" />
-                              {isPatchingCandidate ? "修正中..." : "AI 调整方向"}
-                            </Button>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </details>
@@ -412,7 +389,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             type="button"
             className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
             onClick={onGenerateNext}
-            disabled={isGenerating}
+            disabled={isApplying || isGenerating}
           >
             <RefreshCw className="h-4 w-4" />
             {isGenerating ? "生成中..." : "带修正建议继续生成"}

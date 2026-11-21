@@ -148,6 +148,9 @@ function resolveConfirmRequestFromTaskSeed(
   if (batches.length > 0 && !authoritativeCandidate) {
     throw new AppError("所选书级方向与任务记录不一致，请刷新候选方案后重新确认。", 409);
   }
+  if (authoritativeCandidate && (input.candidate.reviewRevision ?? 0) !== (authoritativeCandidate.reviewRevision ?? 0)) {
+    throw new AppError("所选方向有更新，请刷新后确认想采用的内容。", 409);
+  }
 
   const candidate = authoritativeCandidate
     ? {
@@ -230,6 +233,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_candidates",
+      expectedOpeningSeed: task.seedPayloadJson,
       payload: {
         refinementRequest: {
           ...input,
@@ -250,6 +254,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "patch_candidate",
+      expectedOpeningSeed: task.seedPayloadJson,
       payload: {
         candidatePatchRequest: {
           ...input,
@@ -269,6 +274,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_titles",
+      expectedOpeningSeed: task.seedPayloadJson,
       payload: {
         titleRefineRequest: {
           ...input,
@@ -637,8 +643,9 @@ export class DirectorCommandService {
         itemLabel: "AI 正在生成书级方向候选",
         progress: 0.1,
       },
-    });
-    return prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
+    }, { prepareOpeningCommand: true });
+    await prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
+    return task;
   }
 
   async getCommandById(commandId: string) {
@@ -723,6 +730,7 @@ export class DirectorCommandService {
 
   private async enqueueExecutionCommand(input: {
     taskId: string;
+    expectedOpeningSeed?: string | null;
     commandType: DirectorRunCommandType;
     payload: DirectorCommandPayload;
     allowTerminalReuse?: boolean;
@@ -895,6 +903,10 @@ export class DirectorCommandService {
             cancelRequestedAt: null,
           },
         };
+        // Adoption can finish after the opening inputs were prepared and before command acceptance.
+        if (input.expectedOpeningSeed !== undefined) {
+          taskUpdate.where = { ...taskUpdate.where, seedPayloadJson: input.expectedOpeningSeed };
+        }
         const acceptedTask = input.clearPendingManualRecovery
           ? await this.stateWriter.clearPendingManualRecovery({
             userCommandId: command.id,
@@ -903,6 +915,7 @@ export class DirectorCommandService {
           }, { transaction: tx })
           : await this.stateWriter.updateRunState(taskUpdate, { transaction: tx, many: true });
         if (acceptedTask.count === 0) {
+          if (input.expectedOpeningSeed !== undefined) throw new AppError("开书方向或任务状态有更新，请刷新后再继续。", 409);
           if (!input.clearPendingManualRecovery) {
             const currentTask = await tx.novelWorkflowTask.findUnique({
               where: { id: input.taskId },

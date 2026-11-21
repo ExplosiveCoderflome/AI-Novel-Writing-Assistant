@@ -1,4 +1,5 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "novel.director.candidate_dialogue": "开书方向讨论与修改",
   "outline.volume_beats": "按卷安排节奏段与章节归属",
   "outline.chapter_review": "选中章节的章纲修改建议",
   "outline.workbench_dialogue": "整份大纲的连续创作对话",
