@@ -394,6 +394,7 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
     if (url.endsWith("/revisions")) return [3,4,5].slice(0,version-2).map(v => ({version:v,id:"r"+v}));
     if (url.endsWith("/revisions/r3")) return {version:3,document:original};
     if (url.endsWith("/revisions/r4")) return {version:4,document:doc};
+    if (url.endsWith("/diff")) return [];
     if (url.endsWith("/proposals")) return [{id:"old",baseVersion:3,characterId:"person",requestText:"丰富李斯的动机",kind:"character_impact"}];
     if (url.endsWith("/proposals/old")) return proposal("old",3,fields);
     if (url.endsWith("/proposals/new")) return proposal("new",4,next);
@@ -408,8 +409,28 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
       return {revision:{version},document:structuredClone(doc)};
     }
   });
+  const directory = await until(() => document.querySelector(".outline-directory"));
+  const grid = document.querySelector(".outline-workspace-grid");
+  await click(button("AI 讨论"));
+  const divider = grid.querySelector('[data-column-divider="right"]');
+  const expectInspectorOpen = () => {
+    assert.equal(grid.dataset.inspectorOpen, "true");
+    assert.equal(grid.querySelector('[data-column-divider="right"]'), divider);
+  };
+  const personInput = () => document.querySelector('[aria-label="人物联动审阅"] textarea');
+  await change(personInput(), "李斯为什么迟疑？");
+  await click(button("总纲", directory));
+  expectInspectorOpen();
+  await click(button("李斯", directory));
+  assert.equal(personInput().value, "李斯为什么迟疑？");
+  await click(button("版本历史"));
+  assert.equal(button("修订历史").getAttribute("aria-pressed"), "true");
+  await click(button("AI 讨论"));
+  assert.equal(button("AI 协作").getAttribute("aria-pressed"), "true");
+  expectInspectorOpen();
   await click(await until(() => document.querySelector(".outline-pending button")));
   const before = await until(() => document.querySelector(".outline-comparison dd"));
+  expectInspectorOpen();
   assert.equal(before.textContent, "以秦法约束赵高");
   assert.equal(document.querySelector(".outline-base-text p").textContent, "v3 的原文");
   assert.equal(document.querySelectorAll(".outline-comparison dd")[1].textContent, "保住家人");
@@ -427,6 +448,11 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
   assert.deepEqual(writes[1].body.operationIds, ["person"]);
   assert.match(document.querySelector(".outline-reading").textContent,/以法度护住家人/);
   assert.match(document.querySelector(".outline-activity").textContent,/已采纳为 v5/);
+  expectInspectorOpen();
+  await click(document.querySelector('[aria-label="收起侧栏"]'));
+  await click(button("出海", directory));
+  assert.equal(grid.dataset.inspectorOpen, "false");
+  assert.equal(grid.querySelector('[data-column-divider="right"]'), null);
 });
 
 test("选卷添加章节后统一保存，修订同时保留章节归属和卷内顺序", async t => {

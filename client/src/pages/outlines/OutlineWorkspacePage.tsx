@@ -47,6 +47,7 @@ function OutlineWorkspace({ id }: { id: string }) {
     try { window.localStorage.setItem(bookmarkKey, person); } catch { /* Server history is still available by selecting the person. */ }
   }
   const [pane, setPane] = useState<Pane>(feedbackLink ? "assistant" : "editor");
+  const [inspectorOpen, setInspectorOpen] = useState(feedbackLink);
   const [inspector, setInspector] = useState<Inspector>(feedbackLink ? "feedback" : "suggestions");
   const [freshDiscussion, setFreshDiscussion] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -102,6 +103,21 @@ function OutlineWorkspace({ id }: { id: string }) {
   });
   const writing = save.isPending || nestedDecisions > 0;
   const blockRevision = !!draft || writing;
+  function showInspector(tool: Inspector) {
+    setInspector(tool);
+    setInspectorOpen(true);
+    setPane("assistant");
+  }
+  function closeInspector() {
+    setInspectorOpen(false);
+    setPane("editor");
+  }
+  function toggleInspector(tool: Inspector) {
+    // In the single-pane layout the author can be reading while the side-by-side preference stays open.
+    const panel = inspectorRef.current;
+    if (inspectorOpen && activeInspector === tool && panel && window.getComputedStyle(panel).display !== "none") closeInspector();
+    else showInspector(tool);
+  }
   function navigateContent(node: string | null, proposal?: string, returnToReview?: string) {
     setParams(previous => {
       const next = new URLSearchParams(previous);
@@ -111,7 +127,9 @@ function OutlineWorkspace({ id }: { id: string }) {
       if (node) next.delete("start");
       return next;
     }, { replace: true });
-    setNodeId(node); setPane("editor"); setWholeForCharacter(null);
+    setNodeId(node);
+    setPane("editor");
+    if (node !== nodeId) setWholeForCharacter(null);
   }
   function selectNode(node: string) { setEditing(!!draft); navigateContent(node); }
   function openReview(proposalId: string, characterId?: string) {
@@ -119,16 +137,16 @@ function OutlineWorkspace({ id }: { id: string }) {
   }
   const turn = useOutlineReviewTurn(id, (proposalId, characterId) => {
     if (proposalId) openReview(proposalId, characterId);
-    else { if (characterId) setNodeId(characterId); setWholeForCharacter(!characterId && selectedCharacter ? selectedCharacter.nodeId : null); setInspector("suggestions"); setPane("assistant"); }
+    else { if (characterId) setNodeId(characterId); setWholeForCharacter(!characterId && selectedCharacter ? selectedCharacter.nodeId : null); showInspector("suggestions"); }
   });
   function discuss() {
     setFreshDiscussion(selectedCharacter?.nodeId ?? null);
-    setInspector("suggestions"); setPane("assistant"); setWholeForCharacter(null);
+    showInspector("suggestions"); setWholeForCharacter(null);
     rememberDiscussion(selectedCharacter?.nodeId ?? "story");
     requestAnimationFrame(() => inspectorRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus());
   }
   useEffect(() => { if (requestedNode) setNodeId(requestedNode); }, [requestedNode]);
-  useEffect(() => { if (feedbackLink) { setPane("assistant"); setInspector("feedback"); } }, [feedbackLink]);
+  useEffect(() => { if (feedbackLink) showInspector("feedback"); }, [feedbackLink]);
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -180,8 +198,8 @@ function OutlineWorkspace({ id }: { id: string }) {
         <h1 className="truncate text-2xl font-semibold tracking-tight" title={query.data?.title}>{query.data?.title}</h1>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant={pane === "assistant" ? "secondary" : "ghost"} size="sm" onClick={() => { setInspector("suggestions"); setPane(pane === "assistant" ? "editor" : "assistant"); }}><Sparkles />AI 讨论</Button>
-        <Button variant="ghost" size="sm" onClick={() => { setInspector("history"); setPane(pane === "assistant" && inspector === "history" ? "editor" : "assistant"); }}><History />版本历史</Button>
+        <Button variant={inspectorOpen && activeInspector === "suggestions" ? "secondary" : "ghost"} size="sm" onClick={() => toggleInspector("suggestions")}><Sparkles />AI 讨论</Button>
+        <Button variant={inspectorOpen && activeInspector === "history" ? "secondary" : "ghost"} size="sm" onClick={() => toggleInspector("history")}><History />版本历史</Button>
         <select aria-label="导出已保存的大纲" className="outline-export" value="" disabled={download.isPending || blockRevision}
           onChange={event => download.mutate(event.target.value as "markdown" | "json")}>
           <option value="" disabled>导出大纲</option><option value="markdown">Markdown 文稿</option><option value="json">JSON 数据</option>
@@ -199,20 +217,20 @@ function OutlineWorkspace({ id }: { id: string }) {
     <div className="outline-pane-switch" role="group" aria-label="工作区视图">
       <button type="button" data-target="directory" aria-pressed={pane === "directory"} onClick={() => setPane("directory")}><ListTree />目录</button>
       <button type="button" aria-pressed={pane === "editor"} onClick={() => setPane("editor")}><FilePenLine />大纲内容</button>
-      <button type="button" aria-pressed={pane === "assistant"} onClick={() => setPane("assistant")}><Sparkles />协作与历史</button>
+      <button type="button" aria-pressed={pane === "assistant"} onClick={() => showInspector(activeInspector)}><Sparkles />协作与历史</button>
     </div>
-    <WorkspaceColumns layoutId="outline" className="outline-workspace-grid" data-pane={pane} gap={0} minCenter={300}
+    <WorkspaceColumns layoutId="outline" className="outline-workspace-grid" data-pane={pane} data-inspector-open={inspectorOpen} gap={0} minCenter={300}
       left={{ label: "调整大纲目录宽度", initial: "var(--outline-directory-width)", min: 144 }}
-      right={pane === "assistant" ? { label: "调整协作与历史宽度", initial: "var(--outline-inspector-width)", min: 260 } : undefined}>
+      right={inspectorOpen ? { label: "调整协作与历史宽度", initial: "var(--outline-inspector-width)", min: 260 } : undefined}>
       <OutlineDirectory document={document} selectedId={selected?.nodeId ?? ""} onSelect={selectNode} disabled={writing || hasConflict}
         onAdd={(next, newId) => {
           setDraft({ baseVersion: draft?.baseVersion ?? version, document: next });
           navigateContent(newId); setEditing(true);
         }} />
       <section aria-label="大纲内容编辑" className="outline-editor">
-        {turn.busy && <div className="outline-activity" role="status"><Sparkles size={16} /> 正在整理建议，完成后可在这里预览。<button onClick={() => { setInspector("suggestions"); setPane("assistant"); }}>查看讨论</button></div>}
+        {turn.busy && <div className="outline-activity" role="status"><Sparkles size={16} /> 正在整理建议，完成后可在这里预览。<button onClick={() => showInspector("suggestions")}>查看讨论</button></div>}
         {turn.error && <p className="outline-activity" role="alert">{turn.error}<button onClick={turn.clearError}>关闭提示</button></p>}
-        {receipt && <div className="outline-activity" role="status"><Check size={16} /> 已采纳为 v{receipt} <button onClick={() => { setInspector("history"); setPane("assistant"); }}>查看版本历史</button></div>}
+        {receipt && <div className="outline-activity" role="status"><Check size={16} /> 已采纳为 v{receipt} <button onClick={() => showInspector("history")}>查看版本历史</button></div>}
         {reviewId ? <div key={reviewId} className="outline-reading-scroll"><OutlineReviewReading projectId={id} proposalId={reviewId} document={query.data!.document!} version={version}
           locked={blockRevision} busy={turn.busy} onReturn={() => navigateContent(nodeId)} onSelect={node => navigateContent(node, undefined, reviewId)}
           onRequest={(requestText, priorId, characterId) => turn.send({requestText, priorId, characterId, baseVersion:version})}
@@ -254,7 +272,7 @@ function OutlineWorkspace({ id }: { id: string }) {
           <button aria-pressed={activeInspector === "suggestions"} onClick={() => setInspector("suggestions")}><Sparkles />AI 协作</button>
           <button aria-pressed={activeInspector === "history"} onClick={() => setInspector("history")}><History />修订历史</button>
           {showFeedback && <button aria-pressed={activeInspector === "feedback"} onClick={() => setInspector("feedback")}><MessageSquareText />章节反馈</button>}
-          <button className="outline-close-inspector" aria-label="收起侧栏" onClick={() => setPane("editor")}>收起</button>
+          <button className="outline-close-inspector" aria-label="收起侧栏" onClick={closeInspector}>收起</button>
         </div>
         <div className="outline-inspector-body" data-conversation={activeInspector === "suggestions"}>
           {draft && <p role="status" className="mb-4 text-sm text-muted-foreground">先保存手动修改，再生成建议或采用其他版本。</p>}
