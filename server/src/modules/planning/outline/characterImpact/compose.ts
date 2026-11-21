@@ -13,6 +13,17 @@ type NodeType = keyof typeof fields;
 type Change = OutlineEditOperation & {nodeType: NodeType; nodeId: string; fields: Record<string, string>; reason: string; risks: string[]; affectedNodeIds: string[]};
 const invalid = (message: string) => new AppError(message, 400);
 
+// A reviewer receives earlier validated edits as context. Keep their original
+// attribution, and validate any new value, dependency or risk in the current role.
+export function reviewHandoff(review: ImpactReview, prior: Partial<Record<ImpactRole, ImpactReview>>): ImpactReview {
+  const earlier = Object.values(prior).flatMap(previous => previous.changes);
+  const changes = review.changes.filter(item => !earlier.some(previous =>
+    previous.nodeId === item.nodeId && previous.field === item.field && previous.value === item.value
+    && item.dependsOnNodeIds.every(id => previous.dependsOnNodeIds.includes(id))
+    && item.risks.every(risk => previous.risks.includes(risk))));
+  return { changes, retained: review.retained };
+}
+
 export function composeImpact(snapshot: ImpactSnapshot, reviews: Partial<Record<ImpactRole, ImpactReview>>, origin: ImpactSummary["origin"]) {
   const doc = snapshot.document;
   const targets = new Map<string, {type: NodeType; values: Record<string, unknown>}>();
@@ -37,7 +48,8 @@ export function composeImpact(snapshot: ImpactSnapshot, reviews: Partial<Record<
       const allowed = role === "character" ? item.nodeId === snapshot.characterId
         : role === "plot" ? target.type === "volume" || target.type === "chapter"
         : target.type === "payoff" || (target.type === "chapter" && item.field === "endingHook");
-      if (!allowed || written.has(item.nodeId)) throw invalid("这项建议超出了审阅范围，或涉及已有正文的章节。");
+      if (!allowed) throw invalid(`${impactRoleLabels[role]}审阅提出了职责范围以外的修改。`);
+      if (written.has(item.nodeId)) throw invalid("这项建议涉及已有正文的章节，只能作为保留说明。");
       if (item.value === (target.values[item.field] ?? "")) continue;
       let op = operations.get(item.nodeId);
       if (!op) {

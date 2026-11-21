@@ -324,7 +324,7 @@ test("stored conversation supports explanations, revising a proposal, reopening 
   const {project, request} = await fixture();
   const seen = [];
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset, promptInput: input}) => {
-    assert.equal(asset.version, "v2");
+    assert.equal(asset.version, "v4");
     seen.push(input);
     const review = sample()[input.role];
     if (input.snapshot.baseVersion > 1) {
@@ -453,7 +453,7 @@ test("failed chat reply remains readable and a new request can continue on the s
   assert.equal((await timeline(project)).find(row => row.result?.id === original.id).result.status,"rejected");
 });
 
-test("three reviewers share one revision and produce one author-selectable atomic change", async t => {
+test("审阅交接只传递各自新增的修改，重复的人物与卷章建议在同一份提案中各保留一次", async t => {
   const {project,request} = await fixture();
   const roles = [];
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,promptInput}) => {
@@ -462,11 +462,19 @@ test("three reviewers share one revision and produce one author-selectable atomi
     assert.equal(promptInput.snapshot.baseVersion,1);
     assert.deepEqual(Object.keys(promptInput.prior),roles);
     roles.push(promptInput.role);
-    return {output:asset.outputSchema.parse(sample()[promptInput.role])};
+    const review = sample()[promptInput.role];
+    if (promptInput.role === "plot") review.changes.unshift(...promptInput.prior.character.changes);
+    if (promptInput.role === "payoff") {
+      assert.deepEqual(promptInput.prior.plot.changes, sample().plot.changes);
+      review.changes.unshift(...promptInput.prior.character.changes, ...promptInput.prior.plot.changes);
+    }
+    return {output:asset.outputSchema.parse(review)};
   });
   const proposal = await api(project,"character-impact/generate",request,201);
   assert.deepEqual(roles,["character","plot","payoff"]);
   const payload = JSON.parse(proposal.proposalJson);
+  assert.equal(payload.operations.length, 4);
+  assert.equal(payload.operations.find(op => op.nodeId === "shen").reason, "人物 · 保留人物动机与揭晓顺序");
   assert.equal(payload.operations.filter(op=>op.nodeId==="c12").length,1);
   assert.equal(payload.impact.retained[0].nodeId,"c16");
   assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);
@@ -502,6 +510,7 @@ test("scope, inconsistent reviews and outdated versions are rejected before an a
   const {project,request,d} = await fixture();
   for (const invalid of [
     r => {r.character.changes[0].nodeId="teacher";},
+    r => {r.plot.changes.push(...r.character.changes);},
     r => {r.plot.changes[0].field="nodeId";},
     r => {r.payoff.changes.push(change("c12","endingHook","另一种结尾"));},
     r => {r.payoff.changes[0].dependsOnNodeIds=["missing"];},
@@ -514,6 +523,25 @@ test("scope, inconsistent reviews and outdated versions are rejected before an a
   await outlineProjectService.save(project.id,1,d);
   await api(project,"character-impact/proposals",{...request,reviews:sample()},409);
   await api(project,`proposals/${p.id}/apply`,{operationIds:["shen"]},409);
+});
+
+test("卷章审阅对人物字段另提新值或新增依赖仍判定越界", async t => {
+  const {project, request} = await fixture();
+  let echo;
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({promptInput}) => {
+    const review = sample()[promptInput.role];
+    if (promptInput.role === "plot") review.changes.push({...promptInput.prior.character.changes[0], ...echo});
+    return {output: {...review, replyText: "核对修改。", responseKind: "proposal"}};
+  });
+  for (echo of [{value: "与人物审阅相反的动机"}, {dependsOnNodeIds: ["v2"]}]) {
+    const requestId = require("node:crypto").randomUUID();
+    await api(project, conversation + "/turns", {...request, requestId});
+    const turn = await settled(project, requestId);
+    assert.equal(turn.status, "failed");
+    assert.match(turn.replyText, /卷章审阅.*范围/);
+    assert.equal(turn.result, null);
+  }
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 1);
 });
 
 test("a chapter written after review is protected at acceptance, independent edits remain available", async () => {

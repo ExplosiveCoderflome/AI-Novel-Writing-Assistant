@@ -7,7 +7,7 @@ import { characterDialoguePrompt, characterImpactPrompt } from "../../../../prom
 import { AppError } from "../../../../middleware/errorHandler";
 import { runOutlineProposalStructuredCall } from "../application/outlineProposalStructuredCall";
 import { mapOutlineGenerateFailure } from "../application/OutlineProposalService";
-import { composeImpact } from "./compose";
+import { composeImpact, reviewHandoff } from "./compose";
 import { readWrittenChapterIds } from "./writtenChapters";
 
 const reviewStages: Record<ImpactRole, string> = {character: "正在梳理人物动机…", plot: "正在核对相关卷章…", payoff: "正在综合伏笔与人物修改…"};
@@ -71,15 +71,17 @@ export class CharacterImpactService {
       try {
         const promptInput = {snapshot, requestText: request.requestText, role, prior: {...reviews}, previousProposal,
           ...(dialogue && {conversationHistory: dialogue.conversationHistory})};
+        let stageReview: ImpactReview;
         if (dialogue) {
           const result = await agentReplyLive.during(dialogue.turnId, reviewStages[role], role === "payoff", itemKey =>
             runOutlineProposalStructuredCall({asset: characterDialoguePrompt, promptInput, options: {itemKey}}));
           const {replyText, responseKind, ...review} = impactDialogueReviewSchema.parse(result.output);
-          reviews[role] = review;
+          stageReview = review;
           reply = {replyText, responseKind};
         } else {
-          reviews[role] = (await runOutlineProposalStructuredCall({asset: characterImpactPrompt, promptInput})).output;
+          stageReview = (await runOutlineProposalStructuredCall({asset: characterImpactPrompt, promptInput})).output;
         }
+        reviews[role] = reviewHandoff(stageReview, reviews);
         composeImpact(snapshot, reviews, "workbench");
       } catch (error) { throw mapOutlineGenerateFailure(error, "edit"); }
     }
