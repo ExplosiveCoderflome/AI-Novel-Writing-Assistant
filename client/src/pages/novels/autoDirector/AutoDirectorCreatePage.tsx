@@ -813,7 +813,7 @@ function AutoDirectorCreatePage() {
     && !(isProductionExperienceChoicePending(controller.directorTask) && controller.directorTask?.resumeTarget?.novelId);
 
   const creationContent = (
-    <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
+    <div className={`mx-auto space-y-4 px-3 py-4 sm:px-4 lg:px-0 ${showCandidateWorkspace ? "w-full" : "max-w-6xl"}`}>
       <ReferenceNovelStartDialog open={referenceStartOpen} onOpenChange={setReferenceStartOpen} />
       {showCarryoverPanel ? (
         <AppDialogContent

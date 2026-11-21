@@ -71,6 +71,9 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.notEqual(first, second);
     assert.ok(reader.contains(document.getElementById(second)));
     assert.equal(reader.querySelectorAll("article").length, 3);
+    const comparison = reader.querySelector(".candidate-comparison");
+    assert.deepEqual([...comparison.querySelectorAll(":scope > article")].map(article => article.id), [second, third]);
+    assert.equal(document.getElementById(first).closest(".candidate-comparison"), null, "单方案轮次独立排版");
     assert.equal(reader.querySelectorAll(".candidate-story-notes[open]").length, 3);
     assert.ok(document.getElementById(first).textContent.includes("结局1"));
     assert.ok(document.getElementById(second).textContent.includes("结局2"));

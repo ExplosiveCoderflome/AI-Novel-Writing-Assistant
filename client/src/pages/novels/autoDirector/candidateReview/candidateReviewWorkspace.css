@@ -38,7 +38,7 @@
 .candidate-round nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin-top: .375rem; }
 .candidate-round nav button { padding-block: .375rem; color: hsl(var(--primary)); font-size: .875rem; text-align: start; text-decoration: underline; text-decoration-color: hsl(var(--border)); text-underline-offset: .25em; }
 .candidate-round nav button:hover { text-decoration-color: currentColor; }
-.candidate-manuscript { padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
+.candidate-manuscript { container: candidate-story / inline-size; min-width: 0; padding: 1.75rem .25rem 1.5rem; border-block-start: 1px solid hsl(var(--border) / .65); }
 .candidate-byline, .candidate-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .875rem; }
 .candidate-title-row { margin-top: .35rem; }
 .candidate-title-row h4 { font: 600 clamp(1.5rem, 3.6cqi, 2rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
@@ -55,6 +55,10 @@
 .candidate-story-notes .candidate-fields { margin-top: .875rem; }
 .candidate-decision { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1.25rem; margin-top: 1.25rem; }
 .candidate-round :focus-visible, .candidate-manuscript :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-@container candidate-list (min-width: 36rem) {
+@container candidate-story (min-width: 36rem) {
   .candidate-fields > div { grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; }
+}
+@container candidate-list (min-width: 64rem) {
+  .candidate-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2rem; align-items: start; }
+  .candidate-comparison > .candidate-round { grid-column: 1 / -1; max-width: none; }
 }

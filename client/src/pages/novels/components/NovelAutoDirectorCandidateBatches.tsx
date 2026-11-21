@@ -102,7 +102,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
           initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.18, delay: reducedMotion ? 0 : batchIndex * 0.04 }}
-          className="min-w-0"
+          className={cn("min-w-0", batch.candidates.length > 1 && "candidate-comparison")}
         >
           <header className="candidate-round">
             <h3 id={candidateAnchor(batch.id, "")} tabIndex={-1}>{batch.roundLabel} · {batch.candidates.length} 套方向</h3>
