@@ -25,6 +25,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
   const chapterCount = normalizeDirectorTargetChapterCount(input.estimatedChapterCount ?? input.candidate.targetChapterCount);
   const adoptedCarryover = input.creativeCarryoverContract?.adopted === true ? input.creativeCarryoverContract : null;
   const novel = existing ?? await new NovelCoreService().createNovel({id:reservedNovelId,title:input.title ?? input.candidate.workingTitle,description:input.description ?? input.candidate.logline,
+      openingIssuePolicy: input.issuePolicy,
       bookSellingPoint:input.bookSellingPoint,styleTone:input.styleTone,estimatedChapterCount:chapterCount,
       defaultChapterLength:input.defaultChapterLength,projectMode:input.projectMode,writingMode:input.writingMode,
       worldId:input.worldId,genreId:input.genreId,primaryStoryModeId:input.primaryStoryModeId,secondaryStoryModeId:input.secondaryStoryModeId,
@@ -43,6 +44,7 @@ export async function launchNewDirectorBook(input: DirectorConfirmRequest, sourc
     ? {from:input.autoExecutionPlan?.startOrder ?? 1,to:end} : undefined;
   const result = await getDirectorProductionServices().http.commandService.execute({type:"open_run",novelId:novel.id,driver:source === "original_opening" && input.runMode !== "stage_review" ? "auto" : "assisted",stepIdsInScope:null,
     idempotencyKey:`${source === "creation_studio" ? "creation-studio" : source}:${sourceTaskId}:director`,launchInput:{storyInput:source === "original_opening" ? `${input.idea}\n\n已选定的开书方向：\n${JSON.stringify(input.candidate)}` : input.idea,estimatedChapterCount:chapterCount,userPreferredVolumeCount:input.userPreferredVolumeCount,
+      openingIssuePolicy: input.issuePolicy,
       worldMode:input.worldId ? "reuse" : input.worldSetupMode === "skip" ? "skip" : "generate",targetMode:"opening",provider,model,temperature:input.temperature ?? selection?.temperature,executionRange}});
   return {novel,workflowTaskId:result.runId};
 }

@@ -16,6 +16,7 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
@@ -171,8 +172,14 @@ function resolveConfirmRequestFromTaskSeed(
     && !containsUnicodeReplacementCharacter(seed.styleIntentSummary)
     ? seed.styleIntentSummary as DirectorConfirmRequest["styleIntentSummary"]
     : input.styleIntentSummary;
+  const savedPolicy = directorIssuePolicySchema.safeParse(seed.issuePolicy);
+  const issuePolicy = input.issuePolicy ?? (savedPolicy.success ? savedPolicy.data : undefined);
   const normalized: DirectorConfirmRequest = {
     ...input,
+    ...(issuePolicy ? {
+      issuePolicy, issueGovernanceVersion: 1,
+      issuePolicySource: input.issuePolicySource ?? (seed.issuePolicySource === "global" ? "global" : "novel"),
+    } : {}),
     candidate,
     idea: recoverText(input.idea, seed.idea, basicForm.description, batches.at(-1)?.idea) ?? input.idea,
     title: recoverText(input.title, seed.title, basicForm.title),

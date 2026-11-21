@@ -16,7 +16,8 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
 }) {
   const [story, setStory] = useState(initialStory), [count,setCount] = useState(Math.max(estimatedChapterCount ?? 30, nextChapter));
   const [production,setProduction] = useState(Boolean(suggestedRange)), [from,setFrom] = useState(suggestedRange?.from ?? nextChapter), [to,setTo] = useState(suggestedRange?.to ?? nextChapter);
-  const [assisted,setAssisted] = useState(initialDriver === "assisted"), [qualityFirst,setQualityFirst] = useState(false);
+  const [assisted,setAssisted] = useState(initialDriver === "assisted");
+  const [issuePolicyMode, setIssuePolicyMode] = useState<"inherit" | "quality_first" | "completion_first">("inherit");
   const [world,setWorld] = useState<"skip"|"reuse"|"generate">(worldId ? "reuse" : "skip");
   const model = useLLMStore(), queries = useQueryClient();
   const [chapterBudget, setChapterBudget] = useState("");
@@ -31,7 +32,7 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
     if (!validBudget) throw new Error("单章 AI 用量上限须为 16,001 至 10,000,000 之间的整数。");
     return submitDirectorCommand({type:"open_run",novelId,driver:assisted ? "assisted" : "auto",stepIdsInScope:null,idempotencyKey:createDirectorCommandKey(),
       launchInput:{storyInput:story.trim(),estimatedChapterCount:count,...(volumeCount ? {userPreferredVolumeCount:Number(volumeCount)} : {}),worldMode:world,targetMode:"opening",provider:model.provider,model:model.model,temperature:model.temperature,
-        issuePolicyMode:qualityFirst ? "quality_first" : "completion_first",...(chapterBudget.trim() ? {chapterTokenLimit:Number(chapterBudget)} : {}),...(production ? {executionRange:{from,to}} : {})}});
+        issuePolicyMode: issuePolicyMode === "inherit" ? undefined : issuePolicyMode,...(chapterBudget.trim() ? {chapterTokenLimit:Number(chapterBudget)} : {}),...(production ? {executionRange:{from,to}} : {})}});
   },onSuccess: async()=>{await Promise.all([queries.invalidateQueries({queryKey:queryKeys.directorNext.summary(novelId)}),queries.invalidateQueries({queryKey:queryKeys.directorNext.detail(novelId)})]);}});
   return <section id="director-start" className="space-y-4 border-t border-border/50 py-5">
     <h2 className="text-sm font-semibold">{suggestedRange ? "选择后续正文范围" : "选择下一步创作"}</h2>
@@ -39,7 +40,7 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
     <label className="flex gap-2 text-xs"><input type="checkbox" checked={production} onChange={e=>setProduction(e.target.checked)}/>生成指定章节正文</label>
     {production ? <div className="grid grid-cols-2 gap-3"><label className="space-y-2 text-xs">起始章<Input type="number" min={1} max={count} value={from} onChange={e=>setFrom(Number(e.target.value))}/></label><label className="space-y-2 text-xs">结束章<Input type="number" min={from} max={count} value={to} onChange={e=>setTo(Number(e.target.value))}/></label><p className="col-span-2 text-xs text-muted-foreground">本次只写上述范围。取消“生成指定章节正文”可只补齐规划。</p></div>:null}
     <label className="flex gap-2 text-xs"><input type="checkbox" checked={assisted} onChange={e=>setAssisted(e.target.checked)}/>按阶段确认结果（半自动）</label>
-    <p className="text-xs text-muted-foreground">本次创作：{assisted ? "按阶段确认结果" : "全自动推进"} · {qualityFirst ? "质量问题需确认" : "局部质量问题记录提醒并继续"} · {model.model || "请在更多创作设置中选择模型"}</p>
+    <p className="text-xs text-muted-foreground">本次创作：{assisted ? "按阶段确认结果" : "全自动推进"} · {issuePolicyMode === "inherit" ? "沿用本书问题管理" : issuePolicyMode === "quality_first" ? "质量问题需确认" : "局部质量问题记录提醒并继续"} · {model.model || "请在更多创作设置中选择模型"}</p>
     <Button className="w-full" disabled={mutation.isPending || !validBudget || !validVolumeCount} onClick={()=>mutation.mutate()}>{mutation.isPending ? "提交中…" : production ? `提交并生成第 ${from}—${to} 章` : "提交并补齐创作规划"}</Button>
     {mutation.isError ? <p role="alert" className="text-xs text-destructive">{mutation.error.message}</p>:null}
     <details className="space-y-4 text-xs"><summary className="cursor-pointer text-muted-foreground">更多创作设置（故事方向、模型、预算、质量处理）</summary>
@@ -54,7 +55,14 @@ export default function DirectorStart({novelId, estimatedChapterCount, nextChapt
     <p className="text-xs text-muted-foreground">填写 1–24 卷，AI 按指定卷数安排全书；已有卷结构会保留。</p>
     <LLMSelector compact showHelperText />
     <label className="block space-y-2 text-xs">世界设定<select className="w-full rounded-md border border-input bg-background p-2" value={world} onChange={e=>setWorld(e.target.value as typeof world)}><option value="skip">不使用独立世界设定</option>{worldId ? <option value="reuse">使用本书关联世界</option>:null}<option value="generate">AI 准备世界设定</option></select></label>
-    <label className="flex gap-2 text-xs"><input type="checkbox" checked={qualityFirst} onChange={e=>setQualityFirst(e.target.checked)}/>质量问题需要我确认后再继续</label>
+    <label className="block space-y-2 text-xs">本次质量处理
+      <select className="w-full rounded-md border border-input bg-background p-2" value={issuePolicyMode}
+        onChange={event => setIssuePolicyMode(event.target.value as typeof issuePolicyMode)}>
+        <option value="inherit">沿用本书问题管理</option>
+        <option value="quality_first">质量问题需我确认</option>
+        <option value="completion_first">记录提醒并继续</option>
+      </select>
+    </label>
     </details>
   </section>;
 }

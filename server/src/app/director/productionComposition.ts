@@ -17,7 +17,7 @@ import { CharacterPreparationService } from "../../services/novel/characterPrep/
 import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from "../../services/novel/characterPrep/characterCastGeneration";
 import { NovelCorePipelineService } from "../../services/novel/novelCorePipelineService";
 import {buildDirectorCompletionProfile} from "@ai-novel/shared/types/directorCompletion";
-import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
+import { DIRECTOR_ISSUE_CATALOG_BY_CODE, DIRECTOR_ISSUE_CODES, DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema, type DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow, readExecutionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
@@ -35,7 +35,17 @@ import { createKernelProductionStep, createNativeKernelRuntime, assertKernelOpen
 import {MANUAL_CHAPTER_PLAN_VERSION, readManualChapterRequest, type ManualChapterLaunchInput} from "./productionKernel/manual/contract";
 import {assertKernelStartReadiness} from "./productionKernel";
 
-/** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
+function snapshotOpeningPolicy(policy: DirectorIssuePolicy) {
+  const pipelinePolicy = directorIssuePolicySchema.parse(policy);
+  const requestsQualityPause = DIRECTOR_ISSUE_CODES.some(code => {
+    const entry = DIRECTOR_ISSUE_CATALOG_BY_CODE[code];
+    return entry.category === "quality" && !entry.enforcedAction && pipelinePolicy.issueActions[code] === "pause_for_manual";
+  });
+  return {mode: requestsQualityPause ? "quality_first" as const : "completion_first" as const,
+    version: "director-next-policy-v1", pipelinePolicy};
+}
+
+/** Composition only: business generation remains owned by existing novel services. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
   const macro = new StoryMacroPlanService(), book = new BookContractService(), volumes = new NovelVolumeService();
   const characters = new CharacterPreparationService(), pipeline = new NovelCorePipelineService(), events = new PrismaEventLog();
@@ -159,7 +169,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const scope = manual ? `manual:chapter:${manual.chapterId}:${manual.operation}:${input.runId}` : launch.executionRange ? `chapters:${launch.executionRange.from}-${launch.executionRange.to}${launch.targetVolumeId ? `:volume:${launch.targetVolumeId}` : ""}` : launch.targetVolumeId ? `volume:${launch.targetVolumeId}` : "book";
     const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: manual ? MANUAL_CHAPTER_PLAN_VERSION : directorProductionPlan.version, scope,
       stepIdsInScope: requestedSteps, chapterRange: launch.executionRange ?? null,
-      issuePolicy: {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
+      issuePolicy: launch.openingIssuePolicy ? snapshotOpeningPolicy(launch.openingIssuePolicy) : {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
       modelConfig: {route: launch.provider ?? "default", model: launch.model ?? "default", version: "director-next-model-v1"},
       launchInput: launch, tokenBudget: null, rejectionBudget: 3};
     requireLaunch(contract);readManualChapterRequest(contract);return contract;
@@ -176,8 +186,14 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       launch.chapterTokenLimit = budget.tokenLimit;
       if (budget.automatic) launch.chapterBudgetAutomatic = true;
     }
-    const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;
-    if (configured && contract.issuePolicy.pipelinePolicy) contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...configured};
+    if (!launch.openingIssuePolicy) {
+      const {effectivePolicy} = await directorIssuePolicyService.getNovelPolicy(contract.novelId);
+      if (!launch.issuePolicyMode) {
+        contract.issuePolicy = snapshotOpeningPolicy(effectivePolicy);
+      } else if (effectivePolicy.chapterReviewRetryPolicy && contract.issuePolicy.pipelinePolicy) {
+        contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...effectivePolicy.chapterReviewRetryPolicy};
+      }
+    }
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
     return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
       ...(manual ? [] : await inferExistingAssets(contract, {read: readExistingAssets, contentHash}))];

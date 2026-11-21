@@ -49,10 +49,12 @@ const candidate = {
   // task seed still holds the basicForm value. The stored confirm command must
   // carry the recovered count.
   const workflow = new NovelWorkflowService();
+  const openingPolicy = {maxAutomaticRetries: 0, issueActions: {"quality.chapter_below_threshold": "pause_for_manual"}};
   const task = await workflow.bootstrapTask({
     lane: "auto_director",
     title: "雾桥来客",
     seedPayload: {
+      issuePolicy: openingPolicy,
       directorVersion: "v2",
       idea: "九十年代初，一个朝鲜表演团来到中国小城。",
       basicForm: { estimatedChapterCount: 150, title: "雾桥来客" },
@@ -81,6 +83,7 @@ const candidate = {
   });
   assert.ok(commandRow, "confirm command must be stored");
   const storedPayload = JSON.parse(commandRow.payloadJson);
+  assert.deepEqual(storedPayload.confirmRequest.issuePolicy, openingPolicy);
   assert.equal(
     storedPayload.confirmRequest.estimatedChapterCount,
     150,

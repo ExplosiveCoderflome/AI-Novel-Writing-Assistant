@@ -58,6 +58,7 @@ export async function getNovelDetail(id: string) {
 }
 
 export async function createNovel(payload: {
+  manualWorkflowTaskId?: string;
   title: string;
   description?: string;
   targetAudience?: string;
