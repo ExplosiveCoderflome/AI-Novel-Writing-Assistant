@@ -7,6 +7,41 @@ const flow = "../../client/src/pages/promptWorkbench/creationFlow/";
 const { atlasScopes, relatedAtlasLocation } = loadTypeScript(flow + "atlas/atlasTopics.ts", __filename);
 const { indexAtlasPrompts } = loadTypeScript(flow + "atlas/atlasIndex.ts", __filename);
 const { stages, stageSteps } = loadTypeScript(flow + "flowDefinition.ts", __filename);
+const { layoutBookMap } = loadTypeScript(flow + "overview/bookMapLayout.ts", __filename);
+
+test("the expanded book map displays every prompt once outside the production route and includes it in fit-to-map", () => {
+  const map = layoutBookMap(stages, true);
+  const contains = (outer, inner) => inner.x >= outer.x && inner.y >= outer.y
+    && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+  const overlaps = (a, b) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  assert.deepEqual(new Set(map.prompts.keys()), new Set(listRegisteredPromptAssets().map(a => a.id)));
+  assert.equal(map.sections.length, atlasScopes.length);
+  const rows = [...map.prompts.values()];
+  const steps = new Set(map.stations.map(s => s.step.id));
+  for (const [i, section] of map.sections.entries()) {
+    assert.ok(contains(map.bounds, section), section.scope.id);
+    assert.ok(!map.sections.slice(i + 1).some(other => overlaps(section, other)), section.scope.id);
+    if (section.scope.id === "tools") {
+      assert.ok(section.x + section.width < map.routeBounds.x);
+    } else {
+      assert.equal(section.x, map.covers.find(c => c.stage.id === section.scope.id).x);
+      assert.ok(section.y > map.routeBounds.y + map.routeBounds.height);
+    }
+    for (const group of section.topics) {
+      const bounds = { ...group, x: section.x + group.x, y: section.y + group.y };
+      assert.ok(contains(section, bounds));
+      for (const [id] of group.topic.prompts) {
+        assert.ok(contains(bounds, map.prompts.get(id)), id);
+        assert.ok(!steps.has(id), id);
+      }
+    }
+  }
+  assert.ok(rows.every((row, i) => !rows.slice(i + 1).some(other => overlaps(row, other))));
+  const collapsed = layoutBookMap(stages, false);
+  assert.equal(collapsed.sections.length, 0);
+  assert.equal(collapsed.prompts.size, 0);
+  assert.deepEqual(collapsed.bounds, collapsed.routeBounds);
+});
 
 test("each registered prompt belongs to one topic and exposes every registered version", () => {
   const catalog = listRegisteredPromptAssets().map(({ id, version }) => ({ id, version, key: id + "@" + version }));

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Panel, getViewportForBounds, useNodesInitialized, useReactFlow, useStore, type Viewport } from "@xyflow/react";
+import { Panel, getViewportForBounds, useNodesInitialized, useReactFlow, useStore, useStoreApi, type Viewport } from "@xyflow/react";
 import { Maximize, Minus, Plus } from "lucide-react";
 import { layoutBookMap, sideWidth, stepHeight, stepWidth } from "./bookMapLayout";
 
@@ -9,8 +9,8 @@ function travel(duration: number) {
     interpolate: "linear" as const, ease: (t: number) => 1 - (1 - t) ** 3 };
 }
 
-export function BookMapCamera({ layout, selected, touring, pause }: {
-  layout: Layout; selected: string | null; touring: string | null; pause: () => void;
+export function BookMapCamera({ layout, selected, touring, jump, pause }: {
+  layout: Layout; selected: string | null; touring: string | null; jump: { scope: string } | null; pause: () => void;
 }) {
   const width = useStore(s => s.width);
   const height = useStore(s => s.height);
@@ -19,6 +19,26 @@ export function BookMapCamera({ layout, selected, touring, pause }: {
   const { getViewport, setViewport, setCenter, zoomIn, zoomOut, fitBounds, viewportInitialized } = useReactFlow();
   const previous = useRef<{ layout: Layout; focus: string | null; touring: string | null; width: number; height: number } | null>(null);
   const bookmark = useRef<Viewport | null>(null);
+  const lastJump = useRef(jump);
+  const store = useStoreApi();
+  useEffect(() => {
+    const canvas = store.getState().domNode;
+    if (!canvas) return;
+    function revealKeyboardRow(event: FocusEvent) {
+      if (!(event.target instanceof HTMLButtonElement) || !event.target.matches(":focus-visible")) return;
+      const row = layout.prompts.get(event.target.dataset.mapPrompt ?? "");
+      if (!row) return;
+      const { width, height, transform: [x, y, zoom] } = store.getState();
+      const left = row.x * zoom + x, top = row.y * zoom + y;
+      if (left < 0 || left + row.width * zoom > width || top < 0 || top + row.height * zoom > height) {
+        pause();
+        void setCenter(row.x + row.width / 2, row.y + row.height / 2, { zoom });
+      }
+    }
+    canvas.addEventListener("focusin", revealKeyboardRow);
+    return () => canvas.removeEventListener("focusin", revealKeyboardRow);
+  }, [store, viewportInitialized, layout, setCenter, pause]);
+
   useEffect(() => {
     if (!ready || !viewportInitialized || width <= 1 || height <= 1) return;
     const prior = previous.current;
@@ -27,14 +47,25 @@ export function BookMapCamera({ layout, selected, touring, pause }: {
     let view = getViewport();
     const freshLayout = !prior || prior.layout !== layout;
     if (freshLayout) {
-      const fit = getViewportForBounds(layout.bounds, width, height, 0.16, 1.18, 0.08);
+      const opening = width >= 1024 ? { ...layout.bounds, height: layout.routeBounds.height } : layout.routeBounds;
+      const fit = getViewportForBounds(opening, width, height, 0.16, 1.18, 0.08);
       const zoom = Math.max(0.72, fit.zoom);
-      view = zoom === fit.zoom ? fit : {
-        x: Math.max(16, (width - layout.bounds.width * zoom) / 2 - layout.bounds.x * zoom),
-        y: Math.max(16, (height - layout.bounds.height * zoom) / 2 - layout.bounds.y * zoom), zoom,
+      view = {
+        x: Math.max(16, (width - opening.width * zoom) / 2) - opening.x * zoom,
+        y: layout.sections.length ? 18 - opening.y * zoom : Math.max(16, (height - opening.height * zoom) / 2) - opening.y * zoom, zoom,
       };
       bookmark.current = null;
       if (!focus) void setViewport(view);
+    }
+    if (jump && jump !== lastJump.current) {
+      const section = layout.sections.find(s => s.scope.id === jump.scope);
+      if (section) {
+        lastJump.current = jump;
+        bookmark.current = null;
+        const zoom = Math.min(1.15, (width - 28) / section.width);
+        void setViewport({ x: (width - section.width * zoom) / 2 - section.x * zoom, y: 16 - section.y * zoom, zoom }, travel(320));
+        return;
+      }
     }
     if (!focus) {
       if (bookmark.current) void setViewport(bookmark.current, travel(320));
@@ -42,6 +73,15 @@ export function BookMapCamera({ layout, selected, touring, pause }: {
       return;
     }
     if (!bookmark.current) bookmark.current = view;
+    const reference = layout.prompts.get(focus);
+    if (reference) {
+      const zoom = Math.max(view.zoom, 0.87);
+      const x = reference.x * zoom + view.x, y = reference.y * zoom + view.y;
+      if (zoom !== view.zoom || x < 8 || x + reference.width * zoom > width - 8 || y < 8 || y + reference.height * zoom > height - 40) {
+        void setCenter(reference.x + reference.width / 2, reference.y + reference.height / 2, { zoom, ...travel(260) });
+      }
+      return;
+    }
     const station = layout.stations.find(s => s.step.id === focus);
     if (!station) return;
     const w = station.side ? sideWidth : stepWidth;
@@ -61,7 +101,7 @@ export function BookMapCamera({ layout, selected, touring, pause }: {
     if (freshLayout || x < 8 || x + w * view.zoom > width - 8 || y < 8 || y + stepHeight * view.zoom > height - 40) {
       void setCenter(station.x + w / 2, station.y + stepHeight / 2, { zoom: view.zoom, ...travel(310) });
     }
-  }, [layout, selected, touring, width, height, ready, viewportInitialized, getViewport, setViewport, setCenter]);
+  }, [layout, selected, touring, jump, width, height, ready, viewportInitialized, getViewport, setViewport, setCenter]);
 
   return <Panel position="bottom-right" className="book-zoom">
     <button type="button" aria-label="缩小全书流程图" title="缩小" onClick={() => { pause(); void zoomOut(travel(150)); }}><Minus size={15} /></button>

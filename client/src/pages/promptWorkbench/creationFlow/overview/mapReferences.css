@@ -1,0 +1,22 @@
+.atlas-cover-stack, .map-references { position: relative; }
+.map-references { width: 100%; height: 100%; pointer-events: none; }
+.map-references button { pointer-events: auto; }
+.map-references h3 { margin: 0; border-block: 1px solid var(--atlas-hair); background: var(--atlas-stock); }
+.map-references h3 button { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 43px;
+  padding: 4px 8px; color: var(--atlas-ink); font: 600 19px/1.3 var(--atlas-display); text-align: left; }
+.map-references h3 button > svg:last-child { flex: none; margin-left: auto; }
+.tool-references h3 { background: var(--atlas-tint); border-color: transparent; }
+.map-reference-topic { position: absolute; }
+.map-reference-topic h4 { display: flex; align-items: center; height: var(--topic-heading); padding-inline: 6px;
+  font: 600 16px/1.12 var(--atlas-display); color: var(--atlas-ink); text-wrap: balance; }
+.map-reference-topic li { list-style: none; position: relative; height: var(--reference-row); padding-left: 18px; }
+.map-reference-topic li::before { content: ""; position: absolute; top: 0; bottom: 0; left: 7px; border-left: 1px solid var(--atlas-hair); }
+.map-reference-topic li:last-child::before { bottom: 50%; }
+.map-reference-topic li::after { content: ""; position: absolute; left: 7px; top: 50%; width: 8px; border-top: 1px solid var(--atlas-hair); }
+.map-reference-topic button { display: flex; width: 100%; align-items: center; height: 100%; padding: 0 3px;
+  border-radius: 2px; font-family: inherit; font-size: 14px; line-height: 1.12;
+  text-align: left; color: color-mix(in srgb, hsl(var(--foreground)) 82%, var(--atlas-stock)); }
+.map-references button:is(:hover,:focus-visible) { background: var(--atlas-tint); color: var(--atlas-ink); }
+.map-reference-topic button[aria-pressed="true"] { background: var(--atlas-pigment); color: #fff8e8; }
+.book-reference-link .react-flow__edge-path { stroke: color-mix(in srgb, var(--atlas-ink) 44%, var(--map-paper)); stroke-width: 1; stroke-dasharray: 2 5; }
+.book-map-key .key-reference { height: 8px; width: 14px; border: 0; border-left: 1px solid currentColor; border-bottom: 1px solid currentColor; }

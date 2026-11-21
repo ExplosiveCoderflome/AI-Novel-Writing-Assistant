@@ -1,26 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, LibraryBig, Search } from "lucide-react";
 import { usePromptCatalog } from "../../hooks/usePromptCatalog";
-import { PromptText, type OpenCatalog } from "../PromptText";
-import { ReaderFrame, type ReadingControls } from "../ReaderFrame";
+import type { OpenCatalog } from "../PromptText";
+import { AssetReader } from "./AssetReader";
 import { AtlasCanvas } from "./AtlasCanvas";
 import { indexAtlasPrompts, type AtlasPrompt } from "./atlasIndex";
 import { atlasScopes, type AtlasLocation } from "./atlasTopics";
 import "./promptAtlas.css";
-
-function AssetReader({ prompt, onOpenCatalog, ...controls }: ReadingControls & { prompt: AtlasPrompt; onOpenCatalog: OpenCatalog }) {
-  const [versionKey, setVersionKey] = useState(prompt.versions[0].key);
-  const version = prompt.versions.find(v => v.key === versionKey) ?? prompt.versions[0];
-  return <ReaderFrame title={prompt.title} breadcrumb={prompt.topicTitle} kind="提示词" {...controls}>
-    <div className="atlas-asset-reference"><code>{prompt.id}</code>
-      {prompt.versions.length > 1 && <label className="atlas-version">阅读版本
-      <select value={version.key} onChange={e => setVersionKey(e.target.value)}>{prompt.versions.map(v =>
-        <option key={v.key} value={v.key}>{v.version}</option>)}</select>
-      </label>}
-    </div>
-    <PromptText key={version.key} templateKey={version.key} onOpenCatalog={onOpenCatalog} />
-  </ReaderFrame>;
-}
 
 function AtlasSearch({ prompts, select }: { prompts: AtlasPrompt[]; select: (prompt: AtlasPrompt) => void }) {
   const [text, setText] = useState("");

@@ -1,4 +1,5 @@
 import type { FlowStage, Step } from "../flowDefinition";
+import { layoutMapReferences } from "./referenceLayout";
 
 export const stepWidth = 184;
 export const sideWidth = 169;
@@ -106,6 +107,6 @@ export function layoutBookMap(stages: FlowStage[], expanded: boolean) {
       returnCount++;
     }
   }
-  return { covers, stations: [...stations.values()], links,
-    bounds: { x: -20, y: -12, width: contentRight + 65, height: bottom + 60 + returnCount * 34 } };
+  const routeBounds = { x: -20, y: -12, width: contentRight + 65, height: bottom + 60 + returnCount * 34 };
+  return { covers, stations: [...stations.values()], links, routeBounds, ...layoutMapReferences(covers, routeBounds, expanded) };
 }
