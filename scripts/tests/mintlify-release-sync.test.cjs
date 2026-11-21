@@ -7,6 +7,8 @@ const { spawnSync } = require("node:child_process");
 
 const repoRoot = path.resolve(__dirname, "../..");
 const files = ["index.mdx", "installation.mdx", "changelog.mdx", "en/index.mdx", "en/installation.mdx", "en/changelog.mdx"];
+const baselineVersion = "0.8.9";
+const baselineTag = `v${baselineVersion}`;
 const version = "0.8.10";
 const tag = "v" + version;
 const platforms = ["setup-x64.exe", "portable-x64.exe", "mac-arm64.dmg", "mac-x64.dmg", "linux-x86_64.AppImage"];
@@ -33,12 +35,33 @@ function releaseFor(releaseTag = tag) {
   };
 }
 
+function fixturePage(file, source) {
+  if (file === "index.mdx" || file.endsWith("/index.mdx")) {
+    return source.replace(/v\d+\.\d+\.\d+(?=\s*·\s*(?:开源|AGPL-3\.0))/g, baselineTag);
+  }
+  if (file.endsWith("installation.mdx")) {
+    return source
+      .replace(/v\d+\.\d+\.\d+/g, baselineTag)
+      .replace(/Biz-Novel-Studio-\d+\.\d+\.\d+-/g, `Biz-Novel-Studio-${baselineVersion}-`);
+  }
+  if (file.endsWith("changelog.mdx")) {
+    const firstEntry = source.indexOf("<Update");
+    assert.notEqual(firstEntry, -1, `${file} must contain a versioned Update entry`);
+    const note = file.startsWith("en/") ? "- Existing fixture release note." : "- 测试用历史版本说明。";
+    return `${source.slice(0, firstEntry)}<Update label="2026-11-17" description="${baselineTag}">\n\n${note}\n\n</Update>\n`;
+  }
+  return source;
+}
+
 function setup(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "mintlify-release-sync-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const copy = (file) => path.join(root, "mintlify-docs", file);
   fs.mkdirSync(path.dirname(copy("en/index.mdx")), { recursive: true });
-  for (const file of files) fs.copyFileSync(path.join(repoRoot, "mintlify-docs", file), copy(file));
+  for (const file of files) {
+    const source = fs.readFileSync(path.join(repoRoot, "mintlify-docs", file), "utf8");
+    fs.writeFileSync(copy(file), fixturePage(file, source));
+  }
   const summaryDir = path.join(root, "docs", "releases", "mintlify");
   fs.mkdirSync(summaryDir, { recursive: true });
   const releaseFile = path.join(root, "release.json");
@@ -57,7 +80,7 @@ function setup(t) {
   };
 }
 
-test("updates the four badges and ten links in the real bilingual pages and prepends a dated entry per language", (t) => {
+test("updates the real bilingual page layouts from an isolated baseline and prepends a dated entry per language", (t) => {
   const docs = setup(t);
   docs.writeSummary(summary);
   const oldHistory = ["changelog.mdx", "en/changelog.mdx"].map(docs.read);
