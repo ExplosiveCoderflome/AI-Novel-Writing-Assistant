@@ -11,7 +11,8 @@ for(const fault of [null,'after_models','assembly'])test(`native preparation use
  assert.equal(await f.db.storyPlan.count({where:{level:'chapter'}}),1);assert.equal(await f.db.chapterPlanScene.count(),3);
  assert.deepEqual(await f.stage.recover(f.run,'prepare-request'),reply);assert.equal(f.state.models,3);
  assert.deepEqual(await f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'}}),chapter);
- const requests=f.state.requests;assert.equal(requests.filter(input=>input.options.maxTokens===3200).length,1);
+ const requests=f.state.requests;assert.ok(requests.every(input=>!Object.hasOwn(input.options,'maxTokens')),
+   'native preparation leaves output limits to the task route or automatic budget');
  assert.ok(requests.every(input=>input.promptInput));
 });
 test('preparation reuses a current native chapter plan without another model call or planning overwrite',async t=>{
