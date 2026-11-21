@@ -97,6 +97,7 @@ export interface PromptCatalogItem {
     productPrompt: boolean;
     proseGeneration?: boolean;
     editModes: Array<"readonly" | "slots" | "advanced_template">;
+    slotScope?: "global";
     advancedTemplate?: { scope: "novel"; requiredContextGroups: string[] };
   };
   capabilities: {

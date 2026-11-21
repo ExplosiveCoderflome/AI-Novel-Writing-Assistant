@@ -32,6 +32,7 @@ interface PromptEditorShellProps {
 
 export function PromptEditorShell(props: PromptEditorShellProps) {
   const { prompt, immersive = false, simplified = false, scope, advanced = false } = props;
+  const globalOnly = prompt.management?.slotScope === "global";
   return (
     <section className="flex h-full min-h-0 flex-col bg-background">
       <header className="shrink-0 border-b border-border bg-card px-5 py-4">
@@ -50,7 +51,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
           ) : null}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {!simplified ? (
+          {!simplified && !globalOnly ? (
             <Tabs value={scope} onValueChange={(value) => props.onScopeChange(value as PromptSlotOverrideScope)}>
               <TabsList>
                 <TabsTrigger value="global">{advanced ? "模板草稿" : "所有小说"}</TabsTrigger>
@@ -65,7 +66,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
               {props.novels.map((novel) => <option key={novel.id} value={novel.id}>{novel.title || novel.id}</option>)}
             </SelectControl>
           ) : null}
-          <span className="text-xs text-muted-foreground">{advanced
+          <span className="text-xs text-muted-foreground">{globalOnly ? "应用范围：所有小说" : advanced
             ? (scope === "novel" && props.selectedNovelId ? "保存后仅用于这本小说" : "可直接编辑，保存应用时再选择小说")
             : scope === "global" ? "作为所有小说的默认要求，本书单独设置的内容优先" : "仅影响所选小说"}</span>
         </div>

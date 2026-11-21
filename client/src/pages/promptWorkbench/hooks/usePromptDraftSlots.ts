@@ -151,7 +151,9 @@ export function buildPromptEditorSections(input: {
 }
 
 export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
-  const [scope, setScopeState] = useState<PromptSlotOverrideScope>("global");
+  const [preferredScope, setScopeState] = useState<PromptSlotOverrideScope>("global");
+  const globalOnly = prompt?.management?.slotScope === "global";
+  const scope = globalOnly ? "global" : preferredScope;
   const [selectedNovelId, setSelectedNovelIdState] = useState("");
   const [drafts, setDrafts] = useState<PromptSlotDrafts>({});
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -181,7 +183,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
   const novelsQuery = useQuery({
     queryKey: queryKeys.novels.list(1, 50),
     queryFn: () => getNovelList({ page: 1, limit: 50 }),
-    enabled: Boolean(prompt?.slotSupported || prompt?.capabilities.supportsAdvancedTemplate),
+    enabled: !globalOnly && Boolean(prompt?.slotSupported || prompt?.capabilities.supportsAdvancedTemplate),
     staleTime: 60_000,
   });
 

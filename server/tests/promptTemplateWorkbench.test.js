@@ -14,6 +14,45 @@ const { getRequiredTemplateContextGroups } = require("../dist/prompting/template
 const router = require("../dist/routes/promptWorkbench.js").default;
 const { errorHandler } = require("../dist/middleware/errorHandler.js");
 
+test("开书书名规则支持无小说预览、全局保存，并进入正式命名请求", async (t) => {
+  const promptId = "novel.director.candidate_titles";
+  const { getRegisteredPromptAsset } = require("../dist/prompting/registry.js");
+  const { preparePromptExecution, resolvePromptOverlaysForAsset } = require("../dist/prompting/core/promptRunner.js");
+  const workbench = new PromptWorkbenchService();
+  const item = workbench.listCatalog({ keyword: "开书候选书名" }).find(entry => entry.id === promptId);
+  assert.ok(item?.slotSupported);
+  assert.equal(item.management.slotScope, "global");
+  assert.deepEqual(item.slots.map(slot => slot.label), ["取名方法", "书名风格示例", "首选书名标准"]);
+
+  let record;
+  prisma.promptSlotOverride = {
+    findMany: async ({ where }) => {
+      assert.deepEqual(where, { promptId, OR: [{ scope: "global", novelId: null }] });
+      return record ? [record] : [];
+    },
+    findFirst: async () => record ?? null,
+    create: async ({ data }) => (record = { ...data, id: "test", createdAt: new Date(), updatedAt: new Date() }),
+  };
+  t.after(() => { delete prisma.promptSlotOverride; });
+  const slotUpdates = { "titles.coverCriteria": "首选要像角色当面说得出口的一句玩笑。" };
+  const promptInput = { context: { count: 4, genreName: "历史", brief: "边关小卒替将军写家书。" } };
+  const request = { promptKey: item.key, promptInput, executionContext: { entrypoint: "manual_test" } };
+  const draft = await workbench.preview({ ...request, slotOverrides: slotUpdates });
+  assert.ok(draft.messages[0].content.includes(slotUpdates["titles.coverCriteria"]));
+  assert.ok(!draft.messages[0].content.includes(item.slots[2].default));
+  assert.equal(record, undefined);
+  await assert.rejects(promptSlotOverrideService.save({ promptId, scope: "novel", novelId: "existing", slotUpdates }), /所有小说/);
+  await promptSlotOverrideService.save({ promptId, scope: "global", slotUpdates });
+  assert.equal(record.novelId, null);
+  const saved = await workbench.preview(request);
+  assert.deepEqual(saved.messages, draft.messages);
+  const asset = getRegisteredPromptAsset(promptId, item.version);
+  const overlays = await resolvePromptOverlaysForAsset({ asset });
+  const runtime = preparePromptExecution({ asset, promptInput, resolvedSlots: overlays.resolvedSlots });
+  assert.deepEqual(runtime.messages.map(message => message.content), saved.messages.map(message => message.content));
+  assert.ok(saved.messages.some(message => message.content.includes("coverTitle")));
+});
+
 test("official templates can be read without a novel or any template database access", async (t) => {
   const lookup = t.mock.method(prisma.promptTemplateOverride, "findUnique", async () => { throw new Error("unexpected database read"); });
   for (const promptId of ["novel.chapter.writer", "novel.short_story.segment.write"]) {

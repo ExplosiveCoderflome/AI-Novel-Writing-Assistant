@@ -46,6 +46,7 @@ export const SUPPORTED_PROMPT_ADDENDUM_IDS = [
 const SUPPORTED_PROMPT_ADDENDUM_ID_SET = new Set<string>(SUPPORTED_PROMPT_ADDENDUM_IDS);
 
 const PROMPT_ADDENDUM_DESCRIPTIONS: Record<string, string> = {
+  "novel.director.candidate_titles": "调整自动导演为开书候选取名的方法、书名风格示例和首选标准，用于首次起名和重做标题组。",
   "novel.chapter.writer": "根据章节任务、角色状态、世界规则和风格约束生成章节正文。",
   "audit.chapter.full": "完整检查章节质量，输出结构化问题、评分和修复建议。",
   "audit.chapter.light": "快速检查章节是否适合继续推进，识别明显风险。",

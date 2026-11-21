@@ -273,6 +273,7 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
   return [
     item.key,
     item.id,
+    item.shortDescription,
     item.description,
     item.version,
     item.taskType,
