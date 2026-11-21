@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { require: loadTypeScript } = require("tsx/cjs/api");
 const { stages, stageSteps, locateFlowStep } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/flowDefinition.ts", __filename);
 const { layoutBookMap } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/overview/bookMapLayout.ts", __filename);
+const { tourStops, closedTour, tourPlayback } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/overview/tourPlayback.ts", __filename);
 const { readCreationFlowTemplate } = require("../dist/prompting/workbench/creationFlow");
 const { creationTemplateInputs } = require("../dist/prompting/workbench/creationFlow/templateInputs");
 
@@ -40,6 +41,34 @@ test("every creative flow station resolves its connections and reads all officia
   assert.match(verify.messages.at(-1).content, /局部修文复验清单/);
   assert.ok(verify.messages.length > review.messages.length);
   assert.equal(readCreationFlowTemplate("constructor"), null);
+});
+
+test("guided reading follows the whole mainline, stops on the finished book and can replay", () => {
+  assert.deepEqual(tourStops.map(s => s.step.id), stages.flatMap(stage => stage.main.map(step => step.id)));
+  assert.equal(tourPlayback(closedTour, { read: "draft" }), closedTour);
+  let playback = tourPlayback(closedTour, "toggle");
+  for (let i = 0; i < tourStops.length - 1; i++) {
+    assert.deepEqual(playback, { index: i, playing: true });
+    playback = tourPlayback(playback, { elapsedAt: i });
+  }
+  assert.equal(tourStops[playback.index].step.id, "finish");
+  assert.equal(playback.playing, false);
+  assert.deepEqual(tourPlayback(playback, "toggle"), { index: 0, playing: true });
+});
+
+test("seeking, reading a prompt and exiting cannot be undone by a pending tour timer", () => {
+  const start = tourPlayback(closedTour, "toggle");
+  const seek = tourPlayback(start, { seek: 5 });
+  assert.deepEqual(seek, { index: 5, playing: false });
+  const resume = tourPlayback(seek, "toggle");
+  assert.equal(tourPlayback(resume, { elapsedAt: 0 }), resume);
+  const read = tourPlayback(resume, { read: "draft" });
+  assert.equal(read.playing, false);
+  assert.equal(tourStops[read.index].step.id, "draft");
+  assert.equal(tourPlayback(read, { elapsedAt: read.index }), read);
+  assert.deepEqual(tourPlayback(read, { read: "repair" }), read);
+  const end = tourPlayback(read, "end");
+  assert.equal(tourPlayback(end, { elapsedAt: read.index }), closedTour);
 });
 
 for (const expanded of [false, true]) {

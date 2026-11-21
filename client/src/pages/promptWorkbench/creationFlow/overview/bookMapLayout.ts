@@ -1,11 +1,12 @@
 import type { FlowStage, Step } from "../flowDefinition";
 
-export const stepWidth = 174;
-export const sideWidth = 158;
-export const stepHeight = 48;
-export const coverHeight = 84;
-const firstY = 108;
-const pitch = 68;
+export const stepWidth = 184;
+export const sideWidth = 169;
+export const stepHeight = 50;
+export const coverHeight = 105;
+export const spineX = 16;
+const firstY = 128;
+const pitch = 73;
 const aisle = 54;
 const sideGap = 46;
 
@@ -85,7 +86,7 @@ export function layoutBookMap(stages: FlowStage[], expanded: boolean) {
     const bypass = expanded && Boolean(previous.branches?.length);
     const exitY = bypass ? bottom + 18 : sourceLevel(last);
     links.push({ source: last.step.id, target: first.step.id, kind: "handoff", sourceHandle: bypass ? "bottom-out" : "right-out", targetHandle: "left-in",
-      bends: [...(bypass ? [{ x: last.x + 14, y: exitY }] : []), { x: lane, y: exitY }, { x: lane, y: targetLevel(first) }] });
+      bends: [...(bypass ? [{ x: last.x + spineX, y: exitY }] : []), { x: lane, y: exitY }, { x: lane, y: targetLevel(first) }] });
   }
 
   // Put the chapter and volume loops below every stage; neither return line cuts across the manuscript.
