@@ -11,11 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { featureFlags } from "@/config/featureFlags";
-import { CharacterImpactPanel } from "./characterImpact/CharacterImpactPanel";
+import { OutlineLocalReview, type LocalReviewDraft } from "./workspace/OutlineLocalReview";
+import type { LocalTarget } from "./workspace/outlineReviewThread";
 import { OutlineFeedbackPanel, shouldShowOutlineFeedbackPanel } from "./OutlineFeedbackPanel";
 import { OutlineConversation } from "./workspace/OutlineConversation";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
-import { findOutlineNode, type OutlineNode } from "./outlineNodes";
+import { findOutlineNode, getOutlineNodeTitle, type OutlineNode } from "./outlineNodes";
 import { OutlineDirectory } from "./workspace/OutlineDirectory";
 import { OutlineNodeEditor } from "./workspace/OutlineNodeEditor";
 import { IdeaStarter, isEmptyOutline, OutlineReading, PendingSuggestions } from "./workspace/OutlineReading";
@@ -43,20 +44,24 @@ function OutlineWorkspace({ id }: { id: string }) {
     catch { return null; }
   });
   const [nodeId, setNodeId] = useState(requestedNode ?? (lastDiscussion === "story" ? null : lastDiscussion));
-  function rememberDiscussion(person: string) {
-    try { window.localStorage.setItem(bookmarkKey, person); } catch { /* Server history is still available by selecting the person. */ }
+  function rememberDiscussion(node: string) {
+    try { window.localStorage.setItem(bookmarkKey, node); } catch { /* Direct links and server history still work. */ }
   }
   const [pane, setPane] = useState<Pane>(feedbackLink ? "assistant" : "editor");
-  const [inspectorOpen, setInspectorOpen] = useState(feedbackLink);
+  const inspectorKey = `outline-inspector-open:${id}`;
+  const [inspectorOpen, setInspectorOpen] = useState(() => {
+    try { return feedbackLink || window.localStorage.getItem(inspectorKey) !== "false"; }
+    catch { return true; }
+  });
   const [inspector, setInspector] = useState<Inspector>(feedbackLink ? "feedback" : "suggestions");
-  const [freshDiscussion, setFreshDiscussion] = useState<string | null>(null);
+  const [localEditorId, setLocalEditorId] = useState<string | null>(null);
+  const [ready, setReady] = useState<{target: LocalTarget; proposalId?: string} | null>(null);
   const [editing, setEditing] = useState(false);
   const [receipt, setReceipt] = useState<number | null>(null);
   const reviewId = params.get("proposalId");
   const [idea, setIdea] = useState("");
   const [request, setRequest] = useState("");
-  const [characterRequests, setCharacterRequests] = useState<Record<string, string>>({});
-  const [wholeForCharacter, setWholeForCharacter] = useState<string | null>(null);
+  const [localDrafts, setLocalDrafts] = useState<Record<string, LocalReviewDraft>>({});
   const [draft, setDraft] = useState<{ baseVersion: number; document: OutlineDocument } | null>(null);
   const inspectorRef = useRef<HTMLElement>(null);
   const client = useQueryClient();
@@ -103,13 +108,17 @@ function OutlineWorkspace({ id }: { id: string }) {
   });
   const writing = save.isPending || nestedDecisions > 0;
   const blockRevision = !!draft || writing;
+  function setInspectorVisibility(open: boolean) {
+    setInspectorOpen(open);
+    try { window.localStorage.setItem(inspectorKey, String(open)); } catch { /* Keep the in-memory preference. */ }
+  }
   function showInspector(tool: Inspector) {
     setInspector(tool);
-    setInspectorOpen(true);
+    setInspectorVisibility(true);
     setPane("assistant");
   }
   function closeInspector() {
-    setInspectorOpen(false);
+    setInspectorVisibility(false);
     setPane("editor");
   }
   function toggleInspector(tool: Inspector) {
@@ -129,22 +138,22 @@ function OutlineWorkspace({ id }: { id: string }) {
     }, { replace: true });
     setNodeId(node);
     setPane("editor");
-    if (node !== nodeId) setWholeForCharacter(null);
   }
   function selectNode(node: string) { setEditing(!!draft); navigateContent(node); }
-  function openReview(proposalId: string, characterId?: string) {
-    setFreshDiscussion(null); setReceipt(null); setEditing(false); navigateContent(characterId ?? nodeId, proposalId);
+  function openReview(proposalId: string, targetNodeId?: string) {
+    setReady(null); setReceipt(null); setEditing(false); navigateContent(targetNodeId ?? nodeId, proposalId);
   }
-  const turn = useOutlineReviewTurn(id, (proposalId, characterId) => {
-    if (proposalId) openReview(proposalId, characterId);
-    else { if (characterId) setNodeId(characterId); setWholeForCharacter(!characterId && selectedCharacter ? selectedCharacter.nodeId : null); showInspector("suggestions"); }
+  function showLocalResult(target: LocalTarget, proposalId?: string) {
+    setReady(null);
+    if (proposalId) openReview(proposalId, target.id);
+    else { setEditing(false); navigateContent(target.id); setLocalEditorId(target.id); }
+  }
+  const turn = useOutlineReviewTurn(id, (proposalId, target) => {
+    if (target && (target.id !== nodeId || draft)) setReady({target, proposalId});
+    else if (target) showLocalResult(target, proposalId);
+    else if (proposalId) openReview(proposalId);
+    else showInspector("suggestions");
   });
-  function discuss() {
-    setFreshDiscussion(selectedCharacter?.nodeId ?? null);
-    showInspector("suggestions"); setWholeForCharacter(null);
-    rememberDiscussion(selectedCharacter?.nodeId ?? "story");
-    requestAnimationFrame(() => inspectorRef.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus());
-  }
   useEffect(() => { if (requestedNode) setNodeId(requestedNode); }, [requestedNode]);
   useEffect(() => { if (feedbackLink) showInspector("feedback"); }, [feedbackLink]);
   useEffect(() => {
@@ -155,8 +164,14 @@ function OutlineWorkspace({ id }: { id: string }) {
   }, [hasUnsavedChanges]);
 
   const selected = document && (nodeId && nodeId !== "story" ? findOutlineNode(document, nodeId) ?? (nodeId === lastDiscussion ? document.story : undefined) : document.story);
-  const selectedCharacter = selected && "appearanceNodeIds" in selected ? selected : null;
-  const visiblePending = (pending.data ?? []).filter(p => !selected || selected === document?.story || p.characterId === selected.nodeId);
+  const localTarget: LocalTarget | undefined = selected && "appearanceNodeIds" in selected ? {kind:"character", id:selected.nodeId}
+    : selected && "volumeNodeId" in selected ? {kind:"chapter", id:selected.nodeId} : undefined;
+  const visiblePending = (pending.data ?? []).filter(p => {
+    if (selected === document?.story) return !p.characterId && !p.chapterId;
+    if (!selected) return false;
+    const localOwner = p.characterId ?? p.chapterId;
+    return localOwner ? localOwner === selected.nodeId && p.baseVersion === version : p.targetNodeIds?.includes(selected.nodeId);
+  });
   const blank = !!document && isEmptyOutline(document);
   const starter = blank && !editing && !draft && (!selected || selected === document?.story);
 
@@ -198,7 +213,7 @@ function OutlineWorkspace({ id }: { id: string }) {
         <h1 className="truncate text-2xl font-semibold tracking-tight" title={query.data?.title}>{query.data?.title}</h1>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant={inspectorOpen && activeInspector === "suggestions" ? "secondary" : "ghost"} size="sm" onClick={() => toggleInspector("suggestions")}><Sparkles />AI 讨论</Button>
+        <Button variant={inspectorOpen && activeInspector === "suggestions" ? "secondary" : "ghost"} size="sm" aria-expanded={inspectorOpen && activeInspector === "suggestions" && (pane === "assistant" || !isMobileViewport)} onClick={() => toggleInspector("suggestions")}><Sparkles />大纲助手</Button>
         <Button variant={inspectorOpen && activeInspector === "history" ? "secondary" : "ghost"} size="sm" onClick={() => toggleInspector("history")}><History />版本历史</Button>
         <select aria-label="导出已保存的大纲" className="outline-export" value="" disabled={download.isPending || blockRevision}
           onChange={event => download.mutate(event.target.value as "markdown" | "json")}>
@@ -228,24 +243,40 @@ function OutlineWorkspace({ id }: { id: string }) {
           navigateContent(newId); setEditing(true);
         }} />
       <section aria-label="大纲内容编辑" className="outline-editor">
-        {turn.busy && <div className="outline-activity" role="status"><Sparkles size={16} /> 正在整理建议，完成后可在这里预览。<button onClick={() => showInspector("suggestions")}>查看讨论</button></div>}
+        {turn.busy && <div className="outline-activity" role="status"><Sparkles size={16} /> 正在整理建议…
+          <button onClick={() => turn.target ? showLocalResult(turn.target) : showInspector("suggestions")}>{turn.target ? "查看本次修改" : "查看整书讨论"}</button></div>}
+        {ready && <div className="outline-activity" role="status">「{getOutlineNodeTitle(findOutlineNode(document, ready.target.id))}」的修改有了回复。
+          <button onClick={() => showLocalResult(ready.target, ready.proposalId)}>{ready.proposalId ? "查看建议" : "查看回复"}</button></div>}
         {turn.error && <p className="outline-activity" role="alert">{turn.error}<button onClick={turn.clearError}>关闭提示</button></p>}
         {receipt && <div className="outline-activity" role="status"><Check size={16} /> 已采纳为 v{receipt} <button onClick={() => showInspector("history")}>查看版本历史</button></div>}
         {reviewId ? <div key={reviewId} className="outline-reading-scroll"><OutlineReviewReading projectId={id} proposalId={reviewId} document={query.data!.document!} version={version}
-          locked={blockRevision} busy={turn.busy} onReturn={() => navigateContent(nodeId)} onSelect={node => navigateContent(node, undefined, reviewId)}
-          onRequest={(requestText, priorId, characterId) => turn.send({requestText, priorId, characterId, baseVersion:version})}
+          locked={blockRevision} busy={turn.busy} onReturn={ownerId => navigateContent(ownerId ?? nodeId)} onSelect={node => navigateContent(node, undefined, reviewId)}
+          onRequest={(requestText, priorId, target) => {
+            if (target && nodeId !== target.id) navigateContent(target.id, priorId);
+            turn.send({requestText, priorId, target, baseVersion:version});
+          }}
           onApplied={(appliedVersion, node) => { setReceipt(appliedVersion); setEditing(false); navigateContent(node ?? null); }} /></div>
         : !editing && selected ? <div className="outline-reading-scroll" key={selected.nodeId}>
           {params.get("returnProposalId") && <button className="outline-reading-link px-4" onClick={() => openReview(params.get("returnProposalId")!)}><ArrowLeft size={14} />回到刚才的建议</button>}
           {pending.isError && <button className="outline-reading-link" onClick={() => void pending.refetch()}>重新读取待处理建议</button>}
           <PendingSuggestions document={document} proposals={visiblePending} version={version} onOpen={proposal => openReview(proposal, visiblePending.find(p => p.id === proposal)?.characterId ?? undefined)} />
           {starter ? <IdeaStarter value={idea} onChange={setIdea} busy={turn.busy || blockRevision} onGenerate={() => turn.send({requestText:idea.trim(), baseVersion:version, action:"generate_initial"})}
-            onDiscuss={() => { discuss(); turn.send({requestText: idea.trim() ? `我想写这样的故事，请先问我一个问题，帮我想清楚方向。\\n${idea.trim()}`.slice(0,6000) : "我还没有具体的故事想法，请先问我一个问题，帮我找到方向。", baseVersion:version}); }} />
-            : <OutlineReading document={document} node={selected} version={version} onSelect={selectNode} onEdit={() => setEditing(true)} onDiscuss={discuss} />}
+            onDiscuss={() => { showInspector("suggestions"); turn.send({requestText: idea.trim() ? `我想写这样的故事，请先问我一个问题，帮我想清楚方向。\\n${idea.trim()}`.slice(0,6000) : "我还没有具体的故事想法，请先问我一个问题，帮我找到方向。", baseVersion:version}); }} />
+            : <OutlineReading document={document} node={selected} version={version} onSelect={selectNode} onEdit={() => setEditing(true)}
+              localReview={localTarget && <OutlineLocalReview projectId={id} target={localTarget} title={getOutlineNodeTitle(selected)} version={version}
+                expanded={localEditorId === localTarget.id} disabled={blockRevision || turn.busy} draft={localDrafts[localTarget.id] ?? {text:""}}
+                onExpand={open => setLocalEditorId(open ? localTarget.id : null)} onChange={value => setLocalDrafts(prev => ({...prev,[localTarget.id]:value}))}
+                onOpen={proposal => openReview(proposal, localTarget.id)} onSend={(requestText, priorId) => {
+                  const submitted = localDrafts[localTarget.id];
+                  turn.send({requestText, priorId, target:localTarget, baseVersion:version}, {onSuccess: () => {
+                    rememberDiscussion(localTarget.id);
+                    setLocalDrafts(prev => prev[localTarget.id] === submitted ? {...prev,[localTarget.id]:{text:""}} : prev);
+                  }});
+                }} />} />}
           {starter && <button className="outline-blank-edit" onClick={() => setEditing(true)}>自己填写大纲</button>}
           </div>
         : selected ? <OutlineNodeEditor key={selected.nodeId} document={document} node={selected} disabled={writing} onChange={updateField}
-          onSelect={selectNode} onReviewCharacter={discuss} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
+          onSelect={selectNode} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
         {(editing || draft) && <footer className="outline-save-bar">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -269,7 +300,7 @@ function OutlineWorkspace({ id }: { id: string }) {
 
       <aside ref={inspectorRef} aria-label="大纲建议与历史" className="outline-inspector">
         <div className="outline-inspector-nav" role="group" aria-label="审阅工具">
-          <button aria-pressed={activeInspector === "suggestions"} onClick={() => setInspector("suggestions")}><Sparkles />AI 协作</button>
+          <button aria-pressed={activeInspector === "suggestions"} onClick={() => setInspector("suggestions")}><Sparkles />整书讨论</button>
           <button aria-pressed={activeInspector === "history"} onClick={() => setInspector("history")}><History />修订历史</button>
           {showFeedback && <button aria-pressed={activeInspector === "feedback"} onClick={() => setInspector("feedback")}><MessageSquareText />章节反馈</button>}
           <button className="outline-close-inspector" aria-label="收起侧栏" onClick={closeInspector}>收起</button>
@@ -277,24 +308,9 @@ function OutlineWorkspace({ id }: { id: string }) {
         <div className="outline-inspector-body" data-conversation={activeInspector === "suggestions"}>
           {draft && <p role="status" className="mb-4 text-sm text-muted-foreground">先保存手动修改，再生成建议或采用其他版本。</p>}
           <div hidden={activeInspector !== "suggestions"} className="outline-conversations">
-            {selectedCharacter && <div className="outline-scope" role="group" aria-label="对话范围">
-              <button type="button" aria-pressed={wholeForCharacter !== selectedCharacter.nodeId}
-                onClick={() => { setWholeForCharacter(null); rememberDiscussion(selectedCharacter.nodeId); }}>人物 · {selectedCharacter.name}</button>
-              <button type="button" aria-pressed={wholeForCharacter === selectedCharacter.nodeId}
-                onClick={() => { setWholeForCharacter(selectedCharacter.nodeId); rememberDiscussion("story"); }}>整份大纲</button>
-            </div>}
-            {selectedCharacter && wholeForCharacter !== selectedCharacter.nodeId
-              ? query.data?.document?.characters.some(person => person.nodeId === selectedCharacter.nodeId)
-                ? <CharacterImpactPanel key={selectedCharacter.nodeId} projectId={id} version={version}
-                    characterId={selectedCharacter.nodeId} document={document} dirty={blockRevision || turn.busy} newTopic={freshDiscussion === selectedCharacter.nodeId}
-                    requestText={characterRequests[selectedCharacter.nodeId] ?? ""}
-                    onRequestChange={text => setCharacterRequests(previous => ({ ...previous, [selectedCharacter.nodeId]: text }))}
-                    onSent={turnId => { setFreshDiscussion(null); rememberDiscussion(selectedCharacter.nodeId); turn.track(turnId, selectedCharacter.nodeId); }}
-                    onOpenResult={prop => openReview(prop, selectedCharacter.nodeId)} />
-                : <p className="p-4 text-sm text-muted-foreground">先保存这个人物，再讨论关联卷章与伏笔。</p>
-              : <OutlineConversation projectId={id} version={version} document={document} starting={fromIdea}
-                  dirty={blockRevision || turn.busy} value={request} onChange={setRequest} onSent={turnId => { rememberDiscussion("story"); turn.track(turnId); }}
-                  onOpenResult={prop => openReview(prop)} />}
+            <OutlineConversation projectId={id} version={version} document={query.data!.document!} starting={fromIdea}
+              dirty={blockRevision || turn.busy} value={request} onChange={setRequest} onSent={turnId => { rememberDiscussion("story"); turn.track(turnId); }}
+              onOpenResult={prop => openReview(prop)} />
           </div>
           {activeInspector === "history" && <OutlineRevisionPanel outlineId={id} currentVersion={version} document={document} restoreDisabled={blockRevision} onRestored={refresh} />}
           {showFeedback && <div hidden={activeInspector !== "feedback"}><OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} applyDisabled={blockRevision} document={document} /></div>}

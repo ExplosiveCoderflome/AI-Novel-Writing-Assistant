@@ -1,4 +1,5 @@
 import { prisma } from "../../../../db/prisma";
+import { readChapterReviews, chapterConversationScope } from "../conversation/chapterReview";
 import { streamOutlineReply } from "./outlineReplyStream";
 import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
@@ -24,6 +25,23 @@ const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) 
 const conversation = new OutlineWorkbenchConversation(prisma);
 const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
   action: z.literal("generate_initial").optional(), baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+const chapterPath = "/:id/chapters/:chapterId/conversation";
+router.get(chapterPath, route(req => readChapterReviews(prisma, id.parse(req.params.id), id.parse(req.params.chapterId))));
+router.post(chapterPath + "/turns", route(req => conversation.send(id.parse(req.params.id), {
+  ...turnInput.omit({ action: true }).parse(req.body), chapterId: id.parse(req.params.chapterId),
+})));
+router.post(chapterPath + "/interrupt", route(async req => {
+  const { turnId } = z.object({ turnId: id }).parse(req.body);
+  await conversation.interrupt(id.parse(req.params.id), turnId, id.parse(req.params.chapterId));
+  return { turnId };
+}));
+router.get(chapterPath + "/turns/:turnId/stream", async (req, res, next) => {
+  try {
+    const projectId = id.parse(req.params.id);
+    await streamOutlineReply(res, projectId, chapterConversationScope(projectId, id.parse(req.params.chapterId)), id.parse(req.params.turnId));
+  }
+  catch (error) { next(error); }
+});
 router.get("/:id/conversation/turns/:turnId/stream", async (req, res, next) => {
   try { await streamOutlineReply(res, req.params.id, outlineConversationScope(req.params.id), req.params.turnId); }
   catch (error) { next(error); }

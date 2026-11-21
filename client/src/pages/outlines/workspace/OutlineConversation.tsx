@@ -14,7 +14,7 @@ function proposalStatus(result: OutlineConversationResult, version: number) {
 const welcomeIdea = { title: "故事从哪个念头开始？", body: "一个人、一场意外，甚至一个画面都可以。我们可以先聊出方向，再一起列出第一版大纲。",
   starters: [{ label: "我只有一个画面", text: "我有一个画面，想从它开始构思故事。你可以先问我一个问题吗？" },
     { label: "陪我找一个故事方向", text: "我还没想好写什么。请给我两个不同的故事方向，让我选一个继续聊。" }] };
-const welcomeEdit = { title: "想先聊大纲的哪一处？", body: "可以一起推敲某一章，也可以通看整份故事。说说你想改什么，以及哪些情节希望保留。",
+const welcomeEdit = { title: "想怎样调整整本书？", body: "可以一起梳理主线、人物关系和卷章安排。哪些情节希望保留，也可以告诉我。",
   starters: [{ label: "看看开篇能否抓住读者", text: "请读一遍开篇，告诉我哪里最吸引人，哪里还可以改。先聊思路。" },
     { label: "梳理伏笔的铺设与回收", text: "帮我梳理大纲里还没有回收的伏笔，提出可以落到具体卷章的调整。" }] };
 
@@ -33,10 +33,10 @@ export function OutlineConversation({ projectId, version, document, starting, di
   };
   const idea = starting || !(document.story.premise || document.story.synopsis || document.chapters.length || document.volumes.length || document.characters.length || document.payoffs.length || document.facts.length);
   return <div className="outline-conversation-host">
-    <AgentConversation adapter={adapter} confirmationHint="由你确认后写入大纲" title="大纲搭档" context={`整份大纲 · 修订 v${version}`} welcome={idea ? welcomeIdea : welcomeEdit}
-      inputLabel="给大纲搭档发消息" placeholder={idea ? "写下脑海里的人、画面或一句台词…" : "想讨论哪里？把想保留的情节也告诉我…"}
-      followUpPlaceholder="想调整哪个人物，或哪一章？"
-      initialAction="发送给大纲搭档" followUpAction={(result, n) => result.draftSummary ? `继续讨论《${result.draftSummary.title}》` : `继续讨论第 ${n} 轮提案`} versionLabel={v => `大纲 v${v}`}
+    <AgentConversation adapter={adapter} confirmationHint="由你确认后写入大纲" title="大纲助手" context={`整份大纲 · 修订 v${version}`} welcome={idea ? welcomeIdea : welcomeEdit}
+      inputLabel="给大纲助手发消息" placeholder={idea ? "写下脑海里的人、画面或一句台词…" : "想怎样调整整份大纲？哪些情节希望保留？"}
+      followUpPlaceholder="这份提案里，哪些安排想保留或调整？"
+      initialAction="发送给大纲助手" followUpAction={(result, n) => result.draftSummary ? `继续讨论《${result.draftSummary.title}》` : `继续讨论第 ${n} 轮提案`} versionLabel={v => `大纲 v${v}`}
       maxLength={6000} disabled={dirty} value={value} onChange={onChange}
       canContinue={result => ["pending", "applied", "partially_applied"].includes(result.status)}
       describeResult={result => proposalStatus(result, version)}

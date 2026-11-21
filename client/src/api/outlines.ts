@@ -70,7 +70,7 @@ export interface OutlineProposal {
   id: string;
   projectId: string;
   baseVersion: number;
-  kind: OutlineProposalKind | "character_impact";
+  kind: OutlineProposalKind | "character_impact" | "chapter_edit";
   status: string;
   requestText?: string | null;
   proposalJson: string;
@@ -81,6 +81,8 @@ export interface PendingOutlineProposal {
   kind: OutlineProposal["kind"];
   baseVersion: number;
   characterId: string | null;
+  chapterId?: string | null;
+  targetNodeIds?: string[];
   requestText: string | null;
   title: string | null;
 }

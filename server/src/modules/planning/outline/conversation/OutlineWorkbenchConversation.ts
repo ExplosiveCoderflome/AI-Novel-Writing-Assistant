@@ -1,3 +1,5 @@
+import { chapterConversationScope, generateChapterReview } from "./chapterReview";
+import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
 import type { OutlineConversationResult, OutlineConversationTurn } from "@ai-novel/shared/types/agentConversation/outline";
@@ -12,8 +14,9 @@ import { validateOutlineDocument } from "../domain/outlineDocument";
 import { assertValidOutlineEditOperations } from "../domain/outlineEditOperations";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 
-type Input = AgentTurnInput & { baseVersion: number; action?: "generate_initial" };
+type Input = AgentTurnInput & { baseVersion: number; chapterId?: string; action?: "generate_initial" };
 export const outlineConversationScope = (id: string) => JSON.stringify(["outline-workbench", id]);
+const scopeFor = (projectId: string, chapterId?: string) => chapterId ? chapterConversationScope(projectId, chapterId) : outlineConversationScope(projectId);
 const kinds = ["initial_generation", "edit"];
 const conflict = () => new AppError("大纲或提案已有更新，请根据最新版本继续讨论。", 409);
 
@@ -65,7 +68,7 @@ export class OutlineWorkbenchConversation {
   async send(projectId: string, input: Input) {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
-    const scopeKey = outlineConversationScope(projectId);
+    const scopeKey = scopeFor(projectId, input.chapterId);
     const { turn, created } = await this.store.start({ ...input, scopeKey, contextVersion: String(input.baseVersion) });
     if (!created) return { turnId: turn.id };
     agentReplyLive.begin(turn.id);
@@ -81,10 +84,11 @@ export class OutlineWorkbenchConversation {
     if (!current?.revision || current.project.currentVersion !== input.baseVersion || current.project.status !== "active") throw conflict();
     const document = validateOutlineDocument(JSON.parse(current.revision.documentJson));
     const prior = input.parentResultId ? await this.db.outlineProposal.findFirst({
-      where: { id: input.parentResultId, projectId, kind: { in: kinds }, status: { in: ["pending", "applied", "partially_applied"] } },
+      where: { id: input.parentResultId, projectId, kind: { in: input.chapterId ? ["chapter_edit"] : kinds }, status: { in: ["pending", "applied", "partially_applied"] } },
     }) : null;
     if (input.parentResultId && !prior) throw conflict();
-    const rows = await this.store.history(outlineConversationScope(projectId));
+    const scopeKey = scopeFor(projectId, input.chapterId);
+    const rows = await this.store.history(scopeKey);
     const history: { author: string; assistant: string | null }[] = [];
     let remaining = 12000;
     for (const row of rows.reverse()) {
@@ -95,8 +99,35 @@ export class OutlineWorkbenchConversation {
       remaining -= author.length + (assistant?.length ?? 0);
       if (!remaining) break;
     }
-    const priorProposal = prior && { kind: prior.kind, status: prior.status, payload: JSON.parse(prior.proposalJson) };
-    const dialogue = input.action === "generate_initial" ? null : await agentReplyLive.during(input.requestId, "大纲搭档正在回复…", true, itemKey =>
+    const priorProposal = prior && { kind: prior.kind, status: prior.status, baseVersion: prior.baseVersion, requestText: prior.requestText, payload: JSON.parse(prior.proposalJson) };
+    const chapterId = input.chapterId;
+    if (chapterId && priorProposal && priorProposal.payload.chapterId !== chapterId) throw conflict();
+    const { answer, invocation, replyText } = chapterId
+      ? await generateChapterReview(this.db, projectId, chapterId, input.requestId, document, { requestText: input.requestText, baseVersion: input.baseVersion, history, priorProposal })
+      : await this.generateWhole(input, document, history, priorProposal);
+    if (answer.kind === "edit" || answer.kind === "chapter_edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
+    await this.db.$transaction(async tx => {
+      const latest = await tx.outlineProject.findUniqueOrThrow({ where: { id: projectId }, select: { updatedAt: true } });
+      const guard = await tx.outlineProject.updateMany({ where: { id: projectId, status: "active", currentVersion: input.baseVersion },
+        data: { currentVersion: { increment: 0 }, updatedAt: latest.updatedAt } });
+      if (!guard.count) throw conflict();
+      let resultId: string | null = null;
+      if (answer.kind !== "discussion") {
+        if (prior?.status === "pending" && (!input.chapterId || prior.baseVersion === input.baseVersion)) {
+          const changed = await tx.outlineProposal.updateMany({ where: { id: prior.id, projectId, status: "pending" }, data: { status: "superseded" } });
+          if (!changed.count) throw conflict();
+        }
+        resultId = randomUUID();
+        await tx.outlineProposal.create({ data: { id: resultId, projectId, baseVersion: input.baseVersion, kind: answer.kind, status: "pending",
+          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: invocation?.promptId, promptVersion: invocation?.promptVersion } });
+      }
+      await AgentConversationStore.complete(tx, scopeKey, input.requestId, resultId, replyText);
+    });
+  }
+
+  private async generateWhole(input: Input, document: OutlineDocument, history: {author: string; assistant: string | null}[],
+    priorProposal: { kind: string; status: string; payload: unknown } | null) {
+    const dialogue = input.action === "generate_initial" ? null : await agentReplyLive.during(input.requestId, "大纲助手正在回复…", true, itemKey =>
       runOutlineProposalStructuredCall({ asset: outlineWorkbenchDialogue, options: {itemKey},
         promptInput: { requestText: input.requestText, baseVersion: input.baseVersion, document, history, priorProposal } }));
     let answer: NonNullable<typeof dialogue>["output"]["answer"] = dialogue?.output.answer ?? { kind: "initial_generation", payload: null };
@@ -116,28 +147,11 @@ export class OutlineWorkbenchConversation {
     if (!replyText && answer.kind === "initial_generation" && answer.payload) {
       replyText = `《${answer.payload.storyFields.title}》的初稿已整理好，你可以查看卷章、人物和伏笔，再决定是否采纳。`;
     }
-    if (answer.kind === "edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
-    await this.db.$transaction(async tx => {
-      const latest = await tx.outlineProject.findUniqueOrThrow({ where: { id: projectId }, select: { updatedAt: true } });
-      const guard = await tx.outlineProject.updateMany({ where: { id: projectId, status: "active", currentVersion: input.baseVersion },
-        data: { currentVersion: { increment: 0 }, updatedAt: latest.updatedAt } });
-      if (!guard.count) throw conflict();
-      let resultId: string | null = null;
-      if (answer.kind !== "discussion") {
-        if (prior?.status === "pending") {
-          const changed = await tx.outlineProposal.updateMany({ where: { id: prior.id, projectId, status: "pending" }, data: { status: "superseded" } });
-          if (!changed.count) throw conflict();
-        }
-        resultId = randomUUID();
-        await tx.outlineProposal.create({ data: { id: resultId, projectId, baseVersion: input.baseVersion, kind: answer.kind, status: "pending",
-          requestText: input.requestText, proposalJson: JSON.stringify(answer.payload), promptId: invocation?.promptId, promptVersion: invocation?.promptVersion } });
-      }
-      await AgentConversationStore.complete(tx, outlineConversationScope(projectId), input.requestId, resultId, replyText);
-    });
+    return { answer, invocation, replyText };
   }
 
-  async interrupt(projectId: string, turnId: string) {
-    await this.store.stop(outlineConversationScope(projectId), turnId, "interrupted", "本轮讨论已结束。");
+  async interrupt(projectId: string, turnId: string, chapterId?: string) {
+    await this.store.stop(scopeFor(projectId, chapterId), turnId, "interrupted", "本轮讨论已结束。");
     agentReplyLive.end(turnId);
   }
 }

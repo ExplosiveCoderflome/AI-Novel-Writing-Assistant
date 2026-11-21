@@ -294,7 +294,7 @@ test("OpenAI-compatible reasoning_content and reasoning_tokens reach a saved out
 });
 
 
-test("从赵高初稿到李斯 v3 旧建议重审，v4 仅在作者确认后推进", async t => {
+test("赵高初稿、李斯旧建议重审与第二章局部修改各自保留讨论，确认后逐项写入", async t => {
   const {project} = await outlineProjectService.create("沙丘故事");
   const seed = await outlineProjectService.get(project.id);
   await outlineProjectService.save(project.id, 1, {...seed.document, story: {...seed.document.story, premise:"沙丘诏书"}});
@@ -303,11 +303,23 @@ test("从赵高初稿到李斯 v3 旧建议重审，v4 仅在作者确认后推�
   const draft = {storyFields:{title:"赵高倒计时", premise:"诏书的去向", synopsis:"沙丘之后的抉择", theme:"秦法", tone:"悬疑", endingDirection:"诏书送达"},
     volumes:[node("v","沙丘")],chapters:[{...node("c","第二章《不发的诏书》"), volumeRef:"v"}],
     characters:names.map((name,i) => ({...node("p"+i,name), role:"参与者",appearanceRefs:["c"]})),payoffs:[],facts:[]};
-  let personId;
+  let personId, chapterId, chapterCalls = 0;
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,promptInput}) => {
     if (asset.id === "outline.initial_generate") {
       assert.equal(promptInput.idea, "把赵高的故事写成倒计时。");
       return {output:asset.outputSchema.parse(draft),meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
+    }
+    if (asset.id === "outline.chapter_review") {
+      chapterCalls++;
+      assert.equal(promptInput.chapter.nodeId, chapterId);
+      assert.equal(promptInput.chapter.title, "第二章《不发的诏书》");
+      assert.equal(promptInput.document.characters[1].goal, "依秦法保全家人goal");
+      assert.equal(promptInput.baseVersion, 5);
+      assert.deepEqual(promptInput.history, []);
+      return {output:asset.outputSchema.parse({replyText:"请核对本章梗概和章末悬念。",changes:[
+        {field:"summary",value:"李斯按住诏书，等赵高先开口。",reason:"延迟交付"},
+        {field:"endingHook",value:"门外是谁？",reason:"留下悬念"},
+      ]}),meta:{invocation:{promptId:asset.id,promptVersion:asset.version}}};
     }
     assert.equal(promptInput.snapshot.baseVersion, 4);
     assert.equal(promptInput.previousProposal.baseVersion, 3);
@@ -346,7 +358,38 @@ test("从赵高初稿到李斯 v3 旧建议重审，v4 仅在作者确认后推�
   for (const key of ["goal","motivation","conflict"]) assert.equal(v5.document.characters[1][key],"依秦法保全家人"+key);
   assert.deepEqual(v5.document.characters.map(p => [p.summary,p.appearanceNodeIds]),v3.document.characters.map(p => [p.summary,p.appearanceNodeIds]));
   assert.deepEqual(v5.document.chapters[0].characterNodeIds,v3.document.chapters[0].characterNodeIds);
-  assert.deepEqual((await api(project,"revisions")).map(r => r.version).sort(),[1,2,3,4,5]);
+  chapterId = v5.document.chapters[0].nodeId;
+  const chapterPath = `chapters/${chapterId}/conversation`;
+  const readChapter = p => api(p, chapterPath);
+  const beforeGlobal = await api(project, "conversation");
+  const beforePerson = await timeline(project, personId);
+  assert.deepEqual(await readChapter(project), []);
+  const body = {requestId:"chapter-zhaogao",requestText:"让不发诏书的决定更明确",baseVersion:5};
+  await api(project, chapterPath + "/turns", body);
+  const chapterTurn = await settled(project, body.requestId, readChapter);
+  assert.equal(chapterTurn.result?.status, "pending", chapterTurn.replyText);
+  await api(project, chapterPath + "/turns", body);
+  assert.equal(chapterCalls, 1);
+  const id = chapterTurn.result.id;
+  const listed = (await api(project, "proposals")).find(row => row.id === id);
+  assert.equal(listed.chapterId, chapterId);
+  assert.deepEqual(listed.targetNodeIds, [chapterId]);
+  const wrong = { ...body, requestId:"wrong-scope", parentResultId:old.id };
+  await api(project, chapterPath + "/turns", wrong);
+  assert.equal((await settled(project, wrong.requestId, readChapter)).status, "failed");
+  assert.equal(chapterCalls, 1);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 5);
+  await api(project, `proposals/${id}/apply`, {operationIds:[]}, 400);
+  const v6 = await api(project, `proposals/${id}/apply`, {operationIds:["summary"]});
+  assert.equal(v6.revision.version, 6);
+  const expected = structuredClone(v5.document);
+  expected.chapters[0].summary = "李斯按住诏书，等赵高先开口。";
+  assert.deepEqual(v6.document, expected);
+  assert.equal((await readChapter(project))[0].result.status, "partially_applied");
+  assert.deepEqual(JSON.parse((await api(project, `proposals/${id}`)).proposalJson).appliedOperationIds, ["summary"]);
+  assert.deepEqual((await api(project, "conversation")).map(row => row.id), beforeGlobal.map(row => row.id));
+  assert.deepEqual((await timeline(project, personId)).map(row => row.id), beforePerson.map(row => row.id));
+  assert.deepEqual((await api(project,"revisions")).map(r => r.version).sort(),[1,2,3,4,5,6]);
 });
 
 test("whole-outline conversation protects the saved revision and ignores a late reply after interruption", async t => {
@@ -600,15 +643,30 @@ test("卷章审阅对人物字段另提新值或新增依赖仍判定越界", as
   assert.equal((await outlineProjectService.get(project.id)).currentVersion, 1);
 });
 
-test("a chapter written after review is protected at acceptance, independent edits remain available", async () => {
+test("a chapter written after review is protected at acceptance, independent edits remain available", async t => {
   const {project,request} = await fixture();
   const book = await prisma.novel.create({data:{title:"已绑定的药铺"}});
   const chapter = await prisma.chapter.create({data:{novelId:book.id,order:12,title:"交账"}});
   await prisma.outlineBookBinding.create({data:{id:project.id,projectId:project.id,revisionId:project.currentRevisionId,revisionVersion:1,sourceDocumentHash:"hash",novelId:book.id,requestKey:project.id,requestHash:"key",mappingJson:JSON.stringify({chapters:[{nodeId:"c12",chapterId:chapter.id,chapterOrder:12}]}),policyJson:"{}",postCreateStateJson:"{}"}});
   const proposal=await api(project,"character-impact/proposals",{...request,reviews:sample()},201);
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset}) => ({
+    output:asset.outputSchema.parse({replyText:"推迟交账。",changes:[{field:"summary",value:"午后再交账",reason:"给沈禾时间辨认账册"}]}),
+    meta:{invocation:{promptId:asset.id,promptVersion:asset.version}},
+  }));
+  const scope = "chapters/c12/conversation";
+  const chapterRequest = {requestId:"before-writing",baseVersion:1,requestText:"推迟交账"};
+  await api(project, scope + "/turns", chapterRequest);
+  const local = await settled(project, chapterRequest.requestId, p => api(p, scope));
+  assert.equal(local.result?.status, "pending", local.replyText);
+  const other = "chapters/c16/conversation";
+  await api(project, other + "/turns", {...chapterRequest, requestId:"wrong-chapter", parentResultId:local.result.id});
+  assert.equal((await settled(project, "wrong-chapter", p => api(p, other))).status, "failed");
   await prisma.chapter.update({where:{id:chapter.id},data:{content:"作者保存的正文。"}});
   const ctx=await api(project,"character-impact/context?characterId=shen&baseVersion=1");
   assert.deepEqual(ctx.writtenChapterIds,["c12"]);
+  await api(project, `proposals/${local.result.id}/apply`, {operationIds:["summary"]}, 409);
+  await api(project, scope + "/turns", {...chapterRequest, requestId:"after-writing"});
+  assert.equal((await settled(project, "after-writing", p => api(p, scope))).status, "failed");
   await api(project,`proposals/${proposal.id}/apply`,{operationIds:["shen","c12"]},409);
   await api(project,"character-impact/proposals",{...request,reviews:sample()},400);
   assert.equal((await outlineProjectService.get(project.id)).currentVersion,1);

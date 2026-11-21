@@ -46,10 +46,9 @@ interface Props {
   disabled: boolean;
   onChange: (field: string, value: string | boolean) => void;
   onSelect: (id: string) => void;
-  onReviewCharacter: () => void;
 }
 
-export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect, onReviewCharacter }: Props) {
+export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect }: Props) {
   const form = formFor(node);
   const titleField = "name" in node ? "name" : "title";
   const current = node as unknown as Record<string, unknown>;
@@ -80,8 +79,6 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
     <header className="mb-6">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{parent ? `${parent.title} / ${form.label}` : form.label}</span>
-        {"appearanceNodeIds" in node && <button type="button" onClick={onReviewCharacter} className="inline-flex items-center gap-1 text-primary hover:underline">
-          分析人物改动<ArrowUpRight size={14} aria-hidden /></button>}
       </div>
       <input className="outline-title" aria-label={outlineFieldLabels[titleField]} disabled={disabled}
         placeholder={titleField === "name" ? "填写人物姓名" : "填写标题"} value={String(current[titleField])}

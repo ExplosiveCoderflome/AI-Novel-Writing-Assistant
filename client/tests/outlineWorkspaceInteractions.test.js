@@ -106,8 +106,10 @@ test("大纲两侧栏宽独立保存，取消拖动或恢复默认不影响另�
   const grid = await until(() => document.querySelector(".outline-workspace-grid"));
   // JSDOM has no layout engine. Supply the measured tracks used by a desktop grid.
   grid.style.gridTemplateColumns = "200px 600px 400px";
+  assert.equal(grid.querySelectorAll("[role=separator]").length, 2);
+  await click(button("大纲助手"));
   assert.equal(grid.querySelectorAll("[role=separator]").length, 1);
-  await click(button("AI 讨论"));
+  await click(button("大纲助手"));
   const [left, right] = grid.querySelectorAll("[role=separator]");
   function pointer(handle, type, x) {
     const event = new window.MouseEvent(type, { bubbles: true, clientX: x, button: 0 });
@@ -126,11 +128,12 @@ test("大纲两侧栏宽独立保存，取消拖动或恢复默认不影响另�
   pointer(left, "lostpointercapture", 310);
   assert.equal(grid.style.getPropertyValue("--left-preferred"), "272px");
   assert.deepEqual(first.writes, []);
+  await click(button("大纲助手"));
   await first.close();
 
   const reopened = await open(t, "/outlines/p");
   const restored = await until(() => document.querySelector(".outline-workspace-grid"));
-  await click(button("AI 讨论"));
+  await click(button("大纲助手"));
   assert.equal(restored.style.getPropertyValue("--left-preferred"), "272px");
   assert.equal(restored.style.getPropertyValue("--right-preferred"), "412px");
   const reset = side => restored.querySelector(`[data-column-divider="${side}"]`).dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
@@ -187,7 +190,7 @@ test("从故事想法生成初稿，在主栏预览，重进继续追问并采�
   }
   const first = await open(t, "/outlines", respond);
   await click(await until(() => button("从一个想法开始")));
-  const input = () => document.querySelector('[aria-label="给大纲搭档发消息"]');
+  const input = () => document.querySelector('[aria-label="给大纲助手发消息"]');
   const sendKey = init => runtime.act(async () => input().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init })));
   const idea = await until(() => document.querySelector("#outline-story-idea"));
   await change(idea, "帮我调整开篇的渡河。");
@@ -203,7 +206,6 @@ test("从故事想法生成初稿，在主栏预览，重进继续追问并采�
   const reopened = await open(t, "/outlines/p", respond);
   await until(() => button("继续讨论《末班渡船》"));
   assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "editor");
-  await click(button("AI 讨论"));
   assert.match(document.querySelector('[aria-label="对话记录"]').textContent, /帮我调整开篇的渡河/);
   await change(input(), "为什么要安排风暴？");
   await sendKey({ isComposing: true }); await sendKey({ shiftKey: true });
@@ -249,7 +251,7 @@ test("模型返回的思考先独立显示，回复逐段渲染，重新打开�
   assert.equal(document.querySelector(".agent-thinking-content").hidden,true);
   await send("从**渡口**开篇");
   assert.equal(document.querySelector(".agent-reply strong")?.textContent,"渡口");
-  assert.equal(button("发送给大纲搭档").disabled,true);
+  assert.equal(button("发送给大纲助手").disabled,true);
   await send("从**渡口**开篇，让她自己决定。");
   assert.ok(document.querySelector(".agent-reply").textContent.includes("自己决定"));
   turn.status="completed"; turn.replyText="保存的回复：从渡口开篇。"; turn.thinking=thinking;
@@ -291,20 +293,20 @@ test("目录按卷搜索，在缺省人物字段中编辑，经关联章节返�
   assert.equal(button("出海", directory), undefined);
   await change(search, "");
   const motivation = () => [...document.querySelectorAll(".outline-editor label")].find(item => item.querySelector("span")?.textContent === "动机").querySelector("textarea");
-  await change(document.querySelector('[aria-label="人物联动审阅"] textarea'), "让阿黎在第二卷才知道真相");
-  await click(button("整份大纲", document.querySelector('[aria-label="对话范围"]')));
+  await click(button("修改阿黎"));
+  await change(document.querySelector('[aria-label="人物局部修改"] textarea'), "让阿黎在第二卷才知道真相");
   assert.equal(document.querySelectorAll(".agent-conversation").length, 1);
-  await change(document.querySelector('[aria-label="给大纲搭档发消息"]'), "保留渡口这一章");
-  await click(button("人物 · 阿黎"));
-  assert.equal(document.querySelector('[aria-label="人物联动审阅"] textarea').value, "让阿黎在第二卷才知道真相");
+  await change(document.querySelector('[aria-label="给大纲助手发消息"]'), "保留渡口这一章");
+  assert.equal(document.querySelector('[aria-label="对话范围"]'), null);
+  assert.equal(document.querySelector('[aria-label="人物局部修改"] textarea').value, "让阿黎在第二卷才知道真相");
   await click(button("手动编辑"));
   await change(motivation(), "找回父亲的航海日志");
-  assert.equal(button("分析相关卷章与伏笔").disabled, true);
+  assert.equal(button("发送给大纲助手").disabled, true);
   await click(button("风暴", document.querySelector('[aria-label="关联内容"]')));
   assert.equal(document.querySelector('.outline-title').value, "风暴");
   await click(button("阿黎", directory));
   assert.equal(motivation().value, "找回父亲的航海日志");
-  assert.equal(document.querySelector('[aria-label="人物联动审阅"] textarea').value, "让阿黎在第二卷才知道真相");
+  assert.equal(document.querySelector('[aria-label="给大纲助手发消息"]').value, "保留渡口这一章");
   conflict();
   await runtime.act(async () => { await page.cache.invalidateQueries({ queryKey: ["outline", "p"] }); });
   await until(() => button("载入最新修订"));
@@ -344,31 +346,36 @@ test("人物对话重进后自动恢复，追问绑定上一版，旧提案只�
   }
   window.localStorage.clear();
   const first = await open(t, "/outlines/p?nodeId=person", respond);
-  const input = () => document.querySelector('[aria-label="人物联动审阅"] textarea');
+  const input = () => document.querySelector('[aria-label="人物局部修改"] textarea');
+  await click(await until(() => button("修改阿黎")));
   await change(await until(input), "让阿黎提前起疑");
-  await click(await until(() => !button("分析相关卷章与伏笔")?.disabled && button("分析相关卷章与伏笔")));
-  await until(() => button("继续讨论第 1 轮提案"));
+  await click(button("生成修改建议"));
+  await until(() => document.querySelector(".outline-review-reading input[type=checkbox]"));
   await first.close();
 
   await open(t, "/outlines/p", respond);
-  await until(() => button("继续讨论第 1 轮提案"));
-  assert.equal(document.querySelector(".outline-workspace-grid").dataset.pane, "editor");
-  await click(button("AI 讨论"));
-  assert.match(document.querySelector('[aria-label="对话记录"]').textContent, /让阿黎提前起疑/);
+  const records = await until(() => document.querySelector(".outline-local-history"));
+  await click(records.querySelector("summary"));
+  assert.match(records.textContent,/让阿黎提前起疑/);
+  assert.equal(document.querySelector(".outline-inspector .outline-local-history"), null);
+  await click(button("沿用这份建议",records));
   await change(input(), "仍然救师父");
-  await click(button("继续讨论第 1 轮提案"));
-  await until(() => button("继续讨论第 2 轮提案"));
+  await click(button("生成修改建议"));
+  await until(() => document.querySelector(".outline-review-reading input[type=checkbox]"));
   assert.deepEqual(accepted, []);
-  await click(button("查看第 1 轮提案 · 已有后续提案"));
+  await click(button("回到当前稿"));
+  const old = [...document.querySelectorAll(".outline-local-history li")].find(li => li.textContent.includes("已有后续建议"));
+  await click(button("查看建议", old));
   await until(() => document.querySelector(".outline-review-reading")?.textContent.includes("已有后续建议"));
   assert.equal(button("采纳所选（2）"), undefined);
-  await click(button("查看第 2 轮提案 · 待确认"));
+  await click(button("回到当前稿"));
+  await click(await until(() => button("查看建议",document.querySelector(".outline-local-history li") ?? document)));
   const boxes = await until(() => {
     const items = document.querySelectorAll('.outline-review-reading input[type="checkbox"]');
     return items.length === 2 && items;
   });
   await click(boxes[1]); await click(button("采纳阿黎这 1 处修改"));
-  await until(() => button("查看第 2 轮提案 · 部分采纳"));
+  await until(() => document.querySelector(".outline-local-history")?.textContent.includes("部分采纳"));
   assert.deepEqual(accepted, [["person"]]);
 });
 
@@ -380,7 +387,7 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
   const original = structuredClone(doc);
   original.characters[0].goal = "v3 的原文";
   let version = 4;
-  const turns = [];
+  const turns = [{id:"old-turn",status:"completed",contextVersion:"3",requestText:"丰富李斯的动机",replyText:"请核对建议",result:{id:"old",status:"pending",baseVersion:3}}];
   const fields = {goal:"保住家人",motivation:"亲族牵挂",conflict:"难以两全"};
   const next = {...fields,goal:"以法度护住家人"};
   function proposal(id,baseVersion,values) {
@@ -411,13 +418,13 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
   });
   const directory = await until(() => document.querySelector(".outline-directory"));
   const grid = document.querySelector(".outline-workspace-grid");
-  await click(button("AI 讨论"));
   const divider = grid.querySelector('[data-column-divider="right"]');
   const expectInspectorOpen = () => {
     assert.equal(grid.dataset.inspectorOpen, "true");
     assert.equal(grid.querySelector('[data-column-divider="right"]'), divider);
   };
-  const personInput = () => document.querySelector('[aria-label="人物联动审阅"] textarea');
+  const personInput = () => document.querySelector('[aria-label="人物局部修改"] textarea');
+  await click(button("修改李斯"));
   await change(personInput(), "李斯为什么迟疑？");
   await click(button("总纲", directory));
   expectInspectorOpen();
@@ -425,10 +432,11 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
   assert.equal(personInput().value, "李斯为什么迟疑？");
   await click(button("版本历史"));
   assert.equal(button("修订历史").getAttribute("aria-pressed"), "true");
-  await click(button("AI 讨论"));
-  assert.equal(button("AI 协作").getAttribute("aria-pressed"), "true");
+  await click(button("大纲助手"));
+  assert.equal(button("整书讨论").getAttribute("aria-pressed"), "true");
   expectInspectorOpen();
-  await click(await until(() => document.querySelector(".outline-pending button")));
+  await click(document.querySelector(".outline-local-history summary"));
+  await click(button("与当前稿对照"));
   const before = await until(() => document.querySelector(".outline-comparison dd"));
   expectInspectorOpen();
   assert.equal(before.textContent, "以秦法约束赵高");
@@ -453,6 +461,70 @@ test("旧建议对照 v4 保存稿，重审沿用指定的 v3 建议，确认后
   await click(button("出海", directory));
   assert.equal(grid.dataset.inspectorOpen, "false");
   assert.equal(grid.querySelector('[data-column-divider="right"]'), null);
+});
+
+test("切换李斯和第二章保留整书会话与各自输入，章节建议在本章确认", async t => {
+  window.localStorage.clear();
+  const doc = fixture();
+  doc.story.title = "赵高倒计时";
+  doc.characters[0].name = "李斯";
+  const chapter = doc.chapters[1];
+  chapter.title = "第二章《不发的诏书》";
+  const path = "/outlines/p/chapters/" + encodeURIComponent(chapter.nodeId) + "/conversation";
+  const current = structuredClone(doc);
+  const chapterTurns = [];
+  const globalTurn = {id:"whole-9",contextVersion:"3",status:"completed",requestText:"梳理整书倒计时",replyText:"从沙丘开始。",result:null};
+  let version = 4;
+  const {writes} = await open(t, "/outlines/p?nodeId=person", (url,method,body) => {
+    if (url === "/outlines/p") return {id:"p",title:doc.story.title,currentVersion:version,document:structuredClone(doc)};
+    if (url === "/outlines/p/conversation") return [globalTurn];
+    if (url === path) return structuredClone(chapterTurns);
+    if (url === path + "/turns") {
+      chapterTurns.push({id:body.requestId,contextVersion:"4",status:"completed",requestText:body.requestText,replyText:"核对本章梗概。",result:{id:"chapter-result",baseVersion:4,status:"pending"}});
+      return {turnId:body.requestId};
+    }
+    if (url.endsWith("/revisions")) return [{id:"r4",version:4}];
+    if (url.endsWith("/revisions/r4")) return {version:4,document:current};
+    if (url.endsWith("/proposals/chapter-result")) return {id:"chapter-result",projectId:"p",kind:"chapter_edit",baseVersion:4,status:"pending",
+      proposalJson:JSON.stringify({chapterId:chapter.nodeId,operations:[{kind:"update_fields",operationId:"summary",nodeId:chapter.nodeId,
+        fields:{summary:"李斯按住诏书"},reason:"延后交付",affectedNodeIds:[chapter.nodeId],risks:[],dependsOn:[]}]})};
+    if (url.endsWith("/proposals/chapter-result/apply")) {
+      chapter.summary = "李斯按住诏书"; version++;
+      chapterTurns[0].result.status = "applied";
+      return {document:structuredClone(doc),revision:{version}};
+    }
+  });
+  const directory = await until(() => document.querySelector(".outline-directory"));
+  const side = document.querySelector(".outline-inspector");
+  await until(() => side.textContent.includes(globalTurn.requestText));
+  const whole = side.querySelector("textarea");
+  await change(whole, "整书结尾的倒计时如何回收？");
+  const local = () => document.querySelector(".outline-local-review textarea");
+  await click(button("修改李斯"));
+  await change(local(), "丰富李斯的目标和动机");
+  await click(button(chapter.title, directory));
+  await click(button("调整本章"));
+  assert.equal(local().value, "");
+  await change(local(), "请明确本章的冲突");
+  await click(button("李斯", directory));
+  await click(button("修改李斯"));
+  assert.equal(local().value, "丰富李斯的目标和动机");
+  await click(button(chapter.title, directory));
+  await click(button("调整本章"));
+  assert.equal(local().value, "请明确本章的冲突");
+  assert.deepEqual(writes, []);
+  await click(await until(() => {const send = button("生成修改建议"); return send && !send.disabled && send;}));
+  const adopt = await until(() => button("采纳所选（1）"));
+  assert.equal(version,4);
+  assert.equal(writes[0].url,path + "/turns");
+  await click(adopt);
+  await until(() => document.querySelector(".outline-reading h2")?.textContent === chapter.title);
+  assert.deepEqual(writes[1].body.operationIds,["summary"]);
+  assert.equal(version,5);
+  assert.equal(side.querySelector("textarea"),whole);
+  assert.equal(whole.value,"整书结尾的倒计时如何回收？");
+  assert.ok(side.textContent.includes(globalTurn.requestText));
+  assert.ok(!side.textContent.includes("请明确本章的冲突"));
 });
 
 test("选卷添加章节后统一保存，修订同时保留章节归属和卷内顺序", async t => {

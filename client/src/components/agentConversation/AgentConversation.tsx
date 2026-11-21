@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, ArrowUpRight, BookOpen, Check, ChevronDown, Feather, FileText, RefreshCw, Square } from "lucide-react";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
-import { subscribeSnapshots } from "@/lib/streaming/subscribeSnapshots";
-import type { AgentConversationTurn, AgentTurnInput, AgentReplyPreview } from "@ai-novel/shared/types/agentConversation/turn";
+import { useAgentReplyPreview } from "./useAgentReplyPreview";
+import type { AgentConversationTurn, AgentTurnInput } from "@ai-novel/shared/types/agentConversation/turn";
 import { AgentThinking } from "./AgentThinking";
 import "./agentConversation.css";
 
@@ -35,14 +35,13 @@ interface Props<Result extends { id: string; status: string }> {
   describeResult: (result: Result) => string;
   draftPreview?: (result: Result) => { title: string; counts: string } | undefined;
   followUpTopic: (result: Result, number: number) => string;
-  newTopic?: string;
   onOpenResult?: (resultId: string) => void;
   renderResult?: (result: Result, busy: boolean, round: number) => ReactNode;
 }
 
 export function AgentConversation<Result extends { id: string; status: string }>({
   adapter, title, context, confirmationHint, welcome, inputLabel, placeholder, followUpPlaceholder, initialAction, followUpAction, versionLabel,
-  maxLength, disabled, value, onChange, canContinue, describeResult, draftPreview, followUpTopic, renderResult, onOpenResult, newTopic,
+  maxLength, disabled, value, onChange, canContinue, describeResult, draftPreview, followUpTopic, renderResult, onOpenResult,
 }: Props<Result>) {
   const client = useQueryClient();
   const [openedId, setOpenedId] = useState<string | null>(null);
@@ -58,25 +57,10 @@ export function AgentConversation<Result extends { id: string; status: string }>
   const results = turns.flatMap((turn, index) => turn.result ? [{ result: turn.result, number: index + 1 }] : []);
   const byResultId = new Map(results.map(item => [item.result.id, item]));
   const opened = openedId ? byResultId.get(openedId) : undefined;
-  const parent = newTopic ? undefined : opened && canContinue(opened.result) ? opened : [...results].reverse().find(item => canContinue(item.result));
+  const parent = opened && canContinue(opened.result) ? opened : [...results].reverse().find(item => canContinue(item.result));
   const running = turns.find(turn => turn.status === "running");
   const streamUrl = running && adapter.streamUrl?.(running.id);
-  const [preview, setPreview] = useState<AgentReplyPreview | null>(null);
-  const { refetch } = history;
-  useEffect(() => {
-    setPreview(null);
-    if (!streamUrl || typeof EventSource === "undefined") return;
-    const close = subscribeSnapshots(streamUrl, raw => {
-      const frame = raw as Partial<AgentReplyPreview> | null;
-      if (!frame || frame.turnId !== running?.id || typeof frame.text !== "string"
-        || typeof frame.stage !== "string" || typeof frame.done !== "boolean") return;
-      if (frame.thinking !== undefined && (!Array.isArray(frame.thinking) ||
-        !frame.thinking.every(step => step && typeof step.stage === "string" && typeof step.text === "string"))) return;
-      if (frame.done) { close(); void refetch(); }
-      else setPreview(frame as AgentReplyPreview);
-    });
-    return close;
-  }, [streamUrl, running?.id, refetch]);
+  const preview = useAgentReplyPreview(streamUrl, running?.id, history.refetch);
   useEffect(() => {
     const feed = feedRef.current;
     if (preview && followReply.current && feed) feed.scrollTop = feed.scrollHeight;
@@ -168,12 +152,11 @@ export function AgentConversation<Result extends { id: string; status: string }>
     </div>
     <form className="agent-compose" onSubmit={e => { e.preventDefault(); submit(); }}>
       <div className="agent-input">
-        {newTopic && <p className="agent-reference" id={topicId}><Feather size={14} />{newTopic}</p>}
         {parent && <div className="agent-reference" id={topicId} title={`第 ${parent.number} 轮提案`}>
           <BookOpen size={14} aria-hidden="true" />{followUpTopic(parent.result, parent.number)}
         </div>}
-        <textarea ref={editor} aria-label={inputLabel} aria-describedby={parent || newTopic ? topicId : undefined} rows={2} value={value} maxLength={maxLength}
-          placeholder={newTopic ? placeholder : parent ? followUpPlaceholder : turns.length ? "接着说说你的想法…" : placeholder} disabled={send.isPending} onChange={event => onChange(event.target.value)}
+        <textarea ref={editor} aria-label={inputLabel} aria-describedby={parent ? topicId : undefined} rows={2} value={value} maxLength={maxLength}
+          placeholder={parent ? followUpPlaceholder : turns.length ? "接着说说你的想法…" : placeholder} disabled={send.isPending} onChange={event => onChange(event.target.value)}
           onKeyDown={event => {
             if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey
               || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;

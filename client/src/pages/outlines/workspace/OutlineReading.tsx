@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ArrowRight, ArrowUpRight, BookOpen, Feather, PencilLine } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type { PendingOutlineProposal } from "@/api/outlines";
@@ -38,8 +39,8 @@ export function PendingSuggestions({ proposals, version, document, onOpen }: {
   </section>;
 }
 
-export function OutlineReading({ document, node, version, onEdit, onDiscuss, onSelect }: {
-  document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; onDiscuss: () => void; onSelect: (id: string) => void;
+export function OutlineReading({ document, node, version, onEdit, localReview, onSelect }: {
+  document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; localReview?: ReactNode; onSelect: (id: string) => void;
 }) {
   const form = formFor(node);
   const isStory = node.nodeId === document.story.nodeId;
@@ -52,7 +53,7 @@ export function OutlineReading({ document, node, version, onEdit, onDiscuss, onS
     <header className="outline-reading-meta"><span><BookOpen size={14} /> {form.label} · 当前稿 v{version}</span><button onClick={onEdit}><PencilLine size={14} /> 手动编辑</button></header>
     <h2>{getOutlineNodeTitle(node)}</h2>
     {isStory && <p className="outline-reading-counts">{document.volumes.length} 卷 <i>·</i> {document.chapters.length} 章 <i>·</i> {document.characters.length} 位人物</p>}
-    {person && <button className="outline-reading-link" onClick={onDiscuss}><Feather size={15} />和 AI 一起改{person.name}</button>}
+    {localReview}
     {[...form.main, ...form.more].filter(key => fields[key] !== undefined && fields[key] !== "" && key !== "planningDepth").map(key => <section className="outline-passage" key={key}>
       <h3>{person && key === "summary" ? "人物说明" : outlineFieldLabels[key]}</h3><p>{formatOutlineValue(fields[key], key, document)}</p>
     </section>)}
