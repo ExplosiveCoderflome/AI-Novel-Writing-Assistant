@@ -19,7 +19,7 @@ interface PromptCatalogSidebarProps {
 }
 
 export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(true);
   const editable = props.prompts.filter((prompt) => prompt.slotSupported || prompt.capabilities.supportsAdvancedTemplate);
   const searching = Boolean(props.keyword.trim());
   const visible = showAll || searching ? props.prompts : editable;

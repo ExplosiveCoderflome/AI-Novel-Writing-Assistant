@@ -119,6 +119,13 @@ export interface PromptPreviewMessage {
   content: string;
 }
 
+export async function getCreationFlowTemplate(key: string) {
+  type Template = { id: string; version: string; messages: PromptPreviewMessage[] };
+  const { data } = await apiClient.get<ApiResponse<Template>>(`/prompt-workbench/creation-flow/templates/${encodeURIComponent(key)}`);
+  if (!data.data) throw new Error("未能读取此步骤的提示词。");
+  return data.data;
+}
+
 export interface PromptPreviewResult {
   prompt: PromptCatalogItem;
   messages: PromptPreviewMessage[];
