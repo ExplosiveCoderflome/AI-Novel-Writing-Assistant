@@ -262,10 +262,15 @@ export function normalizeCandidate(
   };
 }
 
+interface CandidateTitleContext {
+  roundCandidates?: DirectorCandidate[];
+  excludedTitles?: string[];
+}
+
 export async function enhanceCandidateTitles(
   candidate: DirectorCandidate,
   context: CandidateGenerationContext,
-  options: { excludedTitles?: string[] } = {},
+  options: CandidateTitleContext = {},
 ): Promise<DirectorCandidate> {
   const excludedTitles = options.excludedTitles ?? [];
   const fallbackOptions = mergeTitleOptions([], candidate, excludedTitles);
@@ -274,7 +279,7 @@ export async function enhanceCandidateTitles(
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
       selectionMode: "primary",
-      brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
+      brief: buildCandidateTitleBrief(candidate, context, options),
       genreId: context.request.genreId ?? null,
       count: 4,
       provider: context.options.provider,
@@ -295,13 +300,15 @@ export async function enhanceCandidateTitles(
   }
 }
 
-function buildCandidateTitleBrief(
+export function buildCandidateTitleBrief(
   candidate: DirectorCandidate,
-  context: CandidateGenerationContext,
-  excludedTitles: string[] = [],
+  context: Pick<CandidateGenerationContext, "idea" | "request">,
+  { roundCandidates = [], excludedTitles = [] }: CandidateTitleContext = {},
 ): string {
   const lines = [
     `故事灵感：${context.idea.trim()}`,
+    candidate.plannedDirection && `本案方向：${candidate.plannedDirection}`,
+    `故事梗概：${candidate.logline}`,
     `方案定位：${candidate.positioning}`,
     `核心卖点：${candidate.sellingPoint}`,
     `主线冲突：${candidate.coreConflict}`,
@@ -309,7 +316,7 @@ function buildCandidateTitleBrief(
     `开篇钩子：${candidate.hookStrategy}`,
     `推进循环：${candidate.progressionLoop}`,
     `结局方向：${candidate.endingDirection}`,
-    `推荐发布平台：${candidate.recommendedWritingPlatform === "qidian_male"
+    candidate.recommendedWritingPlatform && `推荐发布平台：${candidate.recommendedWritingPlatform === "qidian_male"
       ? "起点男频"
       : candidate.recommendedWritingPlatform === "jinjiang_female"
         ? "晋江女频"
@@ -319,20 +326,18 @@ function buildCandidateTitleBrief(
     context.request.readerChannelPreference === "female_oriented" ? "读者频道：女频向" : "",
     context.request.readerChannelPreference === "general" ? "读者频道：泛读者" : "",
     context.request.targetAudience?.trim() ? `目标读者：${context.request.targetAudience.trim()}` : "",
+    context.request.competingFeel?.trim() ? `对标气质：${context.request.competingFeel.trim()}` : "",
     context.request.marketBriefPrompt?.trim() ? `开书市场简报：\n${context.request.marketBriefPrompt.trim()}` : "",
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
-    `当前方案原始命名：${candidate.workingTitle}`,
+    ...roundCandidates.filter((other) => other.id !== candidate.id)
+      .map((other) => `同轮另一方案（仅作比较）：${other.plannedDirection || other.logline}`),
     excludedTitles.length > 0 ? `其他方案已占用书名：${excludedTitles.join("、")}` : "",
-    "请先确定一个最适合当前平台、读者与故事方向的主书名，再给出三个不同角度的备选。",
-    "主书名必须保留这套故事独有的具体资产，不能只剩抽象情绪、泛化反差或一句悬念文案。",
-    "不要写成策划案标题、世界观概念短语、流水线土味套壳名，也不要为了文艺感牺牲点击感。",
-    excludedTitles.length > 0 ? "不得复用或近似改写其他方案已占用的书名。" : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
 
-function mergeTitleOptions(
+export function mergeTitleOptions(
   generatedTitles: TitleFactorySuggestion[],
   candidate: DirectorCandidate,
   excludedTitles: string[] = [],

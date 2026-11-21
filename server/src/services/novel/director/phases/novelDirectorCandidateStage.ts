@@ -11,11 +11,9 @@ import {
   type DirectorCandidatesRequest,
   type DirectorCandidatesResponse,
   type DirectorCorrectionPreset,
-  type DirectorProjectContextInput,
   type DirectorRefineResponse,
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runCandidateStructuredCall } from "./candidateStructuredCall";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
@@ -27,12 +25,13 @@ import {
   directorDirectionPairPrompt,
 } from "../../../../prompting/prompts/novel/directorPlanning.prompts";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
-import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
+  buildCandidateTitleBrief,
   buildRefinementSummary,
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
+  mergeTitleOptions,
   normalizeCandidate,
   selectDistinctCandidateTitle,
   type CandidateGenerationContext,
@@ -44,85 +43,6 @@ type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTask
 
 function clampTemperature(value: number | undefined, ceiling: number): number {
   return Math.min(value ?? ceiling, ceiling);
-}
-
-function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
-  return {
-    title: candidate.workingTitle,
-    clickRate: 60,
-    style: "high_concept",
-    angle: "当前方案书名",
-    reason: "沿用当前方案书名。",
-  };
-}
-
-function mergeTitleOptions(
-  generatedTitles: TitleFactorySuggestion[],
-  candidate: DirectorCandidate,
-): TitleFactorySuggestion[] {
-  const merged: TitleFactorySuggestion[] = [];
-  for (const option of generatedTitles) {
-    if (!merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
-      merged.push(option);
-    }
-  }
-
-  const fallback = buildFallbackTitleOption(candidate);
-  if (!merged.some((existing) => isNearDuplicateTitle(existing.title, fallback.title))) {
-    merged.push(fallback);
-  }
-
-  return merged.slice(0, 4);
-}
-
-function buildTargetedTitleBrief(input: {
-  candidate: DirectorCandidate;
-  idea: string;
-  context: DirectorProjectContextInput;
-  feedback: string;
-}): string {
-  const currentTitleGroup = [
-    input.candidate.workingTitle,
-    ...(input.candidate.titleOptions ?? []).map((item) => item.title),
-  ]
-    .filter(Boolean)
-    .join("、");
-  const readerChannel = readerChannelPreferenceLabel(input.context.readerChannelPreference);
-
-  return [
-    `故事灵感：${input.idea.trim()}`,
-    `当前方案：${input.candidate.workingTitle}`,
-    `作品定位：${input.candidate.positioning}`,
-    `核心卖点：${input.candidate.sellingPoint}`,
-    `主线冲突：${input.candidate.coreConflict}`,
-    `主角路径：${input.candidate.protagonistPath}`,
-    `主钩子：${input.candidate.hookStrategy}`,
-    `推进循环：${input.candidate.progressionLoop}`,
-    input.candidate.toneKeywords.length > 0 ? `气质关键词：${input.candidate.toneKeywords.join("、")}` : "",
-    input.context.targetAudience?.trim() ? `目标读者：${input.context.targetAudience.trim()}` : "",
-    readerChannel ? `读者频道倾向：${readerChannel}` : "",
-    input.context.competingFeel?.trim() ? `对标气质：${input.context.competingFeel.trim()}` : "",
-    currentTitleGroup ? `当前标题组：${currentTitleGroup}` : "",
-    `标题修正意见：${input.feedback.trim()}`,
-    "请围绕同一套故事方向重做一组更合适的中文网文书名。",
-    "优先响应用户要求的气质修正，比如更都市、更悬疑、更轻巧、更高级感或没那么土。",
-    "不要重复当前这组标题，也不要回退成概念短语、口号名或老套模板名。",
-  ].filter(Boolean).join("\n");
-}
-
-function readerChannelPreferenceLabel(value: DirectorProjectContextInput["readerChannelPreference"]): string {
-  switch (value) {
-    case "ai_judge":
-      return "AI 判断";
-    case "male_oriented":
-      return "男频向";
-    case "female_oriented":
-      return "女频向";
-    case "general":
-      return "泛读者 / 不限定";
-    default:
-      return "";
-  }
 }
 
 function findTargetBatch(previousBatches: DirectorCandidateBatch[], batchId: string): DirectorCandidateBatch {
@@ -232,7 +152,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
     const independentlyEnrichedCandidates = await Promise.all(
-      normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context)),
+      normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context, { roundCandidates: normalizedCandidates })),
     );
     const enrichedCandidates: DirectorCandidate[] = [];
     const selectedTitles: string[] = [];
@@ -241,6 +161,7 @@ export class NovelDirectorCandidateStageService {
       let distinctCandidate = selectDistinctCandidateTitle(enrichedCandidate, selectedTitles);
       if (!distinctCandidate) {
         const regeneratedCandidate = await enhanceCandidateTitles(normalizedCandidates[index], context, {
+          roundCandidates: normalizedCandidates,
           excludedTitles: selectedTitles,
         });
         distinctCandidate = selectDistinctCandidateTitle(regeneratedCandidate, selectedTitles);
@@ -529,7 +450,7 @@ export class NovelDirectorCandidateStageService {
       feedback: input.feedback,
       request: input,
       options: input,
-    });
+    }, { roundCandidates: targetBatch.candidates });
 
     const nextBatch = replaceCandidateInBatch(
       targetBatch,
@@ -598,14 +519,18 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
 
+    const otherTitles = targetBatch.candidates.filter((item) => item.id !== targetCandidate.id).map((item) => item.workingTitle);
+    const currentTitles = new Set([targetCandidate.workingTitle, ...(targetCandidate.titleOptions ?? []).map((item) => item.title)]);
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
-      brief: buildTargetedTitleBrief({
-        candidate: targetCandidate,
-        idea: input.idea,
-        context: input,
-        feedback: input.feedback,
-      }),
+      selectionMode: "primary",
+      brief: [
+        buildCandidateTitleBrief(targetCandidate, { idea: input.idea, request: input }, {
+          roundCandidates: targetBatch.candidates, excludedTitles: otherTitles,
+        }),
+        `当前标题组：${[...currentTitles].join("、")}`,
+        `标题修正意见：${input.feedback.trim()}`,
+      ].join("\n"),
       genreId: input.genreId ?? null,
       count: 4,
       provider: input.provider,
@@ -613,7 +538,10 @@ export class NovelDirectorCandidateStageService {
       temperature: clampTemperature(input.temperature, 0.85),
     });
 
-    const titleOptions = mergeTitleOptions(response.titles, targetCandidate);
+    const titleOptions = mergeTitleOptions(response.titles, targetCandidate, otherTitles);
+    if (!titleOptions.length) {
+      throw new Error("生成的书名与同轮其他方案重复，请再试一次。");
+    }
     const nextCandidate: DirectorCandidate = {
       ...targetCandidate,
       reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,

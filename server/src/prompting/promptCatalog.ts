@@ -41,6 +41,7 @@ const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
   "novel.director.manual_edit_impact": "手动改动影响评估",
   "novel.director.candidates": "书级方向候选",
   "novel.director.direction_pair": "开书故事方向比较",
+  "novel.director.candidate_titles": "开书候选书名",
   "novel.creative_carryover.contract": "创作承接合同",
   "novel.create.resource_recommendation": "题材与推进模式匹配",
   "market_radar.platform_digest": "平台榜单信号归纳",

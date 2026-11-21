@@ -250,6 +250,10 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/novel/directorPlanning.prompts").directorCandidatePromptV2 as UnknownPromptAsset,
   },
   {
+    key: "novel.director.candidate_titles@v1",
+    load: () => require("../prompts/novel/opening/candidateTitles.prompt").openingCandidateTitlesPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.direction_pair@v1",
     load: () => require("../prompts/novel/directorPlanning.prompts").directorDirectionPairPrompt as UnknownPromptAsset,
   },

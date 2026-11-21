@@ -7,6 +7,7 @@ const { NovelDirectorCandidateStageService } = require("../dist/services/novel/d
 const { novelCreateResourceRecommendationService } = require("../dist/services/novel/NovelCreateResourceRecommendationService.js");
 const { titleGenerationService } = require("../dist/services/title/TitleGenerationService.js");
 const { directorPersistedCandidateSchema } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
+const { enhanceCandidateTitles } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 
 const directions = {
   A: { choice: "冒领阵亡者的家书，查清谁在吃空饷", engine: "每次替人领信都要假扮另一个人，暴露风险逼他换取下一份证词。" },
@@ -26,6 +27,43 @@ function card(title, direction) {
 }
 // Deliberately return B first: a direction belongs to its key, not the order of JSON properties.
 const cards = { B: card("逆流渡口", directions.B), A: card("亡人来信", directions.A) };
+
+test("首轮命名与定向重做都保留编辑首选和短书名，重做避开同轮另一案", async t => {
+  const asset = getRegisteredPromptAsset("novel.director.candidate_titles", "v1");
+  assert.throws(() => asset.postValidate({ titles: [], coverTitle: "组外书名" }), /原样选取/);
+  const first = { ...cards.A, id: "a", plannedDirection: "冒名领信追查空饷" };
+  const sibling = { ...cards.B, id: "b" };
+  const idea = "一封送错的家书";
+  const feedback = "希望带点人物说话的口气";
+  const briefs = [];
+  t.mock.method(runner, "runStructuredPrompt", async call => {
+    assert.equal(call.asset, asset);
+    briefs.push(call.promptInput.context.brief);
+    const names = briefs.length === 1 ? ["认信人", "落款", "错名之下", "渡口无灯"] : ["借姓", "认字人", sibling.workingTitle, "薄纸一张"];
+    const titles = names.map((title, index) => ({
+      title, style: "suspense", angle: "冒名领信", reason: "小卒必须冒用别人的姓名。", clickRate: 60 + index * 10,
+    }));
+    const coverTitle = briefs.length === 1 ? "落款" : sibling.workingTitle;
+    return { output: asset.postValidate(asset.outputSchema.parse({
+      namingMoment: "领信时小卒要署别人的名", titles, coverReason: "对应小卒冒名的选择", coverTitle,
+    })) };
+  });
+  const named = await enhanceCandidateTitles(first, { idea, request: {}, options: {} }, { roundCandidates: [first, sibling] });
+  assert.equal(named.workingTitle, "落款");
+  const service = new NovelDirectorCandidateStageService({});
+  const rerolled = await service.refineCandidateTitleOptions({
+    idea, feedback, batchId: "round", candidateId: first.id, previousBatches: [{ id: "round", candidates: [named, sibling] }],
+  });
+  assert.equal(rerolled.candidate.workingTitle, "借姓");
+  assert.deepEqual(rerolled.batch.candidates[1], sibling);
+  assert.ok(rerolled.candidate.titleOptions.every(item => item.title !== sibling.workingTitle));
+  assert.equal(briefs.length, 2);
+  for (const brief of briefs) {
+    assert.ok(brief.includes(first.logline) && brief.includes(first.plannedDirection));
+    assert.ok(brief.includes(sibling.logline));
+  }
+  assert.ok(briefs[1].includes(feedback) && briefs[1].includes(sibling.workingTitle) && briefs[1].includes("认信人"));
+});
 
 test("新轮次需要两条完整且不同的路线，旧版候选仍可读取", () => {
   assert.ok(!plan.outputSchema.safeParse({ A: directions.A }).success);
