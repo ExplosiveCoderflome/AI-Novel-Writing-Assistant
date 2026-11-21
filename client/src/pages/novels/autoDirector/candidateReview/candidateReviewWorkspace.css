@@ -42,8 +42,28 @@
 .candidate-title-row h4 { font: 600 clamp(1.625rem, 4.5cqi, 2.125rem)/1.4 var(--font-serif, ui-serif), "Songti SC", "SimSun", serif; }
 .candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: hsl(var(--muted-foreground)); font-size: .75rem; }
 .candidate-workspace[data-next-round] .candidate-discussing { display: none; }
-.candidate-keywords { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .75rem; margin-top: .5rem; font-size: .9375rem; font-weight: 600; line-height: 1.6; color: hsl(var(--foreground)); }
-.candidate-keywords li:not(:last-child)::after { content: "·"; margin-inline-start: .75rem; color: hsl(var(--muted-foreground)); }
+.candidate-keywords {
+  --keyword-hue: 166;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .375rem .5rem;
+  margin-top: .625rem;
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.candidate-comparison > article:nth-child(even) .candidate-keywords { --keyword-hue: 263; }
+.candidate-keywords > li {
+  max-width: 100%;
+  padding: .1875rem .625rem;
+  border-radius: .375rem;
+  background: hsl(var(--keyword-hue) 72% 91%);
+  color: hsl(var(--keyword-hue) 64% 26%);
+}
+.dark .candidate-keywords > li {
+  background: hsl(var(--keyword-hue) 42% 19%);
+  color: hsl(var(--keyword-hue) 74% 84%);
+}
 .candidate-logline { max-width: 44em; margin-block: .75rem 1.25rem; font-size: 1rem; line-height: 1.85; white-space: pre-line; }
 .candidate-fields { display: grid; gap: .875rem; font-size: .9375rem; line-height: 1.8; }
 .candidate-fields[hidden] { display: none; }
