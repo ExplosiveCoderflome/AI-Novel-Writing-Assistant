@@ -18,5 +18,20 @@
   text-align: left; color: color-mix(in srgb, hsl(var(--foreground)) 82%, var(--atlas-stock)); }
 .map-references button:is(:hover,:focus-visible) { background: var(--atlas-tint); color: var(--atlas-ink); }
 .map-reference-topic button[aria-pressed="true"] { background: var(--atlas-pigment); color: #fff8e8; }
-.book-reference-link .react-flow__edge-path { stroke: color-mix(in srgb, var(--atlas-ink) 44%, var(--map-paper)); stroke-width: 1; stroke-dasharray: 2 5; }
-.book-map-key .key-reference { height: 8px; width: 14px; border: 0; border-left: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+.book-reference-link { pointer-events: none; }
+.book-reference-link .react-flow__edge-path { stroke: color-mix(in srgb, var(--atlas-ink) 32%, var(--map-paper)); stroke-width: 1; stroke-dasharray: 5 4; }
+.book-reference-link.companion .react-flow__edge-path { stroke-dasharray: 2 5; }
+.is-tracing .book-reference-link:not(.is-current) .react-flow__edge-path { stroke: var(--atlas-hair); }
+.book-reference-link.is-current .react-flow__edge-path { stroke: var(--atlas-ink); stroke-width: 1.35; vector-effect: non-scaling-stroke; }
+.map-reference-topic li[data-relation] button, .book-map-station[data-relation] > button {
+  background: var(--atlas-tint); color: var(--atlas-ink); font-weight: 650; }
+.map-reference-topic li[data-relation="uses"] button, .book-map-station[data-relation="uses"] > button { border-inline-start: 3px solid var(--atlas-ink); }
+.map-reference-topic li[data-relation] .react-flow__handle { opacity: 1; width: 6px; height: 6px; border: 1px solid var(--atlas-ink); background: var(--atlas-stock); }
+.book-map-key .key-reference { border-top: 1px dashed var(--atlas-ink); }
+.map-reader-connections { margin-block: 10px 4px; }
+.map-reader-connections > div { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 10px; }
+.map-reader-connections dt { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.map-reader-connections dd { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.map-reader-connections button { font-size: 13px; padding-block: 3px; color: var(--atlas-ink); text-align: left; text-decoration: underline dashed; text-underline-offset: 4px; }
+.map-reader-connections [data-kind="uses"] button { font-weight: 650; }
+.map-reader-connections button:is(:hover,:focus-visible) { text-decoration-style: solid; }

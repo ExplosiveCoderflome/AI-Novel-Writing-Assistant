@@ -1,5 +1,6 @@
 import type { FlowStage, Step } from "../flowDefinition";
 import { layoutMapReferences } from "./referenceLayout";
+import { layoutPromptLinks } from "./promptLinkLayout";
 
 export const stepWidth = 184;
 export const sideWidth = 169;
@@ -108,5 +109,21 @@ export function layoutBookMap(stages: FlowStage[], expanded: boolean) {
     }
   }
   const routeBounds = { x: -20, y: -12, width: contentRight + 65, height: bottom + 60 + returnCount * 34 };
-  return { covers, stations: [...stations.values()], links, routeBounds, ...layoutMapReferences(covers, routeBounds, expanded) };
+  const references = layoutMapReferences(covers, routeBounds, expanded);
+  const visible = [...stations.values()];
+  const promptLinks = layoutPromptLinks(visible, references.sections, references.prompts);
+  return { covers, stations: visible, links, routeBounds, ...references, promptLinks };
+}
+
+export function promptConnectionBounds(layout: ReturnType<typeof layoutBookMap>, selected: string) {
+  const links = layout.promptLinks.filter(link => link.stepId === selected || link.promptId === selected);
+  if (!links.length) return;
+  const stations = layout.stations.filter(s => links.some(link => link.stepId === s.step.id));
+  const rows = links.map(link => layout.prompts.get(link.promptId)!);
+  const boxes = [...rows, ...stations.map(s => ({ x: s.x, y: s.y, width: s.side ? sideWidth : stepWidth, height: stepHeight }))];
+  const x = Math.min(...boxes.map(box => box.x), ...links.flatMap(l => [l.sourceLane, l.targetLane]));
+  const y = Math.min(...boxes.map(box => box.y));
+  const right = Math.max(...boxes.map(box => box.x + box.width), ...links.flatMap(l => [l.sourceLane, l.targetLane]));
+  const bottom = Math.max(...boxes.map(box => box.y + box.height));
+  return { x: x - 8, y: y - 8, width: right - x + 16, height: bottom - y + 16 };
 }

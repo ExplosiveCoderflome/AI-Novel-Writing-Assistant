@@ -4,6 +4,8 @@ import { relatedAtlasLocation, type AtlasLocation } from "./atlas/atlasTopics";
 import { locateFlowStep, stages, type FlowStage } from "./flowDefinition";
 import { RegisteredAssetReader } from "./atlas/AssetReader";
 import { layoutBookMap } from "./overview/bookMapLayout";
+import { relationsFor } from "./atlas/stepPromptRelations";
+import { PromptConnections } from "./overview/PromptConnections";
 import { BookMapCanvas } from "./overview/BookMapCanvas";
 import { TourDesk, useBookTour } from "./overview/BookTour";
 import { PromptReader } from "./PromptReader";
@@ -26,6 +28,7 @@ export function BookOverview({ enter, onOpenCatalog, openAtlas }: {
   const entry = locateFlowStep(selected);
   const reference = selected ? layout.prompts.get(selected) : undefined;
   const reading = Boolean(entry || reference);
+  const inspecting = expanded && reading && relationsFor(selected).length > 0;
   const read = useCallback((id: string) => {
     const target = locateFlowStep(id);
     if (!target) return;
@@ -36,6 +39,7 @@ export function BookOverview({ enter, onOpenCatalog, openAtlas }: {
 
   const readReference = useCallback((id: string) => {
     tour.pause();
+    setExpanded(true);
     setSelected(id);
   }, [tour.pause]);
 
@@ -99,26 +103,30 @@ export function BookOverview({ enter, onOpenCatalog, openAtlas }: {
         <button type="button" className="atlas-shortcut" onClick={() => locateScope("tools")}><LibraryBig size={15} />独立创作工具</button>
       </div>
     </header>
-    <div className={`book-atlas-spread ${reading ? "reading" : ""} ${focused ? "focused" : ""}`}>
+    <div className={`book-atlas-spread ${reading ? "reading" : ""} ${focused ? "focused" : ""} ${inspecting ? "inspecting" : ""}`}>
       <div className="book-map-pane">
         <BookMapCanvas layout={layout} selected={selected} touring={reading ? null : tour.current?.step.id ?? null} enter={enter} jump={jump}
           locateScope={locateScope} openScope={openScope} readReference={readReference} read={read} pause={tour.pause} />
         {tour.current && !reading ? <TourDesk tour={tour} read={read} /> : <footer className="book-map-key" aria-label="连线图例">
           <span><i />主流程</span>
           {expanded && <span><i className="key-branch" />可选分支</span>}
-          {expanded && <span><i className="key-reference" />相关提示词</span>}
+          {expanded && <span><i className="key-reference" />步骤与提示词</span>}
           <span><i className="key-return" />逐章、逐卷循环</span>
-          <small>拖动平移 · 停在步骤上追踪连线</small>
+          <small>拖动平移 · 点选步骤或提示词追踪连线</small>
         </footer>}
       </div>
       {entry && <div data-stage={entry.stage.id} className="book-map-reader">
         <PromptReader key={entry.step.id} step={entry.step} stageTitle={entry.stage.title} next={entry.next}
           openRelated={() => openPrompts(relatedAtlasLocation(entry.stage.id, entry.step.id))}
-          go={read} onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} />
+          go={read} onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader}>
+          <PromptConnections id={entry.step.id} open={readReference} />
+        </PromptReader>
       </div>}
       {reference && <div data-stage={reference.scope} className="book-map-reader">
         <RegisteredAssetReader key={reference.id} id={reference.id} title={reference.title} topicTitle={reference.topic.title}
-          focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} onOpenCatalog={onOpenCatalog} />
+          focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} onOpenCatalog={onOpenCatalog}>
+          <PromptConnections id={reference.id} open={read} />
+        </RegisteredAssetReader>
       </div>}
     </div>
   </section>;
