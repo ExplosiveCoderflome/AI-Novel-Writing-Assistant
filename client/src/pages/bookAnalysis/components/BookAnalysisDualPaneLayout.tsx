@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { ReactNode, RefObject } from "react";
 import type {
@@ -34,7 +35,8 @@ export default function BookAnalysisDualPaneLayout({
   }
 
   return (
-    <div className="grid grid-cols-[5fr_6fr] items-start gap-4">
+    <WorkspaceColumns layoutId="book-analysis-reading" className="grid items-start gap-4 workspace-split" minCenter={230}
+      left={{ label: "调整原书阅读宽度", initial: "45%", min: 200 }}>
       <BookAnalysisChapterReader
         ref={readerRef}
         chapters={chapters}
@@ -45,6 +47,6 @@ export default function BookAnalysisDualPaneLayout({
         onSelectChapter={onSelectChapter}
       />
       <div className="min-w-0">{children}</div>
-    </div>
+    </WorkspaceColumns>
   );
 }

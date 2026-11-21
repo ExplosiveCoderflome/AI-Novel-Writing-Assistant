@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, FilePenLine, History, ListTree, MessageSquareText, Sparkles } from "lucide-react";
@@ -162,7 +163,9 @@ function OutlineWorkspace({ id }: { id: string }) {
       <button type="button" aria-pressed={pane === "editor"} onClick={() => setPane("editor")}><FilePenLine />编辑</button>
       <button type="button" aria-pressed={pane === "assistant"} onClick={() => setPane("assistant")}><Sparkles />协作与历史</button>
     </div>
-    <div className="outline-workspace-grid" data-pane={pane}>
+    <WorkspaceColumns layoutId="outline" className="outline-workspace-grid" data-pane={pane} gap={0} minCenter={300}
+      left={{ label: "调整大纲目录宽度", initial: "var(--outline-directory-width)", min: 144 }}
+      right={{ label: "调整协作与历史宽度", initial: "var(--outline-inspector-width)", min: 260 }}>
       <OutlineDirectory document={document} selectedId={selected?.nodeId ?? ""} onSelect={selectNode} disabled={writing || hasConflict}
         onAdd={(next, newId) => {
           setDraft({ baseVersion: draft?.baseVersion ?? version, document: next });
@@ -229,6 +232,6 @@ function OutlineWorkspace({ id }: { id: string }) {
           {showFeedback && <div hidden={activeInspector !== "feedback"}><OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} applyDisabled={blockRevision} document={document} /></div>}
         </div>
       </aside>
-    </div>
+    </WorkspaceColumns>
   </div>;
 }

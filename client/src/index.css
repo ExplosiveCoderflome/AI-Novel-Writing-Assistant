@@ -294,6 +294,12 @@ body {
 }
 
 @layer utilities {
+  .workspace-split {
+    display: grid;
+    grid-template-columns: var(--workspace-tracks);
+    column-gap: var(--workspace-gap);
+    --show-dividers: block;
+  }
   .live-execution-scrollbar {
     scrollbar-color: rgb(52 211 153 / 0.42) transparent;
     scrollbar-gutter: stable;

@@ -210,8 +210,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       toggleLabel="全屏查看"
       exitLabel="退出全屏"
       className="border-0 shadow-none"
-      bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
-      fullscreenBodyClassName="h-full min-h-0 grid-cols-[minmax(0,1fr)_360px]"
+      columns={{ layoutId: "character-graph", gap: 0, right: { label: "调整人物关系详情宽度", initial: "var(--graph-details-width, 340px)", min: 188 } }}
+      bodyClassName="grid min-h-[560px] gap-0 xl:workspace-split"
+      fullscreenBodyClassName="h-full min-h-0 workspace-split [--graph-details-width:360px]"
     >
       <div className="h-full min-h-[520px] min-w-0 border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
           {isLoading ? (

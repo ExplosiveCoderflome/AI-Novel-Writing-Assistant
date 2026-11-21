@@ -101,6 +101,42 @@ async function open(t, path, respond = () => undefined) {
 }
 
 const button = (label, scope = document) => [...scope.querySelectorAll("button")].find(item => item.textContent.trim() === label);
+test("大纲两侧栏宽独立保存，取消拖动或恢复默认不影响另一侧", async t => {
+  const first = await open(t, "/outlines/p");
+  const grid = await until(() => document.querySelector(".outline-workspace-grid"));
+  // JSDOM has no layout engine. Supply the measured tracks used by a desktop grid.
+  grid.style.gridTemplateColumns = "200px 600px 400px";
+  const [left, right] = grid.querySelectorAll("[role=separator]");
+  function pointer(handle, type, x) {
+    const event = new window.MouseEvent(type, { bubbles: true, clientX: x, button: 0 });
+    Object.defineProperties(event, { pointerId: { value: 1 }, isPrimary: { value: true } });
+    handle.dispatchEvent(event);
+  }
+  left.setPointerCapture = () => {};
+  pointer(left, "pointerdown", 200);
+  pointer(left, "pointermove", 272);
+  pointer(left, "pointerup", 272);
+  right.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+  assert.equal(grid.style.getPropertyValue("--left-preferred"), "272px");
+  assert.equal(grid.style.getPropertyValue("--right-preferred"), "412px");
+  pointer(left, "pointerdown", 272);
+  pointer(left, "pointermove", 310);
+  pointer(left, "lostpointercapture", 310);
+  assert.equal(grid.style.getPropertyValue("--left-preferred"), "272px");
+  assert.deepEqual(first.writes, []);
+  await first.close();
+
+  const reopened = await open(t, "/outlines/p");
+  const restored = await until(() => document.querySelector(".outline-workspace-grid"));
+  assert.equal(restored.style.getPropertyValue("--left-preferred"), "272px");
+  assert.equal(restored.style.getPropertyValue("--right-preferred"), "412px");
+  const reset = side => restored.querySelector(`[data-column-divider="${side}"]`).dispatchEvent(new window.MouseEvent("dblclick", { bubbles: true }));
+  reset("right");
+  assert.equal(restored.style.getPropertyValue("--right-preferred"), "");
+  assert.equal(restored.style.getPropertyValue("--left-preferred"), "272px");
+  reset("left");
+  assert.deepEqual(reopened.writes, []);
+});
 const click = item => runtime.act(async () => { assert.ok(item); item.click(); });
 async function until(read) {
   for (let i = 0; i < 80; i++) {

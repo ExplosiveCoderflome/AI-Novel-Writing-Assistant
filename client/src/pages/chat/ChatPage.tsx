@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
@@ -465,7 +466,9 @@ export default function ChatPage() {
     }));
 
   return (
-    <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
+    <WorkspaceColumns layoutId="chat" className="grid min-h-[70vh] gap-4 lg:workspace-split"
+      left={{ label: "调整会话列表宽度", initial: "240px", min: 144 }}
+      right={{ label: "调整运行详情宽度", initial: "360px", min: 212 }}>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">会话列表</CardTitle>
@@ -598,6 +601,6 @@ export default function ChatPage() {
         safePreview={safePreview}
         stepTitle={stepTitle}
       />
-    </div>
+    </WorkspaceColumns>
   );
 }
