@@ -1,4 +1,4 @@
-import { chapterConversationScope, generateChapterReview } from "./chapterReview";
+import { localReviewScope, generateLocalReview, type ReviewTarget } from "./localReview";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@prisma/client";
@@ -14,9 +14,9 @@ import { validateOutlineDocument } from "../domain/outlineDocument";
 import { assertValidOutlineEditOperations } from "../domain/outlineEditOperations";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 
-type Input = AgentTurnInput & { baseVersion: number; chapterId?: string; action?: "generate_initial" };
+type Input = AgentTurnInput & { baseVersion: number; target?: ReviewTarget; action?: "generate_initial" };
 export const outlineConversationScope = (id: string) => JSON.stringify(["outline-workbench", id]);
-const scopeFor = (projectId: string, chapterId?: string) => chapterId ? chapterConversationScope(projectId, chapterId) : outlineConversationScope(projectId);
+const scopeFor = (projectId: string, target?: ReviewTarget) => target ? localReviewScope(projectId, target) : outlineConversationScope(projectId);
 const kinds = ["initial_generation", "edit"];
 const conflict = () => new AppError("大纲或提案已有更新，请根据最新版本继续讨论。", 409);
 
@@ -68,7 +68,7 @@ export class OutlineWorkbenchConversation {
   async send(projectId: string, input: Input) {
     const project = await this.db.outlineProject.findFirst({ where: { id: projectId, status: "active" }, select: { id: true } });
     if (!project) throw new AppError("找不到可编辑的大纲。", 404);
-    const scopeKey = scopeFor(projectId, input.chapterId);
+    const scopeKey = scopeFor(projectId, input.target);
     return this.store.startReply({ ...input, scopeKey, contextVersion: String(input.baseVersion) },
       () => this.generate(projectId, input), error => {
       const mapped = mapOutlineGenerateFailure(error, "edit");
@@ -80,20 +80,20 @@ export class OutlineWorkbenchConversation {
     const current = await new OutlineRepository(this.db).getCurrent(projectId);
     if (!current?.revision || current.project.currentVersion !== input.baseVersion || current.project.status !== "active") throw conflict();
     const document = validateOutlineDocument(JSON.parse(current.revision.documentJson));
+    const target = input.target;
     const prior = input.parentResultId ? await this.db.outlineProposal.findFirst({
-      where: { id: input.parentResultId, projectId, kind: { in: input.chapterId ? ["chapter_edit"] : kinds }, status: { in: ["pending", "applied", "partially_applied"] } },
+      where: { id: input.parentResultId, projectId, kind: { in: target ? [target.kind + "_edit"] : kinds }, status: { in: ["pending", "applied", "partially_applied"] } },
     }) : null;
     if (input.parentResultId && !prior) throw conflict();
-    const scopeKey = scopeFor(projectId, input.chapterId);
+    const scopeKey = scopeFor(projectId, target);
     const rows = await this.store.history(scopeKey);
     const history = recentAgentDiscussion(rows);
     const priorProposal = prior && { kind: prior.kind, status: prior.status, baseVersion: prior.baseVersion, requestText: prior.requestText, payload: JSON.parse(prior.proposalJson) };
-    const chapterId = input.chapterId;
-    if (chapterId && priorProposal && priorProposal.payload.chapterId !== chapterId) throw conflict();
-    const { answer, invocation, replyText } = chapterId
-      ? await generateChapterReview(this.db, projectId, chapterId, input.requestId, document, { requestText: input.requestText, baseVersion: input.baseVersion, history, priorProposal })
+    if (target && priorProposal && priorProposal.payload[target.kind + "Id"] !== target.id) throw conflict();
+    const { answer, invocation, replyText } = target
+      ? await generateLocalReview(this.db, projectId, target, input.requestId, document, { requestText: input.requestText, baseVersion: input.baseVersion, history, priorProposal })
       : await this.generateWhole(input, document, history, priorProposal);
-    if (answer.kind === "edit" || answer.kind === "chapter_edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
+    if (answer.kind === "edit" || answer.kind === "chapter_edit" || answer.kind === "volume_edit") assertValidOutlineEditOperations(answer.payload.operations, { document });
     await this.db.$transaction(async tx => {
       const latest = await tx.outlineProject.findUniqueOrThrow({ where: { id: projectId }, select: { updatedAt: true } });
       const guard = await tx.outlineProject.updateMany({ where: { id: projectId, status: "active", currentVersion: input.baseVersion },
@@ -101,7 +101,7 @@ export class OutlineWorkbenchConversation {
       if (!guard.count) throw conflict();
       let resultId: string | null = null;
       if (answer.kind !== "discussion") {
-        if (prior?.status === "pending" && (!input.chapterId || prior.baseVersion === input.baseVersion)) {
+        if (prior?.status === "pending" && (!target || prior.baseVersion === input.baseVersion)) {
           const changed = await tx.outlineProposal.updateMany({ where: { id: prior.id, projectId, status: "pending" }, data: { status: "superseded" } });
           if (!changed.count) throw conflict();
         }
@@ -138,8 +138,8 @@ export class OutlineWorkbenchConversation {
     return { answer, invocation, replyText };
   }
 
-  async interrupt(projectId: string, turnId: string, chapterId?: string) {
-    await this.store.stop(scopeFor(projectId, chapterId), turnId, "interrupted", "本轮讨论已结束。");
+  async interrupt(projectId: string, turnId: string, target?: ReviewTarget) {
+    await this.store.stop(scopeFor(projectId, target), turnId, "interrupted", "本轮讨论已结束。");
     agentReplyLive.end(turnId);
   }
 }

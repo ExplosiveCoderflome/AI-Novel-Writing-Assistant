@@ -170,12 +170,13 @@ function OutlineWorkspace({ id }: { id: string }) {
 
   const selected = document && (nodeId && nodeId !== "story" ? findOutlineNode(document, nodeId) ?? (nodeId === lastDiscussion ? document.story : undefined) : document.story);
   const localTarget: LocalTarget | undefined = selected && "appearanceNodeIds" in selected ? {kind:"character", id:selected.nodeId}
+    : selected && "chapterNodeIds" in selected ? {kind:"volume", id:selected.nodeId}
     : selected && "volumeNodeId" in selected ? {kind:"chapter", id:selected.nodeId} : undefined;
   const visiblePending = (pending.data ?? []).filter(p => {
     if (selected === document?.story) return !p.characterId && !p.chapterId && !p.volumeId;
     if (!selected) return false;
     const localOwner = p.characterId ?? p.chapterId ?? p.volumeId;
-    return localOwner ? localOwner === selected.nodeId && (p.volumeId || p.baseVersion === version) : p.targetNodeIds?.includes(selected.nodeId);
+    return localOwner ? localOwner === selected.nodeId && (p.kind === "volume_beats" || p.baseVersion === version) : p.targetNodeIds?.includes(selected.nodeId);
   });
   const blank = !!document && isEmptyOutline(document);
   const starter = blank && !editing && !draft && !reviewId && selected === document?.story;
@@ -223,7 +224,8 @@ function OutlineWorkspace({ id }: { id: string }) {
   const conversation = <OutlineConversation projectId={id} version={version} document={query.data!.document!} starting={fromIdea}
     dirty={blockRevision || turn.busy} value={request} onChange={setRequest} onSent={turnId => { rememberDiscussion("story"); turn.track(turnId); }}
     onOpenResult={prop => openReview(prop)} />;
-  const reviewLabel = localExpanded ? "收起修改" : localTarget?.kind === "character" ? "修改" + getOutlineNodeTitle(selected) : "调整本章";
+  const reviewLabel = localExpanded ? "收起修改" : localTarget?.kind === "character" ? "修改" + getOutlineNodeTitle(selected)
+    : localTarget?.kind === "volume" ? "调整本卷" : "调整本章";
   const readingNotices = <>
     {params.get("returnProposalId") && <button className="outline-reading-link px-4" onClick={() => openReview(params.get("returnProposalId")!)}><ArrowLeft size={14} />回到刚才的建议</button>}
     {pending.isError && <button className="outline-reading-link" onClick={() => void pending.refetch()}>重新读取待处理建议</button>}

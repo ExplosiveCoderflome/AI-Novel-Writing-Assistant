@@ -26,26 +26,30 @@ export function OutlineLocalReview({ projectId, target, title, version, expanded
   const live = useAgentReplyPreview(running && thread.streamUrl(running.id), running?.id, history.refetch);
   const stop = useMutation({ mutationFn: thread.interrupt, onSettled: () => history.refetch() });
   const input = useRef<HTMLTextAreaElement>(null);
-  const person = target.kind === "character";
+  const { targetLabel, placeholder, hint } = {
+    character: { targetLabel: "人物", placeholder: `例如，丰富一下${title}的目标和动机。`, hint: "一并核对出场卷章和伏笔，采纳后写入大纲。" },
+    chapter: { targetLabel: "章节", placeholder: "想怎样调整这一章？例如，让结尾的悬念更强。", hint: "仅调整本章，采纳后写入大纲。" },
+    volume: { targetLabel: "分卷", placeholder: "想怎样调整这一卷？例如，让主角在卷末为自己的选择付出代价。", hint: "仅调整本卷卷纲，采纳后写入大纲。" },
+  }[target.kind];
   useEffect(() => {
     if (expanded) input.current?.focus({ preventScroll: true });
   }, [expanded]);
   const prior = turns.find(turn => turn.result && turn.result.id === draft.priorId);
   const composer = <form id="outline-local-form" className="outline-local-composer"
-    aria-label={person ? "人物局部修改" : "章节局部修改"} onSubmit={event => {
+    aria-label={targetLabel + "局部修改"} onSubmit={event => {
       event.preventDefault();
       if (draft.text.trim() && !disabled && !running && history.isSuccess) onSend(draft.text.trim(), draft.priorId);
     }}>
-      <label><span className="sr-only">{person ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}</span>
+      <label><span className="sr-only">{target.kind === "character" ? `希望怎样修改${title}？` : `希望怎样调整「${title}」？`}</span>
         <textarea ref={input} rows={2} maxLength={6000} value={draft.text} onChange={e => onChange({...draft, text:e.target.value})}
-          placeholder={person ? `例如，丰富一下${title}的目标和动机。` : "想怎样调整这一章？例如，让结尾的悬念更强。"} /></label>
+          placeholder={placeholder} /></label>
       {prior && <p className="outline-local-note">沿用建议「{prior.requestText}」 <button type="button" className="underline" onClick={() => onChange({text:draft.text})}>取消引用</button></p>}
       <div className="outline-local-send">
-        <p className="outline-local-note">{person ? "一并核对出场卷章和伏笔，采纳后写入大纲。" : "仅调整本章，采纳后写入大纲。"}</p>
+        <p className="outline-local-note">{hint}</p>
         <Button size="sm" disabled={disabled || !!running || !history.isSuccess || !draft.text.trim()}>生成修改建议</Button>
       </div>
     </form>;
-  const activity = <section className="outline-local-review" aria-label={person ? "人物修改记录" : "章节修改记录"}>
+  const activity = <section className="outline-local-review" aria-label={targetLabel + "修改记录"}>
     {running && <div role="status" className="outline-local-reply"><p>{live?.stage || "正在整理修改建议…"}</p>
       <AgentThinking steps={live?.thinking ?? running.thinking} running />{live?.text && <MarkdownViewer content={live.text} />}
       <button type="button" className="outline-reading-link" disabled={stop.isPending} onClick={() => stop.mutate(running.id)}>结束本轮</button></div>}

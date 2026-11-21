@@ -92,6 +92,11 @@ const outlineCharacterImpactExampleSnapshot = {
 const outlineCharacterImpactExample = { snapshot: outlineCharacterImpactExampleSnapshot, requestText: "〈请求内容〉", role: "character", prior: {} };
 
 export const planningExamples: Record<string, unknown> = {
+  "outline.volume_review@v1": {
+    ...outlineWorkbenchDialogueExample,
+    volume: outlineChapterReviewExampleDocument.volumes[0],
+    priorProposal: null,
+  },
   "outline.chapter_review@v1": {
     chapter: outlineChapterReviewExampleChapter,
     document: outlineChapterReviewExampleDocument,

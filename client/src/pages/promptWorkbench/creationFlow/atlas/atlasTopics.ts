@@ -130,6 +130,7 @@ export const atlasScopes: AtlasScope[] = [
           ["outline.workbench_dialogue", "围绕大纲连续讨论"],
           ["outline.volume_beats", "安排各卷节奏段", ["beats"]],
           ["outline.edit_proposal", "提出大纲修改方案"],
+          ["outline.volume_review", "调整选中分卷的卷纲"],
           ["outline.chapter_review", "审阅选中章节的章纲"],
           ["outline.text_feedback", "将章节反馈带回大纲"],
           ["outline.character_impact", "评估人物调整对大纲的影响"],

@@ -72,7 +72,7 @@ export interface OutlineProposal {
   id: string;
   projectId: string;
   baseVersion: number;
-  kind: OutlineProposalKind | "character_impact" | "chapter_edit" | "volume_beats";
+  kind: OutlineProposalKind | "character_impact" | "chapter_edit" | "volume_edit" | "volume_beats";
   status: string;
   requestText?: string | null;
   proposalJson: string;

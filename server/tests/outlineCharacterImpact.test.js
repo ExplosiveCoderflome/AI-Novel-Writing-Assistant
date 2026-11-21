@@ -56,6 +56,59 @@ const singleChapterBeats = () => [["open_hook", "开卷抓手"], ["climax", "卷
   .map(([key, label]) => ({key, label, title:label, summary:"诏书推动局势变化", chapterSpanHint:"1章", mustDeliver:["诏书易手"]}));
 
 const conversation = "character-impact/conversation";
+test("卷纲讨论按卷隔离，只有勾选并采纳的字段写入修订", async t => {
+  const { d } = await fixture();
+  d.volumes.push({ ...d.volumes[0], nodeId: "v3", title: "追账", order: 1, chapterNodeIds: [] });
+  d.volumes[0].chapterNodeIds.reverse();
+  const { project } = await new OutlineRepository(prisma).createImport("测试卷纲", d, "隔离测试");
+  const path = "volumes/v2/conversation", other = "volumes/v3/conversation";
+  const request = { requestId: "volume-adjust", requestText: "提高逃城的代价，卷末留下线索。", baseVersion: 1 };
+  let calls = 0;
+  t.mock.method(runner, "runOutlineProposalStructuredCall", async ({ asset, promptInput }) => {
+    calls++;
+    assert.equal(asset.id, "outline.volume_review");
+    assert.equal(promptInput.volume.nodeId, "v2");
+    if (promptInput.baseVersion === 2) {
+      assert.equal(promptInput.priorProposal.payload.volumeId, "v2");
+      assert.equal(promptInput.priorProposal.status, "partially_applied");
+      assert.ok(promptInput.history.some(turn => turn.author === request.requestText));
+      return { output: { replyText: "盘查会迫使师徒作出选择。", changes: [] }, meta: {} };
+    }
+    const output = asset.outputSchema.parse({ replyText: "把逃城的代价落实到选择上。", changes: [
+      { field: "pressure", value: "盘查收紧，每过一关就少一份路费。", reason: "提高代价" },
+      { field: "endingHook", value: "城门外有人拿着同样的账册。", reason: "埋下线索" },
+    ] });
+    return { output, meta: { invocation: { promptId: asset.id, promptVersion: asset.version } } };
+  });
+  await api(project, path + "/turns", request);
+  const turn = await settled(project, request.requestId, p => api(p, path));
+  assert.equal(turn.result?.status, "pending", turn.replyText);
+  await api(project, path + "/turns", request);
+  assert.equal(calls, 1);
+  assert.deepEqual(await api(project, other), []);
+  assert.deepEqual(await api(project, "conversation"), []);
+  const [pending] = await api(project, "proposals");
+  assert.equal(pending.volumeId, "v2");
+  assert.equal(pending.kind, "volume_edit");
+  assert.deepEqual(pending.targetNodeIds, ["v2"]);
+  assert.deepEqual((await outlineProjectService.get(project.id)).document, d);
+  await api(project, other + "/turns", { ...request, requestId: "wrong-volume", parentResultId: pending.id });
+  const wrong = await settled(project, "wrong-volume", p => api(p, other));
+  assert.equal(wrong.status, "failed");
+  assert.equal(calls, 1);
+  await api(project, "proposals/" + pending.id + "/apply", { operationIds: [] }, 400);
+  const applied = await api(project, "proposals/" + pending.id + "/apply", { operationIds: ["pressure"] });
+  assert.equal(applied.revision.version, 2);
+  const expected = structuredClone(d);
+  expected.volumes[0].pressure = "盘查收紧，每过一关就少一份路费。";
+  assert.deepEqual(applied.document, expected);
+  assert.equal((await api(project, path))[0].result.status, "partially_applied");
+  await api(project, path + "/turns", { requestId: "discuss-volume", baseVersion: 2, requestText: "解释一下核心压力。", parentResultId: pending.id });
+  const discussion = await settled(project, "discuss-volume", p => api(p, path));
+  assert.equal(discussion.status, "completed", discussion.replyText);
+  assert.equal(discussion.result, null);
+  assert.equal((await outlineProjectService.get(project.id)).currentVersion, 2);
+});
 const timeline = (project, characterId = "shen") => api(project, conversation + "?characterId=" + characterId);
 async function settled(project, id, read = timeline) {
   for (let i = 0; i < 100; i++) {

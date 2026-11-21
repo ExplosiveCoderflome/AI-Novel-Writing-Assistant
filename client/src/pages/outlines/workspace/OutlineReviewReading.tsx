@@ -29,6 +29,7 @@ export function OutlineReviewReading({ projectId, proposalId, version, document,
   const payload = proposal ? JSON.parse(proposal.proposalJson) as OutlineEditProposalPayload & { impact?: ImpactSummary; chapterId?: string; volumeId?: string; appliedOperationIds?: string[] } : null;
   const impact = payload?.impact;
   const target: LocalTarget | undefined = impact ? {kind:"character", id:impact.characterId}
+    : proposal?.kind === "volume_edit" && payload?.volumeId ? {kind:"volume", id:payload.volumeId}
     : proposal?.kind === "chapter_edit" && payload?.chapterId ? {kind:"chapter", id:payload.chapterId} : undefined;
   const operationNodes = [...new Set(payload?.operations?.map(op => op.nodeId))];
   const ownerId = target?.id ?? payload?.volumeId ?? (operationNodes.length === 1 ? operationNodes[0] : undefined);
@@ -63,7 +64,7 @@ export function OutlineReviewReading({ projectId, proposalId, version, document,
   });
   const back = <button type="button" className="outline-reading-link" onClick={() => onReturn(ownerId)}><ArrowLeft size={14} />回到当前稿</button>;
   if (review.isLoading) return <p role="status" className="outline-reading">正在读取建议…</p>;
-  if (!proposal || proposal.projectId !== projectId || !["initial_generation","character_impact","chapter_edit","volume_beats","edit"].includes(proposal.kind)) return <div className="outline-reading">{back}<p role="alert">无法打开这份大纲建议。</p><Button onClick={() => void review.refetch()}>重新读取</Button></div>;
+  if (!proposal || proposal.projectId !== projectId || !["initial_generation","character_impact","chapter_edit","volume_edit","volume_beats","edit"].includes(proposal.kind)) return <div className="outline-reading">{back}<p role="alert">无法打开这份大纲建议。</p><Button onClick={() => void review.refetch()}>重新读取</Button></div>;
   const pending = proposal.status === "pending", stale = pending && proposal.baseVersion !== version;
   const initial = proposal.kind === "initial_generation";
   const canRequest = proposal.kind !== "volume_beats" && pending && (!target || !!owner);
@@ -87,7 +88,7 @@ export function OutlineReviewReading({ projectId, proposalId, version, document,
           <li key={i}><b>{findOutlineNodeTitle(base,item.nodeId)}</b>　{item.reason}</li>)}</ul></details>}
         {!!impact.writtenChapterIds.length && <details><summary>已有正文的章节</summary><p>{impact.writtenChapterIds.map(id => findOutlineNodeTitle(base,id)).join("、")}</p></details>}
       </div>} />
-    {pending && target && !owner && <p role="status">当前稿中找不到这条内容。可从目录选择要修改的人物或章节。</p>}
+    {pending && target && !owner && <p role="status">当前稿中找不到这条内容。可从目录选择要修改的分卷、人物或章节。</p>}
     {canRequest && (stale || followUp ? <form className="outline-review-followup" onSubmit={e => {
       e.preventDefault(); if (!submitting && (stale || guidance.trim())) onRequest(guidance.trim() || "请对照这份旧建议与当前大纲，重新给出适合当前稿的修改建议。", proposalId, target);
     }}>

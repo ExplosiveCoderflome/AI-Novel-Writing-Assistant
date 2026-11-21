@@ -1,7 +1,7 @@
 import { prisma } from "../../../../db/prisma";
 import { generateVolumeBeatProposal } from "../application/volumeBeatProposal";
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
-import { readChapterReviews, chapterConversationScope } from "../conversation/chapterReview";
+import { readLocalReviews, localReviewScope } from "../conversation/localReview";
 import { streamOutlineReply } from "./outlineReplyStream";
 import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
@@ -31,23 +31,25 @@ router.post("/:id/volumes/:volumeId/beat-proposals", route(async req => {
   const input = z.object({baseVersion:z.number().int().positive(), targetChapterCount:z.number().int().min(1).max(2000)}).parse(req.body);
   return generateVolumeBeatProposal(new OutlineRepository(prisma), id.parse(req.params.id), id.parse(req.params.volumeId), input.baseVersion, input.targetChapterCount);
 }));
-const chapterPath = "/:id/chapters/:chapterId/conversation";
-router.get(chapterPath, route(req => readChapterReviews(prisma, id.parse(req.params.id), id.parse(req.params.chapterId))));
-router.post(chapterPath + "/turns", route(req => conversation.send(id.parse(req.params.id), {
-  ...turnInput.omit({ action: true }).parse(req.body), chapterId: id.parse(req.params.chapterId),
-})));
-router.post(chapterPath + "/interrupt", route(async req => {
-  const { turnId } = z.object({ turnId: id }).parse(req.body);
-  await conversation.interrupt(id.parse(req.params.id), turnId, id.parse(req.params.chapterId));
-  return { turnId };
-}));
-router.get(chapterPath + "/turns/:turnId/stream", async (req, res, next) => {
-  try {
-    const projectId = id.parse(req.params.id);
-    await streamOutlineReply(res, projectId, chapterConversationScope(projectId, id.parse(req.params.chapterId)), id.parse(req.params.turnId));
-  }
-  catch (error) { next(error); }
-});
+for (const kind of ["volume", "chapter"] as const) {
+  const path = `/:id/${kind}s/:nodeId/conversation`;
+  const target = (nodeId: unknown) => ({ kind, id: id.parse(nodeId) });
+  router.get(path, route(req => readLocalReviews(prisma, id.parse(req.params.id), target(req.params.nodeId))));
+  router.post(path + "/turns", route(req => conversation.send(id.parse(req.params.id), {
+    ...turnInput.omit({ action: true }).parse(req.body), target: target(req.params.nodeId),
+  })));
+  router.post(path + "/interrupt", route(async req => {
+    const { turnId } = z.object({ turnId: id }).parse(req.body);
+    await conversation.interrupt(id.parse(req.params.id), turnId, target(req.params.nodeId));
+    return { turnId };
+  }));
+  router.get(path + "/turns/:turnId/stream", async (req, res, next) => {
+    try {
+      const projectId = id.parse(req.params.id);
+      await streamOutlineReply(res, projectId, localReviewScope(projectId, target(req.params.nodeId)), id.parse(req.params.turnId));
+    } catch (error) { next(error); }
+  });
+}
 router.get("/:id/conversation/turns/:turnId/stream", async (req, res, next) => {
   try { await streamOutlineReply(res, req.params.id, outlineConversationScope(req.params.id), req.params.turnId); }
   catch (error) { next(error); }

@@ -91,6 +91,7 @@ export class OutlineProposalService {
     const current = await this.repository.getCurrent(projectId);
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
     if (proposal.kind === "chapter_edit" && !operationIds.length) throw new AppError("请选择要采纳的章纲修改。", 400);
+    if (proposal.kind === "volume_edit" && !operationIds.length) throw new AppError("请选择要采纳的卷纲修改。", 400);
     if (proposal.kind === "character_impact" && !operationIds.length) throw new AppError("请选择要采纳的人物联动修改。", 400);
     if (proposal.kind === "edit" && proposal.promptId === "outline.workbench_dialogue" && !operationIds.length) throw new AppError("请选择要采纳的修改。", 400);
     if (proposal.kind === "initial_generation") {

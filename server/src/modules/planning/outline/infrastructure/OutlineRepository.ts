@@ -20,7 +20,7 @@ export class OutlineRepository {
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
   async listPendingProposals(projectId: string) {
     const rows = await this.db.outlineProposal.findMany({
-      where: { projectId, status: "pending", kind: { in: ["character_impact", "chapter_edit", "volume_beats", "edit", "initial_generation"] } },
+      where: { projectId, status: "pending", kind: { in: ["character_impact", "chapter_edit", "volume_edit", "volume_beats", "edit", "initial_generation"] } },
       select: { id: true, kind: true, baseVersion: true, characterNodeId: true, requestText: true, proposalJson: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
@@ -93,12 +93,14 @@ export class OutlineRepository {
           chapter.volumeNodeId = op.parentNodeId;
         }
       }
-      for (const volume of doc.volumes) volume.chapterNodeIds = doc.chapters.filter((chapter:any)=>chapter.volumeNodeId===volume.nodeId).map((chapter:any)=>chapter.nodeId);
+      if (proposal.kind !== "volume_edit") {
+        for (const volume of doc.volumes) volume.chapterNodeIds = doc.chapters.filter((chapter:any)=>chapter.volumeNodeId===volume.nodeId).map((chapter:any)=>chapter.nodeId);
+      }
       const document = validateOutlineDocument(doc);
       const revision = await tx.outlineRevision.create({ data: { id: randomUUID(), projectId, version: baseVersion + 1, parentRevisionId: project.currentRevisionId, documentJson: JSON.stringify(document), sourceType: "proposal", sourceProposalId: proposalId } });
       const update = await tx.outlineProject.updateMany({ where: { id: projectId, currentVersion: baseVersion }, data: { currentVersion: baseVersion + 1, currentRevisionId: revision.id, title: document.story.title } });
       if (update.count !== 1) throw new Error("OUTLINE_VERSION_CONFLICT");
-      const payload = proposal.kind === "character_impact" || proposal.kind === "edit" || proposal.kind === "chapter_edit" ? JSON.parse(proposal.proposalJson) : null;
+      const payload = ["character_impact", "edit", "chapter_edit", "volume_edit"].includes(proposal.kind) ? JSON.parse(proposal.proposalJson) : null;
       if (proposal.kind === "character_impact") payload.impact.appliedOperationIds = [...selected];
       else if (payload) payload.appliedOperationIds = [...selected];
       const decided = await tx.outlineProposal.updateMany({ where: { id: proposalId, status: "pending" }, data: {

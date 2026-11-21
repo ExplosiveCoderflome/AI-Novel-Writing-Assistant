@@ -1,12 +1,12 @@
 import type { AgentConversationTurn } from "@ai-novel/shared/types/agentConversation/turn";
 import { apiClient } from "@/api/client";
 
-export type LocalTarget = { kind: "character" | "chapter"; id: string };
+export type LocalTarget = { kind: "character" | "chapter" | "volume"; id: string };
 export type ReviewTurn = AgentConversationTurn<{ id: string; baseVersion: number; status: string }>;
 const inline = { errorPresentation: "inline" } as const;
 export function outlineReviewThread(projectId: string, target?: LocalTarget) {
   const personId = target?.kind === "character" ? target.id : undefined;
-  const resource = personId ? "/character-impact" : target ? "/chapters/" + encodeURIComponent(target.id) : "";
+  const resource = personId ? "/character-impact" : target ? `/${target.kind}s/${encodeURIComponent(target.id)}` : "";
   const url = "/outlines/" + encodeURIComponent(projectId) + resource + "/conversation";
   const params = personId ? { characterId: personId } : undefined;
   const queryKey = target ? ["agent-conversation", "outline-" + target.kind, projectId, target.id] : ["agent-conversation", "outline-workbench", projectId];

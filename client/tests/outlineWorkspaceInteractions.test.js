@@ -657,6 +657,60 @@ test("切换李斯和第二章保留整书会话与各自输入，章节建议�
   assert.ok(!side.textContent.includes("请明确本章的冲突"));
 });
 
+test("调整本卷在阅读栏底部展开，各卷保留自己的输入，采纳后回到目标卷", async t => {
+  const saved = fixture(), base = structuredClone(saved), volume = saved.volumes[0];
+  const path = "/outlines/p/volumes/" + encodeURIComponent(volume.nodeId) + "/conversation";
+  const changed = "卷末收到父亲的求救信。";
+  const result = { id: "vol-review", baseVersion: 1, status: "pending" };
+  const turns = [];
+  let version = 1;
+  const { writes } = await open(t, "/outlines/p?nodeId=回航", (url, method, body) => {
+    if (url === "/outlines/p") return { id: "p", title: saved.story.title, currentVersion: version, document: saved };
+    if (url.endsWith("/revisions/r")) return { version: 1, document: base };
+    if (url === path) return structuredClone(turns);
+    if (url === path + "/turns") {
+      turns.push({ id: body.requestId, requestText: body.requestText, status: "completed",
+        contextVersion: "1", createdAt: new Date().toISOString(), replyText: "请预览卷末安排。", result });
+      return { turnId: body.requestId };
+    }
+    if (url.endsWith("/proposals/vol-review")) return { ...result, projectId: "p", kind: "volume_edit",
+      proposalJson: JSON.stringify({ volumeId: volume.nodeId, operations: [{ operationId: "endingHook", kind: "update_fields",
+        nodeId: volume.nodeId, fields: { endingHook: changed }, reason: "留下悬念", dependsOn: [], risks: [], affectedNodeIds: [volume.nodeId] }] }) };
+    if (url.endsWith("/proposals/vol-review/apply")) {
+      volume.endingHook = changed;
+      version++;
+      return { revision: { version }, document: saved };
+    }
+  });
+  const directory = await until(() => document.querySelector(".outline-directory"));
+  const toggle = () => button("调整本卷", document.querySelector(".outline-reading-heading"));
+  const input = () => document.querySelector('.outline-editor footer [aria-label="分卷局部修改"] textarea');
+  const reading = document.querySelector(".outline-reading-body");
+  reading.scrollTop = 250;
+  await click(toggle());
+  assert.equal(document.activeElement, input());
+  assert.equal(reading.scrollTop, 250);
+  await change(input(), "给回航增加卷末悬念");
+  await click(button("启航", directory));
+  await click(toggle());
+  assert.equal(input().value, "");
+  await change(input(), "启航要有代价");
+  await click(button("回航", directory));
+  await click(toggle());
+  assert.equal(input().value, "给回航增加卷末悬念");
+  assert.deepEqual(writes, []);
+  await click(await until(() => { const send = button("生成修改建议"); return send && !send.disabled && send; }));
+  const adopt = await until(() => button("采纳所选（1）"));
+  assert.equal(writes[0].url, path + "/turns");
+  assert.equal(writes[0].body.baseVersion, 1);
+  assert.equal(version, 1);
+  await click(adopt);
+  await until(() => document.querySelector(".outline-reading-body")?.textContent.includes(changed));
+  assert.equal(document.querySelector(".outline-reading h2").textContent, volume.title);
+  assert.deepEqual(writes[1].body.operationIds, ["endingHook"]);
+  assert.equal(version, 2);
+});
+
 test("在卷上预览和采纳节奏，再从对应节奏段打开原章节", async t => {
   const saved = fixture(), original = structuredClone(saved);
   const volume = saved.volumes[0], chapter = saved.chapters[0];
