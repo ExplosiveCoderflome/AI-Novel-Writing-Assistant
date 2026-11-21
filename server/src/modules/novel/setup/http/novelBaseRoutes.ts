@@ -1,3 +1,4 @@
+import { createManualWorkflowNovel } from "../application/createManualWorkflowNovel";
 import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import {
@@ -62,6 +63,7 @@ function parseJsonRecord(value: string | null | undefined): Record<string, unkno
 }
 
 const createNovelSchema = z.object({
+  manualWorkflowTaskId: z.string().trim().min(1).max(128).optional(),
   directorVersion: z.enum(["v1", "v2"]).optional(),
   narrativeForm: z.enum(["long_novel", "short_story"]).optional(),
   title: z.string().trim().min(1, "标题不能为空。"),
@@ -221,18 +223,18 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
 
   router.post("/", validate({ body: createNovelSchema }), async (req, res, next) => {
     try {
-      const createInput = req.body as z.infer<typeof createNovelSchema>;
+      const {manualWorkflowTaskId, ...createInput} = createNovelSchema.parse(req.body);
       const directorVersion = createInput.narrativeForm === "short_story" ? undefined
         : createInput.directorVersion ?? (directorV2Available() ? "v2" : "v1");
       if (directorVersion === "v2" && !directorV2Available()) throw new AppError("导演 V2 未启用，请选择导演 V1。", 409);
-      const foundation = await novelCreateResourceRecommendationService.resolveRequired(createInput);
-      const created = await novelService.createNovel({
-        ...createInput,
-        directorVersion,
-        genreId: foundation.genreId,
-        primaryStoryModeId: foundation.primaryStoryModeId,
-        secondaryStoryModeId: foundation.secondaryStoryModeId,
-      });
+      const resolveInput = async () => {
+        const foundation = await novelCreateResourceRecommendationService.resolveRequired(createInput);
+        return {...createInput, directorVersion, genreId: foundation.genreId,
+          primaryStoryModeId: foundation.primaryStoryModeId, secondaryStoryModeId: foundation.secondaryStoryModeId};
+      };
+      const created = manualWorkflowTaskId
+        ? await createManualWorkflowNovel(manualWorkflowTaskId, resolveInput)
+        : await novelService.createNovel(await resolveInput());
       const data = await withWorkspaceSource(created, readIdentity);
       const response: ApiResponse<typeof data> = {
         success: true,

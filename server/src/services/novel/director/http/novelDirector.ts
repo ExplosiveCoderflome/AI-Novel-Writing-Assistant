@@ -1,3 +1,4 @@
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -227,6 +228,9 @@ const refineTitleSchema = projectContextSchema.extend({
 }).merge(llmOptionsSchema);
 
 const confirmSchema = projectContextSchema.extend({
+  issueGovernanceVersion: z.literal(1).optional(),
+  issuePolicy: directorIssuePolicySchema.optional(),
+  issuePolicySource: z.enum(["global", "novel"]).optional(),
   idea: z.string().trim().min(1),
   batchId: z.string().trim().optional(),
   round: z.number().int().min(1).optional(),

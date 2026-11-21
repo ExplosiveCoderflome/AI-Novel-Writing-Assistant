@@ -43,7 +43,8 @@ test("candidate command routes accept restored AI-recommended null counts and re
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
   const candidate = createConfirmRequest().candidate;
   const batch = {id: "batch-1", round: 1, roundLabel: "首轮", idea: "原想法", candidates: [candidate], createdAt: new Date().toISOString()};
-  const payload = {idea: "原想法", previousBatches: [batch], batchId: batch.id, candidateId: candidate.id, candidate, feedback: "增加探索", directorVersion: "v2"};
+  const qualityPolicy = require("@ai-novel/shared/types/directorIssue").DIRECTOR_ISSUE_POLICY_PRESETS.find(p => p.id === "quality_first").policy;
+  const payload = {issueGovernanceVersion: 1, issuePolicy: qualityPolicy, issuePolicySource: "novel", idea: "原想法", previousBatches: [batch], batchId: batch.id, candidateId: candidate.id, candidate, feedback: "增加探索", directorVersion: "v2"};
   const post = (commandType, value) => fetch(`http://127.0.0.1:${server.address().port}/tasks/saved-task/commands`, {
     method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({commandType, payload: {...payload, estimatedChapterCount: value}}),
   });
@@ -55,6 +56,11 @@ test("candidate command routes accept restored AI-recommended null counts and re
       assert.equal(call.input.estimatedChapterCount, value ?? undefined);
       assert.equal(call.input.workflowTaskId, "saved-task");
       assert.equal(call.commandType, commandType);
+      if (commandType === "confirm_candidate") {
+        assert.deepEqual(call.input.issuePolicy, qualityPolicy);
+        assert.equal(call.input.issueGovernanceVersion, 1);
+        assert.equal(call.input.issuePolicySource, "novel");
+      }
     }
     const accepted = calls.length;
     for (const value of [0, -1, 1.5, 2001, "260", ""]) {

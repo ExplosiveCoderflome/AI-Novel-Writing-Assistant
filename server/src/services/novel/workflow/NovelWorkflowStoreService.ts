@@ -342,6 +342,16 @@ export class NovelWorkflowStoreService {
     const novelTitle = input.novelId ? await this.getNovelTitle(input.novelId) : null;
     const initialState = input.initialState;
     const { data: initialTaskData, initialStage } = buildWorkflowTaskInitialData(input, novelTitle);
+    // The manual form reserves its task identity before its first network request.
+    if (input.lane === "manual_create" && !input.novelId && input.workflowTaskId &&
+        /^manual-create-[a-f0-9]{32}$/.test(input.workflowTaskId)) {
+      const id = input.workflowTaskId;
+      return prisma.novelWorkflowTask.upsert({
+        where: {id},
+        create: {...initialTaskData, id, resumeTargetJson: stringifyResumeTarget(buildNovelCreateResumeTarget(id))},
+        update: {id},
+      });
+    }
     const created = await prisma.novelWorkflowTask.create({
       data: {
         ...initialTaskData,

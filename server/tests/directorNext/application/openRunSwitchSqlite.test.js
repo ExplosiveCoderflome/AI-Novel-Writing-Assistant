@@ -167,7 +167,9 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
  assert.equal((await prisma.novel.findUnique({where:{id:created.novel.id}})).postGenerationStyleReviewEnabled,true);
  assert.equal(await prisma.novelWorkflowTask.count({where:{lane:'auto_director'}}),before.length);
  await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'original-opening',lane:'auto_director',title:'原开书界面'}});
- await prisma.directorRunCommand.create({data:{id:'original-confirm',taskId:'original-opening',commandType:'confirm_candidate',idempotencyKey:'confirm',payloadJson:JSON.stringify({confirmRequest:{...input,runMode:'stage_review',narrativePov:'first_person',pacePreference:'fast'}})}});
+ const openingPolicy = {...require(require.resolve('@ai-novel/shared/types/directorIssue',{paths:[server]})).DIRECTOR_ISSUE_POLICY_PRESETS.find(p=>p.id==='quality_first').policy,
+   maxAutomaticRetries:0, chapterReviewRetryPolicy:{maxRetries:4,onExhausted:'pause_for_manual'}};
+ await prisma.directorRunCommand.create({data:{id:'original-confirm',taskId:'original-opening',commandType:'confirm_candidate',idempotencyKey:'confirm',payloadJson:JSON.stringify({confirmRequest:{...input,issuePolicy:openingPolicy,runMode:'stage_review',narrativePov:'first_person',pacePreference:'fast'}})}});
  await executeOpeningCommand('original-confirm');await executeOpeningCommand('original-confirm');
  const opening=await prisma.novelWorkflowTask.findUniqueOrThrow({where:{id:'original-opening'}});
  assert.equal(opening.status,'succeeded');assert.equal(opening.novelId,'director-opening-book-original-opening');
@@ -195,9 +197,19 @@ const {executeOpeningCommand,prepareOpeningRetry}=require(path.join(server,'dist
 
  assert.equal(await prisma.directorNextRun.count({where:{novelId:opening.novelId}}),1);
  const originalNovel=await prisma.novel.findUniqueOrThrow({where:{id:opening.novelId}});
+ assert.deepEqual(JSON.parse(originalNovel.directorIssuePolicyOverridesJson), openingPolicy);
  assert.equal(originalNovel.narrativePov,'first_person');assert.equal(originalNovel.pacePreference,'fast');
  assert.equal((await prisma.directorRunCommand.findUniqueOrThrow({where:{id:'original-confirm'}})).status,'succeeded');
  const originalContract=JSON.parse((await prisma.directorNextRun.findFirst({where:{novelId:opening.novelId}})).contractJson);
+ assert.equal(originalContract.issuePolicy.mode,'quality_first');
+ assert.deepEqual(originalContract.issuePolicy.pipelinePolicy,openingPolicy);
+ const nextLaunch={...originalContract.launchInput};
+ delete nextLaunch.openingIssuePolicy;
+ const nextOptions=createDirectorProductionOptions();
+ const nextContract=nextOptions.contractFactory({novelId:opening.novelId,runId:'next-production',driver:'auto',stepIdsInScope:null,launchInput:nextLaunch});
+ await nextOptions.prepareOpen(nextContract);
+ assert.equal(nextContract.issuePolicy.mode,'quality_first');
+ assert.deepEqual(nextContract.issuePolicy.pipelinePolicy,openingPolicy);
  assert.equal(originalContract.driver,'assisted');assert.equal(originalContract.chapterRange,null);assert.ok(originalContract.launchInput.storyInput.includes('新书标题'));
  assert.deepEqual(await prisma.novelWorkflowTask.findMany({where:{id:{in:before.map(row=>row.id)}},orderBy:{id:'asc'}}),before);
  await prisma.novelWorkflowTask.create({data:{directorVersion:'v2',id:'interrupted-opening',lane:'auto_director',title:'传输中断',pendingManualRecovery:true,lastError:'transport_error'}});

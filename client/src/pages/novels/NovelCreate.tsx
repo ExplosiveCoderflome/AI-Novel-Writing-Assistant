@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
-import { createNovel } from "@/api/novel";
-import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
+import { createNovel, getNovelDetail } from "@/api/novel";
+import {getDirectorWorkspaceHref, getNovelWorkspaceHref} from "@/lib/novelRoutes";
 import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
@@ -30,6 +30,7 @@ export default function NovelCreate() {
 
   const workflowTaskIdFromQuery = searchParams.get("workflowTaskId") ?? "";
   const workflowMode = searchParams.get("mode");
+  const submittingTask = useRef("");
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -95,9 +96,15 @@ export default function NovelCreate() {
       workflowTaskId: workflowTaskIdFromQuery || undefined,
       lane: "manual_create",
     }),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const task = response.data;
       if (!task) {
+        return;
+      }
+      const linkedNovelId = task.resumeTarget?.novelId;
+      if (linkedNovelId) {
+        const novel = (await getNovelDetail(linkedNovelId)).data;
+        if (novel) navigate(getNovelWorkspaceHref(novel), {replace: true});
         return;
       }
       const seedPayload = (task.meta.seedPayload ?? null) as { basicForm?: Partial<typeof basicForm> } | null;
@@ -115,7 +122,7 @@ export default function NovelCreate() {
   });
 
   useEffect(() => {
-    if (!workflowTaskIdFromQuery || workflowMode === "director") {
+    if (!workflowTaskIdFromQuery || workflowMode === "director" || workflowTaskIdFromQuery === submittingTask.current) {
       return;
     }
     restoreWorkflowMutation.mutate();
@@ -123,36 +130,24 @@ export default function NovelCreate() {
 
   const createNovelMutation = useMutation({
     mutationFn: async () => {
-      const task = await bootstrapNovelWorkflow({
-        lane: "manual_create",
-        title: basicForm.title,
-        seedPayload: {
-          basicForm,
-        },
-      });
-      const created = await createNovel(buildNovelCreatePayload(basicForm));
-      const novelId = created.data?.id;
-      if (!novelId) {
-        return {
-          response: created,
-          workflowTaskId: task.data?.id ?? "",
-        };
+      const taskId = workflowTaskIdFromQuery || submittingTask.current || `manual-create-${Array.from(
+        crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0"),
+      ).join("")}`;
+      submittingTask.current = taskId;
+      if (!workflowTaskIdFromQuery) {
+        setSearchParams(previous => {
+          const next = new URLSearchParams(previous);
+          next.set("workflowTaskId", taskId);
+          return next;
+        }, {replace: true});
       }
-      const attached = await bootstrapNovelWorkflow({
-        workflowTaskId: task.data?.id,
-        novelId,
-        lane: "manual_create",
-        title: created.data?.title,
-        seedPayload: {
-          basicForm,
-        },
+      const task = await bootstrapNovelWorkflow({
+        workflowTaskId: taskId, lane: "manual_create", title: basicForm.title, seedPayload: {basicForm},
       });
-      return {
-        response: created,
-        workflowTaskId: attached.data?.id ?? task.data?.id ?? "",
-      };
+      if (!task.data?.id) throw new Error("开书任务未保存，请重试。");
+      return createNovel({...buildNovelCreatePayload(basicForm), manualWorkflowTaskId: task.data.id});
     },
-    onSuccess: async ({ response }) => {
+    onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
       if (response.data?.id) {
         const directorHref = getDirectorWorkspaceHref(response.data);

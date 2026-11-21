@@ -1,4 +1,5 @@
 import type { OutlineBindingRef } from "@ai-novel/shared/types/outlineOpenBook";
+import type { DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 export type ArtifactType = string;
 
 export type ArtifactStatus = "draft" | "confirmed" | "user_edited" | "stale";
@@ -98,6 +99,8 @@ export interface RunLaunchInput {
   model?: string;
   executionRange?: ChapterRange;
   issuePolicyMode?: IssuePolicyMode;
+  /** Confirmed pre-book snapshot, supplied by the opening adapter. */
+  openingIssuePolicy?: DirectorIssuePolicy;
 }
 
 export type RunStatus =
