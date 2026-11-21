@@ -1,3 +1,4 @@
+import { getVolumeBeatRoleLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 
 export type OutlineNode = OutlineDocument["story"]
@@ -8,6 +9,7 @@ export type OutlineNode = OutlineDocument["story"]
   | OutlineDocument["facts"][number];
 
 export const outlineFieldLabels: Record<string, string> = {
+  beats: "卷内节奏", beatKey: "所属节奏段", chapterSpanHint: "卷内章序", mustDeliver: "必须兑现", key: "节奏职能", label: "职能名称",
   title: "标题",
   name: "姓名",
   premise: "故事想法",
@@ -91,6 +93,7 @@ export function formatOutlineValue(value: unknown, field = "", document?: Outlin
     return value.map(item => formatOutlineValue(item, field, document, titles)).join("、");
   }
   if (typeof value === "string") {
+    if (field === "beatKey" || field === "key") return getVolumeBeatRoleLabel(value, value);
     if (/NodeIds?$/.test(field)) return titles[value] ?? (document ? findOutlineNodeTitle(document, value) : "（已删除的节点）");
     const labels: Record<string, string> = { rough: "粗纲", detailed: "细纲", story: "全书", volume: "卷", chapter: "章节", character: "人物", payoff: "伏笔", fact: "固定设定", other: "其他", hook: "钩子", foreshadowing: "伏笔", promise: "承诺", mystery: "悬念" };
     return ["planningDepth", "kind", "category", "type"].includes(field) ? labels[value] ?? value : value;

@@ -1,4 +1,6 @@
 import { prisma } from "../../../../db/prisma";
+import { generateVolumeBeatProposal } from "../application/volumeBeatProposal";
+import { OutlineRepository } from "../infrastructure/OutlineRepository";
 import { readChapterReviews, chapterConversationScope } from "../conversation/chapterReview";
 import { streamOutlineReply } from "./outlineReplyStream";
 import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
@@ -25,6 +27,10 @@ const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) 
 const conversation = new OutlineWorkbenchConversation(prisma);
 const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
   action: z.literal("generate_initial").optional(), baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+router.post("/:id/volumes/:volumeId/beat-proposals", route(async req => {
+  const input = z.object({baseVersion:z.number().int().positive(), targetChapterCount:z.number().int().min(1).max(2000)}).parse(req.body);
+  return generateVolumeBeatProposal(new OutlineRepository(prisma), id.parse(req.params.id), id.parse(req.params.volumeId), input.baseVersion, input.targetChapterCount);
+}));
 const chapterPath = "/:id/chapters/:chapterId/conversation";
 router.get(chapterPath, route(req => readChapterReviews(prisma, id.parse(req.params.id), id.parse(req.params.chapterId))));
 router.post(chapterPath + "/turns", route(req => conversation.send(id.parse(req.params.id), {

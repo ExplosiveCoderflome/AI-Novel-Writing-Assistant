@@ -539,6 +539,46 @@ test("切换李斯和第二章保留整书会话与各自输入，章节建议�
   assert.ok(!side.textContent.includes("请明确本章的冲突"));
 });
 
+test("在卷上预览和采纳节奏，再从对应节奏段打开原章节", async t => {
+  const saved = fixture(), original = structuredClone(saved);
+  const volume = saved.volumes[0], chapter = saved.chapters[0];
+  let version = 1, proposal;
+  const beats = [["open_hook","开卷抓手"],["climax","卷高潮"],["end_hook","卷尾钩子"]].map(([key,label]) =>
+    ({key,label,title:label,summary:"渡船逼近岸边",chapterSpanHint:"1章",mustDeliver:["靠岸前作出抉择"]}));
+  const operations = [{operationId:"v",nodeId:volume.nodeId,fields:{beats}},{operationId:"c",nodeId:chapter.nodeId,fields:{beatKey:"climax"}}]
+    .map(op=>({...op,kind:"update_fields",reason:"本卷结构",affectedNodeIds:[op.nodeId],dependsOn:[],risks:[]}));
+  const {writes} = await open(t, "/outlines/p?nodeId=回航", (url, method, body) => {
+    if (url === "/outlines/p") return {id:"p",title:saved.story.title,currentVersion:version,document:saved};
+    if (url.endsWith("/revisions")) return [{id:"r",version:1},...(version===2?[{id:"r2",version:2}]:[])];
+    if (url.endsWith("/revisions/r")) return {id:"r",version:1,document:original};
+    if (url.endsWith("/volumes/回航/beat-proposals")) {
+      assert.deepEqual(body,{baseVersion:1,targetChapterCount:1});
+      return proposal={id:"beats",kind:"volume_beats",projectId:"p",baseVersion:1,status:"pending",proposalJson:JSON.stringify({volumeId:volume.nodeId,operations})};
+    }
+    if (url.endsWith("/proposals/beats")) return proposal;
+    if (url.endsWith("/proposals/beats/apply")) {
+      assert.deepEqual(body.operationIds,["v","c"]);
+      volume.beats = beats; chapter.beatKey = "climax"; version=2;
+      proposal={...proposal,status:"applied"};
+      return {revision:{version},document:saved};
+    }
+  });
+  await click(await until(()=>button("生成本卷节奏建议")));
+  const accept = await until(()=>button("采纳本卷节奏与章节归属"));
+  assert.equal(version,1);
+  const panel = document.querySelector(".outline-proposal-body");
+  assert.ok([...panel.querySelectorAll("details")].find(el=>el.querySelector("summary").textContent.includes("卷高潮")).textContent.includes("风暴"));
+  await click(accept);
+  await until(()=>button("重新拟定节奏建议"));
+  const branch = document.querySelector('[aria-label="展开《回航》的章节"]');
+  if (branch) await click(branch);
+  const detail = [...document.querySelectorAll(".outline-directory details")].find(el=>el.textContent.includes("卷高潮"));
+  assert.equal(button("风暴",detail).textContent,"风暴");
+  await click(button("风暴",detail));
+  await until(()=>document.querySelector(".outline-reading-body")?.textContent.includes("所属节奏段 · 卷高潮"));
+  assert.equal(writes.length,2);
+});
+
 test("选卷添加章节后统一保存，修订同时保留章节归属和卷内顺序", async t => {
   const { writes } = await open(t, "/outlines/p?nodeId=回航");
   const add = await until(() => document.querySelector('[aria-label="添加大纲内容"]'));

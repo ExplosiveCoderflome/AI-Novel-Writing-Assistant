@@ -1,3 +1,4 @@
+import { BeatList } from "./volumeRhythm/BeatList";
 import { useState } from "react";
 import type { OutlineInitialProposalPayload } from "@/api/outlines";
 
@@ -19,6 +20,7 @@ export function InitialDraftReading({ payload }: { payload: OutlineInitialPropos
       const inVolume = chapters.filter(ch => ch.volumeRef === volume.clientRef);
       return <div className="outline-volume" key={volume.clientRef} id={"draft-location-" + volume.clientRef} tabIndex={-1}>
         <h4>{volume.title}</h4><p>{volume.summary}</p>
+        {volume.beats && <BeatList beats={volume.beats} chapters={inVolume}/>}
         <details><summary>查看 {inVolume.length} 章</summary>{inVolume.map(ch => <div className="outline-chapter" tabIndex={-1}
           id={"draft-location-" + ch.clientRef} data-selected={location === ch.clientRef} key={ch.clientRef}><h4>{ch.title}</h4><p>{ch.summary}</p></div>)}</details>
       </div>;

@@ -101,8 +101,8 @@ export class OutlineProposalService {
       for (const item of [...initial.volumes, ...initial.chapters, ...initial.characters, ...initial.payoffs, ...initial.facts]) refs.set(item.clientRef, randomUUID());
       const document = createEmptyOutlineDocument(String(initial.storyFields.title ?? "新大纲"));
       Object.assign(document.story, initial.storyFields);
-      document.volumes = initial.volumes.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, chapterNodeIds: [] }));
-      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] }));
+      document.volumes = initial.volumes.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, ...(x.beats && {beats:x.beats}), chapterNodeIds: [] }));
+      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef)!, ...(x.beatKey && {beatKey:x.beatKey}), title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] }));
       document.volumes.forEach(volume=>volume.chapterNodeIds=document.chapters.filter(chapter=>chapter.volumeNodeId===volume.nodeId).map(chapter=>chapter.nodeId));
       const chaptersById = new Map(document.chapters.map(chapter => [chapter.nodeId, chapter]));
       document.characters = initial.characters.map(person => {
@@ -117,6 +117,8 @@ export class OutlineProposalService {
     }
     const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     const document = validateOutlineDocument(JSON.parse(current.revision!.documentJson));
+    if (proposal.kind === "volume_beats" && operationIds.length > 0 && (new Set(operationIds).size !== payload.operations.length || payload.operations.some(op => !operationIds.includes(op.operationId))))
+      throw new AppError("节奏板和本卷章节归属需一起采纳。",400);
     const selectedIds = operationIds.length ? operationIds : payload.operations.map((operation) => operation.operationId);
     try {
       assertValidOutlineEditOperations(payload.operations, { document, selectedOperationIds: selectedIds });

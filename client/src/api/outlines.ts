@@ -43,6 +43,8 @@ export interface OutlineInitialNode {
   planningDepth: "rough" | "detailed";
   reason?: string;
   volumeRef?: string;
+  beats?: OutlineDocument["volumes"][number]["beats"];
+  beatKey?: string;
   appearanceRefs?: string[];
   role?: string;
   setupDescription?: string;
@@ -70,7 +72,7 @@ export interface OutlineProposal {
   id: string;
   projectId: string;
   baseVersion: number;
-  kind: OutlineProposalKind | "character_impact" | "chapter_edit";
+  kind: OutlineProposalKind | "character_impact" | "chapter_edit" | "volume_beats";
   status: string;
   requestText?: string | null;
   proposalJson: string;
@@ -82,10 +84,14 @@ export interface PendingOutlineProposal {
   baseVersion: number;
   characterId: string | null;
   chapterId?: string | null;
+  volumeId?: string | null;
   targetNodeIds?: string[];
   requestText: string | null;
   title: string | null;
 }
+
+export const generateOutlineVolumeBeats = async (id: string, volumeId: string, baseVersion: number, targetChapterCount: number) =>
+  (await apiClient.post(`/outlines/${id}/volumes/${volumeId}/beat-proposals`, {baseVersion, targetChapterCount}, {timeout:0, errorPresentation:"inline"})).data.data as OutlineProposal;
 
 export const listPendingOutlineProposals = async (id: string) =>
   (await apiClient.get(`/outlines/${id}/proposals`, { errorPresentation: "inline" })).data.data as PendingOutlineProposal[];

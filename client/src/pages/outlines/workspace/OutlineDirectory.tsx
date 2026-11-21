@@ -1,3 +1,4 @@
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronDown, ChevronRight, Plus, Search } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
@@ -44,7 +45,8 @@ export function OutlineDirectory({ document, selectedId, disabled, onSelect, onA
     { title: "伏笔与钩子", items: document.payoffs },
     { title: "固定设定", items: document.facts },
   ];
-  const visibleVolumes = volumes.filter(volume => matches(volume) || chapters.get(volume.nodeId)?.some(matches));
+  const matchesBeat = (beat: {label:string; title?:string|null}) => formatVolumeBeatDisplayLabel(beat).toLocaleLowerCase().includes(term);
+  const visibleVolumes = volumes.filter(volume => matches(volume) || volume.beats?.some(matchesBeat) || chapters.get(volume.nodeId)?.some(matches));
   const unassigned = (chapters.get("") ?? []).filter(matches);
   const showStory = matches(document.story) || "总纲".includes(term);
   const groupsWithResults = groups.map(group => ({ ...group, items: group.items.filter(matches) })).filter(group => group.items.length > 0);
@@ -73,7 +75,7 @@ export function OutlineDirectory({ document, selectedId, disabled, onSelect, onA
         const showChildren = !!term || expanded.has(volume.nodeId);
         return <div key={volume.nodeId}>
           <div className="flex items-center">
-            {children.length > 0 ? <button type="button" className="outline-branch" aria-expanded={showChildren}
+            {children.length || volume.beats?.length ? <button type="button" className="outline-branch" aria-expanded={showChildren}
               aria-label={`${showChildren ? "收起" : "展开"}《${volume.title}》的章节`} disabled={!!term}
               onClick={() => setExpanded(previous => {
                 const next = new Set(previous);
@@ -82,8 +84,16 @@ export function OutlineDirectory({ document, selectedId, disabled, onSelect, onA
               })}>{showChildren ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</button> : <span className="w-6 shrink-0" />}
             {row(volume)}
           </div>
-          {showChildren && children.length > 0 && <ul className="outline-nav-children" aria-label={`${volume.title}的章节`}>
-            {children.filter(chapter => matches(volume) || matches(chapter)).map(chapter => <li key={chapter.nodeId}>{row(chapter)}</li>)}
+          {showChildren && (children.length > 0 || !!volume.beats?.length) && <ul className="outline-nav-children" aria-label={`${volume.title}的章节`}>
+            {volume.beats?.map(beat => {
+              const linked = children.filter(ch => ch.beatKey === beat.key && (matchesBeat(beat) || matches(volume) || matches(ch)));
+              if (term && !matchesBeat(beat) && !matches(volume) && !linked.length) return null;
+              return <li key={beat.key}><details open={!!term || linked.some(ch=>ch.nodeId===selectedId) || undefined}>
+                <summary className="cursor-pointer py-1 text-xs">{formatVolumeBeatDisplayLabel(beat)} <span className="text-muted-foreground">{beat.chapterSpanHint}</span></summary>
+                <ul>{linked.map(ch=><li key={ch.nodeId}>{row(ch)}</li>)}</ul></details></li>;
+            })}
+            {volume.beats && children.some(ch=>!ch.beatKey && (matches(volume) || matches(ch))) && <li className="text-xs text-muted-foreground">待关联章节</li>}
+            {children.filter(ch=>!ch.beatKey).filter(chapter => matches(volume) || matches(chapter)).map(chapter => <li key={chapter.nodeId}>{row(chapter)}</li>)}
           </ul>}
         </div>;
       })}

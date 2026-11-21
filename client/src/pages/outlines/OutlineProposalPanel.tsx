@@ -1,3 +1,5 @@
+import { BeatList } from "./workspace/volumeRhythm/BeatList";
+import type { VolumeBeat } from "@ai-novel/shared/types/novel";
 import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getOutlineRevision, listOutlineRevisions } from "@/api/outlines";
@@ -140,6 +142,19 @@ export function OutlineProposalPanel({ proposal, document: currentDocument, isAp
   if (revisions.isLoading || base.isLoading) return <p className="text-sm text-muted-foreground">正在读取提案基准修订…</p>;
   if (revisions.isError || base.isError || !base.data) return <p role="alert" className="text-sm text-destructive">未能读取当时的大纲。<button className="underline" onClick={() => { void revisions.refetch(); if (baseRevision) void base.refetch(); }}>重新读取</button></p>;
 
+  if (proposal.kind === "volume_beats") {
+    const sheet = operations.find(op => Array.isArray(op.fields?.beats));
+    const volume = document.volumes.find(v=>v.nodeId===sheet?.nodeId);
+    if (!sheet || !volume) return <p role="alert">无法读取本卷节奏建议。</p>;
+    const assigned = new Map(operations.map(op=>[op.nodeId,op.fields?.beatKey as string | undefined]));
+    const chapters = document.chapters.filter(ch=>ch.volumeNodeId===volume.nodeId).sort((a,b)=>a.order-b.order);
+    const current = currentDocument.volumes.find(v=>v.nodeId===volume.nodeId);
+    return <section className="outline-proposal-body"><h3>建议的卷内节奏与章节归属</h3>
+      <BeatList beats={sheet.fields!.beats as VolumeBeat[]} chapters={chapters.map(ch=>({...ch,beatKey:assigned.get(ch.nodeId)}))}/>
+      {current?.beats && <details className="outline-volume"><summary>对照当前稿节奏</summary><BeatList beats={current.beats} chapters={currentDocument.chapters.filter(c=>c.volumeNodeId===current.nodeId)}/></details>}
+      {!readOnly && <Button disabled={applyDisabled || isApplying} onClick={()=>onApply(allOperationIds)}>采纳本卷节奏与章节归属</Button>}
+    </section>;
+  }
   return (
     <section className="space-y-4 outline-proposal-body">
       <div>

@@ -1,3 +1,4 @@
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { ArrowUpRight } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { formatOutlineValue, getOutlineNodes, getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "../outlineNodes";
@@ -84,6 +85,10 @@ export function OutlineNodeEditor({ node, document, disabled, onChange, onSelect
         placeholder={titleField === "name" ? "填写人物姓名" : "填写标题"} value={String(current[titleField])}
         onChange={event => onChange(titleField, event.target.value)} />
     </header>
+    {parent?.beats && <label className="mb-4 block space-y-2 text-sm">所属节奏段
+      <select className="outline-field" disabled={disabled} value={String(current.beatKey ?? "")} onChange={e=>onChange("beatKey",e.target.value)}>
+        <option value="">暂未关联</option>{parent.beats.map(b=><option key={b.key} value={b.key}>{formatVolumeBeatDisplayLabel(b)}</option>)}
+      </select></label>}
     <div className="space-y-5">{form.main.map(field)}</div>
     <details className="outline-more">
       <summary>更多{form.label === "固定设定" ? "选项" : "设定"}</summary>

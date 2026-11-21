@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { editSchema, initialCastInstruction, initialDraftSchema, initialSchema } from "./outline.prompts";
+import { editSchema, initialCastInstruction, initialDraftSchema, pacedInitialDraftSchema, initialSchema } from "./outline.prompts";
 
 const responseWith = <T extends z.ZodType>(payload: T) => z.object({
   replyText: z.string().trim().min(1),
@@ -13,11 +13,14 @@ const responseWith = <T extends z.ZodType>(payload: T) => z.object({
 });
 const legacyResponse = responseWith(initialSchema);
 // An invalid draft is a request to regenerate with the conversation. Keep it out of generic JSON repair.
-const response = responseWith(initialDraftSchema.nullish().catch(null))
+const draftResponse = <T extends z.ZodType>(schema: T) => responseWith(schema.nullish().catch(null))
   .extend({ replyText: z.string().trim().catch("") })
   .refine(result => result.answer.kind === "initial_generation" || !!result.replyText, {
     path: ["replyText"], message: "请向作者说明讨论结果或修改建议。",
   });
+const response = draftResponse(initialDraftSchema);
+const pacedResponse = draftResponse(pacedInitialDraftSchema);
+import { beatPlanningInstruction } from "./volumeBeats.prompt";
 interface Input {
   document: unknown; baseVersion: number; requestText: string;
   priorProposal: { status: string; kind: string; payload: unknown } | null;
@@ -39,7 +42,13 @@ export const outlineWorkbenchDialogueV1 = {
   id: "outline.workbench_dialogue", version: "v1", taskType: "planner", mode: "structured", language: "zh",
   contextPolicy: { maxTokensBudget: 12000 }, outputSchema: legacyResponse, render: input => renderDialogue(input),
 } satisfies PromptAsset<Input, z.infer<typeof legacyResponse>>;
-export const outlineWorkbenchDialogue: PromptAsset<Input, z.infer<typeof response>> = {
+export const outlineWorkbenchDialogueV2: PromptAsset<Input, z.infer<typeof response>> = {
   ...outlineWorkbenchDialogueV1, version: "v2", outputSchema: response,
   render: input => renderDialogue(input, "初稿在本轮写入 answer.payload，包含 storyFields、volumes、chapters、characters、payoffs、facts。replyText 概括已提出的内容。" + initialCastInstruction),
+};
+
+export const outlineWorkbenchDialogue: PromptAsset<Input, z.infer<typeof pacedResponse>> = {
+  ...outlineWorkbenchDialogueV1, version:"v3", outputSchema:pacedResponse,
+  render: input => renderDialogue(input, ["初稿在本轮写入 answer.payload，包含 storyFields、volumes、chapters、characters、payoffs、facts。replyText 概括已提出的内容。", initialCastInstruction, beatPlanningInstruction,
+    "编辑已有卷的节奏时同时给出卷的 beats 和章节的 beatKey；章节关联只选同卷职能。"].join("\n")),
 };

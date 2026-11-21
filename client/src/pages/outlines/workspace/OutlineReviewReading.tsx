@@ -26,18 +26,18 @@ export function OutlineReviewReading({ projectId, proposalId, version, document,
   const review = useQuery({ queryKey: ["outline-review", projectId, proposalId], queryFn: async () =>
     (await apiClient.get(`/outlines/${projectId}/proposals/${proposalId}`, { errorPresentation: "inline" })).data.data as OutlineProposal | null });
   const proposal = review.data;
-  const payload = proposal ? JSON.parse(proposal.proposalJson) as OutlineEditProposalPayload & { impact?: ImpactSummary; chapterId?: string; appliedOperationIds?: string[] } : null;
+  const payload = proposal ? JSON.parse(proposal.proposalJson) as OutlineEditProposalPayload & { impact?: ImpactSummary; chapterId?: string; volumeId?: string; appliedOperationIds?: string[] } : null;
   const impact = payload?.impact;
   const target: LocalTarget | undefined = impact ? {kind:"character", id:impact.characterId}
     : proposal?.kind === "chapter_edit" && payload?.chapterId ? {kind:"chapter", id:payload.chapterId} : undefined;
   const operationNodes = [...new Set(payload?.operations?.map(op => op.nodeId))];
-  const ownerId = target?.id ?? (operationNodes.length === 1 ? operationNodes[0] : undefined);
+  const ownerId = target?.id ?? payload?.volumeId ?? (operationNodes.length === 1 ? operationNodes[0] : undefined);
   const owner = ownerId ? findOutlineNode(document, ownerId) : undefined;
   const localHistoryKey = outlineReviewThread(projectId, target).queryKey;
   const wholeHistory = useQuery<OutlineConversationTurn[]>({
     queryKey: ["agent-conversation", "outline-workbench", projectId],
     queryFn: async () => (await apiClient.get(`/outlines/${projectId}/conversation`, { errorPresentation: "inline" })).data.data,
-    enabled: !!proposal && !target,
+    enabled: !!proposal && !target && !payload?.volumeId,
   });
   const revisions = useQuery({ queryKey: ["outline-revisions", projectId], queryFn: () => listOutlineRevisions(projectId) });
   const roundIndex = wholeHistory.data?.findIndex(turn => turn.result?.id === proposalId) ?? -1;
@@ -63,16 +63,16 @@ export function OutlineReviewReading({ projectId, proposalId, version, document,
   });
   const back = <button type="button" className="outline-reading-link" onClick={() => onReturn(ownerId)}><ArrowLeft size={14} />回到当前稿</button>;
   if (review.isLoading) return <p role="status" className="outline-reading">正在读取建议…</p>;
-  if (!proposal || proposal.projectId !== projectId || !["initial_generation","character_impact","chapter_edit","edit"].includes(proposal.kind)) return <div className="outline-reading">{back}<p role="alert">无法打开这份大纲建议。</p><Button onClick={() => void review.refetch()}>重新读取</Button></div>;
+  if (!proposal || proposal.projectId !== projectId || !["initial_generation","character_impact","chapter_edit","volume_beats","edit"].includes(proposal.kind)) return <div className="outline-reading">{back}<p role="alert">无法打开这份大纲建议。</p><Button onClick={() => void review.refetch()}>重新读取</Button></div>;
   const pending = proposal.status === "pending", stale = pending && proposal.baseVersion !== version;
   const initial = proposal.kind === "initial_generation";
-  const canRequest = pending && (!target || !!owner);
+  const canRequest = proposal.kind !== "volume_beats" && pending && (!target || !!owner);
   const submitting = locked || decision.isPending || reject.isPending || busy;
   const topic = owner ? getOutlineNodeTitle(owner) : (initial ? "初稿" : "大纲");
   return <article className="outline-reading outline-review-reading">
     <header className="outline-reading-meta">{back}<span>{pending ? stale ? "旧建议" : "待采纳" : statuses[proposal.status] ?? "已结束"}{adopted && `为 v${adopted}`}</span></header>
     {(!initial || stale) && <h2>{stale ? "重看" + topic + "的旧建议" : topic + "的修改建议"}</h2>}
-    {stale && <p className="outline-version-note">这份建议写于 v{proposal.baseVersion}。当前大纲是 v{version}，可选出想保留的方向，让 AI 根据当前稿重新拟一份。</p>}
+    {stale && <p className="outline-version-note">这份建议写于 v{proposal.baseVersion}。当前大纲是 v{version}，{proposal.kind === "volume_beats" ? "可回到本卷重新规划节奏。" : "可选出想保留的方向，让 AI 根据当前稿重新拟一份。"}</p>}
     {stale && initial && <details className="outline-volume"><summary>查看当前稿 v{version}《{document.story.title}》</summary>
       <p>{document.story.premise}</p><p>{document.story.synopsis}</p><p>{document.volumes.map(vol => vol.title).join("、")}</p><p>{document.characters.map(p => p.name).join("、")}</p>
     </details>}

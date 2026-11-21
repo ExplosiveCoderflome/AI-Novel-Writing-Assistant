@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { featureFlags } from "@/config/featureFlags";
+import { VolumeRhythm } from "./workspace/volumeRhythm/VolumeRhythm";
 import { OutlineLocalReview, type LocalReviewDraft } from "./workspace/OutlineLocalReview";
 import type { LocalTarget } from "./workspace/outlineReviewThread";
 import { OutlineFeedbackPanel, shouldShowOutlineFeedbackPanel } from "./OutlineFeedbackPanel";
@@ -167,10 +168,10 @@ function OutlineWorkspace({ id }: { id: string }) {
   const localTarget: LocalTarget | undefined = selected && "appearanceNodeIds" in selected ? {kind:"character", id:selected.nodeId}
     : selected && "volumeNodeId" in selected ? {kind:"chapter", id:selected.nodeId} : undefined;
   const visiblePending = (pending.data ?? []).filter(p => {
-    if (selected === document?.story) return !p.characterId && !p.chapterId;
+    if (selected === document?.story) return !p.characterId && !p.chapterId && !p.volumeId;
     if (!selected) return false;
-    const localOwner = p.characterId ?? p.chapterId;
-    return localOwner ? localOwner === selected.nodeId && p.baseVersion === version : p.targetNodeIds?.includes(selected.nodeId);
+    const localOwner = p.characterId ?? p.chapterId ?? p.volumeId;
+    return localOwner ? localOwner === selected.nodeId && (p.volumeId || p.baseVersion === version) : p.targetNodeIds?.includes(selected.nodeId);
   });
   const blank = !!document && isEmptyOutline(document);
   const starter = blank && !editing && !draft && (!selected || selected === document?.story);
@@ -182,7 +183,7 @@ function OutlineWorkspace({ id }: { id: string }) {
     const original = findOutlineNode(savedDocument, selected.nodeId);
     function edit<T extends OutlineNode>(node: T) {
       const next = { ...node, [field]: value };
-      if (value === "" && original && !(field in original)) delete (next as Record<string, unknown>)[field];
+      if (value === "" && (field === "beatKey" || original && !(field in original))) delete (next as Record<string, unknown>)[field];
       return next;
     }
     setDraft(previous => {
@@ -269,6 +270,9 @@ function OutlineWorkspace({ id }: { id: string }) {
             onDiscuss={() => { showInspector("suggestions"); turn.send({requestText: idea.trim() ? `我想写这样的故事，请先问我一个问题，帮我想清楚方向。\\n${idea.trim()}`.slice(0,6000) : "我还没有具体的故事想法，请先问我一个问题，帮我找到方向。", baseVersion:version}); }} />
             : <OutlineReading document={document} node={selected} version={version} onSelect={selectNode} onEdit={() => setEditing(true)}
               notices={localTarget && readingNotices}
+              volumeRhythm={"chapterNodeIds" in selected && <VolumeRhythm projectId={id} version={version} onSelect={selectNode} volume={selected}
+                chapters={document.chapters.filter(ch=>ch.volumeNodeId===selected.nodeId).sort((a,b)=>a.order-b.order)}
+                disabled={blockRevision || turn.busy} onOpen={proposal=>openReview(proposal,selected.nodeId)}/>}
               reviewAction={localTarget && <Button type="button" size="sm" variant="secondary" className="outline-local-toggle"
                 aria-expanded={localExpanded} aria-controls={localExpanded ? "outline-local-form" : undefined} title={reviewLabel}
                 onClick={() => setLocalEditorId(localExpanded ? null : localTarget.id)}><Feather size={15} /><span>{reviewLabel}</span></Button>}

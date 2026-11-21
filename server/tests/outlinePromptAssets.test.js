@@ -6,9 +6,12 @@ test('outline prompts are registered with structured schemas and isolated contex
   for (const [id, version, budget = 8000] of [
     ['outline.initial_generate', 'v1'],
     ['outline.initial_generate', 'v2'],
+    ['outline.initial_generate', 'v3'],
     ['outline.edit_proposal', 'v2'],
     ['outline.workbench_dialogue', 'v1', 12000],
     ['outline.workbench_dialogue', 'v2', 12000],
+    ['outline.workbench_dialogue', 'v3', 12000],
+    ['outline.volume_beats', 'v1', 12000],
     ['outline.character_impact', 'v1'],
     ['outline.character_impact', 'v2'],
     ['outline.character_impact', 'v3'],

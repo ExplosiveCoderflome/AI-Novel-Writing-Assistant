@@ -52,6 +52,9 @@ async function api(project, suffix, body, status=200) {
   return json.data;
 }
 
+const singleChapterBeats = () => [["open_hook", "开卷抓手"], ["climax", "卷高潮"], ["end_hook", "卷尾钩子"]]
+  .map(([key, label]) => ({key, label, title:label, summary:"诏书推动局势变化", chapterSpanHint:"1章", mustDeliver:["诏书易手"]}));
+
 const conversation = "character-impact/conversation";
 const timeline = (project, characterId = "shen") => api(project, conversation + "?characterId=" + characterId);
 async function settled(project, id, read = timeline) {
@@ -70,8 +73,8 @@ test("赵高初稿缺失时带回对话重写，经采纳保留人物说明和�
   const node = (clientRef, title, summary) => ({ clientRef, title, summary, reason: summary, sourceFragment: title });
   const draft = {
     storyFields: { title: "全知者无力回天", premise: idea, synopsis: ending, theme: "全知与无力", tone: "悲怆", endingDirection: ending },
-    volumes: [node("v", "沙丘之后", "胡亥已立")],
-    chapters: [{ ...node("c", "第一份诏书", "赵高与李斯面议诏书"), volumeRef: "v" }],
+    volumes: [{...node("v", "沙丘之后", "胡亥已立"), beats:singleChapterBeats()}],
+    chapters: [{ ...node("c", "第一份诏书", "赵高与李斯面议诏书"), volumeRef: "v", beatKey:"open_hook" }],
     characters: [
       { ...node("z", "赵高", "穿越成赵高的大学生，知道结局，仍试图改写诏书。"), role: "主角", appearanceRefs: ["c", "c"] },
       { ...node("l", "李斯", "诏书指向的丞相。"), role: "丞相", appearanceRefs: ["c"] },
@@ -124,6 +127,8 @@ test("赵高初稿缺失时带回对话重写，经采纳保留人物说明和�
   const saved = await outlineProjectService.get(project.id);
   assert.equal(saved.currentVersion, 2);
   const { characters, chapters, volumes } = saved.document;
+  assert.deepEqual(volumes[0].beats, singleChapterBeats());
+  assert.equal(chapters[0].beatKey, "open_hook");
   assert.deepEqual(characters.map(p => [p.name, p.role, p.summary]), draft.characters.map(p => [p.title, p.role, p.summary]));
   assert.deepEqual(characters.map(p => p.appearanceNodeIds), [[chapters[0].nodeId], [chapters[0].nodeId], [volumes[0].nodeId], []]);
   assert.deepEqual(chapters[0].characterNodeIds, characters.slice(0, 2).map(p => p.nodeId));
@@ -133,8 +138,8 @@ test("whole-outline chat drafts, explains, revises, reopens and writes only on e
   const {project} = await outlineProjectService.create("渡口");
   const inputs = [];
   const draft = title => ({ storyFields: {title, premise:"末班渡船遇上风暴", synopsis:"她自己作决定。", theme:"勇气", tone:"悬疑", endingDirection:"靠岸"},
-    volumes: [{clientRef:"v", title:"渡河", summary:"起航", reason:"建立困境", sourceFragment:"渡船"}],
-    chapters: [{clientRef:"c", volumeRef:"v", title:"末班船", summary:"启航", reason:"人物出场", sourceFragment:"末班"}],
+    volumes: [{clientRef:"v", title:"渡河", beats:singleChapterBeats(), summary:"起航", reason:"建立困境", sourceFragment:"渡船"}],
+    chapters: [{clientRef:"c", volumeRef:"v", beatKey:"open_hook", title:"末班船", summary:"启航", reason:"人物出场", sourceFragment:"末班"}],
     characters:[], facts:[], payoffs:[] });
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset, promptInput}) => {
     inputs.push(promptInput);
@@ -294,6 +299,94 @@ test("OpenAI-compatible reasoning_content and reasoning_tokens reach a saved out
 });
 
 
+test("旧卷的节奏建议从待采纳、确认到正式开书，保留同卷关联与历史稿", async t => {
+  const source = createEmptyOutlineDocument("赵高倒计时");
+  source.story.premise = "陈言成为赵高，试图改变沙丘之后的诏书。";
+  for (const [i, titles] of [["赵高的手","不发的诏书","记忆里的空白","副本"],["私盟","指鹿","线断","子婴"],["最后的布局","斋宫之夜"]].entries()) {
+    const volumeNodeId = "v" + i;
+    const chapterNodeIds = titles.map((title,j) => {
+      const nodeId = volumeNodeId + "-c" + j;
+      source.chapters.push({nodeId, volumeNodeId, title, summary:title, order:j, planningDepth:"rough", characterNodeIds:[], payoffNodeIds:[]});
+      return nodeId;
+    });
+    source.volumes.push({nodeId:volumeNodeId, title:["沙丘之后","指鹿之前","斋宫之夜"][i], order:i, summary:"赵高试图改变诏书", planningDepth:"rough", chapterNodeIds});
+  }
+  const project = await prisma.outlineProject.create({data:{title:source.story.title, currentVersion:4}});
+  const sourceJson = JSON.stringify(source);
+  const origin = await prisma.outlineRevision.create({data:{projectId:project.id, version:4, sourceType:"manual", documentJson:sourceJson}});
+  await prisma.outlineProject.update({where:{id:project.id},data:{currentRevisionId:origin.id}});
+  const expected = new Map();
+  t.mock.method(runner,"runOutlineProposalStructuredCall", async ({asset,promptInput}) => {
+    const {chapters, volume, targetChapterCount} = promptInput;
+    const beats = singleChapterBeats().map((beat,index) => ({...beat, title:chapters[Math.min(index,chapters.length-1)].title.slice(0,16),
+      chapterSpanHint:["1-2章", `2-${targetChapterCount}章`, `${targetChapterCount}章`][index]}));
+    // Chapter 2 shares a span with the opener, but the author confirms a different primary beat.
+    const assignments = chapters.map((ch,i) => ({chapterId:ch.nodeId,beatKey:i===0 ? "open_hook" : i===chapters.length-1 ? "end_hook" : "climax"}));
+    const output = asset.outputSchema.parse({beats,assignments});
+    assert.throws(() => asset.postValidate({...output,assignments:[assignments[0],...assignments.slice(0,-1)]},promptInput));
+    assert.throws(() => asset.postValidate({...output,assignments:assignments.map(a=>({...a,beatKey:"pressure_lock"}))},promptInput));
+    expected.set(volume.nodeId, output);
+    return {output:asset.postValidate(output,promptInput)};
+  });
+  let version = 4;
+  for (const volume of source.volumes) {
+    const candidate = await api(project,`volumes/${volume.nodeId}/beat-proposals`,{baseVersion:version,targetChapterCount:volume.chapterNodeIds.length});
+    assert.equal(candidate.status,"pending");
+    assert.equal((await outlineProjectService.get(project.id)).currentVersion,version);
+    assert.equal((await api(project,"proposals")).find(p=>p.id===candidate.id).volumeId,volume.nodeId);
+    await api(project,`proposals/${candidate.id}/apply`,{operationIds:[volume.nodeId]},400);
+    await api(project,`proposals/${candidate.id}/apply`,{});
+    version++;
+  }
+  const current = await outlineProjectService.get(project.id);
+  const revisionId = (await prisma.outlineProject.findUniqueOrThrow({where:{id:project.id}})).currentRevisionId;
+  const opening = new (require("../dist/modules/planning/outline/openBook").OutlineOpenBookService)(prisma,async()=>{});
+  const input = {revisionId, expectedProjectVersion:version, bookSettings:{title:source.story.title, estimatedChapterCount:source.chapters.length, defaultChapterLength:3000},volumeQuotas:{},allowOptimize:[]};
+  const preview = await opening.preview(project.id,input);
+  assert.equal((await prisma.outlineProject.findUniqueOrThrow({where:{id:project.id}})).boundNovelId,null);
+  await assert.rejects(()=>opening.preview(project.id,{...input,bookSettings:{...input.bookSettings,estimatedChapterCount:source.chapters.length+2},volumeQuotas:Object.fromEntries(source.volumes.map((v,i)=>[v.nodeId,v.chapterNodeIds.length+(i===0?2:0)]))}),/节奏板/);
+  const binding = await opening.confirm(project.id,{...input,requestHash:preview.requestHash,idempotencyKey:project.id});
+  const {NovelVolumeService} = require("../dist/services/novel/volume/NovelVolumeService");
+  const volumes = new NovelVolumeService();
+  const native = await volumes.getVolumes(binding.novelId,{hydrateCanonical:false});
+  const {readOutlinePlanningState,assertOutlineWorkspaceCandidate} = require("../dist/modules/planning/outline/constraints");
+  const state = await readOutlinePlanningState(prisma,binding.novelId);
+  assertOutlineWorkspaceCandidate(state,native);
+  const {withOutlineOpeningSteps} = require("../dist/app/director/outlineOpening");
+  t.mock.method(volumes,"generateVolumes",()=>assert.fail("confirmed beats must be reused"));
+  const handlers = withOutlineOpeningSteps({volume_beat_sheet:()=>assert.fail("expected bound opening")},volumes);
+  for (const mapped of binding.mapping.volumes) {
+    const {beats,assignments} = expected.get(mapped.nodeId);
+    assert.deepEqual(native.beatSheets.find(s=>s.volumeId===mapped.volumeId).beats,beats);
+    const rows = await prisma.volumeChapterPlan.findMany({where:{volumeId:mapped.volumeId},orderBy:{chapterOrder:"asc"}});
+    const planned = native.volumes.find(v=>v.id===mapped.volumeId).chapters;
+    assert.equal(rows.length,assignments.length);
+    for (const [index,{chapterId,beatKey}] of assignments.entries()) {
+      const chapter = preview.mapping.chapters.find(c=>c.nodeId===chapterId);
+      assert.equal(chapter.beatKey,beatKey);
+      assert.equal(chapter.chapterOrder,mapped.from+index);
+      assert.equal(rows[index].id,binding.mapping.chapters.find(c=>c.nodeId===chapterId).planId);
+      assert.equal(rows[index].id,planned[index].id);
+      assert.equal(planned[index].beatKey,beatKey);
+      assert.equal(planned[index].title,source.chapters.find(c=>c.nodeId===chapterId).title);
+    }
+    const receipt = await handlers.volume_beat_sheet({runId:"check-beats",contract:{novelId:binding.novelId,scope:"novel",
+      chapterRange:{from:mapped.from,to:mapped.from},modelConfig:{route:"test-route",model:"test-model"},
+      launchInput:{storyInput:source.story.title,estimatedChapterCount:source.chapters.length,targetMode:"opening",outlineBinding:state.ref}}});
+    assert.ok(receipt.artifact.contentRef.endsWith(mapped.volumeId));
+  }
+  const broken = structuredClone(native);
+  broken.volumes[0].chapters[1].beatKey = "open_hook";
+  assert.throws(()=>assertOutlineWorkspaceCandidate(state,broken),/beatKey/);
+  const changed = structuredClone(native);
+  changed.beatSheets[0].beats[0].summary = "覆盖原稿";
+  assert.throws(()=>assertOutlineWorkspaceCandidate(state,changed),/beats/);
+  assert.deepEqual(current.document.characters,source.characters);
+  assert.deepEqual(current.document.payoffs,source.payoffs);
+  assert.equal((await prisma.outlineRevision.findUniqueOrThrow({where:{id:origin.id}})).documentJson,sourceJson);
+});
+
+
 test("赵高初稿、李斯旧建议重审与第二章局部修改各自保留讨论，确认后逐项写入", async t => {
   const {project} = await outlineProjectService.create("沙丘故事");
   const seed = await outlineProjectService.get(project.id);
@@ -301,7 +394,7 @@ test("赵高初稿、李斯旧建议重审与第二章局部修改各自保留�
   const node = (clientRef, title) => ({clientRef, title, summary:title + "的故事", reason:"影响诏书", sourceFragment:title});
   const names = ["赵高", "李斯", "胡亥", "扶苏", "蒙恬"];
   const draft = {storyFields:{title:"赵高倒计时", premise:"诏书的去向", synopsis:"沙丘之后的抉择", theme:"秦法", tone:"悬疑", endingDirection:"诏书送达"},
-    volumes:[node("v","沙丘")],chapters:[{...node("c","第二章《不发的诏书》"), volumeRef:"v"}],
+    volumes:[{...node("v","沙丘"), beats:singleChapterBeats()}],chapters:[{...node("c","第二章《不发的诏书》"), volumeRef:"v", beatKey:"climax"}],
     characters:names.map((name,i) => ({...node("p"+i,name), role:"参与者",appearanceRefs:["c"]})),payoffs:[],facts:[]};
   let personId, chapterId, chapterCalls = 0;
   t.mock.method(runner, "runOutlineProposalStructuredCall", async ({asset,promptInput}) => {

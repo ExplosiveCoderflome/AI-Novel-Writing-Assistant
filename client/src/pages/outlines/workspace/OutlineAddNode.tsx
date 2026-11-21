@@ -1,3 +1,4 @@
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { useState } from "react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import { createOutlineId } from "../outlineNodes";
@@ -18,6 +19,7 @@ export function OutlineAddNode({ document, selectedId, disabled, onAdd, onCancel
   const [kind, setKind] = useState<Kind>(selectedVolume ? "chapter" : "volume");
   const [title, setTitle] = useState("");
   const [parentId, setParentId] = useState(selectedVolume ?? document.volumes[0]?.nodeId ?? "");
+  const [beatKey, setBeatKey] = useState("");
   const volume = document.volumes.find(item => item.nodeId === parentId);
   const eligible = title.trim() && (kind !== "chapter" || volume) && !disabled;
   function add() {
@@ -33,9 +35,10 @@ export function OutlineAddNode({ document, selectedId, disabled, onAdd, onCancel
         break;
       case "chapter":
         if (!volume) return;
+        const beat = volume.beats?.find(b => b.key === beatKey);
         next = { ...document,
           volumes: document.volumes.map(item => item === volume ? { ...item, chapterNodeIds: [...item.chapterNodeIds, nodeId] } : item),
-          chapters: [...document.chapters, { ...base, volumeNodeId: volume.nodeId, order: nextOrder(document.chapters.filter(item => item.volumeNodeId === volume.nodeId)),
+          chapters: [...document.chapters, { ...base, volumeNodeId: volume.nodeId, ...(beat && {beatKey:beat.key}), order: nextOrder(document.chapters.filter(item => item.volumeNodeId === volume.nodeId)),
             planningDepth: "rough", summary: "", characterNodeIds: [], payoffNodeIds: [] }],
         };
         break;
@@ -56,8 +59,13 @@ export function OutlineAddNode({ document, selectedId, disabled, onAdd, onCancel
       {Object.entries(kinds).map(([key, label]) => <option key={key} value={key} disabled={key === "chapter" && !document.volumes.length}>{label}</option>)}
     </select>
     {kind === "chapter" && <label className="block text-xs">所属卷
-      <select className="outline-field mt-1" value={parentId} onChange={event => setParentId(event.target.value)}>
+      <select className="outline-field mt-1" value={parentId} onChange={event => {setParentId(event.target.value); setBeatKey("");}}>
         {document.volumes.map(item => <option value={item.nodeId} key={item.nodeId}>{item.title}</option>)}
+      </select>
+    </label>}
+    {kind === "chapter" && volume?.beats && <label className="block text-xs">所属节奏段
+      <select className="outline-field mt-1" value={beatKey} onChange={event => setBeatKey(event.target.value)}>
+        <option value="">暂未关联</option>{volume.beats.map(beat => <option key={beat.key} value={beat.key}>{formatVolumeBeatDisplayLabel(beat)}</option>)}
       </select>
     </label>}
     <label className="block text-xs">{kind === "character" ? "人物姓名" : "标题"}

@@ -20,14 +20,14 @@ export class OutlineRepository {
   findRevisions(projectId: string, versions: number[]) { return this.db.outlineRevision.findMany({ where: { projectId, version: { in: versions } } }); }
   async listPendingProposals(projectId: string) {
     const rows = await this.db.outlineProposal.findMany({
-      where: { projectId, status: "pending", kind: { in: ["character_impact", "chapter_edit", "edit", "initial_generation"] } },
+      where: { projectId, status: "pending", kind: { in: ["character_impact", "chapter_edit", "volume_beats", "edit", "initial_generation"] } },
       select: { id: true, kind: true, baseVersion: true, characterNodeId: true, requestText: true, proposalJson: true },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     return rows.map(({ proposalJson, characterNodeId, ...row }) => {
       const payload = JSON.parse(proposalJson);
       const targetNodeIds = (payload.operations ?? []).flatMap((op: { nodeId?: string }) => op.nodeId ? [op.nodeId] : []);
-      return { ...row, chapterId: payload.chapterId ?? null, targetNodeIds: [...new Set(targetNodeIds)], characterId: characterNodeId ?? payload.impact?.characterId ?? null, title: payload.storyFields?.title ?? null };
+      return { ...row, volumeId: payload.volumeId ?? null, chapterId: payload.chapterId ?? null, targetNodeIds: [...new Set(targetNodeIds)], characterId: characterNodeId ?? payload.impact?.characterId ?? null, title: payload.storyFields?.title ?? null };
     });
   }
   findProposal(projectId: string, id: string) { return this.db.outlineProposal.findFirst({ where: { id, projectId } }); }
@@ -89,6 +89,7 @@ export class OutlineRepository {
         } else if (op.kind === "move_node" && op.nodeId && op.parentNodeId) {
           const chapter = doc.chapters.find((item:any)=>item.nodeId===op.nodeId);
           if (!chapter) throw new Error("当前仅支持移动章节");
+          if (chapter.volumeNodeId !== op.parentNodeId) delete chapter.beatKey;
           chapter.volumeNodeId = op.parentNodeId;
         }
       }

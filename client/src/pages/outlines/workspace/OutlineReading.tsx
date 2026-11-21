@@ -1,9 +1,11 @@
+import { BeatList } from "./volumeRhythm/BeatList";
 import type { ReactNode } from "react";
 import { ArrowRight, ArrowUpRight, BookOpen, Feather, PencilLine } from "lucide-react";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 import type { PendingOutlineProposal } from "@/api/outlines";
 import { Button } from "@/components/ui/button";
 import { findOutlineNodeTitle, formatOutlineValue, getOutlineNodes, getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "../outlineNodes";
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import { formFor, references } from "./OutlineNodeEditor";
 
 export function isEmptyOutline(doc: OutlineDocument) {
@@ -39,9 +41,9 @@ export function PendingSuggestions({ proposals, version, document, onOpen }: {
   </section>;
 }
 
-export function OutlineReading({ document, node, version, onEdit, reviewAction, localReview, notices, onSelect }: {
+export function OutlineReading({ document, node, version, onEdit, reviewAction, localReview, notices, volumeRhythm, onSelect }: {
   document: OutlineDocument; node: OutlineNode; version: number; onEdit: () => void; onSelect: (id: string) => void;
-  reviewAction?: ReactNode; localReview?: ReactNode; notices?: ReactNode;
+  reviewAction?: ReactNode; localReview?: ReactNode; notices?: ReactNode; volumeRhythm?: ReactNode;
 }) {
   const form = formFor(node);
   const isStory = node.nodeId === document.story.nodeId;
@@ -57,16 +59,20 @@ export function OutlineReading({ document, node, version, onEdit, reviewAction, 
       <div className="outline-reading-title"><h2 title={title}>{title}</h2>{reviewAction}</div>
     </header>
     <div className="outline-reading-body">
+      {"volumeNodeId" in node && node.beatKey && <p className="outline-reading-counts">所属节奏段 · {formatVolumeBeatDisplayLabel(document.volumes.find(v=>v.nodeId===node.volumeNodeId)?.beats?.find(b=>b.key===node.beatKey) ?? {key:node.beatKey})}</p>}
       {localReview}
       {notices}
       {isStory && <p className="outline-reading-counts">{document.volumes.length} 卷 <i>·</i> {document.chapters.length} 章 <i>·</i> {document.characters.length} 位人物</p>}
       {[...form.main, ...form.more].filter(key => fields[key] !== undefined && fields[key] !== "" && key !== "planningDepth").map(key => <section className="outline-passage" key={key}>
         <h3>{person && key === "summary" ? "人物说明" : outlineFieldLabels[key]}</h3><p>{formatOutlineValue(fields[key], key, document)}</p>
       </section>)}
+      {volumeRhythm}
       {isStory && <>
         {!!document.volumes.length && <section className="outline-passage"><h3>卷章安排</h3>{[...document.volumes].sort((a,b) => a.order-b.order).map(vol =>
           <details key={vol.nodeId} className="outline-volume"><summary>{vol.title} <small>{vol.chapterNodeIds.length} 章</small></summary>
-            <p>{vol.summary}</p><div>{vol.chapterNodeIds.map(id => document.chapters.find(ch => ch.nodeId === id)).map(ch => ch && link(ch))}</div>
+            <p>{vol.summary}</p>
+            {vol.beats && <BeatList beats={vol.beats} chapters={document.chapters.filter(ch=>ch.volumeNodeId===vol.nodeId)} onSelect={onSelect}/>}
+            <div>{vol.chapterNodeIds.map(id => document.chapters.find(ch => ch.nodeId === id)).map(ch => ch && !ch.beatKey && link(ch))}</div>
           </details>)}</section>}
         {!!document.characters.length && <section className="outline-passage"><h3>人物</h3><div className="outline-person-list">{document.characters.map(p => <div key={p.nodeId}>{link(p)}<p>{p.role || p.summary}</p></div>)}</div></section>}
       </>}
