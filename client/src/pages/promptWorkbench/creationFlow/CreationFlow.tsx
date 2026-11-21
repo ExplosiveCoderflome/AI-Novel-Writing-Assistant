@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, ChevronLeft, LibraryBig } from "lucide-react";
 import { BookOverview } from "./BookOverview";
 import { FlowCanvas } from "./FlowCanvas";
 import { PromptReader } from "./PromptReader";
-import { stages, stageSteps, type FlowStage, type Step } from "./flowDefinition";
+import { stages, locateFlowStep, type FlowStage, type Step } from "./flowDefinition";
 import "./creationFlow.css";
 
 export default function CreationFlow({ onOpenCatalog }: { onOpenCatalog: (prompt: { id: string; version: string }) => void }) {
@@ -12,8 +12,8 @@ export default function CreationFlow({ onOpenCatalog }: { onOpenCatalog: (prompt
   const [focused, setFocused] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const go = useCallback((id: string) => {
-    const owner = stages.find(item => stageSteps(item).some(step => step.id === id));
-    if (owner) { setStage(owner); setSelectedId(id); }
+    const entry = locateFlowStep(id);
+    if (entry) { setStage(entry.stage); setSelectedId(id); }
   }, []);
   const select = useCallback((step: Step) => go(step.id), [go]);
   function openStage(item: FlowStage | null) {
@@ -26,13 +26,9 @@ export default function CreationFlow({ onOpenCatalog }: { onOpenCatalog: (prompt
     setSelectedId(null);
     requestAnimationFrame(() => heading.current?.focus({ preventScroll: true }));
   }
-  if (!stage) return <BookOverview enter={openStage} read={go} />;
+  if (!stage) return <BookOverview enter={openStage} onOpenCatalog={onOpenCatalog} />;
   const index = stages.indexOf(stage);
-  const step = stageSteps(stage).find(item => item.id === selectedId);
-  const branch = stage.branches?.find(item => step && item.steps.includes(step));
-  const afterBranch = branch?.join ? stage.main.find(item => item.id === branch.join) : undefined;
-  const next = step && (branch ? branch.steps[branch.steps.indexOf(step) + 1] ?? afterBranch
-    : stage.main[stage.main.indexOf(step) + 1] ?? stages[index + 1]?.main[0]);
+  const { step, next } = locateFlowStep(selectedId) ?? {};
 
   return <section className={`creation-flow ${step ? "has-reader" : ""} ${focused ? "reader-focused" : ""}`} data-stage={stage.id}>
     <nav className="flow-itinerary" aria-label="创作阶段">

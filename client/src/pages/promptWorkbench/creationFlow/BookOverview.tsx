@@ -1,38 +1,63 @@
-import { ArrowDownRight, ArrowRight, CornerDownRight, GitBranch, Repeat2 } from "lucide-react";
-import { stages, type FlowStage } from "./flowDefinition";
-import { ManuscriptFigure } from "./ManuscriptFigure";
+import { useCallback, useRef, useState } from "react";
+import { ArrowRight, GitBranch } from "lucide-react";
+import { locateFlowStep, type FlowStage } from "./flowDefinition";
+import { BookMapCanvas } from "./overview/BookMapCanvas";
+import { PromptReader } from "./PromptReader";
+import "./overview/bookMap.css";
 
-export function BookOverview({ enter, read }: { enter: (stage: FlowStage) => void; read: (id: string) => void }) {
-  return <section className="book-atlas" aria-labelledby="atlas-title">
+export function BookOverview({ enter, onOpenCatalog }: {
+  enter: (stage: FlowStage) => void;
+  onOpenCatalog: (prompt: { id: string; version: string }) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
+  const root = useRef<HTMLElement>(null);
+  const entry = locateFlowStep(selected);
+  const read = useCallback((id: string) => {
+    const target = locateFlowStep(id);
+    if (!target) return;
+    if (target.optional) setExpanded(true);
+    setSelected(id);
+  }, []);
+
+  function closeReader() {
+    setSelected(null);
+    setFocused(false);
+    requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>(`button[data-step="${selected}"]`)?.focus({ preventScroll: true }));
+  }
+  function toggleBranches() {
+    if (expanded && entry?.optional) {
+      setSelected(null);
+      setFocused(false);
+    }
+    setExpanded(!expanded);
+  }
+
+  return <section ref={root} className="book-atlas" aria-labelledby="atlas-title">
     <header className="atlas-masthead">
-      <div><h2 id="atlas-title">从开书到成稿</h2><p>点选步骤阅读完整提示词，进入阶段查看分支与承接。</p></div>
-      <button className="atlas-shortcut" type="button" onClick={() => read("draft")}>查看正文写作提示词<ArrowRight size={15} /></button>
+      <div><h2 id="atlas-title">从开书到成稿</h2>
+        <p>顺着箭头看一本书怎样写成，点选步骤可查看输入、产出和完整提示词。</p></div>
+      <div className="atlas-actions">
+        <button type="button" className="atlas-branches" aria-pressed={expanded} onClick={toggleBranches}>
+          <GitBranch size={15} />{expanded ? "收起分支" : "展开分支"}</button>
+        <button type="button" className="atlas-shortcut" onClick={() => read("draft")}>查看正文写作提示词<ArrowRight size={14} /></button>
+      </div>
     </header>
-    <div className="atlas-chapters">
-      {stages.map((stage, index) => {
-        const last = stage.main[stage.main.length - 1];
-        const branches = stage.branches?.length ?? 0;
-        return <section key={stage.id} className="atlas-chapter" data-stage={stage.id} aria-label={stage.title}>
-          <button type="button" className="atlas-cover" onClick={() => enter(stage)} aria-label={`打开${stage.title}流程图`}>
-            <span className="atlas-cover-index">{String(index + 1).padStart(2, "0")}</span><ArrowDownRight size={17} className="atlas-cover-arrow" />
-            <span className="atlas-cover-figure"><ManuscriptFigure id={stage.coverStep} /></span>
-            <strong>{stage.title}</strong><span className="atlas-deliverable">{last.artifact}</span>
-          </button>
-          <ol className="atlas-step-index">
-            {stage.main.map(step => <li key={step.id}><button type="button" onClick={() => read(step.id)}>
-              <i aria-hidden="true" /><span>{step.title}</span><ArrowRight size={13} /></button></li>)}
-          </ol>
-          <button type="button" className="atlas-open" onClick={() => enter(stage)}><GitBranch size={14} />
-            {branches ? `查看流程与 ${branches} 条分支` : "查看阶段流程"}<ArrowRight size={14} /></button>
-        </section>;
-      })}
+    <div className={`book-atlas-spread ${entry ? "reading" : ""} ${focused ? "focused" : ""}`}>
+      <div className="book-map-pane">
+        <BookMapCanvas expanded={expanded} selected={selected} enter={enter} read={read} />
+        <footer className="book-map-key" aria-label="连线图例">
+          <span><i />主流程</span>
+          {expanded && <span><i className="key-branch" />可选分支</span>}
+          <span><i className="key-return" />逐章、逐卷循环</span>
+          <small>拖动画布 · 点阶段标题可单独查看</small>
+        </footer>
+      </div>
+      {entry && <div data-stage={entry.stage.id} className="book-map-reader">
+        <PromptReader key={entry.step.id} step={entry.step} stageTitle={entry.stage.title} next={entry.next}
+          go={read} onOpenCatalog={onOpenCatalog} focused={focused} toggleFocus={() => setFocused(value => !value)} backToMap={closeReader} />
+      </div>}
     </div>
-    <aside className="atlas-loop" aria-label="逐章、逐卷推进">
-      <Repeat2 size={20} /><strong>逐章推进</strong>
-      <button type="button" onClick={() => read("extract")}>本章故事变化</button><CornerDownRight size={15} />
-      <button type="button" onClick={() => read("mission")}>带入下一章</button>
-      <span className="atlas-loop-divider" />
-      <button type="button" onClick={() => read("beats")}>本卷完成后，安排下一卷<ArrowRight size={14} /></button>
-    </aside>
   </section>;
 }

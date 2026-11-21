@@ -116,3 +116,21 @@ export const stages: FlowStage[] = [
 export function stageSteps(stage: FlowStage) {
   return [...stage.main, ...(stage.branches ?? []).flatMap(branch => branch.steps)];
 }
+
+export function locateFlowStep(id: string | null) {
+  if (!id) return;
+  for (const [index, stage] of stages.entries()) {
+    const mainIndex = stage.main.findIndex(step => step.id === id);
+    if (mainIndex >= 0) return {
+      stage, step: stage.main[mainIndex], optional: false,
+      next: stage.main[mainIndex + 1] ?? stages[index + 1]?.main[0],
+    };
+    for (const branch of stage.branches ?? []) {
+      const branchIndex = branch.steps.findIndex(step => step.id === id);
+      if (branchIndex >= 0) return {
+        stage, step: branch.steps[branchIndex], optional: true,
+        next: branch.steps[branchIndex + 1] ?? stage.main.find(step => step.id === branch.join),
+      };
+    }
+  }
+}

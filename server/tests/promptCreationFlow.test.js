@@ -1,7 +1,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { require: loadTypeScript } = require("tsx/cjs/api");
-const { stages, stageSteps } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/flowDefinition.ts", __filename);
+const { stages, stageSteps, locateFlowStep } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/flowDefinition.ts", __filename);
+const { layoutBookMap } = loadTypeScript("../../client/src/pages/promptWorkbench/creationFlow/overview/bookMapLayout.ts", __filename);
 const { readCreationFlowTemplate } = require("../dist/prompting/workbench/creationFlow");
 const { creationTemplateInputs } = require("../dist/prompting/workbench/creationFlow/templateInputs");
 
@@ -40,3 +41,44 @@ test("every creative flow station resolves its connections and reads all officia
   assert.ok(verify.messages.length > review.messages.length);
   assert.equal(readCreationFlowTemplate("constructor"), null);
 });
+
+for (const expanded of [false, true]) {
+  test(`whole-book map connects its visible steps and reader in ${expanded ? "expanded" : "mainline"} view`, () => {
+    const { stations, links } = layoutBookMap(stages, expanded);
+    const visible = new Set(stations.map(s => s.step.id));
+    const expected = stages.flatMap(stage => expanded ? stageSteps(stage) : stage.main);
+    assert.deepEqual(visible, new Set(expected.map(s => s.id)));
+    const pairs = new Set(links.map(l => l.source + ">" + l.target));
+    assert.equal(pairs.size, links.length);
+    for (const { source, target } of links) {
+      assert.ok(visible.has(source) && visible.has(target), source + ">" + target);
+    }
+    const handoffs = links.filter(l => l.kind === "handoff").map(l => [l.source, l.target]);
+    assert.deepEqual(handoffs, stages.slice(1).map((stage, i) => [stages[i].main.at(-1).id, stage.main[0].id]));
+    assert.deepEqual(links.filter(l => l.kind === "return").map(l => [l.source, l.target]), [
+      [expanded ? "next-chapter" : "extract", "mission"],
+      [expanded ? "next-volume" : "extract", "beats"],
+    ]);
+    for (const stage of stages) {
+      for (const branch of expanded ? stage.branches ?? [] : []) {
+        assert.ok(pairs.has(branch.from + ">" + branch.steps[0].id));
+      }
+    }
+    for (const { step, stage, side } of stations) {
+      const entry = locateFlowStep(step.id);
+      assert.equal(entry.stage, stage);
+      assert.equal(entry.optional, side);
+      const target = step.destination ?? entry.next?.id;
+      if (target) assert.ok(pairs.has(step.id + ">" + target));
+    }
+    const reached = new Set();
+    const pending = [stages[0].main[0].id];
+    while (pending.length) {
+      const id = pending.pop();
+      if (reached.has(id)) continue;
+      reached.add(id);
+      pending.push(...links.filter(l => l.source === id).map(l => l.target));
+    }
+    assert.deepEqual(reached, visible);
+  });
+}
