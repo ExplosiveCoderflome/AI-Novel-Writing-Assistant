@@ -24,6 +24,7 @@ interface DirectorPanelProps {
   reviewRunId?:string;
   reviewVersion?:number;
   renderPlanEditor?:import("./DirectorGate").PlanEditorRenderer;
+  proseApproval?:import("./DirectorGate").ChapterProseApproval;
 }
 
 function formatEvent(event: DirectorTimelineEvent): string {
@@ -43,7 +44,7 @@ function formatTime(value: string): string {
   return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString();
 }
 
-export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewCanRegenerate = false, reviewRunId, reviewVersion, renderPlanEditor, outlineBound = false }: DirectorPanelProps) {
+export default function DirectorPanel({ view, novelId, timeline = [], preview = false, startForm, reviewTarget, reviewReady = false, reviewCanRegenerate = false, reviewRunId, reviewVersion, renderPlanEditor, proseApproval, outlineBound = false }: DirectorPanelProps) {
   const candidates = useDirectorCharacterCandidates(view.runId, !preview);
   const candidatePage = candidates.data?.data;
   const reviewingCharacters = candidatePage?.reviews.some(r => r.blocking) ?? false;
@@ -70,7 +71,7 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
         budget={view.chapterBudget} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
       {view.mode === "paused" && view.unknownClaims ? <UnknownClaimsRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.unknownClaims.chapterId}`}
         claims={view.unknownClaims} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}
-      {!preview && view.mode === "waiting_gate" && (reviewingCurrentGate || recoveringReview) ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={reviewAction?.id.slice("review:".length)} canConfirm={Boolean(reviewingCurrentGate)} renderPlanEditor={renderPlanEditor}/>:null}
+      {!preview && view.mode === "waiting_gate" && (reviewingCurrentGate || recoveringReview) ? <DirectorGate key={`${view.runId}:${view.sourceTrace.controlVersion}`} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} reviewType={reviewAction?.id.slice("review:".length)} canConfirm={Boolean(reviewingCurrentGate)} proseApproval={proseApproval} renderPlanEditor={renderPlanEditor}/>:null}
       {!outlineBound && driveSwitch?.toDriver ? <DirectorDriveSwitch runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} toDriver={driveSwitch.toDriver} label={driveSwitch.label} disabled={preview}/>:null}
 
       <section className="border-t border-border/60 py-4" aria-labelledby="director-current-work">

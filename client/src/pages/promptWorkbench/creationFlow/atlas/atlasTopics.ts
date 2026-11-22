@@ -159,13 +159,14 @@ export const atlasScopes: AtlasScope[] = [
   },
   {
     id: "preparation", title: "准备本章", skin: "preparation", topics: [
-      { id: "chapter-mission", title: "细化本章任务", description: "明确本章目标、可写边界和场景安排，检查它们能否落笔。", steps: ["mission", "check-mission", "sync", "next-chapter"],
+      { id: "chapter-mission", title: "细化本章任务", description: "明确本章目标、可写边界和场景安排，检查它们能否落笔。", steps: ["mission", "check-mission", "chapter-discussion", "sync", "next-chapter"],
         prompts: [
           ["planner.chapter.plan", "规划本章", ["mission"]],
           ["novel.volume.chapter_purpose", "明确章节目的", ["mission"]],
           ["novel.volume.chapter_boundary", "划定章节边界", ["mission"]],
           ["novel.volume.chapter_task_sheet", "制作章节任务单", ["mission"]],
           ["novel.volume.chapter_execution_contract", "细化任务与场景"],
+          ["novel.director.chapter_dialogue", "讨论当前章节的任务与场景"],
           ["novel.volume.chapter_task_sheet_quality", "评估任务单"],
           ["novel.beat.generate", "设计情节节拍", ["mission"]],
           ["novel.chapterHook.generate", "构思章节钩子", ["mission"]],

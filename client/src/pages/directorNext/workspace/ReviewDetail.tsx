@@ -19,7 +19,7 @@ function Scenes({value,targetWordCount}:{value?:string|null;targetWordCount?:num
 }
 
 export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,onOpenChapter,onEditChapter}:{book:WorkspaceBook;review:SavedReview;readingDisplay:ReadingDisplayPreferences;onReadingDisplayChange:(next:ReadingDisplayPreferences)=>void;onOpenChapter?:(chapterId:string)=>void;onEditChapter?:(chapterId:string)=>void}) {
-  const chapter=review.plan ?? review.execution;
+  const reviewPlans = review.plans ?? (review.plan ? [review.plan] : []);
   const latest = onOpenChapter && !review.chapters?.length
     ? book.chapters.filter(readableChapter).sort((a,b)=>b.order-a.order)[0] : undefined;
   return <article className="mx-auto max-w-[42rem] px-2 pb-8 sm:px-6" aria-label="本阶段创作结果">
@@ -31,10 +31,16 @@ export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,
     </div>
     {review.error ? <p role="alert" className="text-sm text-destructive">{review.error}</p> : review.notice ? <p role="status" className="text-sm leading-6 text-muted-foreground">{review.notice}</p> : <>
       <OutlinePreparationReview book={book} review={review}/>
-      {chapter ? <><h3 className="mb-3 text-lg font-medium">第 {review.plan?.chapterOrder ?? review.execution?.order} 章 · {chapter.title}</h3>
-        {review.plan ? <><Field label="章节概要" value={review.plan.summary}/><Field label="剧情目标" value={review.plan.purpose}/><Field label="核心事件" value={review.plan.exclusiveEvent}/><Field label="结尾状态" value={review.plan.endingState}/></> : null}
-        <Field label="章节任务" value={chapter.taskSheet}/><Field label="目标字数" value={chapter.targetWordCount}/><Field label="需要避免" value={chapter.mustAvoid}/><Scenes value={chapter.sceneCards} targetWordCount={chapter.targetWordCount}/><Field label="写法约定" value={review.plan?.styleContract}/>
-      </> : null}
+      {reviewPlans.map((chapter,index) => <details open={index===0} key={chapter.id} className="border-t border-border/40 py-3">
+        <summary className="cursor-pointer text-lg font-medium">第 {chapter.chapterOrder} 章 · {chapter.title}</summary>
+        <Field label="章节概要" value={chapter.summary}/><Field label="剧情目标" value={chapter.purpose}/><Field label="核心事件" value={chapter.exclusiveEvent}/><Field label="结尾状态" value={chapter.endingState}/>
+        <Field label="章节任务" value={chapter.taskSheet}/><Field label="目标字数" value={chapter.targetWordCount}/><Field label="需要避免" value={chapter.mustAvoid}/>
+        <Scenes value={chapter.sceneCards} targetWordCount={chapter.targetWordCount}/><Field label="写法约定" value={chapter.styleContract}/>
+      </details>)}
+      {review.executions?.map((execution,index) => <details open={index===0} key={execution.id} className="border-t border-border/40 py-3">
+        <summary className="cursor-pointer text-lg font-medium">第 {execution.order} 章 · {execution.title}</summary>
+        <Field label="章节任务" value={execution.taskSheet}/><Field label="目标字数" value={execution.targetWordCount}/><Field label="需要避免" value={execution.mustAvoid}/><Scenes value={execution.sceneCards} targetWordCount={execution.targetWordCount}/>
+      </details>)}
       {review.type === "character_cast" ? book.materials.characters.map(person=><section key={person.id} className="border-t border-border/40 py-4"><h3 className="text-lg font-medium">{person.name}</h3><Field label="角色身份" value={person.role}/><Field label="性格设定" value={person.personality}/><Field label="故事作用" value={person.storyFunction}/><Field label="行动目标" value={person.currentGoal}/></section>) : null}
       {review.type === "volume_strategy" ? <>
         <Field label="读者收获的推进" value={book.planning?.strategyPlan?.readerRewardLadder}/><Field label="冲突推进" value={book.planning?.strategyPlan?.escalationLadder}/><Field label="中段变化" value={book.planning?.strategyPlan?.midpointShift}/><Field label="规划说明" value={book.planning?.strategyPlan?.notes}/>

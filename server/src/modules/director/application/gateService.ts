@@ -11,7 +11,11 @@ export class GateService {
   constructor(private readonly deps: {factsLoader: Pick<FactsLoader, "load">; planRegistry: PlanRegistry}) {}
   async prepare(runId: string, decision: GateResolution["decision"], expectedVersion: number, revision: Pick<GateResolution,"expectedVolumePlanVersionId"|"guidance"|"chapterPlanEdit"|"assetEdit"> = {}): Promise<GateResolution> {
     if (revision.guidance !== undefined && (decision !== "regenerate" || typeof revision.guidance !== "string" || revision.guidance.length > 6000)) throw new GateResolutionError("修正建议只能用于重新生成，且不能超过 6000 字。");
-    if (revision.chapterPlanEdit && decision !== "confirm_after_edit") throw new GateResolutionError("请通过保存修改并继续来提交章节修订。");
+    if (revision.chapterPlanEdit) {
+      const edit = revision.chapterPlanEdit;
+      const acceptsOriginal = "chapters" in edit && !edit.chapters.length && Boolean(edit.approveForProse);
+      if (decision !== (acceptsOriginal ? "confirm" : "confirm_after_edit")) throw new GateResolutionError("请在章节确认页核对并提交本次修改。");
+    }
     const {contract, control, facts} = await this.deps.factsLoader.load(runId);
     if (control.version !== expectedVersion) throw new VersionConflictError(expectedVersion, control.version);
     if (control.status !== "waiting_gate" || !control.gate?.artifactTypes.length) throw new GateResolutionError("请先打开需要确认的创作阶段。");
@@ -35,7 +39,9 @@ export class GateService {
       if (decision === "regenerate" && artifact.protectedUserContent) throw new GateResolutionError("该资产包含需保留的内容，请先在资产页面查看并保存调整。");
       return {type, expectedVersion: artifact.version};
     });
-    const invalidated = decision === "confirm" ? [] : [...new Set(artifacts.flatMap(artifact => downstreamArtifactTypes(plan, artifact.type)))];
+    // A combined approval must check the synchronized rows even if an older execution artifact exists.
+    const approvesProse = revision.chapterPlanEdit && "chapters" in revision.chapterPlanEdit && revision.chapterPlanEdit.approveForProse;
+    const invalidated = decision === "confirm" ? (approvesProse ? ["chapter_execution_contract"] : []) : [...new Set(artifacts.flatMap(artifact => downstreamArtifactTypes(plan, artifact.type)))];
     const invalidateTypes = [...new Set([...invalidated, ...(decision === "regenerate" ? artifacts.map(artifact => artifact.type) : [])])]
       .filter(type => type !== "chapter_draft" && (decision === "regenerate" || !artifacts.some(artifact => artifact.type === type)));
     if (revision.chapterPlanEdit && (artifacts.length !== 1 || artifacts[0].type !== "chapter_task_sheet")) throw new GateResolutionError("只能在章节任务与场景阶段编辑此计划。");

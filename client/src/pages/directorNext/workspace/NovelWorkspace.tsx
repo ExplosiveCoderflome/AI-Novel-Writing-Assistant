@@ -35,7 +35,7 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
   const followKey = followTarget ? `${followTarget.key}:${JSON.stringify(followTarget.selection)}` : null;
   const [selection, setSelection] = useState<Selection | null>(()=>followTarget?.selection ?? null);
   const selected = resolveSelection(selection, displayBook);
-  const reviewChapterId=savedReview?.execution?.id ?? savedReview?.chapters?.[0]?.id;
+  const reviewChapterId=savedReview?.executions?.[0]?.id ?? savedReview?.chapters?.[0]?.id;
   const directorySelected:Selection=savedReview?.plan ? {kind:"plan",id:savedReview.plan.id}
     : reviewChapterId ? {kind:"chapter",id:reviewChapterId} : selected;
   const chapter = selected.kind === "chapter" ? displayBook.chapters.find(row => row.id === selected.id) : null;

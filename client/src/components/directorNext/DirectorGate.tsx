@@ -7,17 +7,21 @@ import {AppDialogContent, Dialog} from "@/components/ui/dialog";
 
 export type PlanEditorRenderer = (input: {runId:string; expectedVersion:number; onClose:()=>void}) => ReactNode;
 
-export default function DirectorGate({runId, novelId, expectedVersion, reviewType, canConfirm = true, renderPlanEditor}: {runId:string; novelId:string; expectedVersion:number; reviewType?:string; canConfirm?:boolean; renderPlanEditor?:PlanEditorRenderer}) {
+export interface ChapterProseApproval {planVersionId: string; approveForProse: string}
+
+export default function DirectorGate({runId, novelId, expectedVersion, reviewType, canConfirm = true, renderPlanEditor, proseApproval}: {runId:string; novelId:string; expectedVersion:number; reviewType?:string; canConfirm?:boolean; renderPlanEditor?:PlanEditorRenderer; proseApproval?:ChapterProseApproval}) {
   const queries=useQueryClient();
   const [regenerating, setRegenerating]=useState(false);
   const [guidance, setGuidance]=useState("");
   const [editing, setEditing]=useState(false);
-  const editLabel = reviewType === "chapter_task_sheet" ? "编辑任务与场景"
+  const editLabel = reviewType === "chapter_task_sheet" ? "与 AI 讨论或编辑任务与场景"
     : reviewType === "character_cast" ? "与 AI 讨论或编辑角色阵容" : reviewType === "volume_strategy" ? "与 AI 讨论或编辑卷纲" : undefined;
   const confirmSaved = reviewType === "chapter_execution_contract" || reviewType === "chapter_batch_closed";
   const canGenerate=reviewType==="chapter_task_sheet" || reviewType==="volume_strategy";
+  const chapterApproval = reviewType === "chapter_task_sheet" ? proseApproval : undefined;
   const mutation=useMutation({
     mutationFn:(decision:"confirm"|"confirm_after_edit"|"regenerate")=>submitDirectorCommand({type:"resolve_gate",runId,decision,expectedVersion,idempotencyKey:createDirectorCommandKey(),
+      ...(decision === "confirm" && chapterApproval ? {chapterPlanEdit: {...chapterApproval, chapters: []}} : {}),
       ...(decision==="regenerate" && canGenerate && guidance.trim() ? {guidance:guidance.trim()} : {})}),
     onSuccess:async()=>{
       setRegenerating(false);setGuidance("");
@@ -27,7 +31,7 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
   return <section className="space-y-3 border-t border-border/50 py-4">
     {canConfirm ? <>
       <p className="text-xs leading-5 text-muted-foreground">核对左侧结果后，可以确认并继续{editLabel && renderPlanEditor ? "，也可以先编辑内容" : ""}{canGenerate ? "，或请 AI 按你的建议重写" : ""}。</p>
-      <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>确认结果并继续</Button>
+      <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>{chapterApproval ? "确认本批章节并继续写正文" : "确认结果并继续"}</Button>
     </> : null}
     <div className="flex flex-wrap gap-2">
       {canConfirm && editLabel && renderPlanEditor ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>setEditing(true)}>{editLabel}</Button> : null}

@@ -1,4 +1,5 @@
 import { outlineOpeningPlan, prepareOutlineHandoff, withOutlineOpeningSteps } from "./outlineOpening";
+import { matchesApprovedChapterPlans } from "./revisions/chapterReview";
 import { prepareEditedChapterGate } from "./recovery/editedChapterGate";
 import {withStepUsage} from "./usage";
 import { prisma } from "../../db/prisma";
@@ -107,7 +108,9 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
     execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
-      return readExecutionWindow(context, workspace);
+      const window = await readExecutionWindow(context, workspace);
+      const approved = await matchesApprovedChapterPlans(context, window.workspace);
+      return {...window, approvedPlanVersionId: approved ? window.workspace.activeVersionId ?? undefined : undefined};
     }, contentHash}),
     chapter_batch: createKernelProductionStep({db: prisma, runtime: context => createNativeKernelRuntime(prisma, context),
       legacy: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {

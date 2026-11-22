@@ -238,6 +238,8 @@ export function createApp() {
     app.use("/api/director-next", castConversationRouter());
     const { volumeConversationRouter } = require("./app/director/revisions/volumeDiscussion") as typeof import("./app/director/revisions/volumeDiscussion");
     app.use("/api/director-next", volumeConversationRouter());
+    const { chapterConversationRouter } = require("./app/director/revisions/chapterReview") as typeof import("./app/director/revisions/chapterReview");
+    app.use("/api/director-next", chapterConversationRouter());
   }
 
   app.use((_req, res) => {

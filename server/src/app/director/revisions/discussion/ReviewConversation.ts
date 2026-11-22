@@ -17,10 +17,10 @@ interface Message<F extends string> {
   base: Record<F,string>; draft: Record<F,string>; requestText: string; requestId: string; parentResultId?: string;
 }
 export interface ReviewSubject<F extends string, R extends { base: Record<F,string> }> {
-  artifact: "character_cast" | "volume_strategy"; scope: string; progress: string; stage: string;
-  fields: readonly F[]; draft: z.ZodType<Record<F,string>>;
+  artifact: "character_cast" | "volume_strategy" | "chapter_task_sheet"; scope: string; progress: string; stage: string;
+  draft: z.ZodType<Record<F,string>>;
   changes: z.ZodType<ReviewChange<F>[]>; reply: z.ZodType<{replyText: string; changes: FieldSuggestion<F>[]}>;
-  read(db: Prisma.TransactionClient, a: Address): Promise<R>;
+  read(db: Prisma.TransactionClient, a: Address, contract: RunContract): Promise<R>;
   generate(resource: R, draft: Record<F,string>, context: {storyInput: string; requestText: string;
     history: ReturnType<typeof recentAgentDiscussion>; priorProposal: ReviewChange<F>[] | null}, options: PromptExecutionOptions): Promise<unknown>;
 }
@@ -44,7 +44,7 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
     const contract = JSON.parse(row.run.contractJson) as RunContract;
     if (contract.novelId !== a.novelId || contract.runId !== a.runId) throw new AppError("无法核对本书确认记录。", 409);
     await assertNovelDirectorVersion(a.novelId, "v2", readRunExecutionEpoch(row.run.contractJson), db);
-    return { contract, resource: await this.subject.read(db, a) };
+    return { contract, resource: await this.subject.read(db, a, contract) };
   }
 
   async history(a: Address): Promise<AgentConversationTurn<ReviewProposal<F>>[]> {
@@ -61,7 +61,11 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
   async send(a: Address, input: Message<F>) {
     const { resource, contract } = await this.read(this.db, a);
     const launch = requireLaunch(contract);
-    for (const field of this.subject.fields) {
+    const fields = Object.keys(resource.base) as F[];
+    if ([input.base, input.draft].some(form => Object.keys(form).length !== fields.length || fields.some(field => !Object.hasOwn(form, field)))) {
+      throw new AppError("编辑字段有变化，请重新打开确认页。", 409);
+    }
+    for (const field of fields) {
       if (resource.base[field] !== input.base[field]) throw new AppError("资料有更新，请重新打开确认页再讨论。", 409);
       if (input.draft[field] !== input.base[field] && input.draft[field].length > 12000) throw new AppError("每项修改最多 12000 字。", 400);
     }
@@ -80,11 +84,12 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
         runWithLlmUsageTracking({ directorNextRunId: a.runId, novelId: a.novelId, stage: options.stage }, () =>
           this.subject.generate(resource, input.draft, { storyInput: launch.storyInput, history, priorProposal, requestText: input.requestText }, { ...options, itemKey })));
       const { changes, replyText } = this.subject.reply.parse(reply);
+      if (changes.some(item => !Object.hasOwn(input.draft, item.field))) throw new AppError("建议涉及当前编辑稿以外的内容，请重新讨论。", 422);
       const edits = changes.filter(item => input.draft[item.field] !== item.value)
         .map(item => ({ ...item, before: input.draft[item.field] }));
       await this.db.$transaction(async tx => {
         const latest = await this.read(tx, a);
-        if (this.subject.fields.some(field => latest.resource.base[field] !== input.base[field])) {
+        if (Object.keys(latest.resource.base).length !== fields.length || fields.some(field => latest.resource.base[field] !== input.base[field])) {
           throw new AppError("讨论期间资料有更新，请读取新稿再讨论。", 409);
         }
         await AgentConversationStore.complete(tx, scopeKey, input.requestId, edits.length ? input.requestId : null,

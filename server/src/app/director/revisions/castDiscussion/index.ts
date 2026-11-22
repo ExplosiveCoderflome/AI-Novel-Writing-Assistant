@@ -1,5 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import { castReviewFields } from "@ai-novel/shared/types/director/revision";
 import { castDraftSchema, castReplySchema, castProposalChanges } from "@ai-novel/shared/types/director/castReview/discussion";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
@@ -20,7 +19,7 @@ async function read(db: Prisma.TransactionClient, {novelId, resourceId}: Address
 export function castConversationRouter() {
   return reviewConversationRouter("/novels/:novelId/runs/:runId/cast-review/:version/characters/:resourceId/conversation", {
     artifact: "character_cast", scope: "director-cast", stage: "character_setup", progress: "正在读角色设定和你的想法…",
-    fields: castReviewFields, draft: castDraftSchema, reply: castReplySchema, changes: castProposalChanges, read,
+    draft: castDraftSchema, reply: castReplySchema, changes: castProposalChanges, read,
     async generate({novelId, resourceId, character}, draft, context, options) {
       const [cast, links] = await Promise.all([
         prisma.character.findMany({ where: { novelId }, orderBy: { id: "asc" }, select: { name: true, role: true, storyFunction: true } }),

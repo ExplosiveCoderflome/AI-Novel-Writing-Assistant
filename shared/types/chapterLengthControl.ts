@@ -13,6 +13,7 @@ const SCENE_COUNT_MAX = 8;
 export type ChapterScenePlanNormalizationFailureCode =
   | "target_word_count_missing"
   | "scene_count_below_minimum"
+  | "scene_identity_invalid"
   | "scene_word_count_invalid";
 
 export class ChapterScenePlanNormalizationError extends Error {
@@ -230,6 +231,7 @@ function normalizeSceneCardInput(raw: unknown, index: number): ChapterSceneCard 
 
 function rescaleSceneTargets(targetWordCount: number, scenes: ChapterSceneCard[]): ChapterSceneCard[] {
   const rawTotal = scenes.reduce((sum, scene) => sum + scene.targetWordCount, 0);
+  if (targetWordCount < scenes.length) throw new ChapterScenePlanNormalizationError("scene_word_count_invalid", "本章目标字数不足以分配到每个场景。");
   if (rawTotal <= 0) {
     throw new ChapterScenePlanNormalizationError(
       "scene_word_count_invalid",
@@ -280,6 +282,7 @@ export function resolveLengthBudgetContract(targetWordCount: number | null | und
 export function normalizeChapterScenePlan(
   raw: unknown,
   targetWordCount: number | null | undefined,
+  requireAllScenes = false,
 ): ChapterScenePlan {
   const record = isRecord(raw) ? raw : null;
   const rawLengthBudget = isRecord(record?.lengthBudget) ? record.lengthBudget : null;
@@ -313,6 +316,10 @@ export function normalizeChapterScenePlan(
     );
   }
 
+  if (requireAllScenes && (normalizedScenes.length !== scenesRaw.length || normalizedScenes.length > SCENE_COUNT_MAX
+    || new Set(normalizedScenes.map(scene => scene.key)).size !== normalizedScenes.length)) {
+    throw new ChapterScenePlanNormalizationError("scene_identity_invalid", "本章包含无法逐项识别的场景。");
+  }
   const boundedScenes = normalizedScenes.slice(0, SCENE_COUNT_MAX);
   return chapterScenePlanSchema.parse({
     targetWordCount: budget.targetWordCount,
@@ -324,12 +331,12 @@ export function normalizeChapterScenePlan(
 
 export function parseChapterScenePlan(
   raw: unknown,
-  options: { targetWordCount?: number | null } = {},
+  options: { targetWordCount?: number | null; requireAllScenes?: boolean } = {},
 ): ChapterScenePlan | null {
   try {
     const parsed = typeof raw === "string" ? JSON.parse(raw) as unknown : raw;
-    if (options.targetWordCount != null) {
-      return normalizeChapterScenePlan(parsed, options.targetWordCount);
+    if (options.targetWordCount != null || options.requireAllScenes) {
+      return normalizeChapterScenePlan(parsed, options.targetWordCount, options.requireAllScenes);
     }
     return chapterScenePlanSchema.parse(parsed);
   } catch {

@@ -38,7 +38,7 @@ async function read(db: Prisma.TransactionClient, { novelId, resourceId, planVer
 export function volumeConversationRouter() {
   return reviewConversationRouter("/novels/:novelId/runs/:runId/volume-review/:version/plans/:planVersionId/volumes/:resourceId/conversation", {
     artifact: "volume_strategy", scope: "director-volume", stage: "volume_strategy", progress: "正在读本卷故事和前后卷的安排…",
-    fields: volumeReviewFields, draft: volumeDraftSchema, reply: volumeReplySchema, changes: volumeProposalChanges, read,
+    draft: volumeDraftSchema, reply: volumeReplySchema, changes: volumeProposalChanges, read,
     async generate({ volume, previousVolume, nextVolume }, draft, context, options) {
       return (await runStructuredPrompt({ asset: volumeReviewDialoguePrompt,
         promptInput: { ...context, volume: { ...volume, ...draft }, previousVolume, nextVolume }, options })).output;

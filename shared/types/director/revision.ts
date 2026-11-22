@@ -19,6 +19,15 @@ export const chapterPlanEditSchema = z.object({
 });
 
 export type ChapterPlanEdit = z.infer<typeof chapterPlanEditSchema>;
+export const reviewedChapterEditSchema = chapterPlanEditSchema.refine(edit => edit.targetWordCount >= 200, "章节目标字数至少为 200 字。")
+  .refine(edit => Boolean(edit.mustAvoid), "请写明本章需要避免的内容。");
+export const chapterPlanRevisionSchema = z.union([chapterPlanEditSchema, z.object({
+  planVersionId: z.string().min(1),
+  approveForProse: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  chapters: z.array(z.object({ chapterId: z.string().min(1), edit: reviewedChapterEditSchema }).strict())
+    .refine(items => new Set(items.map(item => item.chapterId)).size === items.length, "每章只能提交一次修改。"),
+}).strict().refine(review => review.chapters.length > 0 || Boolean(review.approveForProse), "请选择要保存的章节修改。")]);
+export type ChapterPlanRevision = z.infer<typeof chapterPlanRevisionSchema>;
 
 /** Stable comparison of the editable fields, independent of workspace timestamps. */
 export function chapterPlanRevisionKey(plan: {taskSheet?: string | null; sceneCards?: string | null; targetWordCount?: number | null; mustAvoid?: string | null}): string {

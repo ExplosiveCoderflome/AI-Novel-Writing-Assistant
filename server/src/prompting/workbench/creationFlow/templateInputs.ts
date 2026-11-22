@@ -27,6 +27,7 @@ export const creationTemplateInputs = {
   } },
   "novel.director.candidate_titles": { context: { brief: "〈候选方案和同轮另一案的方向〉", genreName: "〈题材〉", count: 4 } },
   "novel.director.cast_dialogue": { storyInput: opening.idea, character: { name: "〈角色姓名〉", role: "〈身份〉", personality: "〈性格〉", currentGoal: "〈眼下想做的事〉", storyFunction: "〈在故事中的作用〉", background: null }, cast: [], relations: [], requestText: "怎样让这个角色更主动？", history: [], priorProposal: null },
+  "novel.director.chapter_dialogue": { storyInput: opening.idea, volumeTitle: "〈卷名〉", chapter: {order:1,title:"〈章名〉",summary:"〈本章概要〉"}, scenes:[], editor:{taskSheet:"〈章节任务〉"}, requestText:"主角在这一章有什么选择？", history:[], priorProposal:null },
   "novel.director.volume_dialogue": { storyInput: opening.idea, volume: { title: "〈卷名〉", sortOrder: 1, summary: "〈本卷故事〉", mainPromise: "〈读者期待〉", climax: "〈本卷高潮〉", nextVolumeHook: "〈下卷引线〉" }, previousVolume: null, nextVolume: null, requestText: "这卷的高潮能兑现前面的期待吗？", history: [], priorProposal: null },
   "novel.director.candidate_dialogue": { idea: opening.idea, candidate, requestText: "〈作者的问题〉", history: [], priorProposal: null },
   "novel.story_macro.decomposition": { storyInput: "〈选定的故事方向〉", projectContext: "〈开书设定〉" },

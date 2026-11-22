@@ -1,4 +1,6 @@
 import {readOutlinePlanningState} from "../../../modules/planning/outline/constraints";
+import {AppError} from "../../../middleware/errorHandler";
+import {readChapterReviewPlans} from "../revisions/chapterReview";
 import {prisma} from "../../../db/prisma";
 import {FactIntegrityError, type ArtifactTypeInfo, type RunContract, type RunControl} from "../../../modules/director";
 import {directorVolumeChapterPlanFilter} from "../planning";
@@ -17,6 +19,7 @@ export const directorArtifactTypes: Readonly<Record<string, ArtifactTypeInfo>> =
 export interface SavedReviewContext {
   type:string; novelId:string; runId:string; controlVersion:number;
   from?:number; to?:number; chapterId?:string; volumeId?:string;
+  chapterPlans?: {id:string; volumeId:string; chapterOrder:number}[];
 }
 
 /** Resolve only the open chapter gates, using saved current-book identities, never a first-row default. */
@@ -41,7 +44,15 @@ export async function resolveSavedReviewContexts({contract, control}: {contract:
   if (!from || !to || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 1 || to < from) throw new FactIntegrityError("待确认章节缺少有效的授权范围。");
   for (const context of chapterTypes) {
     const {type}=context;
-    if (type === "chapter_batch_closed") {
+    if (type === "chapter_task_sheet") {
+      const rows = await readChapterReviewPlans(prisma, contract).catch(error => {
+        if (error instanceof AppError && error.statusCode === 409) throw new FactIntegrityError(error.message);
+        throw error;
+      });
+      context.chapterId = rows[0].id;
+      context.volumeId = rows[0].volumeId;
+      if (rows.length > 1) context.chapterPlans = rows.map(({id, volumeId, chapterOrder}) => ({id, volumeId, chapterOrder}));
+    } else if (type === "chapter_batch_closed") {
       const chapters = await prisma.chapter.findMany({where: {novelId: contract.novelId, order: from}, select: {id: true}});
       if (chapters.length !== 1) throw new FactIntegrityError("待确认正文缺少唯一的已保存章节。");
       context.chapterId=chapters[0].id;

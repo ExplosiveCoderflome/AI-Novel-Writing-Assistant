@@ -13,6 +13,7 @@ interface SavedChapter {
 }
 export interface ExecutionContractSyncInput<Document extends ContractWorkspace> {
   workspace: Document;
+  approvedPlanVersionId?: string;
   executionRange: {startOrder: number; endOrder: number};
 }
 export interface ExecutionContractSyncDependencies<Document extends ContractWorkspace> {
@@ -22,7 +23,7 @@ export interface ExecutionContractSyncDependencies<Document extends ContractWork
       volumes: Document["volumes"]; preserveContent: true; applyDeletes: false;
       allowIncompleteExecutionContracts: false;
       executionContractChapterRange: {startOrder: number; endOrder: number};
-    }, options: {emitEvent: false; syncPayoffLedger: false}): Promise<{clearContentCount: number; deleteCount: number}>;
+    }, options: {emitEvent: false; syncPayoffLedger: false; reviewedPlanVersionId?:string}): Promise<{clearContentCount: number; deleteCount: number}>;
   };
   chapterService: {listChapters(novelId: string): Promise<readonly SavedChapter[]>};
   contentHash: (content: unknown) => string;
@@ -34,7 +35,7 @@ function integrityStop(reason: string): StepResult {
 
 export function createExecutionContractSyncStepHandler<Document extends ContractWorkspace>(dependencies: ExecutionContractSyncDependencies<Document>): StepHandler {
   return async context => {
-    const {workspace, executionRange} = await dependencies.inputProvider(context);
+    const {workspace, executionRange, approvedPlanVersionId} = await dependencies.inputProvider(context);
     const novelId = context.contract.novelId;
     if (workspace.novelId !== novelId) throw new Error("执行合同工作区不属于当前小说。");
     const {startOrder, endOrder} = executionRange;
@@ -52,7 +53,7 @@ export function createExecutionContractSyncStepHandler<Document extends Contract
     const preview = await dependencies.volumeService.syncVolumeChaptersWithOptions(novelId, {
       volumes: workspace.volumes, preserveContent: true, applyDeletes: false,
       allowIncompleteExecutionContracts: false, executionContractChapterRange: executionRange,
-    }, {emitEvent: false, syncPayoffLedger: false});
+    }, {emitEvent: false, syncPayoffLedger: false, ...(approvedPlanVersionId ? {reviewedPlanVersionId:approvedPlanVersionId} : {})});
     if (preview.clearContentCount !== 0 || preview.deleteCount !== 0) return integrityStop("同步结果包含正文清除或章节删除，需检查保存结果。");
     const saved = await dependencies.chapterService.listChapters(novelId);
     if (saved.some(chapter => chapter.novelId !== novelId)) return integrityStop("同步后的章节记录不属于当前小说。");
@@ -75,7 +76,7 @@ export function createExecutionContractSyncStepHandler<Document extends Contract
         targetWordCount: chapter.targetWordCount ?? null, conflictLevel: chapter.conflictLevel ?? null,
         revealLevel: chapter.revealLevel ?? null, mustAvoid: chapter.mustAvoid ?? null});
     }
-    return {artifact: {scope: context.contract.scope, status: "draft", protectedUserContent: false,
+    return {artifact: {scope: context.contract.scope, status: approvedPlanVersionId ? "confirmed" : "draft", protectedUserContent: false,
       contentRef: `chapter_execution_contract:${novelId}:${context.contract.scope}:${startOrder}-${endOrder}`,
       contentHash: dependencies.contentHash(contracts)}};
   };

@@ -93,6 +93,9 @@ export const stages: FlowStage[] = [
       { id: "sync", title: "同步章节要求", artifact: "绑定到章节的写作要求", kind: "system", input: "已准备的章节任务与场景。", output: "将写作要求关联到对应章节，保留已有正文。" },
       { id: "materials", title: "汇集写作材料", artifact: "本章写作材料", kind: "system", input: "本章任务、人物事实、世界规则、前文进展与写法偏好。", output: "写作提示词本次可引用的材料，由正文生成步骤使用。" },
     ],
+    branches: [{ from: "check-mission", label: "调整一章", join: "sync", steps: [
+      ai("chapter-discussion", "讨论一章的任务与场景", "可逐项采纳的章节修改", "所选章的任务、场景和当前编辑稿。", "确认后把本批章节要求交给正文生成。", "novel.director.chapter_dialogue"),
+    ] }],
   },
   {
     id: "writing", coverStep: "finish", title: "写出正文", description: "写完一章，审读、选稿，把发生的变化带进下一章。",

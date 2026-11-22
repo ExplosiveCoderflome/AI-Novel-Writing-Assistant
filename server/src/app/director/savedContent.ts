@@ -10,21 +10,23 @@ import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artif
 import {revalidateSavedPlanning} from "./recovery/missingPlanning";
 import {saveReviewAssetEdit} from "./revisions/reviewAssets";
 import type {ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
+import {chapterReviewForm} from "@ai-novel/shared/types/director/chapterReview/discussion";
+import {readChapterReviewPlans} from "./revisions/chapterReview";
 import {saveChapterPlanEdit} from "./revisions/chapterPlan";
 import {authorizeChapterBudget, readPausedChapterBudget, readChapterUsageCounters, observeChapterUsage} from "../../services/novel/production/usage";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProduction,cancelKernelProduction} from "./productionKernel";
-import {directorVolumeChapterPlanFilter} from "./planning";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
-export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; expectedVolumePlanVersionId?: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
+export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; expectedVolumePlanVersionId?: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision}, tx: Prisma.TransactionClient) {
   if (input.assetEdit) {
     if (input.assetEdit.type !== input.type) throw new AppError("修改的内容与本次确认阶段不符。", 400);
     await saveReviewAssetEdit(input.contract.novelId, input.assetEdit, tx);
   }
+  let approvedChapterFingerprint: string | undefined;
   if (input.chapterPlanEdit) {
     if (input.type !== "chapter_task_sheet") throw new AppError("只能编辑当前章节任务与场景。", 400);
-    await saveChapterPlanEdit(input.contract, input.chapterPlanEdit, tx);
+    approvedChapterFingerprint = await saveChapterPlanEdit(input.contract, input.chapterPlanEdit, tx);
   }
   const novelId = input.contract.novelId;
   let content: unknown;
@@ -42,15 +44,14 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
       break;
     }
     case "chapter_task_sheet": {
-      const from = input.contract.chapterRange?.from;
-      if (!from) throw new Error("缺少已授权的章节范围。");
-      const chapters = await tx.volumeChapterPlan.findMany({where: {volume: directorVolumeChapterPlanFilter(novelId), chapterOrder: from}, orderBy: {id: "asc"}});
-      const [chapter] = chapters;
-      if (chapters.length !== 1 || (input.contract.launchInput?.targetVolumeId && chapter.volumeId !== input.contract.launchInput.targetVolumeId)) {
-        throw new AppError(`无法定位第 ${from} 章的待确认计划，请重新读取本书。`, 409);
+      const chapters = await readChapterReviewPlans(tx, input.contract);
+      for (const chapter of chapters) {
+        const missing = [!chapter.taskSheet?.trim() && "章节任务", !chapter.sceneCards?.trim() && "场景安排"].filter(Boolean);
+        if (missing.length) throw new AppError(`第 ${chapter.chapterOrder} 章缺少已保存的${missing.join("和")}，请先处理当前阶段。`, 409);
       }
-      const missing = [!chapter.taskSheet?.trim() && "章节任务", !chapter.sceneCards?.trim() && "场景安排"].filter(Boolean);
-      if (missing.length) throw new AppError(`第 ${from} 章缺少已保存的${missing.join("和")}，请先处理当前阶段。`, 409);
+      if (approvedChapterFingerprint && chapters.some(chapter => !chapterReviewForm(chapter).scenePlan)) {
+        throw new AppError("本批含有无法逐项核对的场景，请先重新生成章节任务与场景。", 409);
+      }
       content = chapters;
       break;
     }
@@ -84,7 +85,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
     }
     default: throw new Error("该阶段请使用确认结果，或从对应资产页面查看修改。");
   }
-  return {contentRef: input.contentRef, contentHash: artifactContentHash(content), protectedUserContent};
+  return {contentRef: input.contentRef, contentHash: artifactContentHash(content), protectedUserContent, approvedChapterFingerprint};
 }
 
 export async function resumeBusiness(contract: RunContract, tx: Prisma.TransactionClient, chapterBudget?: DirectorChapterBudgetGrant, resolveUnknownClaims?: {chapterId: string}) {

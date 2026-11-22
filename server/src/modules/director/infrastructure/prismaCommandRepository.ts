@@ -170,9 +170,10 @@ export class PrismaCommandRepository implements CommandRepository {
           if (active) throw new ActiveRunConflictError(active.runId);
         }
       }
+      let approvedChapterFingerprint: string | undefined;
       if (input.gateResolution) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
-        await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
+        approvedChapterFingerprint = await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
       }
       const updated = await tx.directorNextRunControl.updateMany({
         where: { runId: input.runId, version: input.expectedVersion,
@@ -186,7 +187,7 @@ export class PrismaCommandRepository implements CommandRepository {
         await tx.directorNextEvent.create({data: {id: `${input.runId}:${seq}`, runId: input.runId, seq, type: "gate_regeneration_requested",
           payloadJson: JSON.stringify({commandId: input.id, scope: input.gateResolution.scope, artifactTypes: input.gateResolution.artifacts.map(artifact => artifact.type), guidance: input.gateResolution.guidance})}});
       }
-      const result = commandResult(input.runId, next, input.id);
+      const result = {...commandResult(input.runId, next, input.id), ...(approvedChapterFingerprint ? {approvedChapterFingerprint} : {})};
       await tx.directorNextCommand.create({
         data: {
           id: input.id,
