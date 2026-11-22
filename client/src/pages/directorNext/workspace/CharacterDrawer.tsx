@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getCharacterTimeline } from "@/api/novel";
 import { getCharacterDynamicsOverview } from "@/api/novelCharacterDynamics";
@@ -12,11 +13,12 @@ import {CharacterAppearances} from "./characters/CharacterAppearances";
 import { characterForwardPreviewKey, getCharacterForwardPreview } from "@/api/characterForwardAdjustment";
 import type { CharacterForwardPreview } from "@ai-novel/shared/types/characterForwardAdjustment";
 
-export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources, onAdjust }: {
+export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources, onAdjust, onEditProfile }: {
   book: WorkspaceBook; character: WorkspaceCharacter; readingOrder: number | null; preview: boolean;
   onClose: () => void; onChapter: (id: string) => void; onPlan: (id: string) => void;
   onResources?: (id:string) => void;
   onAdjust?: (preview: CharacterForwardPreview) => void;
+  onEditProfile?: () => void;
 }) {
   const [latest, setLatest] = useState(false);
   const historyQuery = useQuery({
@@ -41,6 +43,9 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
   const adjustment = adjustmentQuery.data;
   return <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
     <AppDialogContent title={character.name} description="查看角色变化及其章节来源" className="left-auto right-0 top-0 h-dvh max-h-dvh w-full max-w-md translate-x-0 translate-y-0 rounded-none sm:w-[420px]">
+      {onEditProfile && <div className="mb-4 border-b border-border/60 pb-4">
+        <Button size="sm" onClick={onEditProfile}><Sparkles aria-hidden="true" className="size-4"/>与 AI 编辑角色资料</Button>
+      </div>}
       <div className="flex gap-2" role="group" aria-label="角色记录范围">
         <Button size="sm" variant={!latest ? "default" : "ghost"} onClick={() => setLatest(false)}>读到本章</Button>
         <Button size="sm" variant={latest ? "default" : "ghost"} onClick={() => setLatest(true)}>最新状态</Button>

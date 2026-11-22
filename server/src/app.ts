@@ -236,6 +236,8 @@ export function createApp() {
     mountDirectorNext(app, getDirectorProductionServices().http);
     const { castConversationRouter } = require("./app/director/revisions/castDiscussion") as typeof import("./app/director/revisions/castDiscussion");
     app.use("/api/director-next", castConversationRouter());
+    const { directorCharacterProfileRouter } = require("./app/director/revisions/characterProfile") as typeof import("./app/director/revisions/characterProfile");
+    app.use("/api/director-next", directorCharacterProfileRouter());
     const { volumeConversationRouter } = require("./app/director/revisions/volumeDiscussion") as typeof import("./app/director/revisions/volumeDiscussion");
     app.use("/api/director-next", volumeConversationRouter());
     const { chapterConversationRouter } = require("./app/director/revisions/chapterReview") as typeof import("./app/director/revisions/chapterReview");

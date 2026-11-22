@@ -19,6 +19,7 @@ import {VolumeEmphasisProvider} from "./reading/VolumeSummaryEmphasis";
 import {LedgerView} from "./ledgers";
 import {CastTimeline} from "./characters/CastTimeline";
 import { CharacterForwardAdjustDialog } from "./characters/CharacterForwardAdjustDialog";
+import { CharacterProfileEditor } from "./characters/CharacterProfileEditor";
 import type { CharacterForwardPreview } from "@ai-novel/shared/types/characterForwardAdjustment";
 const WorldMapView = lazy(()=>import("./visualizations").then(module=>({default:module.WorldMapView})));
 const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({default:module.CharacterGraphView})));
@@ -26,6 +27,7 @@ const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({de
 export function NovelWorkspace({ book, preview = false, review, onLeaveReview, onOpenChapterReview, followGeneration = false, generation = null, activity, onEditChapter, editedChapter, onAdjustingCharacter }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; onOpenChapterReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null; activity?:DirectorWorkspaceActivity; onEditChapter?:(chapterId:string)=>void; editedChapter?:{id:string;revision:number}|null; onAdjustingCharacter?:(active:boolean)=>void }) {
   const {preferences: readingDisplay, updatePreferences: onReadingDisplayChange} = useReadingDisplayPreferences();
   const [characterAdjustment, setCharacterAdjustment] = useState<CharacterForwardPreview | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
   const live = followGeneration && generation?.novelId === book.novel.id ? generation : null;
   // Planning/polling may not yet include the newly created chapter. The preview is read-only.
   const previewChapter: WorkspaceChapter | null = live ? {id:live.chapterId,order:live.chapterOrder,title:live.chapterTitle,
@@ -96,7 +98,10 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
   const readingPane = showVolumeSummary && !preview ? <VolumeEmphasisProvider book={book}>{content}</VolumeEmphasisProvider> : content;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={20} minLeft={180} minRight={340} breakpoint={560} left={directory} right={readingPane}/> : <>{directory}{readingPane}</>}
-    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}/> : null}
+    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment && !editingProfile) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}
+      onEditProfile={preview ? undefined : () => {setEditingProfile(true); onAdjustingCharacter?.(true);}}/> : null}
     {character && characterAdjustment ? <CharacterForwardAdjustDialog novelId={book.novel.id} character={character} initialPreview={characterAdjustment} onClose={() => setAdjustment(null)}/> : null}
+    {character && editingProfile ? <CharacterProfileEditor key={character.id} novelId={book.novel.id} character={character}
+      onClose={() => {setEditingProfile(false); onAdjustingCharacter?.(false);}}/> : null}
   </div>;
 }
