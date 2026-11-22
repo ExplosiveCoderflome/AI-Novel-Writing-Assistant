@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import {
   characterProfileDraftSchema, characterProfileFields, type CharacterProfileSave, type CharacterProfileWorkspace,
 } from "@ai-novel/shared/types/director/characterProfile";
+import { isInitializationPlaceholderVolumeWorkspace } from "@ai-novel/shared/types/volumePlanning";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { ragConfig } from "../../../../config/rag";
@@ -9,6 +10,9 @@ import { novelEventBus } from "../../../../events/publisher";
 import { AppError } from "../../../../middleware/errorHandler";
 import { assertNovelDirectorVersion } from "../../../../modules/novel/director-routing";
 import { lockNovelForCharacterEdit, readCharacterEditBoundary } from "../../../../services/novel/characters/characterEditBoundary";
+import { buildDerivedStructuredOutlineFromVolumes, buildFallbackVolumesFromLegacy } from "../../../../services/novel/volume/volumePlanUtils";
+import { normalizeVolumeWorkspaceDocument } from "../../../../services/novel/volume/volumeWorkspaceDocument";
+import { getActiveVersionRow, isVolumeRowCurrent } from "../../../../services/novel/volume/volumeWorkspacePersistence";
 
 const staleProfile = "角色资料有更新，请重新打开编辑窗口再保存。";
 const protectedName = "本书已有大纲、卷章规划或正文，请保留档案中的姓名以便与已有内容对应。";
@@ -19,11 +23,11 @@ const selection = {
 } as const;
 
 async function readRenameBoundary(db: Prisma.TransactionClient, novelId: string) {
-  const [book, plan, volume, chapter] = await Promise.all([
+  const [book, version, volume, chapter] = await Promise.all([
     db.novel.findUniqueOrThrow({where: {id: novelId}, select: {
       outline: true, structuredOutline: true, outlineBookBinding: {select: {id: true}},
     }}),
-    db.volumePlanVersion.findFirst({where: {novelId, status: "active"}, select: {id: true}}),
+    getActiveVersionRow(novelId, db),
     db.volumePlan.findFirst({
       where: {novelId, OR: [{chapters: {some: {}}}, {AND: [{summary: {not: null}}, {summary: {not: ""}}]}]},
       select: {id: true},
@@ -33,8 +37,30 @@ async function readRenameBoundary(db: Prisma.TransactionClient, novelId: string)
       {AND: [{taskSheet: {not: null}}, {taskSheet: {not: ""}}]},
     ]}, select: {id: true}}),
   ]);
-  return book.outlineBookBinding || book.outline?.trim() || book.structuredOutline?.trim() || plan || volume || chapter
-    ? protectedName : null;
+  if (book.outlineBookBinding || chapter) return protectedName;
+  const outline = book.outline?.trim();
+  const structuredOutline = book.structuredOutline?.trim();
+  if (!version) return outline || structuredOutline || volume ? protectedName : null;
+
+  // Opening can persist a compatibility volume and its derived outlines before any actual planning.
+  const document = normalizeVolumeWorkspaceDocument(novelId, version.contentJson);
+  if (document.source !== "legacy" || !isInitializationPlaceholderVolumeWorkspace(document.volumes)
+    || document.strategyPlan || document.critiqueReport || document.beatSheets.length || document.rebalanceDecisions.length) {
+    return protectedName;
+  }
+  const starter = buildDerivedStructuredOutlineFromVolumes(buildFallbackVolumesFromLegacy(novelId, {chapters: []}));
+  if (document.derivedStructuredOutline !== starter
+    || (outline && outline !== document.derivedOutline) || (structuredOutline && structuredOutline !== starter)) {
+    return protectedName;
+  }
+  const [row, extraRow] = await db.volumePlan.findMany({
+    where: {novelId}, include: {_count: {select: {chapters: true}}}, take: 2,
+  });
+  const [placeholder] = document.volumes;
+  if (row && (extraRow || row.id !== placeholder.id || row._count.chapters || !isVolumeRowCurrent(row, placeholder, version.id))) {
+    return protectedName;
+  }
+  return null;
 }
 
 export async function readCharacterProfile(db: Prisma.TransactionClient, novelId: string, characterId: string, lock = false) {

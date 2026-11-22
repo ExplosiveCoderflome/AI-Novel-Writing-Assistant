@@ -15,6 +15,7 @@ test("role profile discussion proposes edits to one character, and saving stays 
   const express = require("express");
   const { prisma } = require("../../../../dist/db/prisma");
   const { directorCharacterProfileRouter } = require("../../../../dist/app/director/revisions/characterProfile");
+  const { ensureVolumeWorkspaceDocument } = require("../../../../dist/services/novel/volume/volumeWorkspacePersistence");
   const { errorHandler } = require("../../../../dist/middleware/errorHandler");
   const runner = require("../../../../dist/prompting/core/promptRunner");
   const originalRunner = runner.runStructuredPrompt;
@@ -57,10 +58,13 @@ test("role profile discussion proposes edits to one character, and saving stays 
     }});
     await prisma.directorNextRun.create({data: {id: "run", novelId: "book", driver: "assisted", planVersion: "test", contractJson: "{}"}});
     await prisma.directorNextRunControl.create({data: {runId: "run", novelId: "book", status: "waiting_gate", version: 7}});
-    await prisma.volumePlan.create({data: {novelId: "book", sortOrder: 1, title: "第1卷"}});
+    const starter = await ensureVolumeWorkspaceDocument({novelId: "book", getLegacySource: async () => ({chapters: []})});
+    assert.ok(starter.activeVersionId);
     assert.equal((await fetch(root + "another/characters/lead/profile")).status, 404);
     assert.ok((await read(root + "another/characters/merchant/profile")).renameBlockedReason);
-    const base = (await read(profile)).fields;
+    const initialProfile = await read(profile);
+    assert.equal(initialProfile.renameBlockedReason, null);
+    const base = initialProfile.fields;
     const request = {requestId: "turn-1", requestText: "把她改名林晓，再补一点经商经历。", base, draft: base};
     assert.equal((await send(conversation + "/turns", "POST", request)).status, 202);
     let suggestions;
@@ -85,6 +89,13 @@ test("role profile discussion proposes edits to one character, and saving stays 
     assert.equal(gate.version, 7);
     assert.equal((await send(profile, "PATCH", {changes: [{field: "background", before: base.background, after: "陈年旧事"}]})).status, 409);
 
+    await prisma.novel.update({where: {id: "book"}, data: {outline: "林晓携契约去见商队。"}});
+    assert.ok((await read(profile)).renameBlockedReason);
+    await prisma.novel.update({where: {id: "book"}, data: {outline: starter.derivedOutline}});
+    const starterVolume = starter.volumes[0];
+    await prisma.volumePlan.update({where: {id: starterVolume.id}, data: {climax: "林晓在潮水涨起前救下货船。"}});
+    assert.ok((await read(profile)).renameBlockedReason);
+    await prisma.volumePlan.update({where: {id: starterVolume.id}, data: {climax: starterVolume.climax}});
     await prisma.chapter.create({data: {novelId: "book", title: "开张", order: 1, content: "林晓摘下船行的招牌。"}});
     assert.ok((await read(profile)).renameBlockedReason);
     assert.equal((await send(profile, "PATCH", {changes: [rename("林晓", "林越")]})).status, 409);

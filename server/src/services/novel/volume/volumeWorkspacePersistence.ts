@@ -301,8 +301,8 @@ function sameNullableText(left: string | null | undefined, right: string | null 
   return (left ?? null) === (right ?? null);
 }
 
-function isVolumeRowCurrent(
-  row: ExistingVolumeWorkspaceRow,
+export function isVolumeRowCurrent(
+  row: Omit<ExistingVolumeWorkspaceRow, "chapters">,
   volume: VolumePlan,
   sourceVersionId: string | null,
 ): boolean {

@@ -50,6 +50,7 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
   const edits = characterProfileFields.filter(field => draft[field].trim() !== base[field].trim());
   const hasUnsaved = edits.length > 0 || !!message.trim();
   const lockedNameEdit = !!workspace.renameBlockedReason && edits.includes("name");
+  const pendingName = !workspace.renameBlockedReason && edits.includes("name") ? draft.name.trim() : "";
   useEffect(() => {
     if (!hasUnsaved) return;
     const warn = (event: BeforeUnloadEvent) => {event.preventDefault(); event.returnValue = "";};
@@ -97,9 +98,11 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
           <span>姓名</span>
           <Input value={draft.name} onChange={event => setField("name", event.target.value)}
             disabled={disabled} readOnly={!!workspace.renameBlockedReason} maxLength={80}
-            aria-describedby={workspace.renameBlockedReason ? "character-profile-name-lock" : undefined}/>
+            aria-describedby="character-profile-name-help"/>
         </label>
-        {workspace.renameBlockedReason && <p id="character-profile-name-lock" className="text-xs leading-5 text-muted-foreground">{workspace.renameBlockedReason}</p>}
+        <p id="character-profile-name-help" className="text-xs leading-5 text-muted-foreground">
+          {workspace.renameBlockedReason ?? "修改姓名后，可在保存前核对改名的影响。"}
+        </p>
         {lockedNameEdit && <Button variant="outline" size="sm" disabled={disabled} onClick={() => setField("name", base.name)}>还原姓名</Button>}
         {characterProfileFields.slice(1).map(field => <label key={field} className="block space-y-1.5 text-sm font-medium">
           <span>{characterProfileLabels[field]}</span>
@@ -116,6 +119,10 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
       </div>
     </div>
     {save.isError && <p role="alert" className="shrink-0 border-t border-border/60 px-5 py-2 text-sm text-destructive">{save.error.message}</p>}
+    {pendingName && !discardAction && <aside className="shrink-0 space-y-1 border-t border-border/60 bg-muted/40 px-5 py-3 text-sm">
+      <p className="break-words font-medium">将「{base.name}」改为「{pendingName}」</p>
+      <p className="text-xs leading-5 text-muted-foreground">角色档案、目录和关系图会采用新名，后续创作会读取更新后的档案。简介、世界设定和其他角色资料里提过旧名的地方，需要手动核对。</p>
+    </aside>}
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border/60 px-5 py-3">
       {discardAction ? <>
         <p role="alert" className="mr-auto text-sm text-muted-foreground">离开会放弃未保存的修改。</p>
