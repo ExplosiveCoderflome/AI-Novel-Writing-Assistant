@@ -31,30 +31,38 @@ html:has(.bnh[data-bn-theme="paper"]) .inn-front {
 }
 html:has(.bnh[data-bn-theme="paper"]) .inn-front .inn-ink-art { display: none; }
 html:has(.bnh[data-bn-theme="paper"]) .inn-front .inn-paper-art { display: block; }
-.inn-front .inn-open { position: relative; max-width: 1080px; margin: auto; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.98fr); grid-template-areas: 'head sample' 'actions sample'; column-gap: clamp(28px,6vw,80px); align-content: center; }
-.inn-front .inn-head { grid-area: head; align-self: end; }
-.inn-front h1 { margin: 0; font: 700 clamp(32px,4.2vw,58px)/1.32 'Songti SC','STSong',serif; text-wrap: balance; color: inherit; }
-.inn-front .inn-head p { margin: 20px 0 0; max-width: 32em; line-height: 1.8; }
-.inn-front .inn-sample { grid-area: sample; min-width: 0; border: 1px solid var(--io-line); background: var(--io-page); padding: clamp(18px,3vw,36px); border-radius: 3px 14px 14px 3px; }
-.inn-front .inn-sample h2 { margin: 0 0 16px; font: 600 1.1rem/1.5 'Songti SC','STSong',serif; color: var(--io-accent); }
-.inn-front blockquote { border: 0; padding: 0; margin: 0; font: normal 1.05rem/1.85 'Songti SC','STSong',serif; color: inherit; }
-.inn-front blockquote p { margin: 0 0 8px; }
-.inn-front .inn-question { margin: 20px 0 8px; font-weight: 700; }
-.inn-front .inn-caption { font-size: .85rem; line-height: 1.6; margin: 0 0 12px; }
-.inn-front :is(.inn-choices,.inn-actions > div) { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: center; }
-.inn-front .inn-choices button { font: inherit; font-size: .92rem; cursor: pointer; color: inherit; background: transparent; border: 1px solid var(--io-line); padding: 9px 13px; border-radius: 6px; }
-.inn-front .inn-choices button:hover { border-color: var(--io-accent); }
-.inn-front .inn-choices button[aria-pressed="true"] { background: var(--io-primary); border-color: var(--io-primary); color: var(--io-label); }
-.inn-front .inn-result p { margin: 18px 0 0; border-top: 1px solid var(--io-line); padding-top: 14px; line-height: 1.85; }
-.inn-front .inn-actions { grid-area: actions; align-self: start; margin-top: 24px; }
-.inn-front .inn-actions a { color: var(--io-accent); text-underline-offset: 4px; }
-.inn-front .inn-actions .inn-start { font-weight: 700; color: var(--io-label); background: var(--io-primary); padding: 10px 16px; border-radius: 6px; text-decoration: none; }
-.inn-front .inn-actions p { font-size: .875rem; margin: 12px 0 0; line-height: 1.7; }
-.inn-front :is(a,button):focus-visible { outline: 2px solid var(--io-accent); outline-offset: 3px; }
+.inn-front .inn-art { pointer-events: none; }
+.inn-front .inn-open { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.98fr); align-items: center; gap: clamp(32px,6vw,80px); }
+.inn-front .inn-head { min-width: 0; }
+.inn-front h1 { margin: 0; font-size: clamp(38px,5vw,64px); font-weight: 800; line-height: 1.18; letter-spacing: -.025em; color: inherit; }
+.inn-front h1 span { display: block; }
+.inn-front h1 span + span { color: var(--io-accent); }
+.inn-front .inn-intro { max-width: 27em; margin: 22px 0 0; color: inherit; font-size: 1.05rem; line-height: 1.85; }
+.inn-front .inn-actions { margin: 28px 0 0; }
+.inn-front .inn-actions > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 22px; }
+.inn-front .inn-actions a { color: var(--io-accent); text-decoration: underline; text-underline-offset: 4px; }
+.inn-front .inn-actions .inn-start { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 20px; border-radius: 8px; background: var(--io-primary); color: var(--io-label); font-weight: 700; text-decoration: none; }
+.inn-front .inn-actions .inn-start:hover { text-decoration: underline; }
+.inn-front .inn-read { padding-block: 10px; }
+.inn-front .inn-actions p { margin: 18px 0 0; font-size: .875rem; line-height: 1.65; }
+.inn-front .inn-sample { position: relative; min-width: 0; padding: clamp(20px,2.7vw,36px); background: var(--io-page); color: inherit; border: 1px solid var(--io-line); border-radius: 3px 12px 12px 3px; }
+.inn-front .inn-sample::before { content: ''; position: absolute; pointer-events: none; inset: 6px -5px 5px auto; width: 4px; border-block: 1px solid var(--io-line); border-right: 1px solid var(--io-line); border-radius: 0 3px 3px 0; background: var(--io-page); }
+.inn-front .inn-sample h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--io-line); color: inherit; font: 700 1.6rem/1.4 'Songti SC','STSong',serif; }
+.inn-front .inn-sample h2 span { font-family: inherit; font-size: .84rem; line-height: 1.5; font-weight: 500; letter-spacing: .12em; color: var(--io-accent); }
+.inn-front :is(.inn-passage,.inn-branch p) { font: 400 1.05rem/1.85 'Songti SC','STSong',serif; }
+.inn-front .inn-passage p { margin: 0 0 6px; color: inherit; }
+.inn-front .inn-question { margin: 20px 0 2px; font-weight: 700; }
+.inn-front .inn-caption { margin: 0 0 8px; font-size: .85rem; line-height: 1.65; }
+.inn-front .inn-branch { margin: 0; border-top: 1px solid var(--io-line); }
+.inn-front .inn-branch summary { display: list-item; list-style: revert; padding: 10px 0; cursor: pointer; color: var(--io-accent); font-size: .94rem; line-height: 1.6; }
+.inn-front .inn-branch summary:hover, .inn-front .inn-branch[open] summary { text-decoration: underline; text-underline-offset: 4px; }
+.inn-front .inn-branch p { margin: 0 0 14px; }
+.inn-front :is(a,summary):focus-visible { outline: 2px solid var(--io-accent); outline-offset: 3px; }
 @media (max-width: 760px) {
-  .inn-front .inn-open { grid-template-columns: minmax(0,1fr); grid-template-areas: 'head' 'sample' 'actions'; gap: 20px; }
-  .inn-front .inn-head p { margin-top: 10px; }
-  .inn-front .inn-actions { margin: 0; }
+  .inn-front { padding: 38px 20px; }
+  .inn-front .inn-open { max-width: 34rem; grid-template-columns: minmax(0,1fr); gap: 30px; }
+  .inn-front .inn-intro { margin-top: 14px; }
+  .inn-front .inn-actions { margin-top: 18px; }
 }
 /* 通用兜底：任何页面在正文渲染出来之前，先不显示顶栏内容，
    不依赖 data-current-path（首屏 HTML 上可能还没有这个属性）。

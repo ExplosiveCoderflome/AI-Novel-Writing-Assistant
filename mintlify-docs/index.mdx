@@ -27,28 +27,37 @@ keywords:
 
   <div className="inn-open">
     <div className="inn-head">
-      <h1 id="inn-title">飞升天梯堵了三百年，我在第九千级开了家客栈。</h1>
-      <p>Biz Novel Studio 是开源的 AI 小说创作工作台。先读一段仙侠样章：掌柜翻开账簿，下一句由你来选。</p>
+      <h1 id="inn-title"><span>从一句灵感，</span><span>写成一本小说</span></h1>
+      <p className="inn-intro">Biz Novel Studio 是开源的 AI 小说创作工作台。先定人物和大纲，再动笔写正文。写到下一章，还能翻回去查谁欠了房钱、谁留下了线索。</p>
+
+      <div className="inn-actions">
+        <div><a className="inn-start" href="/quickstart">跟着教程写第一章</a><a className="inn-read" href="/showcase/xianxia">读仙侠样章</a></div>
+        <p><a href="/installation">下载桌面版</a> · v0.8.12 · AGPL-3.0<br />写作前需自行配置模型 API。</p>
+      </div>
     </div>
 
-    <article className="inn-sample">
-      <h2>第三章 · 雷劫券</h2>
+    <div className="inn-sample" role="region" aria-labelledby="inn-chapter">
+      <h2 id="inn-chapter"><span>第三章</span>雷劫券</h2>
 
-      <blockquote>
+      <div className="inn-passage">
+        <p>第九千级的风很硬。客栈门口的队伍排进了云里，看不见尾。</p>
         <p>一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。</p>
         <p>“抵三十年房钱。”</p>
         <p>林砚翻开账簿，又合上。</p>
-      </blockquote>
+      </div>
 
       <p className="inn-question">这张雷劫券，你收不收？</p>
-      <p className="inn-caption">两段续文都是预写示例，不调用模型。</p>
+      <p className="inn-caption">选一个方向读下去。两段续文都是预写示例，不调用模型。</p>
 
-      <InnChoice />
-    </article>
+      <details className="inn-branch" name="inn-ending">
+        <summary>收下，但加个条件</summary>
+        <p>林砚把券压在砚台下。“三十年房钱，剩下七十年，您替我守夜。”那人刚要点头，门外排队的客人齐齐往后退了一步。</p>
+      </details>
 
-    <div className="inn-actions">
-      <div><a className="inn-start" href="/quickstart">跟着教程写第一章</a><a href="/showcase/xianxia">先读一篇样章</a></div>
-      <p><a href="/installation">下载桌面版</a> · v0.8.12 · AGPL-3.0。写作前需自行配置模型 API。</p>
+      <details className="inn-branch" name="inn-ending">
+        <summary>退回去，追问来历</summary>
+        <p>林砚把券翻了个面。“天门三百年没开过。守将的私印，你从哪儿弄的？”客人伸手来取，那枚朱印还没干，在他指腹上留下了半个‘门’字。</p>
+      </details>
     </div>
   </div>
 </section>
@@ -174,20 +183,6 @@ export const BnHero = () => {
         @keyframes bnFloat{0%,100%{transform:translateY(0) rotate(1deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
       `}</style>
       <canvas ref={canvasRef} />
-    </div>
-  );
-};
-
-export const InnChoice = () => {
-  const [choice, setChoice] = useState(null);
-  const paths = [
-    { label: "收下，但加个条件", text: "林砚把券压在砚台下。“三十年房钱，剩下七十年，您替我守夜。”那人刚要点头，门外排队的客人齐齐往后退了一步。" },
-    { label: "退回去，追问来历", text: "林砚把券翻了个面。“天门三百年没开过。守将的私印，你从哪儿弄的？”客人伸手来取，那枚朱印还没干，在他指腹上留下了半个‘门’字。" }
-  ];
-  return (
-    <div className="not-prose">
-      <div className="inn-choices" role="group" aria-label="选择续写方向">{paths.map((p, i) => <button type="button" key={p.label} aria-pressed={choice === i} onClick={() => setChoice(i)}>{p.label}</button>)}</div>
-      <div className="inn-result" role="status" aria-atomic="true">{choice !== null && <p>{paths[choice].text}</p>}</div>
     </div>
   );
 };
