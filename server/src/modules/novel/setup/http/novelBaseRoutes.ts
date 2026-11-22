@@ -387,13 +387,14 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
       }) : null;
       const [activeChapters, bookDirector] = await Promise.all([
         novel.manuscriptProject ? readActiveManuscriptChapters(prisma, id) : null,
-        novel.directorVersion === "v2" && novel.estimatedChapterCount ? readNovelBookDirector(novel) : null,
+        novel.directorVersion !== "v1" && novel.estimatedChapterCount ? readNovelBookDirector(novel) : null,
       ]);
       const effectiveChapters: typeof novel.chapters = activeChapters ?? novel.chapters;
       const bookCompletion = novel.narrativeForm === "short_story" ? null : projectBookCompletion({
+        finalReviewNovelId: !novel.manuscriptProject && (novel.directorVersion==="v2" || bookDirector) ? id : undefined,
         target: activeChapters?.length ?? novel.estimatedChapterCount,
         chapters: effectiveChapters,
-        activity: novel.directorVersion === "v2" ? readBookCompletionActivity(bookDirector?.status)
+        activity: novel.directorVersion === "v2" || bookDirector ? readBookCompletionActivity(bookDirector?.status)
           : readBookCompletionActivity(task?.status, task?.pendingManualRecovery),
       });
       const seedPayload = parseJsonRecord(task?.seedPayloadJson);

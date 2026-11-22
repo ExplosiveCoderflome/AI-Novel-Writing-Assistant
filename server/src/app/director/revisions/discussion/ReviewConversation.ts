@@ -6,9 +6,7 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { runWithLlmUsageTracking } from "../../../../llm/usageTracking";
 import { AgentConversationStore, agentReplyLive, recentAgentDiscussion } from "../../../../modules/agentConversation";
 import { artifactContentHash, type RunContract } from "../../../../modules/director";
-import { assertNovelDirectorVersion, readRunExecutionEpoch } from "../../../../modules/novel/director-routing";
 import type { PromptExecutionOptions } from "../../../../prompting/core/promptTypes";
-import { requireLaunch } from "../../productionInputs";
 
 export const id = z.string().trim().min(1).max(160);
 export const addressSchema = z.object({ novelId: id, runId: id, version: z.coerce.number().int().nonnegative(), resourceId: id, planVersionId: id.optional(), bodyHash:z.string().regex(/^[a-f0-9]{64}$/).optional() });
@@ -25,29 +23,15 @@ export interface ReviewSubject<F extends string, R extends { base: Record<F,stri
     history: ReturnType<typeof recentAgentDiscussion>; priorProposal: ReviewChange<F>[] | null}, options: PromptExecutionOptions): Promise<unknown>;
 }
 
-export class ReviewConversation<F extends string, R extends { base: Record<F, string> }> {
+export type DiscussionSubject<F extends string,R extends {base:Record<F,string>}> = Pick<ReviewSubject<F,R>,"draft"|"changes"|"reply"|"generate"|"progress">;
+export interface DiscussionContext<R> {resource:R; storyInput:string; options:PromptExecutionOptions; runId?:string; validateSend?:()=>void}
+export class ReviewConversation<F extends string, R extends { base: Record<F, string> }, A extends {novelId:string}> {
   private readonly store: AgentConversationStore;
-  constructor(private readonly db: PrismaClient, private readonly subject: ReviewSubject<F, R>) {
+  constructor(private readonly db: PrismaClient, private readonly subject: DiscussionSubject<F,R>, private readonly scope:(a:A)=>string,
+    private readonly read:(db:Prisma.TransactionClient,a:A)=>Promise<DiscussionContext<R>>) {
     this.store = new AgentConversationStore(db);
   }
-
-  private scope(a: Address) {
-    return JSON.stringify([this.subject.scope, a.novelId, a.runId, a.version, ...(a.planVersionId ? [a.planVersionId] : []), ...(a.bodyHash ? [a.bodyHash] : []), a.resourceId]);
-  }
-
-  private async read(db: Prisma.TransactionClient, a: Address) {
-    const row = await db.directorNextRunControl.findUnique({ where: { runId: a.runId }, include: { run: true } });
-    if (!row || row.novelId !== a.novelId || row.run.novelId !== a.novelId || row.version !== a.version ||
-        row.status !== "waiting_gate" || !z.object({artifactTypes: z.tuple([z.literal(this.subject.artifact)])}).safeParse(JSON.parse(row.gateJson ?? "null")).success) {
-      throw new AppError("确认阶段有变化，请重新打开本书导演台。", 409);
-    }
-    const contract = JSON.parse(row.run.contractJson) as RunContract;
-    if (contract.novelId !== a.novelId || contract.runId !== a.runId) throw new AppError("无法核对本书确认记录。", 409);
-    await assertNovelDirectorVersion(a.novelId, "v2", readRunExecutionEpoch(row.run.contractJson), db);
-    return { contract, resource: await this.subject.read(db, a, contract) };
-  }
-
-  async history(a: Address): Promise<AgentConversationTurn<ReviewProposal<F>>[]> {
+  async history(a: A): Promise<AgentConversationTurn<ReviewProposal<F>>[]> {
     await this.read(this.db, a);
     return (await this.store.history(this.scope(a))).map(row => ({
       id: row.id, requestText: row.requestText, createdAt: row.createdAt.toISOString(), replyText: row.replyText,
@@ -58,9 +42,9 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
     }));
   }
 
-  async send(a: Address, input: Message<F>) {
-    const { resource, contract } = await this.read(this.db, a);
-    const launch = requireLaunch(contract);
+  async send(a: A, input: Message<F>) {
+    const {resource,storyInput,options,runId,validateSend} = await this.read(this.db,a);
+    validateSend?.();
     const fields = Object.keys(resource.base) as F[];
     if ([input.base, input.draft].some(form => Object.keys(form).length !== fields.length || fields.some(field => !Object.hasOwn(form, field)))) {
       throw new AppError("编辑字段有变化，请重新打开确认页。", 409);
@@ -78,11 +62,9 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
     const contextVersion = artifactContentHash([input.base, input.draft]);
     return this.store.startReply({ ...input, scopeKey, contextVersion }, async () => {
       const history = recentAgentDiscussion(await this.store.history(scopeKey));
-      const options = { novelId: a.novelId, taskId: a.runId, stage: this.subject.stage, entrypoint: "director_next",
-        provider: contract.modelConfig.route, model: contract.modelConfig.model, temperature: launch.temperature };
       const reply = await agentReplyLive.during(input.requestId, this.subject.progress, true, itemKey =>
-        runWithLlmUsageTracking({ directorNextRunId: a.runId, novelId: a.novelId, stage: options.stage }, () =>
-          this.subject.generate(resource, input.draft, { storyInput: launch.storyInput, history, priorProposal, requestText: input.requestText }, { ...options, itemKey })));
+        runWithLlmUsageTracking({ directorNextRunId: runId, novelId: a.novelId, stage: options.stage }, () =>
+          this.subject.generate(resource, input.draft, { storyInput, history, priorProposal, requestText: input.requestText }, { ...options, itemKey })));
       const { changes, replyText } = this.subject.reply.parse(reply);
       if (changes.some(item => !Object.hasOwn(input.draft, item.field))) throw new AppError("建议涉及当前编辑稿以外的内容，请重新讨论。", 422);
       const edits = changes.filter(item => input.draft[item.field] !== item.value)
@@ -98,14 +80,14 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
     }, error => error instanceof AppError ? error.message : "本轮讨论未完成，可以用这条要求重试。");
   }
 
-  async turnStatus(a: Address, id: string) {
+  async turnStatus(a: A, id: string) {
     await this.read(this.db, a);
     const turn = await this.db.agentConversationTurn.findFirst({ where: { scopeKey: this.scope(a), id }, select: { status: true } });
     if (!turn) throw new AppError("找不到这条讨论。", 404);
     return turn.status;
   }
 
-  async interrupt(a: Address, id: string) {
+  async interrupt(a: A, id: string) {
     await this.read(this.db, a);
     await this.store.stop(this.scope(a), id, "interrupted", "本轮讨论已结束。");
     agentReplyLive.end(id);

@@ -11,6 +11,7 @@ export interface PromptAssetLoaderEntry {
 export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   { key: "outline.volume_review@v1", load: () => require("../prompts/outline/volumeReview.prompt").outlineVolumeReviewPrompt as UnknownPromptAsset },
   { key: "novel.director.cast_dialogue@v1", load: () => require("../prompts/novel/character/castReviewDialogue.prompt").castReviewDialoguePrompt as UnknownPromptAsset },
+  { key: "novel.director.final_inspection@v1", load: () => require("../prompts/novel/finalReview/inspection.prompt").finalInspectionPrompt as UnknownPromptAsset },
   { key: "novel.director.prose_dialogue@v1", load: () => require("../prompts/novel/proseReview/dialogue.prompt").proseReviewDialoguePrompt as UnknownPromptAsset },
   { key: "novel.director.chapter_dialogue@v1", load: () => require("../prompts/novel/chapterReview/dialogue.prompt").chapterReviewDialoguePrompt as UnknownPromptAsset },
   { key: "novel.director.volume_dialogue@v1", load: () => require("../prompts/novel/volume/reviewDialogue.prompt").volumeReviewDialoguePrompt as UnknownPromptAsset },

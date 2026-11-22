@@ -202,9 +202,10 @@ export const atlasScopes: AtlasScope[] = [
           ["novel.chapter_editor.rewrite_candidates", "生成候选改写", ["repair"]],
           ["novel.chapter_editor.continue_preview", "预览接下来的正文", ["draft"]],
         ] },
-      { id: "review", title: "审校与修文", description: "按当前审读场景选择快审、全文审校、局部修改或收束检查。", steps: ["review", "repair", "verify", "save", "finish","prose-discussion"],
+      { id: "review", title: "审校与修文", description: "按当前审读场景选择快审、全文审校、局部修改或收束检查。", steps: ["review", "repair", "verify", "save", "finish","prose-discussion","final-inspection"],
         prompts: [
           ["novel.chapter.acceptance_assessment", "验收选定章节"],
+          ["novel.director.final_inspection", "全书完稿检查"],
           ["novel.director.prose_dialogue", "讨论本章正文"],
           ["audit.chapter.light", "快速审校章节", ["review"]],
           ["audit.chapter.full", "完整审校章节", ["review"]],

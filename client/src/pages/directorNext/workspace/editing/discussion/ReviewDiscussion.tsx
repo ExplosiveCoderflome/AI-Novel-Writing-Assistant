@@ -9,11 +9,11 @@ import type { ReviewChange, ReviewProposal } from "@ai-novel/shared/types/direct
 
 const labels = { ...castFieldLabels, ...volumeFieldLabels };
 type Proposal = ReviewProposal<string>;
-type Scope = { type: "character_cast" } | {type:"chapter_batch_closed"; bodyHash:string} | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
+type Scope = {type:"final_review";sourceHash:string;finding:number|"all"} | { type: "character_cast" } | {type:"chapter_batch_closed"; bodyHash:string} | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
 
 const inline = { errorPresentation: "inline" } as const;
 interface Props {
-  novelId: string; runId: string; version: number; scope: Scope; subject: { id: string; title: string };
+  novelId: string; runId?: string; version?: number; scope: Scope; subject: { id: string; title: string };
   base: Record<string, string>; draft: Record<string, string>; disabled: boolean;
   message: string; onMessage: (value: string) => void;
   fieldLabels?: Record<string,string>;
@@ -51,7 +51,9 @@ function Suggestions({ proposal, draft, disabled, onAccept, fieldLabels }: {
   </div>;
 }
 
-function presentation(scope: Scope, version: number, title: string) {
+function presentation(scope: Scope, version: number | undefined, title: string) {
+  if(scope.type==="final_review") return {path:"final-review",key:"director-final-review",assistant:"完稿助手",
+    welcome:{title:scope.finding==="all"?"想再核对哪一段？":"这个问题会怎样影响阅读？",body:"可以先问原因，也可以请助手给出改法。",starters:[{label:"请给出逐段改法",text:scope.finding==="all"?"通读本章，对需要打磨的段落给出具体修改建议。":"针对选中的检查问题，给出可以逐段采纳的修改建议。"}]},hint:"采纳的段落会进入确认稿。",placeholder:"写下想保留的句子，或你对改法的想法…"};
   if (scope.type === "chapter_batch_closed") return {
     path:`prose-review/${version}/versions/${encodeURIComponent(scope.bodyHash)}/chapters`,key:"director-prose",assistant:"正文助手",
     welcome:{title:"这一章读起来怎么样？",body:"可以先问读后感，也可以指出想改的地方。",starters:[
@@ -83,9 +85,10 @@ function presentation(scope: Scope, version: number, title: string) {
 
 export function ReviewDiscussion({ novelId, runId, version, subject, scope, base, draft, fieldLabels = labels, disabled, message, onMessage, onAccept }: Props) {
   const config = presentation(scope, version, subject.title);
-  const url = `/director-next/novels/${encodeURIComponent(novelId)}/runs/${encodeURIComponent(runId)}/${config.path}/${encodeURIComponent(subject.id)}/conversation`;
+  const root = `/director-next/novels/${encodeURIComponent(novelId)}`;
+  const url = scope.type==="final_review" ? `${root}/final-review/chapters/${encodeURIComponent(subject.id)}/${scope.sourceHash}/findings/${scope.finding}/conversation` : `${root}/runs/${encodeURIComponent(runId!)}/${config.path}/${encodeURIComponent(subject.id)}/conversation`;
   const adapter: AgentConversationAdapter<Proposal> = {
-    queryKey: ["agent-conversation", config.key, novelId, runId, String(version), ...("planVersionId" in scope ? [scope.planVersionId] : "bodyHash" in scope ? [scope.bodyHash] : []), subject.id],
+    queryKey: ["agent-conversation", config.key, novelId, ...(scope.type==="final_review" ? [scope.sourceHash,String(scope.finding)] : [runId!, String(version)]), ...("planVersionId" in scope ? [scope.planVersionId] : "bodyHash" in scope ? [scope.bodyHash] : []), subject.id],
     load: async () => (await apiClient.get(url, inline)).data.data as AgentConversationTurn<Proposal>[],
     send: input => apiClient.post(url + "/turns", { ...input, base, draft }, inline),
     interrupt: id => apiClient.post(url + "/turns/" + encodeURIComponent(id) + "/interrupt", {}, inline),

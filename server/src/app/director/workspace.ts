@@ -29,6 +29,7 @@ export async function readDirectorWorkspace(novelId: string) {
   ]);
   const effectiveChapters: typeof novel.chapters = activeChapters ?? novel.chapters;
   const bookCompletion = novel.narrativeForm === "short_story" ? null : projectBookCompletion({
+    finalReviewNovelId: !novel.manuscriptProject && (novel.directorVersion==="v2" || bookDirector) ? novelId : undefined,
     target: activeChapters?.length ?? novel.estimatedChapterCount,
     chapters: effectiveChapters,
     activity: readBookCompletionActivity(bookDirector?.status),

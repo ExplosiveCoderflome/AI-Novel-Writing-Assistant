@@ -17,6 +17,7 @@ import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow, useWorkspaceActivity } from "./generation";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
 import { DirectorProseReview, DirectorChapterEditor, DirectorChapterPlanEditor, DirectorReviewAssetEditor } from "./workspace/editing";
+import {FinalReviewDialog} from "./workspace/finalReview/FinalReviewDialog";
 import NovelBookDeliveryActions from "@/pages/novels/components/NovelBookDeliveryActions";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
@@ -87,7 +88,8 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
         </div>
       </header>
       {!preview && !bookQuery.isError && book?.bookCompletion?.status === "completed" ? (
-        <NovelBookDeliveryActions novelId={novelId} title={book.novel.title} completion={book.bookCompletion} />
+        <><NovelBookDeliveryActions novelId={novelId} title={book.novel.title} completion={book.bookCompletion} onFinalReview={book.bookCompletion.finalReviewRoute ? ()=>setParams({delivery:"review"}) : undefined}/>
+          {book.bookCompletion.finalReviewRoute && params.get("delivery")==="review" && <FinalReviewDialog key={novelId} novelId={novelId} onClose={()=>setParams({}, {replace:true})}/>}</>
       ) : null}
       {book?.outlineBinding ? <OutlineBookSource binding={book.outlineBinding}/> : null}
       {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}

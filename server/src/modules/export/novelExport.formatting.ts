@@ -74,6 +74,10 @@ export function buildExportTimestamp(input: Date = new Date()): string {
     ].join("");
 }
 
+export function buildNovelTxtExport(novel: NovelTxtRecord) {
+  return {fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.txt`, contentType:"text/plain; charset=utf-8",content:buildTxtContent(novel)};
+}
+
 export function buildTxtContent(novel: NovelTxtRecord): string {
   const lines: string[] = [];
   lines.push(`《${novel.title}》`);

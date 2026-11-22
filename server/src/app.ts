@@ -242,6 +242,8 @@ export function createApp() {
     app.use("/api/director-next", chapterConversationRouter());
     const { proseConversationRouter } = require("./app/director/revisions/proseReview") as typeof import("./app/director/revisions/proseReview");
     app.use("/api/director-next", proseConversationRouter());
+    const {finalReviewRouter} = require("./app/director/finalReview") as typeof import("./app/director/finalReview");
+    app.use("/api/director-next",finalReviewRouter());
   }
 
   app.use((_req, res) => {

@@ -38,7 +38,7 @@ test("whole-book delivery waits for the full directory and current confirmation"
   await control("waiting_gate");
   assert.equal((await read()).status, "needs_attention");
   await control("completed");
-  assert.deepEqual(await read(), { status: "completed", completedChapters: 3, targetChapters: 3, firstChapterId: "first" });
+  assert.deepEqual(await read(), { status: "completed", completedChapters: 3, targetChapters: 3, firstChapterId: "first", finalReviewRoute:"/lab/director/delivery-book?delivery=review" });
 
   await prisma.chapter.update({ where: { id: "last" }, data: { order: 4 } });
   assert.equal((await read()).status, "writing", "a gap cannot be covered by a later chapter");

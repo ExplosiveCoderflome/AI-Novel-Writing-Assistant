@@ -1,5 +1,6 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
   "novel.director.cast_dialogue": "导演角色阵容讨论",
+  "novel.director.final_inspection": "导演全书完稿检查",
   "novel.director.prose_dialogue": "导演本批正文讨论",
   "novel.director.chapter_dialogue": "导演章节任务与场景讨论",
   "novel.director.volume_dialogue": "导演卷纲讨论",
