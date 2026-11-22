@@ -1,5 +1,5 @@
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
-import { hasConfirmedExecutionContract } from "../../../../modules/director";
+import { hasConfirmedExecutionContract } from "./confirmedExecutionContract";
 import { prisma } from "../../../../db/prisma";
 import { rejectLegacyManuscriptWrite } from "../../../../modules/novel/manuscript/application/ManuscriptIsolation";
 import { plannerService } from "../../../planner/PlannerService";

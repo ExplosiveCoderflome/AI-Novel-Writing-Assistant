@@ -1,5 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { hasConfirmedExecutionContract } from "../../../../modules/director";
+import { hasConfirmedExecutionContract } from "../../../../services/novel/production/preparation";
 import { NovelVolumeService } from "../../../../services/novel/volume/NovelVolumeService";
 import { readExecutionContractWorkspace } from "../../../../services/novel/volume/ChapterExecutionContractService";
 import { PlannerService } from "../../../../services/planner/PlannerService";

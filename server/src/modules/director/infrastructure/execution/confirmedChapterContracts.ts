@@ -1,9 +1,10 @@
 import type { PrismaClient } from "@prisma/client";
-import { matchesStoryPlanProjection } from "../../../../services/planner/plannerPersistence";
 import { savedExecutionContract, type RunContract } from "../../domain";
 import { artifactContentHash } from "../artifactContentHash";
 
 type Database = Pick<PrismaClient, "directorNextRun" | "directorNextArtifact" | "chapter" | "$transaction">;
+
+type ContractText = Pick<ReturnType<typeof savedExecutionContract>, "taskSheet" | "sceneCards">;
 
 export async function readExecutionContracts(db: Pick<Database, "chapter">, contract: RunContract) {
   const range = contract.chapterRange;
@@ -21,7 +22,13 @@ export async function readExecutionContracts(db: Pick<Database, "chapter">, cont
 }
 
 /** The director owns the approval. Ordinary manual and autonomous writing retain their JIT policy. */
-export async function hasConfirmedExecutionContract(db: Database, novelId: string, runId: string, chapterId: string) {
+export async function verifyConfirmedExecutionContract(
+  matchesStoryPlanProjection: (rawPlan: string | null, current: ContractText, approved: ContractText) => boolean,
+  db: Database,
+  novelId: string,
+  runId: string,
+  chapterId: string,
+) {
   const run = await db.directorNextRun.findFirst({
     where: {id: runId, novelId, driver: "assisted"}, select: {contractJson: true},
   });

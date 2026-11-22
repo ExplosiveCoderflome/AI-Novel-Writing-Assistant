@@ -8,4 +8,4 @@ export {inferExistingAssets} from "./application";
 export {DirectorProjectionUnavailableError} from "./application";
 export type {ExistingNovelAsset} from "./application";
 export {PrismaEventLog, PrismaRunRepository, artifactContentHash} from "./infrastructure";
-export {hasConfirmedExecutionContract, readExecutionContracts} from "./infrastructure/execution/confirmedChapterContracts";
+export {verifyConfirmedExecutionContract, readExecutionContracts} from "./infrastructure/execution/confirmedChapterContracts";

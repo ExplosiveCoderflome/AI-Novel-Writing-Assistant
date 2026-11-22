@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 
 const {
   ChapterExecutionPreparationService,
-} = require("../../dist/services/novel/production/preparation/ChapterExecutionPreparationService.js");
+  hasConfirmedExecutionContract,
+} = require("../../dist/services/novel/production/preparation");
 
 test("chapter preparation finishes planning writes before it reports ready", async () => {
   const calls = [];
@@ -45,7 +46,7 @@ test("chapter preparation finishes planning writes before it reports ready", asy
 });
 
 test("a verified director batch keeps its approved task and scenes through writer preparation", async () => {
-  const { artifactContentHash, hasConfirmedExecutionContract, savedExecutionContract } = require("../../dist/modules/director");
+  const { artifactContentHash, savedExecutionContract } = require("../../dist/modules/director");
   const second = {id: "c2", order: 2, taskSheet: "核对复写纸", sceneCards: "发现双重轮廓"};
   const chapters = [{id: "c1", order: 1, taskSheet: "翻开原件", sceneCards: "取出纸片"}, second];
   const contentHash = artifactContentHash(chapters.map(savedExecutionContract));

@@ -8,7 +8,7 @@ import type {
   PlanDefinition,
 } from "../domain";
 import type { RunEvent } from "../domain/control";
-import type {ChapterPlanRevision, ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
+import type {BatchProseReview, ChapterPlanRevision, ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 export interface PlanRegistry {
@@ -48,7 +48,7 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution;
 
 export interface GateResolution {
-  proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview;
+  proseReview?: BatchProseReview;
   expectedVolumePlanVersionId?: string;
   guidance?: string;
   chapterPlanEdit?: ChapterPlanRevision;

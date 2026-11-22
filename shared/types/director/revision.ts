@@ -57,3 +57,25 @@ export const reviewAssetEditSchema = z.discriminatedUnion("type", [
   }
 });
 export type ReviewAssetEdit = z.infer<typeof reviewAssetEditSchema>;
+
+export const batchProseReviewSchema = z
+  .object({
+    chapters: z
+      .array(
+        z
+          .object({
+            chapterId: z.string().min(1),
+            baseHash: z.string().regex(/^[a-f0-9]{64}$/),
+            content: z
+              .string()
+              .refine((text) => Boolean(text.trim()), "请保留有效正文。")
+              .optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .refine((items) => new Set(items.map((item) => item.chapterId)).size === items.length),
+    nextRange: z.object({ from: z.number().int().positive(), to: z.number().int().positive() }).strict().optional(),
+  })
+  .strict();
+export type BatchProseReview = z.infer<typeof batchProseReviewSchema>;

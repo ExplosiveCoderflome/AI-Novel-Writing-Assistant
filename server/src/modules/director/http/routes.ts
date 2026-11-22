@@ -1,7 +1,6 @@
-import { batchProseReviewSchema } from "@ai-novel/shared/types/director/proseReview/discussion";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
-import {chapterPlanRevisionSchema, reviewAssetEditSchema} from "@ai-novel/shared/types/director/revision";
+import {batchProseReviewSchema, chapterPlanRevisionSchema, reviewAssetEditSchema} from "@ai-novel/shared/types/director/revision";
 import {directorChapterBudgetGrantSchema, directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import {directorUnknownClaimResolutionSchema} from "@ai-novel/shared/types/director/unknownClaims";
 import { DirectorRunNotFoundError, RecordProjection, readDirectorRuntimeStatus, type CommandService, type DirectorCommand, type EventLog, type ProjectionService, type RunRepository } from "../application";

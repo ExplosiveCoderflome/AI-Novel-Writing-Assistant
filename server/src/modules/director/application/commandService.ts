@@ -4,6 +4,7 @@ import type {
   CommandRepository,
   CommandTransitionInput,
   DirectorRuntime,
+  GateResolution,
   RunRepository,
   InitialArtifact,
 } from "./ports";
@@ -15,7 +16,12 @@ export type DirectorCommand =
   | { type: "pause"; runId: string; expectedVersion: number; idempotencyKey: string }
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
+  | ({
+      type: "resolve_gate";
+      runId: string;
+      expectedVersion: number;
+      idempotencyKey: string;
+    } & Pick<GateResolution, "decision" | "expectedVolumePlanVersionId" | "guidance" | "assetEdit" | "proseReview" | "chapterPlanEdit">)
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant; resolveUnknownClaims?: import("./ports").UnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
