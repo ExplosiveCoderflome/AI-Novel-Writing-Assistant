@@ -99,6 +99,9 @@ test("a completed V2 book reviews every chapter, discusses one evidenced issue a
     problem: "钥匙上一章落井了。",
     advice: "交代她拿出的究竟是什么。",
   };
+  const {anchorFinalFindings} = require("../../../../dist/app/director/finalReview/inspection");
+  assert.throws(() => anchorFinalFindings([finding], {"1": finding.quote, "3": finding.quote}), /未能定位/);
+  assert.deepEqual(anchorFinalFindings([{...finding, paragraph: 19}], {"18": finding.quote}), [{...finding, paragraph: 18}]);
   t.mock.method(runner, "runStructuredPrompt", async ({ asset, promptInput }) => {
     if (asset.id === "novel.director.final_inspection") {
       scans++;
