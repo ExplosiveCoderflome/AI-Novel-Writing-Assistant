@@ -88,7 +88,7 @@ export const overview = renderToStaticMarkup(<PlanningOverview book={book} onSel
 const cache = new QueryClient();
 const source = '队长刚签新人，首秀便遭挖角，只好重谈合同。';
 const markedBook = {...book, planning:{...book.planning, volumes:[{...book.planning.volumes[0],summary:source}]}};
-cache.setQueryData(['director-volume-emphasis', book.novel.id, [['v','卷标题',source,null,null]]],
+cache.setQueryData(['director-volume-emphasis', book.novel.id, [['v',source]]],
   [{id:'v',summary:source,conflict:'遭挖角',turn:'重谈合同'}]);
 export const marked = renderToStaticMarkup(<QueryClientProvider client={cache}><VolumeEmphasisProvider book={markedBook}>
   <PlanningOverview book={markedBook}/><span aria-label="修改后的梗概"><VolumeSummaryText id="v" text={source+'后来。'}/></span>

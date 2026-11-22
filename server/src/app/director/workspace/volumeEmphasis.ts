@@ -51,10 +51,7 @@ export async function annotateVolumeSummaries(novelId: string, ids: string[]) {
     where: { ...directorVolumeChapterPlanFilter(novelId), id: { in: ids } }, orderBy: { sortOrder: "asc" },
   }) };
   const sources = normalizeVolumeWorkspaceDocument(novelId, raw).volumes.flatMap(volume =>
-    ids.includes(volume.id) && volume.summary?.trim() ? [{
-      id: volume.id, title: volume.title, summary: volume.summary,
-      pressure: volume.primaryPressureSource ?? null, climax: volume.climax ?? null,
-    }] : []);
+    ids.includes(volume.id) && volume.summary?.trim() ? [{ id: volume.id, summary: volume.summary }] : []);
   if (!sources.length) return [];
   const director = await readNovelBookDirector(novel);
   const contract = director ? await new PrismaRunRepository().getContract(director.runId) : null;

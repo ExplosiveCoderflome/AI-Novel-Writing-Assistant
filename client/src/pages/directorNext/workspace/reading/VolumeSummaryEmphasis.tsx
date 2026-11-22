@@ -11,9 +11,7 @@ export function VolumeEmphasisProvider({ book, children }: { book: WorkspaceBook
   const batches = [];
   for (let i = 0; i < volumes.length; i += 8) batches.push(volumes.slice(i, i + 8));
   const queries = useQueries({ queries: batches.map(batch => ({
-    queryKey: ["director-volume-emphasis", book.novel.id, batch.map(v => [
-      v.id, v.title, v.summary, "primaryPressureSource" in v ? v.primaryPressureSource : null, "climax" in v ? v.climax : null,
-    ])],
+    queryKey: ["director-volume-emphasis", book.novel.id, batch.map(volume => [volume.id, volume.summary])],
     queryFn: () => annotateVolumeSummaries(book.novel.id, batch.map(volume => volume.id)),
     staleTime: Infinity, retry: false, retryOnMount: false, refetchOnWindowFocus: false,
   })) });

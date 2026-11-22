@@ -7,10 +7,7 @@ export const volumeEmphasisSchema = z.object({
 
 export interface VolumeEmphasisSource {
   id: string;
-  title: string;
   summary: string;
-  pressure: string | null;
-  climax: string | null;
 }
 export type VolumeEmphasis = z.infer<typeof volumeEmphasisSchema>["volumes"][number];
 export type AnchoredVolumeEmphasis = VolumeEmphasis & { summary: string };
@@ -23,7 +20,7 @@ export function anchorVolumeEmphasis(sources: VolumeEmphasisSource[], output: z.
     if (!item) throw new Error("标注缺少对应的卷纲。");
     for (const text of [item.conflict, item.turn]) {
       if (text !== null && (!summary.includes(text) || summary.indexOf(text) !== summary.lastIndexOf(text))) {
-        throw new Error("冲突和转折须逐字引用本卷梗概中可唯一定位的一段原文。");
+        throw new Error(`卷 ${id} 的“${text}”无法在梗概中唯一定位。请逐字摘取原文：${summary}`);
       }
     }
     return { ...item, summary };
