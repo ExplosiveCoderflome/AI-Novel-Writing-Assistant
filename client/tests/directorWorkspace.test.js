@@ -72,21 +72,28 @@ import { NovelWorkspace } from './src/pages/directorNext/workspace';
 import { previewBook } from './src/pages/directorNext/workspace/previewBook';
 import { ResourceDirectory } from './src/pages/directorNext/workspace/ResourceDirectory';
 import { PlanningDetail } from './src/pages/directorNext/workspace/PlanningDetail';
+import { PlanningOverview } from './src/pages/directorNext/workspace/assets/PlanningOverview';
 export const markup = renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><NovelWorkspace book={previewBook} preview /></QueryClientProvider>);
 const imported = {...previewBook.chapters[0], id:'imported',order:3,title:'大纲导入章',content:'已存正文'};
 const book = {...previewBook, chapters:[...previewBook.chapters, imported],planning:{
-  volumes:[{id:'v',sortOrder:1,title:'卷标题',chapters:[
+  strategyPlan:{notes:'整书布局原文'},
+  volumes:[{id:'v',sortOrder:1,title:'卷标题',summary:'本卷主线原文',mainPromise:'本卷期待原文',chapters:[
     {id:'imported-plan',volumeId:'v',chapterOrder:3,chapterId:'imported',beatKey:null,title:'大纲导入章'},
     {id:'p',volumeId:'v',chapterOrder:4,beatKey:'b',title:'未写章',summary:'计划摘要'}
   ]}],
   beatSheets:[{volumeId:'v',beats:[{key:'b',label:'开篇',title:'节奏标题',chapterSpanHint:'1-4章',summary:'节奏目标',mustDeliver:['兑现目标']}]}]
 }};
+export const overview = renderToStaticMarkup(<PlanningOverview book={book} onSelect={()=>{}}/>);
+export const legacy = renderToStaticMarkup(<PlanningOverview book={{...previewBook,planning:undefined,materials:{...previewBook.materials,volumes:[{...previewBook.materials.volumes[0],summary:null,mainPromise:'仅有的本卷说明'}]}}}/>);
 export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/><PlanningDetail book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/></>);`, resolveDir: clientDir, loader: 'tsx' },
       bundle: true, platform: 'node', format: 'esm', packages: 'external',
       plugins: [nodeStyles],
       alias: { '@': path.join(clientDir, 'src') }, define: { 'import.meta.env': '{}' }, outfile: output,
     });
-    const { markup, planned } = await import(pathToFileURL(output).href);
+    const { markup, planned, overview, legacy } = await import(pathToFileURL(output).href);
+    assert.match(overview, /<details(?![^>]*\bopen\b)[^>]*><summary[^>]*>全书推进思路<\/summary>.*?整书布局原文/s);
+    assert.match(overview, /第 3—4 章.*?查看卷纲：卷标题.*?<p[^>]*>本卷主线原文<\/p>.*?<details(?![^>]*\bopen\b)[^>]*>.*?本卷期待原文/s);
+    assert.match(legacy, /3 章.*?<details[^>]*\bopen\b[^>]*>.*?仅有的本卷说明/s);
     for (const label of ['卷标题','节奏标题','节奏目标','兑现目标','未写章','待写正文']) assert.ok(planned.includes(label),label);
     assert.match(planned, /查看卷纲<\/span><\/button><button[^>]*><span[^>]*>3\. 大纲导入章<\/span>/);
     assert.match(planned, /节奏标题<\/span>.*?4\. 未写章/);

@@ -19,14 +19,14 @@ export function WorldDetail({world}: {world: DirectorWorldMaterials | null}) {
     <section className="space-y-4 py-5">
       <p className="text-xs text-muted-foreground">{world.source === "novel" ? "本书专属设定" : world.source === "library" ? "关联世界资料" : "已保存的世界资料"}</p>
       {world.warnings?.map(warning => <p key={warning} role="alert" className="text-sm leading-7 text-destructive">{warning}</p>)}
-      <SavedFields fields={[["世界概况",world.summary],["世界特色",structure?.profile.identity],["故事氛围",structure?.profile.tone],["核心冲突",structure?.profile.coreConflict]]}/>
+      <SavedFields lead fields={[["世界概况",world.summary],["核心冲突",structure?.profile.coreConflict],["世界特色",structure?.profile.identity],["故事氛围",structure?.profile.tone]]}/>
       <SavedList label="主题" items={structure?.profile.themes}/>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground" aria-label="世界资料数量">
         <span>核心规则 {structure?.rules.axioms.length ?? 0}</span><span>阵营 {structure?.factions.length ?? 0}</span>
         <span>势力 {structure?.forces.length ?? 0}</span><span>地点 {structure?.locations.length ?? 0}</span>
       </div>
     </section>
-    <AssetSection title="世界规则与代价" count={structure?.rules.axioms.length ?? 0} open>
+    <AssetSection title="世界规则与代价" count={structure?.rules.axioms.length ?? 0}>
       {structure?.rules.summary ? <p className="whitespace-pre-wrap text-sm leading-7">{structure.rules.summary}</p> : null}
       {structure?.rules.axioms.map(rule => <NamedAsset key={rule.id} name={rule.name}><SavedFields fields={[
         ["规则说明",rule.summary],["使用代价",rule.cost],["不可越过的边界",rule.boundary],["规则如何生效",rule.enforcement],
@@ -67,7 +67,7 @@ export function WorldDetail({world}: {world: DirectorWorldMaterials | null}) {
       </NamedAsset>)}
       {!relationCount ? <p className="text-sm text-muted-foreground">尚未保存地点或势力之间的关系。</p> : null}
     </AssetSection>
-    <AssetSection title="本书使用范围" open>
+    <AssetSection title="本书使用范围">
       {storySlice ? <>
         <p className="text-xs leading-6 text-muted-foreground">已保存的写作范围，用于说明本书选用的规则、势力和地点。</p>
         <SavedFields fields={[["本书舞台",storySlice.coreWorldFrame],["可展开的范围",storySlice.storyScopeBoundary]]}/>
