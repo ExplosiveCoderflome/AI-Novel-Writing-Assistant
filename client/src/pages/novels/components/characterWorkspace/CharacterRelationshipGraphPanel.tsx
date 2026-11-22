@@ -22,7 +22,6 @@ import {
   type NodeMouseHandler,
   type NodeProps,
   type ReactFlowInstance,
-  type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AlertTriangle, GitBranch, ListRestart, Network, RadioTower, Sparkles, UsersRound } from "lucide-react";
@@ -42,9 +41,11 @@ import type {
 } from "./characterRelationshipGraphModel";
 import { CARD_WIDTH, CARD_HEIGHT } from "./relationshipGraph/orderedLayout";
 import { isSettledMove, syncCanvasNodes, type RelationshipFlowNode } from "./relationshipGraph/canvasNodes";
+import { useRelationshipLayout } from "./relationshipGraph/useRelationshipLayout";
 import { gutterPath, relationshipRoute, type EdgeRoute } from "./relationshipGraph/edgeRouting";
 
 interface CharacterRelationshipGraphPanelProps {
+  novelId: string | null;
   model: RelationshipGraphModel;
   mode: RelationshipGraphMode;
   onModeChange: (mode: RelationshipGraphMode) => void;
@@ -97,11 +98,11 @@ const MODE_OPTIONS: Array<{
 ];
 
 export default function CharacterRelationshipGraphPanel(props: CharacterRelationshipGraphPanelProps) {
-  const { model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
+  const { novelId, model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
   const [selection, setSelection] = useState<Selection | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const scope = mode === "current" ? `current:${selectedCharacterId}` : mode;
-  const [dragged, setDragged] = useState(() => ({ scope, positions: new Map<string, XYPosition>() }));
+  const { positions, move, reset } = useRelationshipLayout(novelId, scope);
   const previousCharacter = useRef(selectedCharacterId);
   const canvas = useRef<ReactFlowInstance<RelationshipFlowNode, RelationshipFlowEdge> | null>(null);
 
@@ -117,8 +118,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   }, [model.edges, model.nodes, selectedCharacterId]);
 
   const restingPositions = useMemo(() => new Map(model.nodes.map(item => [
-    item.id, (dragged.scope === scope && dragged.positions.get(item.id)) || { x: item.x, y: item.y },
-  ])), [model.nodes, dragged, scope]);
+    item.id, positions.get(item.id) ?? { x: item.x, y: item.y },
+  ])), [model.nodes, positions]);
 
   const flowNodes = useMemo<RelationshipFlowNode[]>(
     () => model.nodes.map((item) => ({
@@ -138,9 +139,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   );
 
   useEffect(() => {
-    setDragged(current => current.scope === scope ? current : { scope, positions: new Map() });
     setHoveredEdge(null);
-  }, [scope]);
+  }, [novelId, scope]);
 
   const activeEdgeId = hoveredEdge ?? (selection?.type === "edge" ? selection.id : null);
   const flowEdges = useMemo<RelationshipFlowEdge[]>(() => {
@@ -188,15 +188,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
         setSelection({ type: "node", id: change.id });
       }
     }
-    if (!changes.some(isSettledMove)) return;
-    setDragged(current => {
-      const positions = new Map(current.scope === scope ? current.positions : []);
-      for (const change of changes) {
-        if (isSettledMove(change)) positions.set(change.id, change.position);
-      }
-      return { scope, positions };
-    });
-  }, [scope]);
+    const moves = changes.filter(isSettledMove);
+    if (moves.length) move(moves);
+  }, [move]);
 
   const handleEdgeClick: EdgeMouseHandler<RelationshipFlowEdge> = (_, edge) => {
     setSelection({ type: "edge", id: edge.id });
@@ -205,7 +199,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   return (
     <FullscreenView
       title="角色关系网"
-      description={mode === "current" && selectedCharacterId ? "查看当前角色与其他人的直接关系。" : "按角色定位分排，同组按姓名排序。点击连线查看关系详情。"}
+      description={positions.size
+        ? "点击连线查看关系详情。点「恢复自动排列」可重排当前视图。"
+        : mode === "current" && selectedCharacterId ? "查看当前角色与其他人的直接关系。" : "按角色定位分排，同组按姓名排序。点击连线查看关系详情。"}
       meta={(
         <>
           <Badge variant="outline">{model.nodes.length} 个角色</Badge>
@@ -243,7 +239,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
             </div>
           ) : flowNodes.length > 0 ? (
             <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
-              key={scope}
+              key={JSON.stringify([novelId, scope])}
               defaultNodes={flowNodes}
               edges={flowEdges}
               nodeTypes={nodeTypes}
@@ -291,15 +287,15 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
                   <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />动态阶段</span>
                 </div>
               </Panel>
-              {mode === "current" && selectedCharacterId ? (
+              {mode === "current" && selectedCharacterId && !positions.size ? (
                 <Panel position="bottom-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
                   当前角色在左侧，直接关系向右展开；点击连线查看关系细节。
                 </Panel>
               ) : null}
               <Controls showInteractive={false} position="bottom-right">
-                <ControlButton title="恢复自动排列" aria-label="恢复自动排列" disabled={!dragged.positions.size}
+                <ControlButton title="恢复自动排列" aria-label="恢复自动排列" disabled={!positions.size}
                   onClick={() => {
-                    setDragged({ scope, positions: new Map() });
+                    reset();
                     requestAnimationFrame(() => { void canvas.current?.fitView(fitViewOptions); });
                   }}>
                   <ListRestart aria-hidden="true" />

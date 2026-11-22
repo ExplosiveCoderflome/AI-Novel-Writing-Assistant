@@ -7,7 +7,7 @@ import { nodeStyles } from "./support/nodeStyles.js";
 import { buildRelationshipGraphModel } from "../src/pages/novels/components/characterWorkspace/characterRelationshipGraphModel.ts";
 import { CARD_WIDTH, CARD_HEIGHT } from "../src/pages/novels/components/characterWorkspace/relationshipGraph/orderedLayout.ts";
 
-test("dragging retains the grab offset, other cards and edge anchors through a book refresh", async t => {
+test("dragging keeps anchors stable and restores each book and view until its layout is reset", async t => {
   const { JSDOM } = createRequire(new URL("../../site/package.json", import.meta.url))("jsdom");
   const dom = new JSDOM('<div id="root"></div>', { url: "http://localhost/", pretendToBeVisual: true });
   t.after(() => dom.window.close());
@@ -41,8 +41,8 @@ test("dragging retains the grab offset, other cards and edge anchors through a b
   const characters = [{ id: "a", name: "陈默", castRole: "protagonist" }, { id: "b", name: "周海" }];
   const input = { characters, mode: "all", selectedCharacterId: "",
     staticRelations: [{ sourceCharacterId: "a", targetCharacterId: "b", surfaceRelation: "同盟" }], dynamicRelations: [] };
-  const render = model => act(() => root.render(h(ReactFlowProvider, {}, h(Probe), h(Panel, {
-    model, mode: "all", onModeChange() {}, selectedCharacterId: "", onSelectedCharacterChange() {},
+  const render = (model, props = {}) => act(() => root.render(h(ReactFlowProvider, {}, h(Probe), h(Panel, {
+    novelId: "book-A", model, mode: "all", onModeChange() {}, selectedCharacterId: "", onSelectedCharacterChange() {}, ...props,
   }))));
   try {
     await render(buildRelationshipGraphModel(input));
@@ -53,13 +53,14 @@ test("dragging retains the grab offset, other cards and edge anchors through a b
     }
     await act(() => store.getState().updateNodeInternals(updates));
     const node = id => store.getState().nodeLookup.get(id);
-    const move = (position, dragging) => act(() => store.getState().updateNodePositions(new Map([["a", { position }]]), dragging));
+    const move = (position, dragging, id = "a") => act(() => store.getState().updateNodePositions(new Map([[id, { position }]]), dragging));
     const start = node("a").position;
     const handles = node("a").internals.handleBounds;
     assert.equal(handles.source.length, 4);
     const stationary = node("b");
     const edges = store.getState().edges;
     const landing = { x: stationary.position.x, y: stationary.position.y + 36 };
+    const storageBeforeDrag = { ...window.localStorage };
     for (const position of [{ x: start.x + 5, y: start.y + 8 }, landing]) {
       await move(position, true);
       assert.deepEqual(node("a").measured, { width: CARD_WIDTH, height: CARD_HEIGHT });
@@ -67,6 +68,7 @@ test("dragging retains the grab offset, other cards and edge anchors through a b
       assert.equal(node("b"), stationary);
       assert.equal(node("a").internals.handleBounds, handles);
       assert.equal(store.getState().edges, edges);
+      assert.deepEqual({ ...window.localStorage }, storageBeforeDrag);
     }
 
     await render(buildRelationshipGraphModel({ ...input, characters: [{ ...characters[0], currentGoal: "寻找证人" }, characters[1]] }));
@@ -85,6 +87,47 @@ test("dragging retains the grab offset, other cards and edge anchors through a b
     await move(landing, false);
     assert.deepEqual(node("a").position, landing);
     assert.equal(reset.disabled, false);
+
+    const book = buildRelationshipGraphModel(input);
+    const secondLanding = { x: 0, y: -45 };
+    const reopen = async () => {
+      await act(() => root.render(null));
+      await render(book);
+    };
+    await reopen();
+    assert.deepEqual(node("a").position, landing);
+    await render(book, { novelId: "book-B" });
+    assert.deepEqual(node("a").position, start);
+    await move(secondLanding, false);
+    await move(landing, false, "b");
+
+    const focus = id => {
+      const props = { mode: "current", selectedCharacterId: id };
+      return render(buildRelationshipGraphModel({ ...input, ...props }), props);
+    };
+    await focus("a");
+    const treeStart = node("a").position;
+    await move(secondLanding, false);
+    await focus("b");
+    assert.notDeepEqual(node("a").position, secondLanding);
+    await focus("a");
+    assert.deepEqual(node("a").position, secondLanding);
+    const resetCurrent = () => act(() => document.querySelector('[aria-label="恢复自动排列"]').click());
+    await resetCurrent();
+    assert.deepEqual(node("a").position, treeStart);
+
+    await render(book, { novelId: null });
+    assert.deepEqual(node("a").position, start);
+    await move(secondLanding, false);
+    await reopen();
+    assert.deepEqual(node("a").position, landing);
+    await resetCurrent();
+    await reopen();
+    assert.deepEqual(node("a").position, start);
+    assert.equal(document.querySelector('[aria-label="恢复自动排列"]').disabled, true);
+    await render(book, { novelId: "book-B" });
+    assert.deepEqual(node("a").position, secondLanding);
+    assert.deepEqual(node("b").position, landing);
   } finally {
     await act(() => root.unmount());
   }
