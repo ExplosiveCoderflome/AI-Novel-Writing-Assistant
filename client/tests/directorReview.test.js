@@ -6,6 +6,18 @@ import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {nodeStyles} from './support/nodeStyles.js';
 import {resolveSavedReview} from '../src/pages/directorNext/workspace/review.ts';
+import {acceptCastSuggestions, reviewFieldKey} from '../src/pages/directorNext/workspace/editing/cast/draft.ts';
+
+test('accepting selected suggestions respects the current character, manual edits and unchecked fields', () => {
+ const base = {currentGoal:'守店',storyFunction:'提供线索',personality:'机敏'};
+ const goal = {field:'currentGoal',before:'守店',value:'调查旧地址',reason:'妹妹主动寻找证人'};
+ const role = {field:'storyFunction',before:'提供线索',value:'在兄长失踪后继续调查',reason:'承接事件'};
+ const other = reviewFieldKey('哥哥','currentGoal'), own = reviewFieldKey('妹妹','currentGoal');
+ const changed = acceptCastSuggestions({[other]:'寻找妹妹'}, '妹妹', base, [goal]);
+ assert.deepEqual(changed,{[own]:goal.value,[other]:'寻找妹妹'});
+ const manual = {...changed,[own]:'作者手改的目标'};
+ assert.deepEqual(acceptCastSuggestions(manual,'妹妹',base,[goal,role]),{...manual,[reviewFieldKey('妹妹','storyFunction')]:role.value});
+});
 
 test('short review URLs resolve only saved current contexts and ignore forged or malformed routing fields',()=>{
  const row={id:'p7',volumeId:'v2',chapterOrder:7,taskSheet:'任务',sceneCards:'场景'};

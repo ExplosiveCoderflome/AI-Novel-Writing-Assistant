@@ -234,6 +234,8 @@ export function createApp() {
     const { getDirectorProductionServices } = require("./app/director/services") as typeof import("./app/director/services");
     const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
     mountDirectorNext(app, getDirectorProductionServices().http);
+    const { castConversationRouter } = require("./app/director/revisions/castDiscussion") as typeof import("./app/director/revisions/castDiscussion");
+    app.use("/api/director-next", castConversationRouter());
   }
 
   app.use((_req, res) => {

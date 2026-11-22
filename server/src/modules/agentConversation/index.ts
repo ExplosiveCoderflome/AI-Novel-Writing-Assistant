@@ -47,9 +47,9 @@ export class AgentConversationStore {
   }
 
   /** Publish the message and its domain result in the same transaction. */
-  static async complete(tx: Prisma.TransactionClient, scopeKey: string, id: string, resultId: string | null, replyText: string) {
+  static async complete(tx: Prisma.TransactionClient, scopeKey: string, id: string, resultId: string | null, replyText: string, resultPayloadJson?: string) {
     const changed = await tx.agentConversationTurn.updateMany({ where: { id, scopeKey, status: running },
-      data: { status: "completed", activeSlot: null, resultId, replyText } });
+      data: { status: "completed", activeSlot: null, resultId, replyText, resultPayloadJson } });
     if (!changed.count) throw new AppError("本轮讨论已结束，请查看对话记录。", 409);
   }
 

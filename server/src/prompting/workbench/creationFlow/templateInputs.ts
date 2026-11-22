@@ -26,6 +26,7 @@ export const creationTemplateInputs = {
     B: { choice: "〈第二条方向〉", engine: "〈方向二的推进方式〉" },
   } },
   "novel.director.candidate_titles": { context: { brief: "〈候选方案和同轮另一案的方向〉", genreName: "〈题材〉", count: 4 } },
+  "novel.director.cast_dialogue": { storyInput: opening.idea, character: { name: "〈角色姓名〉", role: "〈身份〉", personality: "〈性格〉", currentGoal: "〈眼下想做的事〉", storyFunction: "〈在故事中的作用〉", background: null }, cast: [], relations: [], requestText: "怎样让这个角色更主动？", history: [], priorProposal: null },
   "novel.director.candidate_dialogue": { idea: opening.idea, candidate, requestText: "〈作者的问题〉", history: [], priorProposal: null },
   "novel.story_macro.decomposition": { storyInput: "〈选定的故事方向〉", projectContext: "〈开书设定〉" },
   "novel.director.book_contract": { targetChapterCount: 90 },

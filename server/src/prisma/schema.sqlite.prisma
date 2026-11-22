@@ -2269,6 +2269,7 @@ model OutlineRevision {
 }
 
 model AgentConversationTurn {
+  resultPayloadJson String?
   openingCandidateProposal OpeningCandidateProposal?
   id             String   @id
   scopeKey       String

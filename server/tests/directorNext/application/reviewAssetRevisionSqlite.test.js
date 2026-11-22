@@ -16,8 +16,10 @@ const {mountDirectorNext} = require("../../../dist/modules/director/http");
 const {PrismaArtifactLedger, PrismaRunRepository} = require("../../../dist/modules/director/infrastructure");
 const {createDirectorProductionOptions} = require("../../../dist/app/director/productionComposition");
 const {readEditedArtifact} = require("../../../dist/app/director/savedContent");
+const {castConversationRouter} = require("../../../dist/app/director/revisions/castDiscussion");
 
 const options = createDirectorProductionOptions();
+const services = createDirectorNextServices(options);
 const runs = new PrismaRunRepository(prisma);
 const ledger = new PrismaArtifactLedger(prisma);
 let server;
@@ -25,7 +27,8 @@ before(async () => {
   await ensureRuntimeDatabaseReady();
   const app = express();
   app.use(express.json());
-  mountDirectorNext(app, createDirectorNextServices(options).http);
+  mountDirectorNext(app, services.http);
+  app.use("/api/director-next", castConversationRouter());
   app.use(errorHandler);
   server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -53,6 +56,96 @@ async function openGate(novelId, type) {
     assert.equal(reply.status, expectedStatus, await reply.text());
   };
 }
+
+test("a character discussion stays at its gate and only saved choices reach the volume strategy prompt", async t => {
+  const novelId = "cast-discussion", runId = "run-" + novelId;
+  await prisma.novel.create({data: {id: novelId, title: "寻找寄信人", directorVersion: "v2"}});
+  for (let n = 1; n <= 7; n++) {
+    await prisma.character.create({data: {id: "cast-" + n, novelId, name: n === 7 ? "妹妹" : "证人" + n,
+      role: "配角", personality: "谨慎", currentGoal: "守店", storyFunction: "提供线索"}});
+  }
+  const confirm = await openGate(novelId, "character_cast");
+  for (const type of ["novel_seed", "story_macro", "book_contract", "world_skeleton"]) {
+    await ledger.record({novelId, type, scope: "book", status: "confirmed", protectedUserContent: true,
+      contentRef: type + ":" + novelId, contentHash: "fixture-" + type, producedByRunId: runId});
+  }
+  const runner = require("../../../dist/prompting/core/promptRunner");
+  const base = {personality: "谨慎", currentGoal: "守店", storyFunction: "提供线索"};
+  const draft = {...base, personality: "谨慎但不服输"};
+  const suggestions = [{field: "currentGoal", value: "追查寄信人的旧地址", reason: "给妹妹一个主动选择"},
+    {field: "storyFunction", value: "代替兄长赴约", reason: "让她掌握线索"}];
+  const wanted = {field: "currentGoal", before: base.currentGoal, after: suggestions[0].value, id: "cast-7"};
+  const prompts = [];
+  const volumeCalls = [];
+  t.mock.method(runner, "runStructuredPrompt", async call => {
+    if (call.asset.id.startsWith("novel.volume.")) {
+      volumeCalls.push(call.options.scope);
+      const content = call.contextBlocks.find(block => block.id === "book_contract").content;
+      assert.match(content, /妹妹/);
+      assert.match(content, /追查寄信人的旧地址/);
+      assert.doesNotMatch(content, /代替兄长赴约/);
+      if (call.options.scope === "strategy") return {output: {recommendedVolumeCount: 1, hardPlannedVolumeCount: 1,
+        readerRewardLadder: "查出真相", escalationLadder: "寄信人失踪", midpointShift: "追到旧址", notes: "旧信线索",
+        uncertainties: [], volumes: [{sortOrder: 1, planningMode: "hard", roleLabel: "查证", coreReward: "找到寄信人", escalationFocus: "证人离开", uncertaintyLevel: "low"}]}};
+      if (call.options.scope === "strategy_critique") return {output: {overallRisk: "low", summary: "可用", issues: [], recommendedActions: []}};
+      return {output: {volumes: [{title: "旧址", summary: "妹妹追查寄信人", openingHook: "第一封信", mainPromise: "查明身份",
+        primaryPressureSource: "搬迁期限", coreSellingPoint: "旧地址", escalationMode: "现场查证", protagonistChange: "愿意信任",
+        midVolumeRisk: "线索中断", climax: "见到寄信人", payoffType: "相认", nextVolumeHook: "第二封信", resetPoint: "重回老店", openPayoffs: []}]}};
+    }
+    assert.equal(call.asset.id, "novel.director.cast_dialogue");
+    assert.equal(call.options.model, "fixture");
+    assert.equal(call.options.taskId, runId);
+    prompts.push(call.promptInput);
+    return {output: {replyText: "让妹妹去查旧地址。", changes: prompts.length === 1 ? suggestions : []}};
+  });
+  const root = `http://127.0.0.1:${server.address().port}/api/director-next/novels/${novelId}/runs/${runId}/cast-review/2/characters/`;
+  const url = id => root + id + "/conversation";
+  const postTurn = (id, body) => fetch(url(id) + "/turns", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  async function finished(id) {
+    for (let n = 0; n < 150; n++) {
+      const {data} = await (await fetch(url("cast-7"))).json();
+      const turn = data.find(turn => turn.id === id);
+      if (turn && turn.status !== "running") { assert.equal(turn.status, "completed", turn.replyText); return turn; }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail("discussion did not complete");
+  }
+  const first = {requestId: "cast-turn-1", requestText: "让妹妹自己去查信，保留兄妹感情。", base, draft};
+  assert.equal((await postTurn("cast-7", first)).status, 202);
+  const turn = await finished(first.requestId);
+  assert.deepEqual(turn.result.changes.map(change => change.before), [base.currentGoal, base.storyFunction]);
+  assert.equal(prompts[0].character.personality, draft.personality);
+  assert.match(prompts[0].storyInput, /寻找寄信人/);
+  assert.equal(prompts[0].cast.length, 7);
+  assert.equal((await postTurn("cast-7", first)).status, 202);
+  assert.equal(prompts.length, 1, "replay uses the same receipt");
+  const follow = {...first, requestId: "cast-turn-2", parentResultId: turn.result.id, requestText: "为什么？",
+    draft: {...draft, currentGoal: wanted.after}};
+  assert.equal((await postTurn("cast-6", follow)).status, 409);
+  assert.deepEqual((await (await fetch(url("cast-6"))).json()).data, []);
+  assert.equal((await postTurn("cast-7", follow)).status, 202);
+  assert.equal((await finished(follow.requestId)).result, null, "a question can produce just an explanation");
+  assert.equal(prompts[1].priorProposal.length, 2);
+  assert.equal(prompts[1].history[0].author, first.requestText);
+  assert.equal(prompts[1].character.currentGoal, wanted.after);
+  assert.equal((await runs.getControl(runId)).status, "waiting_gate");
+  const readPerson = () => prisma.character.findUniqueOrThrow({where: {id: "cast-7"}});
+  assert.equal((await readPerson()).currentGoal, base.currentGoal);
+  assert.equal((await postTurn("cast-7", {...first, requestId: "outdated", base: {...base, personality: "过期稿"}})).status, 409);
+  const edit = {assetEdit: {type: "character_cast", changes: [wanted]}};
+  await confirm("accepted", edit, 202);
+  await confirm("accepted", edit, 202);
+  assert.equal((await readPerson()).storyFunction, base.storyFunction);
+  assert.equal((await readPerson()).currentGoal, wanted.after);
+  assert.equal((await runs.getControl(runId)).status, "running");
+  assert.equal((await postTurn("cast-7", {...first, requestId: "closed"})).status, 409);
+  for (let i = 0; i < 4 && (await runs.getControl(runId)).status === "running"; i++) await services.worker.tick();
+  const next = await runs.getControl(runId);
+  assert.equal(next.status, "waiting_gate", JSON.stringify(next));
+  assert.deepEqual(next.gate.artifactTypes, ["volume_strategy"]);
+  assert.deepEqual(volumeCalls, ["strategy", "strategy_critique", "skeleton"]);
+  assert.equal((await prisma.volumePlan.findFirstOrThrow({where: {novelId}})).title, "旧址");
+});
 
 for (const type of ["character_cast", "volume_strategy"]) {
   test(type + " saves only actual source-page edits, rolls back stale changes and replays safely", async () => {

@@ -68,6 +68,8 @@ export const stages: FlowStage[] = [
     ],
     branches: [{ from: "contract", label: "沿用或跳过", join: "cast", steps: [
       { id: "reuse-world", title: "沿用或跳过世界", artifact: "选定的世界范围", kind: "system", input: "开书时选定的世界准备方式。", output: "使用已有世界资料，或按设定跳过世界生成。" },
+    ] }, { from: "cast", label: "逐人讨论", steps: [
+      ai("cast-discussion", "讨论一位角色", "可逐项采纳的人物修改", "选定的开书方向、当前角色与作者的问题。", "核对性格、行动目标或故事作用后继续分卷。", "novel.director.cast_dialogue"),
     ] }],
   },
   {

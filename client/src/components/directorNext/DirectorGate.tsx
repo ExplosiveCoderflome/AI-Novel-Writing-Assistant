@@ -13,7 +13,7 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
   const [guidance, setGuidance]=useState("");
   const [editing, setEditing]=useState(false);
   const editLabel = reviewType === "chapter_task_sheet" ? "编辑任务与场景"
-    : reviewType === "character_cast" ? "编辑角色阵容" : reviewType === "volume_strategy" ? "编辑卷纲" : undefined;
+    : reviewType === "character_cast" ? "与 AI 讨论或编辑角色阵容" : reviewType === "volume_strategy" ? "编辑卷纲" : undefined;
   const confirmSaved = reviewType === "chapter_execution_contract" || reviewType === "chapter_batch_closed";
   const canGenerate=reviewType==="chapter_task_sheet" || reviewType==="volume_strategy";
   const mutation=useMutation({

@@ -21,6 +21,7 @@ import { DIRECTOR_ISSUE_CATALOG_BY_CODE, DIRECTOR_ISSUE_CODES, DIRECTOR_ISSUE_PO
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow, readExecutionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
+import {confirmedCastForPlanning} from "./revisions/castDiscussion";
 import {readExistingAssets} from "./existingAssets";
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
@@ -81,7 +82,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
           return characters.applyCharacterCastOption(novelId, ids[0], {requireEmptyCast: true, postApplyMode: "deferred"});
         }}, contentHash}),
     volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
-      userPreferredVolumeCount: requireLaunch(context.contract).userPreferredVolumeCount}), contentHash}),
+      userPreferredVolumeCount: requireLaunch(context.contract).userPreferredVolumeCount,
+      confirmedCast: await confirmedCastForPlanning(context.runId, context.contract.novelId)}), contentHash}),
     volume_beat_sheet: createVolumeBeatSheetStepHandler({volumeService: volumes, inputProvider: async context => {
       // Old runs may have adopted a skeleton as a complete strategy. Check the saved business facts.
       await volumes.recoverVolumeStrategy(context.contract.novelId, {
