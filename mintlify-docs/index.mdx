@@ -16,13 +16,48 @@ keywords:
 
 <div className="bn-boot" data-bn-boot="ink" aria-hidden="true" />
 
+<section className="not-prose inn-front" aria-labelledby="inn-title">
+  <div className="inn-art inn-ink-art" aria-hidden="true">
+    <BnHero />
+  </div>
+
+  <div className="inn-art inn-paper-art" aria-hidden="true">
+    <XzHero />
+  </div>
+
+  <div className="inn-open">
+    <div className="inn-head">
+      <h1 id="inn-title">飞升天梯堵了三百年，我在第九千级开了家客栈。</h1>
+      <p>Biz Novel Studio 是开源的 AI 小说创作工作台。先读一段仙侠样章：掌柜翻开账簿，下一句由你来选。</p>
+    </div>
+
+    <article className="inn-sample">
+      <h2>第三章 · 雷劫券</h2>
+
+      <blockquote>
+        <p>一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。</p>
+        <p>“抵三十年房钱。”</p>
+        <p>林砚翻开账簿，又合上。</p>
+      </blockquote>
+
+      <p className="inn-question">这张雷劫券，你收不收？</p>
+      <p className="inn-caption">两段续文都是预写示例，不调用模型。</p>
+
+      <InnChoice />
+    </article>
+
+    <div className="inn-actions">
+      <div><a className="inn-start" href="/quickstart">跟着教程写第一章</a><a href="/showcase/xianxia">先读一篇样章</a></div>
+      <p><a href="/installation">下载桌面版</a> · v0.8.12 · AGPL-3.0。写作前需自行配置模型 API。</p>
+    </div>
+  </div>
+</section>
+
 <XzIntro />
 
 <HomeFx>
   <BnHome>
     <div>
-      <BnHero />
-
       <InnNotes />
 
       <BnShelf />
@@ -39,8 +74,6 @@ keywords:
     </div>
 
     <div>
-      <XzHero />
-
       <InnNotes paper={true} />
 
       <XzShelf />
@@ -65,6 +98,7 @@ export const BnHero = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx || typeof ResizeObserver === "undefined") return;
     let w = 0, h = 0, raf = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const resize = () => {
@@ -140,45 +174,21 @@ export const BnHero = () => {
         @keyframes bnFloat{0%,100%{transform:translateY(0) rotate(1deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
       `}</style>
       <canvas ref={canvasRef} />
-      <InnOpening />
     </div>
   );
 };
 
-export const InnOpening = ({ paper = false }) => {
+export const InnChoice = () => {
   const [choice, setChoice] = useState(null);
   const paths = [
     { label: "收下，但加个条件", text: "林砚把券压在砚台下。“三十年房钱，剩下七十年，您替我守夜。”那人刚要点头，门外排队的客人齐齐往后退了一步。" },
     { label: "退回去，追问来历", text: "林砚把券翻了个面。“天门三百年没开过。守将的私印，你从哪儿弄的？”客人伸手来取，那枚朱印还没干，在他指腹上留下了半个‘门’字。" }
   ];
   return (
-    <section className={"not-prose inn-open" + (paper ? " inn-paper" : "")}>
-      <style>{`
-        .inn-open{--io-accent:#a7efbe;--io-line:#3c5e48;--io-page:#101b15;--io-primary:#aceec0;--io-label:#0c2114;position:relative;z-index:2;max-width:1080px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.98fr);grid-template-areas:'head sample' 'actions sample';column-gap:clamp(28px,6vw,80px);align-content:center;cursor:auto;color:#edf6ef}
-        .inn-open.inn-paper{--io-accent:#942f24;--io-line:#a69a81;--io-page:#faf6ea;--io-primary:#983326;--io-label:#fff8eb;color:#271f19}
-        .inn-head{grid-area:head;align-self:end}.inn-head h1{margin:0;font-family:'Songti SC','STSong',serif;font-size:clamp(32px,4.2vw,58px);line-height:1.32;text-wrap:balance;color:inherit}.inn-head p{margin:20px 0 0;max-width:32em;line-height:1.8}
-        .inn-sample{grid-area:sample;min-width:0;border:1px solid var(--io-line);background:var(--io-page);padding:clamp(18px,3vw,36px);border-radius:3px 14px 14px 3px}.inn-sample h2{margin:0 0 16px;font:600 1.1rem/1.5 'Songti SC','STSong',serif;color:var(--io-accent)}.inn-sample blockquote{border:0;padding:0;margin:0;font:normal 1.05rem/1.85 'Songti SC','STSong',serif;color:inherit}.inn-sample blockquote p{margin:0 0 8px}.inn-question{margin:20px 0 8px;font-weight:700}.inn-caption{font-size:.85rem;line-height:1.6;margin:0 0 12px}
-        .inn-choices,.inn-actions>div{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center}.inn-choices button{font:inherit;font-size:.92rem;cursor:pointer;color:inherit;background:transparent;border:1px solid var(--io-line);padding:9px 13px;border-radius:6px}.inn-choices button:hover{border-color:var(--io-accent)}.inn-choices button[aria-pressed=true]{background:var(--io-primary);border-color:var(--io-primary);color:var(--io-label)}.inn-result p{margin:18px 0 0;border-top:1px solid var(--io-line);padding-top:14px;line-height:1.85}
-        .inn-actions{grid-area:actions;align-self:start;margin-top:24px}.inn-actions a{color:var(--io-accent);text-underline-offset:4px}.inn-actions .inn-start{font-weight:700;color:var(--io-label);background:var(--io-primary);padding:10px 16px;border-radius:6px;text-decoration:none}.inn-actions p{font-size:.875rem;margin:12px 0 0;line-height:1.7}.inn-open :is(a,button):focus-visible{outline:2px solid var(--io-accent);outline-offset:3px}
-        @media(max-width:760px){.inn-open{grid-template-columns:minmax(0,1fr);grid-template-areas:'head' 'sample' 'actions';gap:20px}.inn-head p{margin-top:10px}.inn-actions{margin:0}}
-      `}</style>
-      <div className="inn-head">
-        <h1>飞升天梯堵了三百年，我在第九千级开了家客栈。</h1>
-        <p>Biz Novel Studio 是开源的 AI 小说创作工作台。先读一段仙侠样章：掌柜翻开账簿，下一句由你来选。</p>
-      </div>
-      <article className="inn-sample">
-        <h2>第三章 · 雷劫券</h2>
-        <blockquote><p>一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。</p><p>“抵三十年房钱。”</p><p>林砚翻开账簿，又合上。</p></blockquote>
-        <p className="inn-question">这张雷劫券，你收不收？</p>
-        <p className="inn-caption">两段续文都是预写示例，不调用模型。</p>
-        <div className="inn-choices" role="group" aria-label="选择续写方向">{paths.map((p, i) => <button type="button" key={p.label} aria-pressed={choice === i} onClick={() => setChoice(i)}>{p.label}</button>)}</div>
-        <div className="inn-result" role="status" aria-atomic="true">{choice !== null && <p>{paths[choice].text}</p>}</div>
-      </article>
-      <div className="inn-actions">
-        <div><a className="inn-start" href="/quickstart">跟着教程写第一章</a><a href="/showcase/xianxia">先读一篇样章</a></div>
-        <p><a href="/installation">下载桌面版</a> · v0.8.12 · AGPL-3.0。写作前需自行配置模型 API。</p>
-      </div>
-    </section>
+    <div className="not-prose">
+      <div className="inn-choices" role="group" aria-label="选择续写方向">{paths.map((p, i) => <button type="button" key={p.label} aria-pressed={choice === i} onClick={() => setChoice(i)}>{p.label}</button>)}</div>
+      <div className="inn-result" role="status" aria-atomic="true">{choice !== null && <p>{paths[choice].text}</p>}</div>
+    </div>
   );
 };
 
@@ -1594,7 +1604,6 @@ export const XzHero = () => {
       <div className="xz-bloom" style={{ left: "70%", top: "52%", width: 220, height: 220, animationDelay: "6s" }} />
       {PETALS.map((p, i) => <span key={i} className={"xz-petal " + p.tone} style={{ left: p.left + "%", width: p.size, height: Math.round(p.size * 0.8), animationDuration: p.dur + "s", animationDelay: p.delay + "s", "--dx": p.dx + "px" }} />)}
       {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
-      <InnOpening paper={true} />
       <div className="xz-mt" aria-hidden="true">
         <svg className="xz-m1" viewBox="0 0 2400 260" preserveAspectRatio="none">
           <path fill="#6d6a63" d="M0 260V120Q120 40 260 110T520 80Q640 20 780 100T1040 90Q1120 60 1200 120V260ZM1200 260V120Q1320 40 1460 110T1720 80Q1840 20 1980 100T2240 90Q2320 60 2400 120V260Z" />
