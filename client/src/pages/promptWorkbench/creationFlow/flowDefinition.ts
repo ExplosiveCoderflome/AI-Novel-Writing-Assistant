@@ -79,7 +79,8 @@ export const stages: FlowStage[] = [
       ai("critique", "检查分卷安排", "分卷评议意见", "分卷策略草稿。", "对重复、断层与回报节奏的评议。", "novel.volume.strategy.critique"),
       ai("skeleton", "生成各卷骨架", "各卷的故事骨架", "分卷策略及评议结果。", "每卷的开场、压力、高潮和下一卷的承接。", "novel.volume.skeleton"),
       ai("beats", "安排卷内节奏", "本卷的关键节奏段", "当前卷的目标、骨架和章节预算。", "按顺序展开的关键事件及其章节跨度。", "novel.volume.beat_sheet"),
-      ai("chapter-list", "拆成章节列表", "章名、行动与出场安排", "当前节奏段的目标、人物和前后承接。", "各章的标题、主要行动与出场安排。", "novel.volume.chapter_list"),
+      { id: "chapter-list", title: "拆成章节列表", artifact: "章名、行动与出场安排", kind: "ai", input: "当前节奏段的目标、人物和前后承接。", output: "各章的标题、主要行动与出场安排。同卷章名过于相似时，可重新拟名。",
+        templates: [["novel.volume.chapter_list", "拆分章节列表"], ["novel.volume.chapter_title_repair", "调整相似章名"]] },
     ],
     branches: [{ from: "skeleton", label: "调整一卷", join: "beats", steps: [
       ai("volume-discussion", "讨论一卷的卷纲", "可逐项采纳的卷纲修改", "当前卷的编辑稿、前后卷安排和作者的问题。", "核对本卷故事、读者期待、高潮或下卷引线后继续拆章。", "novel.director.volume_dialogue"),

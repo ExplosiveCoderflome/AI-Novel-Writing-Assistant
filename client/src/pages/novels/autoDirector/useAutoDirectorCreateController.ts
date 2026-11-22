@@ -34,6 +34,7 @@ import { getAutoDirectorIssuePolicy } from "@/api/settings";
 import { getTaskDetail } from "@/api/tasks";
 import { toast } from "@/components/ui/toast";
 import { isChapterTitleDiversitySummary } from "@/lib/directorTaskNotice";
+import { getNovelWorkflowAttention } from "@/api/novel/shared";
 import { useLLMStore } from "@/store/llmStore";
 import {
   authorEstimatedChapterCount,
@@ -467,7 +468,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     generateMutation,
     refineTitleMutation,
   } = useNovelAutoDirectorCandidateMutations({
-    pendingManualRecovery: Boolean(directorTask?.pendingManualRecovery),
+    pausePolling: getNovelWorkflowAttention(directorTask) === "recovery",
     batches,
     selectedPresets,
     feedback,

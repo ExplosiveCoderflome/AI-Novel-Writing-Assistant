@@ -24,7 +24,7 @@ interface UseNovelAutoDirectorCandidateMutationsInput {
   selectedPresets: DirectorCorrectionPreset[];
   feedback: string;
   workflowTaskId: string;
-  pendingManualRecovery: boolean;
+  pausePolling: boolean;
   ensureWorkflowTask: () => Promise<string>;
   buildRequestPayload: (workflowTaskId: string) => DirectorRequestPayload;
   applyUpdatedBatch: (batch: DirectorCandidateBatch, nextWorkflowTaskId?: string) => void;
@@ -45,7 +45,7 @@ export function useNovelAutoDirectorCandidateMutations({
   selectedPresets,
   feedback,
   workflowTaskId,
-  pendingManualRecovery,
+  pausePolling,
   ensureWorkflowTask,
   buildRequestPayload,
   applyUpdatedBatch,
@@ -63,8 +63,8 @@ export function useNovelAutoDirectorCandidateMutations({
   const polling = useRef<AbortController | null>(null);
   useEffect(() => () => polling.current?.abort(), []);
   useEffect(() => {
-    if (pendingManualRecovery) polling.current?.abort();
-  }, [pendingManualRecovery]);
+    if (pausePolling) polling.current?.abort();
+  }, [pausePolling]);
 
   const beginPolling = () => {
     polling.current?.abort();

@@ -127,6 +127,11 @@ export interface ClearPendingManualRecoveryInput {
 export class DirectorTaskStateWriter {
   constructor(private readonly workflowService: DirectorTaskStateWorkflowPort = new NovelWorkflowService()) {}
 
+  async prepareOpeningCommand(input: DirectorTaskInitializationInput) {
+    const task = await this.initializeTask(input, { prepareOpeningCommand: true });
+    return { id: task.id, openingStateFilter: { seedPayloadJson: task.seedPayloadJson } };
+  }
+
   async initializeTask(
     input: DirectorTaskInitializationInput,
     options: DirectorTaskInitializationOptions = {},

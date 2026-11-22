@@ -240,7 +240,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_candidates",
-      expectedOpeningSeed: task.seedPayloadJson,
+      openingStateFilter: task.openingStateFilter,
       payload: {
         refinementRequest: {
           ...input,
@@ -261,7 +261,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "patch_candidate",
-      expectedOpeningSeed: task.seedPayloadJson,
+      openingStateFilter: task.openingStateFilter,
       payload: {
         candidatePatchRequest: {
           ...input,
@@ -281,7 +281,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_titles",
-      expectedOpeningSeed: task.seedPayloadJson,
+      openingStateFilter: task.openingStateFilter,
       payload: {
         titleRefineRequest: {
           ...input,
@@ -625,7 +625,7 @@ export class DirectorCommandService {
     },
   ) {
     const directorVersion = await readOpeningVersion(input.workflowTaskId, input.directorVersion);
-    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
+    const task = await this.stateWriter.prepareOpeningCommand({
       directorVersion,
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       lane: "auto_director",
@@ -650,7 +650,7 @@ export class DirectorCommandService {
         itemLabel: "AI 正在生成书级方向候选",
         progress: 0.1,
       },
-    }, { prepareOpeningCommand: true });
+    });
     await prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
     return task;
   }
@@ -737,7 +737,7 @@ export class DirectorCommandService {
 
   private async enqueueExecutionCommand(input: {
     taskId: string;
-    expectedOpeningSeed?: string | null;
+    openingStateFilter?: Awaited<ReturnType<DirectorTaskStateWriter["prepareOpeningCommand"]>>["openingStateFilter"];
     commandType: DirectorRunCommandType;
     payload: DirectorCommandPayload;
     allowTerminalReuse?: boolean;
@@ -911,8 +911,8 @@ export class DirectorCommandService {
           },
         };
         // Adoption can finish after the opening inputs were prepared and before command acceptance.
-        if (input.expectedOpeningSeed !== undefined) {
-          taskUpdate.where = { ...taskUpdate.where, seedPayloadJson: input.expectedOpeningSeed };
+        if (input.openingStateFilter) {
+          taskUpdate.where = { ...taskUpdate.where, ...input.openingStateFilter };
         }
         const acceptedTask = input.clearPendingManualRecovery
           ? await this.stateWriter.clearPendingManualRecovery({
@@ -922,7 +922,7 @@ export class DirectorCommandService {
           }, { transaction: tx })
           : await this.stateWriter.updateRunState(taskUpdate, { transaction: tx, many: true });
         if (acceptedTask.count === 0) {
-          if (input.expectedOpeningSeed !== undefined) throw new AppError("开书方向或任务状态有更新，请刷新后再继续。", 409);
+          if (input.openingStateFilter) throw new AppError("开书方向或任务状态有更新，请刷新后再继续。", 409);
           if (!input.clearPendingManualRecovery) {
             const currentTask = await tx.novelWorkflowTask.findUnique({
               where: { id: input.taskId },
