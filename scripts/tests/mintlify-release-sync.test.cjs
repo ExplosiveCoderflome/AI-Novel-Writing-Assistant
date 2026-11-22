@@ -87,9 +87,9 @@ test("updates the real bilingual page layouts from an isolated baseline and prep
   const release = releaseFor();
   const result = docs.run(release);
   assert.equal(result.status, 0, result.stderr);
-  for (const prefix of ["", "en/"]) {
+  for (const [prefix, homepageLabels] of [["", 1], ["en/", 2]]) {
     const homepage = docs.read(prefix + "index.mdx");
-    assert.equal((homepage.match(/v0\.8\.10 · (?:开源|AGPL-3\.0)/g) || []).length, 2);
+    assert.equal((homepage.match(/v0\.8\.10 · (?:开源|AGPL-3\.0)/g) || []).length, homepageLabels);
     assert.doesNotMatch(homepage, /v0\.8\.[157] · (?:开源|AGPL-3\.0)/);
     const installation = docs.read(prefix + "installation.mdx");
     assert.ok(installation.includes("**v0.8.10**"));
