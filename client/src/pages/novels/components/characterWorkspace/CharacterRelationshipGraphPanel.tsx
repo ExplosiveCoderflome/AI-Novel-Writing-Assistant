@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Background,
@@ -13,11 +13,12 @@ import {
   ReactFlow,
   getBezierPath,
   getSmoothStepPath,
+  useStoreApi,
   type Edge,
   type EdgeMouseHandler,
   type NodeChange,
   type EdgeProps,
-  type Node,
+  type NodeOrigin,
   type NodeMouseHandler,
   type NodeProps,
   type ReactFlowInstance,
@@ -40,6 +41,7 @@ import type {
   RelationshipGraphNode,
 } from "./characterRelationshipGraphModel";
 import { CARD_WIDTH, CARD_HEIGHT } from "./relationshipGraph/orderedLayout";
+import { isSettledMove, syncCanvasNodes, type RelationshipFlowNode } from "./relationshipGraph/canvasNodes";
 import { gutterPath, relationshipRoute, type EdgeRoute } from "./relationshipGraph/edgeRouting";
 
 interface CharacterRelationshipGraphPanelProps {
@@ -51,17 +53,12 @@ interface CharacterRelationshipGraphPanelProps {
   isLoading?: boolean;
 }
 
-interface RelationshipNodeData extends Record<string, unknown> {
-  graphNode: RelationshipGraphNode;
-}
-
 interface RelationshipEdgeData extends Record<string, unknown> {
   graphEdge: RelationshipGraphEdge;
   route: EdgeRoute;
   highlighted: boolean;
 }
 
-type RelationshipFlowNode = Node<RelationshipNodeData, "characterNode">;
 type RelationshipFlowEdge = Edge<RelationshipEdgeData, "relationshipEdge">;
 type Selection =
   | { type: "node"; id: string }
@@ -74,6 +71,19 @@ const nodeTypes = {
 const edgeTypes = {
   relationshipEdge: CharacterRelationshipEdge,
 };
+
+const nodeOrigin: NodeOrigin = [0.5, 0.5];
+const fitViewOptions = { padding: 0.18 };
+
+function CanvasNodeSync({ projected }: { projected: RelationshipFlowNode[] }) {
+  const store = useStoreApi<RelationshipFlowNode, RelationshipFlowEdge>();
+  useLayoutEffect(() => {
+    const { nodes, setNodes } = store.getState();
+    const next = syncCanvasNodes(nodes, projected);
+    if (next !== nodes) setNodes(next);
+  }, [projected, store]);
+  return null;
+}
 
 const MODE_OPTIONS: Array<{
   value: RelationshipGraphMode;
@@ -106,11 +116,15 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
     });
   }, [model.edges, model.nodes, selectedCharacterId]);
 
+  const restingPositions = useMemo(() => new Map(model.nodes.map(item => [
+    item.id, (dragged.scope === scope && dragged.positions.get(item.id)) || { x: item.x, y: item.y },
+  ])), [model.nodes, dragged, scope]);
+
   const flowNodes = useMemo<RelationshipFlowNode[]>(
     () => model.nodes.map((item) => ({
       id: item.id,
       type: "characterNode",
-      position: (dragged.scope === scope && dragged.positions.get(item.id)) || { x: item.x, y: item.y },
+      position: restingPositions.get(item.id)!,
       data: { graphNode: item },
       draggable: true,
       selectable: true,
@@ -120,7 +134,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       width: CARD_WIDTH,
       height: CARD_HEIGHT,
     })),
-    [model.nodes, dragged, scope, selection],
+    [model.nodes, restingPositions, selection],
   );
 
   useEffect(() => {
@@ -130,9 +144,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
 
   const activeEdgeId = hoveredEdge ?? (selection?.type === "edge" ? selection.id : null);
   const flowEdges = useMemo<RelationshipFlowEdge[]>(() => {
-    const positions = new Map(flowNodes.map(node => [node.id, node.position]));
     return model.edges.map(item => {
-      const route = relationshipRoute(positions.get(item.source)!, positions.get(item.target)!, mode === "current" && Boolean(selectedCharacterId));
+      const route = relationshipRoute(restingPositions.get(item.source)!, restingPositions.get(item.target)!, mode === "current" && Boolean(selectedCharacterId));
       const highlighted = item.id === activeEdgeId;
       return {
         id: item.id,
@@ -155,7 +168,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
         zIndex: highlighted ? 2 : 1,
       };
     });
-  }, [model.edges, flowNodes, activeEdgeId, mode, selectedCharacterId]);
+  }, [model.edges, restingPositions, activeEdgeId, mode, selectedCharacterId]);
 
   const selectedNode = selection?.type === "node"
     ? model.nodes.find((node) => node.id === selection.id) ?? null
@@ -171,21 +184,17 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
 
   const handleNodesChange = useCallback((changes: NodeChange<RelationshipFlowNode>[]) => {
     for (const change of changes) {
-      if (change.type === "select") {
-        setSelection(current => change.selected ? {type: "node", id: change.id}
-          : current?.type === "node" && current.id === change.id ? null : current);
+      if (change.type === "select" && change.selected) {
+        setSelection({ type: "node", id: change.id });
       }
     }
+    if (!changes.some(isSettledMove)) return;
     setDragged(current => {
       const positions = new Map(current.scope === scope ? current.positions : []);
-      let moved = false;
       for (const change of changes) {
-        if (change.type === "position" && change.position) {
-          positions.set(change.id, change.position);
-          moved = true;
-        }
+        if (isSettledMove(change)) positions.set(change.id, change.position);
       }
-      return moved ? { scope, positions } : current;
+      return { scope, positions };
     });
   }, [scope]);
 
@@ -235,12 +244,14 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
           ) : flowNodes.length > 0 ? (
             <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
               key={scope}
-              nodes={flowNodes}
+              defaultNodes={flowNodes}
               edges={flowEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onNodeClick={handleNodeClick}
               onNodesChange={handleNodesChange}
+              onPaneClick={() => setSelection(null)}
+              onKeyDown={event => { if (event.key === "Escape") setSelection(null); }}
               onEdgeClick={handleEdgeClick}
               onEdgeMouseEnter={(_, edge) => setHoveredEdge(edge.id)}
               onEdgeMouseLeave={() => setHoveredEdge(null)}
@@ -252,11 +263,16 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               onInit={instance => { canvas.current = instance; }}
               elevateEdgesOnSelect={false}
               nodesDraggable
+              selectNodesOnDrag={false}
+              autoPanOnNodeDrag={false}
+              nodeDragThreshold={3}
+              nodeClickDistance={3}
+              deleteKeyCode={null}
               nodesConnectable={false}
               elementsSelectable
               fitView
-              fitViewOptions={{ padding: 0.18 }}
-              nodeOrigin={[0.5, 0.5]}
+              fitViewOptions={fitViewOptions}
+              nodeOrigin={nodeOrigin}
               minZoom={0.35}
               maxZoom={1.25}
               panOnDrag
@@ -266,6 +282,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               zoomOnDoubleClick={false}
               proOptions={{ hideAttribution: true }}
             >
+              <CanvasNodeSync projected={flowNodes} />
               <Background color="hsl(var(--border))" gap={28} size={1} />
               <Panel position="top-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
                 <div className="flex flex-wrap gap-3">
@@ -283,7 +300,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
                 <ControlButton title="恢复自动排列" aria-label="恢复自动排列" disabled={!dragged.positions.size}
                   onClick={() => {
                     setDragged({ scope, positions: new Map() });
-                    requestAnimationFrame(() => { void canvas.current?.fitView({ padding: 0.18 }); });
+                    requestAnimationFrame(() => { void canvas.current?.fitView(fitViewOptions); });
                   }}>
                   <ListRestart aria-hidden="true" />
                 </ControlButton>
@@ -302,9 +319,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   );
 }
 
-function CharacterRelationshipNode(props: NodeProps) {
-  const data = props.data as RelationshipNodeData;
-  const { graphNode } = data;
+function CharacterRelationshipNode(props: NodeProps<RelationshipFlowNode>) {
+  const { graphNode } = props.data;
   const character = graphNode.character;
   const isProtagonist = isProtagonistCharacter(character);
   const tone = getNodeTone(character);
