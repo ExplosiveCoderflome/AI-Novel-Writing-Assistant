@@ -76,6 +76,22 @@ test("新轮次需要两条完整且不同的路线，旧版候选仍可读取",
   assert.equal(directorPersistedCandidateSchema.parse({ id: "old", ...cards.A }).plannedDirection, undefined);
 });
 
+test("较长的方向选择句原样进入两案展开与候选保存", async () => {
+  const pair = {
+    A: { ...directions.A, choice: "冒领家书的小卒必须亲自寻访每一位收信人，把阵亡士卒原本打算带回家的消息交给他们的亲人，才能换得揭开空饷账目的证词。" },
+    B: { ...directions.B, choice: "小卒把名册上的村落当成转移路线，在追兵赶到前带走还活着的家属；每救下一户，都要用自己仅有的一条退路换下一家开门。" },
+  };
+  assert.ok(pair.A.choice.length > 48 && pair.B.choice.length > 48);
+  const parsed = plan.postValidate(plan.outputSchema.parse(pair));
+  const messages = await expand.render({ idea: "一封家书", context: {}, count: 2, batches: [], presets: [], directions: parsed }, { blocks: [] });
+  const prompt = messages.map(item => item.content).join("\n");
+  for (const key of ["A", "B"]) {
+    assert.ok(prompt.includes(pair[key].choice));
+    const saved = directorPersistedCandidateSchema.parse({ ...cards[key], id: key, plannedDirection: parsed[key].choice });
+    assert.equal(saved.plannedDirection, pair[key].choice);
+  }
+});
+
 test("首轮和换一批先定方向，展开时按键对应并保留书名重配前的选择句", async t => {
   const idea = "边关小卒从一张阵亡名册上看见了自己的名字";
   const feedback = "想多看小卒主动救人的选择";

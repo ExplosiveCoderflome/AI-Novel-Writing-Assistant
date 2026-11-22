@@ -149,7 +149,7 @@ export const directorCandidateResponseSchema = z.object({
 });
 
 const directionBrief = z.object({
-  choice: nonEmptyString.max(48),
+  choice: nonEmptyString,
   engine: nonEmptyString,
 });
 

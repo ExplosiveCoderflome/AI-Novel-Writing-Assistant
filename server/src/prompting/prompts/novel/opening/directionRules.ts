@@ -9,7 +9,7 @@ export const directionPairRules: PromptSlotDefReplace[] = [
   {
     key: "directions.choice", label: "怎样一句话说清方向", kind: "replace", maxLength: 3000,
     description: "决定作者并排看两条方向时，第一眼会读到什么。",
-    default: "用具体的人、动词、目标或代价说清选这条会写什么。尽量用 12 至 28 个字，脱离书名和标签也能读懂。随后说明主角会反复采取什么行动，一次成败如何改变下一步，以及读者会期待什么。",
+    default: "choice 用一句话说清选这条会写什么，尽量用 12 至 28 个字，脱离书名和标签也能读懂。把主角反复采取的行动、每轮成败的后果和读者期待写入 engine。",
   },
   {
     key: "directions.contrastCheck", label: "怎样判断两条路线足够不同", kind: "replace", maxLength: 3000,
