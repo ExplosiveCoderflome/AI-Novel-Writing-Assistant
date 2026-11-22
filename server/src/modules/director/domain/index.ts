@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./executionContract";
 export * from "./plan";
 export * from "./control";
 export * from "./guard";

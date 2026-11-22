@@ -3,7 +3,7 @@ import {MANUAL_CHAPTER_SYNC_TYPE} from "../../services/novel/chapterEditor/synch
 import {buildChapterArtifactContentHash} from "../../services/novel/runtime/artifactSync/ChapterArtifactContentVersion";
 import {directorCharacterCandidates} from "../../services/novel/characters/candidates";
 import type {Prisma} from "@prisma/client";
-import {artifactContentHash, type RunContract} from "../../modules/director";
+import {artifactContentHash, readExecutionContracts, type RunContract} from "../../modules/director";
 import {parsePipelinePayload, stringifyPipelinePayload} from "../../services/novel/pipelineJobState";
 import {AppError} from "../../middleware/errorHandler";
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
@@ -57,11 +57,7 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
       break;
     }
     case "chapter_execution_contract": {
-      const from = input.contract.chapterRange?.from;
-      if (!from) throw new Error("缺少已授权的章节范围。");
-      const chapter = await tx.chapter.findFirstOrThrow({where: {novelId, order: from}, select: {id: true, order: true, taskSheet: true, sceneCards: true, targetWordCount: true, mustAvoid: true}});
-      if (!chapter.taskSheet?.trim() || !chapter.sceneCards?.trim()) throw new Error("请保存完整的章节执行计划。");
-      content = chapter;
+      content = await readExecutionContracts(tx, input.contract);
       break;
     }
     case "chapter_batch_closed": {

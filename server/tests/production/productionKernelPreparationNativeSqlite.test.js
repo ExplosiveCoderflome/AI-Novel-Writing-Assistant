@@ -1,5 +1,13 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {nativeFixture}=require('./preparation/nativeFixture.cjs');
+test('native preparation preserves confirmed scenes while building the writer plan',async t=>{
+ const f=await nativeFixture(t,'confirmed_contract');
+ const read=()=>f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'},select:{taskSheet:true,sceneCards:true}});
+ const before=await read();assert.ok(before.taskSheet && before.sceneCards);
+ await f.execute();
+ assert.deepEqual(await read(),before);
+ assert.deepEqual(f.state.requests.map(row=>row.assetId),['planner.chapter.plan']);
+});
 for(const fault of [null,'after_models','assembly'])test(`native preparation uses persisted contract and planner results across ${fault||'normal execution'}`,async t=>{
  const f=await nativeFixture(t,fault),before=await f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'}});
  let reply;

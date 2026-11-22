@@ -1,4 +1,5 @@
 import type { StepContext, StepHandler, StepResult } from "../../application";
+import { savedExecutionContract } from "../../domain";
 
 interface PlannedContract {
   id: string; chapterId?: string | null; chapterOrder: number;
@@ -72,9 +73,7 @@ export function createExecutionContractSyncStepHandler<Document extends Contract
       for (const key of ["targetWordCount", "conflictLevel", "revealLevel", "mustAvoid"] as const) {
         if (plan[key] !== undefined && (chapter[key] ?? null) !== (plan[key] ?? null)) return integrityStop("目标章节执行参数与保存的规划不一致。");
       }
-      contracts.push({chapterId: chapter.id, chapterOrder: chapter.order, taskSheet: chapter.taskSheet, sceneCards: chapter.sceneCards,
-        targetWordCount: chapter.targetWordCount ?? null, conflictLevel: chapter.conflictLevel ?? null,
-        revealLevel: chapter.revealLevel ?? null, mustAvoid: chapter.mustAvoid ?? null});
+      contracts.push(savedExecutionContract(chapter));
     }
     return {artifact: {scope: context.contract.scope, status: approvedPlanVersionId ? "confirmed" : "draft", protectedUserContent: false,
       contentRef: `chapter_execution_contract:${novelId}:${context.contract.scope}:${startOrder}-${endOrder}`,
