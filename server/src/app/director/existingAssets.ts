@@ -51,12 +51,25 @@ export async function readExistingAssets(contract: RunContract): Promise<Existin
         if (unique && routes.length >= minimum) add("volume_chapter_list", routes, true, `volume_chapter_list:${novelId}:${targetId}`);
       }
     }
-    const from = contract.chapterRange?.from;
-    if (from) {
-      const planned = workspace.volumes.flatMap(item => item.chapters).filter(item => item.chapterOrder === from);
-      if (planned.length === 1 && planned[0].taskSheet?.trim() && planned[0].sceneCards?.trim()) add("chapter_task_sheet", planned[0]);
-      const saved = chapters.find(item => item.order === from);
-      if (saved?.taskSheet?.trim() && saved.sceneCards?.trim()) add("chapter_execution_contract", {id: saved.id, taskSheet: saved.taskSheet, sceneCards: saved.sceneCards});
+    const range = contract.chapterRange;
+    if (range) {
+      const inRange = (order: number) => order >= range.from && order <= range.to;
+      const planned = workspace.volumes.flatMap(item => item.chapters).filter(item => inRange(item.chapterOrder))
+        .sort((a, b) => a.chapterOrder - b.chapterOrder);
+      const complete = planned.length === range.to - range.from + 1 && planned.every((item, index) =>
+        item.chapterOrder === range.from + index && item.taskSheet?.trim() && item.sceneCards?.trim()
+        && (!contract.launchInput?.targetVolumeId || item.volumeId === contract.launchInput.targetVolumeId));
+      if (complete) {
+        add("chapter_task_sheet", planned);
+        const saved = chapters.filter(item => inRange(item.order));
+        const contractFields = ["taskSheet", "sceneCards", "targetWordCount", "mustAvoid", "conflictLevel", "revealLevel"] as const;
+        if (saved.length === planned.length && saved.every((item, i) => item.order === planned[i].chapterOrder
+          && (!planned[i].chapterId || item.id === planned[i].chapterId)
+          && contractFields.every(key => (item[key] ?? null) === (planned[i][key] ?? null)))) {
+          add("chapter_execution_contract", saved.map(({ id, order, taskSheet, sceneCards, targetWordCount, mustAvoid, conflictLevel, revealLevel }) =>
+            ({ id, order, taskSheet, sceneCards, targetWordCount, mustAvoid, conflictLevel, revealLevel })));
+        }
+      }
     }
   }
   return assets;

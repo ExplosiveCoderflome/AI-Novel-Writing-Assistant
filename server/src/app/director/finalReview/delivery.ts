@@ -58,7 +58,7 @@ export async function exportFinalManuscript(novelId: string, version: string) {
       const approval = await tx.directorFinalApproval.findUnique({ where: { novelId } });
       if (approval?.confirmedVersion !== version || manuscriptVersion !== version)
         throw new AppError("请先确认当前全书稿件，再下载 TXT。", 409);
-      return buildNovelTxtExport({ title: book.title, description: book.description, chapters: rows });
+      return buildNovelTxtExport({ title: book.title, description: book.description, confirmedManuscript: true, chapters: rows });
     },
     { isolationLevel: "Serializable" },
   );

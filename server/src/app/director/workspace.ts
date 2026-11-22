@@ -6,7 +6,9 @@ import type {SimpleCreationShelfProjection,VolumePlanDocument} from "@ai-novel/s
 import {readChapterQualityDebtDetails,hasChapterQualityLoopReplanRequiredRiskFlags} from "@ai-novel/shared/types/chapterQualityLoop";
 import {normalizeVolumeWorkspaceDocument} from "../../services/novel/volume/volumeWorkspaceDocument";
 import {AppError} from "../../middleware/errorHandler";
-import {FactIntegrityError,PrismaRunRepository} from "../../modules/director";
+import {FactIntegrityError,PrismaRunRepository, type RunContract} from "../../modules/director";
+import {readRunExecutionEpoch} from "../../modules/novel/director-routing";
+import {MANUAL_CHAPTER_PLAN_VERSION} from "./productionKernel/manual/contract";
 import {resolveSavedReviewContexts,type SavedReviewContext} from "./projections/confirmationRoutes";
 import {canApproveProse,chapterApprovalFingerprint} from "./revisions/chapterReview";
 import {applySavedChapterPlanFields} from "./productionInputs";
@@ -20,7 +22,7 @@ export {readDirectorLedgers} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {
-  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{world:true,novelWorld:true,bookContract:true,manuscriptProject:{select:{id:true}},characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
+  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{storyMacroPlan:{select:{storyInput:true}},world:true,novelWorld:true,bookContract:true,manuscriptProject:{select:{id:true}},characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
   const [activeChapters, bookDirector, characterForwardPlanNotices] = await Promise.all([
     novel.manuscriptProject ? readActiveManuscriptChapters(prisma, novelId) : null,
@@ -39,6 +41,16 @@ export async function readDirectorWorkspace(novelId: string) {
   const runs=new PrismaRunRepository();
   const runId=await runs.findActiveRunIdByNovel(novelId);
   const contract=runId ? await runs.getContract(runId) : null, control=runId ? await runs.getControl(runId) : null;
+  let continuationRun = contract?.runId === bookDirector?.runId ? contract : null;
+  if (bookDirector && (!continuationRun || continuationRun.planVersion === MANUAL_CHAPTER_PLAN_VERSION)) {
+    const latest = await prisma.directorNextRun.findFirst({
+      where: {novelId, planVersion: {not: MANUAL_CHAPTER_PLAN_VERSION}}, orderBy: [{createdAt: "desc"}, {id: "desc"}],
+      select: {contractJson: true},
+    });
+    continuationRun = latest && readRunExecutionEpoch(latest.contractJson) === novel.directorEpoch
+      ? JSON.parse(latest.contractJson) as RunContract : null;
+  }
+  const continuationStoryInput = continuationRun?.launchInput?.storyInput ?? novel.storyMacroPlan?.storyInput ?? novel.description;
   let reviewContexts:SavedReviewContext[]=[],reviewContextError:string|null=null;
   try {if(contract && control) reviewContexts=await resolveSavedReviewContexts({contract,control});}
   catch(error) {if(!(error instanceof FactIntegrityError)) throw error;reviewContextError=error.message;}
@@ -62,7 +74,7 @@ export async function readDirectorWorkspace(novelId: string) {
     return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:trimmedContent ? Array.from(trimmedContent).length:0,updatedAt:chapter.updatedAt.toISOString()};
   });
   const outlinePreparation=outlineBinding ? {storyMacro:await new StoryMacroPlanService().getPlan(novelId),hasBookContract:Boolean(novel.bookContract),worldMode:contract?.launchInput?.worldMode} : undefined;
-  return {...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,proseReviewHashes,chapterReviewFingerprint,reviewContextError,characterForwardPlanNotices,
+  return {continuationStoryInput,...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,proseReviewHashes,chapterReviewFingerprint,reviewContextError,characterForwardPlanNotices,
     executionPlans:effectiveChapters.map(({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})=>({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})),
     materials:{description:novel.description,characterCount:novel.characters.length,volumeCount:planning.volumes.length,openQualityDebtCount:chapters.filter(chapter=>chapter.qualityDebt).length,
       story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null,

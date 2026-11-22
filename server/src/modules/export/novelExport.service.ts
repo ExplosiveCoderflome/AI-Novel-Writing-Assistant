@@ -72,6 +72,7 @@ export class NovelExportService {
       throw new AppError("小说不存在。", 404);
     }
 
+    let confirmedManuscript = false;
     if (checkFinalApproval && novel.narrativeForm === "long_novel" && !novel.manuscriptProject
       && novel.directorVersion !== "v1" && novel.estimatedChapterCount) {
       const isDirectorBook = novel.directorVersion === "v2"
@@ -88,12 +89,14 @@ export class NovelExportService {
             sourceRoute: `/lab/director/${encodeURIComponent(novelId)}?delivery=review`, sourceActionLabel: "打开完稿检查",
           });
         }
+        confirmedManuscript = true;
       }
     }
     const activeChapters = novel.manuscriptProject ? await readActiveManuscriptChapters(prisma as never, novelId) : null;
     return {
       title: novel.title,
       description: novel.description,
+      confirmedManuscript,
       narrativeForm: novel.narrativeForm,
       shortStoryContent: novel.shortStorySegments
         .map((segment) => segment.content.trim())
