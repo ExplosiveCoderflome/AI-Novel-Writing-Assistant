@@ -81,6 +81,10 @@
 
 - 导演 V2 的角色抽屉可打开「与 AI 编辑角色资料」。可对照并逐项采纳性格、经历、外貌等修改。卷章规划和正文生成前可改名，保存后可继续核对阵容。
 
+#### 优化（开发版）
+
+- AI 实况按调用用途显示提示词名称，可以直接区分全书主线、创作约定、世界设定、伏笔更新和世界片段。
+
 [查看完整更新历史](docs/releases/release-notes.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 
 正式桌面版以 GitHub Release 的 **v0.8.12** 发布页为准。五平台安装包齐备前，可从上方下载入口获取最近已发布的版本。历史版本中，`v0.8.4` 缺 Windows 包，`v0.8.3` 无安装包，`v0.8.2` 的标签也不对应可下载版本。
