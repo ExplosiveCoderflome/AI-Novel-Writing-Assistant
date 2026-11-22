@@ -16,7 +16,7 @@ This roadmap explains what the project can already help you accomplish, which ar
 
 ## Currently Available Complete Pipelines
 
-As of v0.8.7, the project's core goal remains helping users with no novel-writing experience move from an idea to an exportable full manuscript. The following five pipelines are all available.
+As of v0.8.12, the project's core goal remains helping users with no novel-writing experience move from an idea to an exportable full manuscript. The following five pipelines are all available.
 
 ### 1. Finding a Book Direction
 
@@ -29,13 +29,17 @@ You can choose an entry point based on your readiness:
 | Write like this book | You have a book breakdown reference | Completed |
 | Create manually | You already have a title, synopsis, and basic settings | Completed |
 
+Starting in v0.8.12, if you only have a vague feeling, you can pick one or several inspiration stars in the story constellation to start a book. The AI offers two story directions; each title shows its central conflict first, and you can compare "what the opening offers" and "what keeps readers following" side by side.
+
 Related pages: [Trending Genre Radar](/en/features/market-radar) · [Book Breakdown workbench](/en/features/book-analysis) · [Novels & Starting a Book](/en/features/novels)
 
 ### 2. Full-Book Planning via Auto Director
 
 Auto Director can continuously advance project settings, story macro-planning, character preparation, volume strategy, chapter planning, and body text production. Simple mode highlights reading, progress, and continue creation; Professional mode provides full materials, chapter controls, proofreading, recovery, and export entries.
 
-Starting in v0.8.0, a standalone Outline Workbench is added, supporting outline project creation, Markdown or TXT import, editing and revision, history viewing, and starting a book from an adopted outline. The fully automatic writing path without a bound outline remains unchanged.
+Starting in v0.8.0, a standalone Outline Workbench is added, supporting outline project creation, Markdown or TXT import, editing and revision, history viewing, and starting a book from an adopted outline. The fully automatic writing path without a bound outline remains unchanged. Starting in v0.8.11, you can chat with the Outline Partner to draft or revise a full outline; starting in v0.8.12, outlines can arrange beats and chapters within each volume and carry the confirmed chapter order into a new book.
+
+When Director V2 runs in "confirm by stage" mode, you can confirm characters one by one, discuss each volume outline, and then adjust chapter tasks, scenes, and prose chapter by chapter. Continuations build on the confirmed drafts.
 
 Related pages: [Auto Director](/en/features/auto-director) · [Outline Workbench](/en/features/outline-workbench) · [Director Follow-up](/en/features/director-follow-up)
 
@@ -55,7 +59,7 @@ Related pages: [Prompt Management](/en/features/prompt-management) · [Knowledge
 
 ### 5. Recovering Long Tasks and Exporting Results
 
-Run History preserves stages and error reasons for long tasks such as Auto Director, book breakdown, and batch generation. When model balance or quota is insufficient, or quality-priority rules require confirmation, tasks preserve completed body text and recovery position; after handling model configuration or confirmation issues, you can continue from the unfinished chapter. Professional creation supports exporting the full book TXT body text in chapter order; project assets can still be exported in Markdown or JSON.
+Run History preserves stages and error reasons for long tasks such as Auto Director, book breakdown, and batch generation. When model balance or quota is insufficient, or quality-priority rules require confirmation, tasks preserve completed body text and recovery position; after handling model configuration or confirmation issues, you can continue from the unfinished chapter. Professional creation supports exporting the full book TXT body text in chapter order; project assets can still be exported in Markdown or JSON. After a V2 long novel is finished, you can run a full-book final check first: review each chapter and its transitions, accept edits, and then export the confirmed manuscript.
 
 Related pages: [Run History](/en/features/task-center) · [System Settings](/en/system-settings)
 
@@ -87,7 +91,7 @@ These directions have long-term value but will not be prioritized above main-cha
 | Long-range context memory | Keep world rules, character states, timelines, foreshadowing, and writing style stably participating in generation during the later parts of long novels | Planned |
 | Cross-book asset reuse | Reuse genre bases, progression modes, world samples, character profiles, and style assets, while preserving source and applicability boundaries | Planned |
 | Quality report and centralized rework | Aggregate chapter-level quality debt into an understandable, batch-processable full-book report | Planned |
-| Narrative engine workbench | Turn world, character, factions, resources, and events into observable,推演-capable creative assets, but must reduce rather than increase beginner burden | Planned |
+| Narrative engine workbench | Turn world, character, factions, resources, and events into observable, simulatable creative assets, but must reduce rather than increase beginner burden | Planned |
 | Visual adaptation pipeline | After the novel main chain stabilizes, continue improving comic, animated comic, and short drama character consistency, shot continuity, and final export | In progress |
 | Desktop install and self-service ops | Continue simplifying model vendor configuration, local knowledge base storage, and common error recovery | In progress |
 
@@ -108,6 +112,11 @@ These directions have long-term value but will not be prioritized above main-cha
 | v0.8.5 | 2026-11-14 | Fixed Windows release packaging, installers for all five platforms, faster release checks |
 | v0.8.6 | 2026-11-15 | Thinking off by default for new providers, compatibility probes retry on rate limits, BLG championship easter egg |
 | v0.8.7 | 2026-11-16 | Readable errors for outline "interactive refinement" proposals, book-level plan generation retries on token limits with one-click recovery |
+| v0.8.8 | 2026-11-17 | Higher automatic output allowance with a budget breakdown, effective allowance and finish reason in "AI Usage", chapter-by-chapter outline confirmation links to saved prose |
+| v0.8.9 | 2026-11-19 | Read a finished long novel and export it as TXT, book analysis reruns only missing parts, chapter generation honors the model route's output allowance and resumes from saved progress |
+| v0.8.10 | 2026-11-20 | V2 adjusts character state, goals, and arc from the next unfinished chapter, Linux AppImage startup fix, larger allowance for book world generation |
+| v0.8.11 | 2026-11-21 | Character-focused discussion in the Outline Workbench, Outline Partner chat, manual add, search, and linked navigation in the outline directory |
+| v0.8.12 | 2026-11-22 | Story constellation for starting books, staged review in Director V2, full-book final check, outline beats, easier-to-read director workspace and character graph |
 
 ## Reading Suggestions
 

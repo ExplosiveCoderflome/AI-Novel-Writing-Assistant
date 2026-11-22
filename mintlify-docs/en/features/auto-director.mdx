@@ -56,6 +56,69 @@ flowchart TD
 
 The current mode is shown next to the book title and at the top of the director console; subsequent main text batches follow the selected mode.
 
+## Starting a Book: Story Constellation and Direction Comparison
+
+If you only have a vague sense of the book, open the **story constellation** in the starting-idea stage. Based on the genre base and progression style you chose, the AI generates concrete material in seven categories: protagonist's opening situation, genre setting, golden finger / core advantage, first-chapter hook, early goal, core obstacle, and key relationship.
+
+- Each star is one idea; click it to read the full setting. Viewing a star does not collect it, so browsing other stars never changes what you have collected.
+- You can collect at most one star per category. With nothing collected, you can start from the star you are viewing; with several collected, the AI combines them into one opening idea.
+- If the selected ideas cannot coexist naturally, the AI points out the specific contradiction and suggests a trade-off. Your picks are kept so you can adjust and combine again.
+- "Another set" regenerates the material while keeping your chosen genre and progression style.
+
+The combined idea is written back into the idea input and then moves on to **direction candidates**. Each round offers two distinct story routes:
+
+- Each title shows the character's central conflict first, then lets you compare "what the opening offers" and "what keeps readers following" side by side.
+- The opening assistant on the right discusses the current candidate. Check the changes you want and save them together; anything else can be raised later in the discussion.
+- If neither fits, click "Neither fits, try another batch", fill in your requirements, then click "Generate new round". Earlier rounds stay available for comparison.
+- Click "Use this one" at the end of a candidate to confirm the direction. V2 also offers "Use and confirm stage by stage" and "Use and prepare automatically"; the book's first run follows the choice made here.
+
+<Tip>
+  The generation rules for opening directions and titles can be viewed and customized in [Prompt Management](/en/features/prompt-management).
+</Tip>
+
+## Confirm by Stage: Staged Review
+
+When V2 runs in "confirm by stage" mode, every confirmation stage lets you discuss the result with the AI, choose which edits to accept against the original draft, and then confirm to continue.
+
+| Confirmation stage | What you can do |
+| --- | --- |
+| Character lineup | Discuss one character at a time and adjust personality, story role, and goal; edits are kept when you switch characters, and you confirm the whole lineup once |
+| Volume outline | Switch between volumes and accept suggestions item by item for the volume's story, reader expectations, climax, and lead-in to the next volume, or just ask questions |
+| Chapter tasks and scenes | Discuss tasks and scenes chapter by chapter and submit edits for several chapters together; "Confirm this batch and continue writing" also approves the writing requirements for the batch |
+| Batch prose | Discuss and accept paragraph replacements; untouched paragraphs keep their indentation, blank lines, and line breaks. Choose "Confirm this batch only" or "Confirm and keep writing" the next batch |
+
+- Accepting a suggestion only updates the current edit draft, which you can keep editing by hand. Outdated suggestions never overwrite what you just wrote.
+- Confirmed character and volume outline edits carry into the next planning step, and stage-by-stage continuation builds on the confirmed chapter tasks and scenes.
+- When new prose raises characters that need review, you can handle them in the batch prose confirmation dialog.
+- If a character needs to change mid-book, you can adjust their state, goal, and arc starting from the next unfinished chapter. A preview of affected chapter plans appears before saving, and finished prose is not changed.
+
+## Full-Book Final Check
+
+When a V2 long novel reaches its full-book target, the source page and chapter bookshelf point to the book's **final check**.
+
+<Steps>
+  <Step title="Start the check">
+    Each chapter is checked on its own and for its transitions with adjacent chapters. Every issue is marked with its paragraph and the original sentence.
+  </Step>
+  <Step title="Discuss with the original sentence">
+    Discuss a specific issue with the AI, then keep the original or accept paragraph replacements one by one.
+  </Step>
+  <Step title="Confirm and export">
+    Once every chapter has been checked, confirm the final manuscript and export the whole book as TXT. The export keeps the original indentation, blank lines, and line breaks.
+  </Step>
+</Steps>
+
+You start both the check and the discussions yourself, and they do not use a director run. If the prose changes after confirmation, you need to confirm again; the confirmed version can be downloaded again at any time.
+
+## Reading in the Director Workspace
+
+- The left catalog is organized by volume, beat, and chapter, with sections below grouped by purpose: story and world, foreshadowing and inventory, and character profiles.
+- Each volume synopsis bolds the volume's key conflict and turning point so you can skim the main line of each volume.
+- The right panel shows progress and the next step; on wide screens you can expand foreshadowing, inventory, and story materials.
+- Drag the dividers between panes to resize them; the widths are remembered.
+- The **character graph** arranges characters by role: protagonists first, then allies and mentors, opponents and sources of pressure, and everyone else. Links follow cards as you drag them, positions are remembered after refresh, and you can restore the automatic layout at any time. The graph shows the latest state of the whole book and may include later plot points.
+- The **character timeline** separates planned appearances from actual appearances, and consecutive chapters are joined into one segment.
+
 ## Why Full Auto May Still Stop
 
 Full auto continues executing within your authorized scope; **after the scope is complete, you must choose the next segment**. For example, if you submit Chapters 1 to 3, it will not arbitrarily write Chapter 4 after completion.
