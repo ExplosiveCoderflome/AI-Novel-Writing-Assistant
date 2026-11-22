@@ -7,7 +7,7 @@ import { AppError } from "../../../middleware/errorHandler";
 import { PrismaRunRepository } from "../../../modules/director";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import type { PromptExecutionOptions } from "../../../prompting/core/promptTypes";
-import { volumeSummaryEmphasisPrompt } from "../../../prompting/prompts/novel/volume/summaryEmphasis.prompt";
+import { volumeEmphasisInstructions, volumeSummaryEmphasisPrompt } from "../../../prompting/prompts/novel/volume/summaryEmphasis.prompt";
 import { resolveDataRoot } from "../../../runtime/appPaths";
 import { readNovelBookDirector } from "../../../services/novel/catalog";
 import { normalizeVolumeWorkspaceDocument } from "../../../services/novel/volume/volumeWorkspaceDocument";
@@ -17,7 +17,7 @@ import { directorVolumeChapterPlanFilter } from "../planning";
 const inFlight = new Map<string, Promise<AnchoredVolumeEmphasis[]>>();
 
 async function annotateBatch(volumes: VolumeEmphasisSource[], options: PromptExecutionOptions) {
-  const key = createHash("sha256").update(JSON.stringify([volumeSummaryEmphasisPrompt.version, options.novelId, volumes])).digest("hex");
+  const key = createHash("sha256").update(JSON.stringify([volumeSummaryEmphasisPrompt.version, volumeEmphasisInstructions, options.novelId, volumes])).digest("hex");
   const pending = inFlight.get(key);
   if (pending) return pending;
   const dir = path.join(resolveDataRoot(), "storage", "volume-summary-emphasis");
