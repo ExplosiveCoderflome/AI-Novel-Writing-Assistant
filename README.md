@@ -79,6 +79,8 @@
 
 [查看完整更新历史](docs/releases/release-notes.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 
+正式桌面版以 GitHub Release 的 **v0.8.12** 发布页为准。五平台安装包齐备前，可从上方下载入口获取最近已发布的版本。历史版本中，`v0.8.4` 缺 Windows 包，`v0.8.3` 无安装包，`v0.8.2` 的标签也不对应可下载版本。
+
 ## 现在已经能做什么
 
 | 你想完成的事 | 工作台怎样帮助你 | 了解更多 |
