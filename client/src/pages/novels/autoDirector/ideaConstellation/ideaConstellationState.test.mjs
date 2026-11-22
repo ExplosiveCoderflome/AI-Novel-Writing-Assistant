@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  orderIdeaConstellationOptions,
+  groupIdeaConstellationOptions,
   selectRotatingFoundationOptions,
   toggleIdeaConstellationSelection,
 } from "./ideaConstellationState.ts";
@@ -33,7 +33,7 @@ test("story constellation replaces the previous option in the same category", ()
   assert.deepEqual(next.map((item) => item.id), ["setting-1", "protagonist-2"]);
 });
 
-test("story constellation interleaves five visible options from all seven web-novel categories", () => {
+test("the chart and reading list share seven ordered groups of five materials", () => {
   const categories = [
     "protagonist",
     "setting",
@@ -46,10 +46,9 @@ test("story constellation interleaves five visible options from all seven web-no
   const options = categories.flatMap((category) => (
     Array.from({ length: 5 }, (_, index) => option(`${category}-${index + 1}`, category, `${category}${index + 1}`))
   ));
-  const ordered = orderIdeaConstellationOptions(options);
-
-  assert.equal(ordered.length, 35);
-  assert.deepEqual(ordered.slice(0, 7).map((item) => item.category), categories);
+  const groups = groupIdeaConstellationOptions([...options].reverse());
+  assert.deepEqual(groups.map((group) => group.category), categories);
+  assert.deepEqual(groups.flatMap((group) => group.options), options);
 });
 
 test("foundation options rotate while keeping the current selection visible", () => {

@@ -317,6 +317,7 @@ test("idea constellation generates seven concrete web-novel material categories 
   assert.match(loaders, /novel\.director\.idea_constellation_compose@v2/);
   assert.match(controller, /generateDirectorIdeaConstellationOptions\(buildIdeaContextPayload\(\)\)/);
   assert.doesNotMatch(controller, /buildStaticIdeaConstellationOptions/);
-  assert.match(dialog, /const plotOptions = orderedOptions/);
-  assert.match(dialog, /selected\.length}\/7 类开书素材/);
+  assert.match(dialog, /groupIdeaConstellationOptions\(options\)/);
+  assert.match(dialog, /<StoryStarChart groups=\{groups\}/);
+  assert.match(dialog, /candidates\.map\(\(option\)/);
 });

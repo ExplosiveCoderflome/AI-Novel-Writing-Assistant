@@ -21,16 +21,13 @@ export interface FoundationConstellationOption {
   hint: string;
 }
 
-export function orderIdeaConstellationOptions(
+export function groupIdeaConstellationOptions(
   options: DirectorIdeaConstellationOption[],
-): DirectorIdeaConstellationOption[] {
-  const byCategory = new Map(DIRECTOR_IDEA_CONSTELLATION_CATEGORIES.map((category) => [
+) {
+  return DIRECTOR_IDEA_CONSTELLATION_CATEGORIES.map((category) => ({
     category,
-    options.filter((option) => option.category === category).sort((left, right) => left.id.localeCompare(right.id)),
-  ]));
-  return Array.from({ length: 5 }, (_, optionIndex) => (
-    DIRECTOR_IDEA_CONSTELLATION_CATEGORIES.map((category) => byCategory.get(category)?.[optionIndex])
-  )).flat().filter((option): option is DirectorIdeaConstellationOption => Boolean(option));
+    options: options.filter((option) => option.category === category).sort((a, b) => a.id.localeCompare(b.id)),
+  }));
 }
 
 export function toggleIdeaConstellationSelection(
