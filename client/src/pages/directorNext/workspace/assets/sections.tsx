@@ -1,14 +1,14 @@
 import type {ReactNode} from "react";
 
-export function SavedFields({fields, lead = false, empty = "这一部分尚未保存详细设定。"}: {fields: [string, string | null | undefined][]; lead?: boolean; empty?: string}) {
+export function SavedFields({fields, lead = false, empty = "这一部分尚未保存详细设定。"}: {fields: [string, string | null | undefined, ReactNode?][]; lead?: boolean; empty?: string}) {
   const saved = fields.filter(([,value]) => value?.trim());
   if (!saved.length) return <p className="text-sm leading-7 text-muted-foreground">{empty}</p>;
   return <dl className="grid grid-cols-1 gap-x-8 gap-y-5 [@container_(min-width:56rem)]:grid-cols-2">
-    {saved.map(([label,value], index) => {
+    {saved.map(([label,value,formattedValue], index) => {
       const primary = lead && index === 0;
       return <div key={label} className={primary ? "col-span-full min-w-0" : "min-w-0"}>
         <dt className="text-sm font-semibold">{label}</dt>
-        <dd className={`mt-1 max-w-[46em] whitespace-pre-wrap break-words ${primary ? "text-lg leading-8" : "text-sm leading-7 text-foreground/80"}`}>{value}</dd>
+        <dd className={`mt-1 max-w-[46em] whitespace-pre-wrap break-words ${primary ? "text-lg leading-8" : "text-sm leading-7 text-foreground/80"}`}>{formattedValue ?? value}</dd>
       </div>;
     })}
   </dl>;

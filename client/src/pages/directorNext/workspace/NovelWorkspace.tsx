@@ -14,6 +14,7 @@ import {followedWorkspaceSelection} from "../generation";
 import {sameSelection} from "./planning";
 import type {WorkspaceChapter} from "./model";
 import {useReadingDisplayPreferences} from "./reading";
+import {VolumeEmphasisProvider} from "./reading/VolumeSummaryEmphasis";
 import {LedgerView} from "./ledgers";
 import {CastTimeline} from "./characters/CastTimeline";
 import { CharacterForwardAdjustDialog } from "./characters/CharacterForwardAdjustDialog";
@@ -83,8 +84,10 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
         : chapter ? <ChapterReader key={`${chapter.id}:${editedChapter?.id===chapter.id ? editedChapter.revision : 0}`} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange} onEdit={canEditChapter ? editChapter : undefined}/>
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} onSelect={select} preview={preview} />}
     </section>;
+  const showVolumeSummary = savedReview ? savedReview.type === "volume_strategy" : selected.kind === "volumes" || selected.kind === "volume";
+  const readingPane = showVolumeSummary && !preview ? <VolumeEmphasisProvider book={book}>{content}</VolumeEmphasisProvider> : content;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-    {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={20} minLeft={180} minRight={340} breakpoint={560} left={directory} right={content}/> : <>{directory}{content}</>}
+    {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={20} minLeft={180} minRight={340} breakpoint={560} left={directory} right={readingPane}/> : <>{directory}{readingPane}</>}
     {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}/> : null}
     {character && characterAdjustment ? <CharacterForwardAdjustDialog novelId={book.novel.id} character={character} initialPreview={characterAdjustment} onClose={() => setAdjustment(null)}/> : null}
   </div>;

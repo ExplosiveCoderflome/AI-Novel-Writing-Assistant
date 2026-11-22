@@ -19,6 +19,7 @@ export interface DirectorNextHttpDeps {
   readNovelInvocation?: (novelId: string, invocationId: string) => Promise<unknown>;
   readNovelUsage?: (novelId: string, query: {limit?: number; cursor?: string; chapterId?: string; stage?: string; provider?: string; model?: string; status?: "completed" | "partial" | "failed"}) => Promise<unknown>;
   readWorkspace?: (novelId: string) => Promise<unknown>;
+  annotateVolumeSummaries?: (novelId: string, ids: string[]) => Promise<unknown>;
   readLedgers?: (novelId: string) => Promise<unknown>;
   readCharacterAppearances?: (novelId: string, characterId: string) => Promise<unknown>;
   readNovelCharacterAppearances?: (novelId: string) => Promise<unknown>;
@@ -188,6 +189,14 @@ export function createDirectorNextRouter(deps: DirectorNextHttpDeps): Router {
     if (!id.success) {sendValidationError(res,id.error);return;}
     if (!deps.readWorkspace) {res.status(404).json({success:false,error:"小说内容入口未配置。"});return;}
     res.json({success:true,data:await deps.readWorkspace(id.data)});
+  }));
+  router.post("/novels/:novelId/volume-summary-emphasis",asyncRoute(async(req,res)=>{
+    const id = nonEmpty.safeParse(req.params.novelId);
+    if (!id.success) {sendValidationError(res,id.error);return;}
+    const input = z.object({volumeIds:z.array(nonEmpty).min(1).max(8)}).safeParse(req.body);
+    if (!input.success) {sendValidationError(res,input.error);return;}
+    if (!deps.annotateVolumeSummaries) {res.status(404).json({success:false,error:"卷纲重点标注不可用。"});return;}
+    res.json({success:true,data:await deps.annotateVolumeSummaries(id.data, input.data.volumeIds)});
   }));
   router.get("/novels/:novelId/ledgers",asyncRoute(async(req,res)=>{
     const id=nonEmpty.safeParse(req.params.novelId);

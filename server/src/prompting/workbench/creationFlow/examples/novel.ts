@@ -56,6 +56,7 @@ const novelShortStorySegmentWriteExamplePlan = {
 };
 
 export const novelExamples: Record<string, unknown> = {
+  "novel.volume.summary_emphasis@v1": { volumes: [{ id: "v1", title: "封港", summary: "船队被困在封冻的港口，船长决定弃船走陆路。", pressure: "补给将尽", climax: "全队转走陆路" }] },
   "novel.character.initial_schedule@v1": {
     title: "〈标题〉",
     characters: [{ id: "〈编号〉", name: "〈名称〉", role: "〈身份〉", castRole: "〈阵容职责〉" }],

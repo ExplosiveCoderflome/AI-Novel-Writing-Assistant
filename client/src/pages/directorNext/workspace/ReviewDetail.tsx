@@ -1,3 +1,4 @@
+import {VolumeSummaryText} from "./reading/VolumeSummaryEmphasis";
 import {parseChapterScenePlan} from "@ai-novel/shared/types/chapterLengthControl";
 import type {SavedReview} from "./review";
 import {readableChapter, type WorkspaceBook} from "./model";
@@ -49,7 +50,7 @@ export function ReviewDetail({book,review,readingDisplay,onReadingDisplayChange,
         </AssetSection> : null}
         {book.planning?.volumes.map(volume=><section key={volume.id} className="border-t border-border/40 py-4">
           <h3 className="mb-3 text-xl font-semibold">{volume.title}</h3>
-          <SavedFields lead fields={[["本卷故事",volume.summary],["读者期待",volume.mainPromise],["主要压力",volume.primaryPressureSource]]}/>
+          <SavedFields lead fields={[["本卷故事",volume.summary,<VolumeSummaryText id={volume.id} text={volume.summary}/>],["读者期待",volume.mainPromise],["主要压力",volume.primaryPressureSource]]}/>
           <AssetSection title="本卷推进与收束"><SavedFields fields={[["开篇抓手",volume.openingHook],["本卷看点",volume.coreSellingPoint],["推进方式",volume.escalationMode],["主角变化",volume.protagonistChange],["中段风险",volume.midVolumeRisk],["本卷高潮",volume.climax],["本卷兑现",volume.payoffType],["下卷引线",volume.nextVolumeHook],["重新出发",volume.resetPoint],["待兑现内容",volume.openPayoffs?.join("\n")]]}/></AssetSection>
         </section>)}
       </> : null}

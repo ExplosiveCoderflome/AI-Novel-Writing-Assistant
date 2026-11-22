@@ -40,6 +40,14 @@ export async function getDirectorLedgers(novelId:string):Promise<ApiResponse<Dir
   return (await apiClient.get<ApiResponse<DirectorWorkspaceLedgers>>(`/director-next/novels/${encodeURIComponent(novelId)}/ledgers`)).data;
 }
 
+export async function annotateVolumeSummaries(novelId: string, volumeIds: string[]) {
+  const { data } = await apiClient.post<ApiResponse<import("@ai-novel/shared/types/director/volumeEmphasis").AnchoredVolumeEmphasis[]>>(
+    `/director-next/novels/${encodeURIComponent(novelId)}/volume-summary-emphasis`, {volumeIds}, {errorPresentation:"inline"},
+  );
+  if (!data.data) throw new Error(data.error || "卷纲重点标注不可用。");
+  return data.data;
+}
+
 export async function listLegacyDirectorRuns() {
   const {data} = await apiClient.get<ApiResponse<DirectorRunRecord[]>>("/director-next/legacy-records",{params:{limit:50}});
   return data;

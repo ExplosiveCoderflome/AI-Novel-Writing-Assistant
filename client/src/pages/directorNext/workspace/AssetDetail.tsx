@@ -1,3 +1,4 @@
+import {VolumeSummaryText} from "./reading/VolumeSummaryEmphasis";
 import type { Selection, WorkspaceBook } from "./model";
 import {WorldDetail,StoryDetail,CharacterDetail,CastOverview,PlanningOverview} from "./assets";
 import {CharacterAppearances} from "./characters/CharacterAppearances";
@@ -15,6 +16,6 @@ export function AssetDetail({ book, selected, onCharacter, onSelect, preview=fal
     {selected.kind === "volumes" ? <PlanningOverview book={book} onSelect={onSelect}/> : null}
     {character ? <CharacterDetail character={character} onCharacter={onCharacter} onResources={onSelect ? id=>onSelect({kind:"character_resources",id}) : undefined} canAdjust={!preview}/> : null}
     {character && onSelect ? <CharacterAppearances novelId={book.novel.id} characterId={character.id} boundary="latest" preview={preview} planning={book.planning} notices={book.characterForwardPlanNotices} onSelect={onSelect}/> : null}
-    {volume ? <SavedFields lead fields={[["本卷故事",volume.summary],["本卷看点",volume.mainPromise],["规划章节数",String(volume.chapterCount)]]}/> : null}
+    {volume ? <SavedFields lead fields={[["本卷故事",volume.summary,<VolumeSummaryText id={volume.id} text={volume.summary}/>],["本卷看点",volume.mainPromise],["规划章节数",String(volume.chapterCount)]]}/> : null}
   </div>;
 }

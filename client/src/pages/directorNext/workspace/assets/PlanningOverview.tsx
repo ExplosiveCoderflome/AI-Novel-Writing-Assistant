@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import type { Selection, WorkspaceBook } from "../model";
 import { beatChapterLabel } from "../planning";
 import { AssetSection, SavedFields } from "./sections";
+import { VolumeSummaryText } from "../reading/VolumeSummaryEmphasis";
 
 export function PlanningOverview({book, onSelect}: {book: WorkspaceBook; onSelect?: (selection: Selection) => void}) {
   const strategy = book.planning?.strategyPlan;
@@ -28,7 +29,7 @@ export function PlanningOverview({book, onSelect}: {book: WorkspaceBook; onSelec
             <span className="min-w-0 break-words">{volume.title}</span><ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground"/>
           </button> : volume.title}
         </h3>
-        {volume.summary?.trim() ? <p className="mt-2 max-w-[48em] whitespace-pre-wrap break-words text-base leading-7">{volume.summary}</p> : null}
+        {volume.summary?.trim() ? <p className="mt-2 max-w-[48em] whitespace-pre-wrap break-words text-base leading-7"><VolumeSummaryText id={volume.id} text={volume.summary}/></p> : null}
         {volume.mainPromise?.trim() ? <details className="mt-2" open={!volume.summary?.trim()}>
           <summary className="w-fit cursor-pointer rounded-sm py-1 text-sm font-medium text-muted-foreground hover:text-foreground">读者期待</summary>
           <p className="mt-1 max-w-[48em] whitespace-pre-wrap break-words text-sm leading-7">{volume.mainPromise}</p>

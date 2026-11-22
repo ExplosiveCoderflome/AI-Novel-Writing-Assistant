@@ -1,3 +1,4 @@
+import {VolumeSummaryText} from "./reading/VolumeSummaryEmphasis";
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection } from "./planning";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export function PlanningDetail({book,selected,onSelect,onOpenChapterReview}: {
     {compact ? targets ? <AssetSection title="本章目标">{goal}</AssetSection> : null : <>
       <h2 className="mb-4 text-2xl font-semibold">{selected.kind === "volume" ? volume.title : selected.kind === "beat" ? beat?.title || beat?.label : targets?.title}</h2>
       {selected.kind === "volume" ? <>
-        <SavedFields lead fields={[["本卷故事",volume.summary],["读者期待",volume.mainPromise],["主要压力",volume.primaryPressureSource]]}/>
+        <SavedFields lead fields={[["本卷故事",volume.summary,<VolumeSummaryText id={volume.id} text={volume.summary}/>],["读者期待",volume.mainPromise],["主要压力",volume.primaryPressureSource]]}/>
         {volume.climax || volume.payoffType ? <AssetSection title="本卷高潮与收束"><SavedFields fields={[["本卷高潮",volume.climax],["本卷兑现",volume.payoffType]]}/></AssetSection> : null}
         <h3 className="mt-5 text-sm font-medium">节奏段 · {group.beats.length}</h3>
         {group.beats.map(({beat,chapters})=><button key={beat.key} onClick={()=>onSelect(beatSelection(volume.id,beat))} className="flex w-full justify-between gap-3 border-b border-border/30 py-3 text-left text-sm hover:text-primary"><span>{beat.title || beat.label}</span><span className="text-xs text-muted-foreground">{chapters.filter(row=>row.chapter?.content?.trim()).length}/{chapters.length} 章可阅读</span></button>)}

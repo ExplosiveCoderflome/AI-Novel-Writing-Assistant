@@ -1,4 +1,5 @@
 const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
+  "novel.volume.summary_emphasis": "标出卷纲原文中的冲突与转折",
   "novel.volume.chapter_title_repair": "调整同卷中过于相似的章名",
   "novel.director.cast_dialogue": "导演角色阵容讨论",
   "novel.director.final_inspection": "导演全书完稿检查",
