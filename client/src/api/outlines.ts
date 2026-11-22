@@ -8,6 +8,7 @@ export type { OutlineOpenBookInput, OutlineOpenBookConfirm, OutlineOpenBookPrevi
 export interface OutlineProject {
   id: string;
   title: string;
+  summary?: string | null;
   currentVersion: number;
   updatedAt: string;
   boundNovelId?: string | null;

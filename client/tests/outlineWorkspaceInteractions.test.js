@@ -158,6 +158,31 @@ const change = (el, value) => runtime.act(async () => {
   el.dispatchEvent(new window.Event(el.tagName === "SELECT" ? "change" : "input", { bubbles: true }));
 });
 
+test("大纲列表每份只出现一次，按日期区分同名稿，空列表就近提供三个起步入口", async t => {
+  const projects = [
+    { id: "new", updatedAt: "2026-11-22T12:15:00Z", currentVersion: 4, summary: "一封迟到的信", boundNovelId: "book" },
+    { id: "earlier", updatedAt: "2026-11-22T11:15:00Z", currentVersion: 2 },
+    { id: "old", updatedAt: "2026-11-20T12:15:00Z", currentVersion: 1 },
+  ].map(item => ({ ...item, title: "新故事大纲" }));
+  const { close, writes } = await open(t, "/outlines", url => url === "/outlines" ? projects : undefined);
+  const library = await until(() => document.querySelector(".outline-library"));
+  assert.deepEqual([...library.querySelectorAll(".outline-catalog-link")].map(link => link.getAttribute("href")),
+    ["/outlines/new", "/outlines/earlier", "/outlines/old"]);
+  const latest = library.querySelector(".is-latest");
+  for (const value of ["继续编辑", "修订 v4", "一封迟到的信", "已开书"]) assert.ok(latest.textContent.includes(value));
+  assert.equal(library.querySelectorAll(".outline-day").length, 2);
+  assert.deepEqual([...library.querySelectorAll("time")].map(time => time.dateTime), projects.map(item => item.updatedAt));
+  assert.deepEqual(writes, []);
+  await close();
+  const emptyPage = await open(t, "/outlines");
+  const empty = await until(() => document.querySelector(".outline-library-empty"));
+  assert.deepEqual([...empty.querySelectorAll("button")].map(item => item.textContent), ["从一个想法开始", "空白大纲", "导入大纲"]);
+  assert.equal(document.querySelectorAll(".outline-library-actions").length, 1);
+  await click(button("导入大纲", empty));
+  assert.equal(document.querySelector("#outline-import").hidden, false);
+  assert.deepEqual(emptyPage.writes, []);
+});
+
 test("从故事想法生成初稿，在主栏预览，重进继续追问并采纳", async t => {
   window.localStorage.clear();
   const turns = [];
