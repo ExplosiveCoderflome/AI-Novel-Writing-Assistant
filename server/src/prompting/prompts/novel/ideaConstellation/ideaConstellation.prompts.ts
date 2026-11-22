@@ -20,7 +20,7 @@ export const directorIdeaConstellationOptionsPrompt: PromptAsset<
   z.infer<typeof directorIdeaConstellationOptionsSchema>
 > = {
   id: "novel.director.idea_constellation_options",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -43,6 +43,7 @@ export const directorIdeaConstellationOptionsPrompt: PromptAsset<
       "必须严格输出七类、每类五项，共 35 项：protagonist 主角开局身份与困境、setting 题材舞台与利益规则、advantage 金手指或核心优势、opening_crisis 第一章爆点、core_goal 前期目标与阶段回报、story_variable 核心对手或主要阻力、relationship 能持续推进的关键关系。",
       "每项 label 必须具体、适合点击选择，控制在2到48个字符；需要表达完整设定时可以使用短句，不要为了凑短而丢失关键机制。hint 说明它会怎样落到开局行动、连续升级或读者回报。",
       "同一类别的五项必须有明显差异，不能只是同义改写；35 个 label 不能重复。",
+      "每项都是能单独触发想象的一颗星，读者只选这一项也能开始构思。解释中的人物、条件或代价要能从本项和固定开书上下文读懂。不要按序号预写五套完整剧情，不要让一项依赖另一类同序号的特定人物或专名。",
       "relevance 表示它与当前开书上下文的匹配程度，每类至少一项 high，其余合理分配 medium 或 low。",
       "如果上下文已经给出题材或推进模式，它们是固定创作基础，所有选项必须兼容；缺失信息才允许补足。",
       "protagonist 必须包含题材身份与眼前困境；setting 必须给出可发生事件的具体舞台和利益规则，不能只写世界很残酷。",
@@ -74,7 +75,7 @@ export const directorIdeaConstellationComposePrompt: PromptAsset<
   z.infer<typeof directorIdeaConstellationComposeSchema>
 > = {
   id: "novel.director.idea_constellation_compose",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -84,18 +85,21 @@ export const directorIdeaConstellationComposePrompt: PromptAsset<
   outputSchema: directorIdeaConstellationComposeSchema,
   structuredOutputHint: {
     example: {
+      outcome: "ready",
+      conflictReason: "",
       idea: "末日后的封闭城市里，一名失忆医生为了寻找失踪的妹妹，被迫利用每天重置一次的时间循环追查医院深处的禁忌实验。",
     },
-    note: "idea 是 45-220 字的单段开书想法，不输出标题、Markdown 或额外说明。",
+    note: "ready 时 idea 为 45-220 字单段，conflictReason 留空。conflict 时 idea 留空，conflictReason 用中文指出相冲突的原设定并建议换掉哪一项。",
   },
   render: (input) => [
     new SystemMessage([
       "你是中文网文开书灵感助手，负责把用户亲自选择的故事元素收束成一段可以直接开始创作的起始想法。",
       "必须保留每个已选元素的核心含义，并让它们形成因果关系，不能只把标签机械串联。",
+      "先判断所有已选灵感能否在固定开书上下文中同时成立。单颗灵感可直接展开；跨题材本身不构成冲突。只在保留设定确实无法兼容时输出 conflict，点名具体素材及矛盾，并给出一个最小取舍。不得用强行穿越、梦境、改身份或忽略某项来掩盖矛盾。",
       "优先写清主角的具体身份、金手指或核心优势、第一章发生的事件，以及前期必须完成的目标；不要重新抽象成主题句。",
       "已有题材和推进模式是固定基础，不得擅自更换。即使用户只选择一个元素，也要结合固定基础轻量补足主角、开局行动和长期牵引，让结果可以直接用于开书。",
       "补足内容只用于建立因果，不能压过用户选择，也不要擅自增加另一套复杂主线。",
-      "只写一段 45-220 字的纯文本，不写标题、大纲、结局、Markdown、编号或过程说明。只输出严格 JSON。",
+      "可兼容时输出 ready，idea 写一段 45-220 字的纯文本，不写标题、大纲、结局或 Markdown。只输出严格 JSON。",
     ].join("\n")),
     new HumanMessage([
       "当前开书上下文：",

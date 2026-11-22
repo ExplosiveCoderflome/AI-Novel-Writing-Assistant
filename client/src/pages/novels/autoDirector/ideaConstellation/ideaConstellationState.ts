@@ -1,5 +1,4 @@
 import {
-  DIRECTOR_IDEA_CONSTELLATION_CATEGORIES,
   type DirectorIdeaConstellationCategory,
   type DirectorIdeaConstellationOption,
   type DirectorIdeaConstellationSelection,
@@ -21,13 +20,8 @@ export interface FoundationConstellationOption {
   hint: string;
 }
 
-export function groupIdeaConstellationOptions(
-  options: DirectorIdeaConstellationOption[],
-) {
-  return DIRECTOR_IDEA_CONSTELLATION_CATEGORIES.map((category) => ({
-    category,
-    options: options.filter((option) => option.category === category).sort((a, b) => a.id.localeCompare(b.id)),
-  }));
+export function toIdeaConstellationSelection({ id, category, label, hint }: DirectorIdeaConstellationOption): DirectorIdeaConstellationSelection {
+  return { id, category, label, hint };
 }
 
 export function toggleIdeaConstellationSelection(
@@ -39,7 +33,7 @@ export function toggleIdeaConstellationSelection(
   }
   return [
     ...selected.filter((item) => item.category !== option.category),
-    { id: option.id, category: option.category, label: option.label, hint: option.hint },
+    toIdeaConstellationSelection(option),
   ];
 }
 
