@@ -49,11 +49,22 @@ function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactor
 }
 
 interface StoryField {
-  row: Exclude<CandidateStoryField, "logline"> | "platform" | "foundation";
+  row: CandidateStoryField | "plannedDirection" | "platform" | "foundation";
   value?: string | null;
 }
 
-const fieldLabels = { ...candidateFieldLabel, platform: "平台建议", foundation: "创作基础" };
+const fieldLabels = {
+  ...candidateFieldLabel, plannedDirection: "本案方向", coreConflict: "冲突展开",
+  hookStrategy: "开篇看什么", progressionLoop: "后面追什么", platform: "平台建议", foundation: "创作基础",
+};
+
+// Typeset the saved conflict without rewriting the candidate or clipping a sentence.
+const sentenceBreaks = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("zh", { granularity: "sentence" }) : null;
+function conflictExcerpt(value?: string) {
+  const text = value?.trim() ?? "";
+  const first = sentenceBreaks?.segment(text)[Symbol.iterator]().next().value?.segment ?? text;
+  return { lead: first.trimEnd(), rest: text.slice(first.length).trimStart() };
+}
 
 function StoryFields({ fields, id, hidden }: { fields: StoryField[]; id?: string; hidden?: boolean }) {
   return <dl className="candidate-fields" id={id} hidden={hidden}>
@@ -148,6 +159,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
           <CandidatePairs>{batch.candidates.map((candidate, candidateIndex) => {
             const anchor = candidateAnchor(batch.id, candidate.id);
             const titleOptions = resolveCandidateTitleOptions(candidate);
+            const conflict = conflictExcerpt(candidate.coreConflict);
+            const lead = conflict.lead || candidate.logline;
             const platform = candidate.recommendedWritingPlatform === "qidian_male" ? "起点男频"
               : candidate.recommendedWritingPlatform === "jinjiang_female" ? "晋江女频"
               : candidate.recommendedWritingPlatform === "fanqie_free" ? "番茄免费网文" : "";
@@ -155,29 +168,31 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
               <article key={candidate.id} id={anchor} className="candidate-manuscript" aria-labelledby={anchor + "-title"}>
                 <header>
                   <div className="candidate-byline">
-                    <span>方案 {candidateIndex + 1}</span>
-                    {candidate.plannedDirection && <strong className="candidate-direction-choice">{candidate.plannedDirection}</strong>}
-                    <span>约 {candidate.targetChapterCount} 章</span>
-                  </div>
-                  <div className="candidate-title-row">
-                    <h4 id={anchor + "-title"} tabIndex={-1}>{candidate.workingTitle}</h4>
+                    <span className="candidate-number">方案 {candidateIndex + 1}</span>
                     {discussionKey === anchor && <span className="candidate-discussing"><MessageCircle size={14} />当前讨论方向</span>}
+                    <span className="candidate-length">约 {candidate.targetChapterCount} 章</span>
                   </div>
+                  <h4 className="candidate-book-title" id={anchor + "-title"} tabIndex={-1}>{candidate.workingTitle}</h4>
+                  {lead && <dl className="candidate-lead">
+                    <dt>{conflict.lead ? "核心冲突" : candidateFieldLabel.logline}</dt>
+                    <dd>{lead}</dd>
+                  </dl>}
                   {candidate.toneKeywords.length > 0 && <ul className="candidate-keywords" aria-label="故事关键词">
                     {candidate.toneKeywords.map((keyword, index) => <li key={index}>{keyword}</li>)}
                   </ul>}
-                  <p className="candidate-logline">{candidate.logline}</p>
                 </header>
                 <StoryFields fields={[
-                  { row: "sellingPoint", value: candidate.sellingPoint },
-                  { row: "coreConflict", value: candidate.coreConflict },
-                  { row: "protagonistPath", value: candidate.protagonistPath },
+                  { row: "hookStrategy", value: candidate.hookStrategy },
+                  { row: "progressionLoop", value: candidate.progressionLoop },
                 ]} />
 
                 <CandidateStoryNotes fields={[
+                  { row: "plannedDirection", value: candidate.plannedDirection },
+                  { row: "logline", value: conflict.lead ? candidate.logline : undefined },
+                  { row: "coreConflict", value: conflict.rest },
+                  { row: "sellingPoint", value: candidate.sellingPoint },
+                  { row: "protagonistPath", value: candidate.protagonistPath },
                   { row: "positioning", value: candidate.positioning },
-                  { row: "hookStrategy", value: candidate.hookStrategy },
-                  { row: "progressionLoop", value: candidate.progressionLoop },
                   { row: "endingDirection", value: candidate.endingDirection },
                   { row: "whyItFits", value: candidate.whyItFits },
                   { row: "platform", value: [platform, candidate.writingPlatformReason].filter(Boolean).join(" · ") },

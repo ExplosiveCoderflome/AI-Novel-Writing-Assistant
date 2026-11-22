@@ -8,7 +8,7 @@ import { nodeStyles } from "./support/nodeStyles.js";
 
 test("并排对照从每对方案继承同一组自适应行，窄栏使用自然文流", async () => {
   const source = await readFile(new URL("../src/pages/novels/autoDirector/candidateReview/candidateReviewWorkspace.css", import.meta.url), "utf8");
-  const wide = postcss.parse(source).nodes.find(rule => rule.name === "container" && rule.params === "candidate-list (min-width: 64rem)");
+  const wide = postcss.parse(source).nodes.find(rule => rule.name === "container" && rule.params === "candidate-list (min-width: 52rem)");
   const declarations = selector => {
     const values = {};
     wide.walkRules(rule => {
@@ -17,15 +17,17 @@ test("并排对照从每对方案继承同一组自适应行，窄栏使用自�
     return values;
   };
   const tracks = declarations(".candidate-comparison")["grid-template-rows"].trim().split(/\s+/);
-  const names = ["byline", "title", "keywords", "logline", "sellingPoint", "coreConflict", "protagonistPath", "notes",
-    "positioning", "hookStrategy", "progressionLoop", "endingDirection", "whyItFits", "platform", "foundation", "titleOptions", "decision"];
+  const names = ["byline", "title", "lead", "keywords", "hookStrategy", "progressionLoop", "notes", "plannedDirection", "logline",
+    "coreConflict", "sellingPoint", "protagonistPath", "positioning", "endingDirection", "whyItFits", "platform", "foundation", "titleOptions", "decision"];
   assert.deepEqual(tracks, [...names.flatMap(name => [`[${name}]`, "auto"]), "[end]"]);
   for (const selector of [".candidate-comparison > article", ".candidate-comparison > article > header",
     ".candidate-comparison .candidate-story-notes", ".candidate-comparison .candidate-fields:not([hidden])"]) {
     assert.equal(declarations(selector)["grid-template-rows"], "subgrid");
   }
   assert.equal(declarations(".candidate-comparison .candidate-fields > div")["grid-row"], "var(--candidate-field-row)");
-  assert.equal(declarations(".candidate-comparison .candidate-logline")["grid-row"], "logline", "旧方案缺少关键词时梗概仍横向对齐");
+  assert.equal(declarations(".candidate-comparison .candidate-lead")["grid-row"], "lead");
+  assert.equal(declarations(".candidate-comparison > article > .candidate-fields")["grid-row"], "hookStrategy / notes");
+  assert.equal(declarations(".candidate-comparison .candidate-story-notes > .candidate-fields")["grid-row"], "plannedDirection / titleOptions");
 });
 
 test("开书候选共用右栏，同名方案跨轮切换时保留各自输入与开书范围", async t => {
@@ -88,9 +90,9 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
       hookStrategy: `开篇场景${i + 1}`, endingDirection: `结局${i + 1}` }],
   }));
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "another", workingTitle: "夜船", coreConflict: "守桥",
-    plannedDirection: "接力运走名册上仍活着的人",
+    plannedDirection: "接力运走名册上仍活着的人", progressionLoop: "沿河追查名册",
     toneKeywords: ["双线追查", "身份错位"], protagonistPath: "从逃避到守护", writingPlatformReason: "适合悬疑连载" });
-  batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影" });
+  batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影", coreConflict: undefined });
   let cleanup;
   try {
     await act(async () => { cleanup = mount(batches, (candidate, batch, mode) => confirmations.push([candidate.id, batch.id, mode]), input => newRounds.push(input)); });
@@ -110,11 +112,22 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.equal(document.getElementById(first).closest(".candidate-comparison"), null, "单方案轮次独立排版");
     const rowNames = id => [...document.getElementById(id).querySelectorAll(".candidate-fields > div")]
       .map(field => field.style.getPropertyValue("--candidate-field-row"));
-    assert.deepEqual(rowNames(second), ["sellingPoint", "coreConflict", "hookStrategy", "endingDirection"]);
-    assert.deepEqual(rowNames(third), ["sellingPoint", "coreConflict", "protagonistPath", "hookStrategy", "endingDirection", "platform"]);
+    assert.deepEqual(rowNames(second), ["hookStrategy", "logline", "coreConflict", "sellingPoint", "endingDirection"]);
+    assert.deepEqual(rowNames(third), ["hookStrategy", "progressionLoop", "plannedDirection", "logline", "sellingPoint", "protagonistPath", "endingDirection", "platform"]);
+    const secondStory = document.getElementById(second);
+    const thirdStory = document.getElementById(third);
+    const legacyStory = document.getElementById(last);
+    assert.equal(secondStory.querySelector(".candidate-book-title + .candidate-lead dd").textContent, "渡船失踪。");
+    assert.equal(secondStory.querySelector(".candidate-lead dd").textContent
+      + secondStory.querySelector('[data-field="coreConflict"] dd').textContent, batches[1].candidates[0].coreConflict);
+    assert.equal(thirdStory.querySelector(".candidate-lead dd").textContent, "守桥");
+    assert.deepEqual([...thirdStory.querySelectorAll(":scope > .candidate-fields dt")].map(term => term.textContent), ["开篇看什么", "后面追什么"]);
+    assert.equal(legacyStory.querySelector(".candidate-lead dt").textContent, "一句话故事");
+    assert.equal(legacyStory.querySelector(".candidate-lead dd").textContent, "渡船送信");
+    assert.equal(legacyStory.querySelector('[data-field="logline"]'), null);
     assert.ok(!document.getElementById(second).querySelector(".candidate-keywords"));
-    assert.ok(!document.getElementById(second).querySelector(".candidate-direction-choice"), "旧方案保留原来的阅读方式");
-    assert.equal(document.getElementById(third).querySelector("header .candidate-direction-choice").textContent, "接力运走名册上仍活着的人");
+    assert.equal(secondStory.querySelector('[data-field="plannedDirection"]'), null);
+    assert.equal(thirdStory.querySelector('.candidate-story-notes [data-field="plannedDirection"] dd').textContent, "接力运走名册上仍活着的人");
     assert.deepEqual([...document.getElementById(third).querySelectorAll(".candidate-keywords li")].map(item => item.textContent), ["双线追查", "身份错位"]);
     assert.equal(reader.querySelectorAll('.candidate-story-notes > button[aria-expanded="true"]').length, 4);
     const toggle = document.getElementById(second).querySelector(".candidate-story-notes > button");
