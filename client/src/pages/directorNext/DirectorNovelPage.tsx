@@ -68,7 +68,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
       : reviewType === "character_cast" || reviewType === "volume_strategy" ? input => <DirectorReviewAssetEditor book={book} type={reviewType} {...input}/>
       : undefined;
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1920px] flex-col gap-3">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3">
       <header className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border/60 pb-2">
         <div className="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 lg:basis-auto">
           <h1 title={book?.novel.title} className="min-w-0 truncate text-lg font-semibold">{book?.novel.title ?? "小说创作"}</h1>
@@ -94,7 +94,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
       {book?.outlineBinding ? <OutlineBookSource binding={book.outlineBinding}/> : null}
       {follow.disconnected ? <p role="status" className="text-xs text-muted-foreground">正文预览连接中断，正在重新连接。创作任务继续运行。</p> : null}
       {preview ? <details className="rounded-md bg-muted/30 px-4 py-3"><summary className="cursor-pointer text-xs text-muted-foreground">示例预览 · 切换导演状态</summary><p className="mt-3 text-xs text-muted-foreground">本页使用示例内容，创作命令禁用。</p><div className="mt-3 flex flex-wrap gap-2">{previewStates.map((state) => <Button key={state.id} size="sm" variant={(params.get("state") ?? "running") === state.id ? "default" : "ghost"} onClick={() => setParams({ state: state.id })}>{state.label}</Button>)}</div></details> : null}
-      <ResizableWorkspace id="director-novel-layout" className="min-h-0 flex-1" label="调整正文与导演台宽度" defaultLeft={76} minLeft={580} minRight={280} breakpoint={920} left={<div className="flex h-full min-h-0 min-w-0 flex-col">
+      <ResizableWorkspace id="director-novel-layout" className="min-h-0 flex-1" label="调整正文与导演台宽度" defaultLeft={78} minLeft={580} minRight={280} breakpoint={920} left={<div className="flex h-full min-h-0 min-w-0 flex-col">
           {!preview && bookQuery.isError ? <div role="alert" className="mb-4 space-y-2 rounded-md bg-destructive/5 p-4"><p className="text-sm text-destructive">本书内容读取失败。{book ? "你仍可查看上次读取的内容。" : ""}</p><Button variant="outline" size="sm" onClick={() => void bookQuery.refetch()}>重新读取本书</Button></div> : null}
           {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} onOpenChapterReview={preview ? undefined : ()=>setParams({review:"chapter_task_sheet"})} followGeneration={follow.enabled && !editingChapterId && !adjustingCharacter} generation={follow.snapshot} activity={view?.workspaceActivity} onEditChapter={preview ? undefined : setEditingChapterId} editedChapter={editedChapter} onAdjustingCharacter={setAdjustingCharacter} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
         </div>} right={directorOpen ? <aside aria-label="导演台" className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain">

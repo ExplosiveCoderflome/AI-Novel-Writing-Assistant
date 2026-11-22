@@ -10,7 +10,7 @@ export function AssetDetail({ book, selected, onCharacter, onSelect, preview=fal
   const { materials } = book;
   const character = selected.kind === "character" ? materials.characters.find(row => row.id === selected.id) : null;
   const volume = selected.kind === "volume" ? materials.volumes.find(row => row.id === selected.id) : null;
-  return <div className="mx-auto max-w-[42rem] px-2 pb-10 sm:px-6">
+  return <div className="min-w-0 px-2 pb-10 [container-type:inline-size] sm:px-6">
     <p className="mb-3 text-xs tracking-widest text-muted-foreground">本书资料</p>
     <h2 className="mb-5 text-2xl font-semibold">{character?.name ?? volume?.title ?? (selected.kind === "world" ? materials.world?.name ?? "世界设定" : selected.kind === "characters" ? "角色阵容" : selected.kind === "volumes" ? "分卷与章节规划" : "故事规划")}</h2>
     {selected.kind === "story" ? <StoryDetail materials={materials}/> : null}

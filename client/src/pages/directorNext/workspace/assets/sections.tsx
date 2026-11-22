@@ -2,8 +2,8 @@ import type {ReactNode} from "react";
 
 export function SavedFields({fields, empty = "这一部分尚未保存详细设定。"}: {fields: [string, string | null | undefined][]; empty?: string}) {
   const saved = fields.filter(([,value]) => value?.trim());
-  return saved.length ? <dl className="space-y-4">{saved.map(([label,value]) => <div key={label}>
-    <dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-base leading-8">{value}</dd>
+  return saved.length ? <dl className="grid grid-cols-1 gap-x-8 gap-y-4 [@container_(min-width:56rem)]:grid-cols-2">{saved.map(([label,value]) => <div key={label} className="min-w-0">
+    <dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-base leading-8">{value}</dd>
   </div>)}</dl> : <p className="text-sm leading-7 text-muted-foreground">{empty}</p>;
 }
 
