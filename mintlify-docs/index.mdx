@@ -16,8 +16,6 @@ keywords:
 
 <div className="bn-boot" data-bn-boot="ink" aria-hidden="true" />
 
-<BnIntro />
-
 <XzIntro />
 
 <HomeFx>
@@ -25,7 +23,7 @@ keywords:
     <div>
       <BnHero />
 
-      <BnTyping />
+      <InnNotes />
 
       <BnShelf />
 
@@ -43,7 +41,7 @@ keywords:
     <div>
       <XzHero />
 
-      <XzScroll />
+      <InnNotes paper={true} />
 
       <XzShelf />
 
@@ -62,30 +60,6 @@ keywords:
 
 export const BnHero = () => {
   const canvasRef = useRef(null);
-  const full = "走向一本完整小说";
-  const [typed, setTyped] = useState("");
-  const SAMPLE_IDEA = "飞升天梯堵了三百年，我在第九千级开了家客栈。";
-  const SAMPLE_TITLE = "第三章　雷劫券";
-  const SAMPLE = ["第九千级的风很硬。客栈门口的队伍排进了云里，看不见尾。", "一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。", "“抵三十年房钱。”", "林砚翻开账簿，又合上。", "不收。", "“您欠的是一百年。”他把券推回去，“而且天门不开，这张券，三百年内都用不上。”"];
-  const SAMPLE_LEN = SAMPLE.join("").length;
-  const [chars, setChars] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(full); return; }
-    let i = 0;
-    const t = setInterval(() => {
-      i += 1;
-      setTyped(full.slice(0, i));
-      if (i >= full.length) clearInterval(t);
-    }, 160);
-    return () => clearInterval(t);
-  }, []);
-
-  useEffect(() => {
-    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setChars(SAMPLE_LEN); return; }
-    const t = setInterval(() => { if (!document.hidden) setChars((n) => (n >= SAMPLE_LEN + 60 ? 0 : n + 1)); }, 60);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -128,10 +102,6 @@ export const BnHero = () => {
     return () => { cancelAnimationFrame(raf); ro.disconnect(); if (io) io.disconnect(); };
   }, []);
 
-  let offset = 0;
-  const shown = SAMPLE.map((p) => { const s = p.slice(0, Math.max(0, chars - offset)); offset += p.length; return s; });
-  const done = chars >= SAMPLE_LEN;
-  const cur = done ? SAMPLE.length - 1 : shown.findIndex((s, i) => s.length < SAMPLE[i].length);
 
   return (
     <div className="not-prose bn-hero">
@@ -170,39 +140,66 @@ export const BnHero = () => {
         @keyframes bnFloat{0%,100%{transform:translateY(0) rotate(1deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
       `}</style>
       <canvas ref={canvasRef} />
-      <div className="bn-wrap">
-        <div>
-          <span className="bn-tag"><span className="bn-dot" />v0.8.11 · 开源 · AGPL-3.0</span>
-          <h1 className="bn-h1">从一句灵感，<br /><span className="bn-grad">{typed}</span><span className="bn-caret" /></h1>
-          <p className="bn-sub">Biz Novel Studio 是开源的 AI 小说创作工作台。AI 帮你规划世界与角色、逐章写作、检查和保存，让长篇创作有一条可以继续走下去的路。</p>
-          <div className="bn-btns">
-            <a className="bn-btn bn-pri" href="/quickstart">开始使用 →</a>
-            <a className="bn-btn bn-sec" href="/installation">下载桌面版</a>
-            <a className="bn-btn bn-sec" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
-          </div>
-          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
-            <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=0b1210&color=16A34A" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
-          </a>
-        </div>
-        <div className="bn-book">
-          <div className="bn-page bn-back" aria-hidden="true" />
-          <a className="bn-page" href="/showcase/xianxia" aria-label="查看仙侠题材完整样章">
-            <div className="bn-ch">样章 · 仙侠修真</div>
-            <div className="bn-idea">灵感：{SAMPLE_IDEA}</div>
-            <div className="bn-title">{SAMPLE_TITLE}</div>
-            <div className="bn-prose" aria-hidden="true">
-              {shown.map((s, i) => i <= cur ? (
-                <p key={i}>{s}{!done && i === cur && <span className="bn-pc" />}</p>
-              ) : null)}
-            </div>
-            <div className="bn-foot">
-              <span className="bn-check" style={{ opacity: done ? 1 : 0 }}>✓ 章节检查通过</span>
-              <span className="bn-more">看完整样章 →</span>
-            </div>
-          </a>
-        </div>
-      </div>
+      <InnOpening />
     </div>
+  );
+};
+
+export const InnOpening = ({ paper = false }) => {
+  const [choice, setChoice] = useState(null);
+  const paths = [
+    { label: "收下，但加个条件", text: "林砚把券压在砚台下。“三十年房钱，剩下七十年，您替我守夜。”那人刚要点头，门外排队的客人齐齐往后退了一步。" },
+    { label: "退回去，追问来历", text: "林砚把券翻了个面。“天门三百年没开过。守将的私印，你从哪儿弄的？”客人伸手来取，那枚朱印还没干，在他指腹上留下了半个‘门’字。" }
+  ];
+  return (
+    <section className={"not-prose inn-open" + (paper ? " inn-paper" : "")}>
+      <style>{`
+        .inn-open{--io-accent:#a7efbe;--io-line:#3c5e48;--io-page:#101b15;--io-primary:#aceec0;--io-label:#0c2114;position:relative;z-index:2;max-width:1080px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.98fr);grid-template-areas:'head sample' 'actions sample';column-gap:clamp(28px,6vw,80px);align-content:center;cursor:auto;color:#edf6ef}
+        .inn-open.inn-paper{--io-accent:#942f24;--io-line:#a69a81;--io-page:#faf6ea;--io-primary:#983326;--io-label:#fff8eb;color:#271f19}
+        .inn-head{grid-area:head;align-self:end}.inn-head h1{margin:0;font-family:'Songti SC','STSong',serif;font-size:clamp(32px,4.2vw,58px);line-height:1.32;text-wrap:balance;color:inherit}.inn-head p{margin:20px 0 0;max-width:32em;line-height:1.8}
+        .inn-sample{grid-area:sample;min-width:0;border:1px solid var(--io-line);background:var(--io-page);padding:clamp(18px,3vw,36px);border-radius:3px 14px 14px 3px}.inn-sample h2{margin:0 0 16px;font:600 1.1rem/1.5 'Songti SC','STSong',serif;color:var(--io-accent)}.inn-sample blockquote{border:0;padding:0;margin:0;font:normal 1.05rem/1.85 'Songti SC','STSong',serif;color:inherit}.inn-sample blockquote p{margin:0 0 8px}.inn-question{margin:20px 0 8px;font-weight:700}.inn-caption{font-size:.85rem;line-height:1.6;margin:0 0 12px}
+        .inn-choices,.inn-actions>div{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center}.inn-choices button{font:inherit;font-size:.92rem;cursor:pointer;color:inherit;background:transparent;border:1px solid var(--io-line);padding:9px 13px;border-radius:6px}.inn-choices button:hover{border-color:var(--io-accent)}.inn-choices button[aria-pressed=true]{background:var(--io-primary);border-color:var(--io-primary);color:var(--io-label)}.inn-result p{margin:18px 0 0;border-top:1px solid var(--io-line);padding-top:14px;line-height:1.85}
+        .inn-actions{grid-area:actions;align-self:start;margin-top:24px}.inn-actions a{color:var(--io-accent);text-underline-offset:4px}.inn-actions .inn-start{font-weight:700;color:var(--io-label);background:var(--io-primary);padding:10px 16px;border-radius:6px;text-decoration:none}.inn-actions p{font-size:.875rem;margin:12px 0 0;line-height:1.7}.inn-open :is(a,button):focus-visible{outline:2px solid var(--io-accent);outline-offset:3px}
+        @media(max-width:760px){.inn-open{grid-template-columns:minmax(0,1fr);grid-template-areas:'head' 'sample' 'actions';gap:20px}.inn-head p{margin-top:10px}.inn-actions{margin:0}}
+      `}</style>
+      <div className="inn-head">
+        <h1>飞升天梯堵了三百年，我在第九千级开了家客栈。</h1>
+        <p>Biz Novel Studio 是开源的 AI 小说创作工作台。先读一段仙侠样章：掌柜翻开账簿，下一句由你来选。</p>
+      </div>
+      <article className="inn-sample">
+        <h2>第三章 · 雷劫券</h2>
+        <blockquote><p>一位化神大能把一张紫金色的券拍在柜台上：雷劫券，九道天雷，可转让。</p><p>“抵三十年房钱。”</p><p>林砚翻开账簿，又合上。</p></blockquote>
+        <p className="inn-question">这张雷劫券，你收不收？</p>
+        <p className="inn-caption">两段续文都是预写示例，不调用模型。</p>
+        <div className="inn-choices" role="group" aria-label="选择续写方向">{paths.map((p, i) => <button type="button" key={p.label} aria-pressed={choice === i} onClick={() => setChoice(i)}>{p.label}</button>)}</div>
+        <div className="inn-result" role="status" aria-atomic="true">{choice !== null && <p>{paths[choice].text}</p>}</div>
+      </article>
+      <div className="inn-actions">
+        <div><a className="inn-start" href="/quickstart">跟着教程写第一章</a><a href="/showcase/xianxia">先读一篇样章</a></div>
+        <p><a href="/installation">下载桌面版</a>，写作前需自行配置模型 API。</p>
+      </div>
+    </section>
+  );
+};
+
+export const InnNotes = ({ paper = false }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <section className={"not-prose inn-notes" + (paper ? " inn-paper" : "")}>
+      <style>{`
+        .inn-notes{background:#05080a;color:#e7f5ec;padding:40px 24px}.inn-notes.inn-paper{background:#f3ede1;color:#271f19;font-family:'Songti SC','STSong',serif}.inn-notes-inner{max-width:1080px;margin:auto}.inn-notes summary{width:fit-content;cursor:pointer;padding:8px 0;font-weight:600}.inn-notes summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}.inn-notes h2{display:inline;margin:0;color:inherit;font-size:clamp(20px,3vw,30px)}.inn-notes dl{max-width:50rem;margin:12px 0 24px}.inn-notes dt{font-weight:700;margin-top:14px}.inn-notes dd{margin:3px 0 0;line-height:1.7}.inn-notes .inn-process{margin-top:8px}.inn-notes .inn-process summary{text-decoration:underline;text-underline-offset:4px}
+      `}</style>
+      <div className="inn-notes-inner">
+        <details><summary><h2>写到下一章，还要记住什么？</h2></summary>
+          <dl>
+            <dt>人物：客人欠了一百年房钱</dt><dd>哪怕掌柜收下这张抵三十年的券，账上也该剩七十年。写下一次讨债前，先核对这笔账。</dd>
+            <dt>世界规则：天门还没开</dt><dd>天梯已经堵了三百年。若有人在下一章飞升，先交代天门为什么会开。</dd>
+            <dt>伏笔：这张券暂时用不上</dt><dd>券背面却盖着天门守将的私印。先把印记留下，等守将出场时再揭来历。</dd>
+          </dl>
+        </details>
+        <details className="inn-process" onToggle={(event) => setShow(event.currentTarget.open)}><summary>看创作过程</summary>{show && (paper ? <XzScroll /> : <BnTyping />)}</details>
+      </div>
+    </section>
   );
 };
 
@@ -487,25 +484,25 @@ export const BnShelf = () => {
 
 export const BnTyping = () => {
   const STEPS = [
-    { k: "灵感", t: "我有一个想写的故事点子" },
-    { k: "方向候选", t: "生成可选书级方向和标题组" },
-    { k: "世界搭建", t: "世界骨架、规则、势力和地点" },
-    { k: "角色生成", t: "角色候选和阵容草案" },
-    { k: "章节细化", t: "章节任务单、场景卡和目标" },
-    { k: "正文生成", t: "按章节任务生成正文草稿" },
+    { k: "灵感", t: "在飞升天梯上开一家客栈。" },
+    { k: "世界", t: "天门三百年没开，客人一直住着。" },
+    { k: "角色", t: "林砚管账，一位化神大能欠他百年房钱。" },
+    { k: "章节", t: "让客人拿雷劫券抵账，把难题交给掌柜。" },
+    { k: "正文", t: "“您欠的是一百年。”他把券推回去。" },
   ];
   const [step, setStep] = useState(0);
   const [chars, setChars] = useState(0);
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setStep(STEPS.length - 1); setChars(STEPS[STEPS.length - 1].t.length); return;
+    }
     const cur = STEPS[step].t;
     if (chars < cur.length) {
       const t = setTimeout(() => setChars((c) => c + 1), 70);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => {
-      if (step < STEPS.length - 1) { setStep(step + 1); setChars(0); }
-      else { setStep(0); setChars(0); }
-    }, step === STEPS.length - 1 ? 3200 : 700);
+    if (step === STEPS.length - 1) return;
+    const t = setTimeout(() => { setStep(step + 1); setChars(0); }, 500);
     return () => clearTimeout(t);
   }, [step, chars]);
   const writing = step === STEPS.length - 1;
@@ -535,7 +532,7 @@ export const BnTyping = () => {
         <div>
           <div className="bn-tk">FROM IDEA TO NOVEL</div>
           <h2 className="bn-th">一句灵感，一路展开成正文</h2>
-          <div className="bn-tp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
+          <div className="bn-tp">这段演示把《雷劫券》拆开来看：先定天门的规矩，再给掌柜一笔收不回的账。等客人把券拍到柜台上，两个人就有话可说了。</div>
         </div>
         <div className="bn-win" aria-live="polite">
           <div className="bn-bar"><i /><i /><i /><span>Biz Novel Studio · 新建小说</span></div>
@@ -1498,8 +1495,6 @@ export const XzIntro = () => {
 
 export const XzHero = () => {
   const PAPER = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35  0 0 0 0 .28  0 0 0 0 .18  0 0 0 .09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
-  const colA = "从一句灵感".split("");
-  const colB = "走向一本完整小说".split("");
   const [drops, setDrops] = useState([]);
   const heroRef = useRef(null);
   const PETALS = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
@@ -1531,6 +1526,7 @@ export const XzHero = () => {
     };
   }, []);
   const onDrop = (e) => {
+    if (e.target.closest('button,a') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const r = e.currentTarget.getBoundingClientRect();
     const id = Date.now() + Math.random();
     setDrops((d) => [...d.slice(-5), { id, x: e.clientX - r.left, y: e.clientY - r.top }]);
@@ -1598,32 +1594,7 @@ export const XzHero = () => {
       <div className="xz-bloom" style={{ left: "70%", top: "52%", width: 220, height: 220, animationDelay: "6s" }} />
       {PETALS.map((p, i) => <span key={i} className={"xz-petal " + p.tone} style={{ left: p.left + "%", width: p.size, height: Math.round(p.size * 0.8), animationDuration: p.dur + "s", animationDelay: p.delay + "s", "--dx": p.dx + "px" }} />)}
       {drops.map((d) => <div key={d.id} className="xz-drop" style={{ left: d.x, top: d.y }} />)}
-      <div className="xz-wrap">
-        <div className="xz-title" aria-label="从一句灵感，走向一本完整小说">
-          <div className="xz-col">
-            {colA.map((c, i) => <span key={i} className="xz-ch" style={{ animationDelay: 0.2 + i * 0.18 + "s" }}>{c}</span>)}
-          </div>
-          <div className="xz-col b">
-            {colB.map((c, i) => <span key={i} className={"xz-ch" + (i >= 4 ? " hl" : "")} style={{ animationDelay: 1.2 + i * 0.18 + "s" }}>{c}</span>)}
-            <div style={{ marginTop: 22 }}><span className="xz-seal" style={{ writingMode: "horizontal-tb" }}>开源<br />创作</span></div>
-          </div>
-        </div>
-        <div className="xz-left">
-          <div className="xz-k">AI NOVEL STUDIO</div>
-          <div className="xz-name">Biz Novel Studio</div>
-          <div className="xz-rule" />
-          <p className="xz-p">开源的 AI 小说创作工作台。AI 帮你规划世界与角色、逐章写作、检查和保存，让长篇创作有一条可以继续走下去的路。</p>
-          <div className="xz-btns">
-            <a className="xz-btn xz-red" href="/quickstart">开始使用</a>
-            <a className="xz-btn" href="/installation">下载桌面版</a>
-            <a className="xz-btn" href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant">GitHub</a>
-          </div>
-          <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/stargazers" onClick={(e) => e.stopPropagation()} style={{ display: "inline-block", marginTop: 22 }} aria-label="GitHub Star 数">
-            <img src="https://img.shields.io/github/stars/ExplosiveCoderflome/AI-Novel-Writing-Assistant?style=for-the-badge&logo=github&label=Star&labelColor=1c1a17&color=b4382a" alt="GitHub Stars" style={{ height: 28, display: "block" }} />
-          </a>
-          <div className="xz-hint">v0.8.11 · AGPL-3.0 · 点击纸面，滴一滴墨</div>
-        </div>
-      </div>
+      <InnOpening paper={true} />
       <div className="xz-mt" aria-hidden="true">
         <svg className="xz-m1" viewBox="0 0 2400 260" preserveAspectRatio="none">
           <path fill="#6d6a63" d="M0 260V120Q120 40 260 110T520 80Q640 20 780 100T1040 90Q1120 60 1200 120V260ZM1200 260V120Q1320 40 1460 110T1720 80Q1840 20 1980 100T2240 90Q2320 60 2400 120V260Z" />
@@ -1642,31 +1613,28 @@ export const XzHero = () => {
 
 export const XzScroll = () => {
   const STEPS = [
-    { k: "灵感", t: "我有一个想写的故事点子" },
-    { k: "方向", t: "生成可选书级方向和标题组" },
-    { k: "世界", t: "世界骨架规则势力和地点" },
-    { k: "角色", t: "角色候选和阵容草案" },
-    { k: "章节", t: "章节任务单场景卡和目标" },
-    { k: "正文", t: "按章节任务生成正文草稿" },
+    { k: "灵感", t: "天梯上开客栈。" },
+    { k: "世界", t: "天门三百年未开。" },
+    { k: "角色", t: "掌柜林砚，手里有本账。" },
+    { k: "章节", t: "客人想拿雷劫券抵房钱。" },
+    { k: "正文", t: "“您欠的是一百年。”" },
   ];
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(-1);
   const [chars, setChars] = useState(0);
   useEffect(() => {
-    if (!open) {
-      const t = setTimeout(() => { setOpen(true); setStep(0); setChars(0); }, 600);
-      return () => clearTimeout(t);
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setOpen(true); setStep(STEPS.length - 1); setChars(STEPS[STEPS.length - 1].t.length); return;
     }
+    if (!open) { setOpen(true); setStep(0); return; }
     if (step < 0) return;
     const cur = STEPS[step].t;
     if (chars < cur.length) {
       const t = setTimeout(() => setChars((c) => c + 1), 90);
       return () => clearTimeout(t);
     }
-    const t = setTimeout(() => {
-      if (step < STEPS.length - 1) { setStep(step + 1); setChars(0); }
-      else { setOpen(false); setStep(-1); }
-    }, step === STEPS.length - 1 ? 3600 : 500);
+    if (step === STEPS.length - 1) return;
+    const t = setTimeout(() => { setStep(step + 1); setChars(0); }, 500);
     return () => clearTimeout(t);
   }, [open, step, chars]);
   return (
@@ -1700,7 +1668,7 @@ export const XzScroll = () => {
             <div className="xz-hk">一 · 展卷</div>
             <h2 className="xz-hh">一句灵感，徐徐展开成书</h2>
           </div>
-          <div className="xz-hp">你只需要先有一个想法。工作台把方向、世界、人物和章节一层层接起来，最后按章节任务写出正文，每一步都留下可继续使用的资料。</div>
+          <div className="xz-hp">这段演示把《雷劫券》拆开来看：先定天门的规矩，再给掌柜一笔收不回的账。等客人把券拍到柜台上，两个人就有话可说了。</div>
         </div>
         <div className="xz-roll">
           <div className="xz-rod r" />
