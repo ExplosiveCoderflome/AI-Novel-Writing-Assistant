@@ -69,13 +69,18 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
       if (changes.some(item => !Object.hasOwn(input.draft, item.field))) throw new AppError("建议涉及当前编辑稿以外的内容，请重新讨论。", 422);
       const edits = changes.filter(item => input.draft[item.field] !== item.value)
         .map(item => ({ ...item, before: input.draft[item.field] }));
+      const unchanged = changes.length - edits.length;
+      const visibleReply = unchanged ? [
+        replyText,
+        edits.length ? `有 ${unchanged} 项建议与当前稿一致，另有 ${edits.length} 项修改可逐项选择。` : "本轮建议与当前稿一致，可以直接保留原文。",
+      ].join("\n\n") : replyText;
       await this.db.$transaction(async tx => {
         const latest = await this.read(tx, a);
         if (Object.keys(latest.resource.base).length !== fields.length || fields.some(field => latest.resource.base[field] !== input.base[field])) {
           throw new AppError("讨论期间资料有更新，请读取新稿再讨论。", 409);
         }
         await AgentConversationStore.complete(tx, scopeKey, input.requestId, edits.length ? input.requestId : null,
-          replyText, edits.length ? JSON.stringify(edits) : undefined);
+          visibleReply, edits.length ? JSON.stringify(edits) : undefined);
       }, { isolationLevel: "Serializable" });
     }, error => error instanceof AppError ? error.message : "本轮讨论未完成，可以用这条要求重试。");
   }

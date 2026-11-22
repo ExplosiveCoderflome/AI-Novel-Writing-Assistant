@@ -65,7 +65,8 @@ export default function DirectorPanel({ view, novelId, timeline = [], preview = 
   return (
     <aside className="flex min-h-0 flex-col gap-0 bg-background" aria-label="小说导演台">
       <DirectorBadge view={badgeView} novelId={novelId} preview={preview} currentNavigationTarget={reviewTarget} openRunLabel={outlineBound ? "选择下一章并确认" : undefined} />
-      {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}/> : null}
+      {!preview ? <DirectorCharacterCandidates page={candidatePage} runId={view.runId} novelId={novelId}
+        proseReview={view.availableActions.some(action => action.id === "review:chapter_batch_closed")}/> : null}
       {candidates.isError ? <p role="alert" className="py-2 text-xs text-destructive">人物候选暂时未能加载，请稍后重试。</p> : null}
       {view.mode === "paused" && view.chapterBudget ? <ChapterBudgetRecovery key={`${view.runId}:${view.sourceTrace.controlVersion}:${view.chapterBudget.chapterId}`}
         budget={view.chapterBudget} runId={view.runId} novelId={novelId} expectedVersion={view.sourceTrace.controlVersion} disabled={preview || reviewingCharacters}/> : null}

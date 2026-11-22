@@ -8,6 +8,7 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import type { WorkspaceChapter } from "../../model";
 import { applyReviewSuggestions } from "../discussion/draft";
 import { ReviewDiscussion } from "../discussion/ReviewDiscussion";
+import DirectorCharacterCandidates, { useDirectorCharacterCandidates } from "@/components/directorNext/characters/DirectorCharacterCandidates";
 
 interface Props {
   novelId: string;
@@ -86,6 +87,14 @@ export function DirectorProseReview({
     },
   });
   const busy = mutation.isPending;
+  const candidates = useDirectorCharacterCandidates(runId, true).data?.data;
+  const blockingReviews = candidates?.reviews.filter(review => review.blocking &&
+    opened.some(({chapter}) => chapter.id === review.chapterId) && review.items.some(item => item.status === "pending")) ?? [];
+  const needsCharacters = !busy && blockingReviews.length > 0;
+  const charactersPanel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (needsCharacters) charactersPanel.current?.focus();
+  }, [needsCharacters]);
   function close() {
     if (!busy) {
       if (pending) setDiscard(true);
@@ -122,11 +131,11 @@ export function DirectorProseReview({
                 返回
               </Button>
               {next && (
-                <Button variant="outline" disabled={busy} onClick={() => mutation.mutate(false)}>
+                <Button variant="outline" disabled={busy || needsCharacters} onClick={() => mutation.mutate(false)}>
                   只确认本批
                 </Button>
               )}
-              <Button disabled={busy} onClick={() => mutation.mutate(Boolean(next))}>
+              <Button disabled={busy || needsCharacters} onClick={() => mutation.mutate(Boolean(next))}>
                 {busy ? "正在保存并同步正文…" : nextLabel ? `确认并继续写${nextLabel}` : "确认本批正文"}
               </Button>
             </>
@@ -134,7 +143,13 @@ export function DirectorProseReview({
         }
       >
         <div className="min-w-0 space-y-4 lg:overflow-y-auto lg:pr-3">
-          {mutation.isError && (
+          {needsCharacters && candidates && (
+            <div ref={charactersPanel} tabIndex={-1}>
+              <DirectorCharacterCandidates page={{...candidates, reviews: blockingReviews}} runId={runId}
+                novelId={novelId} proseReview onResolved={() => mutation.reset()}/>
+            </div>
+          )}
+          {mutation.isError && !needsCharacters && (
             <p role="alert" className="text-sm text-destructive">
               {mutation.error.message}
             </p>

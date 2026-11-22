@@ -179,6 +179,7 @@ test("a chosen paragraph in chapter three is synchronized before the authorized 
             ? [
                 { paragraph: 2, value: "他握住门闩。", reason: "动作代替解释" },
                 { paragraph: 1, value: "门被推开了。", reason: "另一种开场" },
+                { paragraph: 3, value: story.fields["3"], reason: "保留原句" },
               ]
             : [],
       },
@@ -190,6 +191,8 @@ test("a chosen paragraph in chapter three is synchronized before the authorized 
   assert.equal((await post(url + "/turns", base)).status, 202);
   const reply = await turn(url, base.requestId);
   assert.equal(reply.status, "completed", reply.replyText);
+  assert.match(reply.replyText, /1 项建议与当前稿一致，另有 2 项修改/);
+  assert.equal(reply.result.changes.length, 2);
   const picked = reply.result.changes[0],
     draft = { ...story.fields, [picked.field]: picked.value };
   assert.equal(picked.before, "他停下来。");
