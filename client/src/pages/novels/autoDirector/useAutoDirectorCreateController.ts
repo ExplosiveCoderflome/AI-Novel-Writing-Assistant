@@ -239,11 +239,11 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setIdea(buildInitialIdea(directorBasicForm));
   }, [directorBasicForm, idea]);
 
-  const buildAutoExecutionPlanForRunMode = (): DirectorAutoExecutionPlan | undefined => {
-    if (runMode === "full_book_autopilot") {
+  const buildAutoExecutionPlanForRunMode = (mode = runMode): DirectorAutoExecutionPlan | undefined => {
+    if (mode === "full_book_autopilot") {
       return buildFullBookAutopilotExecutionPlan();
     }
-    if (runMode === "auto_to_execution") {
+    if (mode === "auto_to_execution") {
       return buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, {
         usage: "new_book",
         maxChapterCount: authorEstimatedChapterCount(directorBasicForm),
@@ -488,15 +488,15 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   });
 
   const confirmMutation = useMutation({
-    mutationFn: async (payload: { candidate: DirectorCandidate; batch: DirectorCandidateBatch; workflowTaskId?: string }) => {
+    mutationFn: async (payload: { candidate: DirectorCandidate; batch: DirectorCandidateBatch; workflowTaskId?: string; mode: DirectorRunMode }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
       if (!requestIdea) {
         throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
       }
-      const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
+      const autoExecutionPlan = buildAutoExecutionPlanForRunMode(payload.mode);
       const response = await confirmDirectorCandidate({
         directorVersion,
-        ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, runMode, currentWorkflowTaskId, {
+        ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, payload.mode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
           worldSetupMode,
           marketBriefId,
@@ -506,7 +506,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         candidate: payload.candidate,
         autoExecutionPlan,
         autoApproval: {
-          ...autoApprovalDraft.buildPayload(runMode),
+          ...autoApprovalDraft.buildPayload(payload.mode),
         },
         issueGovernanceVersion: issuePolicy ? 1 : undefined,
         issuePolicy: issuePolicy ?? undefined,
@@ -684,7 +684,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     }
   };
 
-  const handleConfirmCandidate = async (candidate: DirectorCandidate, batch: DirectorCandidateBatch) => {
+  const handleConfirmCandidate = async (candidate: DirectorCandidate, batch: DirectorCandidateBatch, mode = runMode) => {
     if (confirmSubmitLockedRef.current || confirmMutation.isPending) {
       return;
     }
@@ -702,7 +702,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         });
       }
       confirmMutation.mutate({
-        candidate, batch,
+        candidate, batch, mode,
         workflowTaskId: currentWorkflowTaskId,
       });
     } catch (error) {

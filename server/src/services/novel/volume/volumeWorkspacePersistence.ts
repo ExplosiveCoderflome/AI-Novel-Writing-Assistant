@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { assertOutlineWorkspaceWrite } from "../../../modules/planning/outline/constraints";
 import type { VolumeChapterPlan, VolumePlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { Prisma } from "@prisma/client";
@@ -620,25 +621,20 @@ export async function ensureVolumeWorkspaceDocument(params: {
     source: "legacy",
     activeVersionId: null,
   });
-  const createdVersion = await runVolumeWorkspaceTransaction(async (tx) => {
-    const version = await tx.volumePlanVersion.create({
-      data: {
-        novelId,
-        version: 1,
-        status: "active",
-        contentJson: serializeVolumeWorkspaceDocument(legacyDocument),
-        diffSummary: "从旧版主线/大纲自动回填为卷级方案。",
-      },
-    });
-    await persistActiveVolumeWorkspace(tx, novelId, {
-      ...legacyDocument,
-      activeVersionId: version.id,
-    }, version.id);
-    return version;
+  const versionId = randomUUID();
+  const versionNumber = (latestVersion?.version ?? 0) + 1;
+  const document = { ...legacyDocument, activeVersionId: versionId };
+  const created = await runVolumeWorkspaceTransaction(async (tx) => {
+    // Concurrent first reads may generate different legacy volume IDs. Only the winner installs its rows.
+    const count = await tx.$executeRaw`
+      INSERT INTO "VolumePlanVersion" ("id", "novelId", "version", "status", "contentJson", "diffSummary", "updatedAt")
+      VALUES (${versionId}, ${novelId}, ${versionNumber}, 'active', ${serializeVolumeWorkspaceDocument(document)},
+        '从旧版主线/大纲自动回填为卷级方案。', CURRENT_TIMESTAMP)
+      ON CONFLICT ("novelId", "version") DO NOTHING
+    `;
+    if (count === 0) return false;
+    await persistActiveVolumeWorkspace(tx, novelId, document, versionId);
+    return true;
   });
-
-  return {
-    ...legacyDocument,
-    activeVersionId: createdVersion.id,
-  };
+  return created ? document : ensureVolumeWorkspaceDocument(params);
 }

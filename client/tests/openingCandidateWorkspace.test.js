@@ -65,7 +65,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
             nextRound={{ feedback, selectedPresets, onFeedbackChange: setFeedback,
               onTogglePreset: preset => setPresets(previous => toggleDirectorCorrectionPreset(previous, preset)),
               onGenerate: () => generate({ feedback, selectedPresets }) }}>
-            <Batches batches={batches} discussionKey={selection.active.key} titlePatchFeedbacks={{}} onConfirmCandidate={confirm} />
+            <Batches batches={batches} discussionKey={selection.active.key} openingMode="auto_to_ready" titlePatchFeedbacks={{}} onConfirmCandidate={confirm} />
           </CandidateReviewWorkspace>;
         }
         app.render(<QueryClientProvider client={cache}><Workspace /></QueryClientProvider>);
@@ -93,7 +93,7 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
   batches[1].candidates.push({ ...batches[1].candidates[0], id: "last", workingTitle: "灯影" });
   let cleanup;
   try {
-    await act(async () => { cleanup = mount(batches, (candidate, batch) => confirmations.push(batch.id), input => newRounds.push(input)); });
+    await act(async () => { cleanup = mount(batches, (candidate, batch, mode) => confirmations.push([candidate.id, batch.id, mode]), input => newRounds.push(input)); });
     const inspector = document.querySelector("aside.candidate-inspector");
     const reader = document.querySelector(".candidate-reading");
     assert.equal(document.querySelectorAll(".agent-conversation").length, 1);
@@ -199,9 +199,11 @@ test("开书候选共用右栏，同名方案跨轮切换时保留各自输入�
     assert.ok(reads.every(([method]) => method === "get"), "下一轮的要求不写入单套方案对话");
     await act(async () => [...inspector.querySelectorAll("button")].find(button => button.textContent === "返回方案讨论").click());
     assert.deepEqual(confirmations, []);
-    const confirm = [...document.getElementById(second).querySelectorAll("button")].find(button => button.textContent.includes("选用这套"));
-    await act(async () => confirm.click());
-    assert.deepEqual(confirmations, ["next"]);
+    const decisions = [...document.getElementById(second).querySelectorAll("button")];
+    for (const label of ["选用并逐阶段确认", "选用并自动准备"]) {
+      await act(async () => decisions.find(button => button.textContent === label).click());
+    }
+    assert.deepEqual(confirmations, [["same", "next", "stage_review"], ["same", "next", "auto_to_ready"]]);
   } finally {
     if (cleanup) await act(async () => cleanup());
   }

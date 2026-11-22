@@ -13,6 +13,11 @@ export interface DirectorRunModeOption {
 
 export const RUN_MODE_OPTIONS: DirectorRunModeOption[] = [
   {
+    value: "stage_review",
+    label: "逐阶段确认",
+    description: "与 AI 讨论每一阶段的结果，确认后再继续。",
+  },
+  {
     value: "auto_to_ready",
     label: "先完成导演准备",
     description: "AI 会准备书级规划、角色、卷章安排和章节执行资源，再由你选择简易生产或专业生产。",

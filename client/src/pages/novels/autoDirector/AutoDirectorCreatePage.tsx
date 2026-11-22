@@ -870,7 +870,7 @@ function AutoDirectorCreatePage() {
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-3 sm:justify-end">
-              {createdNovelId ? (
+              {createdNovelId && isProductionExperienceChoicePending(controller.directorTask) ? (
                 <div className="space-y-1.5">
                   <div className="text-xs font-medium text-muted-foreground">选择创作界面</div>
                   <div className="flex items-center gap-1 rounded-lg bg-muted/55 p-1" role="group" aria-label="选择创作模式">

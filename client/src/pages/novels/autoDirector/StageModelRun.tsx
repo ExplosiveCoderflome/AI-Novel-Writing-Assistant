@@ -57,7 +57,7 @@ export default function StageModelRun({
         <div>
           <div className="text-2xl font-semibold tracking-normal text-foreground">确认模型与生产准备</div>
           <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            确认后，AI 会先给出两套整书方向，再自动完成开写前的角色和卷章准备。
+            确认后，AI 会给出两套整书方向供你比较和讨论。
           </div>
         </div>
         <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground">
@@ -74,7 +74,9 @@ export default function StageModelRun({
             {availableDirectorVersions.map(version => <option key={version} value={version}>{version === "v2" ? "导演 V2 · 新导演" : "导演 V1 · 原导演"}</option>)}
             {!availableDirectorVersions.includes(directorVersion) ? <option value={directorVersion}>{availableDirectorVersions.length ? `导演 ${directorVersion.toUpperCase()} · 未启用` : directorVersionsError ? "导演版本读取失败" : "正在读取导演版本…"}</option> : null}
           </select>
-          <p className="text-xs leading-5 text-muted-foreground">选择本书使用的创作流程。全自动或按阶段确认可在对应导演台设置。</p>
+          <p className="text-xs leading-5 text-muted-foreground">{directorVersion === "v2"
+            ? "选用方向时，可选择自动准备或逐阶段确认。"
+            : "选择本书使用的创作流程。全自动或按阶段确认可在对应导演台设置。"}</p>
           {versionLocked ? <p className="text-xs text-muted-foreground">结束当前开书任务后可选择其他版本。</p> : null}
         </section>
         <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_20px_55px_-45px_hsl(var(--foreground)/0.5)]">
@@ -92,13 +94,17 @@ export default function StageModelRun({
             </div>
             <div className="bg-background p-5">
               <BookOpen className="h-5 w-5 text-primary" />
-              <div className="mt-3 text-sm font-semibold text-foreground">2. 自动准备到可开写</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">系统完成角色、卷战略、拆章和章节执行资源。</div>
+              <div className="mt-3 text-sm font-semibold text-foreground">2. 准备角色与卷章</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{directorVersion === "v2"
+                ? "选择逐阶段确认，可以在下一步开始前采纳改法或保留原稿。"
+                : "系统完成角色、卷战略、拆章和章节执行资源。"}</div>
             </div>
             <div className="bg-background p-5">
               <Settings2 className="h-5 w-5 text-primary" />
-              <div className="mt-3 text-sm font-semibold text-foreground">3. 选择正文生产方式</div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">简易创作由 AI 写完整本书；专业创作进入完整工作台。</div>
+              <div className="mt-3 text-sm font-semibold text-foreground">{directorVersion === "v2" ? "3. 选择要写的章节" : "3. 选择正文生产方式"}</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">{directorVersion === "v2"
+                ? "在导演台核对章节范围，再开始写正文。"
+                : "简易创作由 AI 写完整本书；专业创作进入完整工作台。"}</div>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 bg-primary/[0.05] px-5 py-3 text-xs">

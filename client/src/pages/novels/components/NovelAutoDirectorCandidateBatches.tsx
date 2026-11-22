@@ -8,11 +8,14 @@ import {
   DIRECTOR_CORRECTION_PRESETS,
   type DirectorCandidate,
   type DirectorCandidateBatch,
+  type DirectorRunMode,
 } from "@ai-novel/shared/types/novelDirector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+
+const openingLabels = { auto_to_ready: "选用并自动准备", stage_review: "选用并逐阶段确认" };
 
 interface NovelAutoDirectorCandidateBatchesProps {
   batches: DirectorCandidateBatch[];
@@ -24,7 +27,8 @@ interface NovelAutoDirectorCandidateBatchesProps {
   isApplying: boolean;
   onApplyCandidateTitleOption: (batchId: string, candidateId: string, option: TitleFactorySuggestion) => void;
   onRefineTitle: (batchId: string, candidate: DirectorCandidate, feedback: string) => void;
-  onConfirmCandidate: (candidate: DirectorCandidate, batch: DirectorCandidateBatch) => void | Promise<void>;
+  openingMode?: keyof typeof openingLabels;
+  onConfirmCandidate: (candidate: DirectorCandidate, batch: DirectorCandidateBatch, mode?: DirectorRunMode) => void | Promise<void>;
 }
 
 function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
@@ -101,9 +105,11 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
     isApplying,
     onApplyCandidateTitleOption,
     onRefineTitle,
+    openingMode,
     onConfirmCandidate,
   } = props;
   const reducedMotion = useReducedMotion();
+  const alternativeMode = openingMode === "stage_review" ? "auto_to_ready" : "stage_review";
 
   if (batches.length === 0) {
     return (
@@ -257,9 +263,13 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                 <footer className="candidate-decision">
                   {batch.candidates.length > 1 && <button type="button" className="text-sm text-muted-foreground hover:text-foreground"
                     onClick={() => document.getElementById(candidateAnchor(batch.id, ""))?.focus()}>返回本轮目录</button>}
+                  {openingMode && <Button type="button" size="sm" variant="secondary" disabled={isConfirming || isApplying}
+                    onClick={() => void onConfirmCandidate(candidate, batch, alternativeMode)}>
+                    {openingLabels[alternativeMode]}
+                  </Button>}
                   <Button type="button" size="sm" disabled={isConfirming || isApplying}
-                    onClick={() => void onConfirmCandidate(candidate, batch)}>
-                    {isConfirming ? "创建中…" : "选用这套"}<ArrowRight size={15} />
+                    onClick={() => void onConfirmCandidate(candidate, batch, openingMode)}>
+                    {isConfirming ? "创建中…" : openingMode ? openingLabels[openingMode] : "选用这套"}<ArrowRight size={15} />
                   </Button>
                 </footer>
               </article>

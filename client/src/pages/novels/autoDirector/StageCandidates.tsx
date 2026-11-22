@@ -22,6 +22,8 @@ export default function StageCandidates({
   onRegenerateSettings,
 }: StageCandidatesProps) {
   const directorTask = controller.directorTask;
+  const openingMode = controller.directorVersion === "v2" && (controller.runMode === "stage_review" || controller.runMode === "auto_to_ready")
+    ? controller.runMode : undefined;
   if (
     directorTask
     && isProductionExperienceChoicePending(directorTask)
@@ -59,7 +61,9 @@ export default function StageCandidates({
         <div className="min-w-0">
           <h2 className="text-2xl font-semibold leading-9">方向候选</h2>
           <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
-            可以逐套比较故事。选定方向后，AI 会继续准备角色、世界和卷章。
+            {openingMode
+              ? "比较方向后，可以让 AI 自动准备开书，也可以逐阶段讨论并确认角色、卷纲和章节。"
+              : "可以逐套比较故事。选定方向后，AI 会继续准备角色、世界和卷章。"}
           </div>
         </div>
         <Button
@@ -74,6 +78,7 @@ export default function StageCandidates({
       </div>
       <NovelAutoDirectorCandidateBatches
         batches={controller.batches}
+        openingMode={openingMode}
         discussionKey={controller.workflowTaskId ? selection.active?.key : undefined}
         titlePatchFeedbacks={controller.titlePatchFeedbacks}
         onTitlePatchFeedbackChange={(candidateId, value) => controller.setTitlePatchFeedbacks((prev) => ({
