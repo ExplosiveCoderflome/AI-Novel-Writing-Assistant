@@ -6,17 +6,27 @@ import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {nodeStyles} from './support/nodeStyles.js';
 import {resolveSavedReview} from '../src/pages/directorNext/workspace/review.ts';
-import {acceptCastSuggestions, reviewFieldKey} from '../src/pages/directorNext/workspace/editing/cast/draft.ts';
+import {acceptReviewSuggestions, reviewFieldKey} from '../src/pages/directorNext/workspace/editing/discussion/draft.ts';
 
 test('accepting selected suggestions respects the current character, manual edits and unchecked fields', () => {
  const base = {currentGoal:'守店',storyFunction:'提供线索',personality:'机敏'};
  const goal = {field:'currentGoal',before:'守店',value:'调查旧地址',reason:'妹妹主动寻找证人'};
  const role = {field:'storyFunction',before:'提供线索',value:'在兄长失踪后继续调查',reason:'承接事件'};
  const other = reviewFieldKey('哥哥','currentGoal'), own = reviewFieldKey('妹妹','currentGoal');
- const changed = acceptCastSuggestions({[other]:'寻找妹妹'}, '妹妹', base, [goal]);
+ const changed = acceptReviewSuggestions({[other]:'寻找妹妹'}, '妹妹', base, [goal]);
  assert.deepEqual(changed,{[own]:goal.value,[other]:'寻找妹妹'});
  const manual = {...changed,[own]:'作者手改的目标'};
- assert.deepEqual(acceptCastSuggestions(manual,'妹妹',base,[goal,role]),{...manual,[reviewFieldKey('妹妹','storyFunction')]:role.value});
+ assert.deepEqual(acceptReviewSuggestions(manual,'妹妹',base,[goal,role]),{...manual,[reviewFieldKey('妹妹','storyFunction')]:role.value});
+});
+
+test('choosing one volume suggestion preserves unchecked fields, other volumes and newer manual edits', () => {
+ const base = {summary:'寻信',mainPromise:'认出寄信人',climax:'当面对质',nextVolumeHook:'失踪的证人'};
+ const climax = {field:'climax',before:'当面对质',value:'公开证词',reason:'让主角承担代价'};
+ const initial = {[reviewFieldKey('上卷','climax')]:'当夜出走'};
+ const chosen = acceptReviewSuggestions(initial, '下卷', base, [climax]);
+ assert.deepEqual(chosen, {...initial,[reviewFieldKey('下卷','climax')]:'公开证词'});
+ const manual = {...chosen,[reviewFieldKey('下卷','climax')]:'销毁证词'};
+ assert.deepEqual(acceptReviewSuggestions(manual, '下卷', base, [climax]), manual);
 });
 
 test('short review URLs resolve only saved current contexts and ignore forged or malformed routing fields',()=>{
@@ -137,7 +147,7 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     assert.ok(m.cast.includes('角色阵容') && m.cast.includes('林渡'));
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.castGate.includes('编辑角色阵容'));
-    assert.ok(m.volumeGate.includes('编辑卷纲'));
+    assert.ok(m.volumeGate.includes('与 AI 讨论或编辑卷纲'));
     for (const html of [m.castGate, m.volumeGate]) assert.ok(!html.includes('确认已保存的修改'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
     assert.match(m.page,/查看最新正文（第 9 章）/);

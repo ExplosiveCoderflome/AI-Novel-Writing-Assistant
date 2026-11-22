@@ -1,8 +1,8 @@
-import type {CastChange, CastDraft} from "@ai-novel/shared/types/director/castReview/discussion";
+import type { ReviewChange } from "@ai-novel/shared/types/director/review/fieldSuggestions";
 
 export const reviewFieldKey = (id: string, field: string) => JSON.stringify([id, field]);
 
-export function acceptCastSuggestions(drafts: Record<string, string>, id: string, base: CastDraft, selected: CastChange[]) {
+export function acceptReviewSuggestions<F extends string>(drafts: Record<string, string>, id: string, base: Record<string,string>, selected: ReviewChange<F>[]) {
   const next = {...drafts};
   for (const change of selected) {
     const key = reviewFieldKey(id, change.field);

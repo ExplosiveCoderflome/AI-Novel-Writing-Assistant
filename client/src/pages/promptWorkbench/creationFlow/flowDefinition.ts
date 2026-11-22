@@ -81,6 +81,9 @@ export const stages: FlowStage[] = [
       ai("beats", "安排卷内节奏", "本卷的关键节奏段", "当前卷的目标、骨架和章节预算。", "按顺序展开的关键事件及其章节跨度。", "novel.volume.beat_sheet"),
       ai("chapter-list", "拆成章节列表", "章名、行动与出场安排", "当前节奏段的目标、人物和前后承接。", "各章的标题、主要行动与出场安排。", "novel.volume.chapter_list"),
     ],
+    branches: [{ from: "skeleton", label: "调整一卷", join: "beats", steps: [
+      ai("volume-discussion", "讨论一卷的卷纲", "可逐项采纳的卷纲修改", "当前卷的编辑稿、前后卷安排和作者的问题。", "核对本卷故事、读者期待、高潮或下卷引线后继续拆章。", "novel.director.volume_dialogue"),
+    ] }],
   },
   {
     id: "preparation", coverStep: "mission", title: "准备本章", description: "把章节安排细化成能落笔的场景，再备齐写作要用的材料。",

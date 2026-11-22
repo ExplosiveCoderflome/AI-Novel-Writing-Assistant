@@ -3,18 +3,25 @@ import { apiClient } from "@/api/client";
 import { AgentConversation, type AgentConversationAdapter } from "@/components/agentConversation/AgentConversation";
 import { Button } from "@/components/ui/button";
 import type { AgentConversationTurn } from "@ai-novel/shared/types/agentConversation/turn";
-import { castFieldLabels, type CastDraft, type CastChange, type CastProposal } from "@ai-novel/shared/types/director/castReview/discussion";
+import { castFieldLabels } from "@ai-novel/shared/types/director/castReview/discussion";
+import { volumeFieldLabels } from "@ai-novel/shared/types/director/volumeReview/discussion";
+import type { ReviewChange, ReviewProposal } from "@ai-novel/shared/types/director/review/fieldSuggestions";
+
+const labels = { ...castFieldLabels, ...volumeFieldLabels };
+type Field = keyof typeof labels;
+type Proposal = ReviewProposal<Field>;
+type Scope = { type: "character_cast" } | { type: "volume_strategy"; planVersionId: string };
 
 const inline = { errorPresentation: "inline" } as const;
 interface Props {
-  novelId: string; runId: string; version: number; person: { id: string; title: string };
-  base: CastDraft; draft: CastDraft; disabled: boolean;
+  novelId: string; runId: string; version: number; scope: Scope; subject: { id: string; title: string };
+  base: Record<string, string>; draft: Record<string, string>; disabled: boolean;
   message: string; onMessage: (value: string) => void;
-  onAccept: (changes: CastChange[]) => void;
+  onAccept: (changes: ReviewChange<Field>[]) => void;
 }
 
 function Suggestions({ proposal, draft, disabled, onAccept }: {
-  proposal: CastProposal; draft: CastDraft; disabled: boolean; onAccept: Props["onAccept"];
+  proposal: Proposal; draft: Record<string, string>; disabled: boolean; onAccept: Props["onAccept"];
 }) {
   const [picked, setPicked] = useState(() => new Set(proposal.changes.map(item => item.field)));
   const selected = proposal.changes.filter(item => picked.has(item.field) && draft[item.field] === item.before);
@@ -30,7 +37,7 @@ function Suggestions({ proposal, draft, disabled, onAccept }: {
               if (checked) next.add(item.field); else next.delete(item.field);
               return next;
             }); }}/>
-          {castFieldLabels[item.field]}
+          {labels[item.field]}
         </label>
         <p className="whitespace-pre-wrap text-muted-foreground">原文　{item.before || "尚未填写"}</p>
         <p className="whitespace-pre-wrap">建议　{item.value}</p>
@@ -44,25 +51,30 @@ function Suggestions({ proposal, draft, disabled, onAccept }: {
   </div>;
 }
 
-export function CastDiscussion({ novelId, runId, version, person, base, draft, disabled, message, onMessage, onAccept }: Props) {
-  const url = `/director-next/novels/${encodeURIComponent(novelId)}/runs/${encodeURIComponent(runId)}/cast-review/${version}/characters/${encodeURIComponent(person.id)}/conversation`;
-  const adapter: AgentConversationAdapter<CastProposal> = {
-    queryKey: ["agent-conversation", "director-cast", novelId, runId, String(version), person.id],
-    load: async () => (await apiClient.get(url, inline)).data.data as AgentConversationTurn<CastProposal>[],
+export function ReviewDiscussion({ novelId, runId, version, subject, scope, base, draft, disabled, message, onMessage, onAccept }: Props) {
+  const volume = scope.type === "volume_strategy";
+  const path = volume ? `volume-review/${version}/plans/${encodeURIComponent(scope.planVersionId)}/volumes` : `cast-review/${version}/characters`;
+  const url = `/director-next/novels/${encodeURIComponent(novelId)}/runs/${encodeURIComponent(runId)}/${path}/${encodeURIComponent(subject.id)}/conversation`;
+  const adapter: AgentConversationAdapter<Proposal> = {
+    queryKey: ["agent-conversation", volume ? "director-volume" : "director-cast", novelId, runId, String(version), ...(volume ? [scope.planVersionId] : []), subject.id],
+    load: async () => (await apiClient.get(url, inline)).data.data as AgentConversationTurn<Proposal>[],
     send: input => apiClient.post(url + "/turns", { ...input, base, draft }, inline),
     interrupt: id => apiClient.post(url + "/turns/" + encodeURIComponent(id) + "/interrupt", {}, inline),
     streamUrl: id => apiClient.getUri({ url: url + "/turns/" + encodeURIComponent(id) + "/stream" }),
   };
   return <div className="min-w-0 [container-type:inline-size] lg:flex lg:min-h-0 lg:[&_.agent-feed]:overflow-y-auto">
-    <AgentConversation adapter={adapter} title="角色助手" context={`正在讨论 · ${person.title}`}
-      welcome={{ title: `想怎么写${person.title}？`, body: "说说你希望保留的地方，或希望这个人做出怎样的选择。", starters: [
+    <AgentConversation adapter={adapter} title={volume ? "卷纲助手" : "角色助手"} context={`正在讨论 · ${subject.title}`}
+      welcome={volume ? { title: `想怎么调整《${subject.title}》？`, body: "可以先聊读者最期待什么，再决定要改哪一项。", starters: [
+        { label: "高潮能兑现期待吗？", text: "这卷的高潮能兑现前面给读者的期待吗？说说你的判断。" },
+        { label: "让卷末的选择更有代价", text: "保留本卷的主线，让主角在高潮做一个更有代价的选择。" },
+      ] } : { title: `想怎么写${subject.title}？`, body: "说说你希望保留的地方，或希望这个人做出怎样的选择。", starters: [
         { label: "这个角色想要什么？", text: "结合开书方向，说说这个角色最想做成什么事，为什么。" },
         { label: "让这个角色更主动", text: "保留现有的人物关系，让这个角色主动做一个影响剧情的选择。" },
       ] }}
-      confirmationHint="采纳会填入编辑稿，保存后导演继续。" inputLabel={`与助手讨论${person.title}`}
-      placeholder="写下你对这个角色的想法…" followUpPlaceholder="这份建议里，想保留或改动什么？"
-      initialAction="发送给角色助手" followUpAction={(_, n) => `追问第 ${n} 轮建议`} followUpTopic={(_, n) => `讨论第 ${n} 轮建议`}
-      versionLabel={() => person.title} disabled={disabled} maxLength={4000}
+      confirmationHint={volume ? "采纳会填入本卷编辑稿，确认卷纲后再拆章。" : "采纳会填入编辑稿，保存后导演继续。"} inputLabel={`与助手讨论${subject.title}`}
+      placeholder={volume ? "写下你想讨论的情节或改法…" : "写下你对这个角色的想法…"} followUpPlaceholder="这份建议里，想保留或改动什么？"
+      initialAction={volume ? "发送给卷纲助手" : "发送给角色助手"} followUpAction={(_, n) => `追问第 ${n} 轮建议`} followUpTopic={(_, n) => `讨论第 ${n} 轮建议`}
+      versionLabel={() => subject.title} disabled={disabled} maxLength={4000}
       value={message} onChange={onMessage} canContinue={() => true} describeResult={result => `${result.changes.length} 项建议`}
       renderResult={(proposal, busy) => <Suggestions key={proposal.id} proposal={proposal} draft={draft}
         disabled={busy || disabled} onAccept={onAccept}/>}/>

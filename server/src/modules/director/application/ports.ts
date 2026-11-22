@@ -47,6 +47,7 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution;
 
 export interface GateResolution {
+  expectedVolumePlanVersionId?: string;
   guidance?: string;
   chapterPlanEdit?: ChapterPlanEdit;
   assetEdit?: ReviewAssetEdit;

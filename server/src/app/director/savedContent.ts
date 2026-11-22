@@ -17,7 +17,7 @@ import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProd
 import {directorVolumeChapterPlanFilter} from "./planning";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
-export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
+export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; expectedVolumePlanVersionId?: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit}, tx: Prisma.TransactionClient) {
   if (input.assetEdit) {
     if (input.assetEdit.type !== input.type) throw new AppError("修改的内容与本次确认阶段不符。", 400);
     await saveReviewAssetEdit(input.contract.novelId, input.assetEdit, tx);
@@ -34,7 +34,10 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
       content = {characters: await tx.character.findMany({where: {novelId}, orderBy: {id: "asc"}}), relations: await tx.characterRelation.findMany({where: {novelId}, orderBy: {id: "asc"}})};
       break;
     case "volume_strategy": {
-      const version = await tx.volumePlanVersion.findFirstOrThrow({where: {novelId, status: "active"}, orderBy: {version: "desc"}});
+      const version = await tx.volumePlanVersion.findFirst({where: {novelId, status: "active"}, orderBy: {version: "desc"}});
+      if (!version || (input.expectedVolumePlanVersionId && version.id !== input.expectedVolumePlanVersionId)) {
+        throw new AppError("卷纲版本有变化，请重新打开卷纲确认页。", 409);
+      }
       content = JSON.parse(version.contentJson) as unknown;
       break;
     }

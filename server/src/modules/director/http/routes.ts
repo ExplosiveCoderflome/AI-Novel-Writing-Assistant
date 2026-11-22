@@ -63,6 +63,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     guidance: z.string().trim().max(6000).optional(),
     chapterPlanEdit: chapterPlanEditSchema.optional(),
     assetEdit: reviewAssetEditSchema.optional(),
+    expectedVolumePlanVersionId: nonEmpty.max(160).optional(),
     expectedVersion,
     idempotencyKey: nonEmpty,
   }),

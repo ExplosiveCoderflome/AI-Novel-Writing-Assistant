@@ -41,6 +41,8 @@ export async function readDirectorWorkspace(novelId: string) {
   catch(error) {if(!(error instanceof FactIntegrityError)) throw error;reviewContextError=error.message;}
   const version = await prisma.volumePlanVersion.findFirst({where:{novelId,status:"active"},orderBy:{version:"desc"}});
   const saved = normalizeVolumeWorkspaceDocument(novelId, version?.contentJson ?? {volumes:novel.volumePlans}, {activeVersionId:version?.id ?? null,source:novel.volumePlans.length ? "volume" : "empty"});
+  // A serialized document may still identify the version from which it was copied.
+  saved.activeVersionId = version?.id ?? null;
   const taskSheet = reviewContexts.find(context => context.type === "chapter_task_sheet");
   const savedPlan = taskSheet && novel.volumePlans.find(volume => volume.id === taskSheet.volumeId)?.chapters
     .find(chapter => chapter.id === taskSheet.chapterId && chapter.chapterOrder === taskSheet.from);

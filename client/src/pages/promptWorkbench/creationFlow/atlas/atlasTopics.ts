@@ -115,11 +115,12 @@ export const atlasScopes: AtlasScope[] = [
   },
   {
     id: "volumes", title: "分卷排章", skin: "volumes", topics: [
-      { id: "volumes-plan", title: "安排各卷职责与节奏", description: "从分卷策略、评议和卷骨架走到当前卷的节奏与章节安排。", steps: ["strategy", "critique", "skeleton", "beats", "chapter-list", "next-volume"],
+      { id: "volumes-plan", title: "安排各卷职责与节奏", description: "从分卷策略、评议和卷骨架走到当前卷的节奏与章节安排。", steps: ["strategy", "critique", "skeleton", "volume-discussion", "beats", "chapter-list", "next-volume"],
         prompts: [
           ["novel.volume.strategy", "制定分卷策略"],
           ["novel.volume.strategy.critique", "检查分卷安排"],
           ["novel.volume.skeleton", "生成各卷骨架"],
+          ["novel.director.volume_dialogue", "讨论当前卷纲"],
           ["novel.volume.beat_sheet", "安排卷内节奏"],
           ["novel.volume.chapter_list", "拆分章节列表"],
           ["novel.volume.rebalance.adjacent", "调平相邻两卷", ["critique"]],

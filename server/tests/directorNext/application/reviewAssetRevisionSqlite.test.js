@@ -18,6 +18,8 @@ const {createDirectorProductionOptions} = require("../../../dist/app/director/pr
 const {readEditedArtifact} = require("../../../dist/app/director/savedContent");
 const {castConversationRouter} = require("../../../dist/app/director/revisions/castDiscussion");
 
+const {volumeConversationRouter} = require("../../../dist/app/director/revisions/volumeDiscussion");
+
 const options = createDirectorProductionOptions();
 const services = createDirectorNextServices(options);
 const runs = new PrismaRunRepository(prisma);
@@ -28,7 +30,7 @@ before(async () => {
   const app = express();
   app.use(express.json());
   mountDirectorNext(app, services.http);
-  app.use("/api/director-next", castConversationRouter());
+  app.use("/api/director-next", castConversationRouter(), volumeConversationRouter());
   app.use(errorHandler);
   server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -38,10 +40,10 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-async function openGate(novelId, type) {
+async function openGate(novelId, type, launchOverrides = {}) {
   const runId = "run-" + novelId;
   const contract = options.contractFactory({runId, novelId, driver: "assisted", stepIdsInScope: null,
-    launchInput: {storyInput: "寻找寄信人", estimatedChapterCount: 80, worldMode: "skip", targetMode: "opening", provider: "openai", model: "fixture"}});
+    launchInput: {storyInput: "寻找寄信人", estimatedChapterCount: 80, worldMode: "skip", targetMode: "opening", provider: "openai", model: "fixture", ...launchOverrides}});
   contract.executionEpoch = 0;
   await runs.open(contract);
   await runs.transition(runId, {type: "start"}, 0);
@@ -147,6 +149,101 @@ test("a character discussion stays at its gate and only saved choices reach the 
   assert.equal((await prisma.volumePlan.findFirstOrThrow({where: {novelId}})).title, "旧址");
 });
 
+test("volume proposals stay in their volume and confirmed choices reach the selected volume's beat sheet and chapters", async t => {
+  const novelId = "volume-discussion", runId = "run-" + novelId;
+  await prisma.novel.create({data: {id: novelId, title: "寻找寄信人", directorVersion: "v2", estimatedChapterCount: 12}});
+  const base = {summary: "回到故乡找寄信人", mainPromise: "揭开证词的秘密", climax: "当面对质", nextVolumeHook: "封存来信"};
+  const volumes = [
+    {id: "letters-1", title: "旧信", sortOrder: 1, ...base, summary: "在旧宅找到一封信", nextVolumeHook: "信封上有故乡的邮戳", chapters: []},
+    {id: "letters-2", title: "回乡", sortOrder: 2, ...base, chapters: []},
+  ];
+  const strategyPlan = {recommendedVolumeCount: 2, hardPlannedVolumeCount: 2, readerRewardLadder: "破解旧信", escalationLadder: "证人失踪",
+    midpointShift: "证词现身", notes: "寻找寄信人", uncertainties: [], volumes: volumes.map(({sortOrder}) => ({
+      sortOrder, planningMode: "hard", roleLabel: "查证", coreReward: "找到证人", escalationFocus: "找回证词", uncertaintyLevel: "low"}))};
+  const {NovelVolumeService} = require("../../../dist/services/novel/volume/NovelVolumeService");
+  await new NovelVolumeService().updateVolumesWithOptions(novelId, {volumes, strategyPlan}, {emitEvent: false, syncPayoffLedger: false, syncToChapterExecution: false});
+  const plan = await prisma.volumePlanVersion.findFirstOrThrow({where: {novelId, status: "active"}});
+  const target = volumes[1].id, other = volumes[0].id;
+  const post = await openGate(novelId, "volume_strategy", {targetMode: "selected_volume", targetVolumeId: target, estimatedChapterCount: 12});
+  for (const type of ["novel_seed","story_macro","book_contract","world_skeleton","character_cast"]) {
+    await ledger.record({novelId, type, scope: "volume:" + target, status: "confirmed", protectedUserContent: true,
+      contentRef: type + ":" + novelId, contentHash: "fixture-" + type, producedByRunId: runId});
+  }
+  const draft = {...base, mainPromise: "追问沉默的代价"};
+  const suggestions = [{field: "climax", value: "在听证会上公开父亲的证词", reason: "让主角承担选择的代价"},
+    {field: "nextVolumeHook", value: "收到匿名威胁", reason: "保留悬念"}];
+  const calls = [], prompts = [];
+  t.mock.method(require("../../../dist/prompting/core/promptRunner"), "runStructuredPrompt", async call => {
+    if (call.asset.id === "novel.director.volume_dialogue") {
+      prompts.push(call.promptInput);
+      return {output: {replyText: "证词可以让结尾的选择更有分量。", changes: prompts.length === 1 ? suggestions : []}};
+    }
+    const {scope} = call.options;
+    if (scope === "rebalance") return {output: {decisions: []}};
+    assert.ok(["beat_sheet", "chapter_list"].includes(scope), scope);
+    const card = call.contextBlocks.find(block => block.id === "target_volume").content;
+    assert.ok(card.includes(suggestions[0].value) && card.includes(draft.mainPromise) && card.includes(base.nextVolumeHook), card);
+    assert.ok(!card.includes(suggestions[1].value), card);
+    assert.equal(call.promptInput.targetVolume.id, target);
+    calls.push(scope);
+    if (scope === "beat_sheet") return {output: {beats: [{key: "open_hook", label: "开卷", title: "故乡来信", summary: "找到信件",
+      chapterSpanHint: "1-" + call.promptInput.targetChapterCount + "章", mustDeliver: ["证词"]}]}};
+    const {targetBeat, targetBeatChapterCount} = call.promptInput;
+    const titles = ["雨夜来客","绣楼余烬","邮戳之谜","空白证词","故人拍门","黎明宣誓"];
+    return {output: {beatKey: targetBeat.key, beatLabel: targetBeat.label, chapterCount: targetBeatChapterCount,
+      chapters: Array.from({length: targetBeatChapterCount}, (_, i) => ({beatKey: targetBeat.key, title: titles[i] ?? "寻信" + i, summary: "寻找寄信人并发现新的阻力。"}))}};
+  });
+  const url = (id, version = plan.id) => `http://127.0.0.1:${server.address().port}/api/director-next/novels/${novelId}/runs/${runId}/volume-review/2/plans/${version}/volumes/${id}/conversation`;
+  const send = (id, body) => fetch(url(id) + "/turns", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  async function finish(requestId) {
+    for (let i = 0; i < 150; i++) {
+      const {data} = await (await fetch(url(target))).json();
+      const turn = data.find(item => item.id === requestId);
+      if (turn && turn.status !== "running") { assert.equal(turn.status, "completed", turn.replyText); return turn; }
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.fail("volume discussion did not complete");
+  }
+  const first = {requestId: "volume-first", requestText: "让卷末的选择更有代价", base, draft};
+  assert.equal((await send(target, first)).status, 202);
+  const result = (await finish(first.requestId)).result;
+  assert.deepEqual(result.changes.map(change => change.before), [base.climax, base.nextVolumeHook]);
+  assert.equal(prompts[0].previousVolume.nextVolumeHook, volumes[0].nextVolumeHook);
+  assert.equal(prompts[0].nextVolume, null);
+  assert.equal(prompts[0].volume.mainPromise, draft.mainPromise);
+  const follow = {...first, requestId: "volume-follow", requestText: "为什么这样写？", draft: {...draft, climax: suggestions[0].value}, parentResultId: result.id};
+  const otherBase = Object.fromEntries(Object.keys(base).map(key => [key, volumes[0][key]]));
+  assert.equal((await send(other, {...follow, base: otherBase, draft: otherBase})).status, 409);
+  assert.deepEqual((await (await fetch(url(other))).json()).data, []);
+  assert.equal((await fetch(url(target, "replaced-version"))).status, 409);
+  assert.equal((await send(target, follow)).status, 202);
+  assert.equal((await finish(follow.requestId)).result, null);
+  assert.equal(prompts[1].history[0].author, first.requestText);
+  assert.deepEqual(prompts[1].priorProposal, result.changes);
+  const readVolume = id => prisma.volumePlan.findUniqueOrThrow({where: {id}});
+  assert.equal((await readVolume(target)).climax, base.climax);
+  assert.equal((await runs.getControl(runId)).status, "waiting_gate");
+  assert.deepEqual(calls, []);
+  const changes = [{id: target, field: "climax", before: base.climax, after: suggestions[0].value},
+    {id: target, field: "mainPromise", before: base.mainPromise, after: draft.mainPromise}];
+  const edit = {expectedVolumePlanVersionId: plan.id, assetEdit: {type: "volume_strategy", changes}};
+  await post("stale-plan", {...edit, expectedVolumePlanVersionId: "replaced-version"}, 409);
+  await post("stale-direct", {decision: "confirm", expectedVolumePlanVersionId: "replaced-version"}, 409);
+  assert.equal((await readVolume(target)).climax, base.climax);
+  assert.equal((await runs.getControl(runId)).status, "waiting_gate");
+  await post("save", edit, 202);
+  await post("save", edit, 202);
+  assert.equal((await fetch(url(target))).status, 409);
+  for (let n = 0; n < 6 && (await runs.getControl(runId)).status === "running"; n++) await services.worker.tick();
+  const state = await runs.getControl(runId);
+  assert.equal(state.status, "completed", JSON.stringify(state));
+  assert.ok(calls.includes("beat_sheet") && calls.includes("chapter_list"));
+  assert.ok(await prisma.volumeChapterPlan.count({where: {volumeId: target}}));
+  assert.equal(await prisma.volumeChapterPlan.count({where: {volumeId: other}}), 0);
+  assert.equal((await readVolume(other)).climax, volumes[0].climax);
+  assert.equal((await readVolume(target)).nextVolumeHook, base.nextVolumeHook);
+});
+
 for (const type of ["character_cast", "volume_strategy"]) {
   test(type + " saves only actual source-page edits, rolls back stale changes and replays safely", async () => {
     const novelId = type;
@@ -206,11 +303,15 @@ for (const type of ["character_cast", "volume_strategy"]) {
 
 test("an older version-only plan can be edited, and direct acceptance keeps a generated asset unprotected", async () => {
   const novelId = "legacy-volumes";
-  await prisma.novel.create({data: {id: novelId, title: "旧版卷纲"}});
+  await prisma.novel.create({data: {id: novelId, title: "旧版卷纲", directorVersion: "v2"}});
   await prisma.volumePlanVersion.create({data: {novelId, status: "active", version: 1, contentJson: JSON.stringify({
     volumes: [{id: "version-only", title: "第一卷", sortOrder: 1, summary: "旧摘要", chapters: []}],
   })}});
   const post = await openGate(novelId, "volume_strategy");
+  const active = await prisma.volumePlanVersion.findFirstOrThrow({where: {novelId}});
+  const history = await fetch(`http://127.0.0.1:${server.address().port}/api/director-next/novels/${novelId}/runs/run-${novelId}/volume-review/2/plans/${active.id}/volumes/version-only/conversation`);
+  assert.equal(history.status, 200);
+  assert.deepEqual((await history.json()).data, []);
   await post("save", {assetEdit: {type: "volume_strategy", changes: [{id: "version-only", field: "summary", before: "旧摘要", after: "新摘要"}]}}, 202);
   const version = await prisma.volumePlanVersion.findFirstOrThrow({where: {novelId}});
   assert.equal(JSON.parse(version.contentJson).volumes[0].summary, "新摘要");

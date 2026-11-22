@@ -1,26 +1,34 @@
-import { Router } from "express";
+import type { Prisma } from "@prisma/client";
+import { castReviewFields } from "@ai-novel/shared/types/director/revision";
+import { castDraftSchema, castReplySchema, castProposalChanges } from "@ai-novel/shared/types/director/castReview/discussion";
 import { prisma } from "../../../../db/prisma";
-import { streamAgentReply } from "../../../../modules/agentConversation";
-import { CastConversation, castAddressSchema, castMessageSchema } from "./CastConversation";
+import { AppError } from "../../../../middleware/errorHandler";
+import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { castReviewDialoguePrompt } from "../../../../prompting/prompts/novel/character/castReviewDialogue.prompt";
+import { reviewConversationRouter, type Address } from "../discussion";
 
 export { confirmedCastForPlanning } from "./planningContext";
 
-export function castConversationRouter(service = new CastConversation(prisma)) {
-  const router = Router();
-  const route = "/novels/:novelId/runs/:runId/cast-review/:version/characters/:characterId/conversation";
-  router.get(route, async (req, res) => {
-    res.json({ success: true, data: await service.history(castAddressSchema.parse(req.params)) });
+async function read(db: Prisma.TransactionClient, {novelId, resourceId}: Address) {
+  const character = await db.character.findFirst({ where: { novelId, id: resourceId },
+    select: { name: true, role: true, background: true, personality: true, storyFunction: true, currentGoal: true } });
+  if (!character) throw new AppError("在本书阵容中找不到这位角色。", 404);
+  const {personality, currentGoal, storyFunction} = character;
+  return {novelId, resourceId, character, base: {personality: personality ?? "", currentGoal: currentGoal ?? "", storyFunction: storyFunction ?? ""}};
+}
+
+export function castConversationRouter() {
+  return reviewConversationRouter("/novels/:novelId/runs/:runId/cast-review/:version/characters/:resourceId/conversation", {
+    artifact: "character_cast", scope: "director-cast", stage: "character_setup", progress: "正在读角色设定和你的想法…",
+    fields: castReviewFields, draft: castDraftSchema, reply: castReplySchema, changes: castProposalChanges, read,
+    async generate({novelId, resourceId, character}, draft, context, options) {
+      const [cast, links] = await Promise.all([
+        prisma.character.findMany({ where: { novelId }, orderBy: { id: "asc" }, select: { name: true, role: true, storyFunction: true } }),
+        prisma.characterRelation.findMany({ where: { novelId, OR: [{sourceCharacterId: resourceId}, {targetCharacterId: resourceId}] },
+          select: { sourceCharacter: { select: { name: true } }, targetCharacter: { select: { name: true } }, surfaceRelation: true, hiddenTension: true } }),
+      ]);
+      const relations = links.map(row => ({ source: row.sourceCharacter.name, target: row.targetCharacter.name, relation: row.surfaceRelation, tension: row.hiddenTension }));
+      return (await runStructuredPrompt({ asset: castReviewDialoguePrompt, promptInput: {...context, character: {...character, ...draft}, cast, relations}, options })).output;
+    },
   });
-  router.post(`${route}/turns`, async (req, res) => {
-    const receipt = await service.send(castAddressSchema.parse(req.params), castMessageSchema.parse(req.body));
-    res.status(202).json({ success: true, data: receipt });
-  });
-  router.get(`${route}/turns/:id/stream`, async (req, res) => {
-    streamAgentReply(res, req.params.id, await service.turnStatus(castAddressSchema.parse(req.params), req.params.id));
-  });
-  router.post(`${route}/turns/:id/interrupt`, async (req, res) => {
-    await service.interrupt(castAddressSchema.parse(req.params), req.params.id);
-    res.json({ success: true });
-  });
-  return router;
 }
