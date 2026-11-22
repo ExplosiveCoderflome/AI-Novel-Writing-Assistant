@@ -667,3 +667,40 @@ test("chapter list generation still hard-fails on severe title concentration", a
     setPromptRunnerStructuredInvokerForTests();
   }
 });
+
+test("resuming a full saved partial list repairs only the flagged unbound titles", async () => {
+  const { document, workspace, novel } = createChapterListGenerationFixtures();
+  const options = { generationMode: "full_volume", targetVolumeId: "volume-1",
+    entrypoint: "director_next", estimatedChapterCount: 10 };
+  let partial;
+  const generate = (doc) => generateBeatChunkedChapterList({
+    document: doc, workspace: { ...workspace, ...doc }, novel, storyMacroPlan: null, options,
+    notifyPhase: async () => {},
+    notifyIntermediateDocument: event => { if (!event.isFinal) partial = event.document; },
+  });
+  try {
+    mockChapterListInvoker(SEVERE_OF_PHRASE_TITLES);
+    await assert.rejects(() => generate(document), /章节标题结构过于集中/);
+    const saved = partial.volumes[0].chapters;
+    saved[0].chapterId = "bound-chapter";
+    const names = ["破冰", "灯灭", "翻过雪墙", "撤哨", "旧口供", "别回头", "日出之前"];
+    const replacements = names.map((title, i) => ({ chapterOrder: i + 2, title }));
+    let calls = 0;
+    const respond = chapters => setPromptRunnerStructuredInvokerForTests(async () => {
+      calls++;
+      return { data: { chapters }, repairUsed: false, repairAttempts: 0 };
+    });
+    respond([{ chapterOrder: 1, title: "改动已绑定章名" }]);
+    await assert.rejects(() => generate(partial), /重复或未指定/);
+    assert.match(partial.volumes[0].status, /chapter_list_partial/);
+    respond(replacements);
+    const { mergedDocument } = await generate(partial);
+    assert.equal(calls, 2);
+    assert.doesNotMatch(mergedDocument.volumes[0].status, /chapter_list_partial/);
+    assert.deepEqual(mergedDocument.volumes[0].chapters, saved.map(chapter => ({
+      ...chapter, title: replacements.find(row => row.chapterOrder === chapter.chapterOrder)?.title ?? chapter.title,
+    })));
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});

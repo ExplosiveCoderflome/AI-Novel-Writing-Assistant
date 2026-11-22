@@ -131,6 +131,7 @@ export interface PromptExecutionOptions {
   maxTokens?: number;
   automaticMaxTokens?: number;
   structuredDiagnosticContext?: StructuredDiagnosticContext;
+  structuredTransportRetryCount?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   novelId?: string;
@@ -216,6 +217,8 @@ export interface PromptManagementCapabilities {
   productPrompt: boolean;
   proseGeneration?: boolean;
   editModes: PromptManagementEditMode[];
+  /** Pre-creation prompts have no novel to attach an override to. */
+  slotScope?: "global";
   advancedTemplate?: {
     scope: "novel";
     requiredContextGroups: string[];

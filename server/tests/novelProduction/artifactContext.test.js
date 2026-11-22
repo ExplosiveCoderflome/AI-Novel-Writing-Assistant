@@ -63,6 +63,7 @@ function extractionFixture() {
   const calls = [];
   let resourceError;
   let currentResources = resources;
+  let adjustments = new Map();
   const {ChapterArtifactDeltaService} = loadRuntimeSource('ChapterArtifactDeltaService.ts', {
     '../../../db/prisma': {prisma: {
       novel: {findUnique: async () => ({title: '本书'})},
@@ -94,10 +95,12 @@ function extractionFixture() {
     '../characters/appearances': {
       characterAppearanceService: { applyFinalChapter: async () => {} },
     },
+    '../characters/forwardAdjustments/chapterFields': {readChapterCharacterAdjustments: async () => adjustments},
   });
   return {service: new ChapterArtifactDeltaService(), calls,
     failResourceRead: () => {resourceError = Error('catalog unavailable');},
     changeHolder: () => {currentResources = resources.map(r => ({...r, holderCharacterName: '乙', holderCharacterId: 'b'}));},
+    changeCharacterState: () => {adjustments = new Map([['a', {currentGoal: null, currentState: '肩伤已愈'}]]);},
   };
 }
 
@@ -105,13 +108,16 @@ test('real extraction assembles one fresh unified request and retains stable cat
   const f = extractionFixture();
   await f.service.extractChapterArtifacts({novelId: 'n', chapterId: 'c', content: '正文甲', artifactSyncPolicy: 'director_v2'});
   f.changeHolder();
+  f.changeCharacterState();
   await f.service.extractChapterArtifacts({novelId: 'n', chapterId: 'c', content: '正文乙', artifactSyncPolicy: 'director_v2'});
   assert.equal(f.calls.length, 2);
   const [a, b] = f.calls.map(c => c.promptInput);
   assert.equal(a.resourceCatalogText, b.resourceCatalogText);
   assert.notEqual(a.existingResourceText, b.existingResourceText);
   assert.match(b.existingResourceText, /holder=b:乙/);
-  assert.match(b.characterStateText, /肩部受伤/);
+  assert.match(a.characterStateText, /肩部受伤/);
+  assert.match(b.characterStateText, /肩伤已愈/);
+  assert.doesNotMatch(b.characterStateText, /潜入|肩部受伤/);
   assert.equal(b.chapterContent, '正文乙');
   assert.equal(b.locationTrackingEnabled,true);
   assert.match(b.characterLocationText,/甲.*牢房/);

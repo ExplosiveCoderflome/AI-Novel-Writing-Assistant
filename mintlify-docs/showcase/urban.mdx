@@ -1,7 +1,7 @@
 ---
 title: "都市异能 · 题材展厅"
 sidebarTitle: "都市异能"
-description: "一部可以解锁的手机：外卖骑手陆川的 App 里多了一个「未送达」频道，专送别人没发出去的消息，哪怕是三年前的。滑开锁屏，看一本都市异能小说怎样借热门题材雷达、推进模式和标题工坊一步步成形。"
+description: "外卖骑手陆川的 App 多了一个「未送达」频道，专送别人没发出去的消息。滑开这部手机，看一本都市异能小说怎样一步步成形。"
 mode: "custom"
 icon: "mobile-screen"
 keywords:
@@ -113,7 +113,7 @@ export const UbLock = () => {
 .ul-date{font-size:14px;letter-spacing:.12em;color:rgba(255,255,255,.8)}
 .ul-time{font-family:system-ui,-apple-system,"Helvetica Neue",sans-serif;font-size:72px;font-weight:200;line-height:1.05;color:#fff}
 .ul-ns{list-style:none;width:100%;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
-.ul-n{display:flex;gap:10px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);animation:ulIn .5s cubic-bezier(.2,.9,.3,1.2) both}
+.ul-n{display:flex;gap:10px;padding:10px 12px;border-radius:18px;background:rgba(28,18,58,.92);animation:ulIn .5s cubic-bezier(.2,.9,.3,1.2) both}
 @keyframes ulIn{from{opacity:0;transform:translateY(-14px) scale(.96)}}
 .ul-hot{background:rgba(139,92,246,.3);box-shadow:0 0 0 1px rgba(196,181,253,.6),0 0 24px rgba(168,85,247,.55)}
 .ul-ic{flex:0 0 30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:14px;font-weight:700;color:#fff}
@@ -121,8 +121,8 @@ export const UbLock = () => {
 .ul-nh{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.65)}
 .ul-nh b{font-weight:600;color:#fff}
 .ul-nb p{margin:2px 0 0;font-size:13px;line-height:1.5;color:#fff}
-.ul-sl{position:absolute;left:18px;right:18px;bottom:26px;height:56px;border-radius:999px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.ul-slt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font-size:15px;letter-spacing:.3em;color:transparent;background:linear-gradient(90deg,rgba(255,255,255,.45) 30%,#fff 50%,rgba(255,255,255,.45) 70%) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;animation:ulShine 2.4s linear infinite;pointer-events:none}
+.ul-sl{position:absolute;left:18px;right:18px;bottom:26px;height:56px;border-radius:999px;background:rgba(28,18,58,.92)}
+.ul-slt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-left:40px;font-size:15px;letter-spacing:.3em;color:rgba(255,255,255,.75);pointer-events:none}
 @keyframes ulShine{from{background-position:100% 0}to{background-position:-100% 0}}
 .ul-rg{-webkit-appearance:none;appearance:none;position:absolute;top:0;left:4px;width:calc(100% - 8px);height:100%;margin:0;background:transparent;cursor:grab}
 .ul-rg::-webkit-slider-runnable-track{height:56px;background:transparent}
@@ -132,7 +132,7 @@ export const UbLock = () => {
 .ul-rg:focus-visible{outline:2px solid #67e8f9;outline-offset:4px;border-radius:999px}
 .ul-home{padding:58px 18px 0;opacity:0;scale:1.08;pointer-events:none}
 .ul-on .ul-home{opacity:1;scale:1;pointer-events:auto}
-.ul-wd{padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.12);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 0 0 1px rgba(196,181,253,.35)}
+.ul-wd{padding:14px 16px;border-radius:22px;background:rgba(28,18,58,.9);box-shadow:0 0 0 1px rgba(196,181,253,.35)}
 .ul-wd span{display:block;font-size:11.5px;letter-spacing:.15em;color:#c4b5fd}
 .ul-wd b{display:block;margin-top:6px;font-size:18px;color:#fff}
 .ul-wd i{display:block;margin-top:6px;font-style:normal;font-size:13px;color:rgba(255,255,255,.78)}
@@ -147,7 +147,7 @@ export const UbLock = () => {
 .ul-ad{background:linear-gradient(135deg,#7c3aed,#c026d3);box-shadow:0 0 0 2px rgba(240,171,252,.6),0 0 22px rgba(217,70,239,.7);animation:ulPulse 2s ease-in-out infinite}
 @keyframes ulPulse{50%{box-shadow:0 0 0 2px rgba(240,171,252,.2),0 0 8px rgba(217,70,239,.3)}}
 .ul-hint{margin:22px 0 0;text-align:center;font-size:12px;color:rgba(255,255,255,.62)}
-.ul-dock{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;padding:11px 8px;border-radius:30px;background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.ul-dock{position:absolute;left:12px;right:12px;bottom:12px;display:flex;justify-content:space-around;padding:11px 8px;border-radius:30px;background:rgba(28,18,58,.92)}
 .ul-dock span{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;font-size:18px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.18)}
 .ul-sheet{position:absolute;left:10px;right:10px;bottom:10px;z-index:7;padding:20px 18px 16px;border-radius:26px;background:rgba(20,12,40,.95);box-shadow:0 0 0 1px rgba(196,181,253,.35),0 -20px 40px rgba(0,0,0,.5);animation:ulUp .35s ease both}
 @keyframes ulUp{from{opacity:0;transform:translateY(40px)}}
@@ -259,6 +259,7 @@ export const UbLock = () => {
 };
 
 export const UbRadar = () => {
+  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const SG = [
     { ty: "热门题材", t: "都市异能 · 能力觉醒", h: 5, c: 4 },
     { ty: "主角身份", t: "被生活压着的打工人", h: 4, c: 4 },
@@ -401,7 +402,7 @@ export const UbRadar = () => {
                         return (
                           <li key={i}>
                             <button type="button" className={"ur-row" + (on ? " ur-on" : "") + (s.crowd ? " ur-crowd" : "") + (s.diff ? " ur-diff" : "")} aria-pressed={s.crowd ? undefined : on} onClick={() => toggle(i)}>
-                              <span className="ur-ck" aria-hidden="true">{s.crowd ? "!" : on ? "✓" : ""}</span>
+                              <span className="ur-ck" aria-hidden="true">{s.crowd ? "!" : on ? {icC} : ""}</span>
                               <span className="ur-rt">
                                 <em>{s.ty}</em>
                                 <b>{s.t}</b>
@@ -484,6 +485,7 @@ export const UbRadar = () => {
 };
 
 export const UbChat = () => {
+  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const EN = [
     {
       k: "升级变强", ch: "频道下一级，能送多远", who: "未送达 · 频道", sub: "频道等级 Lv.1", av: "递",
@@ -719,7 +721,7 @@ export const UbChat = () => {
                         <>
                           <div className="uc-draft uc-fly" aria-hidden="true"><em>{x[2]}</em>{x[1]}</div>
                           <div className="uc-sent" role="status">
-                            ✓ 已送达至「{WHEN[when]}」
+                            {icC} 已送达至「{WHEN[when]}」
                             <button type="button" className="uc-undo" onClick={() => setSent(false)}>撤回</button>
                           </div>
                         </>
@@ -830,7 +832,7 @@ export const UbTitle = () => {
 .ut-dots{display:flex;gap:4px}
 .ut-dots i{width:10px;height:10px;border-radius:50%;background:#e0e7ff;transition:background .25s}
 .ut-dots i.ut-f{background:#6366f1}
-.ut-note{margin:14px 0 0;padding:12px 16px;font-size:14.5px;line-height:1.8;color:#3f3d5c;background:#fff;border-left:3px solid #a5b4fc;border-radius:0 12px 12px 0}
+.ut-note{margin:14px 0 0;padding:12px 16px;font-size:14.5px;line-height:1.8;color:#3f3d5c;background:#fff;border:1px solid rgba(165,180,252,.6);border-radius:12px}
 .ut-ok{border-left-color:#10b981}
 .ut-warn{color:#7f1d1d;background:#fef2f2;border-left-color:#ef4444}
 .ut-small{margin:16px 0 0;font-size:13.5px;line-height:1.85;color:#6b6990}
@@ -962,6 +964,8 @@ export const UbTitle = () => {
 };
 
 export const UbCall = () => {
+  const icX = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>;
+  const icP = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></svg>;
   const LINES = ["喂？是下一位作者吗？", "我的故事，只写到第 3 章。", "派单列表里有一条写给我自己的草稿，我还没敢送。", "送不送，你来写。"];
   const ref = useRef(null);
   const [seen, setSeen] = useState(false);
@@ -1073,11 +1077,11 @@ export const UbCall = () => {
                 </div>
                 <div className="uk-acts">
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-no" aria-label="挂断来电" onClick={() => setSt("miss")}>✕</button>
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断来电" onClick={() => setSt("miss")}>{icX}</button>
                     挂断
                   </div>
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-yes" aria-label="接听来电" onClick={() => { setSec(0); setSt("on"); }}>✆</button>
+                    <button type="button" className="uk-btn uk-yes" aria-label="接听来电" onClick={() => { setSec(0); setSt("on"); }}>{icP}</button>
                     接听
                   </div>
                 </div>
@@ -1094,7 +1098,7 @@ export const UbCall = () => {
                 </div>
                 <div className="uk-acts" style={{ justifyContent: "center" }}>
                   <div className="uk-act">
-                    <button type="button" className="uk-btn uk-no" aria-label="挂断通话" onClick={() => setSt("end")}>✕</button>
+                    <button type="button" className="uk-btn uk-no" aria-label="挂断通话" onClick={() => setSt("end")}>{icX}</button>
                     挂断
                   </div>
                 </div>
@@ -1119,7 +1123,7 @@ export const UbCall = () => {
                   <b>这通电话，进了「未送达」。</b>
                   故事停在第 3 章，等人接着写。
                 </div>
-                <button type="button" className="uk-re" onClick={redial}>✆ 回拨</button>
+                <button type="button" className="uk-re" onClick={redial}>{icP} 回拨</button>
               </>
             )}
           </div>
@@ -1265,6 +1269,7 @@ export const UbShake = () => {
 };
 
 export const UbShift = () => {
+  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const STEPS = ["方向候选", "世界规则", "角色生成", "推进模式", "章节细化", "成章"];
   const GLOW = ["rgba(124,58,237,.24)", "rgba(103,232,249,.14)", "rgba(192,38,211,.2)", "rgba(167,139,250,.2)", "rgba(232,121,249,.22)", "rgba(103,232,249,.18)"];
   const DIRS = [
@@ -1447,7 +1452,7 @@ export const UbShift = () => {
         .uz-tool:hover:not(:disabled){background:rgba(103,232,249,.1)}
         .uz-tool:disabled{opacity:.35;cursor:default}
         .uz-log{display:grid;gap:6px;margin-bottom:20px}
-        .uz-lr{display:grid;grid-template-columns:130px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(167,139,250,.5)}
+        .uz-lr{display:grid;grid-template-columns:130px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border:1px solid rgba(167,139,250,.22);border-radius:6px}
         .uz-lr span{font-family:var(--mono);font-size:11.5px;color:rgba(233,228,245,.45)}
         .uz-lr b{font-weight:500;color:rgba(233,228,245,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .uz-lr em{font-style:normal;font-size:11.5px;color:#c4b5fd}
@@ -1474,7 +1479,7 @@ export const UbShift = () => {
         .uz-opt.off{opacity:.3}
         .uz-opt.hid{border-style:dashed;border-color:rgba(232,121,249,.6);background:rgba(192,38,211,.08)}
         .uz-tag{margin-left:auto;font-size:11px;color:#f0abfc;white-space:nowrap}
-        .uz-res{margin-top:22px;padding:16px 18px;border-left:3px solid #67e8f9;background:rgba(103,232,249,.05);font-size:17px;line-height:1.9;color:#f5f3ff;animation:uzIn .6s both}
+        .uz-res{margin-top:22px;padding:16px 18px;border:1px solid rgba(103,232,249,.35);border-radius:8px;background:rgba(103,232,249,.05);font-size:17px;line-height:1.9;color:#f5f3ff;animation:uzIn .6s both}
         .uz-res small{display:block;margin-top:6px;font-size:12.5px;color:#67e8f9}
         .uz-warn{margin-top:12px;padding:10px 14px;border:1px solid rgba(252,165,165,.45);background:rgba(252,165,165,.08);color:#fca5a5;font-size:14px;line-height:1.7;animation:uzIn .5s both}
         .uz-next{margin-top:20px;padding:13px 26px;border:none;border-radius:999px;background:linear-gradient(135deg,#7c3aed,#c026d3);color:#fff;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:uzIn .6s .3s both}
@@ -1589,7 +1594,7 @@ export const UbShift = () => {
                     <div className="uz-pt">第 3 章　{E.t}</div>
                     {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="uz-cur" />}</p>)}
                     <div className="uz-checks">
-                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>{icC} {c}</span>)}
                     </div>
                     <div className={"uz-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
                   </div>

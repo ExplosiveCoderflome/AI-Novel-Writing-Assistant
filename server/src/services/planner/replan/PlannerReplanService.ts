@@ -6,6 +6,7 @@ import type { PlannerLlmOptions } from "../plannerLlm";
 import { replanWindowDecisionService } from "../ReplanWindowDecisionService";
 
 export interface ReplanInput extends PlannerLlmOptions {
+  preserveExecutionContractRange?: {startOrder: number; endOrder: number};
   taskStyleProfileId?: string;
   chapterId?: string;
   triggerType?: string;
@@ -20,6 +21,7 @@ interface PlannerReplanAdapter {
     novelId: string,
     chapterId: string,
     options: PlannerLlmOptions & {
+      preserveExecutionContract?: boolean;
       replanContext: {
         reason: string;
         triggerType: string;
@@ -167,6 +169,8 @@ export class PlannerReplanService {
       const chapter = affectedChapters[index];
       const existingPlan = await planner.getChapterPlan(novelId, chapter.id);
       const plan = await planner.generateChapterPlan(novelId, chapter.id, {
+        preserveExecutionContract: Boolean(input.preserveExecutionContractRange &&
+          chapter.order >= input.preserveExecutionContractRange.startOrder && chapter.order <= input.preserveExecutionContractRange.endOrder),
         provider: input.provider,
         model: input.model,
         temperature: input.temperature,

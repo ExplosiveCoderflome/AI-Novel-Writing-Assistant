@@ -29,6 +29,7 @@ interface SavedPreparation {
 type SavedPlan = { kind: "generate"; prepared: PreparedChapterPlan; workspaceFingerprint: string }
   | { kind: "reuse"; planId: string; planFingerprint: string; chapter: Awaited<ReturnType<typeof readPlanBaseline>>; workspaceFingerprint: string };
 export interface NativePlanningPreparationDependencies {
+  hasConfirmedExecutionContract?: (chapterId: string) => Promise<boolean>;
   db: PrismaClient;
   contract: ChapterExecutionContractService;
   contractSources: Pick<ChapterContractPreparationPorts, "db" | "readWorkspace" | "resolveStyleContract">;
@@ -109,9 +110,12 @@ export function createKernelNativePlanningPreparation(deps: NativePlanningPrepar
         generateDocument: params => executePreparedChapterContractGeneration(saved.generation, {
           ...params.options, chapterContractPorts: { invokePrompt: invoke, semanticAssessor } }),
       };
+      const confirmed = await deps.hasConfirmedExecutionContract?.(unit.chapterId);
       let contractReceipt = await steps.committed("execution_contract");
       if (!contractReceipt) {
-        const outcome = await deps.contract.evaluatePreparedChapterExecutionContract(saved.contract, contractOptions(saved.request), ports);
+        const outcome = confirmed
+          ? {kind: "reuse" as const, styleContract: saved.contract.preparedStyleContract, reviewedPrevious: null}
+          : await deps.contract.evaluatePreparedChapterExecutionContract(saved.contract, contractOptions(saved.request), ports);
         contractReceipt = await steps.commit("execution_contract", async tx => {
           const chapter = await deps.contract.commitPreparedChapterExecutionContract(tx, saved.contract, outcome, () => assertSources(tx, run, saved));
           return wire({ chapterVersion: chapter.updatedAt, workspaceFingerprint: await readWorkspaceFingerprint(tx, unit.novelId) });
@@ -160,7 +164,9 @@ export function createKernelNativePlanningPreparation(deps: NativePlanningPrepar
       } else {
         const output = await executePreparedChapterPlan(plan.prepared, invoke);
         planReceipt = await steps.commit("chapter_plan", async tx => {
-          const result = await persistStoryPlanInTransaction(tx, projectChapterPlan(plan.prepared, output), assertPlan);
+          const input = projectChapterPlan(plan.prepared, output);
+          if (confirmed) input.preserveExecutionContract = true;
+          const result = await persistStoryPlanInTransaction(tx, input, assertPlan);
           const chapter = await tx.chapter.findUniqueOrThrow({ where: { id: unit.chapterId }, select: { updatedAt: true } });
           return { planId: result.id, chapterVersion: chapter.updatedAt.toISOString() };
         });

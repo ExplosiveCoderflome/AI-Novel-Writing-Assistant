@@ -9,6 +9,7 @@ import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFa
 import { RagRetrievalTracer } from "./RagRetrievalTracer";
 import { RagRerankerService, resolveRerankerCandidateLimit } from "./RagRerankerService";
 import { filterCurrentArtifactChunks } from "./facts";
+import { filterChapterCharacterScope } from "./facts/ChapterCharacterScope";
 
 import {ragReadOnlyExecution, scopedRagRetrieve} from "./execution";
 
@@ -320,7 +321,8 @@ export class HybridRetrievalService {
       ]);
       const fusionStartedAt = Date.now();
       const allRows = [...baseVectorRows, ...knowledgeVectorRows, ...baseKeywordRows, ...knowledgeKeywordRows];
-      const validRows = new Set(await filterCurrentArtifactChunks(allRows, options));
+      const scopedRows = filterChapterCharacterScope(allRows, options.chapterCharacterScope);
+      const validRows = new Set(await filterCurrentArtifactChunks(scopedRows, options));
       const fusedRows = this.fuseRrf(
         [...baseVectorRows, ...knowledgeVectorRows].filter(row => validRows.has(row)),
         [...baseKeywordRows, ...knowledgeKeywordRows].filter(row => validRows.has(row)),

@@ -225,7 +225,38 @@ jobs:
   verify-only:
     needs: pg-live-gate
     if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v6
+        with:
+          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp
+      - name: Verify release checks without uploading
+        run: node scripts/desktop-release/check.cjs
+      - uses: actions/upload-artifact@v6
+        with:
+          name: desktop-preflight-${{ github.sha }}-${{ github.run_attempt }}
+          path: .tmp/desktop-release/${{ github.sha }}.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+
+  verify-windows-package:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -241,12 +272,6 @@ jobs:
         with:
           python-version: "3.11"
       - run: pnpm install --frozen-lockfile
-      - uses: actions/download-artifact@v6
-        with:
-          name: pg-live-gate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .tmp
-      - name: Verify release checks without uploading
-        run: node scripts/desktop-release/check.cjs
       - run: pnpm stage:desktop
       - name: Verify Windows package without publishing
         run: node desktop/scripts/run-electron-builder.cjs --dir --win --x64 --publish never

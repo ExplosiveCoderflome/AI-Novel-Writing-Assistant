@@ -37,6 +37,7 @@ export function applyOutlineImportEdits(originalInput: unknown, editedInput: unk
       ...chapter,
       title: next.title,
       volumeNodeId: next.volumeNodeId,
+      ...(next.volumeNodeId !== chapter.volumeNodeId && {beatKey: undefined}),
       characterNodeIds: unique(next.characterNodeIds),
       payoffNodeIds: unique(next.payoffNodeIds),
     };

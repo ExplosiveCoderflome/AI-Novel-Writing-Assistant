@@ -14,6 +14,69 @@ const { getRequiredTemplateContextGroups } = require("../dist/prompting/template
 const router = require("../dist/routes/promptWorkbench.js").default;
 const { errorHandler } = require("../dist/middleware/errorHandler.js");
 
+const idea = "边关小卒替将军写家书。";
+const openingInput = { idea, context: {}, count: 2, batches: [], presets: [] };
+const seedBlock = { id: "idea_seed", group: "idea_seed", priority: 100, required: true, content: idea };
+const directions = {
+  A: { choice: "冒名领信", engine: "每次代领一封信都要找到新的证人。" },
+  B: { choice: "护送信使出关", engine: "每送出一队信使就要重新分配剩下的粮马。" },
+};
+const openingPrompts = [
+  { promptId: "novel.director.candidate_titles", name: "开书候选书名", version: "v1", blocks: [],
+    labels: ["取名方法", "书名风格示例", "首选书名标准"], key: "titles.coverCriteria", custom: "首选要像角色当面说得出口的一句玩笑。",
+    promptInput: { context: { count: 4, genreName: "历史", brief: idea } }, expected: [idea, "coverTitle"] },
+  { promptId: "novel.director.direction_pair", name: "开书方向构思", version: "v1", blocks: [seedBlock],
+    labels: ["从哪里拉开差异", "怎样一句话说清方向", "怎样判断两条路线足够不同"], key: "directions.fork", custom: "让主角为了两种不同的承诺作决定。",
+    promptInput: openingInput, expected: [idea, "choice", "engine"] },
+  { promptId: "novel.director.candidates", name: "开书方案展开", version: "v3", blocks: [seedBlock],
+    labels: ["主角选择与核心冲突", "开篇与后续推进", "完整方案的对照标准"], key: "candidates.progression", custom: "写出开篇付出的代价怎样改变下一次选择。",
+    promptInput: { ...openingInput, directions }, expected: [idea, directions.A.engine, directions.B.engine, "coreConflict"] },
+];
+
+for (const sample of openingPrompts) {
+  test(`${sample.name}支持无小说预览、全局保存，并进入正式请求`, async (t) => {
+    const { promptId, promptInput, blocks, custom, key } = sample;
+    const { getRegisteredPromptAsset } = require("../dist/prompting/registry.js");
+    const { preparePromptExecution, resolvePromptOverlaysForAsset } = require("../dist/prompting/core/promptRunner.js");
+    const workbench = new PromptWorkbenchService();
+    const item = workbench.listCatalog({ keyword: sample.name }).find(entry => entry.id === promptId && entry.slotSupported);
+    assert.ok(item?.slotSupported);
+    assert.equal(item.version, sample.version);
+    assert.equal(item.management.slotScope, "global");
+    assert.deepEqual(item.slots.map(slot => slot.label), sample.labels);
+
+    let record;
+    prisma.promptSlotOverride = {
+      findMany: async ({ where }) => {
+        assert.deepEqual(where, { promptId, OR: [{ scope: "global", novelId: null }] });
+        return record ? [record] : [];
+      },
+      findFirst: async () => record ?? null,
+      create: async ({ data }) => (record = { ...data, id: "test", createdAt: new Date(), updatedAt: new Date() }),
+    };
+    t.after(() => { delete prisma.promptSlotOverride; });
+    const slotUpdates = { [key]: custom };
+    const request = { promptKey: item.key, promptInput, executionContext: { entrypoint: "manual_test", metadata: { extraContextBlocks: blocks } } };
+    const draft = await workbench.preview({ ...request, slotOverrides: slotUpdates });
+    assert.ok(draft.messages[0].content.includes(custom));
+    assert.ok(!draft.messages[0].content.includes(item.slots.find(slot => slot.key === key).default));
+    assert.deepEqual(draft.diagnostics.missingRequiredGroups, []);
+    assert.equal(record, undefined);
+    await assert.rejects(promptSlotOverrideService.save({ promptId, scope: "novel", novelId: "existing", slotUpdates }), /所有小说/);
+    await promptSlotOverrideService.save({ promptId, scope: "global", slotUpdates });
+    assert.equal(record.novelId, null);
+    const saved = await workbench.preview(request);
+    assert.deepEqual(saved.messages, draft.messages);
+    const asset = getRegisteredPromptAsset(promptId, item.version);
+    const overlays = await resolvePromptOverlaysForAsset({ asset });
+    const runtime = preparePromptExecution({ asset, promptInput, contextBlocks: saved.context.blocks, resolvedSlots: overlays.resolvedSlots });
+    assert.deepEqual(runtime.messages.map(message => message.content), saved.messages.map(message => message.content));
+    for (const required of sample.expected) {
+      assert.ok(saved.messages.some(message => message.content.includes(required)), required);
+    }
+  });
+}
+
 test("official templates can be read without a novel or any template database access", async (t) => {
   const lookup = t.mock.method(prisma.promptTemplateOverride, "findUnique", async () => { throw new Error("unexpected database read"); });
   for (const promptId of ["novel.chapter.writer", "novel.short_story.segment.write"]) {

@@ -1,4 +1,5 @@
 import { outlineOpeningPlan, prepareOutlineHandoff, withOutlineOpeningSteps } from "./outlineOpening";
+import { matchesApprovedChapterPlans } from "./revisions/chapterReview";
 import { prepareEditedChapterGate } from "./recovery/editedChapterGate";
 import {withStepUsage} from "./usage";
 import { prisma } from "../../db/prisma";
@@ -17,10 +18,11 @@ import { CharacterPreparationService } from "../../services/novel/characterPrep/
 import { generateAutoCharacterCastDraft, appendCharacterCastOptionsDraft } from "../../services/novel/characterPrep/characterCastGeneration";
 import { NovelCorePipelineService } from "../../services/novel/novelCorePipelineService";
 import {buildDirectorCompletionProfile} from "@ai-novel/shared/types/directorCompletion";
-import { DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
+import { DIRECTOR_ISSUE_CATALOG_BY_CODE, DIRECTOR_ISSUE_CODES, DIRECTOR_ISSUE_POLICY_PRESETS, directorIssuePolicySchema, type DirectorIssuePolicy } from "@ai-novel/shared/types/directorIssue";
 import { requireLaunch, modelOptions, bookContractInput, targetVolume, executionWindow, readExecutionWindow } from "./productionInputs";
 import { readBatchOutcome } from "./batchOutcome";
 import {readEditedArtifact, resumeBusiness, cancelBusiness} from "./savedContent";
+import {confirmedCastForPlanning} from "./revisions/castDiscussion";
 import {readExistingAssets} from "./existingAssets";
 import {isCurrentV2ChapterProductionCompleted as isCurrentChapterProductionCompleted} from "../../services/novel/production/completion";
 import {CHAPTER_ARTIFACT_BOUNDARY_TYPE} from "../../services/novel/runtime/artifactSync";
@@ -35,7 +37,17 @@ import { createKernelProductionStep, createNativeKernelRuntime, assertKernelOpen
 import {MANUAL_CHAPTER_PLAN_VERSION, readManualChapterRequest, type ManualChapterLaunchInput} from "./productionKernel/manual/contract";
 import {assertKernelStartReadiness} from "./productionKernel";
 
-/** Composition only: business generation remains owned by existing novel services. Not enabled by importing this module. */
+function snapshotOpeningPolicy(policy: DirectorIssuePolicy) {
+  const pipelinePolicy = directorIssuePolicySchema.parse(policy);
+  const requestsQualityPause = DIRECTOR_ISSUE_CODES.some(code => {
+    const entry = DIRECTOR_ISSUE_CATALOG_BY_CODE[code];
+    return entry.category === "quality" && !entry.enforcedAction && pipelinePolicy.issueActions[code] === "pause_for_manual";
+  });
+  return {mode: requestsQualityPause ? "quality_first" as const : "completion_first" as const,
+    version: "director-next-policy-v1", pipelinePolicy};
+}
+
+/** Composition only: business generation remains owned by existing novel services. */
 export function createDirectorProductionOptions(): DirectorNextServiceOptions {
   const macro = new StoryMacroPlanService(), book = new BookContractService(), volumes = new NovelVolumeService();
   const characters = new CharacterPreparationService(), pipeline = new NovelCorePipelineService(), events = new PrismaEventLog();
@@ -71,7 +83,8 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
           return characters.applyCharacterCastOption(novelId, ids[0], {requireEmptyCast: true, postApplyMode: "deferred"});
         }}, contentHash}),
     volume_strategy: createVolumeStrategyStepHandler({volumeService: volumes, inputProvider: async context => ({...modelOptions(context), estimatedChapterCount: requireLaunch(context.contract).estimatedChapterCount,
-      userPreferredVolumeCount: requireLaunch(context.contract).userPreferredVolumeCount}), contentHash}),
+      userPreferredVolumeCount: requireLaunch(context.contract).userPreferredVolumeCount,
+      confirmedCast: await confirmedCastForPlanning(context.runId, context.contract.novelId)}), contentHash}),
     volume_beat_sheet: createVolumeBeatSheetStepHandler({volumeService: volumes, inputProvider: async context => {
       // Old runs may have adopted a skeleton as a complete strategy. Check the saved business facts.
       await volumes.recoverVolumeStrategy(context.contract.novelId, {
@@ -95,7 +108,9 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     }, resolveIssues: async (_context, reports) => resolveChapterQualityReports(reports), contentHash}),
     execution_contract_sync: createExecutionContractSyncStepHandler({volumeService: {syncVolumeChaptersWithOptions:(novelId,input,options)=>volumes.syncVolumeChaptersWithOptions(novelId,input,{...options,hydrateCanonical:false})}, chapterService: new ChapterService(), inputProvider: async context => {
       const workspace = await volumes.getVolumes(context.contract.novelId, {hydrateCanonical:false});
-      return readExecutionWindow(context, workspace);
+      const window = await readExecutionWindow(context, workspace);
+      const approved = await matchesApprovedChapterPlans(context, window.workspace);
+      return {...window, approvedPlanVersionId: approved ? window.workspace.activeVersionId ?? undefined : undefined};
     }, contentHash}),
     chapter_batch: createKernelProductionStep({db: prisma, runtime: context => createNativeKernelRuntime(prisma, context),
       legacy: createChapterBatchStepHandler({pipelineService: pipeline, inputProvider: async context => {
@@ -159,7 +174,7 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
     const scope = manual ? `manual:chapter:${manual.chapterId}:${manual.operation}:${input.runId}` : launch.executionRange ? `chapters:${launch.executionRange.from}-${launch.executionRange.to}${launch.targetVolumeId ? `:volume:${launch.targetVolumeId}` : ""}` : launch.targetVolumeId ? `volume:${launch.targetVolumeId}` : "book";
     const contract = {runId: input.runId, novelId: input.novelId, driver: input.driver, planVersion: manual ? MANUAL_CHAPTER_PLAN_VERSION : directorProductionPlan.version, scope,
       stepIdsInScope: requestedSteps, chapterRange: launch.executionRange ?? null,
-      issuePolicy: {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
+      issuePolicy: launch.openingIssuePolicy ? snapshotOpeningPolicy(launch.openingIssuePolicy) : {mode, version: "director-next-policy-v1", pipelinePolicy: {...preset.policy, issueActions: {...preset.policy.issueActions}}},
       modelConfig: {route: launch.provider ?? "default", model: launch.model ?? "default", version: "director-next-model-v1"},
       launchInput: launch, tokenBudget: null, rejectionBudget: 3};
     requireLaunch(contract);readManualChapterRequest(contract);return contract;
@@ -176,8 +191,14 @@ export function createDirectorProductionOptions(): DirectorNextServiceOptions {
       launch.chapterTokenLimit = budget.tokenLimit;
       if (budget.automatic) launch.chapterBudgetAutomatic = true;
     }
-    const configured = (await directorIssuePolicyService.getNovelPolicy(contract.novelId)).effectivePolicy.chapterReviewRetryPolicy;
-    if (configured && contract.issuePolicy.pipelinePolicy) contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...configured};
+    if (!launch.openingIssuePolicy) {
+      const {effectivePolicy} = await directorIssuePolicyService.getNovelPolicy(contract.novelId);
+      if (!launch.issuePolicyMode) {
+        contract.issuePolicy = snapshotOpeningPolicy(effectivePolicy);
+      } else if (effectivePolicy.chapterReviewRetryPolicy && contract.issuePolicy.pipelinePolicy) {
+        contract.issuePolicy.pipelinePolicy.chapterReviewRetryPolicy = {...effectivePolicy.chapterReviewRetryPolicy};
+      }
+    }
     const novel = await prisma.novel.findUniqueOrThrow({where: {id: contract.novelId}, select: {id: true, title: true, description: true}});
     return [{type: "novel_seed", scope: contract.scope, status: "confirmed", protectedUserContent: true, contentRef: `novel:${novel.id}`, contentHash: contentHash({novel, launchInput: contract.launchInput})},
       ...(manual ? [] : await inferExistingAssets(contract, {read: readExistingAssets, contentHash}))];

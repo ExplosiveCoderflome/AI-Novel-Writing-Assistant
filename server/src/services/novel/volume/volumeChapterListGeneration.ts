@@ -30,6 +30,7 @@ import {
   setVolumeChapterListPartialStatus,
 } from "./volumeGenerationHelpers";
 import { assessChapterTitleDiversity } from "./chapterTitleDiversity";
+import { repairSavedChapterTitles } from "./chapterList/repairSavedChapterTitles";
 import type {
   VolumeGenerateOptions,
   VolumeGenerationNovel,
@@ -69,7 +70,7 @@ export function isCompactBookFinaleBeat(params: {
     >= params.completionProfile.endingRequiredBy;
 }
 
-function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
+export function buildBeatGenerationPlans(beatSheet: VolumeBeatSheet): BeatGenerationPlan[] {
   let nextChapterOrder = 1;
   return beatSheet.beats.map((beat) => {
     const chapterCount = Math.max(1, getBeatExpectedChapterCount(beat));
@@ -640,8 +641,9 @@ export async function generateBeatChunkedChapterList(params: {
     volumeId: targetVolume.id,
     chapterCount: generatedBlocks.reduce((sum, block) => sum + block.chapters.length, 0),
   });
-  const rawMergedDocument = generatedBlocks.length > 0
-    ? mergeChapterList(
+  let rawMergedDocument = chapterListDocument;
+  if (generatedBlocks.length > 0) {
+    rawMergedDocument = mergeChapterList(
       chapterListDocument,
       targetVolume.id,
       targetBeatSheet,
@@ -652,8 +654,10 @@ export async function generateBeatChunkedChapterList(params: {
         resumeFromBeatKey: fullVolumeResumeState?.resumeBeatKey,
         markAsPartial: false,
       },
-    )
-    : setVolumeChapterListPartialStatus(chapterListDocument, targetVolume.id, false);
+    );
+  } else if (options.entrypoint === "director_next" && fullVolumeResumeState?.isAlreadyComplete) {
+    rawMergedDocument = await repairSavedChapterTitles(chapterListDocument, targetVolume, options);
+  }
   const rawMergedVolume = rawMergedDocument.volumes.find((volume) => volume.id === targetVolume.id);
   if (!rawMergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");

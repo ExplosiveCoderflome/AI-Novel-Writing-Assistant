@@ -56,7 +56,9 @@ test('pending is nonblocking, summary-only and deduplicated; partial adoption cr
  assert.equal(run.status,'pending');assert.equal(f.calls(),0);
  assert.equal((await f.service.enqueue('p','c1','manual')).id,run.id);
  await f.drain();assert.equal(f.calls(),1);
- assert.equal((await f.service.status('p')).runs[0].items.length,2);
+ const status=await f.service.status('p');
+ assert.deepEqual(status.chapters,[{id:'c1',order:1,title:'第1章'}]);
+ assert.equal(status.runs[0].items.length,2);
  await f.service.decide('p',run.id,['a'],'adopted');
  assert.equal((await f.db.outlineProject.findUnique({where:{id:'p'}})).currentVersion,2);
  assert.equal((await f.db.chapter.findUnique({where:{id:'c2'}})).expectation,'追查假钥匙的来历');

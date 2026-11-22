@@ -12,6 +12,40 @@ keywords:
 
 Below is a summary of recent desktop release updates. For the full history, visit the source repository's [release-notes.md](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/releases/release-notes.md) or the GitHub [Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases) page.
 
+<Update label="2026-11-22" description="v0.8.12">
+
+- Start a novel from one inspiration star or combine several. Review conflicting ideas, compare two story directions, discuss each one, and keep earlier rounds when requesting alternatives.
+- In Director V2, review characters, volumes, chapter plans, scenes, and prose in stages. Compare suggestions with the original and carry accepted edits into the next batch.
+- Review the finished manuscript chapter by chapter, discuss passages and transitions with the AI, accept individual edits, and export the confirmed book as TXT.
+- Organize chapters into beats within each volume and carry their confirmed order into a new book. Browse and copy prompts by stage, including volume highlights and similar chapter titles, and customize how opening directions and book titles are generated.
+- Compare opening options by title, central conflict, opening hook, and what sustains a serial. Title suggestions reflect each story and its intended readers.
+- Resume your latest outline from the list or start with an idea, a blank outline, or an import. Discuss characters, chapters, and volumes in the reading pane and compare earlier suggestions before accepting edits.
+- The director workspace groups the contents by volume, beat, chapter, and reference type, highlights turning points in the outline, and brings progress and next actions together. Wide layouts give notes and inventory more room.
+- Character graphs group people by role and keep hand-placed positions after refresh, with a reset to automatic layout. The timeline distinguishes planned and actual appearances and connects consecutive chapters.
+- Resize workbench panes and keep their widths between visits. Load older runs and jump to the matching record from a history link.
+- Long direction descriptions, slow model responses, and brief disconnects are handled during opening generation. Retrying uses the saved settings and avoids duplicate books.
+- Staged drafting preserves approved chapter tasks and scenes. Resolve character references during review, locate findings by their quoted text, and retain paragraph formatting on export.
+- Unsaved edits survive switches between world handbook tabs or drama episodes. Outline conflicts preserve local edits, and delayed save responses no longer replace newer revisions.
+
+</Update>
+
+<Update label="2026-11-21" description="v0.8.11">
+
+- Discuss a character continuously in the outline workbench, keep the conversation and prior proposals, and save only the edits you accept.
+- Manually add volumes, chapters, characters, foreshadowing, and settings in the outline directory, search by title, and jump between linked nodes.
+- Chat with the Outline Partner to draft or revise a full outline. Replies stream in, thinking can be expanded, and proposals are reviewed before save.
+- Out-of-scope character-impact suggestions are skipped without discarding the rest of the proposal; slightly off proposal formats are still recognized by content.
+
+</Update>
+
+<Update label="2026-11-20" description="v0.8.10">
+
+- In Director V2, adjust a character's state, goals, and arc from the next unfinished chapter. Preview affected chapter plans before saving without changing completed chapters.
+- Fixed a missing image-processing library that prevented the Linux x86_64 AppImage from starting.
+- World generation starts at 12,000 tokens, with more room for whole-book settings. It can retry once after a budget failure or timeout. Failure messages show the model, requested allowance, and where to adjust model settings.
+
+</Update>
+
 <Update label="2026-11-19" description="v0.8.9">
 
 - Read a completed novel from the bookshelf or Director workspace and export it as TXT. Open the relevant project directly from a home-page item that needs attention.
@@ -19,6 +53,33 @@ Below is a summary of recent desktop release updates. For the full history, visi
 - Chapter drafts and continuations honor the model route’s output allowance and can recover from saved progress after an interruption. Short-story planning and outline suggestions can retry with a higher allowance when needed.
 - Confirm chapter plans for projects started from an outline and view the chapters under each volume in Director V2. The desktop app remembers dismissed onboarding tips after a restart.
 
+</Update>
+
+<Update label="2026-11-19" description="v0.8.9">
+  - After finishing a long novel, you can read the whole book from the simple bookshelf or the director desk and export it as TXT. Pending items on the home screen link straight to the matching work.
+  - Book breakdown recovery now only reruns the missing source notes and sections. You can compare hand-edited text with the AI-generated version and save your choice for reference book starting, continuation, and publishing.
+  - First drafts and continuations follow the output limit set on the model route, and an interrupted generation can resume from saved progress. Short story planning and outline suggestions automatically raise the limit and retry when they hit the output cap.
+  - After starting a book from an outline, chapter plans can be confirmed normally, and the V2 director desk shows the chapters under each volume. The desktop app remembers a dismissed book-starting tip after restart.
+</Update>
+
+<Update label="2026-11-17" description="v0.8.8">
+  Desktop `v0.8.8`: chapter-by-chapter outline confirmation links straight to the saved text, and selecting several chapters at once on the director desk now writes their text smoothly. The automatic output limit is higher and shows a budget breakdown, with a continue option when the limit runs out.
+
+  #### New
+
+  - The call details in "AI Usage" show the effective output limit, where the limit came from, the finish reason, and the structure validation result.
+
+  #### Improvements
+
+  - The Chinese and English homepages, installation downloads, and changelog on the docs site now follow the official desktop release, so you can read release notes and get installers in your language.
+  - When a model route has no output limit set, the automatic output limit starts at 16,384 tokens. Book-level plans and volume-to-chapter splits adjust the limit to the task size, within the model cap and any manual setting.
+  - The default per-chapter usage limit for new auto director tasks is raised to 200,000 tokens. With the system default, if the current chapter runs short, one automatic top-up happens first. If it is still not enough, you see a suggested limit and a continue option.
+
+  #### Fixes
+
+  - Structured tasks turn off deep thinking by default. For models that require thinking, the automatic limit leaves room for it, so task sheets and chapter outlines are cut off less often.
+  - The confirmation page for chapter-by-chapter outline writing shows the latest saved task and scenes for the current chapter, offers regeneration when items are missing, and can open the latest saved text directly.
+  - When writing several chapters at once on the director desk, all authorized chapters start together, and the execution contract is prepared from each chapter's latest saved task and scenes.
 </Update>
 
 <Update label="2026-11-16" description="v0.8.7">

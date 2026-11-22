@@ -55,6 +55,7 @@ export interface VolumeWorkspace {
 }
 
 export interface VolumeGenerationNovel {
+  confirmedCast?: import("@ai-novel/shared/types/director/castReview/discussion").ConfirmedCastMember[];
   title: string;
   description: string | null;
   targetAudience: string | null;
@@ -82,6 +83,7 @@ export interface VolumeGenerationNovel {
 }
 
 export interface VolumeGenerateOptions {
+  confirmedCast?: VolumeGenerationNovel["confirmedCast"];
   /** Chapter-detail callers can own request accounting and persistence without replacing planning rules. */
   chapterContractPorts?: {
     invokePrompt?: typeof runStructuredPrompt;

@@ -13,7 +13,7 @@ export interface CharacterCastAutoRelationsPromptInput {
   storyInput: string;
   optionTitle: string;
   optionSummary: string;
-  protagonistName: string;
+  protagonistNames: string[];
   memberNames: string[];
   memberRosterText: string;
 }
@@ -23,7 +23,7 @@ export const characterCastAutoMembersPrompt: PromptAsset<
   z.infer<typeof characterCastAutoMembersResponseSchema>
 > = {
   id: "novel.character.castAuto.members",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -55,8 +55,8 @@ export const characterCastAutoMembersPrompt: PromptAsset<
       "最终 JSON 只能包含：title、summary、whyItWorks、recommendedReason、members。",
       "",
       "硬规则：",
-      "1. members 必须是 3-6 个角色。",
-      "2. 必须有且只能有 1 个 protagonist。",
+      "1. 依据作者指定的人数、角色视角与剧情需要决定 members，独角戏可仅一人，群像保留承担不同剧情线的成员。",
+      "2. 至少有一位明确的 protagonist，双主角或群像可有多位。",
       "3. 每个角色都必须输出 gender，允许值只有 male、female、other、unknown。",
       "4. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "5. name 只能写可直接进入正文的人名或稳定称谓，禁止功能位式名字。",
@@ -78,15 +78,15 @@ export const characterCastAutoMembersPrompt: PromptAsset<
       "",
       "【输出要求】",
       "- 只输出成员骨架，不输出 relations",
-      "- protagonist 必须唯一且稳定",
+      "- 保留故事中的每位主角",
       "- name 必须可直接入戏",
       "- 只输出严格 JSON",
     ].join("\n")),
   ],
   postValidate: (output) => {
     const protagonistCount = output.members.filter((member) => member.castRole === "protagonist").length;
-    if (protagonistCount !== 1) {
-      throw new Error(`成员骨架必须且只能包含 1 个 protagonist，当前为 ${protagonistCount} 个。`);
+    if (protagonistCount === 0) {
+      throw new Error("阵容需要至少一位 protagonist。");
     }
 
     const seenNames = new Set<string>();
@@ -107,7 +107,7 @@ export const characterCastAutoRelationsPrompt: PromptAsset<
   z.infer<typeof characterCastAutoRelationsResponseSchema>
 > = {
   id: "novel.character.castAuto.relations",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -135,7 +135,7 @@ export const characterCastAutoRelationsPrompt: PromptAsset<
       "3. 每条关系都必须连接两个不同角色，禁止自指关系。",
       "4. 不要输出重复关系对。",
       "5. relations 必须体现长期关系动力、冲突来源、信息不对称或下一步转折，不能写空话。",
-      "6. 主角必须进入至少一条关系。",
+      "6. 根据已有故事事实连接人物。各线尚未相交时可保留独立人物，没有已建立的关系时返回空数组。",
       "",
       "表达要求：",
       "1. 所有字段值使用简体中文。",
@@ -150,7 +150,7 @@ export const characterCastAutoRelationsPrompt: PromptAsset<
       "",
       `【阵容摘要】\n${input.optionSummary}`,
       "",
-      `【主角】\n${input.protagonistName}`,
+      `【主角】\n${input.protagonistNames.join("、")}`,
       "",
       `【允许使用的角色名】\n${input.memberNames.join("、")}`,
       "",
@@ -166,7 +166,6 @@ export const characterCastAutoRelationsPrompt: PromptAsset<
   postValidate: (output, input) => {
     const allowedNames = new Set(input.memberNames.map((name) => name.trim()).filter(Boolean));
     const seenPairs = new Set<string>();
-    let protagonistLinked = false;
 
     for (const relation of output.relations) {
       if (!allowedNames.has(relation.sourceName) || !allowedNames.has(relation.targetName)) {
@@ -181,14 +180,6 @@ export const characterCastAutoRelationsPrompt: PromptAsset<
         throw new Error(`relations 出现了重复关系对：${pairKey}`);
       }
       seenPairs.add(pairKey);
-
-      if (relation.sourceName === input.protagonistName || relation.targetName === input.protagonistName) {
-        protagonistLinked = true;
-      }
-    }
-
-    if (input.protagonistName && !protagonistLinked) {
-      throw new Error(`relations 必须显式包含主角「${input.protagonistName}」。`);
     }
 
     return output;

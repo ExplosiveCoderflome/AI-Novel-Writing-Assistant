@@ -84,6 +84,7 @@ export class NovelCoreCrudService {
         title: input.title,
         penName: normalizeOptionalTextForCreate(input.penName),
         directorVersion: input.directorVersion,
+        directorIssuePolicyOverridesJson: input.openingIssuePolicy ? JSON.stringify(input.openingIssuePolicy) : undefined,
         description: input.description,
         targetAudience: normalizeOptionalTextForCreate(input.targetAudience),
         bookSellingPoint: normalizeOptionalTextForCreate(input.bookSellingPoint),

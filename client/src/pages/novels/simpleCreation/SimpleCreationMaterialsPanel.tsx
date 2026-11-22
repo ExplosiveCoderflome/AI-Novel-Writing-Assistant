@@ -1,5 +1,5 @@
 import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { BookMarked, Boxes, ChevronDown, Globe2, Sparkles, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -36,7 +36,8 @@ export default function SimpleCreationMaterialsPanel({
     || "AI 正在沉淀整书方向。";
   const readingPromise = materials.story.readingPromise
     || materials.story.protagonistFantasy;
-  const displayedCharacters = materials.characters.slice(0, 6);
+  const [showAllCharacters, setShowAllCharacters] = useState(false);
+  const displayedCharacters = showAllCharacters ? materials.characters : materials.characters.slice(0, 6);
   const displayedVolumes = materials.volumes.slice(0, 5);
 
   return (
@@ -98,8 +99,10 @@ export default function SimpleCreationMaterialsPanel({
                   {character.currentGoal ? <div className="text-xs leading-5">当前目标：{character.currentGoal}</div> : null}
                 </div>
               ))}
-              {materials.characterCount > displayedCharacters.length ? (
-                <div className="text-xs">另有 {materials.characterCount - displayedCharacters.length} 位角色已纳入生产。</div>
+              {materials.characters.length > 6 ? (
+                <button type="button" aria-expanded={showAllCharacters} className="text-sm font-medium text-primary hover:underline" onClick={() => setShowAllCharacters(value => !value)}>
+                  {showAllCharacters ? "收起角色名单" : `查看全部 ${materials.characters.length} 位角色`}
+                </button>
               ) : null}
             </div>
           ) : (

@@ -11,6 +11,7 @@ interface NovelBookDeliveryActionsProps {
   title: string;
   completion?: NovelBookCompletion | null;
   allowDraftExport?: boolean;
+  onFinalReview?:()=>void;
 }
 
 export default function NovelBookDeliveryActions({
@@ -18,6 +19,7 @@ export default function NovelBookDeliveryActions({
   title,
   completion,
   allowDraftExport = false,
+  onFinalReview,
 }: NovelBookDeliveryActionsProps) {
   const download = useMutation({
     mutationFn: () => downloadNovelExport(novelId, "txt", "full", title),
@@ -41,10 +43,10 @@ export default function NovelBookDeliveryActions({
       {firstChapterId ? (
         <span role="status" className="text-sm font-medium text-success">全书已写完 · {completion?.completedChapters} 章</span>
       ) : null}
-      <Button variant={firstChapterId ? "default" : "outline"} size="sm" onClick={() => download.mutate()} disabled={download.isPending}>
+      {firstChapterId && onFinalReview ? <Button size="sm" onClick={onFinalReview}>全书完稿检查</Button> : firstChapterId && completion?.finalReviewRoute ? <Button asChild size="sm"><Link to={completion.finalReviewRoute}>全书完稿检查</Link></Button> : <Button variant={firstChapterId ? "default" : "outline"} size="sm" onClick={() => download.mutate()} disabled={download.isPending}>
         <Download className="h-4 w-4" aria-hidden="true" />
         {download.isPending ? "正在导出…" : firstChapterId ? "导出全书" : "导出当前稿件"}
-      </Button>
+      </Button>}
       {firstChapterId ? (
         <Button asChild variant="outline" size="sm">
           <Link to={`/novels/${encodeURIComponent(novelId)}/preview?${new URLSearchParams({ chapterId: firstChapterId })}`}>

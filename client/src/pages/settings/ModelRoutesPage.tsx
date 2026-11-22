@@ -6,6 +6,7 @@ import type { StructuredFallbackSettings } from "@/api/settings";
 import {
   getAPIKeySettings,
   getModelRoutes,
+  getModelRouteConnectivity,
   getStructuredFallbackConfig,
   saveModelRoute,
   saveStructuredFallbackConfig,
@@ -64,9 +65,17 @@ export default function ModelRoutesPage() {
 
   const modelRouteConnectivityQuery = useQuery({
     queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
+    queryFn: getModelRouteConnectivity,
     enabled: modelRoutesQuery.isSuccess,
     refetchOnWindowFocus: false,
+  });
+
+  const checkConnectivity = useMutation({
+    mutationFn: testModelRouteConnectivity,
+    onSuccess: async result => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.settings.modelRouteConnectivity });
+      queryClient.setQueryData(queryKeys.settings.modelRouteConnectivity, result);
+    },
   });
 
   const structuredFallbackQuery = useQuery({
@@ -256,18 +265,15 @@ export default function ModelRoutesPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>模型路由管理</CardTitle>
-          <CardDescription>
-            为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。
-          </CardDescription>
+          <CardTitle>连接检测</CardTitle>
+          <CardDescription>检测会向已保存的模型发送对话和结构化请求，可能消耗模型额度。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <div>检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。</div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
-              <span className="inline-flex items-center gap-2">
+              <span role="status" className="inline-flex items-center gap-2">
                 <RouteStatusDot
-                  state={modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                  state={checkConnectivity.isPending
                     ? "checking"
                     : connectivitySummary.failed > 0
                       ? "failed"
@@ -275,12 +281,16 @@ export default function ModelRoutesPage() {
                         ? "healthy"
                         : "idle"}
                 />
-                {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
+                {checkConnectivity.isPending
                   ? "正在检测生效路由..."
                   : connectivitySummary.total > 0
-                    ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
-                    : "尚未执行模型兼容性检测"}
+                    ? `上次检测：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
+                    : modelRouteConnectivityQuery.isLoading || modelRoutesQuery.isLoading ? "正在读取上次检测结果…"
+                      : modelRouteConnectivityQuery.isError || modelRoutesQuery.isError ? "暂无可展示的检测结果" : "尚未执行模型兼容性检测"}
               </span>
+              {checkConnectivity.isError || modelRouteConnectivityQuery.isError ? <span role="alert" className="text-destructive">
+                {checkConnectivity.isError ? "本次检测未完成，请重新检测。" : "上次检测结果读取失败。"}
+              </span> : null}
               {connectivitySummary.testedAt ? (
                 <span>检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}</span>
               ) : null}
@@ -289,11 +299,11 @@ export default function ModelRoutesPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={() => void modelRouteConnectivityQuery.refetch()}
-              disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
+              onClick={() => checkConnectivity.mutate()}
+              disabled={checkConnectivity.isPending || !modelRoutesQuery.isSuccess}
             >
-              <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
-              {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
+              <RefreshCw className={`h-4 w-4 ${checkConnectivity.isPending ? "animate-spin" : ""}`} />
+              {checkConnectivity.isPending ? "检测中…" : "检测连接"}
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
@@ -459,19 +469,15 @@ export default function ModelRoutesPage() {
         const connectivity = connectivityMap.get(taskType);
         const connectivityState = resolveConnectivityState(
           connectivity,
-          modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching,
+          checkConnectivity.isPending,
         );
         const isDirty = dirtyTaskTypeSet.has(taskType);
-        const hasUnsavedRouteDiff = connectivity != null
-          && (
-            draft.provider !== connectivity.provider
-            || (draft.model.trim().length > 0 && draft.model !== connectivity.model)
-            || (draft.requestProtocol !== "auto" && draft.requestProtocol !== connectivity.requestProtocol)
-            || (
-              draft.structuredResponseFormat !== "auto"
-              && draft.structuredResponseFormat !== connectivity.structured?.strategy
-            )
-          );
+        const matchesTest = connectivity && draft.provider === connectivity.provider && draft.model.trim() === connectivity.model
+          && draft.requestProtocol === connectivity.testedProtocol && draft.structuredResponseFormat === connectivity.testedFormat;
+        const recommendation = connectivity?.recommendation;
+        const justCheckedDefault = checkConnectivity.data?.data?.testedAt === connectivitySummary.testedAt
+          && !routeMap.has(taskType) && !isDirty;
+        const canUseRecommendation = recommendation && (matchesTest || justCheckedDefault);
 
         return (
           <Card key={taskType}>
@@ -481,9 +487,9 @@ export default function ModelRoutesPage() {
                 <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
                   <RouteStatusDot state={connectivityState} />
                   {connectivityState === "healthy"
-                    ? "兼容性正常"
+                    ? "上次检测正常"
                     : connectivityState === "failed"
-                      ? "存在异常"
+                      ? "上次检测异常"
                       : connectivityState === "checking"
                         ? "检测中"
                         : "未检测"}
@@ -522,9 +528,14 @@ export default function ModelRoutesPage() {
                       {connectivity.structured.fallbackAvailable ? "备用模型可用" : "备用模型未启用"}
                     </div>
                   ) : null}
-                  {hasUnsavedRouteDiff ? (
-                    <div>检测结果来自生效路由；保存后会自动重新检测。</div>
-                  ) : null}
+                  {connectivity && !matchesTest && !justCheckedDefault ? <div>上次检测针对当时的配置。保存修改后可再次检测。</div> : null}
+                  {canUseRecommendation ? <div className="flex flex-wrap items-center gap-2">
+                    <span>建议协议 {recommendation.requestProtocol}，输出格式 {recommendation.structuredResponseFormat}。</span>
+                    <Button type="button" variant="outline" size="sm" onClick={() => patchDraft(taskType, {
+                      provider: connectivity!.provider, model: connectivity!.model, ...recommendation,
+                    })}>填入建议</Button>
+                    <span>点击「保存路由」后生效。</span>
+                  </div> : null}
                 </div>
                 <Button
                   size="sm"

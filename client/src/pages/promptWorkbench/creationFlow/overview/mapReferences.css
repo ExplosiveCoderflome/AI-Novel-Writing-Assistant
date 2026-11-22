@@ -1,0 +1,37 @@
+.atlas-cover-stack, .map-references { position: relative; }
+.map-references { width: 100%; height: 100%; pointer-events: none; }
+.map-references button { pointer-events: auto; }
+.map-references h3 { margin: 0; border-block: 1px solid var(--atlas-hair); background: var(--atlas-stock); }
+.map-references h3 button { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 43px;
+  padding: 4px 8px; color: var(--atlas-ink); font: 600 19px/1.3 var(--atlas-display); text-align: left; }
+.map-references h3 button > svg:last-child { flex: none; margin-left: auto; }
+.tool-references h3 { background: var(--atlas-tint); border-color: transparent; }
+.map-reference-topic { position: absolute; }
+.map-reference-topic h4 { display: flex; align-items: center; height: var(--topic-heading); padding-inline: 6px;
+  font: 600 16px/1.12 var(--atlas-display); color: var(--atlas-ink); text-wrap: balance; }
+.map-reference-topic li { list-style: none; position: relative; height: var(--reference-row); padding-left: 18px; }
+.map-reference-topic li::before { content: ""; position: absolute; top: 0; bottom: 0; left: 7px; border-left: 1px solid var(--atlas-hair); }
+.map-reference-topic li:last-child::before { bottom: 50%; }
+.map-reference-topic li::after { content: ""; position: absolute; left: 7px; top: 50%; width: 8px; border-top: 1px solid var(--atlas-hair); }
+.map-reference-topic button { display: flex; width: 100%; align-items: center; height: 100%; padding: 0 3px;
+  border-radius: 2px; font-family: inherit; font-size: 14px; line-height: 1.12;
+  text-align: left; color: color-mix(in srgb, hsl(var(--foreground)) 82%, var(--atlas-stock)); }
+.map-references button:is(:hover,:focus-visible) { background: var(--atlas-tint); color: var(--atlas-ink); }
+.map-reference-topic button[aria-pressed="true"] { background: var(--atlas-pigment); color: #fff8e8; }
+.book-reference-link { pointer-events: none; }
+.book-reference-link .react-flow__edge-path { stroke: color-mix(in srgb, var(--atlas-ink) 32%, var(--map-paper)); stroke-width: 1; stroke-dasharray: 5 4; }
+.book-reference-link.companion .react-flow__edge-path { stroke-dasharray: 2 5; }
+.is-tracing .book-reference-link:not(.is-current) .react-flow__edge-path { stroke: var(--atlas-hair); }
+.book-reference-link.is-current .react-flow__edge-path { stroke: var(--atlas-ink); stroke-width: 1.35; vector-effect: non-scaling-stroke; }
+.map-reference-topic li[data-relation] button, .book-map-station[data-relation] > button {
+  background: var(--atlas-tint); color: var(--atlas-ink); font-weight: 650; }
+.map-reference-topic li[data-relation="uses"] button, .book-map-station[data-relation="uses"] > button { border-inline-start: 3px solid var(--atlas-ink); }
+.map-reference-topic li[data-relation] .react-flow__handle { opacity: 1; width: 6px; height: 6px; border: 1px solid var(--atlas-ink); background: var(--atlas-stock); }
+.book-map-key .key-reference { border-top: 1px dashed var(--atlas-ink); }
+.map-reader-connections { margin-block: 10px 4px; }
+.map-reader-connections > div { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 10px; }
+.map-reader-connections dt { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.map-reader-connections dd { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.map-reader-connections button { font-size: 13px; padding-block: 3px; color: var(--atlas-ink); text-align: left; text-decoration: underline dashed; text-underline-offset: 4px; }
+.map-reader-connections [data-kind="uses"] button { font-weight: 650; }
+.map-reader-connections button:is(:hover,:focus-visible) { text-decoration-style: solid; }

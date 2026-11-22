@@ -1,3 +1,4 @@
+export * from "./finalReview/approvedManuscript";
 export * from "./novelExport.types";
 export * from "./novelExport.formatting";
 export * from "./novelExport.mappers";

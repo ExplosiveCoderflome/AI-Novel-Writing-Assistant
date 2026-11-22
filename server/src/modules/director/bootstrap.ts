@@ -97,7 +97,7 @@ export function createDirectorNextServices(options: DirectorNextServiceOptions =
   const qualityDebtRepository = new PrismaQualityDebtRepository();
   const eventLog = new PrismaEventLog();
   const commandRepository = new PrismaCommandRepository(undefined, {readEditedArtifact: options.readEditedArtifact, resumeBusiness: options.resumeBusiness, cancelBusiness: options.cancelBusiness,
-    beforeRetry: options.executionBoundary?.beforeRetry});
+    beforeOpen: options.executionBoundary?.beforeOpen, beforeRetry: options.executionBoundary?.beforeRetry});
   const runtime = createDirectorRuntime();
   const factsLoader = new FactsLoader({ runRepository, artifactLedger, qualityDebtRepository, eventLog });
   const configuredPlans: PlanRegistry = {get: version => options.plan?.version === version ? options.plan

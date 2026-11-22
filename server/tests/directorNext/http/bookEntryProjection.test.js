@@ -4,7 +4,11 @@ const express=require('express');
 const {registerNovelBaseRoutes}=require('../../../dist/modules/novel/setup/http/novelBaseRoutes');
 const {novelCreateResourceRecommendationService}=require('../../../dist/services/novel/NovelCreateResourceRecommendationService');
 
-test('creation responses carry the application entry without starting a director or altering saved experience',async()=>{
+test('creation responses carry the application entry without starting a director or altering saved experience',async t=>{
+  const manuscripts=require('../../../dist/db/prisma').prisma.manuscriptProject;
+  const findManuscript=manuscripts.findUnique;
+  manuscripts.findUnique=async()=>null;
+  t.after(()=>{manuscripts.findUnique=findManuscript;});
   const original=novelCreateResourceRecommendationService.resolveRequired;
   const previousEnabled=process.env.DIRECTOR_NEXT_ENABLED;
   novelCreateResourceRecommendationService.resolveRequired=async()=>({genreId:null,primaryStoryModeId:null,secondaryStoryModeId:null});

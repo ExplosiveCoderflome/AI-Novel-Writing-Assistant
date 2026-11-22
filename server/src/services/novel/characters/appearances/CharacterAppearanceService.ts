@@ -6,7 +6,7 @@ import {withSqliteRetry} from "../../../../db/sqliteRetry";
 import {AppError} from "../../../../middleware/errorHandler";
 import {authorizeManualRevision, buildChapterArtifactContentHash, ChapterArtifactContentVersionError, type ManualRevisionProof} from "../../runtime/artifactSync/contracts";
 import {assertNovelDirectorVersion, readRunExecutionEpoch} from "../../../../modules/novel/director-routing";
-import {initialScheduleByOrder,readInitialScheduleDocument} from "./planning/InitialScheduleDocument";
+import {readChapterAppearancePlans} from "./planning/chapterParticipation";
 
 export const CHARACTER_APPEARANCE_ARTIFACT = "director_v2_character_appearances:v1";
 const projectionSchema = z.object({schemaVersion: z.literal(1), records: z.array(characterAppearanceSchema),
@@ -83,31 +83,21 @@ export class CharacterAppearanceService {
   }
 
   private async readChapters(novelId: string, characters: Array<{id: string; name: string}>): Promise<DirectorNovelCharacterAppearances["chapters"]> {
-    const [chapters, plans, rows, initialSnapshot] = await Promise.all([
+    const [chapters, rows, {participants, initialPlans}] = await Promise.all([
       prisma.chapter.findMany({where: {novelId}, orderBy: {order: "asc"}, select: {id: true, title: true, order: true, content: true}}),
-      prisma.storyPlan.findMany({where: {novelId, level: "chapter", status: {not: "stale"}, participantsJson:{not:null}, chapter: {novelId}},
-        orderBy: [{updatedAt: "desc"}, {id: "desc"}], select: {chapterId: true, participantsJson: true}}),
       prisma.chapterArtifactSyncCheckpoint.findMany({where: {novelId, artifactType: CHARACTER_APPEARANCE_ARTIFACT, syncMode: "director_v2", status: "succeeded"},
         select: {chapterId: true, contentHash: true, metadataJson: true}}),
-      readInitialScheduleDocument(novelId),
+      readChapterAppearancePlans(novelId, prisma),
     ]);
-    const participants = new Map<string, string[]>();
-    for (const plan of plans) {
-      if (!plan.chapterId || participants.has(plan.chapterId)) continue;
-      try {const names: unknown = JSON.parse(plan.participantsJson ?? "[]");
-        participants.set(plan.chapterId, z.array(z.string()).parse(names));
-      } catch {/* Invalid detailed plans do not erase a valid initial schedule. */}
-    }
     const projections = new Map(rows.map(row => [`${row.chapterId}:${row.contentHash}`, row]));
     const characterIds = new Set(characters.map(character => character.id));
-    const initialPlans=initialScheduleByOrder(initialSnapshot?.document ?? null);
     return chapters.map(chapter => {
       const row = projections.get(`${chapter.id}:${buildChapterArtifactContentHash(chapter.content ?? "")}`);
       let projection: z.infer<typeof projectionSchema> | null = null;
       if (row) {try {projection = projectionSchema.parse(JSON.parse(row.metadataJson ?? "null"));} catch {/* Historical invalid records remain untracked. */}}
       return {chapterId: chapter.id, chapterOrder: chapter.order, chapterTitle: chapter.title,
         plannedCharacterIds: participants.has(chapter.id)
-          ? characters.filter(character => (participants.get(chapter.id) ?? []).includes(character.name)).map(character => character.id)
+          ? characters.filter(character => participants.get(chapter.id)?.names.includes(character.name)).map(character => character.id)
           : (initialPlans.get(chapter.order) ?? []).filter(id=>characterIds.has(id)),
         ...(participants.has(chapter.id) ? {planSource:"task" as const} : initialPlans.has(chapter.order) ? {planSource:"initial" as const} : {}),
         coverage: chapter.content?.trim() ? projection?.coverage ?? "untracked" : "unwritten",

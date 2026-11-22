@@ -6,7 +6,8 @@ import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 
 export interface NovelProductionCharactersPromptInput {
-  desiredCount: number;
+  desiredCount?: number;
+  estimatedChapterCount?: number | null;
   title: string;
   description: string;
   genre: string;
@@ -30,7 +31,7 @@ export const novelProductionCharactersPrompt: PromptAsset<
   z.infer<typeof novelProductionCharacterSchema>
 > = {
   id: "novel.production.characters",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -38,15 +39,25 @@ export const novelProductionCharactersPrompt: PromptAsset<
     maxTokensBudget: 0,
   },
   outputSchema: novelProductionCharacterSchema,
+  semanticRetryPolicy: {maxAttempts: 1},
+  postValidate: (members, input) => {
+    if (new Set(members.map(member => member.name)).size !== members.length) throw new Error("每位角色需要可区分的名字。");
+    if (input.desiredCount !== undefined && members.length !== input.desiredCount) {
+      throw new Error(`作者指定了 ${input.desiredCount} 位核心角色，本次给出了 ${members.length} 位。`);
+    }
+    return members;
+  },
   render: (input) => [
     new SystemMessage([
       "你是长篇中文小说的核心角色设计师。",
-      `你的任务是为这部小说生成精确 ${input.desiredCount} 个核心角色，用于直接进入后续创作与生产流程。`,
+      "为这部小说准备开书时需要的核心人物，保留故事中承担独立剧情线的角色。",
       "",
       "只返回一个合法 JSON 数组，不要输出 Markdown、解释、注释、代码块或额外文本。",
       "",
       "结构规则：",
-      `1. 必须精确输出 ${input.desiredCount} 个角色，不可多于或少于该数量。`,
+      input.desiredCount === undefined
+        ? "1. 遵循作者在故事中指定的阵容；未指定人数时，根据叙事视角、人物关系和冲突决定规模。独角戏和群像均可成立，后续才出场的角色可留待正文引入。"
+        : `1. 作者指定了 ${input.desiredCount} 位核心角色，输出该数量的不同人物。`,
       "2. 数组中的每个对象只能且必须包含以下字段：name, role, personality, background, development, currentState, currentGoal。",
       "3. 不得新增字段，不得删除字段，不得改字段名。",
       "",
@@ -83,6 +94,7 @@ export const novelProductionCharactersPrompt: PromptAsset<
     ].join("\n")),
     new HumanMessage([
       `小说标题：${input.title}`,
+      ...(input.estimatedChapterCount ? [`预计篇幅：${input.estimatedChapterCount} 章`] : []),
       `小说简介：${input.description}`,
       `题材：${input.genre}`,
       `叙事视角：${input.narrativePov}`,

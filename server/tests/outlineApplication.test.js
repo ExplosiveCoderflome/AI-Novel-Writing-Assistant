@@ -42,6 +42,8 @@ test('initial generation proposals can be adopted into a validated outline revis
   assert.equal(result.document.story.title, '星海来信');
   assert.equal(result.document.chapters[0].volumeNodeId, result.document.volumes[0].nodeId);
   assert.deepEqual(result.document.volumes[0].chapterNodeIds, [result.document.chapters[0].nodeId]);
+  assert.equal(result.document.characters[0].summary, initial.characters[0].summary);
+  assert.deepEqual(result.document.characters[0].appearanceNodeIds, []);
   const generatedIds = [result.document.volumes[0].nodeId, result.document.chapters[0].nodeId, result.document.characters[0].nodeId, result.document.payoffs[0].nodeId, result.document.facts[0].nodeId];
   assert.equal(new Set(generatedIds).size, generatedIds.length);
   assert.ok(generatedIds.every(Boolean));

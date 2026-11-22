@@ -1,7 +1,7 @@
 ---
 title: "穿书女频 · 题材展厅"
 sidebarTitle: "穿书女频"
-description: "你穿成了古早虐文里第 36 章就要饮毒酒的恶毒女配，睁眼却看见满天弹幕。有些是剧透，有些是谎言，有一条来自作者本人。用红笔改写剧本，截图存证，找出作者小号，在弹幕的迷雾里改写结局。"
+description: "穿成古早虐文里第 36 章就要饮毒酒的恶毒女配，睁眼却看见满天弹幕。用红笔改写剧本，找出作者小号，在弹幕的迷雾里改写结局。"
 mode: "custom"
 icon: "feather"
 keywords:
@@ -164,6 +164,7 @@ export const TsOpen = () => {
 };
 
 export const TsScript = () => {
+  const icU = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
   const DANMU_ALL = [
     { id: "d0", t: "姐妹快跑，男主才是下毒的人", ch: 3, true: true },
     { id: "d1", t: "别信弹幕，弹幕有一半是作者小号", ch: 3, true: false },
@@ -289,7 +290,7 @@ export const TsScript = () => {
 .ts-lk{margin-top:12px;font-size:13px;letter-spacing:.1em;color:#9d174d}
 .ts-opts{margin-top:18px;font-family:"Noto Sans SC","PingFang SC",sans-serif}
 .ts-ol{margin-bottom:4px;font-size:12px;letter-spacing:.25em;color:#be185d}
-.ts-op{position:relative;display:block;width:100%;margin-top:8px;padding:12px 76px 12px 18px;text-align:left;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:17px;line-height:1.6;color:#be123c;background:#fde7ef;border:none;border-left:4px solid #f472b6;border-radius:0 8px 8px 0;cursor:pointer;transition:translate .2s,background .2s}
+.ts-op{position:relative;display:block;width:100%;margin-top:8px;padding:12px 76px 12px 18px;text-align:left;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:17px;line-height:1.6;color:#be123c;background:#fde7ef;border:1px solid rgba(244,114,182,.5);border-radius:0 8px 8px 0;cursor:pointer;transition:translate .2s,background .2s}.ts-op::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:rgba(244,114,182,.6);border-radius:0 1px 1px 0}
 .ts-op:hover{background:#fbd5e3;translate:4px 0}
 .ts-op:focus-visible,.ts-reset:focus-visible,.ts-in a:focus-visible{outline:2px solid #be123c;outline-offset:2px}
 .ts-op.ts-out{cursor:not-allowed;color:rgba(59,29,36,.4);background:#f3eded;border-left-color:#d6c4c8;translate:0 0}
@@ -422,7 +423,7 @@ export const TsScript = () => {
                                 aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
                               >
                                 {dm.t}
-                                {dm.author && " 👤"}
+                                {dm.author && icU}
                               </button>
                             ))}
                           </div>
@@ -445,7 +446,7 @@ export const TsScript = () => {
                                 aria-label={"弹幕：" + dm.t + (dm.author ? "，疑似作者小号" : "")}
                               >
                                 {dm.t}
-                                {dm.author && " 👤"}
+                                {dm.author && icU}
                               </button>
                             ))}
                           </div>
@@ -593,7 +594,7 @@ export const TsEdit = () => {
 .te-notes button:hover{background:#fff}
 .te-act button{background:#be185d;border-color:#be185d;color:#fff}
 .te-act button:hover{background:#9d174d}
-.te-nb{margin:8px 0 0 8px;padding:6px 0 4px 14px;border-left:2px solid #f472b6;font-size:13.5px;line-height:1.85;color:rgba(59,29,36,.85);animation:teIn .3s ease both}
+.te-nb{margin:8px 0 0 8px;padding:8px 12px;border:1px solid rgba(244,114,182,.4);border-radius:8px;background:rgba(244,114,182,.06);font-size:13.5px;line-height:1.85;color:rgba(59,29,36,.85);animation:teIn .3s ease both}
 .te-nb p{margin:0}
 .te-nb p.te-to{margin-top:8px;font-family:"Kaiti SC","STKaiti","KaiTi",serif;font-size:16px;color:#be123c}
 .te-to b{margin-right:4px;font-family:"Noto Sans SC",sans-serif;font-size:12px;letter-spacing:.1em}
@@ -669,6 +670,9 @@ export const TsEdit = () => {
 };
 
 export const TsRemix = () => {
+  const icL = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
+  const icO = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" /></svg>;
+  const icDice = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><rect width="18" height="18" x="3" y="3" rx="3" /><path d="M8 8h.01" /><path d="M16 8h.01" /><path d="M12 12h.01" /><path d="M8 16h.01" /><path d="M16 16h.01" /></svg>;
   const A = ["侯府弃妃", "冷宫废后", "修仙文炮灰", "真假千金里的假千金", "替身文学白月光", "权谋文棋子公主"];
   const B = ["被赐毒酒", "被男主一剑穿心", "被亲哥推下诛仙台", "被真千金当众揭穿身世", "被白月光本人亲手毁容", "被权臣当作礼物送人"];
   const C = ["能听见读者弹幕", "手握原著全文但缺了结局章", "每死一次就回到三天前", "能修改书中任意一个字但只改一次", "可以和作者后台私信但作者已读不回", "能附身到任意配角身上十分钟"];
@@ -698,7 +702,7 @@ export const TsRemix = () => {
           onClick={() => { const n = [...lk]; n[lockIdx] = !n[lockIdx]; setLk(n); }}
           style={{ fontSize: 12, padding: "2px 8px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: lk[lockIdx] ? "#be185d" : "transparent", color: lk[lockIdx] ? "#fff" : "#9d174d", cursor: "pointer" }}
         >
-          {lk[lockIdx] ? "🔒" : "🔓"}
+          {lk[lockIdx] ? icL : icO}
         </button>
       </div>
       <div style={{ fontFamily: "\"Kaiti SC\",\"STKaiti\",\"KaiTi\",serif", fontSize: 20, color: "#be123c", lineHeight: 1.5, minHeight: 60, display: "flex", alignItems: "center" }}>
@@ -738,7 +742,7 @@ export const TsRemix = () => {
           <b>脑洞：</b>你穿成了{A[a]}，原著结局是{B[b]}，但你的金手指是「{C[c]}」。
         </div>
         <div className="tr-act">
-          <button type="button" onClick={roll}>🎲 再抽一次</button>
+          <button type="button" onClick={roll}>{icDice} 再抽一次</button>
           <a href="/quickstart" style={{ display: "inline-flex", alignItems: "center", padding: "10px 22px", borderRadius: 999, border: "1px solid rgba(157,23,77,.35)", background: "rgba(255,253,250,.7)", color: "#9d174d", textDecoration: "none", fontSize: 14, letterSpacing: ".1em" }}>去开书页写下灵感 →</a>
         </div>
         <div className="tr-demo">演示：随机拼出的脑洞，拿去开书页写成你的灵感。</div>

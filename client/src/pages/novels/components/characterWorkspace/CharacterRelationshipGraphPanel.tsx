@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Background,
   BaseEdge,
+  ControlButton,
   Controls,
   EdgeLabelRenderer,
   Handle,
@@ -10,18 +11,20 @@ import {
   Panel,
   Position,
   ReactFlow,
-  applyNodeChanges,
   getBezierPath,
+  getSmoothStepPath,
+  useStoreApi,
   type Edge,
   type EdgeMouseHandler,
   type NodeChange,
   type EdgeProps,
-  type Node,
+  type NodeOrigin,
   type NodeMouseHandler,
   type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { AlertTriangle, GitBranch, Network, RadioTower, Sparkles, UsersRound } from "lucide-react";
+import { AlertTriangle, GitBranch, ListRestart, Network, RadioTower, Sparkles, UsersRound } from "lucide-react";
 import type { CharacterRelation } from "@ai-novel/shared/types/novel";
 import type { CharacterRelationStage } from "@ai-novel/shared/types/characterDynamics";
 import FullscreenView from "@/components/common/FullscreenView";
@@ -36,8 +39,13 @@ import type {
   RelationshipGraphModel,
   RelationshipGraphNode,
 } from "./characterRelationshipGraphModel";
+import { CARD_WIDTH, CARD_HEIGHT } from "./relationshipGraph/orderedLayout";
+import { isSettledMove, syncCanvasNodes, type RelationshipFlowNode } from "./relationshipGraph/canvasNodes";
+import { useRelationshipLayout } from "./relationshipGraph/useRelationshipLayout";
+import { gutterPath, relationshipRoute, type EdgeRoute } from "./relationshipGraph/edgeRouting";
 
 interface CharacterRelationshipGraphPanelProps {
+  novelId: string | null;
   model: RelationshipGraphModel;
   mode: RelationshipGraphMode;
   onModeChange: (mode: RelationshipGraphMode) => void;
@@ -46,15 +54,12 @@ interface CharacterRelationshipGraphPanelProps {
   isLoading?: boolean;
 }
 
-interface RelationshipNodeData extends Record<string, unknown> {
-  graphNode: RelationshipGraphNode;
-}
-
 interface RelationshipEdgeData extends Record<string, unknown> {
   graphEdge: RelationshipGraphEdge;
+  route: EdgeRoute;
+  highlighted: boolean;
 }
 
-type RelationshipFlowNode = Node<RelationshipNodeData, "characterNode">;
 type RelationshipFlowEdge = Edge<RelationshipEdgeData, "relationshipEdge">;
 type Selection =
   | { type: "node"; id: string }
@@ -68,8 +73,18 @@ const edgeTypes = {
   relationshipEdge: CharacterRelationshipEdge,
 };
 
-const GRAPH_NODE_WIDTH = 196;
-const GRAPH_NODE_HEIGHT = 148;
+const nodeOrigin: NodeOrigin = [0.5, 0.5];
+const fitViewOptions = { padding: 0.18 };
+
+function CanvasNodeSync({ projected }: { projected: RelationshipFlowNode[] }) {
+  const store = useStoreApi<RelationshipFlowNode, RelationshipFlowEdge>();
+  useLayoutEffect(() => {
+    const { nodes, setNodes } = store.getState();
+    const next = syncCanvasNodes(nodes, projected);
+    if (next !== nodes) setNodes(next);
+  }, [projected, store]);
+  return null;
+}
 
 const MODE_OPTIONS: Array<{
   value: RelationshipGraphMode;
@@ -83,82 +98,77 @@ const MODE_OPTIONS: Array<{
 ];
 
 export default function CharacterRelationshipGraphPanel(props: CharacterRelationshipGraphPanelProps) {
-  const { model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
+  const { novelId, model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [interactiveNodes, setInteractiveNodes] = useState<RelationshipFlowNode[]>([]);
-  const previousModeRef = useRef<RelationshipGraphMode>(mode);
+  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
+  const scope = mode === "current" ? `current:${selectedCharacterId}` : mode;
+  const { positions, move, reset } = useRelationshipLayout(novelId, scope);
+  const previousCharacter = useRef(selectedCharacterId);
+  const canvas = useRef<ReactFlowInstance<RelationshipFlowNode, RelationshipFlowEdge> | null>(null);
 
   useEffect(() => {
-    if (selectedCharacterId && model.nodes.some((node) => node.id === selectedCharacterId)) {
-      setSelection({ type: "node", id: selectedCharacterId });
-      return;
-    }
-    if (model.edges[0]) {
-      setSelection({ type: "edge", id: model.edges[0].id });
-      return;
-    }
-    if (model.nodes[0]) {
-      setSelection({ type: "node", id: model.nodes[0].id });
-      return;
-    }
-    setSelection(null);
+    const changedCharacter = previousCharacter.current !== selectedCharacterId;
+    previousCharacter.current = selectedCharacterId;
+    setSelection(current => {
+      if (!changedCharacter && current && (current.type === "node" ? model.nodes : model.edges).some(item => item.id === current.id)) return current;
+      if (model.nodes.some(node => node.id === selectedCharacterId)) return { type: "node", id: selectedCharacterId };
+      if (model.edges[0]) return { type: "edge", id: model.edges[0].id };
+      return model.nodes[0] ? { type: "node", id: model.nodes[0].id } : null;
+    });
   }, [model.edges, model.nodes, selectedCharacterId]);
+
+  const restingPositions = useMemo(() => new Map(model.nodes.map(item => [
+    item.id, positions.get(item.id) ?? { x: item.x, y: item.y },
+  ])), [model.nodes, positions]);
 
   const flowNodes = useMemo<RelationshipFlowNode[]>(
     () => model.nodes.map((item) => ({
       id: item.id,
       type: "characterNode",
-      position: { x: item.x, y: item.y },
+      position: restingPositions.get(item.id)!,
       data: { graphNode: item },
       draggable: true,
       selectable: true,
+      selected: selection?.type === "node" && selection.id === item.id,
       focusable: true,
       zIndex: item.isSelected ? 20 : 10,
-      style: {
-        width: GRAPH_NODE_WIDTH,
-        height: GRAPH_NODE_HEIGHT,
-      },
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
     })),
-    [model.nodes],
+    [model.nodes, restingPositions, selection],
   );
 
   useEffect(() => {
-    setInteractiveNodes((currentNodes) => {
-      const shouldResetLayout = previousModeRef.current !== mode || currentNodes.length === 0;
-      previousModeRef.current = mode;
-      if (shouldResetLayout) {
-        return flowNodes;
-      }
-      const currentNodeById = new Map(currentNodes.map((node) => [node.id, node]));
-      return flowNodes.map((node) => {
-        const currentNode = currentNodeById.get(node.id);
-        return currentNode
-          ? { ...node, position: currentNode.position }
-          : node;
-      });
-    });
-  }, [flowNodes, mode]);
+    setHoveredEdge(null);
+  }, [novelId, scope]);
 
-  const flowEdges = useMemo<RelationshipFlowEdge[]>(
-    () => model.edges.map((item) => ({
-      id: item.id,
-      type: "relationshipEdge",
-      source: item.source,
-      target: item.target,
-      data: { graphEdge: item },
-      animated: item.isDynamic,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: getEdgeTone(item).stroke,
-        width: 18,
-        height: 18,
-      },
-      selectable: true,
-      focusable: true,
-      zIndex: item.isDynamic ? 16 : 12,
-    })),
-    [model.edges],
-  );
+  const activeEdgeId = hoveredEdge ?? (selection?.type === "edge" ? selection.id : null);
+  const flowEdges = useMemo<RelationshipFlowEdge[]>(() => {
+    return model.edges.map(item => {
+      const route = relationshipRoute(restingPositions.get(item.source)!, restingPositions.get(item.target)!, mode === "current" && Boolean(selectedCharacterId));
+      const highlighted = item.id === activeEdgeId;
+      return {
+        id: item.id,
+        type: "relationshipEdge",
+        source: item.source,
+        target: item.target,
+        sourceHandle: `source-${route.source}`,
+        targetHandle: `target-${route.target}`,
+        ariaLabel: `${item.sourceName} → ${item.targetName}：${item.label}`,
+        data: { graphEdge: item, route, highlighted },
+        animated: item.isDynamic,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: getEdgeTone(item).stroke,
+          width: 18,
+          height: 18,
+        },
+        selectable: true,
+        focusable: true,
+        zIndex: highlighted ? 2 : 1,
+      };
+    });
+  }, [model.edges, restingPositions, activeEdgeId, mode, selectedCharacterId]);
 
   const selectedNode = selection?.type === "node"
     ? model.nodes.find((node) => node.id === selection.id) ?? null
@@ -173,8 +183,14 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   };
 
   const handleNodesChange = useCallback((changes: NodeChange<RelationshipFlowNode>[]) => {
-    setInteractiveNodes((nodes) => applyNodeChanges(changes, nodes));
-  }, []);
+    for (const change of changes) {
+      if (change.type === "select" && change.selected) {
+        setSelection({ type: "node", id: change.id });
+      }
+    }
+    const moves = changes.filter(isSettledMove);
+    if (moves.length) move(moves);
+  }, [move]);
 
   const handleEdgeClick: EdgeMouseHandler<RelationshipFlowEdge> = (_, edge) => {
     setSelection({ type: "edge", id: edge.id });
@@ -183,7 +199,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   return (
     <FullscreenView
       title="角色关系网"
-      description="以图谱方式观察角色之间的压力、合作、秘密和下一转折点。"
+      description={positions.size
+        ? "点击连线查看关系详情。点「恢复自动排列」可重排当前视图。"
+        : mode === "current" && selectedCharacterId ? "查看当前角色与其他人的直接关系。" : "按角色定位分排，同组按姓名排序。点击连线查看关系详情。"}
       meta={(
         <>
           <Badge variant="outline">{model.nodes.length} 个角色</Badge>
@@ -210,8 +228,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       toggleLabel="全屏查看"
       exitLabel="退出全屏"
       className="border-0 shadow-none"
-      bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
-      fullscreenBodyClassName="h-full min-h-0 grid-cols-[minmax(0,1fr)_360px]"
+      columns={{ layoutId: "character-graph", gap: 0, right: { label: "调整人物关系详情宽度", initial: "var(--graph-details-width, 340px)", min: 188 } }}
+      bodyClassName="grid min-h-[560px] gap-0 xl:workspace-split"
+      fullscreenBodyClassName="h-full min-h-0 workspace-split [--graph-details-width:360px]"
     >
       <div className="h-full min-h-[520px] min-w-0 border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
           {isLoading ? (
@@ -220,19 +239,36 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
             </div>
           ) : flowNodes.length > 0 ? (
             <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
-              nodes={interactiveNodes}
+              key={JSON.stringify([novelId, scope])}
+              defaultNodes={flowNodes}
               edges={flowEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onNodeClick={handleNodeClick}
               onNodesChange={handleNodesChange}
+              onPaneClick={() => setSelection(null)}
+              onKeyDown={event => { if (event.key === "Escape") setSelection(null); }}
               onEdgeClick={handleEdgeClick}
+              onEdgeMouseEnter={(_, edge) => setHoveredEdge(edge.id)}
+              onEdgeMouseLeave={() => setHoveredEdge(null)}
+              onEdgesChange={changes => {
+                for (const change of changes) {
+                  if (change.type === "select" && change.selected) setSelection({ type: "edge", id: change.id });
+                }
+              }}
+              onInit={instance => { canvas.current = instance; }}
+              elevateEdgesOnSelect={false}
               nodesDraggable
+              selectNodesOnDrag={false}
+              autoPanOnNodeDrag={false}
+              nodeDragThreshold={3}
+              nodeClickDistance={3}
+              deleteKeyCode={null}
               nodesConnectable={false}
               elementsSelectable
               fitView
-              fitViewOptions={{ padding: 0.28, duration: 240 }}
-              nodeOrigin={[0.5, 0.5]}
+              fitViewOptions={fitViewOptions}
+              nodeOrigin={nodeOrigin}
               minZoom={0.35}
               maxZoom={1.25}
               panOnDrag
@@ -242,6 +278,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               zoomOnDoubleClick={false}
               proOptions={{ hideAttribution: true }}
             >
+              <CanvasNodeSync projected={flowNodes} />
               <Background color="hsl(var(--border))" gap={28} size={1} />
               <Panel position="top-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
                 <div className="flex flex-wrap gap-3">
@@ -250,12 +287,20 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
                   <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />动态阶段</span>
                 </div>
               </Panel>
-              {mode === "current" ? (
+              {mode === "current" && selectedCharacterId && !positions.size ? (
                 <Panel position="bottom-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
                   当前角色在左侧，直接关系向右展开；点击连线查看关系细节。
                 </Panel>
               ) : null}
-              <Controls showInteractive={false} position="bottom-right" />
+              <Controls showInteractive={false} position="bottom-right">
+                <ControlButton title="恢复自动排列" aria-label="恢复自动排列" disabled={!positions.size}
+                  onClick={() => {
+                    reset();
+                    requestAnimationFrame(() => { void canvas.current?.fitView(fitViewOptions); });
+                  }}>
+                  <ListRestart aria-hidden="true" />
+                </ControlButton>
+              </Controls>
             </ReactFlow>
           ) : (
             <EmptyGraphState />
@@ -270,9 +315,8 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   );
 }
 
-function CharacterRelationshipNode(props: NodeProps) {
-  const data = props.data as RelationshipNodeData;
-  const { graphNode } = data;
+function CharacterRelationshipNode(props: NodeProps<RelationshipFlowNode>) {
+  const { graphNode } = props.data;
   const character = graphNode.character;
   const isProtagonist = isProtagonistCharacter(character);
   const tone = getNodeTone(character);
@@ -281,7 +325,7 @@ function CharacterRelationshipNode(props: NodeProps) {
   return (
     <div
       className={cn(
-        "relative h-[148px] w-[196px] overflow-hidden rounded-2xl border px-3.5 pb-9 pt-3.5 shadow-sm transition",
+        "relative h-full w-full overflow-hidden rounded-2xl border px-3.5 pb-9 pt-3.5 shadow-sm transition",
         isProtagonist
           ? "border-emerald-300 bg-[linear-gradient(135deg,#f0fdf4_0%,#ffffff_58%,#ecfeff_100%)] shadow-[0_18px_42px_rgba(16,185,129,0.18)]"
           : "bg-background/95",
@@ -295,18 +339,12 @@ function CharacterRelationshipNode(props: NodeProps) {
       {isProtagonist ? (
         <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#10b981,#0ea5e9)]" />
       ) : null}
-      <Handle
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-        className="!h-2 !w-2 !border-0 !bg-transparent"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-        className="!h-2 !w-2 !border-0 !bg-transparent"
-      />
+      {[Position.Top, Position.Right, Position.Bottom, Position.Left].map(position =>
+        (["target", "source"] as const).map(type =>
+          <Handle key={`${type}-${position}`} id={`${type}-${position}`} type={type} position={position}
+            isConnectable={false} className="!h-2 !w-2 !border-0 !bg-transparent" />
+        )
+      )}
       <div className="flex items-start gap-2">
         <div className={cn(
           "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold",
@@ -348,7 +386,10 @@ function CharacterRelationshipNode(props: NodeProps) {
 function CharacterRelationshipEdge(props: EdgeProps) {
   const data = props.data as RelationshipEdgeData | undefined;
   const graphEdge = data?.graphEdge;
-  const [edgePath, labelX, labelY] = getBezierPath(props);
+  const route = data?.route;
+  const [edgePath, labelX, labelY] = route?.path === "gutter"
+    ? gutterPath({x: props.sourceX, y: props.sourceY}, {x: props.targetX, y: props.targetY}, route)
+    : route?.path === "step" ? getSmoothStepPath({ ...props, offset: 30 }) : getBezierPath(props);
   const tone = getEdgeTone(graphEdge);
 
   return (
@@ -358,12 +399,12 @@ function CharacterRelationshipEdge(props: EdgeProps) {
         markerEnd={props.markerEnd}
         style={{
           stroke: tone.stroke,
-          strokeWidth: graphEdge?.isDynamic ? 3.2 : 2.6,
+          strokeWidth: data?.highlighted ? 3 : 1.8,
           strokeDasharray: graphEdge?.isDynamic ? "7 5" : undefined,
-          opacity: graphEdge?.isHighTension ? 0.96 : 0.84,
+          opacity: data?.highlighted ? 1 : 0.72,
         }}
       />
-      {graphEdge ? (
+      {graphEdge && data?.highlighted ? (
         <EdgeLabelRenderer>
           <div
             className={cn(

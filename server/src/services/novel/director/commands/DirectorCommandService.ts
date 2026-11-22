@@ -16,6 +16,7 @@ import type {
   DirectorTakeoverRequest,
   DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
@@ -148,6 +149,9 @@ function resolveConfirmRequestFromTaskSeed(
   if (batches.length > 0 && !authoritativeCandidate) {
     throw new AppError("所选书级方向与任务记录不一致，请刷新候选方案后重新确认。", 409);
   }
+  if (authoritativeCandidate && (input.candidate.reviewRevision ?? 0) !== (authoritativeCandidate.reviewRevision ?? 0)) {
+    throw new AppError("所选方向有更新，请刷新后确认想采用的内容。", 409);
+  }
 
   const candidate = authoritativeCandidate
     ? {
@@ -168,8 +172,14 @@ function resolveConfirmRequestFromTaskSeed(
     && !containsUnicodeReplacementCharacter(seed.styleIntentSummary)
     ? seed.styleIntentSummary as DirectorConfirmRequest["styleIntentSummary"]
     : input.styleIntentSummary;
+  const savedPolicy = directorIssuePolicySchema.safeParse(seed.issuePolicy);
+  const issuePolicy = input.issuePolicy ?? (savedPolicy.success ? savedPolicy.data : undefined);
   const normalized: DirectorConfirmRequest = {
     ...input,
+    ...(issuePolicy ? {
+      issuePolicy, issueGovernanceVersion: 1,
+      issuePolicySource: input.issuePolicySource ?? (seed.issuePolicySource === "global" ? "global" : "novel"),
+    } : {}),
     candidate,
     idea: recoverText(input.idea, seed.idea, basicForm.description, batches.at(-1)?.idea) ?? input.idea,
     title: recoverText(input.title, seed.title, basicForm.title),
@@ -230,6 +240,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_candidates",
+      openingStateFilter: task.openingStateFilter,
       payload: {
         refinementRequest: {
           ...input,
@@ -250,6 +261,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "patch_candidate",
+      openingStateFilter: task.openingStateFilter,
       payload: {
         candidatePatchRequest: {
           ...input,
@@ -269,6 +281,7 @@ export class DirectorCommandService {
     return this.enqueueExecutionCommand({
       taskId: task.id,
       commandType: "refine_titles",
+      openingStateFilter: task.openingStateFilter,
       payload: {
         titleRefineRequest: {
           ...input,
@@ -612,7 +625,7 @@ export class DirectorCommandService {
     },
   ) {
     const directorVersion = await readOpeningVersion(input.workflowTaskId, input.directorVersion);
-    const task = await new DirectorTaskStateWriter(this.workflowService).initializeTask({
+    const task = await this.stateWriter.prepareOpeningCommand({
       directorVersion,
       workflowTaskId: input.workflowTaskId?.trim() || undefined,
       lane: "auto_director",
@@ -638,7 +651,8 @@ export class DirectorCommandService {
         progress: 0.1,
       },
     });
-    return prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
+    await prisma.novelWorkflowTask.update({where: {id: task.id}, data: {directorVersion}});
+    return task;
   }
 
   async getCommandById(commandId: string) {
@@ -723,6 +737,7 @@ export class DirectorCommandService {
 
   private async enqueueExecutionCommand(input: {
     taskId: string;
+    openingStateFilter?: Awaited<ReturnType<DirectorTaskStateWriter["prepareOpeningCommand"]>>["openingStateFilter"];
     commandType: DirectorRunCommandType;
     payload: DirectorCommandPayload;
     allowTerminalReuse?: boolean;
@@ -895,6 +910,10 @@ export class DirectorCommandService {
             cancelRequestedAt: null,
           },
         };
+        // Adoption can finish after the opening inputs were prepared and before command acceptance.
+        if (input.openingStateFilter) {
+          taskUpdate.where = { ...taskUpdate.where, ...input.openingStateFilter };
+        }
         const acceptedTask = input.clearPendingManualRecovery
           ? await this.stateWriter.clearPendingManualRecovery({
             userCommandId: command.id,
@@ -903,6 +922,7 @@ export class DirectorCommandService {
           }, { transaction: tx })
           : await this.stateWriter.updateRunState(taskUpdate, { transaction: tx, many: true });
         if (acceptedTask.count === 0) {
+          if (input.openingStateFilter) throw new AppError("开书方向或任务状态有更新，请刷新后再继续。", 409);
           if (!input.clearPendingManualRecovery) {
             const currentTask = await tx.novelWorkflowTask.findUnique({
               where: { id: input.taskId },

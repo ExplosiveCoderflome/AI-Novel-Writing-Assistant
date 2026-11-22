@@ -31,9 +31,10 @@
 - 从小说内新建世界（根据本书生成或自定义空白手册）时，系统必须在同一事务内创建外部 `World` 样本，并把 `Novel.worldId` 与 `NovelWorld.sourceWorldId` 绑定到该样本；不再要求用户额外执行“保存到世界库”。创建完成后默认保留双向同步入口，但后续 `push` / `pull` 仍必须由用户手动确认，系统不得自动覆盖任一侧内容。
 - 小说内世界 UI 应优先调用 `GET /api/novels/:id/novel-world` 展示当前本书世界来源与状态。
 - 从外部世界库导入到小说时调用 `POST /api/novels/:id/novel-world/import`，后端会复制世界结构到 `NovelWorld`，并清空旧的故事切片缓存，等待下一次按本书内容重新裁剪。
-- 当用户没有选择外部世界库样本，或希望让系统先给本书搭建舞台时，调用 `POST /api/novels/:id/novel-world/generate`。该流程必须通过注册 PromptAsset `novel.world.generate_from_theme@v2` 生成结构化世界，不允许用固定关键词或题材分支伪造世界。
+- 当用户没有选择外部世界库样本，或希望让系统先给本书搭建舞台时，调用 `POST /api/novels/:id/novel-world/generate`。该流程必须通过注册 PromptAsset `novel.world.generate_from_theme@v3` 生成结构化世界，不允许用固定关键词或题材分支伪造世界。
 - 小说内“根据本书主题生成”请求必须携带当前工作台选择的 `provider`、`model` 与 `temperature`；服务端不得为该入口硬编码 DeepSeek。未显式指定时由通用模型路由按全局配置处理。
-- 本书主题生成只负责产出可开书的紧凑世界种子，不生成完整百科；必须约束实体数量、文本总量、单次输出预算与完成时限。结构化输出不完整时结束本次请求，用户可在世界手册中继续扩写，而不是对同一大 JSON 重复修复。
+- 本书主题生成只产出可开书的紧凑世界种子。执行时显式请求关闭思考；开篇应用侧起步额度为 12,000 Token，整书使用不低于此值的默认模型额度。低于 12,000 的旧路由配置不参与此步骤的预算计算；达到下限的路由上限约束首次请求和提额重试。端点能力上限和任务快照仍可压低实际请求。
+- 世界生成调用拥有一次恢复机会，不能和通用传输重试叠加。输出截断可在有效上限内提额重试，超时可按相同的单次等待配置重试；已启用结构化备用模型时由备用模型承接该次恢复。不能把任意网络错误或 JSON 校验异常当作额度耗尽，也不能反复修补或保存不完整的 JSON。只有完整校验通过后才进入世界创建事务。
 - 编排层如需在生成链准备阶段创建本书世界，应优先调用 `WorldContextGateway.generateWorldFromNovelTheme(novelId, options)`，不要直接依赖 `NovelWorldInstanceService` 的内部方法。HTTP 路由可以通过应用服务保留现有接口，但生成链和工作流编排的抽象入口应是 Gateway。
 - “根据本书主题生成”会同时创建小说内部 `NovelWorld` 和外部 `World` 样本，并把 `NovelWorld.sourceWorldId` 指向该世界样本。`saveToLibrary` 仅为旧请求兼容字段，不能再改变该创建规则。
 - 对于没有来源世界的本书世界，用户可以调用 `POST /api/novels/:id/novel-world/save-to-library` 保存为外部世界库样本。保存后 `sourceWorldId` 指向新样本，默认开启双向同步；如果请求设置 `syncEnabled=false`，则只记录来源，不自动提示同步差异。
@@ -136,6 +137,12 @@
 - 症状：第 1 章 prepare 领取后约 1 分钟内整本暂停，`storyWorldSlice.generate` 以 `latencyMs=1` 的 `transport_error` 失败，正文为空、认领未确认。
 - 诊断路径：结构化调用的错误信息里保留了围栏原文「正文准备包含未登记的模型请求」，说明请求死在发出前而不是网络层；再比对切片 `metadata.storyInputDigest` 与当前解析输入的摘要，可确认是来源不一致导致的永久过期。
 - 相关模块：`NovelWorldSliceService`、`WorldContextGateway`、生产内核 `preparation` 组合层、伏笔账本 `readScope`（同一作用域模式的先例）。
+
+### 模型渠道配额（2026-11-20 实证）
+
+- 症状：世界设定生成在 SenseNova flash-lite 上约 1 秒内报 429 `RateLimitExceeded.EndpointRPMExceeded`，而同一凭证、同一端点的小额度请求能通过。
+- 诊断路径：该复测端点拒绝了 8,192、16,384、20,480 Token 的申请，接受了 6,000 Token 的申请。这提示限流与申请额度有关，不能把应用侧起步额度视为端点配额。遇到 429 要显示实际申请额度，并提示用户核对渠道配额或换模型；不要为同一个模型静默降低到应用侧下限以下。
+- 相关模块：`runNovelThemeWorldGeneration`、`server/src/llm/factory.ts`（额度解析）、`structuredEvidence.ts`（429 归类为 `rate_limited`）。
 
 ## 世界资产预留
 

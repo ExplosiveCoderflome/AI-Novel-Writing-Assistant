@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { VolumePlanDocument, VolumeBeat } from "@ai-novel/shared/types/novel";
+import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../../db/prisma";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import type { NovelVolumeService } from "../NovelVolumeService";
 import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "../../planning/ChapterRouteWindowService";
 import { buildVolumeWorkspaceDocument } from "../volumeWorkspaceDocument";
 import { loadGenerationContext } from "../generation";
-import { getBeatExpectedChapterCount } from "../volumeGenerationHelpers";
+import { buildBeatGenerationPlans } from "../volumeChapterListGeneration";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { createVolumeChapterListPrompt } from "../../../../prompting/prompts/novel/volume/chapterList.prompts";
 import { buildVolumeChapterListContextBlocks } from "../../../../prompting/prompts/novel/volume/contextBlocks";
@@ -41,12 +41,12 @@ export async function ensureOutlineRouteWindow(novelId: string, from: number, op
     const volume = workspace.volumes.find(v => v.id === slot?.volumeId);
     const sheet = workspace.beatSheets.find(s => s.volumeId === volume?.id);
     if (!volume || !slot || !sheet?.beats.length) throw new Error("请先确认当前卷的篇幅与节奏安排。");
-    let relativeEnd = 0;
-    const beat = sheet.beats.find(b => {relativeEnd += Math.max(1, getBeatExpectedChapterCount(b));return from-slot.from+1 <= relativeEnd;}) ?? sheet.beats.at(-1)!;
+    const localOrder = from - slot.from + 1;
+    const beat = buildBeatGenerationPlans(sheet).find(plan => localOrder <= plan.chapterEndOrder)?.beat ?? sheet.beats.at(-1)!;
     const {novel, storyMacroPlan} = await loadGenerationContext({novelId, workspace, storyMacroPlanService: new StoryMacroPlanService()});
     const promptInput = {novel, workspace, storyMacroPlan, strategyPlan: workspace.strategyPlan, targetVolume: volume,
-      targetBeatSheet: sheet, targetBeat: beat, targetBeatChapterCount: 1, targetChapterStartOrder: from-slot.from+1,
-      targetChapterEndOrder: from-slot.from+1, nextAvailableChapterOrder: from-slot.from+1,
+      targetBeatSheet: sheet, targetBeat: beat, targetBeatChapterCount: 1, targetChapterStartOrder: localOrder,
+      targetChapterEndOrder: localOrder, nextAvailableChapterOrder: localOrder,
       chapterSlots: [{volumeId: volume.id, chapterOrder: from}],
       reservedChapterTitles: workspace.volumes.flatMap(v => v.chapters.map(c => c.title))};
     const generated = await runStructuredPrompt({asset: createVolumeChapterListPrompt({targetChapterCount: 1, targetBeatKey: beat.key,

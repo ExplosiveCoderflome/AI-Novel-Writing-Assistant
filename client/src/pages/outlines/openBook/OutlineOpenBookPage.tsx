@@ -1,3 +1,4 @@
+import { BeatList } from "../workspace/volumeRhythm/BeatList";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -77,7 +78,11 @@ export default function OutlineOpenBookPage() {
         </section>
         <aside className="min-h-0 space-y-4 overflow-y-auto overscroll-contain rounded-lg bg-muted/30 p-5" aria-label="本次交接"><h2 className="text-lg font-semibold">本次交接</h2>{checked ? <>
           <p className="text-sm leading-7">{checked.counts.volumes} 卷 · {checked.counts.chapters} 份已有章纲<br/>{checked.counts.characters} 位人物草案 · {checked.counts.payoffs} 条伏笔计划</p>
-          <div className="space-y-3 border-t border-border/50 pt-4"><h3 className="text-sm font-medium">每卷章数与全书章序</h3>{checked.mapping.volumes.map(volume=><section key={volume.nodeId} className="text-sm"><p className="font-medium">{findOutlineNodeTitle(document,volume.nodeId)}</p><p className="mt-1 tabular-nums text-muted-foreground">预计 {volume.chapterQuota} 章 · 第 {volume.from}–{volume.to} 章</p>{checked.mapping.chapters.filter(chapter=>chapter.volumeId===volume.volumeId).map(chapter=><p key={chapter.nodeId} className="mt-1 text-xs leading-6 text-muted-foreground">第 {chapter.chapterOrder} 章 · {findOutlineNodeTitle(document,chapter.nodeId)}</p>)}</section>)}</div>
+          <div className="space-y-3 border-t border-border/50 pt-4"><h3 className="text-sm font-medium">每卷章数与全书章序</h3>{checked.mapping.volumes.map(volume=>{
+            const source = document.volumes.find(v=>v.nodeId===volume.nodeId);
+            return <section key={volume.nodeId} className="text-sm"><p className="font-medium">{findOutlineNodeTitle(document,volume.nodeId)}</p><p className="mt-1 tabular-nums text-muted-foreground">预计 {volume.chapterQuota} 章 · 第 {volume.from}–{volume.to} 章</p>{source?.beats
+            ? <BeatList beats={source.beats} chapters={document.chapters.filter(c=>c.volumeNodeId===volume.nodeId)}/>
+            : <p className="text-xs text-muted-foreground">卷内节奏可在开书准备时补齐。</p>}{checked.mapping.chapters.filter(chapter=>chapter.volumeId===volume.volumeId).map(chapter=><p key={chapter.nodeId} className="mt-1 text-xs leading-6 text-muted-foreground">第 {chapter.chapterOrder} 章 · {findOutlineNodeTitle(document,chapter.nodeId)}</p>)}</section>;})}</div>
           <p className="text-xs leading-6 text-muted-foreground">仅创建上述已有章纲；未展开位置只保留预算。伏笔作为计划显示，有正文证据后才关联实际台账。</p>
           {checked.warnings.map((warning,index)=><p key={index} className="text-sm leading-6 text-warning">{warning}</p>)}
           <label className="flex cursor-pointer items-start gap-2 border-t border-border/50 pt-4 text-sm leading-6"><input type="checkbox" className="mt-1 shrink-0 accent-primary" checked={confirmed} onChange={event=>setConfirmed(event.target.checked)}/><span>确认每卷章数、章序区间与保留内容，只采用修订 v{checked.revisionVersion}</span></label>

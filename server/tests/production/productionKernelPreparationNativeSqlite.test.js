@@ -1,5 +1,13 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {nativeFixture}=require('./preparation/nativeFixture.cjs');
+test('native preparation preserves confirmed scenes while building the writer plan',async t=>{
+ const f=await nativeFixture(t,'confirmed_contract');
+ const read=()=>f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'},select:{taskSheet:true,sceneCards:true}});
+ const before=await read();assert.ok(before.taskSheet && before.sceneCards);
+ await f.execute();
+ assert.deepEqual(await read(),before);
+ assert.deepEqual(f.state.requests.map(row=>row.assetId),['planner.chapter.plan']);
+});
 for(const fault of [null,'after_models','assembly'])test(`native preparation uses persisted contract and planner results across ${fault||'normal execution'}`,async t=>{
  const f=await nativeFixture(t,fault),before=await f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'}});
  let reply;
@@ -11,7 +19,8 @@ for(const fault of [null,'after_models','assembly'])test(`native preparation use
  assert.equal(await f.db.storyPlan.count({where:{level:'chapter'}}),1);assert.equal(await f.db.chapterPlanScene.count(),3);
  assert.deepEqual(await f.stage.recover(f.run,'prepare-request'),reply);assert.equal(f.state.models,3);
  assert.deepEqual(await f.db.chapter.findUniqueOrThrow({where:{id:'chapter-1'}}),chapter);
- const requests=f.state.requests;assert.equal(requests.filter(input=>input.options.maxTokens===3200).length,1);
+ const requests=f.state.requests;assert.ok(requests.every(input=>!Object.hasOwn(input.options,'maxTokens')),
+   'native preparation leaves output limits to the task route or automatic budget');
  assert.ok(requests.every(input=>input.promptInput));
 });
 test('preparation reuses a current native chapter plan without another model call or planning overwrite',async t=>{

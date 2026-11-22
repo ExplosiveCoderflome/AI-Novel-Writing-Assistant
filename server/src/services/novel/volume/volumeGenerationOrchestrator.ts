@@ -534,6 +534,7 @@ export async function generateVolumePlanDocument(params: {
     workspace,
     storyMacroPlanService,
   });
+  if (options.confirmedCast?.length) novel.confirmedCast = options.confirmedCast;
   const currentWorkspace: VolumeWorkspace = {
     ...workspace,
     ...baseDocument,

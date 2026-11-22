@@ -10,6 +10,7 @@ import {
 import { prisma } from "../../../db/prisma";
 import { novelEventBus } from "../../../events/publisher";
 import { runWithLlmUsageTracking } from "../../../llm/usageTracking";
+import { hasConfirmedExecutionContract } from "./preparation";
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
 import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
@@ -832,8 +833,10 @@ export class NovelPipelineExecutor {
             qualityAlertDetails,
             replanAlertDetails,
             recoverableRepairDetails,
-            runLocalReplan: (replan) => plannerService.replan(novelId, {
+            runLocalReplan: async (replan) => plannerService.replan(novelId, {
               ...replan,
+              ...(runtimePayload.directorNext && await hasConfirmedExecutionContract(prisma, novelId, runtimePayload.directorNext.runId, chapter.id)
+                ? {preserveExecutionContractRange: {startOrder: options.startOrder, endOrder: options.endOrder}} : {}),
               provider: runtimePayload.provider,
               model: runtimePayload.model,
               temperature: runtimePayload.temperature,

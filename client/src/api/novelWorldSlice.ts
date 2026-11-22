@@ -36,7 +36,8 @@ export async function generateNovelWorldFromTheme(id: string, payload: NovelWorl
   const { data } = await apiClient.post<ApiResponse<NovelWorldView>>(
     `/novels/${id}/novel-world/generate`,
     payload,
-    { timeout: WORLD_GENERATION_CLIENT_TIMEOUT_MS },
+    // Allow the backend to finish both attempts before the browser closes the request.
+    { timeout: 2 * WORLD_GENERATION_CLIENT_TIMEOUT_MS, errorPresentation: "inline" },
   );
   return data;
 }

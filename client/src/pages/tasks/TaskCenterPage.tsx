@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { useSearchParams } from "react-router-dom";
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
@@ -58,17 +58,20 @@ export default function TaskCenterPage() {
   const selectedId = searchParams.get("id");
   const listParamsKey = serializeListParams({ kind, status, keyword });
 
-  const listQuery = useQuery({
+  const listQuery = useInfiniteQuery({
     queryKey: queryKeys.tasks.list(listParamsKey),
-    queryFn: () =>
+    initialPageParam: undefined as string | undefined,
+    queryFn: ({ pageParam }) =>
       listTasks({
+        cursor: pageParam,
         kind: kind || undefined,
         status: status || undefined,
         keyword: keyword.trim() || undefined,
         limit: 80,
       }),
+    getNextPageParam: page => page.data?.nextCursor ?? undefined,
     refetchInterval: (query) => {
-      const rows = query.state.data?.data?.items ?? [];
+      const rows = query.state.data?.pages.flatMap(page => page.data?.items ?? []) ?? [];
       return rows.some((item) => ACTIVE_STATUSES.has(item.status)) ? 4000 : false;
     },
   });
@@ -94,7 +97,15 @@ export default function TaskCenterPage() {
     refetchInterval: (query) => (query.state.data?.data?.items.length ?? 0) > 0 ? 4000 : false,
   });
 
-  const allRows = listQuery.data?.data?.items ?? [];
+  const allRows = useMemo(() => {
+    const seen = new Set<string>();
+    return (listQuery.data?.pages.flatMap(page => page.data?.items ?? []) ?? []).filter(task => {
+      const key = `${task.kind}:${task.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [listQuery.data]);
   const visibleRows = useMemo(
     () =>
       (onlyAnomaly ? allRows.filter(isTaskMustHandle) : allRows)
@@ -138,28 +149,14 @@ export default function TaskCenterPage() {
   });
 
   useEffect(() => {
-    if (!selectedKind || !selectedId) {
-      if (visibleRows.length > 0) {
-        const fallback = visibleRows[0];
-        setSearchParams((prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("kind", fallback.kind);
-          next.set("id", fallback.id);
-          return next;
-        });
-      }
-      return;
-    }
-    const exists = visibleRows.some((item) => item.kind === selectedKind && item.id === selectedId);
-    if (!exists && visibleRows.length > 0) {
-      const fallback = visibleRows[0];
-      setSearchParams((prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("kind", fallback.kind);
-        next.set("id", fallback.id);
-        return next;
-      });
-    }
+    if ((selectedKind && selectedId) || !visibleRows.length) return;
+    const first = visibleRows[0];
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("kind", first.kind);
+      next.set("id", first.id);
+      return next;
+    }, { replace: true });
   }, [selectedKind, selectedId, setSearchParams, visibleRows]);
 
   const taskOverview = overviewQuery.data?.data;
@@ -232,7 +229,8 @@ export default function TaskCenterPage() {
   const overviewErrorMessage = overviewQuery.error instanceof Error
     ? overviewQuery.error.message
     : overviewQuery.isError ? "任务概览读取失败，请重试。" : null;
-  const detailErrorMessage = detailQuery.error instanceof Error ? detailQuery.error.message : detailQuery.isError ? "任务详情读取失败，请重试。" : null;
+  const detailErrorMessage = detailQuery.error instanceof Error ? detailQuery.error.message : detailQuery.isError ? "任务详情读取失败，请重试。"
+    : selectedKind && selectedId && detailQuery.isSuccess && !selectedTask ? "找不到这条运行记录，请检查链接或从列表选择另一条。" : null;
   const recommendedBlockingTask = allRows.find(isTaskMustHandle) ?? null;
   const hasMustHandleTask = mustHandleCount > 0 || blockingCount > 0;
   const recommendedRecoveryCandidate = failedTaskCount === 0
@@ -362,6 +360,9 @@ export default function TaskCenterPage() {
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,0.75fr)]">
         <TaskCenterListPanel
           tasks={visibleRows}
+          hasMore={listQuery.hasNextPage}
+          loadingMore={listQuery.isFetchingNextPage}
+          onLoadMore={() => void listQuery.fetchNextPage({ cancelRefetch: false })}
           selectedKind={selectedKind}
           selectedId={selectedId}
           loading={listQuery.isLoading}

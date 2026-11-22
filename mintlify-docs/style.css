@@ -12,6 +12,50 @@
 .bn-boot {
   display: none !important;
 }
+
+/* 中文首页开场：正文和链接不依赖主题或动画组件。 */
+.inn-front {
+  --io-accent: #a7efbe; --io-line: #3c5e48; --io-page: #101b15;
+  --io-primary: #aceec0; --io-label: #0c2114;
+  isolation: isolate; position: relative; overflow: hidden;
+  padding: clamp(52px, 8vw, 110px) clamp(18px, 4vw, 64px);
+  color: #edf6ef; background: #05080a;
+}
+.inn-front .inn-art { position: absolute; inset: 0; z-index: -1; }
+.inn-front .inn-art :is(.bn-hero,.xz-hero) { position: absolute; inset: 0; padding: 0; }
+.inn-front .inn-paper-art { display: none; }
+html:has(.bnh[data-bn-theme="paper"]) .inn-front {
+  --io-accent: #942f24; --io-line: #a69a81; --io-page: #faf6ea;
+  --io-primary: #983326; --io-label: #fff8eb;
+  background: #f3ede1; color: #271f19; font-family: 'Songti SC','STSong',serif;
+}
+html:has(.bnh[data-bn-theme="paper"]) .inn-front .inn-ink-art { display: none; }
+html:has(.bnh[data-bn-theme="paper"]) .inn-front .inn-paper-art { display: block; }
+.inn-front .inn-open { position: relative; max-width: 1080px; margin: auto; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,.98fr); grid-template-areas: 'head sample' 'actions sample'; column-gap: clamp(28px,6vw,80px); align-content: center; }
+.inn-front .inn-head { grid-area: head; align-self: end; }
+.inn-front h1 { margin: 0; font: 700 clamp(32px,4.2vw,58px)/1.32 'Songti SC','STSong',serif; text-wrap: balance; color: inherit; }
+.inn-front .inn-head p { margin: 20px 0 0; max-width: 32em; line-height: 1.8; }
+.inn-front .inn-sample { grid-area: sample; min-width: 0; border: 1px solid var(--io-line); background: var(--io-page); padding: clamp(18px,3vw,36px); border-radius: 3px 14px 14px 3px; }
+.inn-front .inn-sample h2 { margin: 0 0 16px; font: 600 1.1rem/1.5 'Songti SC','STSong',serif; color: var(--io-accent); }
+.inn-front blockquote { border: 0; padding: 0; margin: 0; font: normal 1.05rem/1.85 'Songti SC','STSong',serif; color: inherit; }
+.inn-front blockquote p { margin: 0 0 8px; }
+.inn-front .inn-question { margin: 20px 0 8px; font-weight: 700; }
+.inn-front .inn-caption { font-size: .85rem; line-height: 1.6; margin: 0 0 12px; }
+.inn-front :is(.inn-choices,.inn-actions > div) { display: flex; gap: 8px 12px; flex-wrap: wrap; align-items: center; }
+.inn-front .inn-choices button { font: inherit; font-size: .92rem; cursor: pointer; color: inherit; background: transparent; border: 1px solid var(--io-line); padding: 9px 13px; border-radius: 6px; }
+.inn-front .inn-choices button:hover { border-color: var(--io-accent); }
+.inn-front .inn-choices button[aria-pressed="true"] { background: var(--io-primary); border-color: var(--io-primary); color: var(--io-label); }
+.inn-front .inn-result p { margin: 18px 0 0; border-top: 1px solid var(--io-line); padding-top: 14px; line-height: 1.85; }
+.inn-front .inn-actions { grid-area: actions; align-self: start; margin-top: 24px; }
+.inn-front .inn-actions a { color: var(--io-accent); text-underline-offset: 4px; }
+.inn-front .inn-actions .inn-start { font-weight: 700; color: var(--io-label); background: var(--io-primary); padding: 10px 16px; border-radius: 6px; text-decoration: none; }
+.inn-front .inn-actions p { font-size: .875rem; margin: 12px 0 0; line-height: 1.7; }
+.inn-front :is(a,button):focus-visible { outline: 2px solid var(--io-accent); outline-offset: 3px; }
+@media (max-width: 760px) {
+  .inn-front .inn-open { grid-template-columns: minmax(0,1fr); grid-template-areas: 'head' 'sample' 'actions'; gap: 20px; }
+  .inn-front .inn-head p { margin-top: 10px; }
+  .inn-front .inn-actions { margin: 0; }
+}
 /* 通用兜底：任何页面在正文渲染出来之前，先不显示顶栏内容，
    不依赖 data-current-path（首屏 HTML 上可能还没有这个属性）。
    正文一出现就恢复；万一正文迟迟不出现，2.5 秒后也会自动显示，避免顶栏永久消失 */

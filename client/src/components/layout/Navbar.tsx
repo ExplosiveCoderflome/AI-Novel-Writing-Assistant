@@ -4,6 +4,7 @@ import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
+import GlobalNavigationMenu from "./navigation/GlobalNavigationMenu";
 import BlgCelebration from "@/components/layout/BlgCelebration";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
@@ -17,7 +18,7 @@ import {
 } from "@/mobile/autoDirector";
 
 interface NavbarProps {
-  onOpenProjectNav?: () => void;
+  showGlobalMenu?: boolean;
   workspaceNavMode?: "workspace" | "project";
   onWorkspaceNavModeChange?: (mode: "workspace" | "project") => void;
 }
@@ -58,7 +59,7 @@ export default function Navbar(props: NavbarProps) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        {props.onOpenProjectNav ? <Button type="button" size="sm" variant="ghost" onClick={props.onOpenProjectNav}>全局菜单</Button> : null}
+        {props.showGlobalMenu && <GlobalNavigationMenu key={location.pathname} />}
         {!isHome && showWorkspaceToggle ? (
           <Button
             type="button"

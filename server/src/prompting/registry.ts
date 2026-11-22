@@ -131,8 +131,11 @@ export function getRegisteredPromptAsset(id: string, version: string): UnknownPr
 
 export function findRegisteredPromptAssetById(id: string): UnknownPromptAsset | null {
   hydrateAllPromptAssets();
+  let latest: UnknownPromptAsset | null = null;
   for (const asset of promptAssetByKey.values()) {
-    if (asset.id === id) return asset;
+    if (asset.id === id && (!latest || asset.version.localeCompare(latest.version, "en", { numeric: true }) > 0)) {
+      latest = asset;
+    }
   }
-  return null;
+  return latest;
 }

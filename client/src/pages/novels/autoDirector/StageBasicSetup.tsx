@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
+  authorEstimatedChapterCount,
   BASIC_INFO_FIELD_HINTS,
   EMOTION_OPTIONS,
   PACE_OPTIONS,
@@ -39,7 +40,7 @@ export default function StageBasicSetup({
 }: StageBasicSetupProps) {
   const [estimatedChapterCountDraft, setEstimatedChapterCountDraft] = useState<string | null>(null);
   const [volumeCountDraft, setVolumeCountDraft] = useState<string | null>(null);
-  const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
+  const chapterCount = authorEstimatedChapterCount(basicForm);
   const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
   return (
@@ -198,12 +199,12 @@ export default function StageBasicSetup({
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             留空由 AI 推荐；填写后按这个规模安排整书结构和后续卷章规划。
           </div>
-          {basicForm.estimatedChapterCountSource !== "default" && basicForm.estimatedChapterCount <= 60 ? (
+          {chapterCount !== undefined && chapterCount <= 60 ? (
             <div className={`rounded-lg bg-sky-50 px-3 py-2 text-xs leading-5 text-sky-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               紧凑全书模式：AI 会在有限篇幅内完成完整结局，必要时最多追加 5 章收尾。
             </div>
           ) : null}
-          {hasLargeChapterPlan ? (
+          {chapterCount !== undefined && chapterCount > 200 ? (
             <div className={`rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。
             </div>

@@ -46,6 +46,9 @@ export const SUPPORTED_PROMPT_ADDENDUM_IDS = [
 const SUPPORTED_PROMPT_ADDENDUM_ID_SET = new Set<string>(SUPPORTED_PROMPT_ADDENDUM_IDS);
 
 const PROMPT_ADDENDUM_DESCRIPTIONS: Record<string, string> = {
+  "novel.director.direction_pair": "从同一个开书想法拟定两条故事路线，调整它们在哪些地方拉开差异，以及怎样一句话说清选择。",
+  "novel.director.candidates": "把两条已定方向分别展开成完整方案，调整主角选择、核心冲突、开篇和后续推进的差别。",
+  "novel.director.candidate_titles": "调整自动导演为开书候选取名的方法、书名风格示例和首选标准，用于首次起名和重做标题组。",
   "novel.chapter.writer": "根据章节任务、角色状态、世界规则和风格约束生成章节正文。",
   "audit.chapter.full": "完整检查章节质量，输出结构化问题、评分和修复建议。",
   "audit.chapter.light": "快速检查章节是否适合继续推进，识别明显风险。",

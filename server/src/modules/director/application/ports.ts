@@ -8,7 +8,7 @@ import type {
   PlanDefinition,
 } from "../domain";
 import type { RunEvent } from "../domain/control";
-import type {ChapterPlanEdit} from "@ai-novel/shared/types/director/revision";
+import type {BatchProseReview, ChapterPlanRevision, ReviewAssetEdit} from "@ai-novel/shared/types/director/revision";
 import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/chapterBudget";
 
 export interface PlanRegistry {
@@ -35,6 +35,7 @@ export interface CommandExecutionInput {
 
 export interface CommandTransitionInput extends CommandExecutionInput {
   retryAt?: Date;
+  successor?: Pick<CommandOpenRunInput,"contract"|"initialArtifacts">;
   runId: string;
   event: RunEvent;
   expectedVersion: number;
@@ -47,8 +48,11 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution;
 
 export interface GateResolution {
+  proseReview?: BatchProseReview;
+  expectedVolumePlanVersionId?: string;
   guidance?: string;
-  chapterPlanEdit?: ChapterPlanEdit;
+  chapterPlanEdit?: ChapterPlanRevision;
+  assetEdit?: ReviewAssetEdit;
   decision: "confirm" | "confirm_after_edit" | "regenerate";
   scope: string;
   artifacts: readonly {type: string; expectedVersion: number}[];

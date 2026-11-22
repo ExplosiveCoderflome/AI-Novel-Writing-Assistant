@@ -19,6 +19,7 @@ export interface ArtifactSourceFacades {
   listResources(novelId: string): Promise<CharacterResourceLedgerItem[]>;
   readPreviousSnapshot(novelId: string, chapterOrder: number): Promise<PreviousSnapshot | null>;
   readLocationContext(input: { novelId: string; chapterOrder: number; characters: SourceCharacter[] }): Promise<string>;
+  readCharacterAdjustments?(novelId: string, chapterOrder: number): Promise<Map<string, Partial<Pick<SourceCharacter, "currentGoal" | "currentState">>>>;
 }
 function previousState(snapshot: PreviousSnapshot | null): string {
   if (!snapshot) return "";
@@ -39,7 +40,7 @@ export function createArtifactSourceReader(
 ): ArtifactExtractionDependencies["read"] {
   return async context => {
     const { novelId, chapterId, order } = context.run.progress.unit;
-    const [novel, chapter, characters, resources, payoffs, snapshot, influences] = await Promise.all([
+    const [novel, chapter, rawCharacters, resources, payoffs, snapshot, influences, adjustments] = await Promise.all([
       db.novel.findUnique({ where: { id: novelId }, select: { title: true } }),
       db.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true, order: true, title: true, taskSheet: true, expectation: true } }),
       db.character.findMany({ where: { novelId }, orderBy: { createdAt: "asc" }, select: {
@@ -55,8 +56,10 @@ export function createArtifactSourceReader(
         orderBy: [{ activatedAt: "desc" }, { updatedAt: "desc" }], take: 8,
         select: { id: true, summary: true, behaviorGuidance: true, emotionalGuidance: true, relationTension: true,
           targetStartChapterOrder: true, targetEndChapterOrder: true, character: { select: { name: true } } } }),
+      facades.readCharacterAdjustments?.(novelId, order),
     ]);
     if (!novel || !chapter || chapter.order !== order) throw new InvalidProductionRequestError("Artifact source chapter identity changed");
+    const characters = rawCharacters.map(character => ({ ...character, ...adjustments?.get(character.id) }));
     const characterLocationText = context.run.snapshots.profile.capabilities.includes("character_state")
       ? await facades.readLocationContext({ novelId, chapterOrder: order, characters }) : "";
     return {

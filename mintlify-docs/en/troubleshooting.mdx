@@ -39,6 +39,8 @@ flowchart TD
     ```bash
     xattr -dr com.apple.quarantine "/Applications/Biz Novel Studio.app"
     ```
+
+    Not sure how to open Terminal: press **Command + Space**, type `Terminal`, press Return, then paste the command above and press Return. For full steps, see the macOS tab in [Installation](/en/installation).
   </Accordion>
 
   <Accordion title="Startup page stays at Startup Blocked">
@@ -83,6 +85,25 @@ flowchart TD
     The connection test only verifies that the address, key, and model are reachable. Generation failures are usually caused by: insufficient quota, a step routing to an unavailable model, or the output limit (maxTokens) set too small causing truncation. Check the pause reason on this book's director console, then adjust the corresponding step in [Model Configuration](/en/model-configuration).
   </Accordion>
 
+  <Accordion title="Error [STRUCTURED_OUTPUT:transport_error]: network error while connecting to the model service">
+    The full error looks like this (the app shows it in Chinese):
+
+    ```text
+    [STRUCTURED_OUTPUT:transport_error] [novel.create.resource_recommendation@v3] 连接模型服务时发生网络错误，请检查网络、渠道地址和服务状态后重试。
+    ```
+
+    The second bracket names the step that failed (the example is resource recommendation when starting a book), so it varies by step. A timeout shows 「模型请求超时，请检查服务状态或稍后重试。」 (model request timed out) instead.
+
+    **What it means**: the request was sent but no response came back from the model service. Common causes are network instability, a proxy or VPN dropping, a reset connection, or a temporary provider outage. This is different from a wrong API Key or model name, so it **can happen even when the connection test passes**: the test sends one short request, while real generation sends longer and more frequent requests that are more likely to hit a dropped connection.
+
+    The system first retries automatically according to your settings; if a fallback model is enabled, it tries that model once after retries fail. You only see this error when all of these fail. To fix it:
+
+    1. Wait a moment, then continue or regenerate this step from the book's director console. Saved content is not lost.
+    2. Check that your network, proxy, and VPN are stable. If you use a proxy, make sure the desktop app's requests go through it too.
+    3. In **Settings → Model Routing Management** (设置 → 模型路由管理), open [Structured Call Fault Tolerance](/en/model-configuration#structured-call-fault-tolerance), set **Retries on Server Errors** to 2 or 3, turn on **Enable Fallback Model** with a model from a different provider, and click **Save Fault Tolerance Settings**.
+    4. If it keeps failing at the same step, route that step to a more stable model in [Model Routing Management](/en/model-configuration#model-routing-management).
+  </Accordion>
+
   <Accordion title="Local model always times out">
     Large-parameter local models generate slowly, and planning steps with long outputs are the most likely to time out. Route planning steps to a cloud model, use the local model only for body text, or switch to a smaller local model, and make sure the local service stays running.
   </Accordion>
@@ -101,6 +122,24 @@ flowchart TD
     To trace history, open **Run History** (运行记录) to view status and source. Do not repeatedly click Generate to replace recovery, and do not delete the novel and start over.
 
     When a specific stage is stuck, refer to [Recovery by Phase](/en/guides/recovery-by-phase) to find the recovery entry; for continue and takeover operations, see [Director Follow-up](/en/features/director-follow-up).
+  </Accordion>
+
+  <Accordion title="Prompt says the complete result for this stage cannot be located">
+    Full message: 「无法定位完整的本阶段结果，请重新读取本书或返回导演台查看确认入口。」 (the complete result for this stage cannot be located; reload the book or return to the director console to find the confirm entry). It usually appears at stages that need your confirmation, such as **Chapter Tasks and Scenes** (章节任务与场景).
+
+    **What it means**: the confirmation page you opened cannot find a saved result that exactly matches it. Usually the page or link is out of date, for example the book regenerated its chapter list or this stage after the page was opened. It can also happen when you come in from an old link, another book, or a different director version (V1/V2). It does not mean content was lost.
+
+    To fix it:
+
+    1. Refresh the page, or go back to the novel list and reopen the book so the page reads the latest content.
+    2. Return to the book's director console and reopen this stage's result from the confirm entry under **What you need to do** (需要你做什么). Do not use browser history or a saved link.
+    3. Open **Run History** (运行记录) and make sure no task for this book is still generating. If one is, wait for it to finish before confirming.
+    4. If it still appears, do not delete the novel and start over. Report it as described in [Reporting Issues](#reporting-issues) with the error text and log bundle.
+
+    Related messages:
+
+    - 「本阶段没有待确认的结果。可从左侧目录查看已保存内容，并在导演台查看下一步。」 means this stage has already been confirmed or does not need confirmation. Check the next step in the director console.
+    - 「第 N 章缺少已保存的章节任务和场景安排，请在导演台处理当前阶段。」 means the task sheet for chapter N was not saved completely. Click **Regenerate This Stage** (重新生成本阶段) in the director console, then confirm and continue.
   </Accordion>
 
   <Accordion title="Prompt says single-chapter usage limit reached">
@@ -138,7 +177,7 @@ flowchart TD
 
 <AccordionGroup>
   <Accordion title="Knowledge base retrieval returns nothing">
-    Qdrant is not a prerequisite for starting a book; only troubleshoot it when you are using knowledge base retrieval. Check in order: whether documents were uploaded successfully, whether indexing completed, whether Qdrant is connectable, and whether retrieval settings are too narrow. For very long documents, include setting names, character names, and location names in titles or key paragraphs to improve recall. See [Knowledge Base](/en/features/knowledge-base) for details.
+    Qdrant is not a prerequisite for starting a book; only troubleshoot it when you are using knowledge base retrieval. Check in order: whether documents were uploaded successfully, whether indexing completed, whether Qdrant is connectable, and whether retrieval settings are too narrow. The desktop app does not bundle Qdrant: enter the connection under **Knowledge Base → Retrieval Settings** (知识库 → 检索设置) and check it under **Index & Tasks → View connection details** (索引与任务 → 查看连接详情). See [Configure retrieval and the vector database](/en/features/knowledge-base#configure-retrieval-and-the-vector-database). For very long documents, include setting names, character names, and location names in titles or key paragraphs to improve recall.
   </Accordion>
 
   <Accordion title="Where is data stored, and how to back up">

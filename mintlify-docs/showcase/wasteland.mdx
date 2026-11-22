@@ -1,7 +1,7 @@
 ---
 title: "末世求生 · 题材展厅"
 sidebarTitle: "末世求生"
-description: "一场由你选择的末世互动故事：全城人的影子在午夜离开主人，只有你的影子没走。它在墙上写字：这是我们第七次活到今天。每个选择对应 Biz Novel Studio 的一个创作环节，从方向候选、世界搭建、角色生成、推进模式，一路走到章节样张。"
+description: "全城人的影子在午夜离开主人，只有你的影子没走。在这场末世互动故事里，每个选择对应 Biz Novel Studio 的一个创作环节。"
 mode: "custom"
 icon: "radiation"
 keywords:
@@ -80,7 +80,7 @@ export const MsOpen = () => {
         .mo-top a:hover{color:#fff}
         .mo-txt{position:relative;z-index:6;max-width:760px;text-align:center}
         .mo-l{font-size:clamp(15px,2vw,19px);letter-spacing:.3em;line-height:2.1;color:#d9cfc0;text-shadow:0 2px 12px #000;opacity:0;animation:moIn 1s forwards}
-        .mo-h1{display:inline-block;margin:18px 0 0;padding-left:.1em;font-size:clamp(64px,13vw,150px);font-weight:900;letter-spacing:.1em;line-height:1.08;background:radial-gradient(circle at 30% 40%,#fdba74,#f97316 35%,#c2410c 70%,#7c2d12);-webkit-background-clip:text;background-clip:text;color:transparent;rotate:-2deg;opacity:0;animation:moSpray 1.2s 2.3s forwards}
+        .mo-h1{display:inline-block;margin:18px 0 0;padding-left:.1em;font-size:clamp(64px,13vw,150px);font-weight:900;letter-spacing:.1em;line-height:1.08;color:#f97316;rotate:-2deg;opacity:0;animation:moSpray 1.2s 2.3s forwards}
         .mo-sub{font-size:16.5px;line-height:1.9;color:rgba(232,223,210,.78);margin:18px auto 0;max-width:560px;text-shadow:0 2px 12px #000;opacity:0;animation:moIn 1s 2.9s forwards}
         .mo-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;margin-top:30px;opacity:0;animation:moIn 1s 3.3s forwards}
         .mo-go{padding:13px 28px;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-weight:800;font-size:15px;letter-spacing:.12em;text-decoration:none;box-shadow:0 0 30px -6px rgba(249,115,22,.8);transition:transform .25s}
@@ -169,6 +169,8 @@ export const MsOpen = () => {
 };
 
 export const MsStory = () => {
+  const icSun = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" /></svg>;
+  const icC = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M20 6 9 17l-5-5" /></svg>;
   const STEPS = ["方向候选", "世界搭建", "角色生成", "推进模式", "章节细化", "成章"];
   const GLOW = ["rgba(249,115,22,.2)", "rgba(148,163,184,.18)", "rgba(251,191,36,.16)", "rgba(249,115,22,.18)", "rgba(239,68,68,.24)", "rgba(253,224,71,.18)"];
   const DIRS = [
@@ -216,6 +218,7 @@ export const MsStory = () => {
   const rootRef = useRef(null);
   const sceneRef = useRef(null);
   const resRef = useRef(null);
+  const headingRef = useRef(null);
   const [step, setStep] = useState(0);
   const [picks, setPicks] = useState([]);
   const [n, setN] = useState(0);
@@ -247,6 +250,8 @@ export const MsStory = () => {
     setPicks([]); setStep(0); setN(0); setPh(0); setTorchOn(false);
     const el = rootRef.current;
     if (el) window.scrollTo({ top: window.scrollY + el.getBoundingClientRect().top - 60, behavior: "smooth" });
+    const t = setTimeout(() => { const h = headingRef.current; if (h) h.focus({ preventScroll: true }); }, 400);
+    return () => clearTimeout(t);
   };
   useEffect(() => {
     if (step === 0) return;
@@ -254,6 +259,8 @@ export const MsStory = () => {
     if (!el) return;
     const r = el.getBoundingClientRect();
     if (r.top < 80 || r.top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + r.top - 110, behavior: "smooth" });
+    const h = headingRef.current;
+    if (h) setTimeout(() => h.focus({ preventScroll: true }), 120);
   }, [step]);
   useEffect(() => {
     if (!has) return;
@@ -301,6 +308,7 @@ export const MsStory = () => {
       <style>{`
         .mq{position:relative;background:radial-gradient(900px 420px at 50% 0,var(--glow),transparent 70%),#0b0a08;color:#ece4d8;padding:96px 24px 90px;font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;transition:background .8s;scroll-margin-top:70px}
         .mq-in{max-width:1080px;margin:0 auto}
+        .mq-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
         .mq-hd{max-width:700px}
         .mq-k{display:flex;align-items:center;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.4em;color:#fb923c}
         .mq-k i{width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;animation:mqBlink 1.2s steps(1) infinite}
@@ -315,11 +323,11 @@ export const MsStory = () => {
         .mq-steps li.cur b{background:#fde047;color:#1a0c04;animation:mqPulse 1.6s ease-in-out infinite}
         .mq-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:44px;margin-top:30px}
         .mq-log{display:grid;gap:6px;margin-bottom:24px}
-        .mq-lr{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border-left:2px solid rgba(249,115,22,.5)}
+        .mq-lr{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;font-size:13px;background:rgba(255,255,255,.025);border:1px solid rgba(249,115,22,.22);border-radius:6px}
         .mq-lr span{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:rgba(236,228,216,.45)}
         .mq-lr b{font-weight:500;color:rgba(236,228,216,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .mq-lr em{font-style:normal;font-size:11.5px;color:#fdba74}
-        .mq-time{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:.25em;color:#f87171;margin-bottom:16px}
+        .mq-time{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;font-weight:inherit;line-height:inherit;letter-spacing:.25em;color:#f87171;margin:0 0 16px;padding:0;border:0}
         .mq-scene p{margin:0 0 14px;font-size:18px;line-height:1.95;color:#efe6d8;opacity:0;animation:mqIn .7s forwards}
         .mq-scene p.mq-hit{font-size:26px;font-weight:900;letter-spacing:.3em;color:#f87171;text-shadow:0 0 18px rgba(239,68,68,.55);margin:20px 0}
         .mq-opts{display:grid;gap:10px;margin-top:24px;opacity:0;animation:mqIn .6s forwards}
@@ -332,7 +340,7 @@ export const MsStory = () => {
         .mq-opt.on b{background:#fde047;border-color:#fde047;color:#1a0c04}
         .mq-opt.off{opacity:.3}
         .mq-opt .mq-tag{font-size:11px;color:#f87171;margin-left:auto;white-space:nowrap}
-        .mq-res{margin-top:22px;padding:16px 18px;border-left:3px solid #fde047;background:rgba(253,224,71,.05);font-size:17px;line-height:1.9;color:#f5efe6;animation:mqIn .6s both}
+        .mq-res{margin-top:22px;padding:16px 18px;border:1px solid rgba(253,224,71,.35);border-radius:8px;background:rgba(253,224,71,.05);font-size:17px;line-height:1.9;color:#f5efe6;animation:mqIn .6s both}
         .mq-next{margin-top:20px;padding:13px 26px;border:none;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.12em;cursor:pointer;transition:transform .2s;animation:mqIn .6s .3s both}
         .mq-next:hover{transform:translateY(-2px)}
         .mq-next:focus-visible{outline:2px solid #fde047;outline-offset:3px}
@@ -389,6 +397,7 @@ export const MsStory = () => {
         @media (max-width:520px){.mq{padding:80px 18px}.mq-lr{grid-template-columns:1fr auto}.mq-lr span{display:none}.mq-scene p{font-size:16.5px}}
       `}</style>
       <div className="mq-in">
+        <div className="mq-sr-only" aria-live="polite" aria-atomic="true">{step < 5 ? `第 ${step + 1} 步：${STEPS[step]}` : `第 ${step + 1} 步：${STEPS[step]}`}</div>
         <div className="mq-hd">
           <div className="mq-k"><i />互动求生</div>
           <div className="mq-h">五个选择，写出一章</div>
@@ -411,7 +420,7 @@ export const MsStory = () => {
               <div>
                 <div className="mq-torchbar">
                   <button type="button" className={"mq-torchbtn" + (torchOn ? " on" : "")} onClick={() => setTorchOn((v) => !v)} aria-label="切换手电照亮隐藏文字">
-                    {torchOn ? "☀ 关闭手电" : "☀ 打开手电"}
+                    {torchOn ? <>{icSun} 关闭手电</> : <>{icSun} 打开手电</>}
                   </button>
                   <span style={{ fontSize: 12, color: "rgba(236,228,216,.45)" }}>移动鼠标或手指，在故事区照一照</span>
                 </div>
@@ -444,11 +453,11 @@ export const MsStory = () => {
                     )}
                   </div>
                   <div className="mq-scene" key={"s" + step}>
-                    <div className="mq-time">● {sc.time}</div>
+                    <h2 ref={headingRef} tabIndex="-1" className="mq-time" style={{ outline: "none" }}>● {sc.time}</h2>
                     {sc.p.map((t, i) => <p key={i} className={t === sc.hit ? "mq-hit" : ""} style={{ animationDelay: i * 0.45 + "s" }}>{t}</p>)}
                     <div className="mq-opts" style={{ animationDelay: sc.p.length * 0.45 + 0.2 + "s" }}>
                       {sc.opts.map((o, i) => (
-                        <button type="button" key={o.c} className={"mq-opt" + (chosen === i ? " on" : has ? " off" : "")} disabled={has} onClick={() => choose(i)}>
+                        <button type="button" key={o.c} className={"mq-opt" + (chosen === i ? " on" : has ? " off" : "")} disabled={has} aria-pressed={chosen === i} onClick={() => choose(i)}>
                           <b>{i + 1}</b>
                           <span>{o.c}</span>
                           {wasPicked(step, i) && <span className="mq-tag">上周目</span>}
@@ -467,7 +476,7 @@ export const MsStory = () => {
               </div>
             ) : (
               <div className="mq-end" key="end" ref={sceneRef}>
-                <div className="mq-time">● 天亮之前 · 成章</div>
+                <h2 ref={headingRef} tabIndex="-1" className="mq-time" style={{ outline: "none" }}>● 天亮之前 · 成章</h2>
                 <div className="mq-endh">这一夜，写成了一章</div>
                 <div className="mq-eg">
                   <div className="mq-card">
@@ -479,7 +488,7 @@ export const MsStory = () => {
                     <div className="mq-pt">第五章　门外的声音</div>
                     {paras.map((p, i) => <p key={i}>{p}{i === paras.length - 1 && ph === 0 && <span className="mq-cur" />}</p>)}
                     <div className="mq-checks">
-                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>✓ {c}</span>)}
+                      {CHECKS.map((c, i) => <span key={c} className={ph >= 1 ? "on" : ""} style={{ transitionDelay: ph >= 1 ? i * 0.45 + "s" : "0s" }}>{icC} {c}</span>)}
                     </div>
                     <div className={"mq-saved" + (ph >= 2 ? " on" : "")}>已保存 · 角色与伏笔状态已同步</div>
                   </div>
@@ -501,6 +510,7 @@ export const MsStory = () => {
 };
 
 export const MsRadio = () => {
+  const icRadio = <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ display: "inline-block", verticalAlign: "-0.125em", flexShrink: 0 }}><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9" /><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5" /><circle cx="12" cy="12" r="2" /><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5" /><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19" /></svg>;
   const ROLES = ["被循环遗忘的急救员", "影子交易所的黑市商人", "灯塔里最后一名接线员", "自愿成为双影者的叛逃者", "在废墟里种发光植物的园丁", "声称能杀死影子的盲眼老人"];
   const MUTATIONS = ["影子会替你承受死亡，但每死一次就丢失一段记忆", "你能听懂影子的语言，但说梦话会泄露位置", "你的身体在黑暗中变得透明，光越强越实体", "你可以借用别人的影子，但原主人会忘记你的存在", "你的血在黑暗中发光，但流血会吸引双影者", "你能让时间倒流三分钟，但影子会老化三年"];
   const COSTS = ["每循环一次，你失去一个最亲近的人的记忆", "影子越忠诚，你的身体越容易被光穿透", "你救的人越多，你的影子越短，直到消失", "你知道所有答案，但无法对任何人说出口", "你可以重置一天，但城市会多塌一栋楼", "你能让一个人复活，但会随机失去自己的一个感官"];
@@ -547,7 +557,7 @@ export const MsRadio = () => {
         .mu-item span{flex:1;font-size:15px;line-height:1.6}
         .mu-lock{padding:6px 12px;border:1px solid rgba(251,146,60,.4);background:none;color:#fdba74;font-family:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
         .mu-lock.on{background:rgba(249,115,22,.15);border-color:#fb923c}
-        .mu-res{margin-top:18px;padding:18px;border-left:3px solid #fde047;background:rgba(253,224,71,.06);font-size:16px;line-height:1.85;color:#f5efe6}
+        .mu-res{margin-top:18px;padding:18px;border:1px solid rgba(253,224,71,.35);border-radius:8px;background:rgba(253,224,71,.06);font-size:16px;line-height:1.85;color:#f5efe6}
         .mu-res em{color:#fde047;font-style:normal}
         .mu-roll{padding:12px 24px;border:none;background:linear-gradient(90deg,#ea580c,#f97316);color:#1a0c04;font-family:inherit;font-size:15px;font-weight:800;letter-spacing:.1em;cursor:pointer;margin-top:14px}
         .mu-roll:hover{transform:translateY(-2px)}
@@ -585,7 +595,7 @@ export const MsRadio = () => {
           演示：随机拼出的脑洞，拿去开书页写成你的灵感：<br />
           <em>{ROLES[roleI]}，{MUTATIONS[mutI]}，{COSTS[costI]}</em>
         </div>
-        <button type="button" className="mu-roll" onClick={roll}>📻 摇一摇，换台</button>
+        <button type="button" className="mu-roll" onClick={roll}>{icRadio} 摇一摇，换台</button>
         <div className="mu-label">演示：随机拼出的脑洞，拿去开书页写成你的灵感</div>
         {!reduce && <div className={"mu-noise" + (noise ? " on" : "")} />}
       </div>

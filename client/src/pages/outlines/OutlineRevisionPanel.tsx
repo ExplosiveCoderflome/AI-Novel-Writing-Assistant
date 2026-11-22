@@ -30,7 +30,8 @@ interface OutlineRevisionPanelProps {
   outlineId: string;
   currentVersion: number;
   document: OutlineDocument;
-  onRestored: () => void;
+  restoreDisabled: boolean;
+  onRestored: () => Promise<void>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -105,7 +106,7 @@ function ChangeDetails({ change, beforeDocument, afterDocument }: { change: Outl
   );
 }
 
-export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRestored }: OutlineRevisionPanelProps) {
+export function OutlineRevisionPanel({ outlineId, currentVersion, document, restoreDisabled, onRestored }: OutlineRevisionPanelProps) {
   const queryClient = useQueryClient();
   const revisions = useQuery({
     queryKey: ["outline-revisions", outlineId],
@@ -133,15 +134,16 @@ export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRe
   const before = useQuery({ queryKey: ["outline-revision", outlineId, fromRevision?.id], queryFn: () => getOutlineRevision(outlineId, fromRevision!.id), enabled: !!fromRevision });
   const after = useQuery({ queryKey: ["outline-revision", outlineId, toRevision?.id], queryFn: () => getOutlineRevision(outlineId, toRevision!.id), enabled: !!toRevision });
   const restore = useMutation({
+    mutationKey: ["outline-revision-decision", outlineId],
     mutationFn: (revisionId: string) => restoreOutlineRevision(outlineId, revisionId, currentVersion),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["outline-revisions", outlineId] });
-      onRestored();
+      await onRestored();
     },
   });
 
   return (
-    <section className="space-y-4 border-t border-border/50 pt-4">
+    <section className="space-y-4">
       <div>
         <h3 className="font-medium">修订历史</h3>
         <p className="mt-1 text-xs text-muted-foreground">选择任意两版查看差异，或把旧版内容恢复为一个新修订。</p>
@@ -186,7 +188,7 @@ export function OutlineRevisionPanel({ outlineId, currentVersion, document, onRe
             <Button
               className="w-full"
               variant="secondary"
-              disabled={!fromRevision || fromVersion === currentVersion || restore.isPending}
+              disabled={restoreDisabled || !fromRevision || fromVersion === currentVersion || restore.isPending}
               onClick={() => fromRevision && restore.mutate(fromRevision.id)}
             >
               将 v{fromVersion} 恢复为新修订

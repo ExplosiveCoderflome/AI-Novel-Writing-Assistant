@@ -25,5 +25,12 @@ export const directorIdeaConstellationOptionsSchema = z.object({
 });
 
 export const directorIdeaConstellationComposeSchema = z.object({
-  idea: z.string().trim().min(45).max(220),
-}).strict();
+  outcome: z.enum(["ready", "conflict"]),
+  idea: z.string().trim().max(220),
+  conflictReason: z.string().trim().max(180),
+}).strict().superRefine((result, context) => {
+  const valid = result.outcome === "ready"
+    ? result.idea.length >= 45 && result.conflictReason.length === 0
+    : result.idea.length === 0 && result.conflictReason.length >= 6;
+  if (!valid) context.addIssue({ code: "custom", message: "可开书时填写完整想法；有冲突时只填写具体原因和调整建议。" });
+});

@@ -54,8 +54,7 @@ test("the director module only imports files inside itself", () => {
   ]);
   // The revision DTO is an explicit transport/application contract, never a domain dependency.
   const revisionContractConsumers = new Set([
-    "application/commandService.ts", "application/ports.ts", "http/routes.ts",
-    "infrastructure/commands/gateResolution.ts",
+    "application/ports.ts", "http/routes.ts",
   ]);
   // Shared budget DTOs carry saved facts, not runtime or policy dependencies.
   const chapterBudgetContractConsumers = new Set([
@@ -108,6 +107,16 @@ test("the director module only imports files inside itself", () => {
         }
         if (allowedUnknownClaimContract && relative.replace(/\\/g, "/") === "domain/projection.ts") {
           assert.match(source, /import\s+type\s*\{\s*DirectorUnknownClaimsView\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/unknownClaims["']/);
+        }
+        if (relative.replace(/\\/g, "/") === "domain/types.ts" && specifier === "@ai-novel/shared/types/directorIssue") {
+          assert.match(source, /^\s*import\s+type\s*\{\s*DirectorIssuePolicy\s*\}\s*from\s*["']@ai-novel\/shared\/types\/directorIssue["']/m);
+          assert.equal(importSpecifiers(source).filter(value => value === specifier).length, 1);
+          continue;
+        }
+        if (relative.replace(/\\/g, "/") === "steps/planning/volumeStrategy.ts" && specifier === "@ai-novel/shared/types/director/castReview/discussion") {
+          assert.match(source, /^\s*import\s+type\s*\{\s*ConfirmedCastMember\s*\}\s*from\s*["']@ai-novel\/shared\/types\/director\/castReview\/discussion["']/m);
+          assert.equal(importSpecifiers(source).filter(value => value === specifier).length, 1);
+          continue;
         }
         const allowedOutlineBindingContract = specifier === "@ai-novel/shared/types/outlineOpenBook"
           && relative.replace(/\\/g, "/") === "domain/types.ts";

@@ -280,6 +280,15 @@ export function buildChapterWriterContextBlocks(
         writeContext.chapterMission.taskSheet
           ? `原始任务单：\n${writeContext.chapterMission.taskSheet}`
           : "",
+        ...(writeContext.scenePlan?.scenes ?? []).map((scene, index) => [
+          `第 ${index + 1} 场 · ${scene.title}（约 ${scene.targetWordCount} 字）`,
+          `场景目标：${scene.purpose}`, `入场：${scene.entryState}`, `出场：${scene.exitState}`,
+          scene.resistance && `阻力：${scene.resistance}`, scene.turn && `转折：${scene.turn}`,
+          scene.emotionalShift && `情绪变化：${scene.emotionalShift}`, scene.readerValue && `读者收获：${scene.readerValue}`,
+          scene.mustAdvance.length && `必须推进：${scene.mustAdvance.join("；")}`,
+          scene.mustPreserve.length && `必须保留：${scene.mustPreserve.join("；")}`,
+          scene.forbiddenExpansion.length && `禁止展开：${scene.forbiddenExpansion.join("；")}`,
+        ].filter(Boolean).join("\n")),
         writeContext.chapterMission.hookTarget ? `章末钩子：${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
     }),

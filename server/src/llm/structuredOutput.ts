@@ -33,6 +33,7 @@ export interface StructuredOutputProfile {
 
 export interface StructuredOutputDiagnostics {
   response?: StructuredResponseEvidence;
+  target?: { provider: LLMProvider; model: string };
   attemptId?: string | null;
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;

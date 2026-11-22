@@ -35,7 +35,7 @@ RAG (Retrieval-Augmented Generation) is the Knowledge Base's core mechanism: dur
 
 The Knowledge Base is an enhancement capability, not a prerequisite for starting to write a novel. You can create a novel and generate chapters first without configuring the Knowledge Base; enable it when you begin needing long-term materials, reference works, or complex settings.
 
-To fully use material retrieval capabilities, you usually need to configure an available Embedding model and vector database connection. Regular users can first complete the basic configuration according to the settings page prompts, then return to the Knowledge Base to upload materials.
+To fully use material retrieval, you need an available Embedding model and a vector database (Qdrant) connection. See [Configure retrieval and the vector database](#configure-retrieval-and-the-vector-database) below, then return to the Knowledge Base to upload materials.
 
 Before uploading, it is recommended to organize text first:
 
@@ -43,6 +43,50 @@ Before uploading, it is recommended to organize text first:
 - Write clear titles indicating material purpose.
 - Reference works, world settings, and style samples are best saved separately.
 - Materials no longer in use can be archived to avoid interfering with subsequent retrieval.
+
+## Configure retrieval and the vector database
+
+The desktop app (Windows, macOS, and Linux installers) **does not bundle a vector database**. To use material retrieval, prepare a Qdrant instance separately and enter its connection in the app. Desktop and Web versions are configured on the same page; you do not need to edit any `.env` file.
+
+### Prepare Qdrant
+
+Choose one:
+
+- **Qdrant Cloud**: create a cluster in Qdrant Cloud and note the cluster URL (starts with `https://`) and API Key. Good if you do not want to install Docker locally.
+- **Local Docker**: with Docker installed, run the command below. The URL is `http://127.0.0.1:6333` and no API Key is needed.
+  ```bash
+  docker run -d --name ai-novel-qdrant -p 6333:6333 -p 6334:6334 -v qdrant_storage:/qdrant/storage qdrant/qdrant:v1.15.4
+  ```
+  The source repository's `infra/docker-compose.qdrant.yml` defines the same service, so you can also start it with `docker compose`. See [Deployment](/en/developers/deployment).
+- **Self-hosted server**: run Qdrant on your own server and note a URL this computer can reach, plus an API Key if authentication is enabled.
+
+### Enter the connection in the app
+
+<Steps>
+  <Step title="Open Retrieval Settings">
+    Go to the **Knowledge Base** (知识库) page, switch to the **Retrieval Settings** (检索设置) tab, and find the **Let materials join your writing** (让资料参与创作) card.
+  </Step>
+  <Step title="Choose how materials are understood">
+    Under **Choose how materials are understood** (选择资料理解方式), pick the **Embedding provider** (Embedding 服务商) and **Embedding model** (Embedding 模型), and enter the **Vector service API Key** (向量服务 API Key). Leave **Vector service API URL** (向量服务 API 地址) empty to use the provider's default. This connection is only used for understanding materials and does not change your writing model, default model, or task routes.
+  </Step>
+  <Step title="Connect the material database">
+    Under **Connect material database** (连接资料库), enter the **Vector DB URL** (向量库 URL): `http://127.0.0.1:6333` for local Docker, or the full URL for Qdrant Cloud or a self-hosted server. If authentication is required, enter it in **Vector DB API Key** (向量库 API Key); after saving, the badge next to it shows 「Key 可用」 (Key available).
+  </Step>
+  <Step title="Make sure retrieval is on">
+    The top of the card should show 「资料检索已开启」 (retrieval on). If it shows 「资料检索已暂停」 (retrieval paused), expand **Advanced configuration** (高级配置) and set **RAG status** (RAG 状态) to 「启用」 (enabled).
+  </Step>
+  <Step title="Save and check the connection">
+    Click **Save retrieval settings** (保存检索设置). Then switch to the **Index & Tasks** (索引与任务) tab, expand **View connection details** (查看连接详情), and confirm the vector model shows as available and the material database connection shows 「连接正常」 (connected).
+  </Step>
+</Steps>
+
+<Note>
+  - Settings saved here take priority over server environment variables (`QDRANT_URL`, `QDRANT_API_KEY`, and `RAG_ENABLED` only provide initial defaults).
+  - Saving with **Vector DB API Key** empty keeps the saved key. To remove it, check 「保存时清除已保存的向量库 API Key」 (clear the saved vector DB API Key on save).
+  - After saving, newly created or reindexed materials use these settings. If you change the connection or Embedding model while **Rebuild index automatically after Embedding changes** (Embedding 变更后自动重建索引) is on in Advanced configuration, a full reindex is queued automatically. Track progress in **Index & Tasks**.
+</Note>
+
+**Advanced configuration** also lets you adjust the vector DB timeout, write concurrency, collection naming, and chunking parameters. The defaults suit most knowledge bases; change them only if the connection is slow or batch writes fail.
 
 ## Recommended Usage Path
 
@@ -226,7 +270,7 @@ This is the core difference between long-form production chains and one-shot tex
   </Accordion>
 
   <Accordion title="Do I need to understand Qdrant and RAG?">
-    No. You only need to know: after configuration is complete, the Knowledge Base can better find materials according to the current task. Technical details are handled by the system and settings page.
+    You do not need to understand how they work. After configuration is complete, the Knowledge Base can better find materials according to the current task. The desktop app does not bundle Qdrant; when you need it, follow [Configure retrieval and the vector database](#configure-retrieval-and-the-vector-database).
   </Accordion>
 
   <Accordion title="How do I check if the Knowledge Base is not working?">

@@ -8,7 +8,8 @@ export interface SavedReview {
   runId?:string; controlVersion?:number;
   volumeId?:string;
   plan?:VolumeChapterPlan;
-  execution?:NonNullable<WorkspaceBook["executionPlans"]>[number];
+  plans?:VolumeChapterPlan[];
+  executions?:WorkspaceBook["executionPlans"];
   chapters?:WorkspaceChapter[];
 }
 
@@ -48,13 +49,24 @@ export function resolveSavedReview(book:WorkspaceBook, params:URLSearchParams): 
   if (type === "chapter_task_sheet") {
     const plan=plans[0];
     if (plan.id!==id) return missing();
-    const missingFields = [!hasText(plan.taskSheet) && "章节任务", !hasText(plan.sceneCards) && "场景安排"].filter(Boolean);
-    if (missingFields.length) return {...result,canRegenerate:true,error:`第 ${from} 章缺少已保存的${missingFields.join("和")}，请在导演台处理当前阶段。`};
-    return {...result,ready:true,plan};
+    const selected:VolumeChapterPlan[] = [];
+    const targets = context.chapterPlans ?? [{id:plan.id, volumeId, chapterOrder:from}];
+    if (context.chapterPlans && (targets.length !== to-from+1 || targets[0]?.id !== id)) return missing();
+    for (const [index,target] of targets.entries()) {
+      const matches = book.planning!.volumes.filter(v => v.id === target.volumeId)
+        .flatMap(v => v.chapters.filter(c => c.chapterOrder === target.chapterOrder));
+      if (target.chapterOrder !== from + index || matches.length !== 1 || matches[0].id !== target.id) return missing();
+      const chapter = matches[0];
+      const missingFields = [!hasText(chapter.taskSheet) && "章节任务", !hasText(chapter.sceneCards) && "场景安排"].filter(Boolean);
+      if (missingFields.length) return {...result,canRegenerate:true,error:`第 ${target.chapterOrder} 章缺少已保存的${missingFields.join("和")}，请在导演台处理当前阶段。`};
+      selected.push(chapter);
+    }
+    return {...result,ready:true,plan,plans:selected};
   }
-  const rows=book.executionPlans?.filter(row=>row.id===id && row.order===from) ?? [];
-  if (rows.length!==1 || !hasText(rows[0].taskSheet) || !hasText(rows[0].sceneCards)) return missing();
-  return {...result,ready:true,execution:rows[0]};
+  const executions = (book.executionPlans ?? []).filter(row => row.order >= from && row.order <= to).sort((a,b) => a.order-b.order);
+  if (executions.length !== to-from+1 || executions[0]?.id !== id || executions.some((row,index) =>
+    row.order !== from+index || !hasText(row.taskSheet) || !hasText(row.sceneCards))) return missing();
+  return {...result, ready:true, executions};
 }
 
 function hasText(value:unknown):value is string {return typeof value==="string" && Boolean(value.trim());}

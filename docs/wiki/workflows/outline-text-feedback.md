@@ -14,6 +14,8 @@
 
 设置保存在绑定的 `feedbackSettingsJson`；`OutlineFeedbackRun` 持久化输入快照、尝试次数、错误及逐项决定。摘要保存后异步调度，分析失败不会向生成调用抛错。运行状态为 pending → running → completed/failed。
 
+手动分析的选项从绑定小说中有摘要的章节读取，只返回章节 ID、顺序与标题。界面按标题选择，提交失败时沿用同一请求键，切换章节或提交成功后使用新键。
+
 自动请求按项目、章节、摘要去重；手动请求使用项目范围内 requestKey。pending 可重新调度，failed 可显式重试；running 超过十分钟可显式重试以恢复进程中断。attempt 是完成写入的 fencing 条件，旧尝试不能覆盖新尝试。当前使用进程内调度，重启后通过相同请求或重试恢复，不依赖导演恢复任务。
 
 ## 逐项采纳合同
@@ -37,7 +39,7 @@
 
 | 方法 / 路径 | 请求与结果 |
 | --- | --- |
-| GET `/` | 设置、最近 50 条运行与逐项建议；含 sourceRoute |
+| GET `/` | 设置、有摘要的章节目录、最近 50 条运行与逐项建议，含 sourceRoute |
 | PATCH `/settings` | `{mode: chapter/every_n/volume/off, everyN?, provider?, model?}`；完整设置替换，缺省逐章与 N=5 |
 | POST `/analyze` | `{chapterId, requestKey}`；返回运行收据，模型异步执行 |
 | GET `/proposals` | 最近 50 次运行的建议，附 runId |

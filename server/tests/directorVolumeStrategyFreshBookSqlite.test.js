@@ -51,6 +51,27 @@ function skeletonFor(count) {
 
 (async () => {
   await ensureRuntimeDatabaseReady();
+  const { ensureVolumeWorkspaceDocument } = require(path.join(server, "dist/services/novel/volume/volumeWorkspacePersistence"));
+  const novelId = "concurrent-opening";
+  await prisma.novel.create({ data: { id: novelId, title: "并发开书" } });
+  await prisma.volumePlanVersion.create({ data: { novelId, version: 1, status: "draft", contentJson: "{}" } });
+  let releaseReaders;
+  const ready = new Promise(resolve => { releaseReaders = resolve; });
+  let readers = 0;
+  const getLegacySource = async () => {
+    if (++readers === 4) releaseReaders();
+    await ready;
+    return { outline: "寻找失主", chapters: [] };
+  };
+  const views = await Promise.all(Array.from({ length: 4 }, () => ensureVolumeWorkspaceDocument({ novelId, getLegacySource })));
+  const versions = await prisma.volumePlanVersion.findMany({ where: { novelId }, orderBy: { version: "asc" } });
+  assert.deepEqual(versions.map(row => [row.version, row.status]), [[1, "draft"], [2, "active"]]);
+  const saved = await prisma.volumePlan.findMany({ where: { novelId } });
+  assert.equal(saved.length, 1);
+  for (const view of views) {
+    assert.equal(view.activeVersionId, versions[1].id);
+    assert.deepEqual(view.volumes.map(row => row.id), [saved[0].id]);
+  }
   await prisma.novel.create({ data: { id: "fresh-book", title: "新书", directorVersion: "v2", estimatedChapterCount: 200 } });
 
   const calls = [];

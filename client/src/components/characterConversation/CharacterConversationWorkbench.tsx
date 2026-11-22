@@ -98,13 +98,14 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
       actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>收起谈话</Button> : null}</>}
       className="rounded-xl border-border/50 shadow-none"
       headerClassName="bg-background px-5 py-4 xl:px-6"
+      columns={{ layoutId: "character-conversation", gap: 0, right: { label: "调整人物场景分析宽度", initial: isFullscreen ? "380px" : "340px", min: 188 } }}
       bodyClassName={cn(
-        "grid min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]",
+        "grid min-w-0 xl:workspace-split",
         useCompactReadOnlyLayout
           ? "min-h-[420px] xl:h-[54rem] xl:max-h-[calc(100dvh-10rem)] xl:min-h-0"
           : "min-h-[580px]",
       )}
-      fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
+      fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden"
     >
       <div className={cn(
         "min-h-0 min-w-0 border-b border-border/50 bg-background px-4 py-4 xl:border-b-0 xl:border-r xl:px-6 xl:py-5",

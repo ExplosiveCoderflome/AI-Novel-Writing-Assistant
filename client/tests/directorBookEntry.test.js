@@ -49,6 +49,8 @@ export function renderEntries(source = '/lab/director/book') {
     assert.match(renderDelivery(writing,true), /导出当前稿件/);
     assert.equal(renderDelivery({...writing,status:'needs_attention',completedChapters:3}), '');
     const finished = renderDelivery({status:'completed',completedChapters:3,targetChapters:3,firstChapterId:'actual-first'});
+    const directorBook = renderDelivery({status:"completed",completedChapters:3,targetChapters:3,firstChapterId:"actual-first",finalReviewRoute:"/lab/director/book?delivery=review"});
+    assert.match(directorBook,/全书完稿检查/);assert.match(directorBook,/href="\/lab\/director\/book\?delivery=review"/);assert.doesNotMatch(directorBook,/>导出全书</);
     assert.match(finished, /全书已写完/);
     assert.match(finished, /导出全书/);
     assert.match(finished, /href="\/novels\/book\/preview\?chapterId=actual-first"/);

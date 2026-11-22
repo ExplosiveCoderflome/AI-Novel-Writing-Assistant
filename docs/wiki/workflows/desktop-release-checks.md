@@ -30,6 +30,8 @@
 
 `.tmp/pg-live-gate.json` 仍是 run-scoped 发布证据。上传入口与 `verify-proof.cjs` / `verifyUpload` 必须 fail-closed。`check.cjs`（含 `workflow_dispatch` verify-only）在 CI 中仍要求当前 run 的 PG proof；本地非 CI 仍执行 `test:pg-live`。
 
+正式标签前可在 `beta` 的候选提交手动运行 Desktop Release。Linux 运行与正式发布相同的可移植测试（包括符号链接负例），Windows 并行验证目录包。两项均成功后，快进到同一提交的发布工作区可从该次运行下载 `desktop-preflight-<SHA>-<attempt>` 的原始检查记录到 `.tmp/desktop-release/`，继续执行发布脚本的 dry-run。核对工作流、触发分支、提交、版本与运行结论后才复用记录。正式标签的发布任务仍会针对本次运行重新生成证明和各平台构建清单。
+
 ### 构建清单
 
 每个 `build-*` job 写入 `build-manifest.json`，绑定 head／run／attempt／version／os／arch，并记录允许上传文件的 size／sha256／sha512。上传前必须：
@@ -49,6 +51,7 @@
 - Windows：真实 Prisma 生产 probe（`windows-publish-path-verify`）、PE／布局验证（`verify-desktop-package`）、NSIS／portable 打包与构建期签名。
 - 已在 Ubuntu `test:all`／`test:quality` 覆盖的迁移与 quality 门禁不在 Windows 发布路径重复执行。
 - macOS／Linux：本平台打包契约与原生构建检查保留在对应 `build-*` job。
+- Linux AppImage：Sharp 的 `.node` 和同架构 `libvips-cpp.so.*` 必须按原有相邻依赖结构部署在 `app.asar.unpacked`。ELF loader 按 Sharp 的相对 RPATH 从磁盘加载共享库，无法读取 ASAR 内的文件。`afterPack` 必须校验两者的磁盘路径和 ELF 架构，不能只看归档文件清单。
 
 ### 非发布三平台打包验收
 

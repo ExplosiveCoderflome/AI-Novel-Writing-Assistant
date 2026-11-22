@@ -7,14 +7,16 @@ const vm = require("node:vm");
 const { createRequire } = require("node:module");
 const builderRequire = createRequire(require.resolve("electron-builder/package.json", { paths: [path.resolve(__dirname, "..")] }));
 const { validateConfiguration } = builderRequire("app-builder-lib/out/util/config/config");
+const { getFileMatchers } = builderRequire("app-builder-lib/out/fileMatcher");
+const { AsarPackager } = builderRequire("app-builder-lib/out/asar/asarUtil");
 const { Arch } = builderRequire("builder-util");
 const asar = builderRequire("@electron/asar");
+const config = require("../electron-builder.config.cjs");
 const verifyNative = require("../scripts/packaging/verify-native-runtime.cjs");
 const { normalizeBuildEnvironment } = require("../scripts/run-electron-builder.cjs");
 const { stagedRebuildOptions } = require("../scripts/packaging/rebuild-native.cjs");
 
 test("builder schema accepts DMG/AppImage and preserves Windows targets", async () => {
-  const config = require("../electron-builder.config.cjs");
   await validateConfiguration(config, { debug: () => {} });
   assert.deepEqual(config.win.target.map(target => target.target), ["nsis", "portable"]);
   assert.deepEqual(config.mac.target, [{ target: "dmg", arch: ["x64", "arm64"] }]);
@@ -42,34 +44,80 @@ function binary(platform, arch) {
   return bytes;
 }
 
-test("packaging hook rejects wrong SQLite architecture and a non-SQLite Prisma client on every platform", async () => {
+const sqliteFile = "node_modules/better-sqlite3/build/Release/better_sqlite3.node";
+const schemaFile = "node_modules/@prisma/client/generated-client/schema.prisma";
+const sharpFile = "node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64-0.35.1.node";
+const libvipsFile = "node_modules/@img/sharp-libvips-linux-x64/lib/libvips-cpp.so.8.18.3";
+
+function nativeFixture(t, platform, arch) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "anw-native-contract-"));
+  const appOutDir = path.join(root, "output");
+  const resources = platform === "darwin" ? path.join(appOutDir, "Fixture.app/Contents/Resources") : path.join(appOutDir, "resources");
+  const archive = path.join(resources, "app.asar");
+  const input = path.join(root, "source");
+  const unpackedPath = file => path.join(resources, "app.asar.unpacked", file);
+  t.after(() => {
+    asar.uncache(archive);
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const fixture = {
+    [sqliteFile]: binary(platform, arch),
+    "node_modules/@prisma/client/generated-client/default.js": "module.exports = {};",
+    [schemaFile]: 'datasource db { provider = "sqlite" }',
+    ...(platform === "linux" ? { [sharpFile]: binary(platform, arch), [libvipsFile]: binary(platform, arch) } : {}),
+  };
+  const files = Object.entries(fixture).map(([relative, contents]) => {
+    const file = path.join(input, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, contents);
+    return file;
+  });
+  const context = { appOutDir, electronPlatformName: platform, arch: Arch[arch], packager: { appInfo: { productFilename: "Fixture" } } };
+  return {
+    context, input, unpackedPath,
+    async pack(customBuildOptions = config[{ win32: "win", darwin: "mac", linux: "linux" }[platform]]) {
+      const destination = path.join(resources, "app");
+      const [matcher] = getFileMatchers(config, "asarUnpack", destination, {
+        macroExpander: value => value, customBuildOptions, globalOutDir: appOutDir, defaultSrc: input,
+      });
+      await new AsarPackager({ info: { getWorkspaceRoot: async () => root } }, {
+        defaultDestination: destination,
+        resourcePath: resources,
+        // Exercise the explicit config without electron-builder's heuristic unpacking.
+        options: { smartUnpack: false },
+        unpackPattern: matcher.createFilter(),
+      }).pack([{ src: input, destination, files, metadata: new Map(files.map(file => [file, fs.lstatSync(file)])) }]);
+      asar.uncache(archive);
+    },
+  };
+}
+
+test("packaging hook rejects wrong SQLite architecture and a non-SQLite Prisma client on every platform", async t => {
   for (const [platform, arch] of [["win32", "x64"], ["darwin", "x64"], ["darwin", "arm64"], ["linux", "x64"]]) {
-    const appOutDir = path.join(root, `${platform}-${arch}`);
-    const resources = platform === "darwin" ? path.join(appOutDir, "Fixture.app/Contents/Resources") : path.join(appOutDir, "resources");
-    const nativeDir = path.join(resources, "app.asar.unpacked/node_modules/better-sqlite3/build/Release");
-    fs.mkdirSync(nativeDir, { recursive: true });
-    const nativePath = path.join(nativeDir, "better_sqlite3.node");
-    fs.writeFileSync(nativePath, binary(platform, arch));
-    const input = path.join(root, `source-${platform}-${arch}`);
-    const client = path.join(input, "node_modules/@prisma/client/generated-client");
-    fs.mkdirSync(client, { recursive: true });
-    fs.writeFileSync(path.join(client, "default.js"), "module.exports = {};");
-    fs.writeFileSync(path.join(client, "schema.prisma"), 'datasource db { provider = "sqlite" }');
-    const archive = path.join(resources, "app.asar");
-    await asar.createPackage(input, archive);
-    const context = { appOutDir, electronPlatformName: platform, arch: Arch[arch], packager: { appInfo: { productFilename: "Fixture" } } };
+    const { context, input, pack, unpackedPath } = nativeFixture(t, platform, arch);
+    await pack();
     await verifyNative(context);
-    fs.writeFileSync(nativePath, binary(platform, arch === "x64" ? "arm64" : "x64"));
+    fs.writeFileSync(unpackedPath(sqliteFile), binary(platform, arch === "x64" ? "arm64" : "x64"));
     await assert.rejects(verifyNative(context), /does not match target/);
-    fs.writeFileSync(nativePath, binary(platform, arch));
-    fs.writeFileSync(path.join(client, "schema.prisma"), 'datasource db { provider = "postgresql" }');
-    // A separate archive path avoids asar's process cache of archive headers.
-    asar.uncache(archive);
-    await asar.createPackage(input, archive);
-    asar.uncache(archive);
+    fs.writeFileSync(path.join(input, schemaFile), 'datasource db { provider = "postgresql" }');
+    await pack();
     await assert.rejects(verifyNative(context), /generated for SQLite/);
   }
+});
+
+test("Linux packaging unpacks Sharp's companion library and rejects the old ASAR-only layout", async t => {
+  const { context, pack, unpackedPath } = nativeFixture(t, "linux", "x64");
+  await pack({});
+  assert.ok(fs.existsSync(unpackedPath(sharpFile)));
+  assert.ok(!fs.existsSync(unpackedPath(libvipsFile)));
+  await assert.rejects(verifyNative(context), /libvips.*app\.asar\.unpacked/);
+
+  await pack();
+  assert.ok(fs.existsSync(unpackedPath(libvipsFile)));
+  await verifyNative(context);
+
+  fs.writeFileSync(unpackedPath(libvipsFile), binary("linux", "arm64"));
+  await assert.rejects(verifyNative(context), /libvips architecture arm64 does not match target x64/);
 });
 
 test("Mac updater is disabled without touching the update service", async () => {

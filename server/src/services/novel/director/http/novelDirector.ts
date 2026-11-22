@@ -1,3 +1,4 @@
+import { directorIssuePolicySchema } from "@ai-novel/shared/types/directorIssue";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -119,7 +120,8 @@ const projectContextSchema = z.object({
   aiFreedom: z.enum(["low", "medium", "high"]).optional(),
   postGenerationStyleReviewEnabled: z.boolean().optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
-  estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
+  // Older restored opening forms send null for "AI 推荐"; keep the choice unset.
+  estimatedChapterCount: z.number().int().min(1).max(2000).nullish().transform((value) => value ?? undefined),
   userPreferredVolumeCount: z.number().int().min(1).max(24).optional(),
   projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
@@ -226,6 +228,9 @@ const refineTitleSchema = projectContextSchema.extend({
 }).merge(llmOptionsSchema);
 
 const confirmSchema = projectContextSchema.extend({
+  issueGovernanceVersion: z.literal(1).optional(),
+  issuePolicy: directorIssuePolicySchema.optional(),
+  issuePolicySource: z.enum(["global", "novel"]).optional(),
   idea: z.string().trim().min(1),
   batchId: z.string().trim().optional(),
   round: z.number().int().min(1).optional(),

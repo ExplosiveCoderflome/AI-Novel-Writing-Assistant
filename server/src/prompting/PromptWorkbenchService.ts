@@ -14,6 +14,7 @@ import {
   type PromptRunTrace,
 } from "./core/promptTypes";
 import { preparePromptExecution } from "./core/promptRunner";
+import { serializeMessages } from "./workbench/serializeMessages";
 import { ContextBroker } from "./context/ContextBroker";
 import { formatContextGroupLabel } from "./context/contextGroupLabels";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
@@ -273,6 +274,7 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
   return [
     item.key,
     item.id,
+    item.shortDescription,
     item.description,
     item.version,
     item.taskType,
@@ -321,44 +323,6 @@ function getAssetFromPreviewInput(input: PromptPreviewInput): UnknownPromptAsset
   return asset;
 }
 
-function messageContentToString(content: BaseMessage["content"]): string {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (Array.isArray(content)) {
-    return content.map((item) => {
-      if (typeof item === "string") {
-        return item;
-      }
-      if (item && typeof item === "object" && "text" in item && typeof item.text === "string") {
-        return item.text;
-      }
-      return JSON.stringify(item);
-    }).join("\n");
-  }
-  return JSON.stringify(content);
-}
-
-function messageRole(message: BaseMessage): string {
-  const candidate = message as BaseMessage & {
-    _getType?: () => string;
-    getType?: () => string;
-  };
-  if (typeof candidate._getType === "function") {
-    return candidate._getType();
-  }
-  if (typeof candidate.getType === "function") {
-    return candidate.getType();
-  }
-  return message.constructor.name;
-}
-
-function serializeMessages(messages: BaseMessage[]): PromptPreviewMessage[] {
-  return messages.map((message) => ({
-    role: messageRole(message),
-    content: messageContentToString(message.content),
-  }));
-}
 
 function serializePromptContext(context: ReturnType<typeof preparePromptExecution>["context"]) {
   return {

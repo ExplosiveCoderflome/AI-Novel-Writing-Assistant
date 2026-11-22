@@ -1,0 +1,12 @@
+{
+  "zh": [
+    "V2 导演工作台可从下一个未完成章节调整角色状态、行动目标和成长弧。保存前可预览受影响的章节计划，不改动已完成正文。",
+    "修复 Linux x86_64 AppImage 因缺少图像处理库而无法启动的问题。",
+    "本书世界生成从 12,000 Token 起步，整书设定可用更多额度。额度耗尽或超时时可自动重试一次；失败提示会显示模型、实际申请额度和模型设置入口。"
+  ],
+  "en": [
+    "In Director V2, adjust a character's state, goals, and arc from the next unfinished chapter. Preview affected chapter plans before saving without changing completed chapters.",
+    "Fixed a missing image-processing library that prevented the Linux x86_64 AppImage from starting.",
+    "World generation starts at 12,000 tokens, with more room for whole-book settings. It can retry once after a budget failure or timeout. Failure messages show the model, requested allowance, and where to adjust model settings."
+  ]
+}

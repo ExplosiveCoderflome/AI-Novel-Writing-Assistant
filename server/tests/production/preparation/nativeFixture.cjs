@@ -4,7 +4,7 @@ async function nativeFixture(t,fault){
  const {ChapterExecutionContractService,readExecutionContractWorkspace}=require('../../../dist/services/novel/volume/ChapterExecutionContractService');
  const native=require('../planning/contractServiceFixture.cjs').fixture();
  const planner=require('../planning/chapterFixture.cjs').fixture();
- if(fault!=='reuse_plan'){
+ if(fault!=='reuse_plan' && fault!=='confirmed_contract'){
   native.workspace.volumes[0].chapters[0].taskSheet=null;
   native.workspace.volumes[0].chapters[0].sceneCards=null;
  }
@@ -13,12 +13,12 @@ async function nativeFixture(t,fault){
  await f.db.chapter.update({where:{id:'chapter-1'},data:{taskSheet:null,sceneCards:null}});
  await f.db.volumePlanVersion.create({data:{id:'version-1',novelId:'novel-1',version:1,status:'active',contentJson:JSON.stringify(native.workspace)}});
  await f.db.$transaction(tx=>require('../../../dist/services/novel/volume/volumeWorkspacePersistence').persistActiveVolumeWorkspace(tx,'novel-1',native.workspace,'version-1'));
- if(fault==='reuse_plan'){
+ if(fault==='reuse_plan' || fault==='confirmed_contract'){
   const target=native.workspace.volumes[0].chapters[0];
   const chapter=await f.db.chapter.update({where:{id:'chapter-1'},data:{taskSheet:target.taskSheet,sceneCards:target.sceneCards,
    targetWordCount:target.targetWordCount,conflictLevel:target.conflictLevel,revealLevel:target.revealLevel,mustAvoid:target.mustAvoid}});
   const hash=require('../../../dist/services/planner/plannerPersistence').buildChapterExecutionContractHash(chapter);
-  await f.db.storyPlan.create({data:{id:'existing-chapter-plan',novelId:'novel-1',chapterId:'chapter-1',level:'chapter',title:'已有规划',
+  if (fault==='reuse_plan') await f.db.storyPlan.create({data:{id:'existing-chapter-plan',novelId:'novel-1',chapterId:'chapter-1',level:'chapter',title:'已有规划',
    objective:'保留已有执行目标',rawPlanJson:JSON.stringify({executionContractHash:hash}),
    scenes:{create:{sortOrder:1,title:'已有场景',objective:'推进证据'}}}});
  }
@@ -40,6 +40,7 @@ async function nativeFixture(t,fault){
  const plannerInstance=new (require('../../../dist/services/planner/PlannerService').PlannerService)();
  plannerInstance.getChapterPlan=(novelId,chapterId)=>f.db.storyPlan.findFirst({where:{novelId,chapterId,level:'chapter',status:{not:'stale'}},include:{scenes:{orderBy:{sortOrder:'asc'}}},orderBy:{updatedAt:'desc'}});
  const planning=api.createKernelNativePlanningPreparation({db:f.db,contract,
+   hasConfirmedExecutionContract: async chapterId=>fault==='confirmed_contract' && chapterId==='chapter-1',
    contractSources:{db:f.db,readWorkspace:id=>readExecutionContractWorkspace(f.db,id),resolveStyleContract:async()=>null},
    storyMacroPlanService:{getPlan:async()=>null},planner:plannerInstance,
    plannerSources:{...planner.deps,db:f.db},request:async run=>({provider:run.snapshots.model.provider,model:run.snapshots.model.model}),

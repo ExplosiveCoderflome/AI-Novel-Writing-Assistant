@@ -55,7 +55,7 @@ export default function ModelRouteFields({
             });
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger aria-label="服务商">
             <SelectValue placeholder="选择服务商" />
           </SelectTrigger>
           <SelectContent>
@@ -80,6 +80,7 @@ export default function ModelRouteFields({
         />
         <Input
           value={draft.model}
+          aria-label="手动填写模型名称"
           placeholder={manualModelPlaceholder}
           onChange={(event) => onPatch({ model: event.target.value })}
         />
@@ -89,6 +90,7 @@ export default function ModelRouteFields({
         <div className="text-xs text-muted-foreground">温度</div>
         <Input
           value={draft.temperature}
+          aria-label="温度"
           placeholder={temperaturePlaceholder}
           onChange={(event) => onPatch({ temperature: event.target.value })}
         />
@@ -123,7 +125,7 @@ export default function ModelRouteFields({
               });
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="请求协议">
               <SelectValue placeholder="自动选择" />
             </SelectTrigger>
             <SelectContent>
@@ -144,7 +146,7 @@ export default function ModelRouteFields({
               structuredResponseFormat: value as ModelRouteStructuredResponseFormat,
             })}
           >
-            <SelectTrigger>
+            <SelectTrigger aria-label="结构化格式">
               <SelectValue placeholder="自动选择" />
             </SelectTrigger>
             <SelectContent>

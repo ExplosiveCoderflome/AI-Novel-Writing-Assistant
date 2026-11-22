@@ -68,6 +68,8 @@ const WORKSPACE_CONTEXT_GROUPS = [
   "manual_edit_inventory",
 ] as const;
 
+const OPENING_CONTEXT_GROUPS = ["idea_seed", "project_context", "preset_hints", "freeform_feedback", "latest_batch"] as const;
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -254,5 +256,6 @@ export function createRuntimeContextResolvers(): PromptContextResolver[] {
   return [
     ...CHAPTER_CONTEXT_GROUPS,
     ...WORKSPACE_CONTEXT_GROUPS,
+    ...OPENING_CONTEXT_GROUPS,
   ].map((group) => createRuntimeContextResolver(group));
 }

@@ -163,7 +163,9 @@ export function project(input: ProjectionInput): DashboardView {
     case "waiting_gate": {
       const types = control.gate?.artifactTypes ?? [];
       headline = `请确认「${types.map((type) => infoOf(type).label).join("、")}」后继续`;
-      nextActionGuidance = "打开本阶段结果，核对后点击“确认结果并继续”。AI 会继续推进本次授权范围。";
+      nextActionGuidance = types.includes("chapter_batch_closed")
+        ? "打开本批正文，选一章阅读或与 AI 讨论，核对采纳的段落后确认本批。"
+        : "打开本阶段结果，核对后点击“确认结果并继续”。AI 会继续推进本次授权范围。";
       if (types.some(type => {
         const artifact = latestArtifact(facts, type, contract.scope);
         return artifact?.status === "stale" && artifact.protectedUserContent;

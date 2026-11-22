@@ -1,4 +1,5 @@
 import type { StepContext, StepHandler } from "../../application";
+import type { ConfirmedCastMember } from "@ai-novel/shared/types/director/castReview/discussion";
 
 export interface VolumeStrategyStepInput<Provider extends string> {
   provider?: Provider;
@@ -8,6 +9,7 @@ export interface VolumeStrategyStepInput<Provider extends string> {
   estimatedChapterCount: number;
   userPreferredVolumeCount?: number;
   skeletonVolumeCount?: number;
+  confirmedCast?: ConfirmedCastMember[];
 }
 
 interface VolumeStrategyGenerationOptions<Provider extends string, Document> extends VolumeStrategyStepInput<Provider> {
@@ -40,6 +42,7 @@ export function createVolumeStrategyStepHandler<Provider extends string, Documen
     const options = {
       provider: input.provider, model: input.model, temperature: input.temperature,
       ...(guidance === undefined ? {} : {guidance}),
+      ...(input.confirmedCast?.length ? {confirmedCast: input.confirmedCast} : {}),
       estimatedChapterCount: input.estimatedChapterCount,
       ...(input.userPreferredVolumeCount === undefined ? {} : {userPreferredVolumeCount: input.userPreferredVolumeCount}),
       taskId: context.runId, entrypoint: "director_next" as const,

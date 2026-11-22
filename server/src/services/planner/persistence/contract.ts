@@ -26,6 +26,7 @@ export interface PersistPlanInput {
   replannedFromPlanId: string | null;
   hookTarget: string | null;
   baseExecutionContract?: ChapterExecutionContractHashInput | null;
+  preserveExecutionContract?: boolean;
   scenes: Array<{
     title?: string;
     objective?: string;

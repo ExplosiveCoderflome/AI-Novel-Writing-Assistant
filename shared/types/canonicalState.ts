@@ -51,6 +51,11 @@ export const canonicalCharacterRuntimeStateSchema = z.object({
   role: z.string(),
   currentGoal: z.string().nullable().optional(),
   currentState: z.string().nullable().optional(),
+  forwardAdjustment: z.object({
+    currentGoal: z.string().nullable().optional(),
+    currentState: z.string().nullable().optional(),
+    development: z.string().nullable().optional(),
+  }).optional(),
   currentPressure: z.string().nullable().optional(),
   currentSecret: z.string().nullable().optional(),
   emotion: z.string().nullable().optional(),
