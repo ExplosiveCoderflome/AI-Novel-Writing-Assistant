@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ResizableWorkspace } from "@/components/layout/resizableWorkspace";
 import { ResourceDirectory } from "./ResourceDirectory";
 import { ChapterReader } from "./ChapterReader";
@@ -71,7 +72,14 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
     setCharacterId(id);
   }
   const directory = <aside className={directoryOpen ? "flex h-full min-h-0 flex-col" : "shrink-0"}>
-      <button onClick={()=>setDirectoryOpen(open=>!open)} aria-expanded={directoryOpen} className="mb-3 shrink-0 self-start px-3 py-2 text-xs text-muted-foreground hover:text-primary">{directoryOpen ? "收起本书目录" : "显示本书目录"}</button>
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2 px-2">
+        {directoryOpen && <h2 className="text-lg font-semibold tracking-tight">本书目录</h2>}
+        <button type="button" onClick={()=>setDirectoryOpen(open=>!open)} aria-expanded={directoryOpen}
+          aria-label={directoryOpen ? "收起本书目录" : "显示本书目录"} title={directoryOpen ? "收起本书目录" : "显示本书目录"}
+          className="inline-flex min-h-9 min-w-9 items-center justify-center gap-2 rounded-md px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          {directoryOpen ? <PanelLeftClose aria-hidden="true" className="size-4"/> : <><PanelLeftOpen aria-hidden="true" className="size-4"/>显示本书目录</>}
+        </button>
+      </div>
       {directoryOpen ? <ResourceDirectory book={displayBook} selected={directorySelected} onSelect={select} /> : null}
     </aside>;
   const content = savedReview ? <section key={review?.toString()} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none"><ReviewDetail book={book} review={savedReview} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange} onOpenChapter={onLeaveReview ? id=>select({kind:"chapter",id}) : undefined} onEditChapter={editChapter}/></section> : <section ref={contentViewport} data-chapter-scroll-viewport key={selected.kind + (selected.kind === "beat" ? selected.volumeId : "") + ("id" in selected ? selected.id : "")} className="h-full max-h-[75dvh] min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pb-6 md:max-h-none">

@@ -1,0 +1,27 @@
+.director-directory {
+  container: director-directory / inline-size;
+}
+
+.director-directory details[open] > .directory-summary > .directory-chevron {
+  transform: rotate(90deg);
+}
+
+.director-directory .chapter-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+}
+
+@container director-directory (max-width: 15rem) {
+  .director-directory .chapter-entry {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .director-directory .chapter-state {
+    grid-column: 2;
+  }
+
+  .director-directory .beat-label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
