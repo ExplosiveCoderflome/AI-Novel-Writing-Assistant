@@ -6,7 +6,7 @@ import {directorPollInterval} from "./polling";
 import { getNovelDetail } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
-import DirectorPanel from "@/components/directorNext/DirectorPanel";
+import DirectorPanel, {type PanelPlanEditorRenderer} from "@/components/directorNext/DirectorPanel";
 import DirectorBadge from "@/components/directorNext/DirectorBadge";
 import {OutlineBookSource} from "@/components/outlines/OutlineBookSource";
 import OutlineWritingControls from "@/components/outlines/OutlineWritingControls";
@@ -60,11 +60,11 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
 
   const reviewType = savedReview?.type;
   const plans = savedReview?.plans;
-  const renderReviewEditor: import("@/components/directorNext/DirectorGate").PlanEditorRenderer | undefined =
+  const renderReviewEditor: PanelPlanEditorRenderer | undefined =
     preview || bookQuery.isError || !book || !savedReview?.ready ? undefined
       : reviewType === "chapter_task_sheet" && plans?.length ? input => <DirectorChapterPlanEditor novelId={novelId} plans={plans} approvalFingerprint={book.chapterReviewFingerprint} activeVersionId={book.planning?.activeVersionId} {...input}/>
-      : reviewType === "chapter_batch_closed" && savedReview.chapters?.length && book.proseReviewHashes ? input =>
-          <DirectorProseReview novelId={novelId} chapters={savedReview.chapters!} hashes={book.proseReviewHashes!} nextRange={view?.nextLaunchRange ?? null} onConfirmed={()=>setParams({}, {replace:true})} {...input}/>
+      : reviewType === "chapter_batch_closed" && savedReview.chapters?.length && book.proseReviewHashes ? (input, nextRange) =>
+          <DirectorProseReview novelId={novelId} chapters={savedReview.chapters!} hashes={book.proseReviewHashes!} nextRange={nextRange} onConfirmed={()=>setParams({}, {replace:true})} {...input}/>
       : reviewType === "character_cast" || reviewType === "volume_strategy" ? input => <DirectorReviewAssetEditor book={book} type={reviewType} {...input}/>
       : undefined;
   return (
@@ -97,7 +97,7 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
       <ResizableWorkspace id="director-novel-layout" className="min-h-0 flex-1" label="调整正文与导演台宽度" defaultLeft={78} minLeft={580} minRight={280} breakpoint={920} left={<div className="flex h-full min-h-0 min-w-0 flex-col">
           {!preview && bookQuery.isError ? <div role="alert" className="mb-4 space-y-2 rounded-md bg-destructive/5 p-4"><p className="text-sm text-destructive">本书内容读取失败。{book ? "你仍可查看上次读取的内容。" : ""}</p><Button variant="outline" size="sm" onClick={() => void bookQuery.refetch()}>重新读取本书</Button></div> : null}
           {book ? <NovelWorkspace key={novelId} book={book} preview={preview} review={params} onLeaveReview={()=>setParams({})} onOpenChapterReview={preview ? undefined : ()=>setParams({review:"chapter_task_sheet"})} followGeneration={follow.enabled && !editingChapterId && !adjustingCharacter} generation={follow.snapshot} activity={view?.workspaceActivity} onEditChapter={preview ? undefined : setEditingChapterId} editedChapter={editedChapter} onAdjustingCharacter={setAdjustingCharacter} /> : <p className="py-12 text-sm text-muted-foreground">{bookQuery.isLoading ? "正在读取本书内容…" : "暂无可展示的内容。"}</p>}
-        </div>} right={directorOpen ? <aside aria-label="导演台" className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain">
+        </div>} right={directorOpen ? <aside aria-label="导演台" className="h-full min-h-0 min-w-0 overflow-y-auto overscroll-contain px-3 py-1">
           {!preview && error ? <div role="alert" className="space-y-3 py-4"><p className="text-sm text-destructive">{error instanceof Error ? error.message : "导演信息读取失败。"}</p>
             {diagnostic ? <div className="space-y-2 text-sm"><p>保存的运行状态：{diagnostic.status} · 版本 {diagnostic.controlVersion}</p>{diagnostic.lastFailure ? <p>最近中断原因：{diagnostic.lastFailure.message}</p> : null}<p className="text-muted-foreground">正文进度暂不可读取，请处理原因后重新读取。</p></div> : diagnosticQuery.isError ? <p className="text-sm">运行诊断也暂时无法读取。</p> : null}
             <Button variant="outline" onClick={() => void Promise.all([summaryQuery.refetch(), ...(runId ? [detailQuery.refetch()] : []), diagnosticQuery.refetch()])}>重新读取</Button></div>
