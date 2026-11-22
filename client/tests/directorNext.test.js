@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL,fileURLToPath } from 'node:url';
 import { queryKeys } from '../src/api/queryKeys.ts';
+import { nodeStyles } from './support/nodeStyles.js';
 import {presentationViolations,inspectDirectorProjectionSources} from './directorNext/projectionGuard.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
@@ -119,7 +120,7 @@ export function renderedBudgetSettings(tokenLimit) {
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
-      bundle: true, platform: 'node', format: 'esm', packages: 'external',
+      bundle: true, platform: 'node', format: 'esm', packages: 'external', plugins: [nodeStyles],
       alias: { '@': path.join(clientDir, 'src') },
       define: { 'import.meta.env': '{}' },
       outfile: output,
