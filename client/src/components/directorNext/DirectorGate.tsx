@@ -16,6 +16,7 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
   const [editing, setEditing]=useState(false);
   const editLabel = reviewType === "chapter_task_sheet" ? "与 AI 讨论或编辑任务与场景"
     : reviewType === "character_cast" ? "与 AI 讨论或编辑角色阵容" : reviewType === "volume_strategy" ? "与 AI 讨论或编辑卷纲" : undefined;
+  const batchReview = reviewType === "chapter_batch_closed" && Boolean(renderPlanEditor);
   const confirmSaved = reviewType === "chapter_execution_contract" || reviewType === "chapter_batch_closed";
   const canGenerate=reviewType==="chapter_task_sheet" || reviewType==="volume_strategy";
   const chapterApproval = reviewType === "chapter_task_sheet" ? proseApproval : undefined;
@@ -30,12 +31,13 @@ export default function DirectorGate({runId, novelId, expectedVersion, reviewTyp
   });
   return <section className="space-y-3 border-t border-border/50 py-4">
     {canConfirm ? <>
+      {batchReview ? <Button onClick={()=>setEditing(true)}>与 AI 讨论并确认本批正文</Button> : <>
       <p className="text-xs leading-5 text-muted-foreground">核对左侧结果后，可以确认并继续{editLabel && renderPlanEditor ? "，也可以先编辑内容" : ""}{canGenerate ? "，或请 AI 按你的建议重写" : ""}。</p>
-      <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>{chapterApproval ? "确认本批章节并继续写正文" : "确认结果并继续"}</Button>
+      <Button disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm")}>{chapterApproval ? "确认本批章节并继续写正文" : "确认结果并继续"}</Button></>}
     </> : null}
     <div className="flex flex-wrap gap-2">
       {canConfirm && editLabel && renderPlanEditor ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>setEditing(true)}>{editLabel}</Button> : null}
-      {canConfirm && confirmSaved ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm_after_edit")}>确认已保存的修改</Button> : null}
+      {canConfirm && !batchReview && confirmSaved ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("confirm_after_edit")}>确认已保存的修改</Button> : null}
       {canGenerate ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>{mutation.reset();setRegenerating(true);}}>重新生成本阶段</Button>
         : reviewType==="chapter_execution_contract" ? <Button variant="ghost" size="sm" disabled={mutation.isPending} onClick={()=>mutation.mutate("regenerate")}>重新同步执行计划</Button> : null}
     </div>

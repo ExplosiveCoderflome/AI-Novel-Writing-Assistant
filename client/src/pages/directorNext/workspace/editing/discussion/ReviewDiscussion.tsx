@@ -9,7 +9,7 @@ import type { ReviewChange, ReviewProposal } from "@ai-novel/shared/types/direct
 
 const labels = { ...castFieldLabels, ...volumeFieldLabels };
 type Proposal = ReviewProposal<string>;
-type Scope = { type: "character_cast" } | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
+type Scope = { type: "character_cast" } | {type:"chapter_batch_closed"; bodyHash:string} | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
 
 const inline = { errorPresentation: "inline" } as const;
 interface Props {
@@ -52,6 +52,13 @@ function Suggestions({ proposal, draft, disabled, onAccept, fieldLabels }: {
 }
 
 function presentation(scope: Scope, version: number, title: string) {
+  if (scope.type === "chapter_batch_closed") return {
+    path:`prose-review/${version}/versions/${encodeURIComponent(scope.bodyHash)}/chapters`,key:"director-prose",assistant:"正文助手",
+    welcome:{title:"这一章读起来怎么样？",body:"可以先问读后感，也可以指出想改的地方。",starters:[
+      {label:"哪里读起来拖沓？",text:"读一遍本章，告诉我哪里节奏慢，为什么。"},
+      {label:"让结尾更有余味",text:"保留本章发生的事，帮我改一改结尾，给读者留一点余味。"},
+    ]},hint:"逐段比较原文和建议，采纳后可以撤回。",placeholder:"想讨论哪段正文，或希望读者读到什么感受？",
+  };
   if (scope.type === "chapter_task_sheet") return {
     path: `chapter-review/${version}/plans/${encodeURIComponent(scope.planVersionId)}/chapters`, key: "director-chapter", assistant:"章节助手",
     welcome:{ title: "想怎么写这一章？", body:"可以讨论本章要发生什么，也可以只改其中一场。", starters:[
@@ -78,7 +85,7 @@ export function ReviewDiscussion({ novelId, runId, version, subject, scope, base
   const config = presentation(scope, version, subject.title);
   const url = `/director-next/novels/${encodeURIComponent(novelId)}/runs/${encodeURIComponent(runId)}/${config.path}/${encodeURIComponent(subject.id)}/conversation`;
   const adapter: AgentConversationAdapter<Proposal> = {
-    queryKey: ["agent-conversation", config.key, novelId, runId, String(version), ...("planVersionId" in scope ? [scope.planVersionId] : []), subject.id],
+    queryKey: ["agent-conversation", config.key, novelId, runId, String(version), ...("planVersionId" in scope ? [scope.planVersionId] : "bodyHash" in scope ? [scope.bodyHash] : []), subject.id],
     load: async () => (await apiClient.get(url, inline)).data.data as AgentConversationTurn<Proposal>[],
     send: input => apiClient.post(url + "/turns", { ...input, base, draft }, inline),
     interrupt: id => apiClient.post(url + "/turns/" + encodeURIComponent(id) + "/interrupt", {}, inline),

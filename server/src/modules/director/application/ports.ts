@@ -35,6 +35,7 @@ export interface CommandExecutionInput {
 
 export interface CommandTransitionInput extends CommandExecutionInput {
   retryAt?: Date;
+  successor?: Pick<CommandOpenRunInput,"contract"|"initialArtifacts">;
   runId: string;
   event: RunEvent;
   expectedVersion: number;
@@ -47,6 +48,7 @@ export interface CommandTransitionInput extends CommandExecutionInput {
 export type UnknownClaimResolution = import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution;
 
 export interface GateResolution {
+  proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview;
   expectedVolumePlanVersionId?: string;
   guidance?: string;
   chapterPlanEdit?: ChapterPlanRevision;

@@ -1,3 +1,4 @@
+import {verifyReviewedProse} from "./revisions/proseReview";
 import {MANUAL_CHAPTER_SYNC_TYPE} from "../../services/novel/chapterEditor/synchronization";
 import {buildChapterArtifactContentHash} from "../../services/novel/runtime/artifactSync/ChapterArtifactContentVersion";
 import {directorCharacterCandidates} from "../../services/novel/characters/candidates";
@@ -18,7 +19,7 @@ import type {DirectorChapterBudgetGrant} from "@ai-novel/shared/types/director/c
 import {readProductionBatchImplementation,readKernelUnitOutcome,resumeKernelProduction,cancelKernelProduction} from "./productionKernel";
 
 /** Reads saved business assets in the same transaction as gate confirmation. */
-export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; expectedVolumePlanVersionId?: string; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision}, tx: Prisma.TransactionClient) {
+export async function readEditedArtifact(input: {contract: RunContract; type: string; contentRef: string; expectedVolumePlanVersionId?: string; proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview; assetEdit?: ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision}, tx: Prisma.TransactionClient) {
   if (input.assetEdit) {
     if (input.assetEdit.type !== input.type) throw new AppError("修改的内容与本次确认阶段不符。", 400);
     await saveReviewAssetEdit(input.contract.novelId, input.assetEdit, tx);
@@ -70,8 +71,9 @@ export async function readEditedArtifact(input: {contract: RunContract; type: st
         artifactSyncCheckpoints: {where: {OR: [{artifactType: CHAPTER_ARTIFACT_BOUNDARY_TYPE, status: "succeeded"}, {artifactType: MANUAL_CHAPTER_SYNC_TYPE}]},
           select: {contentHash: true, metadataJson: true, artifactType: true}, orderBy: {updatedAt: "desc"}}}});
       if (chapters.length !== range.to-range.from+1 || chapters.some(chapter => !chapter.content?.trim())) throw new Error("请先保存本批次的章节正文。");
+      if (input.proseReview) await verifyReviewedProse(tx,input.contract,chapters,input.proseReview);
       const kernel = await readProductionBatchImplementation(tx,input.contract) === "kernel";
-      const closed = kernel ? (await Promise.all(chapters.map(chapter=>readKernelUnitOutcome(tx,input.contract,{...chapter,novelId}))))
+      const closed = kernel ? (await Promise.all(chapters.map(chapter=>readKernelUnitOutcome(tx,input.contract,{...chapter,novelId},{allowSynchronizedRevision:true}))))
         .every(outcome=>outcome?.status === "completed") : chapters.every(isCurrentChapterProductionCompleted);
       if (!closed) throw new AppError("正文修改尚未完成状态同步，请在章节页面完成收尾后再确认。", 400);
       for (const chapter of chapters) {

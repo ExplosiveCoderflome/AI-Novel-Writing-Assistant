@@ -24,6 +24,24 @@ test('editing the current manuscript invalidates the saved closure without chang
  const result=await f.read();assert.equal(result.status,'failed');assert.equal(result.reason,'data_integrity');
  assert.deepEqual(await f.db.directorNextRunControl.findFirst(),before);
 });
+test('batch review accepts a synchronized author revision only alongside the original completed kernel receipts',async t=>{
+ const f=await fixture(t), content='作者改定的结尾';
+ const {MANUAL_CHAPTER_SYNC_TYPE}=require('../../dist/services/novel/chapterEditor/synchronization');
+ const {CHAPTER_ARTIFACT_BOUNDARY_TYPE,buildChapterArtifactContentHash}=require('../../dist/services/novel/runtime/artifactSync');
+ await f.db.chapter.update({where:{id:f.chapter.id},data:{content}});
+ const review=()=>f.api.readKernelUnitOutcome(f.db,f.contract,f.chapter,{allowSynchronizedRevision:true});
+ for (const artifactType of [MANUAL_CHAPTER_SYNC_TYPE,CHAPTER_ARTIFACT_BOUNDARY_TYPE]){
+  assert.equal((await review()).status,'failed');
+  await f.db.chapterArtifactSyncCheckpoint.create({data:{novelId:f.contract.novelId,chapterId:f.chapter.id,
+    contentHash:buildChapterArtifactContentHash(content),artifactType,syncMode:'manual',status:'succeeded',metadataJson:JSON.stringify({outcome:'completed',completedArtifacts:['artifact_delta']})}});
+ }
+ assert.equal((await review()).status,'completed');
+ assert.equal((await f.read()).status,'failed');
+ delete f.artifacts.receipts.commit;
+ await f.db.productionUnitRun.update({where:{id:f.row.id},data:{stageArtifactsJson:JSON.stringify(f.artifacts)}});
+ assert.equal((await review()).status,'failed');
+});
+
 test('a completed label without commit receipt or terminal lifecycle cannot close a chapter',async t=>{
  for(const missing of ['receipt','lifecycle']) {
   const f=await fixture(t);

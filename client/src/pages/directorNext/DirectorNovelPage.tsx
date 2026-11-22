@@ -16,7 +16,7 @@ import { previewStates, previewTimeline, previewView } from "./preview";
 import { NovelWorkspace, previewBook, resolveSavedReview } from "./workspace";
 import { useGenerationFollow, useWorkspaceActivity } from "./generation";
 import DirectorVersionControl from "@/components/directorVersion/DirectorVersionControl";
-import { DirectorChapterEditor, DirectorChapterPlanEditor, DirectorReviewAssetEditor } from "./workspace/editing";
+import { DirectorProseReview, DirectorChapterEditor, DirectorChapterPlanEditor, DirectorReviewAssetEditor } from "./workspace/editing";
 import NovelBookDeliveryActions from "@/pages/novels/components/NovelBookDeliveryActions";
 
 export default function DirectorNovelPage({ previewOnly = false }: { previewOnly?: boolean }) {
@@ -62,6 +62,8 @@ export default function DirectorNovelPage({ previewOnly = false }: { previewOnly
   const renderReviewEditor: import("@/components/directorNext/DirectorGate").PlanEditorRenderer | undefined =
     preview || bookQuery.isError || !book || !savedReview?.ready ? undefined
       : reviewType === "chapter_task_sheet" && plans?.length ? input => <DirectorChapterPlanEditor novelId={novelId} plans={plans} approvalFingerprint={book.chapterReviewFingerprint} activeVersionId={book.planning?.activeVersionId} {...input}/>
+      : reviewType === "chapter_batch_closed" && savedReview.chapters?.length && book.proseReviewHashes ? input =>
+          <DirectorProseReview novelId={novelId} chapters={savedReview.chapters!} hashes={book.proseReviewHashes!} nextRange={view?.nextLaunchRange ?? null} onConfirmed={()=>setParams({}, {replace:true})} {...input}/>
       : reviewType === "character_cast" || reviewType === "volume_strategy" ? input => <DirectorReviewAssetEditor book={book} type={reviewType} {...input}/>
       : undefined;
   return (

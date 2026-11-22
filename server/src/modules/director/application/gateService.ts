@@ -9,7 +9,7 @@ export class GateResolutionError extends Error {
 /** Prepares pure invalidation policy; repository commits ledger, control and command together. */
 export class GateService {
   constructor(private readonly deps: {factsLoader: Pick<FactsLoader, "load">; planRegistry: PlanRegistry}) {}
-  async prepare(runId: string, decision: GateResolution["decision"], expectedVersion: number, revision: Pick<GateResolution,"expectedVolumePlanVersionId"|"guidance"|"chapterPlanEdit"|"assetEdit"> = {}): Promise<GateResolution> {
+  async prepare(runId: string, decision: GateResolution["decision"], expectedVersion: number, revision: Pick<GateResolution,"expectedVolumePlanVersionId"|"guidance"|"chapterPlanEdit"|"assetEdit"|"proseReview"> = {}): Promise<GateResolution> {
     if (revision.guidance !== undefined && (decision !== "regenerate" || typeof revision.guidance !== "string" || revision.guidance.length > 6000)) throw new GateResolutionError("修正建议只能用于重新生成，且不能超过 6000 字。");
     if (revision.chapterPlanEdit) {
       const edit = revision.chapterPlanEdit;
@@ -31,6 +31,11 @@ export class GateService {
     }
     const plan = this.deps.planRegistry.get(contract.planVersion);
     if (!plan) throw new GateResolutionError("缺少本次运行的创作计划。");
+    if (revision.proseReview && (types.length !== 1 || types[0] !== "chapter_batch_closed" ||
+      decision !== (revision.proseReview.chapters.some(chapter => chapter.content !== undefined) ? "confirm_after_edit" : "confirm") ||
+      (revision.proseReview.nextRange && plan.steps.at(-1)?.produces !== "chapter_batch_closed"))) {
+      throw new GateResolutionError("请在本批正文确认页核对章节与续写范围。");
+    }
     const artifacts = control.gate.artifactTypes.map(type => {
       const step = plan.steps.find(step => step.produces === type && step.gateable);
       const artifact = latestArtifact(facts, type, contract.scope);
@@ -46,6 +51,7 @@ export class GateService {
       .filter(type => type !== "chapter_draft" && (decision === "regenerate" || !artifacts.some(artifact => artifact.type === type)));
     if (revision.chapterPlanEdit && (artifacts.length !== 1 || artifacts[0].type !== "chapter_task_sheet")) throw new GateResolutionError("只能在章节任务与场景阶段编辑此计划。");
     return {decision, scope: contract.scope, artifacts, invalidateTypes,
+      ...(revision.proseReview ? {proseReview:revision.proseReview} : {}),
       ...(revision.expectedVolumePlanVersionId ? {expectedVolumePlanVersionId: revision.expectedVolumePlanVersionId} : {}),
       ...(revision.guidance?.trim() ? {guidance: revision.guidance.trim()} : {}),
       ...(revision.assetEdit ? {assetEdit: revision.assetEdit} : {}),

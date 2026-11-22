@@ -124,12 +124,13 @@ function assetGatePage(type) {
   const url = '/lab/director/book?review=' + type;
   const next = {...view, driver:'assisted', availableActions:[{id:'review:'+type,kind:'navigate',primary:true,label:'核对结果',target:url}]};
   const assetCache = new QueryClient();
-  assetCache.setQueryData(['directorBookWorkspace','book'],{success:true,data:book});
+  assetCache.setQueryData(['directorBookWorkspace','book'],{success:true,data:{...book,proseReviewHashes:{c7:'h7',c8:'h8'}}});
   assetCache.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:next});
   return renderToStaticMarkup(<MemoryRouter initialEntries={[url]}><QueryClientProvider client={assetCache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
 }
 export const castGate = assetGatePage('character_cast');
 export const volumeGate = assetGatePage('volume_strategy');
+export const proseGate = assetGatePage('chapter_batch_closed');
 export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[target]}><QueryClientProvider client={cache}><Routes><Route path='/lab/director/:novelId' element={<DirectorNovelPage/>}/></Routes></QueryClientProvider></MemoryRouter>);
 `,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(root,'src')},define:{'import.meta.env':'{}'},outfile:output});
     const m=await import(pathToFileURL(output).href);
@@ -168,6 +169,8 @@ export const assistedPage=renderToStaticMarkup(<MemoryRouter initialEntries={[ta
     assert.ok(m.outline.includes('本次目标卷') && m.outline.includes('本次卷纲内容'));
     assert.ok(m.castGate.includes('编辑角色阵容'));
     assert.ok(m.volumeGate.includes('与 AI 讨论或编辑卷纲'));
+    assert.ok(m.proseGate.includes('与 AI 讨论并确认本批正文'));
+    assert.doesNotMatch(m.proseGate,/确认已保存的修改|确认结果并继续/);
     for (const html of [m.castGate, m.volumeGate]) assert.ok(!html.includes('确认已保存的修改'));
     assert.ok(m.page.includes('目标场景证据') && m.page.includes('确认结果并继续'));
     assert.match(m.page,/查看最新正文（第 9 章）/);

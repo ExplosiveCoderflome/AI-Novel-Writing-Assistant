@@ -21,6 +21,7 @@ export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chap
   reviewContexts?:DirectorReviewContext[];
   reviewContextError?:string|null;
   chapterReviewFingerprint?:string;
+  proseReviewHashes?:Record<string,string>;
   characterForwardPlanNotices?: CharacterForwardPlanNotice[];
   executionPlans?: {id:string;order:number;title:string;taskSheet:string|null;sceneCards:string|null;targetWordCount:number|null;mustAvoid:string|null}[];
 };
@@ -111,7 +112,7 @@ export type DirectorCommand =
     targetVolumeId?: string | null; provider: string; model: string; temperature?: number; chapterTokenLimit?: number;
     executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
   } }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
+  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: import("@ai-novel/shared/types/director/chapterBudget").DirectorChapterBudgetGrant; resolveUnknownClaims?: import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: DirectorDriver; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };

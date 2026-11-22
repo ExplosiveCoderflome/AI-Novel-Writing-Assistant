@@ -15,7 +15,7 @@ export type DirectorCommand =
   | { type: "pause"; runId: string; expectedVersion: number; idempotencyKey: string }
   | {type: "retry_start"; runId: string; expectedVersion: number; idempotencyKey: string}
   | { type: "open_run"; novelId: string; driver: RunContract["driver"]; stepIdsInScope: string[] | null; launchInput?: RunLaunchInput; idempotencyKey: string }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
+  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: DirectorChapterBudgetGrant; resolveUnknownClaims?: import("./ports").UnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: RunContract["driver"]; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };
@@ -68,7 +68,7 @@ export interface CommandServiceDeps {
   }) => RunContract;
   prepareOpen?: (contract: RunContract) => Promise<readonly InitialArtifact[]>;
   gateService?: Pick<GateService, "prepare">;
-  prepareGate?: (contract: RunContract, resolution: NonNullable<CommandTransitionInput["gateResolution"]>) => Promise<void>;
+  prepareGate?: (contract: RunContract, resolution: NonNullable<CommandTransitionInput["gateResolution"]>, expectedVersion:number) => Promise<void>;
 }
 
 function isDirectorCommand(value: unknown): value is DirectorCommand {
@@ -85,7 +85,7 @@ function replayResult(record: { result: unknown }): DirectorCommandResult {
 }
 
 /** Check both the optimistic lookup and the transaction replay after a concurrent insert. */
-export function assertChapterBudgetReplay(savedPayload: unknown, inputPayload: unknown): void {
+export function assertCommandReplay(savedPayload: unknown, inputPayload: unknown): void {
   const saved = savedPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
   const input = inputPayload as Partial<Extract<DirectorCommand, {type: "resume"}>> | null;
   const resolution = input?.resolveUnknownClaims, previousResolution = saved?.resolveUnknownClaims;
@@ -95,6 +95,13 @@ export function assertChapterBudgetReplay(savedPayload: unknown, inputPayload: u
       || resolution.chapterId !== previousResolution.chapterId) {
       throw new InvalidDirectorCommandError("同一未决步骤确认不能修改章节，请刷新后重试。");
     }
+  }
+  const newGate = inputPayload as Extract<DirectorCommand,{type:"resolve_gate"}> | null;
+  const oldGate = savedPayload as typeof newGate;
+  if ((newGate?.proseReview || oldGate?.proseReview) && (newGate?.type !== "resolve_gate" || oldGate?.type !== "resolve_gate" ||
+    newGate.runId !== oldGate.runId || newGate.expectedVersion !== oldGate.expectedVersion || newGate.decision !== oldGate.decision ||
+    JSON.stringify(newGate.proseReview) !== JSON.stringify(oldGate.proseReview))) {
+    throw new InvalidDirectorCommandError("这次确认的正文或续写范围有变化，请重新提交。");
   }
   const grant = input?.chapterBudget, previous = saved?.chapterBudget;
   if (!grant && !previous) return;
@@ -117,7 +124,7 @@ export class CommandService {
     }
     const existing = await this.deps.commandRepository.find(input.idempotencyKey);
     if (existing) {
-      assertChapterBudgetReplay(existing.payload, input);
+      assertCommandReplay(existing.payload, input);
       if (input.type === "retry_start") this.deps.wakeWorker?.();
       return replayResult(existing);
     }
@@ -197,19 +204,31 @@ export class CommandService {
     if (control.status !== "waiting_gate") {
       throw new InvalidDirectorCommandError("只有等待确认的创作可以处理门控。");
     }
-    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {expectedVolumePlanVersionId: command.expectedVolumePlanVersionId, guidance: command.guidance, chapterPlanEdit: command.chapterPlanEdit, assetEdit: command.assetEdit}) : undefined;
+    const resolution = this.deps.gateService ? await this.deps.gateService.prepare(command.runId, command.decision, command.expectedVersion, {expectedVolumePlanVersionId: command.expectedVolumePlanVersionId, guidance: command.guidance, proseReview:command.proseReview, chapterPlanEdit: command.chapterPlanEdit, assetEdit: command.assetEdit}) : undefined;
+    let successor: CommandTransitionInput["successor"];
+    if (command.proseReview && (!resolution || !this.deps.prepareGate)) throw new InvalidDirectorCommandError("正文确认服务未就绪。");
     if (resolution && this.deps.prepareGate) {
       const contract = await this.deps.runRepository.getContract(command.runId);
       if (!contract) throw new InvalidDirectorCommandError("找不到要确认的创作。");
-      await this.deps.prepareGate(contract, resolution);
+      await this.deps.prepareGate(contract, resolution, command.expectedVersion);
+      const range = resolution.proseReview?.nextRange;
+      if (range) {
+        if (!contract.launchInput || !this.deps.prepareOpen) throw new InvalidDirectorCommandError("缺少下一批的创作设置。");
+        const next = this.deps.contractFactory({runId:this.deps.runtime.nextId(),novelId:contract.novelId,driver:contract.driver,stepIdsInScope:null,
+          launchInput:{...contract.launchInput,targetMode:"opening",targetVolumeId:undefined,executionRange:range}});
+        const initialArtifacts = await this.deps.prepareOpen(next);
+        next.executionEpoch = contract.executionEpoch ?? 0;
+        successor = {contract:next,initialArtifacts};
+      }
     }
-    return this.transition(command, { type: "resolve_gate" }, resolution);
+    return this.transition(command, { type: "resolve_gate" }, resolution, successor);
   }
 
   private async transition(
     command: Extract<DirectorCommand, { runId: string; expectedVersion: number }>,
     event: Parameters<RunRepository["transition"]>[1],
     gateResolution?: CommandTransitionInput["gateResolution"],
+    successor?: CommandTransitionInput["successor"],
   ): Promise<DirectorCommandResult> {
     const commandId = this.deps.runtime.nextId();
     const result = await this.deps.commandRepository.transition({
@@ -221,6 +240,7 @@ export class CommandService {
       event,
       expectedVersion: command.expectedVersion,
       ...(gateResolution ? {gateResolution} : {}),
+      ...(successor ? {successor} : {}),
       ...(command.type === "resume" && command.chapterBudget ? {chapterBudget: command.chapterBudget} : {}),
       ...(command.type === "resume" && command.resolveUnknownClaims ? {resolveUnknownClaims: command.resolveUnknownClaims} : {}),
       ...(command.type === "retry_start" ? {retryAt: this.deps.runtime.now?.() ?? new Date()} : {}),

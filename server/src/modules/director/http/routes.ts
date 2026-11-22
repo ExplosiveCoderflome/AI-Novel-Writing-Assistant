@@ -1,3 +1,4 @@
+import { batchProseReviewSchema } from "@ai-novel/shared/types/director/proseReview/discussion";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import {chapterPlanRevisionSchema, reviewAssetEditSchema} from "@ai-novel/shared/types/director/revision";
@@ -62,6 +63,7 @@ const commandBodySchema = z.discriminatedUnion("type", [
     decision: z.enum(["confirm", "confirm_after_edit", "regenerate"]),
     guidance: z.string().trim().max(6000).optional(),
     chapterPlanEdit: chapterPlanRevisionSchema.optional(),
+    proseReview: batchProseReviewSchema.optional(),
     assetEdit: reviewAssetEditSchema.optional(),
     expectedVolumePlanVersionId: nonEmpty.max(160).optional(),
     expectedVersion,

@@ -1,3 +1,4 @@
+import {hashProductionContent} from "../../modules/production";
 import {outlineOpenBookService} from "../../modules/planning/outline";
 import {StoryMacroPlanService} from "../../services/novel/storyMacro/StoryMacroPlanService";
 import {prisma} from "../../db/prisma";
@@ -49,13 +50,18 @@ export async function readDirectorWorkspace(novelId: string) {
     .filter(chapter => chapter.chapterOrder >= taskSheet.from! && chapter.chapterOrder <= taskSheet.to!) : [];
   const planning = savedPlans.reduce(applySavedChapterPlanFields, saved);
   const chapterReviewFingerprint = contract && taskSheet && version && canApproveProse(contract) ? chapterApprovalFingerprint(version.id,savedPlans) : undefined;
+  const batch = reviewContexts.find(context => context.type === "chapter_batch_closed");
+  const proseReviewHashes = batch ? Object.fromEntries(effectiveChapters.filter(row => row.order >= batch.from! && row.order <= batch.to! && row.content?.trim())
+    .map(row => [row.id,hashProductionContent(row.content!)])) : undefined;
   const chapters: SimpleCreationShelfProjection["chapters"] = effectiveChapters.map(chapter=>{
-    const content=chapter.content?.trim() || null, qualityDebt=content ? readChapterQualityDebtDetails(chapter.riskFlags):null;
+    const trimmedContent = chapter.content?.trim() || null;
+    const content = proseReviewHashes?.[chapter.id] ? chapter.content : trimmedContent;
+    const qualityDebt = content ? readChapterQualityDebtDetails(chapter.riskFlags) : null;
     const status: SimpleCreationShelfProjection["chapters"][number]["status"] = hasChapterQualityLoopReplanRequiredRiskFlags(chapter.riskFlags) ? "replan_required" : qualityDebt ? "quality_debt" : chapter.generationState === "approved" || chapter.generationState === "published" ? "completed" : chapter.chapterStatus === "generating" ? "generating" : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review" ? "reviewing" : content ? "waiting_writing" : "waiting_planning";
-    return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:content ? Array.from(content).length:0,updatedAt:chapter.updatedAt.toISOString()};
+    return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:trimmedContent ? Array.from(trimmedContent).length:0,updatedAt:chapter.updatedAt.toISOString()};
   });
   const outlinePreparation=outlineBinding ? {storyMacro:await new StoryMacroPlanService().getPlan(novelId),hasBookContract:Boolean(novel.bookContract),worldMode:contract?.launchInput?.worldMode} : undefined;
-  return {...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,chapterReviewFingerprint,reviewContextError,characterForwardPlanNotices,
+  return {...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,proseReviewHashes,chapterReviewFingerprint,reviewContextError,characterForwardPlanNotices,
     executionPlans:effectiveChapters.map(({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})=>({id,order,title,taskSheet,sceneCards,targetWordCount,mustAvoid})),
     materials:{description:novel.description,characterCount:novel.characters.length,volumeCount:planning.volumes.length,openQualityDebtCount:chapters.filter(chapter=>chapter.qualityDebt).length,
       story:{coreSellingPoint:novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,readingPromise:novel.bookContract?.readingPromise ?? novel.competingFeel,first30ChapterPromise:novel.first30ChapterPromise,protagonistFantasy:novel.bookContract?.protagonistFantasy ?? null,

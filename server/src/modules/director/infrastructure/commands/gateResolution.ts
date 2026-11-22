@@ -2,7 +2,7 @@ import type {Prisma} from "@prisma/client";
 import {GateResolutionError, type GateResolution} from "../../application";
 import {VersionConflictError, type RunContract, type RunControl} from "../../domain";
 
-export type ArtifactEditReader = (input: {contract: RunContract; type: string; contentRef: string} & Pick<GateResolution, "chapterPlanEdit" | "assetEdit" | "expectedVolumePlanVersionId">, tx: Prisma.TransactionClient)
+export type ArtifactEditReader = (input: {contract: RunContract; type: string; contentRef: string} & Pick<GateResolution, "chapterPlanEdit" | "assetEdit" | "expectedVolumePlanVersionId" | "proseReview">, tx: Prisma.TransactionClient)
   => Promise<{contentRef: string; contentHash: string; protectedUserContent?: boolean; approvedChapterFingerprint?: string}>;
 
 export async function commitGateResolution(tx: Prisma.TransactionClient, input: {runId: string; contract: RunContract; control: RunControl; resolution: GateResolution}, readEdit?: ArtifactEditReader) {
@@ -23,7 +23,7 @@ export async function commitGateResolution(tx: Prisma.TransactionClient, input: 
     if (needsReviewRead && !readEdit) throw new GateResolutionError("请从资产页面保存修改，再确认本阶段。");
     // Revalidate saved planning and prose before releasing the chapter gate.
     const edited = readEdit && (needsReviewRead || current.type === "chapter_task_sheet" || current.type === "chapter_batch_closed")
-      ? await readEdit({contract, type: current.type, contentRef: current.contentRef, chapterPlanEdit: resolution.chapterPlanEdit, assetEdit: resolution.assetEdit, expectedVolumePlanVersionId: resolution.expectedVolumePlanVersionId}, tx)
+      ? await readEdit({contract, type: current.type, contentRef: current.contentRef, proseReview:resolution.proseReview, chapterPlanEdit: resolution.chapterPlanEdit, assetEdit: resolution.assetEdit, expectedVolumePlanVersionId: resolution.expectedVolumePlanVersionId}, tx)
       : undefined;
     if (current.type === "chapter_task_sheet") approvedChapterFingerprint = edited?.approvedChapterFingerprint;
     if (edited && (!edited.contentRef.trim() || !edited.contentHash.trim())) throw new GateResolutionError("未读取到已保存的修改。");

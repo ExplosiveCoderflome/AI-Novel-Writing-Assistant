@@ -11,13 +11,13 @@ import type { PromptExecutionOptions } from "../../../../prompting/core/promptTy
 import { requireLaunch } from "../../productionInputs";
 
 export const id = z.string().trim().min(1).max(160);
-export const addressSchema = z.object({ novelId: id, runId: id, version: z.coerce.number().int().nonnegative(), resourceId: id, planVersionId: id.optional() });
+export const addressSchema = z.object({ novelId: id, runId: id, version: z.coerce.number().int().nonnegative(), resourceId: id, planVersionId: id.optional(), bodyHash:z.string().regex(/^[a-f0-9]{64}$/).optional() });
 export type Address = z.infer<typeof addressSchema>;
 interface Message<F extends string> {
   base: Record<F,string>; draft: Record<F,string>; requestText: string; requestId: string; parentResultId?: string;
 }
 export interface ReviewSubject<F extends string, R extends { base: Record<F,string> }> {
-  artifact: "character_cast" | "volume_strategy" | "chapter_task_sheet"; scope: string; progress: string; stage: string;
+  artifact: "character_cast" | "volume_strategy" | "chapter_task_sheet" | "chapter_batch_closed"; scope: string; progress: string; stage: string;
   draft: z.ZodType<Record<F,string>>;
   changes: z.ZodType<ReviewChange<F>[]>; reply: z.ZodType<{replyText: string; changes: FieldSuggestion<F>[]}>;
   read(db: Prisma.TransactionClient, a: Address, contract: RunContract): Promise<R>;
@@ -32,7 +32,7 @@ export class ReviewConversation<F extends string, R extends { base: Record<F, st
   }
 
   private scope(a: Address) {
-    return JSON.stringify([this.subject.scope, a.novelId, a.runId, a.version, ...(a.planVersionId ? [a.planVersionId] : []), a.resourceId]);
+    return JSON.stringify([this.subject.scope, a.novelId, a.runId, a.version, ...(a.planVersionId ? [a.planVersionId] : []), ...(a.bodyHash ? [a.bodyHash] : []), a.resourceId]);
   }
 
   private async read(db: Prisma.TransactionClient, a: Address) {

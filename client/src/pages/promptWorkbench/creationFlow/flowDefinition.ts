@@ -111,6 +111,9 @@ export const stages: FlowStage[] = [
         ai("repair", "局部修文", "局部修订稿", "原稿与明确的修复要求。", "只修改相关段落的候选稿。", "novel.review.patch"),
         ai("verify", "复核修订稿", "修订稿复核意见", "修订稿、原审校问题与事实基线。", "对修订效果和事实保留情况的复核。", "verify-repair", "novel.chapter.acceptance_assessment"),
       ] },
+      { from:"extract",label:"核对本批正文",join:"finish",steps:[
+        ai("prose-discussion","讨论本章正文","逐段修改建议","所选章节正文、写作要求和当前编辑稿。","逐项采纳并确认后，按所选范围继续写作。","novel.director.prose_dialogue"),
+      ]},
       { from: "extract", label: "本卷未完", steps: [
         link("next-chapter", "准备下一章", "下一章的写作任务", "mission", "本章保存后的进展。", "回到本章准备，细化下一章的任务与场景。"),
       ] },

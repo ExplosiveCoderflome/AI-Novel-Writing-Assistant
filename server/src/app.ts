@@ -240,6 +240,8 @@ export function createApp() {
     app.use("/api/director-next", volumeConversationRouter());
     const { chapterConversationRouter } = require("./app/director/revisions/chapterReview") as typeof import("./app/director/revisions/chapterReview");
     app.use("/api/director-next", chapterConversationRouter());
+    const { proseConversationRouter } = require("./app/director/revisions/proseReview") as typeof import("./app/director/revisions/proseReview");
+    app.use("/api/director-next", proseConversationRouter());
   }
 
   app.use((_req, res) => {
