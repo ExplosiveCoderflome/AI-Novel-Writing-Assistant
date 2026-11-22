@@ -60,6 +60,10 @@ keywords:
   <Accordion title="不配 Qdrant 能用吗">
     能。Qdrant 只用于知识库向量检索，不是开书和写第一章的前提。想先跑通主线，源码运行时设置 `RAG_ENABLED=false` 即可。
   </Accordion>
+
+  <Accordion title="桌面版怎么连接 Qdrant">
+    桌面版不内置 Qdrant，需要另外准备（Qdrant Cloud、本机 Docker 或自己的服务器），然后在 **知识库 → 检索设置** 里填写「向量库 URL」和「向量库 API Key」，点 **保存检索设置**。不需要改 `.env` 文件。完整步骤见 [配置资料检索与向量库](/features/knowledge-base#配置资料检索与向量库)。
+  </Accordion>
 </AccordionGroup>
 
 ## 反馈问题

@@ -65,6 +65,9 @@ export const XgHero = () => {
   const PTS = [[1132, 560], [1148, 454], [1150, 344], [1204, 186], [1180, 104]];
   const RAYS = Array.from({ length: 16 }, (_, i) => i);
   const CRANES = [[0, 0, 1], [30, 12, 0.8], [-26, 16, 0.7]];
+  const sea = (y, rs) => { let x = -80, i = 0, d = "M-80 640 V" + y; while (x < 1680) { const r = rs[i % rs.length]; d += " a" + r + " " + Math.round(r * 0.6) + " 0 0 1 " + r * 2 + " 0"; x += r * 2; i++; } return d + " V640 Z"; };
+  const SEA1 = sea(500, [64, 42, 88, 54, 76, 38, 100, 60]);
+  const SEA2 = sea(582, [76, 46, 96, 58, 70, 42, 88]);
   const ARMS = Array.from({ length: 5 }, (_, a) => Array.from({ length: 41 }, (_, k) => { const r = 24 + k * 13; const th = a * 1.2566 + k * 0.13; return (k ? "L" : "M") + Math.round(Math.cos(th) * r) + " " + Math.round(Math.sin(th) * r); }).join(" "));
   const CFL = ["M-230 -50 L-200 -18 L-214 -10 L-176 34", "M170 -70 L196 -30 L182 -22 L228 24", "M-60 40 L-30 64 L-44 72 L-4 108", "M330 10 L352 40 L340 46 L372 80", "M-380 -10 L-356 18 L-368 24 L-340 56"];
   const RAIN = Array.from({ length: 46 }, (_, i) => [(i * 37 + 5) % 104, 40 + (i % 5) * 16, 0.55 + (i % 4) * 0.12, (i * 0.13) % 1.2]);
@@ -485,17 +488,17 @@ export const XgHero = () => {
   return (
     <div className={hc} ref={rootRef}>
       <style>{`
-        .xg{--gd:#f0c96a;--gl:#fbe7a8;--jd:#5fe3c8;--sk:#7fd8ff;--vi:#b98cff;--tx:#e8edf6;--mu:#9aa8c2;color:var(--tx);font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;-webkit-font-smoothing:antialiased}
+        .xg{--gd:#f0c96a;--gl:#fbe7a8;--jd:#5fe3c8;--sk:#7fd8ff;--vi:#b98cff;--tx:#eaf2ef;--mu:#a3bab8;color:var(--tx);font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",serif;-webkit-font-smoothing:antialiased}
         .xg *{box-sizing:border-box}
-        .xg-sec{position:relative;overflow:hidden;padding:100px 24px;background:radial-gradient(900px 460px at 10% 0%,rgba(95,227,200,.07),transparent 60%),radial-gradient(800px 420px at 95% 100%,rgba(185,140,255,.08),transparent 60%),linear-gradient(180deg,#070c19,#0b1426 50%,#080e1c)}
+        .xg-sec{position:relative;overflow:hidden;padding:100px 24px;background:radial-gradient(900px 460px at 8% 0%,rgba(95,227,200,.08),transparent 60%),radial-gradient(900px 420px at 88% 0%,rgba(255,226,160,.07),transparent 60%),radial-gradient(70% 180px at 50% 100%,rgba(214,236,230,.07),transparent 70%),linear-gradient(180deg,#06161e,#0a2029 50%,#071a22)}
         .xg-sec::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(240,201,106,.55),transparent)}
         .xg-in{position:relative;max-width:1120px;margin:0 auto}
         .xg-k{display:inline-flex;align-items:center;gap:10px;padding:5px 14px;font-size:12.5px;letter-spacing:.35em;color:var(--gd);border:1px solid rgba(240,201,106,.35);background:linear-gradient(90deg,rgba(240,201,106,.14),rgba(240,201,106,.02))}
         .xg-k::before{content:"";width:7px;height:7px;background:var(--gd);transform:rotate(45deg);box-shadow:0 0 8px var(--gd)}
         .xg-h{margin:18px 0 14px;font-family:"STKaiti","KaiTi","Kaiti SC","BiauKai","Noto Serif SC",serif;font-size:clamp(28px,4vw,44px);line-height:1.3;letter-spacing:.06em;color:#f0c96a;filter:drop-shadow(0 0 14px rgba(240,201,106,.25))}
         .xg-p{margin:0;font-size:15.5px;line-height:1.95;color:var(--mu)}
-        .xg-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#6f7f9c}
-        .xg-pan{position:relative;background:linear-gradient(180deg,rgba(20,34,62,.92),rgba(9,15,30,.95));border:1px solid rgba(240,201,106,.32);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 0 40px rgba(95,227,200,.05),0 24px 60px -24px rgba(0,0,0,.85)}
+        .xg-note{margin:14px 0 0;font-size:13px;line-height:1.8;color:#8fa6a4}
+        .xg-pan{position:relative;background:linear-gradient(180deg,rgba(16,46,56,.92),rgba(5,22,30,.95));border:1px solid rgba(240,201,106,.32);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.55),inset 0 0 40px rgba(95,227,200,.05),0 24px 60px -24px rgba(0,0,0,.85)}
         .xg-pan::before{content:"";position:absolute;inset:5px;border:1px solid rgba(240,201,106,.1);pointer-events:none}
         .xg-pan::after{content:"";position:absolute;inset:-2px;pointer-events:none;background:linear-gradient(#f0c96a,#f0c96a) left top/16px 2px no-repeat,linear-gradient(#f0c96a,#f0c96a) left top/2px 16px no-repeat,linear-gradient(#f0c96a,#f0c96a) right top/16px 2px no-repeat,linear-gradient(#f0c96a,#f0c96a) right top/2px 16px no-repeat,linear-gradient(#f0c96a,#f0c96a) left bottom/16px 2px no-repeat,linear-gradient(#f0c96a,#f0c96a) left bottom/2px 16px no-repeat,linear-gradient(#f0c96a,#f0c96a) right bottom/16px 2px no-repeat,linear-gradient(#f0c96a,#f0c96a) right bottom/2px 16px no-repeat}
         .xg-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:11px 16px;font-size:13.5px;letter-spacing:.32em;color:var(--gl);border-bottom:1px solid rgba(240,201,106,.2);background:linear-gradient(90deg,transparent,rgba(240,201,106,.12),transparent)}
@@ -516,13 +519,13 @@ export const XgHero = () => {
         @keyframes xgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
         @keyframes xgSpin{to{transform:rotate(360deg)}}
         @keyframes xgBlink{50%{opacity:0}}
-        .xg-hero{position:relative;overflow:hidden;min-height:min(100vh,940px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:150px 24px 240px;background:radial-gradient(1000px 520px at 50% 22%,rgba(127,216,255,.14),transparent 65%),linear-gradient(180deg,#040713 0%,#0a1430 45%,#14274d 75%,#0b1530 100%)}
+        .xg-hero{position:relative;overflow:hidden;min-height:min(100vh,940px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:150px 24px 240px;background:radial-gradient(900px 560px at 74% 20%,rgba(255,226,160,.26),transparent 62%),radial-gradient(1100px 560px at 22% 0%,rgba(95,227,200,.1),transparent 60%),linear-gradient(180deg,#03101a 0%,#08222e 34%,#143f4a 62%,#3f6e72 84%,#b9cfc8 100%)}
         .xgh-sky,.xgh-motes{position:absolute;inset:0;pointer-events:none}
-        .xgh-sky{transform:translate3d(0,calc(var(--s,0) * .62px),0)}
-        .xg-hero::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;background:#03050d;opacity:calc(var(--p,0) * .8)}
-        #xg-idea{z-index:6;margin-top:-32px;border-radius:32px 32px 0 0;box-shadow:0 -34px 70px -12px rgba(0,0,0,.9)}
+        .xgh-sky{opacity:.5;-webkit-mask-image:linear-gradient(180deg,#000,transparent 55%);mask-image:linear-gradient(180deg,#000,transparent 55%);transform:translate3d(0,calc(var(--s,0) * .62px),0)}
+        .xg-hero::after{content:"";position:absolute;inset:0;z-index:5;pointer-events:none;background:#020c12;opacity:calc(var(--p,0) * .8)}
+        #xg-idea{z-index:6;margin-top:-32px;border-radius:32px 32px 0 0;box-shadow:0 -1px 0 rgba(255,241,207,.35),0 -30px 60px -18px rgba(3,20,28,.6)}
         #xg-idea::after{content:"";position:absolute;left:50%;top:12px;width:90px;height:3px;margin-left:-45px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(240,201,106,.75),transparent)}
-        .xgh-st{position:absolute;border-radius:50%;background:#fff;opacity:.7;animation:xghTw 4s ease-in-out infinite}
+        .xgh-st{position:absolute;border-radius:50%;background:#fff8e6;opacity:.4;animation:xghTw 4s ease-in-out infinite}
         .xgh-mt{position:absolute;left:0;right:0;bottom:0;width:100%;height:80%;overflow:visible;pointer-events:none;transform:translate3d(0,calc(var(--s,0) * .34px),0)}
         .xgh-fl{animation:xghFl 7s ease-in-out infinite}
         .xgh-fl.b{animation-duration:9s;animation-delay:-3s}
@@ -530,8 +533,8 @@ export const XgHero = () => {
         .xgh-path{stroke-dasharray:3 7;animation:xghFlow 2.4s linear infinite}
         .xgh-cl{animation:xghDrift 26s ease-in-out infinite alternate}
         .xgh-motes i{position:absolute;border-radius:50%;background:#9ff5e2;box-shadow:0 0 8px #5fe3c8;opacity:0;animation:xghMote linear infinite}
-        .xgh-sword{position:absolute;top:30%;left:-20%;width:260px;height:2px;background:linear-gradient(90deg,transparent,rgba(127,216,255,.25),#e6faff);box-shadow:0 0 12px #7fd8ff;opacity:0;animation:xghSword 8s ease-in 2s infinite;pointer-events:none}
-        .xgh-top{position:absolute;z-index:4;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 26px;font-size:13px;letter-spacing:.3em;color:rgba(232,237,246,.7);background:linear-gradient(180deg,rgba(4,7,19,.85),transparent)}
+        .xgh-sword{position:absolute;top:30%;left:-20%;width:260px;height:2px;background:linear-gradient(90deg,transparent,rgba(255,241,207,.3),#fffaf0);box-shadow:0 0 12px #f6dd9a;opacity:0;animation:xghSword 8s ease-in 2s infinite;pointer-events:none}
+        .xgh-top{position:absolute;z-index:4;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 26px;font-size:13px;letter-spacing:.3em;color:#cfe0dc;background:linear-gradient(180deg,rgba(3,16,22,.85),transparent)}
         .xgh-back{color:var(--gl);text-decoration:none;letter-spacing:.2em}
         .xgh-back:hover{color:#fff}
         .xgh-back:focus-visible{outline:2px solid var(--jd);outline-offset:3px}
@@ -541,11 +544,11 @@ export const XgHero = () => {
         .xgh-tg:focus-visible,.xgh-act:focus-visible,.xgh-x:focus-visible{outline:2px solid var(--jd);outline-offset:2px}
         .xgh-act{display:block;width:100%;margin-top:10px;padding:8px 10px;font:inherit;font-size:13px;letter-spacing:.18em;cursor:pointer;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 50%,#c08a2a);border:1px solid #fff1c2;box-shadow:0 0 14px -2px rgba(240,201,106,.7);animation:xghGlow 2s ease-in-out infinite}
         .xgh-act.ghost{color:var(--gl);background:rgba(240,201,106,.08);border-color:rgba(240,201,106,.45);box-shadow:none;animation:none}
-        .xgh-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,6,16,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:xghFade .25s ease-out both}
+        .xgh-ov{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,14,20,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:xghFade .25s ease-out both}
         .xgh-x{position:absolute;right:6px;top:4px;z-index:1;width:30px;height:30px;padding:0;font:inherit;font-size:20px;line-height:1;cursor:pointer;color:var(--mu);background:none;border:0}
         .xgh-x:hover{color:#fff}
-        .xgh-hud{position:relative;display:flex;gap:14px;align-items:center;padding:10px 16px 12px 10px;background:linear-gradient(90deg,rgba(9,15,30,.88),rgba(9,15,30,.45));border:1px solid rgba(240,201,106,.3);border-radius:44px 6px 6px 44px}
-        .xgh-ava{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 40% 35%,#26457a,#0b1630);box-shadow:0 0 0 2px #f0c96a,0 0 0 4px rgba(9,15,30,.9),0 0 0 5px rgba(240,201,106,.5),0 0 20px rgba(240,201,106,.35)}
+        .xgh-hud{position:relative;display:flex;gap:14px;align-items:center;padding:10px 16px 12px 10px;background:linear-gradient(90deg,rgba(5,22,30,.9),rgba(5,22,30,.7));border:1px solid rgba(240,201,106,.3);border-radius:44px 6px 6px 44px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+        .xgh-ava{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 40% 35%,#23606a,#0a2a33);box-shadow:0 0 0 2px #f0c96a,0 0 0 4px rgba(5,22,30,.9),0 0 0 5px rgba(240,201,106,.5),0 0 20px rgba(240,201,106,.35)}
         .xgh-ava b{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;font-weight:400;color:var(--gl)}
         .xgh-ava em{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);padding:1px 7px;font-style:normal;font-size:11px;font-weight:700;letter-spacing:.05em;white-space:nowrap;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a);border-radius:2px}
         .xgh-info{width:214px}
@@ -561,7 +564,7 @@ export const XgHero = () => {
         .xgh-tr{display:flex;align-items:center;margin-top:8px;font-size:10.5px;line-height:1;color:var(--mu)}
         .xgh-tr i{position:relative;flex:none;width:20px;height:10px}
         .xgh-tr i:last-of-type{width:12px}
-        .xgh-tr i::before{content:"";position:absolute;left:1px;top:1px;width:7px;height:7px;transform:rotate(45deg);background:#0a1224;border:1px solid rgba(240,201,106,.55)}
+        .xgh-tr i::before{content:"";position:absolute;left:1px;top:1px;width:7px;height:7px;transform:rotate(45deg);background:#08202a;border:1px solid rgba(240,201,106,.55)}
         .xgh-tr i::after{content:"";position:absolute;left:11px;right:1px;top:5px;height:1px;background:rgba(240,201,106,.3)}
         .xgh-tr i:last-of-type::after{display:none}
         .xgh-tr i.ok::before{background:var(--jd);border-color:var(--jd)}
@@ -569,10 +572,10 @@ export const XgHero = () => {
         .xgh-tr i.cur::before{background:var(--gl);border-color:#fff;box-shadow:0 0 8px var(--gd)}
         .xgh-tr span{margin-left:6px;letter-spacing:.06em;white-space:nowrap}
         .xgh-tr em{margin-left:6px;padding:2px 5px;font-style:normal;font-size:10px;color:#e3d0ff;border:1px solid rgba(185,140,255,.6)}
-        .xgh-quest{position:relative;width:268px;padding:12px 14px 12px 16px;text-align:left;background:linear-gradient(90deg,rgba(6,11,24,.88),rgba(6,11,24,.62) 70%,rgba(6,11,24,.2));border-left:2px solid var(--gd)}
+        .xgh-quest{position:relative;width:268px;padding:12px 14px 12px 16px;text-align:left;background:linear-gradient(90deg,rgba(4,18,25,.92),rgba(4,18,25,.84) 70%,rgba(4,18,25,.6));border-left:2px solid var(--gd);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
         .xgh-quest::before{content:"";position:absolute;left:-6px;top:-5px;width:10px;height:10px;transform:rotate(45deg);background:var(--gd);box-shadow:0 0 10px var(--gd)}
         .xgh-qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;font-size:13px;letter-spacing:.3em;color:var(--gd);border-bottom:1px solid rgba(240,201,106,.22)}
-        .xgh-dlg{position:relative;width:100%;max-width:400px;padding:28px 18px 16px;text-align:left;background:linear-gradient(180deg,rgba(16,28,54,.95),rgba(6,11,24,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
+        .xgh-dlg{position:relative;width:100%;max-width:400px;padding:28px 18px 16px;text-align:left;background:linear-gradient(180deg,rgba(12,40,48,.95),rgba(4,18,25,.97));border:1px solid rgba(240,201,106,.45);border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5),inset 0 0 30px rgba(95,227,200,.05),0 20px 50px -20px rgba(0,0,0,.9);animation:xgIn .5s cubic-bezier(.2,.8,.2,1) both}
         .xgh-dh{position:absolute;left:14px;top:-12px;z-index:1;padding:3px 14px;font-size:12px;letter-spacing:.3em;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a 55%,#c08a2a);box-shadow:0 0 12px rgba(240,201,106,.45)}
         .xgh-dq{margin:0 0 8px;font-size:12px;letter-spacing:.15em;color:var(--jd)}
         .xgh-qh em{font-style:normal;font-size:11.5px;letter-spacing:.1em;color:var(--mu)}
@@ -595,7 +598,7 @@ export const XgHero = () => {
         .xgh-loot em{display:inline-block;padding:0 8px;font-style:normal;font-size:10.5px;letter-spacing:.2em;color:#2a1a04;background:linear-gradient(180deg,#fff1c2,#f0c96a)}
         .xgh-loot b{display:block;margin:4px 0 6px;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-weight:400;font-size:22px;letter-spacing:.15em;color:#fff6d8;text-shadow:0 0 14px #f0c96a}
         .xgh-loot a{font-size:12.5px;color:var(--jd);text-decoration:none}
-        .xgh-again{margin-left:12px;padding:0;font:inherit;font-size:12px;color:var(--mu);background:none;border:0;border-bottom:1px dashed rgba(154,168,194,.5);cursor:pointer}
+        .xgh-again{margin-left:12px;padding:0;font:inherit;font-size:12px;color:var(--mu);background:none;border:0;border-bottom:1px dashed rgba(163,186,184,.5);cursor:pointer}
         .xgh-cl.b{animation-duration:34s;animation-direction:alternate-reverse}
         .xgh-rays,.xgh-ring,.xgh-wing,.xgh-mer{transform-box:fill-box;transform-origin:center}
         .xgh-rays{animation:xgSpin 120s linear infinite}
@@ -609,6 +612,8 @@ export const XgHero = () => {
         .xgh-mt .dk{opacity:0;transition:opacity .8s}
         .xgh-mt.eye .dk{opacity:1}
         .xgh-mid{position:relative;z-index:2;max-width:640px;text-align:center}
+        .xgh-mid::before{content:"";position:absolute;inset:-70px -140px;z-index:-1;pointer-events:none;background:radial-gradient(closest-side,rgba(3,18,26,.62),rgba(3,18,26,.3) 60%,transparent)}
+        .xgh-beam{animation:xghPulse 5s ease-in-out infinite}
         .xgh-mid > *{animation:xgIn .9s cubic-bezier(.2,.8,.2,1) both}
         .xgh-mid > :nth-child(2){animation-delay:.12s}
         .xgh-mid > :nth-child(3){animation-delay:.24s}
@@ -617,14 +622,14 @@ export const XgHero = () => {
         .xgh-tag{display:inline-block;padding:4px 18px;font-size:12.5px;letter-spacing:.5em;color:var(--jd);border-top:1px solid rgba(95,227,200,.45);border-bottom:1px solid rgba(95,227,200,.45)}
         .xgh-title{margin:20px 0 8px;padding:0;font-family:"STXingkai","STKaiti","KaiTi","Kaiti SC","BiauKai",serif;font-weight:400;font-size:clamp(64px,11vw,132px);line-height:1.08;letter-spacing:.12em;color:#f6dd9a;filter:drop-shadow(0 4px 0 rgba(40,24,4,.9)) drop-shadow(0 0 28px rgba(240,201,106,.45))}
         .xgh-sub{font-size:clamp(16px,2vw,20px);letter-spacing:.6em;color:var(--gl);text-shadow:0 0 12px rgba(240,201,106,.45)}
-        .xgh-p{margin:20px auto 0;max-width:580px;font-size:15.5px;line-height:1.9;color:rgba(232,237,246,.8)}
+        .xgh-p{margin:20px auto 0;max-width:580px;font-size:15.5px;line-height:1.9;color:#e4eeea}
         .xgh-cta{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 22px;margin-top:32px}
         .xgh-fx{position:absolute;z-index:5;left:0;right:0;bottom:100%;height:0;margin-bottom:20px;pointer-events:none}
         .xgh-fx span{position:absolute;bottom:0;white-space:nowrap;font-size:22px;font-weight:700;letter-spacing:.08em;color:#9ff5e2;text-shadow:0 0 10px #5fe3c8,0 2px 0 #052b25;transform:translateX(-50%);animation:xghPop 1.4s ease-out forwards}
         .xgh-fx span.gold{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:30px;color:#fff6d8;text-shadow:0 0 16px #f0c96a,0 2px 0 #3a2506}
         .xgh-fx span.vi{color:#e3d0ff;text-shadow:0 0 10px #b98cff,0 2px 0 #1e0b3a}
-        .xgh-brk{position:absolute;z-index:6;left:50%;bottom:calc(100% + 80px);transform:translateX(-50%);padding:14px 52px;white-space:nowrap;font-family:"STKaiti","KaiTi",serif;font-size:clamp(26px,4vw,40px);letter-spacing:.3em;color:#fff6d8;text-shadow:0 0 18px #f0c96a;background:linear-gradient(90deg,transparent,rgba(9,15,30,.88) 20%,rgba(9,15,30,.88) 80%,transparent);border-top:1px solid rgba(240,201,106,.6);border-bottom:1px solid rgba(240,201,106,.6);pointer-events:none;animation:xghBrk 2.4s ease-out forwards}
-        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:320px;padding:7px 10px;font-size:12px;line-height:1.6;text-align:left;color:rgba(232,237,246,.85);background:rgba(4,8,18,.66);border:1px solid rgba(255,255,255,.08);border-radius:3px}
+        .xgh-brk{position:absolute;z-index:6;left:50%;bottom:calc(100% + 80px);transform:translateX(-50%);padding:14px 52px;white-space:nowrap;font-family:"STKaiti","KaiTi",serif;font-size:clamp(26px,4vw,40px);letter-spacing:.3em;color:#fff6d8;text-shadow:0 0 18px #f0c96a;background:linear-gradient(90deg,transparent,rgba(5,22,30,.88) 20%,rgba(5,22,30,.88) 80%,transparent);border-top:1px solid rgba(240,201,106,.6);border-bottom:1px solid rgba(240,201,106,.6);pointer-events:none;animation:xghBrk 2.4s ease-out forwards}
+        .xgh-log{position:absolute;z-index:3;left:26px;bottom:26px;width:320px;padding:7px 10px;font-size:12px;line-height:1.6;text-align:left;color:#dce8e4;background:rgba(3,16,22,.84);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.08);border-radius:3px}
         .xgh-log .xgh-tg{float:right;margin:1px 0 0 8px}
         .xgh-lg div{padding:1px 0;animation:xgIn .35s both}
         .xgh-log:not(.open) .xgh-lg div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -632,8 +637,8 @@ export const XgHero = () => {
         .xgh-lg div.c{color:#fff;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:13px}
         .xgh-lg div.v{color:#d6b8ff}
         .xgh-lg div.r{color:#ff9d84}
-        .xgh-skills{position:absolute;z-index:4;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;padding:12px 16px 30px;background:linear-gradient(180deg,rgba(9,15,30,.6),rgba(9,15,30,.92));border:1px solid rgba(240,201,106,.3);border-radius:6px}
-        .xgh-sk{position:relative;width:66px;height:78px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;cursor:pointer;font:inherit;color:var(--gl);background:radial-gradient(circle at 50% 30%,#2b4b80,#0c1730);border:1px solid rgba(240,201,106,.55);border-radius:6px;box-shadow:inset 0 0 12px rgba(0,0,0,.6);transition:transform .15s,box-shadow .25s}
+        .xgh-skills{position:absolute;z-index:4;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:10px;padding:12px 16px 30px;background:linear-gradient(180deg,rgba(5,22,30,.82),rgba(5,22,30,.94));border:1px solid rgba(240,201,106,.3);border-radius:6px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+        .xgh-sk{position:relative;width:66px;height:78px;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;overflow:hidden;cursor:pointer;font:inherit;color:var(--gl);background:radial-gradient(circle at 50% 30%,#2a6670,#0a2a33);border:1px solid rgba(240,201,106,.55);border-radius:6px;box-shadow:inset 0 0 12px rgba(0,0,0,.6);transition:transform .15s,box-shadow .25s}
         .xgh-sk:hover{transform:translateY(-2px);box-shadow:inset 0 0 12px rgba(0,0,0,.6),0 0 16px rgba(240,201,106,.55)}
         .xgh-sk:active{transform:scale(.94)}
         .xgh-sk:focus-visible{outline:2px solid var(--jd);outline-offset:3px}
@@ -770,14 +775,19 @@ export const XgHero = () => {
       </div>
       <svg className={"xgh-mt" + (eye ? " eye" : "")} viewBox="0 0 1600 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
         <defs>
-          <linearGradient id="xghFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2a4a80" /><stop offset="1" stopColor="#0f1d3c" /></linearGradient>
-          <linearGradient id="xghPil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#24427a" /><stop offset=".6" stopColor="#13264d" /><stop offset="1" stopColor="#0a1530" /></linearGradient>
-          <linearGradient id="xghPk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2c4c85" /><stop offset=".5" stopColor="#152a55" /><stop offset="1" stopColor="#081227" /></linearGradient>
-          <linearGradient id="xghPkL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7aa4dc" /><stop offset=".45" stopColor="#2a4b86" /><stop offset="1" stopColor="#0d1b3c" stopOpacity="0" /></linearGradient>
-          <linearGradient id="xghNear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#13234a" /><stop offset="1" stopColor="#060b1a" /></linearGradient>
+          <linearGradient id="xghFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#b4d4d0" /><stop offset="1" stopColor="#3d6f7a" /></linearGradient>
+          <linearGradient id="xghGiant" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e2f0ea" stopOpacity=".55" /><stop offset=".45" stopColor="#8fb8bd" stopOpacity=".3" /><stop offset="1" stopColor="#5d8f99" stopOpacity="0" /></linearGradient>
+          <linearGradient id="xghPil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3f7a86" /><stop offset=".6" stopColor="#1a4652" /><stop offset="1" stopColor="#0b2a34" /></linearGradient>
+          <linearGradient id="xghPk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3f7c8a" /><stop offset=".5" stopColor="#174554" /><stop offset="1" stopColor="#071c25" /></linearGradient>
+          <linearGradient id="xghPkL" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ffe8b4" /><stop offset=".45" stopColor="#4f8c96" /><stop offset="1" stopColor="#12384a" stopOpacity="0" /></linearGradient>
+          <linearGradient id="xghNear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#12333f" /><stop offset="1" stopColor="#05151c" /></linearGradient>
+          <linearGradient id="xghSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".95" /><stop offset=".35" stopColor="#e4f0ee" stopOpacity=".72" /><stop offset="1" stopColor="#a9c8cc" stopOpacity="0" /></linearGradient>
+          <linearGradient id="xghSeaF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fffdf6" /><stop offset=".3" stopColor="#eef5f2" /><stop offset="1" stopColor="#c3d9da" /></linearGradient>
+          <linearGradient id="xghBeam" gradientUnits="userSpaceOnUse" x1="0" y1="60" x2="0" y2="-320"><stop offset="0" stopColor="#fff6dc" stopOpacity=".75" /><stop offset=".4" stopColor="#fde6a8" stopOpacity=".24" /><stop offset="1" stopColor="#fde6a8" stopOpacity="0" /></linearGradient>
+          <radialGradient id="xghSun"><stop offset="0" stopColor="#fffdf4" /><stop offset=".22" stopColor="#fff2cc" stopOpacity=".9" /><stop offset=".55" stopColor="#f6d48a" stopOpacity=".3" /><stop offset="1" stopColor="#f0c96a" stopOpacity="0" /></radialGradient>
           <linearGradient id="xghGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff1c2" /><stop offset="1" stopColor="#c08a2a" /></linearGradient>
-          <linearGradient id="xghIsl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3a66a6" /><stop offset=".55" stopColor="#152b58" /><stop offset="1" stopColor="#0a1530" stopOpacity="0" /></linearGradient>
-          <linearGradient id="xghYunF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#f2f7ff" stopOpacity=".5" /><stop offset="1" stopColor="#9fb8e8" stopOpacity=".1" /></linearGradient>
+          <linearGradient id="xghIsl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#4f8f96" /><stop offset=".55" stopColor="#1a4652" /><stop offset="1" stopColor="#0b2a34" stopOpacity="0" /></linearGradient>
+          <linearGradient id="xghYunF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".7" /><stop offset="1" stopColor="#cfe5e0" stopOpacity=".2" /></linearGradient>
           <linearGradient id="xghFall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e6faff" stopOpacity=".85" /><stop offset="1" stopColor="#bfe9ff" stopOpacity="0" /></linearGradient>
           <radialGradient id="xghHalo"><stop offset="0" stopColor="#f6dd9a" stopOpacity=".8" /><stop offset=".4" stopColor="#f0c96a" stopOpacity=".22" /><stop offset="1" stopColor="#f0c96a" stopOpacity="0" /></radialGradient>
           <radialGradient id="xghLan"><stop offset="0" stopColor="#fff1c2" /><stop offset=".35" stopColor="#ffb85a" stopOpacity=".7" /><stop offset="1" stopColor="#ff8a3a" stopOpacity="0" /></radialGradient>
@@ -794,17 +804,21 @@ export const XgHero = () => {
           </g>
           <g id="xghIsle">
             <path d="M-92 0 Q-60 -8 0 -8 Q60 -8 92 0 L74 18 L56 22 L44 48 L24 56 L14 92 L2 120 L-8 86 L-26 62 L-48 40 L-66 24 Z" fill="url(#xghIsl)" />
-            <path d="M-92 0 L-66 24 L-48 40 L-26 62 L-8 86 L2 120 L-4 64 L-22 32 Z" fill="#8fb6ea" opacity=".14" />
+            <path d="M-92 0 L-66 24 L-48 40 L-26 62 L-8 86 L2 120 L-4 64 L-22 32 Z" fill="#ffe8b4" opacity=".16" />
             <path d="M-60 28 L-40 30 M-30 52 L-14 50 M30 30 L48 26 M10 70 L20 66" stroke="#bfe9ff" strokeOpacity=".2" strokeWidth="1" />
             <path d="M-92 0 Q-60 -8 0 -8 Q60 -8 92 0" fill="none" stroke="#5fe3c8" strokeOpacity=".75" strokeWidth="2" />
           </g>
           <path id="xghPad" d="M-30 0 Q-26 -10 -10 -9 Q-2 -17 12 -11 Q26 -13 30 0 Q0 5 -30 0 Z" />
         </defs>
-        <path d="M0 600 L0 320 Q40 300 70 310 Q110 250 150 290 Q190 270 220 300 Q270 220 320 280 Q360 260 400 290 Q450 210 500 270 Q540 250 580 280 Q640 200 700 262 Q740 240 780 270 Q840 215 900 258 Q950 236 990 260 Q1040 190 1100 245 Q1150 220 1190 250 Q1250 180 1310 240 Q1360 220 1400 245 Q1460 200 1520 250 Q1560 236 1600 248 L1600 600 Z" fill="url(#xghFar)" opacity=".5" stroke="#7fd8ff" strokeOpacity=".25" strokeWidth="1.2" />
+        <circle cx="1180" cy="80" r="360" fill="url(#xghSun)" opacity=".7" />
+        <path d="M150 600 L190 340 C236 262 292 176 344 110 C372 74 396 46 418 32 C440 52 462 86 492 124 C524 164 552 194 584 238 C604 266 624 300 650 344 L690 600 Z" fill="url(#xghGiant)" />
+        <path d="M418 32 C410 70 400 96 384 128 M418 32 C432 76 446 104 470 140 M344 110 C340 140 330 168 312 196" fill="none" stroke="#f4fbf8" strokeOpacity=".28" strokeWidth="1.2" strokeLinecap="round" />
+        <path d="M1290 600 L1320 340 C1360 268 1404 206 1440 158 C1460 132 1476 116 1492 108 C1510 128 1530 156 1556 196 C1580 232 1604 258 1660 280 L1660 600 Z" fill="url(#xghGiant)" opacity=".85" />
+        <path d="M0 600 L0 320 Q40 300 70 310 Q110 250 150 290 Q190 270 220 300 Q270 220 320 280 Q360 260 400 290 Q450 210 500 270 Q540 250 580 280 Q640 200 700 262 Q740 240 780 270 Q840 215 900 258 Q950 236 990 260 Q1040 190 1100 245 Q1150 220 1190 250 Q1250 180 1310 240 Q1360 220 1400 245 Q1460 200 1520 250 Q1560 236 1600 248 L1600 600 Z" fill="url(#xghFar)" opacity=".36" stroke="#e9f6f1" strokeOpacity=".3" strokeWidth="1.2" />
         <circle className="xgh-halo" cx="1180" cy="86" r="200" fill="url(#xghHalo)" />
         <g transform="translate(1180 82)">
           <g className="xgh-rays">
-            {RAYS.map((i) => <path key={i} d={i % 2 ? "M-3 -46 L0 -200 L3 -46 Z" : "M-7 -46 L0 -300 L7 -46 Z"} transform={"rotate(" + i * 22.5 + ")"} fill="#f6dd9a" opacity=".08" />)}
+            {RAYS.map((i) => <path key={i} d={i % 2 ? "M-3 -46 L0 -200 L3 -46 Z" : "M-7 -46 L0 -300 L7 -46 Z"} transform={"rotate(" + i * 22.5 + ")"} fill="#fff2cc" opacity=".13" />)}
           </g>
           <g className="xgh-ring">
             <circle r="96" fill="none" stroke="#f0c96a" strokeOpacity=".5" strokeDasharray="2 7" />
@@ -812,35 +826,37 @@ export const XgHero = () => {
             <circle r="130" fill="none" stroke="#5fe3c8" strokeOpacity=".32" strokeDasharray="34 12 4 12" />
           </g>
         </g>
-        <g opacity=".72">
-          {PILS.map((p, i) => <path key={i} d={pil(p[0], p[1], p[2])} fill="url(#xghPil)" stroke="#7fd8ff" strokeOpacity=".18" strokeWidth="1" />)}
+        <g opacity=".85">
+          {PILS.map((p, i) => <path key={i} d={pil(p[0], p[1], p[2])} fill="url(#xghPil)" stroke="#d8f1ea" strokeOpacity=".22" strokeWidth="1" />)}
           {PILS.map((p, i) => <use key={"p" + i} href="#xghPine" transform={"translate(" + p[0] + " " + (p[2] + 4) + ") scale(" + p[1] / 60 + ")"} />)}
         </g>
         <g className="xgh-cl b" filter="url(#xghBl)" opacity=".5">
-          <ellipse cx="300" cy="420" rx="300" ry="26" fill="#9fb8e8" />
-          <ellipse cx="820" cy="390" rx="260" ry="22" fill="#9fb8e8" />
-          <ellipse cx="1480" cy="410" rx="220" ry="24" fill="#9fb8e8" />
+          <ellipse cx="300" cy="420" rx="300" ry="26" fill="#e6f2ef" />
+          <ellipse cx="820" cy="390" rx="260" ry="22" fill="#e6f2ef" />
+          <ellipse cx="1480" cy="410" rx="220" ry="24" fill="#e6f2ef" />
         </g>
         <path d={PEAK} fill="url(#xghPk)" />
-        <path d={PEAKL} fill="url(#xghPkL)" opacity=".7" />
-        <path d={PEAK} fill="none" stroke="#9fd8ff" strokeOpacity=".28" strokeWidth="1.2" strokeLinejoin="round" />
+        <path d={PEAKL} fill="url(#xghPkL)" opacity=".8" />
+        <path d={PEAK} fill="none" stroke="#fff1cf" strokeOpacity=".35" strokeWidth="1.2" strokeLinejoin="round" />
         <path d="M1150 172 L1138 196 M1120 252 L1106 282 M1094 306 L1086 330 M1058 404 L1046 432 M1030 476 L1018 500 M1176 160 L1171 206 M1186 232 L1179 278 M1174 312 L1182 356 M1186 392 L1178 440 M1238 224 L1232 262 M1268 334 L1262 372 M1292 410 L1286 446 M1334 488 L1326 520" stroke="#bfe9ff" strokeOpacity=".2" strokeWidth="1.2" strokeLinecap="round" />
-        <g filter="url(#xghBl)"><ellipse cx="1180" cy="262" rx="210" ry="14" fill="#cfe0ff" opacity=".45" /></g>
-        <polyline points={ST} fill="none" stroke="#070d1f" strokeOpacity=".75" strokeWidth="10" strokeLinejoin="round" />
+        <g filter="url(#xghBl)"><ellipse cx="1180" cy="262" rx="210" ry="14" fill="#f4faf7" opacity=".6" /></g>
+        <g filter="url(#xghBl)" opacity=".7"><ellipse cx="800" cy="488" rx="900" ry="30" fill="#f4faf7" /></g>
+        <path d={SEA1} fill="url(#xghSeaF)" opacity=".86" stroke="#ffffff" strokeOpacity=".7" strokeWidth="1.2" />
+        <polyline points={ST} fill="none" stroke="#05171e" strokeOpacity=".75" strokeWidth="10" strokeLinejoin="round" />
         <polyline points={ST} fill="none" stroke="#c9a15a" strokeOpacity=".6" strokeWidth="7" strokeDasharray="1.4 3" strokeLinejoin="round" />
         <polyline className="xgh-path" points={ST} fill="none" stroke="#f6dd9a" strokeOpacity=".85" strokeWidth="1.3" strokeLinejoin="round" />
         <polyline points={ST} fill="none" stroke="#e8edf6" strokeOpacity=".5" strokeWidth="2.4" strokeDasharray="0.1 8" strokeLinecap="round" />
         {LAMPS.map((p, i) => <g key={i} className="xgh-lamp" style={{ animationDelay: i * 0.4 + "s" }}><circle cx={p[0]} cy={p[1]} r="10" fill="url(#xghLan)" /><circle cx={p[0]} cy={p[1]} r="1.8" fill="#fff1c2" /></g>)}
         <g transform="translate(1075 342)">
           <path d="M-40 6 L4 40 M-18 6 L12 28" stroke="#c9a15a" strokeOpacity=".55" strokeWidth="2" />
-          <path d="M-50 0 L50 0 L44 6 L-44 6 Z" fill="#1a2c55" stroke="#f0c96a" strokeWidth="1" />
-          <rect x="-30" y="-18" width="60" height="18" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <path d="M-50 0 L50 0 L44 6 L-44 6 Z" fill="#17434e" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-30" y="-18" width="60" height="18" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-25 -13 h9 v9 h-9 Z M-11.5 -13 h9 v9 h-9 Z M2.5 -13 h9 v9 h-9 Z M16 -13 h9 v9 h-9 Z" fill="#ffd98a" />
           <path d="M-44 -17 Q-34 -19 -30 -27 L30 -27 Q34 -19 44 -17 L38 -15 L-38 -15 Z" fill="url(#xghGold)" />
-          <rect x="-20" y="-42" width="40" height="15" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-20" y="-42" width="40" height="15" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-14 -38 h8 v8 h-8 Z M6 -38 h8 v8 h-8 Z" fill="#ffd98a" />
           <path d="M-32 -41 Q-24 -43 -20 -50 L20 -50 Q24 -43 32 -41 L27 -39 L-27 -39 Z" fill="url(#xghGold)" />
-          <rect x="-10" y="-62" width="20" height="12" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-10" y="-62" width="20" height="12" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <path d="M-3 -59 h6 v6 h-6 Z" fill="#ffd98a" />
           <path d="M-20 -61 Q-14 -63 -11 -70 L11 -70 Q14 -63 20 -61 Z" fill="url(#xghGold)" />
           <path d="M0 -70 V-79" stroke="#f6dd9a" strokeWidth="1.5" />
@@ -858,14 +874,16 @@ export const XgHero = () => {
         <use href="#xghYun" transform="translate(940 226) scale(.55)" />
         <use href="#xghYun" transform="translate(1250 284) scale(.5)" />
         <g transform="translate(1180 96)">
+          <rect className="xgh-beam" x="-26" y="-320" width="52" height="380" fill="url(#xghBeam)" />
+          <rect x="-4" y="-320" width="8" height="380" fill="url(#xghBeam)" />
           <ellipse cy="-34" rx="54" ry="46" fill="url(#xghHalo)" />
-          <path d="M-62 4 Q-30 14 -12 34 L12 34 Q30 14 62 4 Z" fill="#152a55" />
-          <path d="M-60 0 L60 0 L54 6 L-54 6 Z" fill="#1a2c55" stroke="#f0c96a" strokeWidth="1" />
+          <path d="M-62 4 Q-30 14 -12 34 L12 34 Q30 14 62 4 Z" fill="#15404a" />
+          <path d="M-60 0 L60 0 L54 6 L-54 6 Z" fill="#17434e" stroke="#f0c96a" strokeWidth="1" />
           <rect x="-14" y="-47" width="28" height="47" fill="#fff6d8" opacity=".22" />
-          <path d="M-46 -40 h6 v40 h-6 Z M40 -40 h6 v40 h-6 Z M-20 -56 h6 v56 h-6 Z M14 -56 h6 v56 h-6 Z" fill="#14254c" stroke="#f0c96a" strokeWidth=".8" />
+          <path d="M-46 -40 h6 v40 h-6 Z M40 -40 h6 v40 h-6 Z M-20 -56 h6 v56 h-6 Z M14 -56 h6 v56 h-6 Z" fill="#123a44" stroke="#f0c96a" strokeWidth=".8" />
           <path d="M-50 -38 h36 v4 h-36 Z M14 -38 h36 v4 h-36 Z M-23 -52 h46 v5 h-46 Z" fill="url(#xghGold)" />
           <path d="M-58 -40 Q-49 -41 -46 -48 L-16 -48 Q-14 -42 -12 -40 Z M12 -40 Q14 -42 16 -48 L46 -48 Q49 -41 58 -40 Z" fill="url(#xghGold)" />
-          <rect x="-11" y="-66" width="22" height="13" fill="#14254c" stroke="#f0c96a" strokeWidth="1" />
+          <rect x="-11" y="-66" width="22" height="13" fill="#123a44" stroke="#f0c96a" strokeWidth="1" />
           <text y="-56.5" textAnchor="middle" fontSize="8.5" fill="#fbe7a8">天门</text>
           <path d="M-38 -69 Q-25 -71 -21 -80 L21 -80 Q25 -71 38 -69 L31 -66 L-31 -66 Z" fill="url(#xghGold)" />
           <path d="M-38 -69 Q-44 -70 -45 -76 M38 -69 Q44 -70 45 -76" stroke="#f6dd9a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
@@ -909,20 +927,32 @@ export const XgHero = () => {
             ))}
           </g>
         </g>
+        <g transform="translate(600 150) scale(.8)">
+          <g className="xgh-crane" style={{ animationDelay: "-12s" }}>
+            {CRANES.map((c, i) => (
+              <g key={i} transform={"translate(" + c[0] + " " + c[1] + ") scale(" + c[2] + ")"}>
+                <g className="xgh-wing" style={{ animationDelay: i * 0.25 + 0.4 + "s" }}><path d="M-15 -8 Q-7 -1 0 0 Q7 -1 15 -10" fill="none" stroke="#f4fbf8" strokeWidth="1.5" strokeLinecap="round" /></g>
+                <path d="M-7 1 L9 0 L16 -2 M-7 1 L-16 4" fill="none" stroke="#f4fbf8" strokeWidth="1.2" strokeLinecap="round" />
+                <circle cx="16" cy="-2" r="1.2" fill="#ff6a5a" />
+              </g>
+            ))}
+          </g>
+        </g>
         <path d="M0 600 L0 446 Q80 404 160 424 Q240 388 330 414 Q420 436 500 474 Q600 522 700 600 Z" fill="url(#xghNear)" stroke="#5fe3c8" strokeOpacity=".15" />
         <path d="M1290 600 Q1370 500 1450 474 Q1530 452 1600 470 L1600 600 Z" fill="url(#xghNear)" stroke="#5fe3c8" strokeOpacity=".15" />
         <g transform="translate(300 418)">
-          <path d="M0 0 C-4 -20 6 -36 -2 -54 C-8 -68 4 -80 14 -88" stroke="#070b16" strokeWidth="7" fill="none" strokeLinecap="round" />
-          <path d="M1 -40 C24 -44 54 -40 88 -54 M-4 -60 C-22 -64 -40 -60 -54 -70 M8 -80 C20 -84 30 -92 44 -94" stroke="#070b16" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-          <use href="#xghPad" transform="translate(96 -58)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(52 -50) scale(.7)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(-54 -72) scale(.85)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(16 -92) scale(1.1)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
-          <use href="#xghPad" transform="translate(48 -98) scale(.7)" fill="#0b1d2a" stroke="#5fe3c8" strokeOpacity=".35" />
+          <path d="M0 0 C-4 -20 6 -36 -2 -54 C-8 -68 4 -80 14 -88" stroke="#04141a" strokeWidth="7" fill="none" strokeLinecap="round" />
+          <path d="M1 -40 C24 -44 54 -40 88 -54 M-4 -60 C-22 -64 -40 -60 -54 -70 M8 -80 C20 -84 30 -92 44 -94" stroke="#04141a" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+          <use href="#xghPad" transform="translate(96 -58)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(52 -50) scale(.7)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(-54 -72) scale(.85)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(16 -92) scale(1.1)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
+          <use href="#xghPad" transform="translate(48 -98) scale(.7)" fill="#0a2a30" stroke="#5fe3c8" strokeOpacity=".35" />
         </g>
+        <path d={SEA2} fill="url(#xghSeaF)" stroke="#ffffff" strokeOpacity=".9" strokeWidth="1.4" />
         <g className="xgh-cl" filter="url(#xghBl)">
-          <ellipse cx="400" cy="566" rx="320" ry="40" fill="#9fb8e8" opacity=".45" />
-          <ellipse cx="1200" cy="574" rx="360" ry="44" fill="#9fb8e8" opacity=".45" />
+          <ellipse cx="400" cy="560" rx="360" ry="34" fill="#ffffff" opacity=".7" />
+          <ellipse cx="1240" cy="566" rx="380" ry="38" fill="#ffffff" opacity=".7" />
         </g>
         <g className="dk">
           <path d="M1030 344 C980 300 1000 236 1066 212 S1150 150 1166 110" fill="none" stroke="#b98cff" strokeOpacity=".22" strokeWidth="10" strokeLinecap="round" />
@@ -939,7 +969,7 @@ export const XgHero = () => {
           <circle className="xgh-mer" r="9" fill="none" stroke="#9ff5e2" strokeWidth="1.5" />
           <circle ref={meRef} r="4.5" fill="#effffb" stroke="#5fe3c8" strokeWidth="1.5" />
           <g transform={"translate(0 " + (lv === top ? 30 : -28) + ")"}>
-            <rect x="-22" y="-10" width="44" height="17" rx="2" fill="#060b18" fillOpacity=".88" stroke="#f0c96a" strokeOpacity=".8" />
+            <rect x="-22" y="-10" width="44" height="17" rx="2" fill="#04141a" fillOpacity=".88" stroke="#f0c96a" strokeOpacity=".8" />
             <text y="3" textAnchor="middle" fontSize="10.5" fill="#fbe7a8">林砚</text>
           </g>
         </g>
@@ -1203,8 +1233,8 @@ export const XgIdea = () => {
         .xi-q.ok i{background:var(--jd);border-color:var(--jd)}
         .xi-body{padding:22px 24px 26px}
         .xi-lab{margin:0 0 8px;font-size:12px;letter-spacing:.3em;color:var(--mu)}
-        .xi-idea{min-height:92px;padding:14px 16px;font-size:16.5px;line-height:1.85;color:#fff;background:rgba(0,0,0,.35);border:1px solid rgba(127,216,255,.25);box-shadow:inset 0 0 18px rgba(127,216,255,.06)}
-        .xi-ph{color:#5f6e8a}
+        .xi-idea{min-height:92px;padding:14px 16px;font-size:16.5px;line-height:1.85;color:#fff;background:rgba(2,16,22,.45);border:1px solid rgba(214,236,230,.24);box-shadow:inset 0 0 18px rgba(95,227,200,.06)}
+        .xi-ph{color:#7f9896}
         .xi-cur{display:inline-block;width:2px;height:1.1em;margin-left:2px;vertical-align:-3px;background:var(--jd);animation:xgBlink 1s steps(2) infinite}
         .xi-attrs{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:16px 0 22px}
         .xi-at{display:flex;flex-direction:column;min-width:120px;padding:8px 14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);opacity:.35;transition:all .5s}
@@ -1332,7 +1362,7 @@ export const XgStair = () => {
         .xs-hd{max-width:780px}
         .xs-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:28px;margin-top:40px;align-items:stretch}
         .xs-tree{display:flex;flex-direction:column}
-        .xs-ticket{display:flex;justify-content:space-between;align-items:baseline;margin:16px 18px 0;padding:8px 12px;background:rgba(0,0,0,.35);border:1px solid rgba(127,216,255,.25)}
+        .xs-ticket{display:flex;justify-content:space-between;align-items:baseline;margin:16px 18px 0;padding:8px 12px;background:rgba(2,16,22,.45);border:1px solid rgba(214,236,230,.24)}
         .xs-ticket em{font-style:normal;font-size:12px;letter-spacing:.25em;color:var(--mu)}
         .xs-ticket b{font-size:17px;letter-spacing:.06em;color:var(--sk);font-variant-numeric:tabular-nums;animation:xgIn .4s both}
         .xs-track{position:relative;flex:1;min-height:400px;margin:40px 24px 40px 30px}
@@ -1340,7 +1370,7 @@ export const XgStair = () => {
         .xs-rail{top:0;background:repeating-linear-gradient(180deg,rgba(240,201,106,.35) 0 6px,transparent 6px 12px)}
         .xs-fill{background:linear-gradient(0deg,#5fe3c8,#f0c96a);box-shadow:0 0 12px #5fe3c8;transition:height .7s cubic-bezier(.2,.8,.2,1)}
         .xs-node{position:absolute;left:0;right:0;display:flex;align-items:center;gap:14px;padding:0;font:inherit;text-align:left;color:var(--mu);background:none;border:0;cursor:pointer;transform:translateY(50%)}
-        .xs-orb{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;color:var(--mu);background:radial-gradient(circle at 40% 35%,#1d3157,#0a1428);border:1px solid rgba(255,255,255,.18);transition:all .4s}
+        .xs-orb{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:50%;font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;color:var(--mu);background:radial-gradient(circle at 40% 35%,#1a4450,#08222b);border:1px solid rgba(255,255,255,.18);transition:all .4s}
         .xs-node.done .xs-orb{color:#06231d;background:radial-gradient(circle at 40% 35%,#b9fff0,#3ccfb0);border-color:#9ff5e2}
         .xs-node.on .xs-orb{color:#2a1a04;background:radial-gradient(circle at 40% 35%,#fff6d8,#f0c96a 60%,#b07d1c);border-color:#fff1c2;animation:xsPulse 2s ease-in-out infinite}
         .xs-nm b{display:block;font-size:16px;letter-spacing:.1em;color:var(--tx)}
@@ -1493,17 +1523,17 @@ export const XgMap = () => {
         .xm-info p{margin:0;font-size:14.5px;line-height:1.85;color:var(--tx)}
         .xm-hint{margin-top:12px;font-size:14px;line-height:1.8;color:#c9b3ff}
         .xm-map{padding:14px}
-        .xm-stage{position:relative;cursor:crosshair;background:radial-gradient(ellipse at 50% 50%,rgba(30,60,110,.35),transparent 75%),linear-gradient(rgba(127,216,255,.06) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(127,216,255,.06) 1px,transparent 1px) 0 0/40px 40px,#081226;border:1px solid rgba(127,216,255,.18)}
+        .xm-stage{position:relative;cursor:crosshair;background:radial-gradient(ellipse at 50% 50%,rgba(40,100,104,.35),transparent 75%),radial-gradient(60% 40% at 80% 0%,rgba(255,226,160,.08),transparent 70%),linear-gradient(rgba(214,236,230,.05) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(214,236,230,.05) 1px,transparent 1px) 0 0/40px 40px,#071b23;border:1px solid rgba(214,236,230,.18)}
         .xm-svg{display:block;width:100%;height:auto}
         .xm-ct{fill:rgba(240,201,106,.65);font-size:12px}
-        .xm-e{stroke:rgba(127,216,255,.22);stroke-width:1;stroke-dasharray:3 5;transition:all .3s}
+        .xm-e{stroke:rgba(214,236,230,.24);stroke-width:1;stroke-dasharray:3 5;transition:all .3s}
         .xm-e.on{stroke:#f0c96a;stroke-opacity:.95;stroke-width:1.8;stroke-dasharray:none}
         .xm-n{cursor:pointer;outline:none}
-        .xm-dia{fill:#0d1a33;stroke:#5fe3c8;stroke-width:1.5;transition:all .3s}
+        .xm-dia{fill:#0b2730;stroke:#5fe3c8;stroke-width:1.5;transition:all .3s}
         .xm-n.on .xm-dia{fill:#3a2a0a;stroke:#f6dd9a;stroke-width:2}
         .xm-ml{fill:#e8edf6;font-size:15px;letter-spacing:2px;font-family:"STKaiti","KaiTi","Kaiti SC",serif}
         .xm-n.on .xm-ml{fill:#fff6d8}
-        .xm-dot{fill:#0d1a33;stroke:#f0c96a;stroke-width:2;transition:all .3s}
+        .xm-dot{fill:#0b2730;stroke:#f0c96a;stroke-width:2;transition:all .3s}
         .xm-n.on .xm-dot{fill:#f0c96a}
         .xm-sl{fill:rgba(232,237,246,.5);font-size:12.5px;transition:fill .3s}
         .xm-n.nr .xm-sl{fill:#e8edf6}
@@ -1651,7 +1681,7 @@ export const XgPage = () => {
         .xp-txt:focus-visible{outline:2px solid var(--jd);outline-offset:-6px}
         .xp-hit{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:24px;letter-spacing:.2em;color:#fff6d8;text-shadow:0 0 16px rgba(240,201,106,.75)}
         .xp-cur{display:inline-block;width:2px;height:1.1em;margin-left:2px;vertical-align:-3px;background:var(--jd);animation:xgBlink 1s steps(2) infinite}
-        .xp-tag{display:flex;justify-content:space-between;padding:10px 20px 14px;font-size:12px;letter-spacing:.25em;color:#6f7f9c;border-top:1px solid rgba(255,255,255,.06)}
+        .xp-tag{display:flex;justify-content:space-between;padding:10px 20px 14px;font-size:12px;letter-spacing:.25em;color:#8fa6a4;border-top:1px solid rgba(255,255,255,.06)}
         .xp-sb{padding:16px 20px 22px}
         .xp-row{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}
         .xp-row span{display:block;font-size:11.5px;letter-spacing:.2em;color:var(--mu)}
@@ -1663,7 +1693,7 @@ export const XgPage = () => {
         .xp-chk.on i{color:#06231d;background:var(--jd)}
         .xp-saved{margin-top:18px;padding:10px 12px;font-size:13px;letter-spacing:.08em;color:var(--mu);border:1px dashed rgba(255,255,255,.15);opacity:.4;transition:all .5s}
         .xp-saved.on{opacity:1;color:#c9fff1;border-style:solid;border-color:rgba(95,227,200,.6);background:rgba(95,227,200,.1);box-shadow:0 0 22px -6px rgba(95,227,200,.7)}
-        .xp-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:20px;font-size:13px;line-height:1.8;color:#6f7f9c}
+        .xp-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-top:20px;font-size:13px;line-height:1.8;color:#8fa6a4}
         .xp-foot .xg-re{margin-top:0}
         @media (max-width:860px){.xp-hd,.xp-grid{grid-template-columns:1fr;gap:20px}}
       `}</style>
@@ -1736,11 +1766,11 @@ export const XgLots = () => {
       <style>{`
         .xq-hd{max-width:720px;margin:0 auto;text-align:center}
         .xq-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:900px;margin:44px auto 0;perspective:900px}
-        .xq-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:16px;min-height:250px;padding:22px 18px 18px;text-align:center;background:radial-gradient(circle at 50% 30%,rgba(185,140,255,.2),transparent 65%),linear-gradient(180deg,#16244a,#0a1226);border:1px solid rgba(240,201,106,.45);border-radius:8px;box-shadow:inset 0 0 0 5px rgba(9,15,30,.9),inset 0 0 0 6px rgba(240,201,106,.25),0 20px 40px -20px rgba(0,0,0,.9);transition:box-shadow .4s,border-color .4s}
-        .xq-card.kept{border-color:#5fe3c8;box-shadow:inset 0 0 0 5px rgba(9,15,30,.9),inset 0 0 0 6px rgba(95,227,200,.45),0 0 32px -6px rgba(95,227,200,.75)}
+        .xq-card{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:16px;min-height:250px;padding:22px 18px 18px;text-align:center;background:radial-gradient(circle at 50% 22%,rgba(255,226,160,.18),transparent 62%),radial-gradient(90% 60px at 50% 100%,rgba(214,236,230,.1),transparent 70%),linear-gradient(180deg,#143a44,#08202a);border:1px solid rgba(240,201,106,.45);border-radius:8px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.25),0 20px 40px -20px rgba(0,0,0,.9);transition:box-shadow .4s,border-color .4s}
+        .xq-card.kept{border-color:#5fe3c8;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(95,227,200,.45),0 0 32px -6px rgba(95,227,200,.75)}
         .xq-tag{display:inline-flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.4em;color:var(--gd)}
         .xq-tag::before,.xq-tag::after{content:"";width:5px;height:5px;background:var(--gd);transform:rotate(45deg)}
-        .xq-txt{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;line-height:1.7;letter-spacing:.04em;color:#fff6d8;text-shadow:0 0 12px rgba(185,140,255,.5)}
+        .xq-txt{font-family:"STKaiti","KaiTi","Kaiti SC",serif;font-size:19px;line-height:1.7;letter-spacing:.04em;color:#fff6d8;text-shadow:0 0 12px rgba(240,201,106,.45)}
         .xq-txt.flip{animation:xqFlip .55s cubic-bezier(.2,.8,.2,1) both}
         .xq-lock{padding:5px 14px;font:inherit;font-size:12.5px;letter-spacing:.2em;cursor:pointer;color:var(--mu);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.2);transition:all .25s}
         .xq-lock[aria-pressed="true"]{color:#06231d;background:var(--jd);border-color:var(--jd)}
@@ -1794,12 +1824,12 @@ export const XgEnd = () => {
   return (
     <div className="not-prose xg xg-sec xw">
       <style>{`
-        .xw{padding:120px 24px 130px;text-align:center;background:radial-gradient(700px 380px at 50% 40%,rgba(240,201,106,.12),transparent 70%),linear-gradient(180deg,#0b1426,#050913)}
+        .xw{padding:120px 24px 130px;text-align:center;background:radial-gradient(760px 340px at 50% 0%,rgba(255,226,160,.17),transparent 70%),radial-gradient(700px 380px at 50% 45%,rgba(240,201,106,.1),transparent 70%),radial-gradient(130% 200px at 50% 100%,rgba(214,236,230,.13),transparent 72%),linear-gradient(180deg,#0a2029,#0b2630 60%,#10323c)}
         .xw-in{max-width:780px}
         .xw .xg-p{max-width:640px;margin:0 auto}
         .xw-loot{display:flex;flex-direction:column;align-items:center;gap:16px;margin-top:40px}
-        .xw-chest{position:relative;width:200px;height:120px;display:grid;place-items:center;padding:0;font:inherit;cursor:pointer;color:var(--gl);background:linear-gradient(180deg,#1d3157,#0a1428);border:1px solid rgba(240,201,106,.6);border-radius:6px;box-shadow:inset 0 0 0 5px rgba(9,15,30,.9),inset 0 0 0 6px rgba(240,201,106,.3),0 0 30px -8px rgba(240,201,106,.6);overflow:hidden;transition:transform .2s,box-shadow .3s}
-        .xw-chest:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 5px rgba(9,15,30,.9),inset 0 0 0 6px rgba(240,201,106,.5),0 0 40px -6px rgba(240,201,106,.8)}
+        .xw-chest{position:relative;width:200px;height:120px;display:grid;place-items:center;padding:0;font:inherit;cursor:pointer;color:var(--gl);background:linear-gradient(180deg,#1a4450,#08222b);border:1px solid rgba(240,201,106,.6);border-radius:6px;box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.3),0 0 30px -8px rgba(240,201,106,.6);overflow:hidden;transition:transform .2s,box-shadow .3s}
+        .xw-chest:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 5px rgba(5,22,30,.9),inset 0 0 0 6px rgba(240,201,106,.5),0 0 40px -6px rgba(240,201,106,.8)}
         .xw-chest:focus-visible{outline:2px solid var(--jd);outline-offset:4px}
         .xw-chest::before{content:"";position:absolute;left:50%;top:50%;width:320px;height:320px;margin:-160px 0 0 -160px;background:conic-gradient(from 0deg,transparent 0 10%,rgba(240,201,106,.28) 12%,transparent 16% 35%,rgba(240,201,106,.28) 37%,transparent 41% 60%,rgba(240,201,106,.28) 62%,transparent 66% 85%,rgba(240,201,106,.28) 87%,transparent 91%);opacity:0;transition:opacity .4s;animation:xgSpin 10s linear infinite}
         .xw-chest.open::before{opacity:1}
@@ -1818,7 +1848,7 @@ export const XgEnd = () => {
         .xw-chips a.r{color:#f9a8d4;border-color:rgba(249,168,212,.45)}
         .xw-chips a.u{color:#c4b5fd;border-color:rgba(196,181,253,.45)}
         .xw-chips a:hover{background:rgba(255,255,255,.08)}
-        .xw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:var(--mu);text-decoration:none;border-bottom:1px solid rgba(154,168,194,.35)}
+        .xw-back{display:inline-block;margin-top:30px;padding-bottom:3px;font-size:14px;letter-spacing:.2em;color:var(--mu);text-decoration:none;border-bottom:1px solid rgba(163,186,184,.35)}
         .xw-back:hover{color:var(--gl);border-color:var(--gl)}
         @keyframes xwPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
       `}</style>
