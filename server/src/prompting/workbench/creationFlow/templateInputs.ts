@@ -48,6 +48,7 @@ export const creationTemplateInputs = {
   "novel.volume.skeleton": {},
   "novel.volume.beat_sheet": { targetChapterCount: 30 },
   "novel.volume.chapter_list": { novel: { characters: [{ id: "〈角色编号〉", name: "〈角色姓名〉", role: "〈角色身份〉" }] } },
+  "novel.volume.chapter_title_repair": { issue: "〈章名重复句式〉", chapters: [{ chapterOrder: 1, title: "〈待改章名〉", summary: "〈本章已定情节〉" }], reservedTitles: ["〈其他章名〉"] },
   "novel.volume.chapter_execution_contract": { detailMode: "task_sheet" },
   "novel.volume.chapter_task_sheet_quality": { mode: "full_book_autopilot", candidate: {
     title: chapter.chapterTitle, purpose: "〈本章目标〉", taskSheet: "〈任务单〉", sceneCards: "〈场景安排〉" } },
