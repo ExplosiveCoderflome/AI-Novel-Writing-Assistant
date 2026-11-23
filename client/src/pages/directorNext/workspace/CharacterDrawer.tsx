@@ -13,15 +13,17 @@ import { previewCharacterHistory } from "./previewBook";
 import {CharacterAppearances} from "./characters/CharacterAppearances";
 import { characterForwardPreviewKey, getCharacterForwardPreview } from "@/api/characterForwardAdjustment";
 import type { CharacterForwardPreview } from "@ai-novel/shared/types/characterForwardAdjustment";
+import type { CharacterProfileImpactApplyResult, CharacterProfileImpactSuggestion } from "@ai-novel/shared/types/director/characterProfileImpact";
 import { CharacterProfileEditor, type CharacterProfileEditorHandle } from "./characters/CharacterProfileEditor";
 
-export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources, onAdjust, editingProfile, onProfileEditingChange }: {
+export function CharacterDrawer({ book, character, readingOrder, preview, onClose, onChapter, onPlan, onResources, onAdjust, editingProfile, onProfileEditingChange, onOpenProseReview }: {
   book: WorkspaceBook; character: WorkspaceCharacter; readingOrder: number | null; preview: boolean;
   onClose: () => void; onChapter: (id: string) => void; onPlan: (id: string) => void;
   onResources?: (id:string) => void;
   onAdjust?: (preview: CharacterForwardPreview) => void;
   editingProfile: boolean;
   onProfileEditingChange: (editing: boolean) => void;
+  onOpenProseReview?: (suggestions: CharacterProfileImpactSuggestion[]) => void;
 }) {
   const [latest, setLatest] = useState(false);
   const profileEditor = useRef<CharacterProfileEditorHandle>(null);
@@ -58,6 +60,12 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
     onProfileEditingChange(false);
     requestAnimationFrame(() => profileButton.current?.focus());
   }
+  function handleProfileSaved(result?: CharacterProfileImpactApplyResult) {
+    returnToProfile();
+    if (result?.proseSuggestions.length) {
+      onOpenProseReview?.(result.proseSuggestions);
+    }
+  }
   function leaveDrawer(navigate?: () => void) {
     requestExit(() => {
       if (editingProfile) onProfileEditingChange(false);
@@ -78,7 +86,7 @@ export function CharacterDrawer({ book, character, readingOrder, preview, onClos
         </Button>
       </div>}
       <div className="flex min-h-0 min-w-0 flex-1">
-      {editingProfile && <CharacterProfileEditor ref={profileEditor} novelId={book.novel.id} character={character} onSaved={returnToProfile}/>}
+      {editingProfile && <CharacterProfileEditor ref={profileEditor} novelId={book.novel.id} character={character} onSaved={handleProfileSaved}/>}
       <section aria-label="角色档案" className={cn("min-w-0 overflow-y-auto overscroll-contain px-6 py-4",
         editingProfile ? "hidden w-80 shrink-0 border-l border-border/60 xl:block" : "flex-1")}>
       {editingProfile && <h3 className="mb-4 text-sm font-semibold">角色档案</h3>}

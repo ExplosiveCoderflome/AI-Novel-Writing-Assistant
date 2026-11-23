@@ -42,6 +42,7 @@ import {
   getSaveStatusLabel,
   getParagraphWindow,
   getParagraphIndicesForRange,
+  getParagraphSelection,
   normalizeChapterContent,
   useChapterDraft,
 } from "./document";
@@ -115,6 +116,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
   const lastPreviewDiagnosticRef = useRef<ChapterEditorDiagnosticCard | undefined>(undefined);
   const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
+  const initialImpactKeyRef = useRef<string | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
@@ -151,6 +153,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = undefined;
     setFocusRequestKey(0);
     lastContinuationRequestRef.current = null;
+    initialImpactKeyRef.current = null;
   }, [chapter?.id]);
 
   useEffect(() => {
@@ -472,6 +475,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       await props.onChapterSaved?.();
+      if (fullyAccepted && props.initialImpact) {
+        await props.onImpactApplied?.();
+      }
       setLoadedSnapshotId(null);
     },
   });
@@ -569,6 +575,32 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = diagnosticCard;
     previewMutation.mutate(request);
   };
+
+  useEffect(() => {
+    const impact = props.initialImpact;
+    if (!impact || initialImpactKeyRef.current === impact.key || isBusy || session.status !== "idle") {
+      return;
+    }
+    const target = getParagraphSelection(contentDraft, impact.paragraph);
+    if (!target) {
+      return;
+    }
+    initialImpactKeyRef.current = impact.key;
+    if (target.text !== impact.before) {
+      setSelection(target);
+      toast.error("这段正文已有变化，请重新检查角色资料影响后再修订。", {duration: 6000});
+      return;
+    }
+    setSelection(target);
+    setCursorOffset(null);
+    setSelectedDiagnosticId(null);
+    setRevisionScope("selection");
+    setFocusRequestKey((current) => current + 1);
+    runRevision("freeform", "selection", {
+      instruction: impact.instruction,
+      selectionOverride: target,
+    });
+  }, [contentDraft, isBusy, props.initialImpact, session.status]);
 
   const handleRunOperation = (operation: ChapterEditorOperation, customInstruction?: string) => {
     runRevision(
@@ -797,6 +829,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {props.initialImpact ? (
+        <div role="status" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium">正在核对角色资料影响</span>
+          <span className="text-muted-foreground">第 {props.initialImpact.paragraph} 段 · 确认候选后写入正文</span>
+        </div>
+      ) : null}
       {(restored || hasExternalChange || storageError) ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>{storageError ? "浏览器暂时无法保存本地草稿，请尽快保存到作品。" : hasExternalChange ? "本章已有新的保存版本，你的草稿仍保留。" : "已恢复未保存的正文草稿。"}</span>

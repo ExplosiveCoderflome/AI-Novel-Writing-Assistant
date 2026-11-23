@@ -50,6 +50,13 @@ export interface ChapterEditorShellProps {
   onBack?: () => void;
   backLabel?: string;
   onChapterSaved?: () => Promise<void>;
+  initialImpact?: {
+    key: string;
+    paragraph: number;
+    before: string;
+    instruction: string;
+  } | null;
+  onImpactApplied?: () => void | Promise<void>;
   onEditingStateChange?: (state: { isDirty: boolean; isBusy: boolean; hasCandidate: boolean }) => void;
   onOpenVersionHistory?: () => void;
   onRefreshWorkspace?: () => void;

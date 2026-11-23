@@ -12,14 +12,14 @@ import { cn } from "@/lib/utils";
 import {
   characterProfileFields, characterProfileLabels, characterProfileSaveSchema, type CharacterProfileWorkspace,
 } from "@ai-novel/shared/types/director/characterProfile";
-import { characterProfileImpactResourceLabels, type CharacterProfileImpactPreview, type CharacterProfileImpactSuggestion } from "@ai-novel/shared/types/director/characterProfileImpact";
+import { characterProfileImpactResourceLabels, type CharacterProfileImpactApplyResult, type CharacterProfileImpactPreview, type CharacterProfileImpactSuggestion } from "@ai-novel/shared/types/director/characterProfileImpact";
 import { ReviewDiscussion } from "../editing/discussion/ReviewDiscussion";
 import { applyReviewSuggestions } from "../editing/discussion/draft";
 
 interface Props {
   novelId: string;
   character: {id: string; name: string};
-  onSaved: () => void;
+  onSaved: (result?: CharacterProfileImpactApplyResult) => void;
   ref: Ref<CharacterProfileEditorHandle>;
 }
 
@@ -72,7 +72,9 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
     mutationFn: () => previewDirectorCharacterProfileImpact(novelId, character.id, buildSaveInput()),
     onSuccess: preview => {
       setImpactPreview(preview);
-      setSelectedSuggestionIds(new Set(preview.suggestions.filter(suggestion => suggestion.applyMode === "replace").map(suggestion => suggestion.candidateId)));
+      setSelectedSuggestionIds(new Set(preview.suggestions
+        .filter(suggestion => suggestion.applyMode === "replace" || suggestion.resourceType === "prose")
+        .map(suggestion => suggestion.candidateId)));
     },
   });
   const save = useMutation({
@@ -84,13 +86,13 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
         suggestions: impactPreview.suggestions.filter(suggestion => selectedSuggestionIds.has(suggestion.candidateId)),
       });
     },
-    onSuccess: async () => {
+    onSuccess: async result => {
       await Promise.all([
         ["directorBookWorkspace", novelId], characterForwardPreviewKey(novelId, character.id),
         queryKeys.novels.characters(novelId), queryKeys.novels.characterDynamicsOverview(novelId),
         queryKeys.novels.characterRelations(novelId), queryKeys.novels.characterResources(novelId),
       ].map(queryKey => queries.invalidateQueries({queryKey})));
-      onSaved();
+      onSaved(result);
     },
   });
   useImperativeHandle(ref, () => ({
@@ -111,7 +113,7 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
     setDraft(previous => ({...previous, [field]: value}));
   };
   const toggleSuggestion = (suggestion: CharacterProfileImpactSuggestion) => {
-    if (suggestion.applyMode === "review") return;
+    if (suggestion.applyMode === "review" && suggestion.resourceType !== "prose") return;
     setSelectedSuggestionIds(previous => {
       const next = new Set(previous);
       if (next.has(suggestion.candidateId)) next.delete(suggestion.candidateId);
@@ -166,9 +168,9 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
       {impactCandidateSummary && <p className="text-xs leading-5 text-muted-foreground">识别范围：{impactCandidateSummary}</p>}
       {impactPreview.suggestions.length === 0 ? <p className="text-sm leading-6 text-muted-foreground">暂未发现需要同步的资料。确认后只保存角色资料。</p> : <div className="space-y-2">
         {impactPreview.suggestions.map(suggestion => <label key={suggestion.candidateId} className="flex gap-2 rounded-md bg-background px-3 py-2 text-sm">
-          <input className="mt-1 accent-primary" type="checkbox" checked={selectedSuggestionIds.has(suggestion.candidateId)} disabled={suggestion.applyMode === "review" || disabled} onChange={() => toggleSuggestion(suggestion)}/>
+          <input className="mt-1 accent-primary" type="checkbox" checked={selectedSuggestionIds.has(suggestion.candidateId)} disabled={(suggestion.applyMode === "review" && suggestion.resourceType !== "prose") || disabled} onChange={() => toggleSuggestion(suggestion)}/>
           <span className="min-w-0 space-y-1">
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium"><span>{characterProfileImpactResourceLabels[suggestion.resourceType]}</span><span className="text-muted-foreground">{suggestion.title}</span>{suggestion.applyMode === "review" ? <span className="text-xs font-normal text-muted-foreground">需打开正文核对</span> : null}</span>
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium"><span>{characterProfileImpactResourceLabels[suggestion.resourceType]}</span><span className="text-muted-foreground">{suggestion.title}</span>{suggestion.resourceType === "prose" && suggestion.paragraphs?.length ? <span className="text-xs font-normal text-muted-foreground">定位 {suggestion.paragraphs.length} 段</span> : null}{suggestion.applyMode === "review" ? <span className="text-xs font-normal text-muted-foreground">需打开正文核对</span> : null}</span>
             <span className="block text-xs leading-5 text-muted-foreground">{suggestion.reason}</span>
             {suggestion.applyMode === "replace" ? <>
               <span className="block whitespace-pre-wrap text-xs leading-5 text-muted-foreground"><span className="font-medium">原文：</span>{suggestion.before}</span>
@@ -178,7 +180,7 @@ function ProfileDraft({novelId, character, onSaved, ref, workspace}: Props & {wo
         </label>)}
       </div>}
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs leading-5 text-muted-foreground">只会应用你勾选的资料建议。正文建议先进入核对清单。</p>
+        <p className="text-xs leading-5 text-muted-foreground">只会应用你勾选的资料建议。正文建议会在确认角色资料后打开对应章节，逐段核对并应用。</p>
         <Button size="sm" variant="ghost" onClick={() => {setImpactPreview(null); setSelectedSuggestionIds(new Set());}} disabled={disabled}>重新检查</Button>
       </div>
     </section>}

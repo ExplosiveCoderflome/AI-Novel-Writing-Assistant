@@ -1,6 +1,6 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { CharacterProfileSave, CharacterProfileWorkspace } from "@ai-novel/shared/types/director/characterProfile";
-import type { CharacterProfileImpactApply, CharacterProfileImpactPreview, CharacterProfileImpactRequest } from "@ai-novel/shared/types/director/characterProfileImpact";
+import type { CharacterProfileImpactApply, CharacterProfileImpactApplyResult, CharacterProfileImpactPreview, CharacterProfileImpactRequest } from "@ai-novel/shared/types/director/characterProfileImpact";
 import { apiClient } from "./client";
 
 export const directorCharacterProfilePath = (novelId: string, characterId: string) =>
@@ -34,7 +34,7 @@ export async function previewDirectorCharacterProfileImpact(novelId: string, cha
 }
 
 export async function applyDirectorCharacterProfileImpact(novelId: string, characterId: string, input: CharacterProfileImpactApply) {
-  const {data} = await apiClient.post<ApiResponse<{appliedSuggestionCount: number; reviewedProseCount: number}>>(
+  const {data} = await apiClient.post<ApiResponse<CharacterProfileImpactApplyResult>>(
     `${directorCharacterProfilePath(novelId, characterId)}/impact/apply`, input, {errorPresentation: "inline"},
   );
   if (!data.data) throw new Error("角色资料及影响建议保存失败。");
