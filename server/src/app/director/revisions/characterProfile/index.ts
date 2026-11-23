@@ -12,6 +12,7 @@ import { characterProfileDialoguePrompt } from "../../../../prompting/prompts/no
 import { fieldDiscussionRouter } from "../discussion";
 import { id } from "../discussion/ReviewConversation";
 import { readCharacterProfile, saveCharacterProfile } from "./profile";
+import { applyCharacterProfileImpact, previewCharacterProfileImpact } from "./impact";
 
 const path = "/novels/:novelId/characters/:characterId/profile";
 const address = z.object({novelId: id, characterId: id});
@@ -30,6 +31,14 @@ export function directorCharacterProfileRouter() {
   router.patch(path, async (req, res) => {
     const {novelId, characterId} = address.parse(req.params);
     res.json({success: true, data: await saveCharacterProfile(novelId, characterId, characterProfileSaveSchema.parse(req.body))});
+  });
+  router.post(`${path}/impact`, async (req, res) => {
+    const {novelId, characterId} = address.parse(req.params);
+    res.json({success: true, data: await previewCharacterProfileImpact(novelId, characterId, req.body)});
+  });
+  router.post(`${path}/impact/apply`, async (req, res) => {
+    const {novelId, characterId} = address.parse(req.params);
+    res.json({success: true, data: await applyCharacterProfileImpact(novelId, characterId, req.body)});
   });
   router.use(fieldDiscussionRouter<CharacterProfileField, ProfileSubject, z.infer<typeof address>>(path + "/conversation", address, {
     progress: "正在对照角色资料与修改要求…",
