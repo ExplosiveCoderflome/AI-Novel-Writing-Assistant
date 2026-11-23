@@ -102,6 +102,7 @@ export const atlasScopes: AtlasScope[] = [
       { id: "cast-edit", title: "补齐与校对人物资料", description: "讨论人物设定，补充缺失人物并核对角色资料。", steps: ["cast-discussion"],
         prompts: [
           ["novel.director.cast_dialogue", "讨论当前角色"],
+          ["novel.director.character_profile_dialogue", "编辑本书角色资料", ["cast-discussion"]],
           ["novel.character.castAuto.repair", "修复自动阵容", ["cast"]],
           ["novel.character.castAuto.zhNormalize", "统一自动阵容的中文表述", ["cast"]],
           ["novel.character.castOptions.repair", "修复备选阵容", ["cast"]],

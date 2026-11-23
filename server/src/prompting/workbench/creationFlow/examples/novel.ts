@@ -56,6 +56,15 @@ const novelShortStorySegmentWriteExamplePlan = {
 };
 
 export const novelExamples: Record<string, unknown> = {
+  "novel.director.character_profile_dialogue@v1": {
+    storyInput: "海商在边城建立第一家船行。",
+    character: {
+      name: "林晚", role: "船行掌柜", storyFunction: "带队开辟航线", personality: "谨慎",
+      background: "曾经营药铺", outerGoal: "走通第一条商路", innerNeed: "学会信任同伴",
+      fear: "船队再次散伙", secret: "家人留下未付船款", moralLine: "不会抛下同伴", appearance: "常穿短褂", voiceTexture: "说话干脆",
+    },
+    otherNames: ["沈砚舟"], renameBlockedReason: null, requestText: "让她更有辨识度，保留现有经历。", history: [], priorProposal: null,
+  },
   "novel.volume.summary_emphasis@v1": { volumes: [{ id: "v1", summary: "船队被困在封冻的港口，船长决定弃船走陆路。" }] },
   "novel.character.initial_schedule@v1": {
     title: "〈标题〉",

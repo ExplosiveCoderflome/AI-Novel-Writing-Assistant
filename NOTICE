@@ -1,15 +1,53 @@
 Biz Novel Studio (formerly AI Novel Writing Assistant 2)
-Copyright 2026 ExplosiveCoderflome and contributors
+Copyright (C) 2026 ExplosiveCoderflome and contributors
+https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant
 
-This repository uses a dual-license model.
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, version 3 only (AGPL-3.0-only). See LICENSE
+for the full license text.
 
-By default, this repository is distributed under the GNU Affero General Public
-License v3.0 only (AGPL-3.0-only).
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public
+License for more details.
 
-Service-style commercial use requires separate commercial authorization from
-the project maintainer. This includes using this project, or a modified version
-of it, as a backend or core service to provide SaaS, hosted, managed, or
-similar services to third parties.
+======================================================================
+Additional Terms under Section 7 of the GNU AGPL-3.0
+======================================================================
 
-Please comply with the open-source license terms and obtain the appropriate
-authorization where applicable.
+Pursuant to Section 7 of the GNU Affero General Public License version 3,
+the following additional terms apply to this program and to any covered
+work based on it:
+
+1. Author attribution (Section 7(b)).
+   Any covered work that has an interactive user interface, including a
+   modified version that users interact with remotely through a computer
+   network, must preserve the following author attribution in its
+   Appropriate Legal Notices (for example, an "About" page, a settings
+   page, or a site footer):
+
+       Based on Biz Novel Studio
+       https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant
+
+   The attribution must remain legible and must not be removed or
+   obscured. It does not need to be more prominent than your own branding.
+
+2. Marking of modified versions (Section 7(c)).
+   Modified versions must be marked in reasonable ways as different from
+   the original version, and must not be represented as the original
+   Biz Novel Studio or as endorsed by its maintainers.
+
+3. Trademarks (Section 7(e)).
+   This License does not grant any right to use the name "Biz Novel
+   Studio", its logos, or other trade names, trademarks, or service marks
+   of the project maintainers, except as needed to provide the attribution
+   required by term 1.
+
+======================================================================
+Commercial Licensing
+======================================================================
+
+A separate commercial license is available for those who cannot or do
+not wish to comply with the AGPL-3.0 and the additional terms above.
+See COMMERCIAL.md.

@@ -26,6 +26,8 @@ const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({de
 export function NovelWorkspace({ book, preview = false, review, onLeaveReview, onOpenChapterReview, followGeneration = false, generation = null, activity, onEditChapter, editedChapter, onAdjustingCharacter }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; onOpenChapterReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null; activity?:DirectorWorkspaceActivity; onEditChapter?:(chapterId:string)=>void; editedChapter?:{id:string;revision:number}|null; onAdjustingCharacter?:(active:boolean)=>void }) {
   const {preferences: readingDisplay, updatePreferences: onReadingDisplayChange} = useReadingDisplayPreferences();
   const [characterAdjustment, setCharacterAdjustment] = useState<CharacterForwardPreview | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [characterId, setCharacterId] = useState<string | null>(null);
   const live = followGeneration && generation?.novelId === book.novel.id ? generation : null;
   // Planning/polling may not yet include the newly created chapter. The preview is read-only.
   const previewChapter: WorkspaceChapter | null = live ? {id:live.chapterId,order:live.chapterOrder,title:live.chapterTitle,
@@ -44,22 +46,32 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
   const editChapter = !preview && onEditChapter ? onEditChapter : undefined;
   const canEditChapter = chapter && book.chapters.some(row=>row.id===chapter.id);
   const contentViewport = useRef<HTMLElement | null>(null);
+  const handledFollowKey = useRef<string | null>(null);
   useEffect(() => {
-    if (!followTarget) return;
+    if (!followGeneration) {
+      handledFollowKey.current = null;
+      return;
+    }
+    if (!followTarget || !followKey || handledFollowKey.current === followKey) return;
+    // Keep the selected character in view. A focus seen while the drawer is open has already been handled.
+    handledFollowKey.current = followKey;
+    if (characterId) return;
     setSelection(followTarget.selection);
     setReadingOrder(followTarget.selection.kind === "chapter" ? live?.chapterOrder ?? null : null);
-    setCharacterId(null);
     if (followTarget.selection.kind !== "chapter" && contentViewport.current) contentViewport.current.scrollTop = 0;
     if (savedReview) onLeaveReview?.();
     // Focus once per stage/execution or when the target becomes available; never on every token/poll.
-  }, [followKey]);
+  }, [followKey, followGeneration, characterId]);
   const [readingOrder, setReadingOrder] = useState<number | null>(() => chapter?.order ?? null);
-  const [characterId, setCharacterId] = useState<string | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(true);
   const character = book.materials.characters.find(row => row.id === characterId);
   function setAdjustment(value: CharacterForwardPreview | null) {
     setCharacterAdjustment(value);
     onAdjustingCharacter?.(value !== null);
+  }
+  function setProfileEditing(editing: boolean) {
+    setEditingProfile(editing);
+    onAdjustingCharacter?.(editing);
   }
   function select(item: Selection) {
     if (savedReview) onLeaveReview?.();
@@ -67,9 +79,10 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
     setSelection(item);
     if (item.kind === "chapter") setReadingOrder(book.chapters.find(row => row.id === item.id)?.order ?? null);
   }
-  function openCharacter(id: string) {
+  function openCharacter(id: string, editProfile = false) {
     if (chapter) setReadingOrder(chapter.order);
     setCharacterId(id);
+    setProfileEditing(editProfile);
   }
   const directory = <aside className={directoryOpen ? "flex h-full min-h-0 flex-col" : "shrink-0"}>
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2 px-2">
@@ -90,13 +103,15 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
         : selected.kind === "character_timeline" ? <CastTimeline book={book} onSelect={select} preview={preview}/>
         : selected.kind === "foreshadowing" || selected.kind === "resources" || selected.kind === "character_resources" ? <LedgerView book={book} selection={selected} onSelect={select} preview={preview}/>
         : chapter ? <ChapterReader key={`${chapter.id}:${editedChapter?.id===chapter.id ? editedChapter.revision : 0}`} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange} onEdit={canEditChapter ? editChapter : undefined}/>
-        : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter} onSelect={select} preview={preview} />}
+        : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter}
+          onEditCharacter={id => openCharacter(id, true)} onSelect={select} preview={preview} />}
     </section>;
   const showVolumeSummary = savedReview ? savedReview.type === "volume_strategy" : selected.kind === "volumes" || selected.kind === "volume";
   const readingPane = showVolumeSummary && !preview ? <VolumeEmphasisProvider book={book}>{content}</VolumeEmphasisProvider> : content;
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={20} minLeft={180} minRight={340} breakpoint={560} left={directory} right={readingPane}/> : <>{directory}{readingPane}</>}
-    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}/> : null}
+    {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}
+      editingProfile={editingProfile} onProfileEditingChange={setProfileEditing}/> : null}
     {character && characterAdjustment ? <CharacterForwardAdjustDialog novelId={book.novel.id} character={character} initialPreview={characterAdjustment} onClose={() => setAdjustment(null)}/> : null}
   </div>;
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { apiClient } from "@/api/client";
+import { directorCharacterProfilePath } from "@/api/directorCharacterProfile";
 import { AgentConversation, type AgentConversationAdapter } from "@/components/agentConversation/AgentConversation";
 import { Button } from "@/components/ui/button";
 import type { AgentConversationTurn } from "@ai-novel/shared/types/agentConversation/turn";
@@ -9,7 +10,7 @@ import type { ReviewChange, ReviewProposal } from "@ai-novel/shared/types/direct
 
 const labels = { ...castFieldLabels, ...volumeFieldLabels };
 type Proposal = ReviewProposal<string>;
-type Scope = {type:"final_review";sourceHash:string;finding:number|"all"} | { type: "character_cast" } | {type:"chapter_batch_closed"; bodyHash:string} | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
+type Scope = {type:"final_review";sourceHash:string;finding:number|"all"} | { type: "character_cast" | "character_profile" } | {type:"chapter_batch_closed"; bodyHash:string} | { type: "volume_strategy" | "chapter_task_sheet"; planVersionId: string };
 
 const inline = { errorPresentation: "inline" } as const;
 interface Props {
@@ -17,18 +18,22 @@ interface Props {
   base: Record<string, string>; draft: Record<string, string>; disabled: boolean;
   message: string; onMessage: (value: string) => void;
   fieldLabels?: Record<string,string>;
+  lockedField?: string;
   onAccept: (changes: ReviewChange<string>[]) => void;
 }
 
-function Suggestions({ proposal, draft, disabled, onAccept, fieldLabels }: {
+function Suggestions({ proposal, draft, disabled, onAccept, fieldLabels, lockedField }: {
   fieldLabels: Record<string,string>; proposal: Proposal; draft: Record<string, string>; disabled: boolean; onAccept: Props["onAccept"];
+  lockedField?: string;
 }) {
   const [picked, setPicked] = useState(() => new Set(proposal.changes.map(item => item.field)));
-  const selected = proposal.changes.filter(item => picked.has(item.field) && draft[item.field] === item.before);
+  const selectable = proposal.changes.filter(item => item.field !== lockedField && draft[item.field] === item.before);
+  const selected = selectable.filter(item => picked.has(item.field));
   return <div className="space-y-3">
     {proposal.changes.map(item => {
       const accepted = draft[item.field] === item.value;
-      const available = draft[item.field] === item.before;
+      const locked = item.field === lockedField;
+      const available = !locked && draft[item.field] === item.before;
       return <div key={item.field} className="space-y-1.5 border-b border-border/40 pb-3">
         <label className="flex items-center gap-2 font-medium">
           <input type="checkbox" disabled={disabled || !available} checked={accepted || (available && picked.has(item.field))}
@@ -42,16 +47,23 @@ function Suggestions({ proposal, draft, disabled, onAccept, fieldLabels }: {
         <p className="whitespace-pre-wrap text-muted-foreground">原文　{item.before || "尚未填写"}</p>
         <p className="whitespace-pre-wrap">建议　{item.value}</p>
         <p className="text-sm text-muted-foreground">{item.reason}</p>
-        {!available && <p className="text-xs">{accepted ? "已加入编辑稿" : "这项编辑稿有变化，可以按新稿继续讨论。"}</p>}
+        {locked ? <p className="text-xs">这项资料当前不可修改。</p>
+          : !available && <p className="text-xs">{accepted ? "已加入编辑稿" : "这项编辑稿有变化，可以按新稿继续讨论。"}</p>}
       </div>;
     })}
-    {proposal.changes.some(item => draft[item.field] === item.before) && <Button type="button" size="sm" disabled={disabled || !selected.length} onClick={() => onAccept(selected)}>
+    {selectable.length > 0 && <Button type="button" size="sm" disabled={disabled || !selected.length} onClick={() => onAccept(selected)}>
       采纳所选修改（{selected.length}）
     </Button>}
   </div>;
 }
 
 function presentation(scope: Scope, version: number | undefined, title: string) {
+  if (scope.type === "character_profile") return {
+    path: "characters", key: "director-character-profile", assistant: "角色助手",
+    welcome: {title: `想怎么调整${title}？`, body: "说说希望怎样改，选中的建议会填进编辑稿。",
+      starters: [{label: "让人物更有辨识度", text: "保留这个人的关键经历，给出能让人物更有辨识度的改法。"}]},
+    hint: "核对编辑稿后，点「保存角色资料」。", placeholder: "写下你想修改的角色资料…",
+  };
   if(scope.type==="final_review") return {path:"final-review",key:"director-final-review",assistant:"完稿助手",
     welcome:{title:scope.finding==="all"?"想再核对哪一段？":"这个问题会怎样影响阅读？",body:"可以先问原因，也可以请助手给出改法。",starters:[{label:"请给出逐段改法",text:scope.finding==="all"?"通读本章，对需要打磨的段落给出具体修改建议。":"针对选中的检查问题，给出可以逐段采纳的修改建议。"}]},hint:"采纳的段落会进入确认稿。",placeholder:"写下想保留的句子，或你对改法的想法…"};
   if (scope.type === "chapter_batch_closed") return {
@@ -83,12 +95,13 @@ function presentation(scope: Scope, version: number | undefined, title: string) 
   };
 }
 
-export function ReviewDiscussion({ novelId, runId, version, subject, scope, base, draft, fieldLabels = labels, disabled, message, onMessage, onAccept }: Props) {
+export function ReviewDiscussion({ novelId, runId, version, subject, scope, base, draft, fieldLabels = labels, lockedField, disabled, message, onMessage, onAccept }: Props) {
   const config = presentation(scope, version, subject.title);
   const root = `/director-next/novels/${encodeURIComponent(novelId)}`;
-  const url = scope.type==="final_review" ? `${root}/final-review/chapters/${encodeURIComponent(subject.id)}/${scope.sourceHash}/findings/${scope.finding}/conversation` : `${root}/runs/${encodeURIComponent(runId!)}/${config.path}/${encodeURIComponent(subject.id)}/conversation`;
+  const url = scope.type === "character_profile" ? directorCharacterProfilePath(novelId, subject.id) + "/conversation"
+    : scope.type==="final_review" ? `${root}/final-review/chapters/${encodeURIComponent(subject.id)}/${scope.sourceHash}/findings/${scope.finding}/conversation` : `${root}/runs/${encodeURIComponent(runId!)}/${config.path}/${encodeURIComponent(subject.id)}/conversation`;
   const adapter: AgentConversationAdapter<Proposal> = {
-    queryKey: ["agent-conversation", config.key, novelId, ...(scope.type==="final_review" ? [scope.sourceHash,String(scope.finding)] : [runId!, String(version)]), ...("planVersionId" in scope ? [scope.planVersionId] : "bodyHash" in scope ? [scope.bodyHash] : []), subject.id],
+    queryKey: ["agent-conversation", config.key, novelId, ...(scope.type==="final_review" ? [scope.sourceHash,String(scope.finding)] : scope.type==="character_profile" ? [] : [runId!, String(version)]), ...("planVersionId" in scope ? [scope.planVersionId] : "bodyHash" in scope ? [scope.bodyHash] : []), subject.id],
     load: async () => (await apiClient.get(url, inline)).data.data as AgentConversationTurn<Proposal>[],
     send: input => apiClient.post(url + "/turns", { ...input, base, draft }, inline),
     interrupt: id => apiClient.post(url + "/turns/" + encodeURIComponent(id) + "/interrupt", {}, inline),
@@ -102,6 +115,6 @@ export function ReviewDiscussion({ novelId, runId, version, subject, scope, base
       versionLabel={() => subject.title} disabled={disabled} maxLength={4000}
       value={message} onChange={onMessage} canContinue={() => true} describeResult={result => `${result.changes.length} 项建议`}
       renderResult={(proposal, busy) => <Suggestions fieldLabels={fieldLabels} key={proposal.id} proposal={proposal} draft={draft}
-        disabled={busy || disabled} onAccept={onAccept}/>}/>
+        disabled={busy || disabled} lockedField={lockedField} onAccept={onAccept}/>}/>
   </div>;
 }
