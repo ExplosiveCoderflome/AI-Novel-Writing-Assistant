@@ -1,4 +1,4 @@
-import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
+import type { ChapterRuntimePackage, RuntimeStyleReview } from "@ai-novel/shared/types/chapterRuntime";
 import type { AuditReport, ReplanRecommendation, ReplanResult, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -436,5 +436,55 @@ export function ChapterRuntimeAuditCard(props: {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function ChapterRuntimeStyleReviewCard(props: {
+  styleReview?: RuntimeStyleReview;
+}) {
+  const review = props.styleReview;
+  const report = review?.report;
+  const statusLabel = !review
+    ? "等待检查"
+    : review.autoRewritten
+      ? "已完成局部修订"
+      : report?.violations.length
+        ? "有表达提醒"
+        : report
+          ? "表达自然"
+          : "检查未完成";
+
+  return (
+    <div className="rounded-xl bg-muted/25 p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-semibold text-foreground">表达检查</div>
+        <Badge variant={statusLabel === "有表达提醒" ? "outline" : "secondary"}>{statusLabel}</Badge>
+      </div>
+      {!review ? (
+        <div className="mt-2 text-xs leading-6 text-muted-foreground">本章还没有生成表达检查结果。</div>
+      ) : !report ? (
+        <div className="mt-2 text-xs leading-6 text-muted-foreground">本次表达检查没有形成可展示的报告，原稿仍可继续使用。</div>
+      ) : (
+        <>
+          <div className="mt-2 text-xs leading-6 text-muted-foreground">
+            风险参考 {report.riskScore} · {report.summary}
+          </div>
+          {report.violations.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              {report.violations.slice(0, 6).map((violation, index) => (
+                <div key={`${violation.ruleId}-${index}`} className="rounded-lg bg-background/70 p-3 text-xs">
+                  <div className="font-medium text-foreground">{violation.ruleName}</div>
+                  <div className="mt-1 leading-5 text-muted-foreground">{violation.reason}</div>
+                  {violation.suggestion ? <div className="mt-1 leading-5 text-muted-foreground">建议：{violation.suggestion}</div> : null}
+                </div>
+              ))}
+              {report.violations.length > 6 ? (
+                <div className="text-xs text-muted-foreground">还有 {report.violations.length - 6} 条表达提醒。</div>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
   );
 }

@@ -65,6 +65,24 @@ export const novelExamples: Record<string, unknown> = {
     },
     otherNames: ["沈砚舟"], renameBlockedReason: null, requestText: "让她更有辨识度，保留现有经历。", history: [], priorProposal: null,
   },
+  "novel.director.character_profile_impact@v1": {
+    character: {
+      name: "林晚",
+      before: { name: "林晚", role: "船行掌柜", personality: "谨慎" },
+      after: { name: "林晚", role: "船行掌柜", personality: "谨慎但更愿意冒险" },
+    },
+    candidates: [{
+      id: "synopsis:novel-1:description",
+      resourceType: "synopsis",
+      resourceId: "novel-1",
+      title: "小说简介与卖点",
+      field: "description",
+      before: "旧简介里提到林晚。",
+      evidence: "旧简介里提到林晚。",
+      updatedAt: "2026-11-23T00:00:00.000Z",
+      applyMode: "replace",
+    }],
+  },
   "novel.volume.summary_emphasis@v1": { volumes: [{ id: "v1", summary: "船队被困在封冻的港口，船长决定弃船走陆路。" }] },
   "novel.character.initial_schedule@v1": {
     title: "〈标题〉",

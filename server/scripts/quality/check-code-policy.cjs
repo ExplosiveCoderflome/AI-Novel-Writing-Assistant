@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const ts = require("typescript");
+const ts = require("typescript-legacy");
 
 function inspectSource(source, filename = "source.ts") {
   const file = ts.createSourceFile(filename, source, ts.ScriptTarget.Latest, true);

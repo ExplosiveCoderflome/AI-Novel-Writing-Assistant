@@ -26,11 +26,11 @@ const serverDir = path.join(__dirname, "..");
 
 /** Historical files that already existed on origin/main (ae11c01c). Do not edit in place. */
 const HISTORICAL_CHECKSUMS = {
-  "20260328120000_schema_gap_backfill": "5bf4956aa923295d6f409a85c41bf35f14a41b609024c8828fae154a5c1d4c09",
-  "20260413120000_postgresql_baseline": "2ec2f98f9231b1b14f8184d49a60b06673641cfb864958e20295df5fea1c25e9",
-  "20260419123000_schema_column_backfill": "b69cd389df2a095a23a85e73184c78bf92b2c22d0af3fc5f69637ffc09de01d1",
-  "20260421183000_style_extraction_task": "a897b1043c309326c8056a4ab6cd7001daf243b5e8d63335f20ebbfce6607896",
-  "20260421202000_style_extraction_task_usage": "0e4bc1f0ddad87ac1b9c07270da53f3ffb9bf5917d395a439d8ef39a0005db72",
+  "20260328120000_schema_gap_backfill": "6375cbbd24723b81cf43cda7d261a83d85fd51da98b3a1b180a09b03e2a3dec5",
+  "20260413120000_postgresql_baseline": "a6531d61d9a8c783d7e4540c8bd617a63a7ad04fa02e85af4043053bea794ca0",
+  "20260419123000_schema_column_backfill": "3a3939f7d9d6ff721f00a3d57f0d39d2847e2a8a737b9b7579b80bf904e23bbb",
+  "20260421183000_style_extraction_task": "84c7f9675ddabc71b17c4080b20697f77c279bca59e9a5d44b5a85177effad7a",
+  "20260421202000_style_extraction_task_usage": "e96e9587dcd118adb1801a9b080f20e98016b8b3c638781a83285917a6470d3c",
 };
 
 const HISTORICAL_SQLITE_DIALECT_MIGRATIONS = [

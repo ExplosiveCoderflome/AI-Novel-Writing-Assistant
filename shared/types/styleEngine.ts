@@ -549,6 +549,18 @@ export { styleRiskLayerSchema, styleRewriteGuardSchema, isStyleIssueRewritable }
 export type { StyleRiskLayer, StyleRewriteGuard, StyleRewriteBaseline } from "./styleEngine/diagnostics.js";
 export { styleSignalPolicySchema, styleSignalScanSchema, createStyleSignalPolicy } from "./styleEngine/signals.js";
 export type { StyleSignalPolicy, StyleSignalFinding, StyleSignalScan } from "./styleEngine/signals.js";
+export {
+  getGeneratedTextRewritableIssues,
+  hasGeneratedTextReviewIssues,
+} from "./styleEngine/generatedTextReview.js";
+export type {
+  GeneratedTextReview,
+  GeneratedTextReviewAction,
+  GeneratedTextReviewError,
+  GeneratedTextReviewResult,
+  GeneratedTextReviewSource,
+  GeneratedTextReviewStatus,
+} from "./styleEngine/generatedTextReview.js";
 
 export interface StyleDetectionViolation {
   ruleId: string;

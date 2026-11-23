@@ -103,6 +103,7 @@ export const atlasScopes: AtlasScope[] = [
         prompts: [
           ["novel.director.cast_dialogue", "讨论当前角色"],
           ["novel.director.character_profile_dialogue", "编辑本书角色资料", ["cast-discussion"]],
+          ["novel.director.character_profile_impact", "分析角色资料改动影响"],
           ["novel.character.castAuto.repair", "修复自动阵容", ["cast"]],
           ["novel.character.castAuto.zhNormalize", "统一自动阵容的中文表述", ["cast"]],
           ["novel.character.castOptions.repair", "修复备选阵容", ["cast"]],

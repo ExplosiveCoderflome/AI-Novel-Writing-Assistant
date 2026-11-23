@@ -1,4 +1,5 @@
 import type { ShortStoryReferenceContract } from "@ai-novel/shared/types/shortStoryReference";
+import type { StyleContract } from "@ai-novel/shared/types/styleEngine";
 import type { PromptContextBlock } from "../../../../prompting/core/promptTypes";
 import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
 import type { CreationDirection, ShortStoryPlanContract, ShortStoryPlanSegment } from "@ai-novel/shared/types/creationStudio";
@@ -42,6 +43,30 @@ export function shortStoryPlatformText(snapshot: WritingPlatformSnapshot | null,
   return `${snapshot.label}（配置版本 ${snapshot.profileVersion}）：${snapshot.guidance[stage]}`;
 }
 
+export function formatShortStoryStyleContract(contract: StyleContract | null | undefined): string | null {
+  if (!contract) return null;
+  return [
+    contract.narrative.text,
+    contract.character.text,
+    contract.language.text,
+    contract.rhythm.text,
+    contract.antiAi.text,
+    contract.selfCheck.text,
+  ].filter(Boolean).join("\n\n").trim() || null;
+}
+
+export function buildShortStoryStyleContextBlocks(styleContract: string | null | undefined): PromptContextBlock[] {
+  if (!styleContract?.trim()) return [];
+  return [{
+    id: "short-story:style-contract",
+    group: "style_contract",
+    content: styleContract.trim(),
+    priority: 106,
+    required: true,
+    estimatedTokens: Math.max(1, Math.ceil(styleContract.trim().length / 2)),
+  }];
+}
+
 export function buildShortStoryWriterContextBlocks(input: {
   revisionInstruction?: string;
   reference?: ShortStoryReferenceContract;
@@ -54,6 +79,7 @@ export function buildShortStoryWriterContextBlocks(input: {
   previousContentTail: string;
   platform: WritingPlatformSnapshot | null;
   bookStyle?: string | null;
+  styleContract?: string | null;
   productionFoundation: string;
 }): PromptContextBlock[] {
   const block = (id: string, group: string, content: string, priority: number): PromptContextBlock => ({
@@ -67,5 +93,6 @@ export function buildShortStoryWriterContextBlocks(input: {
     block("short-story:platform", "writing_platform", shortStoryPlatformText(input.platform, "drafting"), 104),
     block("short-story:production-foundation", "production_foundation", input.productionFoundation, 103),
     block("short-story:book-style", "book_style", input.bookStyle?.trim() || input.direction.styleKeywords.join("、"), 80),
+    ...buildShortStoryStyleContextBlocks(input.styleContract),
   ];
 }

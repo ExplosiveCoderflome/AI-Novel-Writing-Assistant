@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const vm = require("node:vm");
-const ts = require("typescript");
+const ts = require("typescript-legacy");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
 const { initializeTemporarySqliteDatabase } = require("./testInfrastructure/tempSqliteDatabase.cjs");
@@ -131,6 +131,13 @@ function harness(generate) {
       if (id.endsWith("/workflow/NovelWorkflowService")) return { NovelWorkflowService: Workflow };
       if (id.endsWith("/storyMode/storyModeProfile")) return { buildStoryModePromptBlock: () => "",
         parseStoryModeProfileJson: () => null };
+      if (id.endsWith("/services/styleEngine/StyleRuntimeResolver")) return {
+        StyleRuntimeResolver: class {
+          async resolve() {
+            return { context: { compiledBlocks: { contract: null } } };
+          }
+        },
+      };
       if (id.startsWith(".")) {
         let resolved = path.resolve(path.dirname(file), id + ".ts");
         if (!fs.existsSync(resolved)) resolved = path.resolve(path.dirname(file), id, "index.ts");

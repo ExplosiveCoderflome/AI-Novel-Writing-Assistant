@@ -34,7 +34,7 @@ cd server && pnpm run build && node --test tests/chapterLifecycleState.test.js
 
 fast 沿用最多 4 个文件的并发上限，不为提速继续增加并行负载；integration 最多并发 2 个独立进程，真实 SQLite 文件不会共享进程。`server/scripts/test-batches.json` 只登记已经联合验证、不依赖独立模块状态或全局环境的测试批次，这些批次用 Node 自带的 `--test-isolation=none` 串行运行以减少进程启动。未登记的文件继续按文件隔离进程，新增测试默认不在批次中；凡使用真实 SQLite、替换模块缓存、修改全局环境或依赖独立根钩子的文件都不得加入批次。清单中的 `serialFiles` 用于有子进程超时或严格耗时断言的敏感文件，它们单独按文件串行运行。
 
-客户端测试使用 Node 22 的 `--experimental-strip-types` 直接运行 TypeScript 源测试，不需要单独构建客户端。
+客户端测试使用 Node 24 的 `--experimental-strip-types` 直接运行 TypeScript 源测试，不需要单独构建客户端。
 
 ## 覆盖重点
 

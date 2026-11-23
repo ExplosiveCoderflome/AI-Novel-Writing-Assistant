@@ -6,8 +6,8 @@ const server = path.resolve(__dirname, '../../..');
 const fromServer = createRequire(path.join(server, 'package.json'));
 function native(file, imports) {
   const filename = path.join(server, 'src', file);
-  const compiled = fromServer('typescript').transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: fromServer('typescript').ModuleKind.CommonJS, target: fromServer('typescript').ScriptTarget.ES2022 }, fileName: filename,
+  const compiled = fromServer('typescript-legacy').transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { module: fromServer('typescript-legacy').ModuleKind.CommonJS, target: fromServer('typescript-legacy').ScriptTarget.ES2022 }, fileName: filename,
   }).outputText;
   const exports = {};
   vm.runInThisContext(`(function(require,exports){${compiled}\n})`, { filename })(id => {

@@ -17,6 +17,7 @@ import { ProductionVersionConflictError } from "../../../production/common";
 import { NovelWorkflowService } from "../../../../services/novel/workflow/NovelWorkflowService";
 import {
   buildShortStoryWriterContextBlocks,
+  formatShortStoryStyleContract,
   parseWritingPlatformSnapshot,
   shortStoryProductionFoundationText,
   shortStoryPlatformText,
@@ -51,12 +52,14 @@ function countWords(content: string): number {
 
 import { shortStoryRevisionService } from "./ShortStoryRevisionService";
 import { isLegacyRevision } from "../domain/revisionState";
+import { StyleRuntimeResolver } from "../../../../services/styleEngine/StyleRuntimeResolver";
 
 export class ShortStoryProductionService {
   private readonly running = new Set<string>();
   private readonly workflowService = new NovelWorkflowService();
   private readonly v2Enabled: () => boolean;
   private readonly readAuditContextWindow: (provider: string, model: string) => Promise<number | null>;
+  private readonly styleRuntimeResolver = new StyleRuntimeResolver();
 
   constructor(deps: {
     v2Enabled?: () => boolean;
@@ -159,6 +162,13 @@ export class ShortStoryProductionService {
     if (!interpretation || !direction) {
       throw new Error("短篇生产缺少已确认的创作方向。");
     }
+    let styleContract: string | null = null;
+    try {
+      const styleRuntime = await this.styleRuntimeResolver.resolve({ novelId: task.novel.id });
+      styleContract = formatShortStoryStyleContract(styleRuntime.context.compiledBlocks?.contract);
+    } catch (error) {
+      console.warn("[short-story] style context unavailable, continue with base writing rules", error);
+    }
     return {
       task,
       novel: task.novel,
@@ -172,6 +182,7 @@ export class ShortStoryProductionService {
       platform: parseWritingPlatformSnapshot(task.novel.writingPlatformSnapshotJson),
       productionFoundation: shortStoryProductionFoundationText(task.novel),
       reference: referenceContract(parseShortStoryReference(task.novel.shortStoryReferenceJson, Boolean(task.novel.referenceBookAnalysisId))),
+      styleContract,
     };
   }
 
@@ -301,6 +312,7 @@ export class ShortStoryProductionService {
           previousContentTail,
           writingPlatform: shortStoryPlatformText(context.platform, "drafting"),
           bookStyle: context.novel.styleTone ?? context.intent.direction.styleKeywords.join("、"),
+          styleContract: context.styleContract,
           productionFoundation: context.productionFoundation, reference: context.reference,
         };
         const generated = await runStructuredPrompt({
@@ -442,6 +454,7 @@ export class ShortStoryProductionService {
         plan: plan.contract,
         content,
         writingPlatform: shortStoryPlatformText(context.platform, "auditing"),
+        styleContract: context.styleContract,
         productionFoundation: context.productionFoundation, reference: context.reference,
       },
       options: {
@@ -496,6 +509,7 @@ export class ShortStoryProductionService {
           humanEdited: Boolean(segment.userEditedAt),
         })),
         writingPlatform: shortStoryPlatformText(context.platform, "repairing"),
+        styleContract: context.styleContract,
         productionFoundation: context.productionFoundation, reference: context.reference,
       },
       options: {
