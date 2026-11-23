@@ -515,10 +515,10 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 
 ## License
 
-本项目采用双许可证授权模式：
+本项目默认基于 [GNU AGPL-3.0-only](./LICENSE) 授权，附加条款（署名、修改版标识、商标）见 [NOTICE](./NOTICE)。
 
-- 默认基于 GNU Affero General Public License v3.0（AGPLv3）授权，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
-- 服务型商用：将本项目或其修改版本作为后端，以 SaaS、托管等形式向第三方提供服务，须通过作者获取商业授权许可。
+- 遵守 AGPL-3.0 即可免费使用，包括商用。以网络服务形式提供修改版时，须向用户公开修改后的源码，并保留 NOTICE 要求的署名。
+- 无法或不希望遵守上述义务的，可申请商业授权，详见 [COMMERCIAL.md](./COMMERCIAL.md)。
 - 新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，也可纳入维护者另行提供的商业授权。
 
 [贡献与授权说明](./CONTRIBUTING.md)
