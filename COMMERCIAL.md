@@ -11,4 +11,4 @@ Biz Novel Studio 采用双许可模式：
 
 商业授权的具体条款以双方签署的书面协议为准。
 
-联系方式：1305bcd@gmail.com
+联系方式：bizb540@gmail.com
