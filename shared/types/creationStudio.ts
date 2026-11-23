@@ -115,6 +115,7 @@ export interface ShortStoryQualityResult {
   summary: string;
   issues: Array<{
     code: string;
+    category?: "story_structure" | "style_expression";
     severity?: "critical" | "standard";
     description: string;
     affectedSegmentOrders: number[];
@@ -158,6 +159,7 @@ export interface ShortStoryProjection {
     status: ShortStoryPlanStatus;
     endingPromise: string;
     qualityDebt: string[];
+    auditResult: ShortStoryQualityResult | null;
     schemaVersion: number;
   } | null;
   segments: ShortStorySegmentProjection[];

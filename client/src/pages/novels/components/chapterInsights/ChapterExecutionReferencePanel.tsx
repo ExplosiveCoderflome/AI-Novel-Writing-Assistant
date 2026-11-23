@@ -22,6 +22,7 @@ import {
   ChapterRuntimeAuditCard,
   ChapterRuntimeContextCard,
   ChapterRuntimeLengthCard,
+  ChapterRuntimeStyleReviewCard,
 } from "../ChapterRuntimePanels";
 import {
   hasText,
@@ -305,6 +306,7 @@ export default function ChapterExecutionReferencePanel(props: ChapterExecutionRe
             isReplanning={isReplanningChapter}
             lastReplanResult={lastReplanResult}
           />
+          <ChapterRuntimeStyleReviewCard styleReview={runtimePackage?.styleReview} />
         </TabsContent>
 
         <TabsContent value="repair" className="space-y-3">

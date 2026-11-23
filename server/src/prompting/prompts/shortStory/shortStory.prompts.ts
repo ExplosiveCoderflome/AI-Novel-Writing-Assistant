@@ -44,6 +44,7 @@ const planSchema = z.object({
 
 const qualityIssueSchema = z.object({
   code: z.string().min(1).max(80),
+  category: z.enum(["story_structure", "style_expression"]).optional(),
   severity: z.enum(["critical", "standard"]),
   description: z.string().min(4).max(500),
   affectedSegmentOrders: z.array(z.number().int().min(1).max(8)).max(8),
@@ -212,6 +213,7 @@ export interface ShortStorySegmentWritePromptInput {
   previousContentTail: string;
   writingPlatform?: string;
   bookStyle?: string;
+  styleContract?: string | null;
   productionFoundation?: string;
 }
 
@@ -233,6 +235,7 @@ export const shortStorySegmentWritePrompt: PromptAsset<
     { group: "writing_platform", required: true, priority: 104 },
     { group: "production_foundation", required: true, priority: 103 },
     { group: "book_style", required: true, priority: 80 },
+    { group: "style_contract", required: false, priority: 106 },
   ],
   slots: [
     {
@@ -346,6 +349,7 @@ export const shortStorySegmentWritePrompt: PromptAsset<
       input.writingPlatform ? `【目标平台写法】\n${input.writingPlatform}` : "",
       input.productionFoundation ? `【创作底座】\n${input.productionFoundation}` : "",
       input.bookStyle ? `【本书写法】\n${input.bookStyle}` : "",
+      input.styleContract ? `【统一写法合同与反 AI 味规则】\n${input.styleContract}` : "",
     ].join("\n")),
     new HumanMessage(JSON.stringify(input, null, 2)),
   ],
@@ -359,6 +363,7 @@ export interface ShortStoryAuditPromptInput {
   plan: ShortStoryPlanContract;
   content: string;
   writingPlatform?: string;
+  styleContract?: string | null;
   productionFoundation?: string;
 }
 
@@ -390,6 +395,8 @@ export const shortStoryFullAuditPrompt: PromptAsset<
       "文学性不是问题，但不能牺牲事件推进、因果清晰和手机阅读流畅度；不要把故作深沉、晦涩或开放式戛然而止误判为高级。",
       "accepted：可直接交付；patchable：局部改写可修；replan_required：只有核心结构无法通过局部修复挽回时使用。",
       "普通文风瑕疵、局部节奏、可修补伏笔或措辞问题都必须判为 patchable，不能升级为 replan_required。",
+      "检查统一写法合同与反 AI 味规则。模板化转折、空泛总结、解释过量、机械重复和梗概式表达属于 style_expression，可判为 patchable；不要把这类问题升级为 replan_required。",
+      input.styleContract ? `【统一写法合同与反 AI 味规则】\n${input.styleContract}` : "",
       "affectedSegmentOrders 只填写确实需要修改的内部片段。",
       "只输出严格 JSON。",
     ].join("\n")),
@@ -459,6 +466,7 @@ export const shortStoryPatchRepairPrompt: PromptAsset<
       "保留未被审校点名的情节、事实、语气和结尾承诺。",
       "严格以 plan.causalContract 为事实台账修复。severity=critical 的问题必须优先修复：补足前置铺垫、移除临场新增解法、统一关键道具与规则、让人物选择回到可追溯动机。不得用另一条新设定遮盖旧矛盾。",
       "修复后的正文必须保持网络小说可读性：快速进入场景，以行动、冲突和对话推进，补足题材回报，控制段落长度，删除空泛抒情与梗概式叙述。",
+      input.styleContract ? `【统一写法合同与反 AI 味规则】\n${input.styleContract}` : "",
       "正文中不要加入章节名、片段名、序号或修订说明。",
       "最多执行这一轮修复；只有无法安全修复的普通问题可以进入 residualQualityDebt，关键因果/事实矛盾不得降级为普通建议。",
       "只输出严格 JSON。",
