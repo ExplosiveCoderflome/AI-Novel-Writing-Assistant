@@ -8,6 +8,16 @@ const preload = path.join(serverRoot, "scripts", "testing", "sqlite-preload.cjs"
 const knowledgeStatusSuite = path.join(serverRoot, "tests", "knowledgeServiceStatus.test.js");
 const bookAnalysisSuite = path.join(serverRoot, "tests", "bookAnalysis.test.js");
 
+function resolveTestIsolationFlag() {
+  const helpResult = spawnSync(process.execPath, ["--test", "--help"], {encoding: "utf8"});
+  const help = `${helpResult.stdout || ""}\n${helpResult.stderr || ""}`;
+  if (help.includes("--test-isolation")) return "--test-isolation";
+  if (help.includes("--experimental-test-isolation")) return "--experimental-test-isolation";
+  throw new Error("This Node.js version does not expose a test isolation flag.");
+}
+
+const testIsolationFlag = resolveTestIsolationFlag();
+
 function runUnderRagDisabled(args) {
   const env = {
     ...process.env,
@@ -27,7 +37,7 @@ function runUnderRagDisabled(args) {
 
   const result = spawnSync(
     process.execPath,
-    ["--test", "--require", preload, "--test-isolation=process", "--test-concurrency=1", ...args],
+    ["--test", "--require", preload, `${testIsolationFlag}=process`, "--test-concurrency=1", ...args],
     {
       cwd: serverRoot,
       env,
@@ -52,7 +62,7 @@ test("knowledge status suite stays green when booted with RAG_ENABLED=false", ()
   assert.equal(result.status, 0, result.output.slice(-4000));
   assert.match(result.output, /restoring archived knowledge document queues a rebuild/);
   assert.match(result.output, /archiving knowledge document queues index cleanup/);
-  assert.match(result.output, /ℹ fail 0/);
+  assert.match(result.output, /(?:#|ℹ) fail 0/);
 });
 
 test("facet retrieval stays green when booted with RAG_ENABLED=false", () => {
@@ -62,5 +72,5 @@ test("facet retrieval stays green when booted with RAG_ENABLED=false", () => {
   ]);
   assert.equal(result.status, 0, result.output.slice(-4000));
   assert.match(result.output, /HybridRetrievalService retrieveByFacet applies facet filters/);
-  assert.match(result.output, /ℹ fail 0/);
+  assert.match(result.output, /(?:#|ℹ) fail 0/);
 });

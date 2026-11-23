@@ -3,6 +3,7 @@ import { latestStructuredDiagnostic, canRetryStructuredTask } from "../../../../
 import type {
   CreationIntentInterpretation,
   ShortStoryProjection,
+  ShortStoryQualityResult,
   ShortStoryRevisionImpact,
   ShortStorySegmentUpdateRequest,
 } from "@ai-novel/shared/types/creationStudio";
