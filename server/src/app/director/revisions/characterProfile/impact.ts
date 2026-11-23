@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import {
   characterProfileImpactApplySchema,
   characterProfileImpactCandidateSchema,
+  characterProfileImpactParagraphSchema,
   characterProfileImpactRequestSchema,
   characterProfileImpactSuggestionSchema,
   characterProfileImpactResourceTypes,
@@ -24,6 +25,7 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { characterProfileImpactPrompt } from "../../../../prompting/prompts/novel/character/characterProfileImpact.prompt";
 import { readCharacterProfile } from "./profile";
+import { chapterParagraphs } from "@ai-novel/shared/types/chapterEditor/document";
 
 type ImpactCandidateInput = Omit<CharacterProfileImpactCandidate, "before"> & {before: string};
 
@@ -76,6 +78,13 @@ function shouldInspectText(value: string, name: string, nextName: string, fields
     || fields.has("background") || fields.has("outerGoal") || fields.has("innerNeed")
     || fields.has("fear") || fields.has("secret") || fields.has("moralLine")
     || fields.has("appearance") || fields.has("voiceTexture");
+}
+
+function impactedParagraphs(content: string, name: string, nextName: string): Array<{paragraph: number; before: string}> {
+  const paragraphs = chapterParagraphs(content).filter(item => item.text.trim());
+  const direct = paragraphs.filter(item => item.text.includes(name) || (nextName !== name && item.text.includes(nextName)));
+  const selected = (direct.length ? direct : paragraphs).slice(0, 12);
+  return selected.map(item => characterProfileImpactParagraphSchema.parse({paragraph: item.index, before: item.text}));
 }
 
 async function readImpactCandidates(db: Prisma.TransactionClient | typeof prisma, novelId: string, characterId: string, changes: CharacterProfileSave["changes"]): Promise<{
@@ -167,6 +176,7 @@ async function readImpactCandidates(db: Prisma.TransactionClient | typeof prisma
     addCandidate(candidates, {
       resourceType: "prose", resourceId: chapter.id, title: `第 ${chapter.order} 章 · ${chapter.title}`, field: "content", before: rawText(chapter.content),
       updatedAt: chapter.updatedAt.toISOString(), evidence: excerpt(content, character.name), applyMode: "review",
+      paragraphs: impactedParagraphs(content, character.name, nextName),
     });
   }
   for (const chapter of chapters) {
@@ -207,7 +217,13 @@ export async function previewCharacterProfileImpact(novelId: string, characterId
   const suggestions = result.output.suggestions.map(suggestion => {
     const candidate = snapshot.candidates.find(item => item.id === suggestion.candidateId);
     if (!candidate) return suggestion;
-    return {...suggestion, title: candidate.title, updatedAt: candidate.updatedAt, before: candidate.before};
+    return {
+      ...suggestion,
+      title: candidate.title,
+      updatedAt: candidate.updatedAt,
+      before: candidate.before,
+      ...(candidate.resourceType === "prose" && candidate.paragraphs ? {paragraphs: suggestion.paragraphs?.length ? suggestion.paragraphs : candidate.paragraphs} : {}),
+    };
   });
   return {
     ...snapshot,
@@ -273,6 +289,12 @@ export async function applyCharacterProfileImpact(novelId: string, characterId: 
         || candidate.applyMode !== suggestion.applyMode) {
         throw new AppError("影响建议已过期，请重新检查影响后再保存。", 409);
       }
+      if (suggestion.resourceType === "prose") {
+        const sourceParagraphs = candidate.paragraphs ?? [];
+        if (!suggestion.paragraphs?.length || suggestion.paragraphs.some(item => !sourceParagraphs.some(source => source.paragraph === item.paragraph && source.before === item.before))) {
+          throw new AppError("正文段落建议已变化，请重新检查影响后再保存。", 409);
+        }
+      }
     }
     for (const change of parsed.changes) {
       const issue = characterProfileValueIssue(change.field, change.after);
@@ -299,7 +321,18 @@ export async function applyCharacterProfileImpact(novelId: string, characterId: 
       groups.set(key, group);
     }
     for (const group of groups.values()) appliedSuggestionCount += await updateSuggestedResource(tx, novelId, group);
-    return {appliedSuggestionCount, reviewedProseCount: parsed.suggestions.filter(suggestion => suggestion.resourceType === "prose").length};
+    const candidateOrder = new Map(impactSnapshot.candidates.map((candidate, index) => [candidate.id, index]));
+    const proseSuggestions = parsed.suggestions
+      .filter(suggestion => suggestion.resourceType === "prose")
+      .map(suggestion => ({
+        ...suggestion,
+        paragraphs: suggestion.paragraphs ? [...suggestion.paragraphs].sort((left, right) => left.paragraph - right.paragraph) : undefined,
+      }))
+      .sort((left, right) => (candidateOrder.get(left.candidateId) ?? Number.MAX_SAFE_INTEGER) - (candidateOrder.get(right.candidateId) ?? Number.MAX_SAFE_INTEGER));
+    return {
+      appliedSuggestionCount,
+      proseSuggestions,
+    };
   }, {isolationLevel: "Serializable"}), {label: "director.character_profile_impact"});
   await novelEventBus.emit({type: "character:changed", payload: {novelId, characterId}});
   return saved;
