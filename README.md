@@ -72,6 +72,11 @@
 - 短篇和长篇生成完成后都会结合本书写法检查模板感、总结腔、解释过量和机械重复，并在源页面展示表达提醒与修订结果。
 - 短篇审校、局部修整和修订任务共享同一套写法约束。表达问题会作为可继续处理的质量提醒，不会单独打断完整成稿。
 
+#### 修复
+
+- 短篇只遇到表达问题时可以继续交付成稿。自动修整只处理审校点名且未被手动编辑的片段，修整失败时保留原稿与提醒。
+- 没有表达检查报告的旧短篇会显示“暂无检查结果”。
+
 [查看完整更新历史](docs/releases/release-notes.md) · [角色功能开发计划](docs/plans/character-system-upgrade-plan.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 
 正式桌面版以 GitHub Release 的 **v0.8.12** 发布页为准。开发版功能需要在源码环境中验证。

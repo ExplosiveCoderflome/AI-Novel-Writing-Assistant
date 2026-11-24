@@ -421,11 +421,18 @@ function ShortStoryStyleReviewPanel(props: { story: ShortStoryProjection; isProd
       .filter((issue) => issue.category === "style_expression")
       .map((issue) => ({ segmentOrder: segment.order, issue }))
   ));
-  const auditStyleIssues = (props.story.plan?.auditResult?.issues ?? [])
+  const audit = props.story.plan?.auditResult;
+  const expressionReviewCompleted = audit?.expressionReviewCompleted === true;
+  const auditStyleIssues = (audit?.issues ?? [])
     .filter((issue) => issue.category === "style_expression")
     .map((issue) => ({ segmentOrder: issue.affectedSegmentOrders[0] ?? null, issue }));
-  const visibleIssues = auditStyleIssues.length > 0 ? auditStyleIssues : styleIssues;
-  const completed = props.story.plan?.status === "completed";
+  const visibleIssues = expressionReviewCompleted || auditStyleIssues.length > 0 ? auditStyleIssues : styleIssues;
+  const hasCompleteDraft = props.story.plan?.status === "completed"
+    || (props.story.segments.length > 0 && props.story.segments.every(segment => segment.status === "completed"));
+  const status = props.isProducing ? "生成完成后检查"
+    : visibleIssues.length > 0 ? `${visibleIssues.length} 条提醒`
+    : expressionReviewCompleted ? "已完成"
+    : hasCompleteDraft ? "暂无检查结果" : "等待成稿";
 
   return (
     <section className="rounded-xl bg-muted/25 p-4" aria-live="polite">
@@ -437,7 +444,7 @@ function ShortStoryStyleReviewPanel(props: { story: ShortStoryProjection; isProd
           </p>
         </div>
         <span className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground">
-          {props.isProducing ? "生成完成后检查" : visibleIssues.length > 0 ? `${visibleIssues.length} 条提醒` : completed ? "已完成" : "等待成稿"}
+          {status}
         </span>
       </div>
       {props.isProducing ? (
@@ -452,10 +459,12 @@ function ShortStoryStyleReviewPanel(props: { story: ShortStoryProjection; isProd
           ))}
           {visibleIssues.length > 6 ? <div className="text-xs text-muted-foreground">还有 {visibleIssues.length - 6} 条提醒，可在正文中继续调整。</div> : null}
         </div>
-      ) : completed ? (
-        <div className="mt-3 text-sm leading-6 text-muted-foreground">本次审校没有记录表达层问题，可以继续编辑或导出作品。</div>
       ) : (
-        <div className="mt-3 text-sm leading-6 text-muted-foreground">完整成稿完成后，这里会显示表达审校结果。</div>
+        <div className="mt-3 text-sm leading-6 text-muted-foreground">
+          {expressionReviewCompleted ? "本次检查未发现表达问题，可以继续编辑或导出作品。"
+            : hasCompleteDraft ? "这篇作品可以继续编辑或导出。"
+            : "正文生成后，这里会显示表达检查结果。"}
+        </div>
       )}
     </section>
   );

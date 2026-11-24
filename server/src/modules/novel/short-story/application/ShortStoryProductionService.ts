@@ -52,6 +52,7 @@ function countWords(content: string): number {
 
 import { shortStoryRevisionService } from "./ShortStoryRevisionService";
 import { isLegacyRevision } from "../domain/revisionState";
+import { hasOnlyExpressionIssues } from "../domain/shortStoryQuality";
 import { StyleRuntimeResolver } from "../../../../services/styleEngine/StyleRuntimeResolver";
 
 export class ShortStoryProductionService {
@@ -118,7 +119,7 @@ export class ShortStoryProductionService {
       await this.auditAndRepair(context, plan, completedSegments);
     } catch (error) {
       const task = await prisma.novelWorkflowTask.findUnique({ where: { id: taskId } });
-      if (!task?.shortStoryOperationId && task?.checkpointType !== "replan_required" && task?.status !== "cancelled") {
+      if (!task?.shortStoryOperationId && task?.checkpointType !== "replan_required" && task?.status !== "cancelled" && !task?.cancelRequestedAt) {
         const message = error instanceof Error ? error.message : "短篇生成未完成。";
         await this.workflowService.markTaskFailed(taskId, message, {
           stage: this.resolveFailureStage(task?.currentItemKey),
@@ -378,6 +379,7 @@ export class ShortStoryProductionService {
     });
     const audited = await this.auditManuscript(context, plan, content, "full_audit");
     if (!audited) return;
+    await this.assertRunnable(context.task.id);
     await prisma.shortStoryPlan.update({
       where: { id: plan.row.id },
       data: { auditResultJson: JSON.stringify(audited.output) },
@@ -393,34 +395,11 @@ export class ShortStoryProductionService {
       return;
     }
 
-    let qualityDebt: string[] = [];
-    if (audited.output.decision === "patchable") {
-        const repaired = await this.generateSingleRepair(context, plan, segments, audited.output, content);
-        const candidate = segments.map(segment => ({ ...segment,
-          content: segment.userEditedAt ? segment.content : repaired.patches.find(patch => patch.segmentOrder === segment.order)?.content.trim() ?? segment.content,
-        }));
-        const reviewed = await this.auditManuscript(context, plan, candidate.map(segment => segment.content.trim()).join("\n\n"), "repair_review");
-        if (!reviewed) return;
-        console.info("[short-story.review]", { taskId: context.task.id, originalWordCount: countWords(content),
-          candidateWordCount: countWords(candidate.map(segment => segment.content).join("\n\n")), decision: reviewed.output.decision });
-        if (postRepairKeepsManuscript(reviewed.output.decision)) {
-          await prisma.$transaction(async tx => {
-            const current = await tx.shortStorySegment.findMany({ where: { planId: plan.row.id } });
-            if (current.length !== segments.length || segments.some(before => !current.some(row => row.id === before.id && row.version === before.version))) {
-              throw new ProductionVersionConflictError();
-            }
-            for (const segment of candidate) {
-              if (segment.content === segments.find(row => row.id === segment.id)!.content) continue;
-              const saved = await tx.shortStorySegment.updateMany({ where: { id: segment.id, version: segment.version, userEditedAt: null },
-                data: { content: segment.content, version: { increment: 1 }, generatedAt: new Date(), qualityResultJson: JSON.stringify({ repairedFromAudit: true }) } });
-              if (saved.count !== 1) throw new ProductionVersionConflictError();
-            }
-            await tx.shortStoryPlan.update({ where: { id: plan.row.id }, data: { auditResultJson: JSON.stringify(reviewed.output) } });
-          });
-        } else {
-          qualityDebt = qualityDebtFromAudit(audited.output);
-        }
-    }
+    const qualityDebt = audited.output.decision === "patchable"
+      ? await this.repairAuditedManuscript(context, plan, segments, audited.output, content)
+      : [];
+    if (!qualityDebt) return;
+    await this.assertRunnable(context.task.id);
     await prisma.shortStoryPlan.update({
       where: { id: plan.row.id },
       data: {
@@ -439,11 +418,79 @@ export class ShortStoryProductionService {
     });
   }
 
+  private async repairAuditedManuscript(
+    context: Awaited<ReturnType<ShortStoryProductionService["loadContext"]>>,
+    plan: Awaited<ReturnType<ShortStoryProductionService["ensurePlan"]>>,
+    segments: Awaited<ReturnType<ShortStoryProductionService["writePendingSegments"]>>,
+    audit: ShortStoryQualityResult,
+    content: string,
+  ): Promise<string[] | null> {
+    const affectedOrders = new Set(audit.issues.flatMap(issue => issue.affectedSegmentOrders));
+    const allowedSegmentOrders = segments
+      .filter(segment => !segment.userEditedAt && affectedOrders.has(segment.order))
+      .map(segment => segment.order);
+    const qualityDebt = qualityDebtFromAudit(audit);
+    if (allowedSegmentOrders.length === 0) return qualityDebt;
+
+    const expressionOnly = hasOnlyExpressionIssues(audit);
+    await this.workflowService.markTaskRunning(context.task.id, {
+      stage: "short_story_review",
+      itemKey: "single_patch",
+      itemLabel: "正在完成必要修整",
+      progress: 0.95,
+    });
+    let candidate: typeof segments;
+    let reviewed: Awaited<ReturnType<ShortStoryProductionService["auditManuscript"]>>;
+    try {
+      const repaired = await this.generateSingleRepair(context, plan, segments, audit, content, allowedSegmentOrders);
+      candidate = segments.map(segment => ({
+        ...segment,
+        content: allowedSegmentOrders.includes(segment.order)
+          ? repaired.patches.find(patch => patch.segmentOrder === segment.order)?.content.trim() ?? segment.content
+          : segment.content,
+      }));
+      if (candidate.every((segment, index) => segment.content === segments[index].content)) return qualityDebt;
+      await this.assertRunnable(context.task.id);
+      const candidateContent = candidate.map(segment => segment.content.trim()).join("\n\n");
+      reviewed = await this.auditManuscript(context, plan, candidateContent, "repair_review", expressionOnly);
+      if (reviewed) {
+        console.info("[short-story.review]", { taskId: context.task.id, originalWordCount: countWords(content),
+          candidateWordCount: countWords(candidateContent), decision: reviewed.output.decision });
+      }
+    } catch (error) {
+      if (!expressionOnly) throw error;
+      await this.assertRunnable(context.task.id);
+      console.warn("[short-story.review] expression repair deferred", { taskId: context.task.id, error });
+      return qualityDebt;
+    }
+    if (!reviewed) return null;
+    if (!postRepairKeepsManuscript(reviewed.output.decision)) return qualityDebt;
+    await this.assertRunnable(context.task.id);
+    const acceptedAudit = reviewed.output;
+    await prisma.$transaction(async tx => {
+      const current = await tx.shortStorySegment.findMany({ where: { planId: plan.row.id } });
+      if (current.length !== segments.length || segments.some(before => !current.some(row => row.id === before.id && row.version === before.version))) {
+        throw new ProductionVersionConflictError();
+      }
+      for (const [index, segment] of candidate.entries()) {
+        if (segment.content === segments[index].content) continue;
+        const saved = await tx.shortStorySegment.updateMany({
+          where: { id: segment.id, version: segment.version, userEditedAt: null },
+          data: { content: segment.content, version: { increment: 1 }, generatedAt: new Date(), qualityResultJson: JSON.stringify({ repairedFromAudit: true }) },
+        });
+        if (saved.count !== 1) throw new ProductionVersionConflictError();
+      }
+      await tx.shortStoryPlan.update({ where: { id: plan.row.id }, data: { auditResultJson: JSON.stringify(acceptedAudit) } });
+    });
+    return [];
+  }
+
   private async auditManuscript(
     context: Awaited<ReturnType<ShortStoryProductionService["loadContext"]>>,
     plan: Awaited<ReturnType<ShortStoryProductionService["ensurePlan"]>>,
     content: string,
     itemKey: "full_audit" | "repair_review",
+    expressionOnly = false,
   ) {
     const request = {
       asset: shortStoryFullAuditPrompt,
@@ -472,7 +519,7 @@ export class ShortStoryProductionService {
         ? withShortStoryAuditBudget(this.readAuditContextWindow, () => runStructuredPrompt(request))
         : runStructuredPrompt(request));
     } catch (error) {
-      if (!(error instanceof ShortStoryAuditBudgetError)) throw error;
+      if (!(error instanceof ShortStoryAuditBudgetError) || expressionOnly) throw error;
       await this.workflowService.recordCheckpoint(context.task.id, {
         stage: "short_story_review", checkpointType: "step_review_required", checkpointSummary: error.message,
         itemLabel: "请检查模型的上下文范围", progress: 0.9,
@@ -487,13 +534,8 @@ export class ShortStoryProductionService {
     segments: Awaited<ReturnType<ShortStoryProductionService["writePendingSegments"]>>,
     audit: ShortStoryQualityResult,
     content: string,
+    allowedSegmentOrders: number[],
   ) {
-    await this.workflowService.markTaskRunning(context.task.id, {
-      stage: "short_story_review",
-      itemKey: "single_patch",
-      itemLabel: "正在完成必要修整",
-      progress: 0.95,
-    });
     const repaired = await runStructuredPrompt({
       asset: shortStoryPatchRepairPrompt,
       promptInput: {
@@ -503,6 +545,7 @@ export class ShortStoryProductionService {
         plan: plan.contract,
         content,
         audit,
+        allowedSegmentOrders,
         segments: segments.map((segment) => ({
           order: segment.order,
           content: segment.content,

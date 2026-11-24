@@ -71,11 +71,11 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStorySegmentWritePrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.full.audit@v3",
+    key: "novel.short_story.full.audit@v6",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryFullAuditPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.short_story.patch.repair@v7",
+    key: "novel.short_story.patch.repair@v8",
     load: () => require("../prompts/shortStory/shortStory.prompts").shortStoryPatchRepairPrompt as UnknownPromptAsset,
   },
   {

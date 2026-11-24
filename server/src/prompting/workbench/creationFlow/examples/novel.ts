@@ -108,20 +108,21 @@ export const novelExamples: Record<string, unknown> = {
     previousContinuity: "〈前文连续性〉",
     previousContentTail: "〈前文结尾〉",
   },
-  "novel.short_story.full.audit@v5": {
+  "novel.short_story.full.audit@v6": {
     originalIdea: "〈原始想法〉",
     understanding: "〈理解结果〉",
     direction: novelShortStoryPlanExampleDirection,
     plan: novelShortStorySegmentWriteExamplePlan,
     content: "〈内容〉",
   },
-  "novel.short_story.patch.repair@v7": {
+  "novel.short_story.patch.repair@v8": {
     audit: {
-      decision: "accepted",
+      decision: "patchable",
       summary: "〈摘要〉",
-      issues: [{ code: "〈代码〉", description: "〈描述〉", affectedSegmentOrders: [1] }],
+      issues: [{ code: "〈代码〉", category: "style_expression", description: "〈描述〉", affectedSegmentOrders: [1] }],
     },
-    segments: [{ order: 1, content: "〈内容〉", humanEdited: true }],
+    segments: [{ order: 1, content: "〈内容〉", humanEdited: false }],
+    allowedSegmentOrders: [1],
     originalIdea: "〈原始想法〉",
     understanding: "〈理解结果〉",
     direction: novelShortStoryPlanExampleDirection,
