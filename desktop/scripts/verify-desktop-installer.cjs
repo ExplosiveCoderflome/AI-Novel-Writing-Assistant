@@ -1,6 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
+const { runWindowsProcessAndWait } = require("./installerProcess.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const distDir = path.join(repoRoot, "desktop", "build", "dist");
@@ -152,7 +153,7 @@ async function launchInstalledApp(installedExePath) {
 async function installSilently(installerPath) {
   ensureCleanDir(installDir);
   ensureDir(dataDir);
-  await spawnAndWait(installerPath, ["/S", `/D=${installDir}`], {
+  await runWindowsProcessAndWait(installerPath, ["/S", `/D=${installDir}`], {
     cwd: distDir,
   });
   await waitForPath(path.join(installDir, expectedExeName), 60_000);
@@ -160,7 +161,7 @@ async function installSilently(installerPath) {
 
 async function uninstallSilently() {
   const uninstallExecutable = findNewestMatchingFile(installDir, (name) => /^Uninstall .*\.exe$/i.test(name));
-  await spawnAndWait(uninstallExecutable, ["/S"], {
+  await runWindowsProcessAndWait(uninstallExecutable, ["/S"], {
     cwd: installDir,
   });
   const deadline = Date.now() + 60_000;
