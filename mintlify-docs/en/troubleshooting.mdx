@@ -77,6 +77,12 @@ flowchart TD
     Do not start a book until the connection test passes.
   </Accordion>
 
+  <Accordion title="Cannot paste the API Key">
+    The desktop app's input fields have no right-click menu, so there is no **Paste** option on right-click. Click the field first, then paste with the keyboard: `Ctrl + V` on Windows and Linux, `Cmd + V` on macOS.
+
+    The API Key field is a password field, so after pasting you only see dots. That is normal. If you are not sure the paste worked, clear the field, paste again, then click **Test Connection** (测试连接). Do not copy leading or trailing spaces or line breaks with the key.
+  </Accordion>
+
   <Accordion title="Plain text passes, structured output fails">
     Planning steps require the model to return strict structured results. Reasoning models tend to consume the output quota in their thinking process. Switch to a non-reasoning model, or disable thinking mode if the vendor supports it. Newer versions include a built-in compatibility layer; upgrade to the latest version and try again.
   </Accordion>
@@ -106,6 +112,38 @@ flowchart TD
 
   <Accordion title="Local model always times out">
     Large-parameter local models generate slowly, and planning steps with long outputs are the most likely to time out. Route planning steps to a cloud model, use the local model only for body text, or switch to a smaller local model, and make sure the local service stays running.
+  </Accordion>
+
+  <Accordion title="Error Invalid max_tokens value, the valid range of max_tokens is [1, 393216]">
+    The full error looks like this:
+
+    ```text
+    400 Invalid max_tokens value, the valid range of max_tokens is [1, 393216]
+    ```
+
+    **What it means**: the model provider returned this error. The output limit sent with the request is higher than this model allows. The second number in the brackets is the provider's maximum, and it differs by model. The app accepts output limits up to 1048576, which is higher than many models actually support, so a value that is too large gets rejected by the provider.
+
+    To fix it:
+
+    1. Go to **Settings → Models & Providers** (设置 → 模型与厂商) and check **Current model output limit** (当前模型输出上限) under [Model Compatibility](/en/model-configuration#model-compatibility) on the provider card. If it is higher than the number in the error, lower it to that number or below and click **Save Output Limit** (保存输出上限). If unsure, clear it to go back to the task budget.
+    2. Go to **Settings → Model Routing Management** (设置 → 模型路由管理) and check **Max Output Length** (最大输出长度) on the route used by the failing step. Lower it to the number in the error or below, or leave it blank for automatic assignment, then click **Save Route** (保存路由).
+    3. Return to the book's director console and regenerate this step.
+  </Accordion>
+
+  <Accordion title="Error schema_mismatch, or the model output does not match the required structure">
+    The full error usually contains `[STRUCTURED_OUTPUT:schema_mismatch]` and 「模型输出未满足目标结构要求」 (the model output does not match the required structure). It sometimes also says 「JSON repair 后仍无法解析」 (still unparseable after JSON repair) and lists the field names that failed.
+
+    **What it means**: planning steps require the model to return results in a fixed structure. The model's output was missing a field, had too few items, or used the wrong type. The system first asks the model to repair the output once, and only reports the error if the repaired output still does not match. Common fields:
+
+    - **`fixedFacts`**: the fixed facts listed when planning a short story, meaning the causal setup that must not change across the story. It requires 3 to 12 items, each 4 to 500 characters long. This field fails when the model returns too few items or items that are too short.
+    - **`realm`**: a character's cultivation realm (境界). When generating the character cast it must be text and may be an empty string. This field fails when the model returns `null`, a number, or another format.
+
+    To fix it:
+
+    1. Regenerate this step first. These errors depend on the model's output for that attempt, so a retry often passes.
+    2. If it keeps happening, route **Outline Planning** (大纲策划) to a model with more stable structured output in [Model Routing Management](/en/model-configuration#model-routing-management), or turn off thinking in [Thinking](/en/model-configuration#thinking).
+    3. Turn on the fallback model in [Structured Call Fault Tolerance](/en/model-configuration#structured-call-fault-tolerance).
+    4. Upgrade to the latest version and try again. If it still fails, report it as described in [Reporting Issues](#reporting-issues) with the full error.
   </Accordion>
 </AccordionGroup>
 
