@@ -486,16 +486,11 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 
 ### 交流与支持
 
-<details>
-<summary><strong>展开：QQ 交流群与支持项目</strong></summary>
-
-想交流创作体验、自动导演或项目开发，可以扫码加入 QQ 群。如果工作台对你有帮助，也欢迎支持持续开发与维护。
+想交流创作体验、自动导演或项目开发，可以扫码加入 QQ 群 **Ai创作交流群（QQ 群号：238609090）**。如果工作台对你有帮助，也欢迎支持持续开发与维护。
 
 | QQ 交流群 | 支持项目（支付宝） |
 | --- | --- |
 | <img src="./images/群2.png" alt="QQ 群二维码" width="240" /> | <img src="./images/c838dd8eb412d6fde536b2a43f53e95.jpg" alt="支付宝支持二维码" width="240" /> |
-
-</details>
 
 ### 在 Codex 中创作：Ani Book Skill
 
