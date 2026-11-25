@@ -60,7 +60,7 @@ export function SelectionFeedbackPanel({
   return (
     <section
       aria-label="选段标注与 AI 改写"
-      className="space-y-3 rounded-r-md border-l-2 border-primary/50 bg-muted/35 px-4 py-3 text-sm"
+      className="space-y-3 rounded-lg border border-border/80 bg-popover/95 px-4 py-3 text-sm shadow-lg backdrop-blur-sm"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">

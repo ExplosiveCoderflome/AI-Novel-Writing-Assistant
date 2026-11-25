@@ -2,7 +2,7 @@ import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChapterEditorDiagnosticCard,
   ChapterEditorCursorContinuationRequest,
@@ -13,6 +13,7 @@ import type {
   ChapterEditorTargetRange,
   ChapterEditorWorkspaceResponse,
 } from "@ai-novel/shared/types/novel";
+import type { HumanStyleIssueTag } from "@ai-novel/shared/types/styleEngine";
 import { useCandidateAcceptance, useCandidateReview } from "./review";
 import { applySavedRevisionToWorkspace, findRecommendedDiagnostic, removeCompletedDiagnostic } from "./diagnostics";
 import {
@@ -21,6 +22,8 @@ import {
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { getNovelHumanStyleFeedback, recordNovelHumanStyleFeedback, removeNovelHumanStyleFeedback } from "@/api/novel/chapters";
+import { buildHumanFeedbackInstruction, buildHumanFeedbackRepairBrief } from "@/pages/directorNext/workspace/selectionRange";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -117,6 +120,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const lastPreviewDiagnosticRef = useRef<ChapterEditorDiagnosticCard | undefined>(undefined);
   const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
   const initialImpactKeyRef = useRef<string | null>(null);
+  const pendingContrastRef = useRef<{ issueTags: HumanStyleIssueTag[]; feedbackNote?: string } | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
@@ -128,6 +132,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [session, setSession] = useState<ChapterEditorSessionState>(EMPTY_SESSION);
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [selectedIssueTags, setSelectedIssueTags] = useState<HumanStyleIssueTag[]>([]);
+  const [saveContrastOnAccept, setSaveContrastOnAccept] = useState(false);
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
   const [focusRequestKey, setFocusRequestKey] = useState(0);
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
@@ -146,6 +152,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setCursorOffset(null);
     setSession(EMPTY_SESSION);
     setRevisionInstruction("");
+    setSelectedIssueTags([]);
+    setSaveContrastOnAccept(false);
+    pendingContrastRef.current = null;
     setRevisionScope("selection");
     setIsVersionDrawerOpen(false);
     setLoadedSnapshotId(null);
@@ -432,6 +441,42 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
   });
 
+  const humanFeedbackQuery = useQuery({
+    queryKey: ["directorBookHumanFeedback", novelId],
+    queryFn: () => getNovelHumanStyleFeedback(novelId),
+    enabled: Boolean(novelId),
+    retry: false,
+  });
+
+  const recordFeedbackMutation = useMutation({
+    mutationFn: async (input: { excerpt: string; preferredText?: string; issueTags: HumanStyleIssueTag[]; feedbackNote?: string }) => {
+      if (!chapter) {
+        throw new Error("当前未选中章节。");
+      }
+      return recordNovelHumanStyleFeedback(novelId, chapter.id, input);
+    },
+    onSuccess: async (response) => {
+      const count = response.data?.contrastPairs.length ?? 0;
+      setSelectedIssueTags([]);
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+      toast.success(`已记入本书反例库（当前共 ${count} 条），后续写作与修文会自动避开。`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "记录本书反例失败，请稍后重试。");
+    },
+  });
+
+  const removeFeedbackMutation = useMutation({
+    mutationFn: (aiPattern: string) => removeNovelHumanStyleFeedback(novelId, aiPattern),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+      toast.success("已从本书反例库移除该条记录。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "移除反例记录失败，请稍后重试。");
+    },
+  });
+
   const review = useCandidateReview(session.sessionId ?? "", session.targetRange?.text ?? "", activeCandidate);
   const acceptMutation = useCandidateAcceptance({
     novelId, chapter, session, candidate: activeCandidate,
@@ -469,9 +514,25 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           } : cached,
         );
       }
+      if (saveContrastOnAccept && session.mode === "revision" && session.targetRange?.text?.trim() && chapter) {
+        const meta = pendingContrastRef.current;
+        const preferredText = review.resultText?.trim() || activeCandidate?.content?.trim() || "";
+        if (preferredText) {
+          await recordNovelHumanStyleFeedback(novelId, chapter.id, {
+            excerpt: session.targetRange.text,
+            preferredText,
+            issueTags: meta?.issueTags ?? selectedIssueTags,
+            feedbackNote: meta?.feedbackNote ?? (revisionInstruction.trim() || undefined),
+          }).catch(() => null);
+          await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+        }
+      }
       setSaveStatus("saved");
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
+      setSelectedIssueTags([]);
+      setSaveContrastOnAccept(false);
+      pendingContrastRef.current = null;
       setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       await props.onChapterSaved?.();
@@ -531,9 +592,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     options?: {
       presetOperation?: ChapterEditorOperation;
       instruction?: string;
+      repairBrief?: ChapterEditorDiagnosticCard | ReturnType<typeof buildHumanFeedbackRepairBrief>;
       selectionOverride?: ChapterEditorSelectionRange | null;
       task?: ChapterEditorRecommendedTask | null;
       diagnosticCard?: ChapterEditorDiagnosticCard;
+      contrastFeedback?: { issueTags: HumanStyleIssueTag[]; feedbackNote?: string };
     },
   ) => {
     if (isBusy || session.status !== "idle") {
@@ -553,19 +616,22 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       && selectedDiagnosticCard.anchorRange.from === resolvedSelection.from
       && selectedDiagnosticCard.anchorRange.to === resolvedSelection.to;
     const diagnosticCard = options?.diagnosticCard ?? (selectedCardMatches ? selectedDiagnosticCard! : undefined);
+    const repairBrief = diagnosticCard ? {
+      title: diagnosticCard.title,
+      problemSummary: diagnosticCard.problemSummary,
+      whyItMatters: diagnosticCard.whyItMatters,
+      repairGoal: diagnosticCard.repairGoal,
+      repairApproach: diagnosticCard.repairApproach,
+      mustPreserve: diagnosticCard.mustPreserve,
+    } : options?.repairBrief;
+    pendingContrastRef.current = options?.contrastFeedback ?? null;
+    setSaveContrastOnAccept(Boolean(options?.contrastFeedback));
     const request = buildAiRevisionRequest({
       source,
       scope,
       presetOperation: options?.presetOperation,
       instruction: options?.instruction,
-      repairBrief: diagnosticCard ? {
-        title: diagnosticCard.title,
-        problemSummary: diagnosticCard.problemSummary,
-        whyItMatters: diagnosticCard.whyItMatters,
-        repairGoal: diagnosticCard.repairGoal,
-        repairApproach: diagnosticCard.repairApproach,
-        mustPreserve: diagnosticCard.mustPreserve,
-      } : undefined,
+      repairBrief,
       selection: resolvedSelection,
       content: contentDraft,
       provider: llm.provider,
@@ -681,6 +747,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const handleReject = () => {
     setSession(EMPTY_SESSION);
+    setSaveContrastOnAccept(false);
+    pendingContrastRef.current = null;
   };
 
   const handleLoadSnapshotContent = (content: string, snapshotId: string) => {
@@ -741,8 +809,61 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const handleRunFreeform = () => {
+    const note = revisionInstruction.trim();
+    if (revisionScope === "selection" && selectedIssueTags.length > 0) {
+      runRevision("freeform", "selection", {
+        instruction: buildHumanFeedbackInstruction(selectedIssueTags, note),
+        repairBrief: buildHumanFeedbackRepairBrief(selectedIssueTags, note),
+        contrastFeedback: { issueTags: selectedIssueTags, feedbackNote: note || undefined },
+      });
+      return;
+    }
     runRevision("freeform", revisionScope, {
-      instruction: revisionInstruction.trim(),
+      instruction: note,
+    });
+  };
+
+  const handleQuickHumanFeedback = (input: {
+    issueTags: HumanStyleIssueTag[];
+    feedbackNote?: string;
+    mode: "rewrite" | "record";
+  }) => {
+    const target = getSelectionTarget();
+    if (!target) {
+      toast.error("请先选中正文片段再标记。");
+      return;
+    }
+    if (input.mode === "record") {
+      recordFeedbackMutation.mutate({
+        excerpt: target.text,
+        issueTags: input.issueTags,
+        feedbackNote: input.feedbackNote,
+      });
+      return;
+    }
+    const note = input.feedbackNote?.trim() ?? "";
+    runRevision("freeform", "selection", {
+      instruction: buildHumanFeedbackInstruction(input.issueTags, note),
+      repairBrief: buildHumanFeedbackRepairBrief(input.issueTags, note),
+      selectionOverride: target,
+      contrastFeedback: { issueTags: input.issueTags, feedbackNote: note || undefined },
+    });
+  };
+
+  const handleRecordSelectionFeedback = () => {
+    const target = getSelectionTarget();
+    if (!target) {
+      toast.error("请先选中正文片段再标记。");
+      return;
+    }
+    if (selectedIssueTags.length === 0 && !revisionInstruction.trim()) {
+      toast.error("请先点选问题标签或填写一句意见。");
+      return;
+    }
+    recordFeedbackMutation.mutate({
+      excerpt: target.text,
+      issueTags: selectedIssueTags,
+      feedbackNote: revisionInstruction.trim() || undefined,
     });
   };
 
@@ -917,6 +1038,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             documentKey={chapter.id}
             onQuickOperation={(operation) => handleRunOperation(operation)}
             onQuickInstruction={(instruction) => handleRunOperation("custom", instruction)}
+            onQuickHumanFeedback={handleQuickHumanFeedback}
+            recordingHumanFeedback={recordFeedbackMutation.isPending}
             onGhostSuggest={handleGhostSuggest}
             ghostSuspended={isBusy || session.status !== "idle"}
             layoutMode={layoutMode}
@@ -950,6 +1073,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             }}
             preview={previewPayload}
             focusRequestKey={focusRequestKey}
+            focusSource={selection ? "selection" : "diagnostic"}
             focusRange={session.status === "idle"
               ? selection
                 ? { from: selection.from, to: selection.to }
@@ -974,6 +1098,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               actionContext={actionContext}
               cursorTargetDescription={cursorTargetLabel}
               selectionTargetDescription={selection ? `已选中 ${countEditorWords(selection.text)} 字` : ""}
+              selectionPreview={selection?.text}
+              selectedIssueTags={selectedIssueTags}
+              recordingHumanFeedback={recordFeedbackMutation.isPending}
+              humanFeedbackSummary={humanFeedbackQuery.data?.data ?? null}
+              removingFeedbackPattern={removeFeedbackMutation.isPending ? (removeFeedbackMutation.variables ?? null) : null}
+              saveContrastOnAccept={saveContrastOnAccept}
+              onSaveContrastOnAcceptChange={setSaveContrastOnAccept}
+              onRemoveFeedbackPair={(aiPattern) => removeFeedbackMutation.mutate(aiPattern)}
+              onToggleIssueTag={(tag) => setSelectedIssueTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))}
+              onRecordHumanFeedback={handleRecordSelectionFeedback}
               session={session}
               activeCandidate={activeCandidate}
               diffChanges={review.changes}

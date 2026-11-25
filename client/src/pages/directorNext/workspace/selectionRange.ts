@@ -118,7 +118,7 @@ export function resolveSelectedProseRange(
   }
 
   const findParagraphElement = (node: Node): HTMLElement | null => {
-    const element = node.nodeType === Node.ELEMENT_NODE ? (node as HTMLElement) : node.parentElement;
+    const element = node.nodeType === 1 ? (node as HTMLElement) : node.parentElement;
     return element?.closest<HTMLElement>("[data-paragraph-index]") ?? null;
   };
 

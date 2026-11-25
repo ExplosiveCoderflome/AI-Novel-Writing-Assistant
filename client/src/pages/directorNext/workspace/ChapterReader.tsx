@@ -76,8 +76,12 @@ export function ChapterReader({
   const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
   const [macroAlignmentNote, setMacroAlignmentNote] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [selectionAnchor, setSelectionAnchor] = useState<{ top: number; placement: "below" | "above" } | null>(null);
   const [showRulesDrawer, setShowRulesDrawer] = useState(false);
+  const proseContainerRef = useRef<HTMLDivElement>(null);
   const proseRef = useRef<HTMLDivElement>(null);
+  const feedbackPanelRef = useRef<HTMLDivElement>(null);
+  const interactingWithFeedbackPanelRef = useRef(false);
 
   const isPreview = novelId === "preview";
   const feedbackQuery = useQuery({
@@ -110,6 +114,7 @@ export function ChapterReader({
 
   function clearSelectionFeedback() {
     setSelectedRange(null);
+    setSelectionAnchor(null);
     setIssueTags([]);
     setFeedbackNote("");
     setSelectionCandidates([]);
@@ -118,20 +123,54 @@ export function ChapterReader({
     setSelectionError(null);
   }
 
-  function handleProseSelectionCapture() {
+  function computeSelectionAnchor(range: Range): { top: number; placement: "below" | "above" } {
+    const container = proseContainerRef.current;
+    if (!container) {
+      return { top: 8, placement: "below" };
+    }
+    const rect = range.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const viewport = container.closest<HTMLElement>("[data-chapter-scroll-viewport]");
+    const viewportBottom = viewport ? viewport.getBoundingClientRect().bottom : window.innerHeight;
+    const viewportTop = viewport ? viewport.getBoundingClientRect().top : 0;
+    const spaceBelow = viewportBottom - rect.bottom;
+    const spaceAbove = rect.top - viewportTop;
+    if (spaceBelow < 260 && spaceAbove > spaceBelow) {
+      return {
+        top: Math.max(8, rect.top - containerRect.top - 8),
+        placement: "above",
+      };
+    }
+    return {
+      top: Math.max(8, rect.bottom - containerRect.top + 8),
+      placement: "below",
+    };
+  }
+
+  function syncProseSelection(clearWhenEmpty: boolean) {
     if (isEditing || isWriting || isPreview || !edition.content) return;
-    if (selectionRewriteMutation.isPending || applyCandidateMutation.isPending) return;
+    if (selectionRewriteMutation.isPending || applyCandidateMutation.isPending || recordFeedbackMutation.isPending) return;
     if (selectionCandidates.length > 0) return;
+    const domSelection = window.getSelection();
     const nextRange = resolveSelectedProseRange(
       proseRef.current,
       edition.content,
       paragraphs,
-      window.getSelection(),
+      domSelection,
     );
-    if (nextRange) {
+    if (nextRange && domSelection && domSelection.rangeCount > 0) {
       setSelectedRange(nextRange);
+      setSelectionAnchor(computeSelectionAnchor(domSelection.getRangeAt(0)));
       setSelectionError(null);
+      return;
     }
+    if (clearWhenEmpty) {
+      clearSelectionFeedback();
+    }
+  }
+
+  function handleProseSelectionCapture() {
+    syncProseSelection(true);
   }
 
   const tail = useRef<HTMLDivElement>(null);
@@ -323,6 +362,58 @@ export function ChapterReader({
     },
   });
 
+  useEffect(() => {
+    if (isEditing || isWriting || isPreview || !edition.content) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      const insidePanel = Boolean(target && feedbackPanelRef.current?.contains(target));
+      interactingWithFeedbackPanelRef.current = insidePanel;
+      if (
+        !insidePanel
+        && target
+        && !proseRef.current?.contains(target)
+        && selectionCandidates.length === 0
+        && !selectionRewriteMutation.isPending
+        && !applyCandidateMutation.isPending
+        && !recordFeedbackMutation.isPending
+      ) {
+        clearSelectionFeedback();
+      }
+    };
+    const handleMouseUp = () => {
+      if (!feedbackPanelRef.current?.contains(document.activeElement)) {
+        interactingWithFeedbackPanelRef.current = false;
+      }
+    };
+    const handleSelectionChange = () => {
+      if (
+        interactingWithFeedbackPanelRef.current
+        || (document.activeElement && feedbackPanelRef.current?.contains(document.activeElement))
+      ) {
+        return;
+      }
+      syncProseSelection(true);
+    };
+    document.addEventListener("mousedown", handleMouseDown, true);
+    window.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+    };
+  }, [
+    isEditing,
+    isWriting,
+    isPreview,
+    edition.content,
+    paragraphs,
+    selectionCandidates.length,
+    selectionRewriteMutation.isPending,
+    applyCandidateMutation.isPending,
+    recordFeedbackMutation.isPending,
+  ]);
+
   function startInlineEdit() {
     if (!canInlineEdit || isWriting || isLocked) return;
     clearSelectionFeedback();
@@ -465,35 +556,7 @@ export function ChapterReader({
           onRemove={(aiPattern) => removeFeedbackMutation.mutate(aiPattern)}
         />
       ) : null}
-      {!isEditing && !isWriting && selectedRange ? (
-        <SelectionFeedbackPanel
-          selectedRange={selectedRange}
-          issueTags={issueTags}
-          feedbackNote={feedbackNote}
-          canApplyRewrite={canInlineEdit}
-          isLocked={isLocked}
-          rewriting={selectionRewriteMutation.isPending}
-          recordingFeedback={recordFeedbackMutation.isPending}
-          applyingCandidate={applyCandidateMutation.isPending}
-          candidates={selectionCandidates}
-          activeCandidateId={activeCandidateId}
-          macroAlignmentNote={macroAlignmentNote}
-          error={selectionError}
-          onToggleTag={(tag) => setIssueTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))}
-          onFeedbackNoteChange={setFeedbackNote}
-          onClearSelection={clearSelectionFeedback}
-          onRequestRewrite={() => selectionRewriteMutation.mutate()}
-          onRecordOnly={() => recordFeedbackMutation.mutate()}
-          onSelectCandidate={setActiveCandidateId}
-          onApplyCandidate={(candidate, saveContrastPair) => applyCandidateMutation.mutate({ candidate, saveContrastPair })}
-          onDismissCandidates={() => {
-            setSelectionCandidates([]);
-            setActiveCandidateId(null);
-            setMacroAlignmentNote(null);
-            setSelectionError(null);
-          }}
-        />
-      ) : !isEditing && !isWriting && !isPreview && content?.trim() ? (
+      {!isEditing && !isWriting && !isPreview && content?.trim() && !selectedRange ? (
         <p className="text-xs text-muted-foreground">提示：在正文里用鼠标划选任意句子或段落，可让 AI 按意见局部重改，或记为本书避坑反例。</p>
       ) : null}
     </div>
@@ -514,23 +577,67 @@ export function ChapterReader({
         onContinueEditing={() => setConfirmCancel(false)}
       />
     ) : content?.trim() ? (
-      <div
-        ref={proseRef}
-        onMouseUp={handleProseSelectionCapture}
-        onKeyUp={handleProseSelectionCapture}
-        className="space-y-6 leading-[2.15] tracking-wide text-foreground/90"
-        style={readingStyle}
-      >
-        {paragraphs.map((paragraph) => (
-          <p
-            key={paragraph.index}
-            data-paragraph-index={paragraph.index}
-            className="whitespace-pre-wrap break-words"
+      <div ref={proseContainerRef} className="relative">
+        <div
+          ref={proseRef}
+          onMouseUp={handleProseSelectionCapture}
+          onKeyUp={handleProseSelectionCapture}
+          className="space-y-6 leading-[2.15] tracking-wide text-foreground/90"
+          style={readingStyle}
+        >
+          {paragraphs.map((paragraph) => (
+            <p
+              key={paragraph.index}
+              data-paragraph-index={paragraph.index}
+              className="whitespace-pre-wrap break-words"
+            >
+              {paragraph.text}
+            </p>
+          ))}
+          {isWriting ? <span aria-hidden="true" className="inline-block h-5 w-1 animate-pulse bg-primary"/> : null}
+        </div>
+        {!isEditing && !isWriting && selectedRange ? (
+          <div
+            ref={feedbackPanelRef}
+            style={{
+              top: selectionAnchor?.top ?? 8,
+              transform: selectionAnchor?.placement === "above" ? "translateY(-100%)" : undefined,
+            }}
+            className="absolute inset-x-0 z-20 mx-auto max-w-xl"
+            onMouseDown={() => { interactingWithFeedbackPanelRef.current = true; }}
           >
-            {paragraph.text}
-          </p>
-        ))}
-        {isWriting ? <span aria-hidden="true" className="inline-block h-5 w-1 animate-pulse bg-primary"/> : null}
+            <SelectionFeedbackPanel
+              selectedRange={selectedRange}
+              issueTags={issueTags}
+              feedbackNote={feedbackNote}
+              canApplyRewrite={canInlineEdit}
+              isLocked={isLocked}
+              rewriting={selectionRewriteMutation.isPending}
+              recordingFeedback={recordFeedbackMutation.isPending}
+              applyingCandidate={applyCandidateMutation.isPending}
+              candidates={selectionCandidates}
+              activeCandidateId={activeCandidateId}
+              macroAlignmentNote={macroAlignmentNote}
+              error={selectionError}
+              onToggleTag={(tag) => setIssueTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))}
+              onFeedbackNoteChange={setFeedbackNote}
+              onClearSelection={() => {
+                window.getSelection()?.removeAllRanges();
+                clearSelectionFeedback();
+              }}
+              onRequestRewrite={() => selectionRewriteMutation.mutate()}
+              onRecordOnly={() => recordFeedbackMutation.mutate()}
+              onSelectCandidate={setActiveCandidateId}
+              onApplyCandidate={(candidate, saveContrastPair) => applyCandidateMutation.mutate({ candidate, saveContrastPair })}
+              onDismissCandidates={() => {
+                setSelectionCandidates([]);
+                setActiveCandidateId(null);
+                setMacroAlignmentNote(null);
+                setSelectionError(null);
+              }}
+            />
+          </div>
+        ) : null}
       </div>
     ) : isWriting ? (
       <p className="py-16 text-center text-sm text-muted-foreground">正在准备正文输出…</p>
