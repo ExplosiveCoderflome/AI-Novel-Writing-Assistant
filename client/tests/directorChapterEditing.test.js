@@ -43,11 +43,13 @@ import {previewBook} from './src/pages/directorNext/workspace/previewBook';
 import {queryKeys} from './src/api/queryKeys';
 import {apiClient} from './src/api/client';
 import {useLLMStore} from './src/store/llmStore';
+import {characterProfileFields} from '@ai-novel/shared/types/director/characterProfile';
 export async function run(scenario) {
   const requests=[];
   let finishPendingSave;
   const diagnostic=scenario.startsWith('diagnostic');
   const rewrite=scenario.startsWith('rewrite');
+  const characterNavigation=scenario==='character-navigation';
   globalThis.__chapterFocusRanges=[];
   let chapter={...previewBook.chapters[0],content:'alpha\\n\\nbeta',wordCount:9,updatedAt:'2026-10-11T00:00:00.000Z'};
   const book={...previewBook,novel:{...previewBook.novel,id:'book'},chapters:[chapter],
@@ -57,6 +59,12 @@ export async function run(scenario) {
     chapterProgress:null,nextLaunchRange:null,progress:{done:1,total:1,source:'artifact_ledger'},
     debts:{count:0,chapterOrders:[]},availableActions:[],sourceRoute:'/lab/director/book',
     sourceTrace:{controlStatus:'completed',controlVersion:1,pauseKind:null,planVersion:'v1'}};
+  const followActivity=(version, artifactType) => ({novelId:'book',runId:'run',revision:'run:'+version,
+    focus:{key:'run:'+version+':'+artifactType,artifactType,label:'准备本书资料'}});
+  if(characterNavigation) {
+    view.mode='waiting_gate';
+    view.workspaceActivity=followActivity(1,'character_cast');
+  }
   if(scenario==='review-prose') {
     book.chapters.push({...chapter,id:'c2',order:2,title:'第二章',content:'最近保存的正文'}, {...chapter,id:'c3',order:3,content:null});
     book.planning={volumes:[{id:'v1',sortOrder:1,title:'第一卷',chapters:[{id:'p3',volumeId:'v1',chapterOrder:3,title:'第三章',taskSheet:'本章任务',sceneCards:'本章场景'}]}],beatSheets:[]};
@@ -83,7 +91,7 @@ export async function run(scenario) {
   const client=new QueryClient({defaultOptions:{queries:{retry:false,staleTime:Infinity,gcTime:0},mutations:{gcTime:0}}});
   client.setQueryData(queryKeys.directorNext.summary('book'),{success:true,data:view});
   client.setQueryData(queryKeys.directorNext.detail('book'),{success:true,data:{view,timeline:[]}});
-  if(scenario==='review-prose') client.setQueryData([...queryKeys.directorNext.detail('book'),'run'],{success:true,data:{view,timeline:[]}});
+  if(scenario==='review-prose' || characterNavigation) client.setQueryData([...queryKeys.directorNext.detail('book'),'run'],{success:true,data:{view,timeline:[]}});
   client.setQueryData(['directorBookWorkspace','book'],{success:true,data:book});
   client.setQueryData(['directorNovelMetadata','book'],{success:true,data:metadata});
   client.setQueryData(queryKeys.novels.detail('book'),{success:true,data:metadata});
@@ -111,6 +119,12 @@ export async function run(scenario) {
       chapter={...chapter,content:body.content,updatedAt:'2026-10-11T00:01:00.000Z'};data=chapter;
     } else if(config.url==='/novels/book') data={...metadata,chapters:[chapter]};
     else if(config.url==='/director-next/novels/book/workspace') data={...book,chapters:[chapter]};
+    else if(characterNavigation && config.url==='/director-next/novels/book/characters/lin/profile') {
+      data={fields:{...Object.fromEntries(characterProfileFields.map(field=>[field,''])),name:'林渡',role:'主角'},
+        editBlockedReason:null,renameBlockedReason:null};
+    }
+    else if(characterNavigation && config.url.endsWith('/appearances')) data={chapters:[]};
+    else if(characterNavigation && (config.url.endsWith('/timeline') || config.url.endsWith('/profile/conversation'))) data=[];
     else if(config.url==='/novels/book/chapters/c1/editor/workspace') {
       if(scenario==='analysis-typing') return new Promise(()=>{});
       data=workspace;
@@ -141,6 +155,35 @@ export async function run(scenario) {
       const before=document.body.textContent;
       await click('查看最新正文（第 2 章）');
       return {before,after:document.body.textContent,requests};
+    }
+    if(characterNavigation) {
+      const heading=()=>document.querySelector('[data-chapter-scroll-viewport] h2')?.textContent;
+      const dialogTitle=()=>document.querySelector('[role=dialog] h2')?.textContent;
+      const publishFocus=async (version, artifactType)=>{
+        await act(async()=>client.setQueryData([...queryKeys.directorNext.detail('book'),'run'],{success:true,data:{
+          view:{...view,workspaceActivity:followActivity(version,artifactType)},timeline:[],
+        }}));
+        await flush();
+      };
+      const entry=document.querySelector('button[aria-label^="林渡，"]');
+      await act(async()=>entry.click());await flush();
+      const buttons=[...document.querySelectorAll('[data-chapter-scroll-viewport] button')];
+      const adjust=buttons.find(button=>button.textContent.trim()==='查看与调整角色');
+      const ai=buttons.find(button=>button.textContent.trim()==='与 AI 编辑角色资料');
+      const peerActions=Boolean(adjust && ai && adjust.parentElement===ai.parentElement);
+      await click('查看与调整角色');
+      await publishFocus(2,'character_cast');
+      const drawerWhileFollowing=dialogTitle();
+      await click('关闭');
+      const afterClosingDetails=heading();
+      await click('与 AI 编辑角色资料');
+      const directEditor=dialogTitle();
+      const dialogCount=document.querySelectorAll('[role=dialog]').length;
+      await publishFocus(3,'character_cast');
+      await click('关闭');
+      const afterClosingEditor=heading();
+      await publishFocus(4,'world_skeleton');
+      return {peerActions,drawerWhileFollowing,afterClosingDetails,directEditor,dialogCount,afterClosingEditor,afterNextFocus:heading()};
     }
     const before=document.querySelector('article').textContent;
     await click('编辑正文');
@@ -417,4 +460,15 @@ test('saving prose disables cursor generation until the protected save has compl
   const result=await run('cursor-save-pending');
   assert.equal(result.disabled,true);
   assert.ok(result.requests.every(row=>!row.url.endsWith('/continue-preview')));
+});
+
+test('character details open either drawer directly and closing keeps the role when the director reports cast focus',async()=>{
+  const result=await run('character-navigation');
+  assert.equal(result.peerActions,true);
+  assert.equal(result.drawerWhileFollowing,'林渡');
+  assert.equal(result.afterClosingDetails,'林渡');
+  assert.equal(result.directEditor,'编辑角色资料 · 林渡');
+  assert.equal(result.dialogCount,1);
+  assert.equal(result.afterClosingEditor,'林渡');
+  assert.equal(result.afterNextFocus,'雾原与移动之城');
 });

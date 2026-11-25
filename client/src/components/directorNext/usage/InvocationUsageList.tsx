@@ -3,6 +3,8 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { getDirectorUsage } from "@/api/directorNext";
 import { formatCacheTokens } from "@/components/liveExecution/usage/presentation";
 import { Button } from "@/components/ui/button";
+import { Activity } from "lucide-react";
+import PanelDisclosure from "../panel/PanelDisclosure";
 export function InvocationUsageList({ runId, active = false }: {
     runId: string;
     active?: boolean;
@@ -13,9 +15,8 @@ export function InvocationUsageList({ runId, active = false }: {
         enabled: open, retry: false, refetchInterval: open && active ? 5000 : false });
     const summary = query.data?.pages[0]?.data?.recordedSummary;
     const items = query.data?.pages.flatMap(p => p.data?.items ?? []) ?? [];
-    return <section className="border-t border-border/60 py-4">
- <button type="button" className="text-sm font-semibold" aria-expanded={open} onClick={() => setOpen(v => !v)}>{open ? "▾" : "▸"} 调用用量</button>
- {open ? <div className="mt-3 space-y-3 text-xs">
+    return <PanelDisclosure title="调用用量" icon={Activity} onOpenChange={setOpen}>
+ {open ? <div className="space-y-3 text-xs">
  {query.isPending ? <p className="text-muted-foreground">正在读取调用用量…</p> : query.isError ? <p className="text-muted-foreground">调用用量暂不可读取。<button className="ml-2 underline" onClick={() => void query.refetch()}>重新读取</button></p> : <>
  {summary ? <><p>缓存命中 Tokens {formatCacheTokens(summary.inputCache.cacheHitTokens, "completed", summary.inputCache.cacheUsageStatus)}</p>
  <p>缓存未命中 Tokens {formatCacheTokens(summary.inputCache.cacheMissTokens, "completed", summary.inputCache.cacheUsageStatus)}</p>
@@ -28,5 +29,5 @@ export function InvocationUsageList({ runId, active = false }: {
  </li>)}</ul>}
  {query.hasNextPage ? <Button variant="ghost" size="sm" disabled={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>查看更多调用</Button> : null}
  </>}
- </div> : null}</section>;
+ </div> : null}</PanelDisclosure>;
 }

@@ -1,5 +1,5 @@
 import archiver from "archiver";
-import { safeFileNamePart, type NovelTxtRecord } from "../novelExport.formatting";
+import { chapterExportText, safeFileNamePart, type NovelTxtRecord } from "../novelExport.formatting";
 
 export function buildChapterArchive(novel: NovelTxtRecord): Promise<Buffer> {
   const chapters = novel.narrativeForm === "short_story"
@@ -14,7 +14,7 @@ export function buildChapterArchive(novel: NovelTxtRecord): Promise<Buffer> {
 
     for (const chapter of chapters) {
       archive.append(
-        Buffer.from(`第${chapter.order}章 ${chapter.title}\n\n${(chapter.content ?? "").replace(/\r\n?/g, "\n").trim()}\n`, "utf8"),
+        Buffer.from(`第${chapter.order}章 ${chapter.title}\n\n${chapterExportText(chapter.content ?? null, novel.confirmedManuscript)}\n`, "utf8"),
         { name: `${String(chapter.order).padStart(4, "0")}-${safeFileNamePart(chapter.title)}.txt` },
       );
     }

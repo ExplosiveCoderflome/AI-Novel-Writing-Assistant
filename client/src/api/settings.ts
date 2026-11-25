@@ -156,6 +156,9 @@ export interface ModelRoutesResponse {
 }
 
 export interface ModelRouteConnectivityStatus {
+  testedProtocol: ModelRouteRequestProtocol;
+  testedFormat: ModelRouteStructuredResponseFormat;
+  recommendation: { requestProtocol: ModelRouteRequestProtocol; structuredResponseFormat: ModelRouteStructuredResponseFormat } | null;
   taskType: ModelRouteTaskType;
   provider: string;
   model: string;
@@ -478,6 +481,11 @@ export async function getLLMProviders() {
 
 export async function getModelRoutes() {
   const { data } = await apiClient.get<ApiResponse<ModelRoutesResponse>>("/llm/model-routes");
+  return data;
+}
+
+export async function getModelRouteConnectivity() {
+  const { data } = await apiClient.get<ApiResponse<ModelRouteConnectivityResponse | null>>("/llm/model-routes/connectivity");
   return data;
 }
 

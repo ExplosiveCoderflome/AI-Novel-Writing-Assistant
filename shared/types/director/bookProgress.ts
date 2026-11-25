@@ -13,4 +13,5 @@ export interface NovelBookCompletion {
   completedChapters: number;
   targetChapters: number;
   firstChapterId: string | null;
+  finalReviewRoute?:string;
 }

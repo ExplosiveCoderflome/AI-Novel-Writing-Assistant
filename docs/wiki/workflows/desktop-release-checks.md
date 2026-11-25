@@ -30,6 +30,8 @@
 
 `.tmp/pg-live-gate.json` 仍是 run-scoped 发布证据。上传入口与 `verify-proof.cjs` / `verifyUpload` 必须 fail-closed。`check.cjs`（含 `workflow_dispatch` verify-only）在 CI 中仍要求当前 run 的 PG proof；本地非 CI 仍执行 `test:pg-live`。
 
+正式标签前可在 `beta` 的候选提交手动运行 Desktop Release。Linux 运行与正式发布相同的可移植测试（包括符号链接负例），Windows 并行验证目录包。两项均成功后，快进到同一提交的发布工作区可从该次运行下载 `desktop-preflight-<SHA>-<attempt>` 的原始检查记录到 `.tmp/desktop-release/`，继续执行发布脚本的 dry-run。核对工作流、触发分支、提交、版本与运行结论后才复用记录。正式标签的发布任务仍会针对本次运行重新生成证明和各平台构建清单。
+
 ### 构建清单
 
 每个 `build-*` job 写入 `build-manifest.json`，绑定 head／run／attempt／version／os／arch，并记录允许上传文件的 size／sha256／sha512。上传前必须：

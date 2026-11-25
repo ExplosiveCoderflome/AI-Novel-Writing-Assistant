@@ -14,6 +14,7 @@ interface DeliveryChapter {
 }
 
 export function projectBookCompletion(input: {
+  finalReviewNovelId?:string;
   target: number | null;
   chapters: readonly DeliveryChapter[];
   activity: "writing" | "needs_attention" | null;
@@ -40,6 +41,7 @@ export function projectBookCompletion(input: {
   const status = needsAttention ? "needs_attention"
     : input.activity === "writing" || completedChapters !== targetChapters ? "writing" : "completed";
   return { status, completedChapters, targetChapters,
+    ...(status==="completed" && input.finalReviewNovelId ? {finalReviewRoute:`/lab/director/${encodeURIComponent(input.finalReviewNovelId)}?delivery=review`} : {}),
     firstChapterId: status === "completed" ? input.chapters.find(chapter => chapter.order === 1)?.id ?? null : null };
 }
 

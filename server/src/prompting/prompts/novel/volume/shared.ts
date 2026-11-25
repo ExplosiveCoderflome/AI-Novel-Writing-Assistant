@@ -144,6 +144,7 @@ export function buildCommonNovelContext(novel: VolumeGenerationNovel): string {
     `emotion intensity: ${compactText(novel.emotionIntensity, "unset")}`,
     `commercial tags: ${commercialTags.join(" | ") || "none"}`,
     `character context:\n${summarizeCharacters(novel)}`,
+    novel.confirmedCast?.length ? `作者确认的角色设定（分卷安排须体现这些人物选择）：\n${JSON.stringify(novel.confirmedCast)}` : "",
   ].filter(Boolean).join("\n");
 }
 

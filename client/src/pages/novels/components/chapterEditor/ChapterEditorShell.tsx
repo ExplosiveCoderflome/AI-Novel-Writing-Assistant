@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -41,6 +42,7 @@ import {
   getSaveStatusLabel,
   getParagraphWindow,
   getParagraphIndicesForRange,
+  getParagraphSelection,
   normalizeChapterContent,
   useChapterDraft,
 } from "./document";
@@ -114,6 +116,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
   const lastPreviewDiagnosticRef = useRef<ChapterEditorDiagnosticCard | undefined>(undefined);
   const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
+  const initialImpactKeyRef = useRef<string | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
@@ -150,6 +153,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = undefined;
     setFocusRequestKey(0);
     lastContinuationRequestRef.current = null;
+    initialImpactKeyRef.current = null;
   }, [chapter?.id]);
 
   useEffect(() => {
@@ -471,6 +475,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       await props.onChapterSaved?.();
+      if (fullyAccepted && props.initialImpact) {
+        await props.onImpactApplied?.();
+      }
       setLoadedSnapshotId(null);
     },
   });
@@ -568,6 +575,32 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = diagnosticCard;
     previewMutation.mutate(request);
   };
+
+  useEffect(() => {
+    const impact = props.initialImpact;
+    if (!impact || initialImpactKeyRef.current === impact.key || isBusy || session.status !== "idle") {
+      return;
+    }
+    const target = getParagraphSelection(contentDraft, impact.paragraph);
+    if (!target) {
+      return;
+    }
+    initialImpactKeyRef.current = impact.key;
+    if (target.text !== impact.before) {
+      setSelection(target);
+      toast.error("这段正文已有变化，请重新检查角色资料影响后再修订。", {duration: 6000});
+      return;
+    }
+    setSelection(target);
+    setCursorOffset(null);
+    setSelectedDiagnosticId(null);
+    setRevisionScope("selection");
+    setFocusRequestKey((current) => current + 1);
+    runRevision("freeform", "selection", {
+      instruction: impact.instruction,
+      selectionOverride: target,
+    });
+  }, [contentDraft, isBusy, props.initialImpact, session.status]);
 
   const handleRunOperation = (operation: ChapterEditorOperation, customInstruction?: string) => {
     runRevision(
@@ -758,17 +791,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   // reject controls live in the right panel.
   const effectiveLayout = session.status !== "idle" ? "standard" : layoutMode;
   const rightPanelCollapsed = panelsCollapsed.right && session.status === "idle";
-  const gridClassName = effectiveLayout === "wide"
-    ? "xl:grid-cols-[minmax(0,1fr)_384px]"
-    : effectiveLayout === "immersive"
-      ? "xl:grid-cols-[minmax(0,1fr)]"
-      : panelsCollapsed.left && rightPanelCollapsed
-        ? "xl:grid-cols-[44px_minmax(0,1fr)_44px]"
-        : panelsCollapsed.left
-          ? "xl:grid-cols-[44px_minmax(0,1fr)_400px]"
-          : rightPanelCollapsed
-            ? "xl:grid-cols-[320px_minmax(0,1fr)_44px]"
-            : "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
+  const leftCollapsed = panelsCollapsed.left;
+  const rightCollapsed = effectiveLayout === "standard" && rightPanelCollapsed;
 
   const openQualityNotice = () => {
     setLayoutMode("standard");
@@ -805,6 +829,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {props.initialImpact ? (
+        <div role="status" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium">正在核对角色资料影响</span>
+          <span className="text-muted-foreground">第 {props.initialImpact.paragraph} 段 · 确认候选后写入正文</span>
+        </div>
+      ) : null}
       {(restored || hasExternalChange || storageError) ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>{storageError ? "浏览器暂时无法保存本地草稿，请尽快保存到作品。" : hasExternalChange ? "本章已有新的保存版本，你的草稿仍保留。" : "已恢复未保存的正文草稿。"}</span>
@@ -833,7 +863,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           ) : null}
         </div>
       ) : null}
-      <div className={`grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden ${gridClassName}`}>
+      <WorkspaceColumns layoutId="chapter-editor" className="grid min-h-0 flex-1 gap-4 overflow-y-auto xl:overflow-hidden xl:workspace-split"
+        left={effectiveLayout === "standard" ? { label: "调整本章信息宽度", initial: leftCollapsed ? "44px" : "320px", min: leftCollapsed ? 44 : 176, collapsed: leftCollapsed } : undefined}
+        right={effectiveLayout !== "immersive" ? { label: "调整 AI 改写宽度", initial: rightCollapsed ? "44px" : effectiveLayout === "wide" ? "384px" : "400px", min: rightCollapsed ? 44 : 224, collapsed: rightCollapsed } : undefined}>
         {effectiveLayout === "standard" && panelsCollapsed.left ? (
         <div className="order-1 flex min-h-0 flex-col items-center gap-2 py-2 xl:order-none">
           <Button size="icon" variant="ghost" className="h-8 w-8" title="展开左栏" onClick={() => setPanelsCollapsed((current) => ({ ...current, left: false }))}>
@@ -978,7 +1010,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             />
         </div>
         ) : null}
-      </div>
+      </WorkspaceColumns>
       <ChapterVersionDrawer
         novelId={novelId}
         chapterId={chapter.id}

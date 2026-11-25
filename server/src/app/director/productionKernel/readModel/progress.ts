@@ -16,7 +16,7 @@ export async function readKernelChapterProgress(db: Reader,contract: RunContract
   const chapters=await db.chapter.findMany({where:{novelId:contract.novelId,order:{gte:range.from,lte:range.to}},
     select:{id:true,novelId:true,order:true,title:true,content:true},orderBy:{order:"asc"}});
   if(new Set(chapters.map(chapter=>chapter.order)).size !== chapters.length)throw new FactIntegrityError("正文进度存在重复章节序号。");
-  const outcomes=await Promise.all(chapters.map(chapter=>readKernelUnitOutcome(db,contract,chapter)));
+  const outcomes=await Promise.all(chapters.map(chapter=>readKernelUnitOutcome(db,contract,chapter,{allowSynchronizedRevision:true})));
   const progress:ChapterProgress={...range,total:range.to-range.from+1,done:outcomes.filter(outcome=>outcome?.status === "completed").length,current:null};
   const active=await db.productionUnitRun.findMany({where:{ownerKey:productionBatchOwnerKey(contract.runId),activeStage:{not:null}},
     select:{novelId:true,chapterId:true,progressJson:true,activeStage:true,activeRequestKey:true}});

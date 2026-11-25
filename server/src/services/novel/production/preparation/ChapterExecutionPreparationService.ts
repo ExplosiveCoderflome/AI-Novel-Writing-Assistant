@@ -1,4 +1,5 @@
 import { buildDirectorCompletionProfile } from "@ai-novel/shared/types/directorCompletion";
+import { hasConfirmedExecutionContract } from "./confirmedExecutionContract";
 import { prisma } from "../../../../db/prisma";
 import { rejectLegacyManuscriptWrite } from "../../../../modules/novel/manuscript/application/ManuscriptIsolation";
 import { plannerService } from "../../../planner/PlannerService";
@@ -16,6 +17,7 @@ export interface ChapterExecutionPreparationResult {
 }
 
 export interface ChapterExecutionPreparationServiceDeps {
+  hasConfirmedExecutionContract?: (novelId: string, runId: string, chapterId: string) => Promise<boolean>;
   assertChapterWriteAllowed?: (novelId: string, chapterId: string) => Promise<void>;
   chapterPlanJITService: Pick<ChapterPlanJITService, "ensureExecutionReady">;
   planner: Pick<typeof plannerService, "ensureChapterPlan">;
@@ -31,6 +33,7 @@ export class ChapterExecutionPreparationService {
     novelId: string,
     chapterId: string,
     request: ChapterRuntimeRequestInput,
+    directorRunId?: string,
   ): Promise<ChapterExecutionPreparationResult> {
     await this.deps.assertChapterWriteAllowed?.(novelId, chapterId);
     await this.deps.ensureTimelineReady(novelId, chapterId, request);
@@ -38,7 +41,8 @@ export class ChapterExecutionPreparationService {
     const isDirectorExecution = request.controlPolicy?.advanceMode === "auto_to_execution"
       && request.controlPolicy.kickoffMode === "director_start";
     const preparedArtifacts: ChapterExecutionPreparationResult["preparedArtifacts"] = [];
-    if (isAutopilot || isDirectorExecution) {
+    const confirmed = directorRunId && await this.deps.hasConfirmedExecutionContract?.(novelId, directorRunId, chapterId);
+    if ((isAutopilot || isDirectorExecution) && !confirmed) {
       const estimatedChapterCount = await this.deps.loadEstimatedChapterCount(novelId);
       await this.deps.chapterPlanJITService.ensureExecutionReady(novelId, chapterId, {
         ...(isDirectorExecution ? { prepareRouteWindow: false } : {}),
@@ -52,7 +56,8 @@ export class ChapterExecutionPreparationService {
       });
       preparedArtifacts.push("chapter_execution_contract");
     }
-    const plan = await this.deps.planner.ensureChapterPlan(novelId, chapterId, request);
+    const plan = await this.deps.planner.ensureChapterPlan(novelId, chapterId,
+      confirmed ? {...request, preserveExecutionContract: true} : request);
     preparedArtifacts.push("chapter_plan");
     return {
       status: "ready",
@@ -77,6 +82,7 @@ export function createChapterExecutionPreparationService(input: {
     ),
   });
   return new ChapterExecutionPreparationService({
+    hasConfirmedExecutionContract: (novelId, runId, chapterId) => hasConfirmedExecutionContract(prisma, novelId, runId, chapterId),
     assertChapterWriteAllowed: (novelId) => rejectLegacyManuscriptWrite(prisma, novelId),
     ensureTimelineReady: (novelId, chapterId, request) => chapterTimelineFinalizationService.ensureBeforeGeneration({ novelId, chapterId, request }),
     chapterPlanJITService,

@@ -1,13 +1,7 @@
-import {
-  forceCenter,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-} from "d3-force";
+import { compareCharacterNames, orderedCastLayout } from "./relationshipGraph/orderedLayout.ts";
 import type { Character, CharacterRelation } from "@ai-novel/shared/types/novel";
 import type { CharacterRelationStage } from "@ai-novel/shared/types/characterDynamics";
-import { isProtagonistCharacter } from "../characterAssetWorkspace.helpers";
+import { isProtagonistCharacter } from "../characterAssetWorkspace.helpers.ts";
 
 export type RelationshipGraphMode = "all" | "current" | "tension" | "dynamic";
 
@@ -47,26 +41,7 @@ export interface RelationshipGraphModel {
   highTensionEdgeCount: number;
 }
 
-interface ForceNode {
-  id: string;
-  x: number;
-  y: number;
-  fx?: number | null;
-  fy?: number | null;
-}
-
-interface ForceLink {
-  source: string;
-  target: string;
-  weight: number;
-}
-
-const CANVAS_WIDTH = 980;
 const CANVAS_HEIGHT = 560;
-const GRAPH_CARD_WIDTH = 196;
-const GRAPH_CARD_HEIGHT = 148;
-const GRAPH_CARD_GAP_X = 68;
-const GRAPH_CARD_GAP_Y = 48;
 const CURRENT_ROOT_X = 170;
 const CURRENT_BRANCH_X = 560;
 const CURRENT_BRANCH_Y_START = 140;
@@ -170,7 +145,7 @@ export function buildRelationshipGraphModel(input: {
   if (input.mode !== "all" && input.selectedCharacterId) {
     visibleNodeIds.add(input.selectedCharacterId);
   }
-  if (visibleNodeIds.size === 0) {
+  if (input.mode === "all" || visibleNodeIds.size === 0) {
     input.characters.forEach((character) => visibleNodeIds.add(character.id));
   }
 
@@ -178,22 +153,12 @@ export function buildRelationshipGraphModel(input: {
   const visibleCharacters = input.characters.filter((character) => visibleNodeIds.has(character.id));
   const layout = input.mode === "current" && input.selectedCharacterId
     ? computeCurrentCharacterTreeLayout(visibleCharacters, filteredEdges, input.selectedCharacterId)
-    : computeGraphLayout(visibleCharacters, filteredEdges, protagonist?.id ?? "");
-  const nodes = input.characters
-    .filter((character) => visibleNodeIds.has(character.id))
-    .map((character) => {
-      const position = layout.get(character.id) ?? { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
-      const stats = relationStats.get(character.id) ?? { relationCount: 0, dynamicCount: 0 };
-      return {
-        id: character.id,
-        character,
-        x: position.x,
-        y: position.y,
-        relationCount: stats.relationCount,
-        dynamicCount: stats.dynamicCount,
-        isSelected: character.id === input.selectedCharacterId,
-      };
-    });
+    : orderedCastLayout(visibleCharacters);
+  const nodes = Array.from(layout, ([id, position]) => {
+    const character = characterById.get(id)!;
+    const stats = relationStats.get(id) ?? { relationCount: 0, dynamicCount: 0 };
+    return { id, character, ...position, ...stats, isSelected: id === input.selectedCharacterId };
+  });
 
   return {
     nodes,
@@ -274,7 +239,7 @@ function computeCurrentCharacterTreeLayout(
   const relatedIds = Array.from(new Set(edges
     .filter((edge) => edge.source === selectedCharacterId)
     .map((edge) => edge.target)
-    .filter((id) => characterById.has(id))));
+    .filter((id) => id !== selectedCharacterId && characterById.has(id))));
   const edgeByTarget = new Map(edges.map((edge) => [edge.target, edge]));
   const sortedRelatedIds = relatedIds.sort((first, second) => {
     const firstEdge = edgeByTarget.get(first);
@@ -284,7 +249,7 @@ function computeCurrentCharacterTreeLayout(
     if (firstPriority !== secondPriority) {
       return secondPriority - firstPriority;
     }
-    return (characterById.get(first)?.name ?? "").localeCompare(characterById.get(second)?.name ?? "", "zh-Hans-CN");
+    return compareCharacterNames(characterById.get(first)!, characterById.get(second)!);
   });
   const branchCenterY = sortedRelatedIds.length <= 1
     ? CANVAS_HEIGHT / 2
@@ -307,7 +272,7 @@ function computeCurrentCharacterTreeLayout(
     });
   });
 
-  const orphanCharacters = characters.filter((character) => !layout.has(character.id));
+  const orphanCharacters = characters.filter((character) => !layout.has(character.id)).sort(compareCharacterNames);
   orphanCharacters.forEach((character, index) => {
     layout.set(character.id, {
       x: CURRENT_BRANCH_X,
@@ -338,128 +303,6 @@ function getCurrentTreePriority(character: RelationshipGraphCharacter | undefine
   return priority;
 }
 
-function computeGraphLayout(
-  characters: RelationshipGraphCharacter[],
-  edges: RelationshipGraphEdge[],
-  protagonistId: string,
-) {
-  const radius = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.34;
-  const layoutHeight = Math.max(CANVAS_HEIGHT, 160 + Math.ceil(Math.max(characters.length, 1) / 2) * (GRAPH_CARD_HEIGHT + GRAPH_CARD_GAP_Y));
-  const nodes: ForceNode[] = characters.map((character, index) => {
-    if (character.id === protagonistId) {
-      return {
-        id: character.id,
-        x: CANVAS_WIDTH / 2,
-        y: layoutHeight / 2,
-        fx: CANVAS_WIDTH / 2,
-        fy: layoutHeight / 2,
-      };
-    }
-    const angle = (Math.PI * 2 * index) / Math.max(characters.length, 1);
-    return {
-      id: character.id,
-      x: CANVAS_WIDTH / 2 + radius * Math.cos(angle),
-      y: layoutHeight / 2 + radius * Math.sin(angle),
-    };
-  });
-  const links: ForceLink[] = edges.map((edge) => ({
-    source: edge.source,
-    target: edge.target,
-    weight: edge.weight,
-  }));
-
-  forceSimulation<ForceNode>(nodes)
-    .force("link", forceLink<ForceNode, ForceLink>(links).id((node) => node.id).distance((link) => Math.max(110, 220 - link.weight * 32)).strength(0.28))
-    .force("charge", forceManyBody<ForceNode>().strength(-760))
-    .force("collide", forceCollide<ForceNode>().radius(118).strength(0.92))
-    .force("center", forceCenter(CANVAS_WIDTH / 2, layoutHeight / 2).strength(0.08))
-    .stop()
-    .tick(180);
-
-  const safeNodes = resolveRectangularNodeCollisions(nodes, protagonistId, layoutHeight);
-  return new Map(nodes.map((node) => [
-    node.id,
-    {
-      x: safeNodes.get(node.id)?.x ?? clamp(node.x, GRAPH_CARD_WIDTH / 2 + 28, CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28),
-      y: safeNodes.get(node.id)?.y ?? clamp(node.y, GRAPH_CARD_HEIGHT / 2 + 28, layoutHeight - GRAPH_CARD_HEIGHT / 2 - 28),
-    },
-  ]));
-}
-
-function resolveRectangularNodeCollisions(
-  inputNodes: ForceNode[],
-  protagonistId: string,
-  initialLayoutHeight: number,
-) {
-  const nodes = inputNodes.map((node) => ({
-    ...node,
-    x: clamp(node.x, GRAPH_CARD_WIDTH / 2 + 28, CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28),
-    y: clamp(node.y, GRAPH_CARD_HEIGHT / 2 + 28, initialLayoutHeight - GRAPH_CARD_HEIGHT / 2 - 28),
-  }));
-  let layoutHeight = initialLayoutHeight;
-  const minCenterX = GRAPH_CARD_WIDTH + GRAPH_CARD_GAP_X;
-  const minCenterY = GRAPH_CARD_HEIGHT + GRAPH_CARD_GAP_Y;
-  const minX = GRAPH_CARD_WIDTH / 2 + 28;
-  const maxX = CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28;
-  const minY = GRAPH_CARD_HEIGHT / 2 + 28;
-
-  for (let iteration = 0; iteration < 160; iteration += 1) {
-    let moved = false;
-    for (let firstIndex = 0; firstIndex < nodes.length; firstIndex += 1) {
-      for (let secondIndex = firstIndex + 1; secondIndex < nodes.length; secondIndex += 1) {
-        const first = nodes[firstIndex];
-        const second = nodes[secondIndex];
-        const deltaX = second.x - first.x;
-        const deltaY = second.y - first.y;
-        const overlapX = minCenterX - Math.abs(deltaX);
-        const overlapY = minCenterY - Math.abs(deltaY);
-        if (overlapX <= 0 || overlapY <= 0) {
-          continue;
-        }
-
-        const firstPinned = first.id === protagonistId;
-        const secondPinned = second.id === protagonistId;
-        const pushOnX = overlapX < overlapY;
-        const direction = pushOnX
-          ? (deltaX >= 0 ? 1 : -1)
-          : (deltaY >= 0 ? 1 : -1);
-        const push = (pushOnX ? overlapX : overlapY) + 12;
-
-        if (firstPinned && secondPinned) {
-          continue;
-        }
-        if (firstPinned || secondPinned) {
-          const nodeToMove = firstPinned ? second : first;
-          const signedPush = firstPinned ? direction * push : -direction * push;
-          if (pushOnX) {
-            nodeToMove.x += signedPush;
-          } else {
-            nodeToMove.y += signedPush;
-          }
-        } else if (pushOnX) {
-          first.x -= direction * push * 0.5;
-          second.x += direction * push * 0.5;
-        } else {
-          first.y -= direction * push * 0.5;
-          second.y += direction * push * 0.5;
-        }
-        moved = true;
-      }
-    }
-
-    for (const node of nodes) {
-      layoutHeight = Math.max(layoutHeight, node.y + GRAPH_CARD_HEIGHT / 2 + 56);
-      node.x = clamp(node.x, minX, maxX);
-      node.y = clamp(node.y, minY, layoutHeight - GRAPH_CARD_HEIGHT / 2 - 28);
-    }
-    if (!moved) {
-      break;
-    }
-  }
-
-  return new Map(nodes.map((node) => [node.id, { x: node.x, y: node.y }]));
-}
-
 function getPairKey(first: string, second: string): string {
   return [first, second].sort().join("__");
 }
@@ -484,8 +327,4 @@ function isStaticRelationHighTension(relation: CharacterRelation): boolean {
 function isDynamicStageHighTension(stage: CharacterRelationStage): boolean {
   const text = [stage.stageLabel, stage.stageSummary, stage.nextTurnPoint].filter(Boolean).join(" ");
   return /敌|压|冲突|背叛|利用|怀疑|监视|威胁|秘密|隐瞒|对立|反转|代价|升级/.test(text);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, Number.isFinite(value) ? value : min));
 }

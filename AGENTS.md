@@ -1,5 +1,10 @@
 # Safety Rules
 
+## 项目技能启用范围（临时）
+
+- 本仓库只启用 `impeccable`，用于界面设计、操作流程和易用性评审。其余技能一律暂停，包括仓库内、全局安装及插件提供的技能。恢复范围由用户明确指定。
+- 暂停期间跳过下文对技能的调用、安装和创建要求。需要检查提交范围或维护发布说明时，直接按本文件的规则执行。
+
 ## Data Protection (Highest Priority)
 
 - Never execute any destructive data operation without a verified backup first.

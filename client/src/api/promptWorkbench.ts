@@ -97,6 +97,7 @@ export interface PromptCatalogItem {
     productPrompt: boolean;
     proseGeneration?: boolean;
     editModes: Array<"readonly" | "slots" | "advanced_template">;
+    slotScope?: "global";
     advancedTemplate?: { scope: "novel"; requiredContextGroups: string[] };
   };
   capabilities: {
@@ -116,6 +117,13 @@ export interface PromptCatalogItem {
 export interface PromptPreviewMessage {
   role: string;
   content: string;
+}
+
+export async function getCreationFlowTemplate(key: string) {
+  type Template = { id: string; version: string; messages: PromptPreviewMessage[] };
+  const { data } = await apiClient.get<ApiResponse<Template>>(`/prompt-workbench/creation-flow/templates/${encodeURIComponent(key)}`);
+  if (!data.data) throw new Error("未能读取此步骤的提示词。");
+  return data.data;
 }
 
 export interface PromptPreviewResult {

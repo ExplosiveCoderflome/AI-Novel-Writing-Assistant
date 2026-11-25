@@ -288,9 +288,11 @@ function mapSummary(row: {
     : null;
   const recoveryHint = isSkippableReviewBlockedFailure
     ? buildSkippableAutoExecutionReviewRecoveryHint(autoExecution)
-    : pendingManualRecovery
-      ? (row.lastError?.trim() || "服务重启后任务已暂停，等待手动恢复。")
-      : buildTaskRecoveryHint("novel_workflow", status);
+    : status === "failed" && row.lane === "auto_director" && row.currentItemKey === "candidate_direction_batch"
+      ? "在这本书的开书页重试，导演会沿用已保存的想法和设置，重新生成本轮方向。"
+      : pendingManualRecovery
+        ? (row.lastError?.trim() || "服务重启后任务已暂停，等待手动恢复。")
+        : buildTaskRecoveryHint("novel_workflow", status);
   return {
     id: row.id,
     kind: "novel_workflow",

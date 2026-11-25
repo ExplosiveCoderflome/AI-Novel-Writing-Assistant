@@ -124,7 +124,7 @@ function assertCommands(posts) {
   const {idempotencyKey,...launch}=posts[0];
   assert.deepEqual(launch,{type:'open_run',novelId:'book',driver:'assisted',stepIdsInScope:null,
     launchInput:{storyInput:'故事方向',estimatedChapterCount:30,worldMode:'skip',targetMode:'opening',provider:'deepseek',
-      model:'deepseek-flash',temperature:0.7,issuePolicyMode:'completion_first',executionRange:{from:1,to:10}}});
+      model:'deepseek-flash',temperature:0.7,executionRange:{from:1,to:10}}}, 'default launch inherits the book quality policy');
   for(const [index,decision] of ['confirm','confirm_after_edit','regenerate'].entries()) {
     const {idempotencyKey,...command}=posts[index+1];
     assert.deepEqual(command,{type:'resolve_gate',runId:'run',decision,expectedVersion:17});

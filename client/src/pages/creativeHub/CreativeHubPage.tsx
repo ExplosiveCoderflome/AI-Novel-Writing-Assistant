@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -632,7 +633,9 @@ export default function CreativeHubPage() {
         />
       )}
 
-      <div className="grid min-h-[72vh] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:h-[calc(100vh-13rem)] xl:grid-cols-[240px_minmax(0,1fr)_320px]">
+      <WorkspaceColumns layoutId="creative-hub" className="grid min-h-[72vh] gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:h-[calc(100vh-13rem)] xl:workspace-split"
+        left={{ label: "调整创作线程列表宽度", initial: "240px", min: 160 }}
+        right={{ label: "调整创作上下文宽度", initial: "320px", min: 220 }}>
         <div id="creative-hub-activity" className="min-h-0 scroll-mt-4 lg:col-start-1 lg:row-start-1 xl:col-start-2">
           <CreativeHubConversation
             runtime={runtimeState.runtime}
@@ -707,7 +710,7 @@ export default function CreativeHubPage() {
             onDelete={(threadId) => void removeThread(threadId)}
           />
         </div>
-      </div>
+      </WorkspaceColumns>
     </div>
   );
 }

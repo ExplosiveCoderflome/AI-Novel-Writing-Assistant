@@ -39,7 +39,7 @@ export class NovelWorkflowApplicationService {
     input: BootstrapWorkflowInput,
     // Internal persistence option: the Writer has already validated and composed
     // a complete launch/run state. Keep it outside the public bootstrap input.
-    options: { replaceSeedPayload?: boolean } = {},
+    options: { replaceSeedPayload?: boolean; expectedSeedPayload?: string | null } = {},
   ) {
     if (input.workflowTaskId?.trim()) {
       const existing = await this.workflow.getTaskById(input.workflowTaskId.trim());
@@ -81,14 +81,18 @@ export class NovelWorkflowApplicationService {
           return attached;
         }
         if (input.seedPayload) {
+          const guarded = options.expectedSeedPayload !== undefined;
           return this.workflow.updateTaskWithRetry({
-            where: { id: existing.id },
+            where: { id: existing.id, ...(guarded ? { seedPayloadJson: options.expectedSeedPayload, novelId: null } : {}) },
             data: {
               seedPayloadJson: options.replaceSeedPayload
                 ? JSON.stringify(input.seedPayload)
                 : mergeSeedPayload(existing.seedPayloadJson, input.seedPayload),
               heartbeatAt: new Date(),
             },
+          }).catch(error => {
+            if (guarded && error?.code === "P2025") throw new AppError("开书方向有更新，请刷新后再继续。", 409);
+            throw error;
           });
         }
         return existing;

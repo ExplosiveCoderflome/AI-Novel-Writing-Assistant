@@ -33,8 +33,14 @@ export class OutlineFeedbackService {
   }
   async status(projectId: string): Promise<OutlineFeedbackStatus> {
     const b = await this.binding(this.db, projectId);
-    const runs = await this.db.outlineFeedbackRun.findMany({where: {projectId}, orderBy: {createdAt: "desc"}, take: 50});
-    return {projectId, novelId: b.novelId, sourceRoute: `/outlines/${projectId}`, settings: outlineFeedbackSettingsSchema.parse(JSON.parse(b.feedbackSettingsJson)),
+    const [runs, chapters] = await Promise.all([
+      this.db.outlineFeedbackRun.findMany({where: {projectId}, orderBy: {createdAt: "desc"}, take: 50}),
+      this.db.chapter.findMany({
+        where: {novelId: b.novelId, chapterSummary: {is: {summary: {not: ""}}}},
+        select: {id: true, order: true, title: true}, orderBy: {order: "asc"},
+      }),
+    ]);
+    return {projectId, novelId: b.novelId, chapters, sourceRoute: `/outlines/${projectId}`, settings: outlineFeedbackSettingsSchema.parse(JSON.parse(b.feedbackSettingsJson)),
       runs: runs.map(r => ({id: r.id, chapterId: r.chapterId, chapterOrder: r.chapterOrder, status: r.status as OutlineFeedbackRunView["status"], error: r.error, attempt: r.attempt, createdAt: r.createdAt.toISOString(), items: JSON.parse(r.itemsJson)}))};
   }
   async settings(projectId: string, raw: unknown) {

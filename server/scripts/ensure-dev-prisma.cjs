@@ -49,12 +49,33 @@ function readJson(filePath) {
 function runPrisma(args) {
   const result = spawnSync(process.execPath, [prismaCliPath, ...args], {
     cwd: rootDir,
-    stdio: "inherit",
+    stdio: [args[0] === "generate" ? "ignore" : "inherit", "inherit", "inherit"],
     env: process.env,
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
   }
+}
+
+// A watched file save is not approval to replace existing database objects.
+// Execute the exact additive plan inspected here, rather than diffing a second time.
+function syncWatchedSchema(schemaPath) {
+  const options = { cwd: rootDir, env: process.env, encoding: "utf8", maxBuffer: 8 * 1024 * 1024 };
+  const plan = spawnSync(process.execPath, [prismaCliPath, "migrate", "diff", "--from-config-datasource",
+    "--to-schema", schemaPath, "--script"], options);
+  if (plan.status !== 0) throw new Error(plan.stderr || "Unable to inspect the database schema.");
+
+  const sql = plan.stdout;
+  const statements = sql.split(";").map(statement => statement.replace(/^(?:\s*--[^\n]*(?:\n|$))+/, "").trim()).filter(Boolean);
+  if (!statements.length) return;
+  const additive = statements.every(statement =>
+    /^CREATE (?:TABLE|(?:UNIQUE )?INDEX)\s/i.test(statement)
+    || (/^ALTER TABLE\s+"[^"]+"\s+ADD COLUMN\s+"[^"]+"\s/i.test(statement) && !statement.includes(",")));
+  if (!additive) throw new Error("[dev-prisma] 热更新包含表重建或其他结构变更。请核对迁移并准备好开发库，再重新启动开发服务。");
+  const applied = spawnSync(process.execPath, [prismaCliPath, "db", "execute", "--stdin"], {
+    ...options, input: `BEGIN;\n${sql}\nCOMMIT;\n`,
+  });
+  if (applied.status !== 0) throw new Error(applied.stderr || "Unable to apply additive schema changes.");
 }
 
 function runNodeProbe(script, cwd) {
@@ -170,11 +191,8 @@ function resolveSqliteDbPath(databaseUrl) {
   return path.isAbsolute(rawFilePath) ? rawFilePath : path.join(rootDir, rawFilePath);
 }
 
-function main() {
+function main(watching) {
   const runtimeConfig = resolveDatabaseRuntimeConfig();
-  if (runtimeConfig.provider === "sqlite") {
-    ensureBetterSqlite3Binding();
-  }
 
   const schemaPath = path.join(rootDir, runtimeConfig.prismaSchemaPath);
   const dbPath = runtimeConfig.provider === "sqlite" ? resolveSqliteDbPath(runtimeConfig.url) : null;
@@ -185,6 +203,9 @@ function main() {
     || stamp.schemaMtimeMs !== schemaMtimeMs
     || stamp.prismaSchemaPath !== runtimeConfig.prismaSchemaPath
     || stamp.databaseProvider !== runtimeConfig.provider;
+  // The launcher already checked the native binding and client before starting this watcher.
+  if (watching && !schemaChanged && (!dbPath || fs.existsSync(dbPath)) && fs.existsSync(generatedClientPath)) return;
+  if (runtimeConfig.provider === "sqlite") ensureBetterSqlite3Binding();
   const missingGeneratedClient = !fs.existsSync(generatedClientPath) || !canLoadPrismaClient();
   const missingDb = dbPath ? !fs.existsSync(dbPath) : false;
 
@@ -193,12 +214,15 @@ function main() {
     return;
   }
 
+  if (watching && (schemaChanged || missingDb)) {
+    syncWatchedSchema(runtimeConfig.prismaSchemaPath);
+  }
   if (schemaChanged || missingGeneratedClient) {
     console.log("[dev-prisma] running prisma generate...");
     runPrisma(["generate", "--schema", runtimeConfig.prismaSchemaPath]);
   }
 
-  if (schemaChanged || missingDb) {
+  if (!watching && (schemaChanged || missingDb)) {
     console.log("[dev-prisma] running prisma push...");
     runPrisma(["db", "push", "--schema", runtimeConfig.prismaSchemaPath]);
   }
@@ -219,4 +243,4 @@ function main() {
   );
 }
 
-main();
+if (require("node:worker_threads").isMainThread) main(require.main !== module);

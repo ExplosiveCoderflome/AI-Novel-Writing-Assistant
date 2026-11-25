@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+// Copyright (C) 2026 ExplosiveCoderflome and contributors
+// Additional terms under AGPL-3.0 section 7 apply. See NOTICE.
 import {startManuscriptWorker} from "./modules/novel/manuscript/application/ManuscriptTasks";
 import { feishuChannel } from "./services/task/autoDirectorFollowUps/channels/feishu";
 import "dotenv/config";
@@ -234,6 +237,18 @@ export function createApp() {
     const { getDirectorProductionServices } = require("./app/director/services") as typeof import("./app/director/services");
     const { mountDirectorNext } = require("./modules/director/http") as typeof import("./modules/director/http");
     mountDirectorNext(app, getDirectorProductionServices().http);
+    const { castConversationRouter } = require("./app/director/revisions/castDiscussion") as typeof import("./app/director/revisions/castDiscussion");
+    app.use("/api/director-next", castConversationRouter());
+    const { directorCharacterProfileRouter } = require("./app/director/revisions/characterProfile") as typeof import("./app/director/revisions/characterProfile");
+    app.use("/api/director-next", directorCharacterProfileRouter());
+    const { volumeConversationRouter } = require("./app/director/revisions/volumeDiscussion") as typeof import("./app/director/revisions/volumeDiscussion");
+    app.use("/api/director-next", volumeConversationRouter());
+    const { chapterConversationRouter } = require("./app/director/revisions/chapterReview") as typeof import("./app/director/revisions/chapterReview");
+    app.use("/api/director-next", chapterConversationRouter());
+    const { proseConversationRouter } = require("./app/director/revisions/proseReview") as typeof import("./app/director/revisions/proseReview");
+    app.use("/api/director-next", proseConversationRouter());
+    const {finalReviewRouter} = require("./app/director/finalReview") as typeof import("./app/director/finalReview");
+    app.use("/api/director-next",finalReviewRouter());
   }
 
   app.use((_req, res) => {

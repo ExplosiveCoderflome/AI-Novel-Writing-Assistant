@@ -288,6 +288,7 @@ async function invokeStructuredAttempt<T>(input: {
     provider: resolved.provider,
     model: resolved.model,
     promptText: formatLivePrompt(messages),
+    reasoningEnabled: resolved.reasoningEnabled,
   });
   const evidence = emptyResponseEvidence(resolved.maxTokens, resolved.budgetTrace);
   let diagnosticId: string | null = null;

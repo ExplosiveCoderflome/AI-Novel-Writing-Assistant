@@ -60,6 +60,7 @@ export default function CharacterRelationsTab(props: CharacterRelationsTabProps)
   return (
     <div className="space-y-4">
       <CharacterRelationshipGraphPanel
+        novelId={novelId}
         model={graphModel}
         mode={graphMode}
         onModeChange={setGraphMode}

@@ -17,6 +17,7 @@ test("simple shelf projects the book's current director task even when an older 
     competingFeel: null,
     first30ChapterPromise: null,
     creationExperience: "simple",
+    directorVersion: null,
     estimatedChapterCount: 1,
     world: null,
     bookContract: null,
@@ -54,6 +55,10 @@ test("simple shelf projects the book's current director task even when an older 
     loaded: true,
     exports: { prisma: {
       novel: { findUnique: async () => novel },
+      directorNextRun: { findFirst: async ({ where }) => {
+        assert.equal(where.novelId, novel.id);
+        return null;
+      } },
       novelWorkflowTask: { findUnique: async (query) => {
         calls.push(query.where.id);
         return currentTask;

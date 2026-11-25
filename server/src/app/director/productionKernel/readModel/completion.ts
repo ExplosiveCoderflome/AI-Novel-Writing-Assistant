@@ -1,3 +1,5 @@
+import { MANUAL_CHAPTER_SYNC_TYPE } from "../../../../services/novel/chapterEditor/synchronization";
+import { CHAPTER_ARTIFACT_BOUNDARY_TYPE, hasCurrentChapterArtifactSyncBoundary, buildChapterArtifactContentHash } from "../../../../services/novel/runtime/artifactSync";
 import type { Prisma } from "@prisma/client";
 import type { RunContract } from "../../../../modules/director";
 import { hashProductionContent, type UnitArtifacts, type UnitOutcome, type UnitProgress } from "../../../../modules/production";
@@ -7,7 +9,7 @@ import {readManualChapterRequest} from "../manual/contract";
 
 type Reader = Pick<Prisma.TransactionClient,"chapter" | "productionUnitRun">;
 /** Reads durable closure only. Never starts/resumes a unit, clears a pause or manufactures legacy receipts. */
-export async function readKernelUnitOutcome(db: Reader, contract: RunContract, chapter: KernelBatchChapter): Promise<UnitOutcome | undefined> {
+export async function readKernelUnitOutcome(db: Reader, contract: RunContract, chapter: KernelBatchChapter, options:{allowSynchronizedRevision?:boolean} = {}): Promise<UnitOutcome | undefined> {
   const range = contract.chapterRange;
   if (!range || chapter.novelId !== contract.novelId || chapter.order < range.from || chapter.order > range.to) {
     throw new Error("Kernel completion chapter is outside the authorized scope");
@@ -30,7 +32,7 @@ export async function readKernelUnitOutcome(db: Reader, contract: RunContract, c
   const failed = (): UnitOutcome => ({status:"failed",progress,reason:"data_integrity"});
   const committed = artifacts.receipts?.commit?.result, reconciled = artifacts.receipts?.reconcile?.result;
   if (!progress.selected || !progress.selectedContentHash || !progress.completed.includes("commit") || !current.content?.trim()
-    || hashProductionContent(current.content) !== progress.selectedContentHash || progress.committedContentHash !== progress.selectedContentHash
+    || progress.committedContentHash !== progress.selectedContentHash
     || committed?.stage !== "commit" || committed.contentHash !== progress.committedContentHash
     || reconciled?.stage !== "reconcile" || reconciled.status !== progress.reconcileStatus
     || !["completed","degraded"].includes(progress.reconcileStatus ?? "")
@@ -38,5 +40,15 @@ export async function readKernelUnitOutcome(db: Reader, contract: RunContract, c
     || reference?.runId !== row.id || reference.contentHash !== progress.selectedContentHash
     || (progress.qualityPause && !progress.qualityPause.acknowledged)
     || (progress.styleReviewPause && !progress.styleReviewPause.acknowledged)) return failed();
+  if (hashProductionContent(current.content) !== progress.selectedContentHash) {
+    // A human revision can close a review only after the original unit closed and the revised text synced.
+    // The production worker still requires its exact selected content.
+    if (!options.allowSynchronizedRevision) return failed();
+    const saved = await db.chapter.findFirst({where:{id:chapter.id, novelId:contract.novelId, content:current.content},
+      select:{artifactSyncCheckpoints:{where:{status:"succeeded", contentHash:buildChapterArtifactContentHash(current.content),
+        artifactType:{in:[MANUAL_CHAPTER_SYNC_TYPE,CHAPTER_ARTIFACT_BOUNDARY_TYPE]}},select:{artifactType:true,contentHash:true,metadataJson:true}}}});
+    if (!saved?.artifactSyncCheckpoints.some(item => item.artifactType === MANUAL_CHAPTER_SYNC_TYPE) ||
+      !hasCurrentChapterArtifactSyncBoundary(current.content,saved.artifactSyncCheckpoints,{requireAppliedDelta:true})) return failed();
+  }
   return {status:"completed",progress};
 }

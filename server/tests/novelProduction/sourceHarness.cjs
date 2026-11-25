@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const ts = require("typescript");
+const ts = require("typescript-legacy");
 
 // Only explicit doubles can cross the module boundary: no production DB or LLM imports.
 function loadRuntimeSource(filename, imports) {

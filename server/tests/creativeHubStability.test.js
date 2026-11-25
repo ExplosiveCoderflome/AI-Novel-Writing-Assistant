@@ -7,7 +7,7 @@ const test = require('node:test');
 const repo = path.resolve(__dirname, '../..');
 const fromRepo = createRequire(path.join(repo, 'package.json'));
 const fromServer = createRequire(path.join(repo, 'server/package.json'));
-const ts = fromRepo('typescript');
+const ts = fromRepo('typescript-legacy');
 const zod = fromServer('zod');
 // Exercise the real route, graph, and page handlers with in-memory adapters.
 // Reject every unlisted import so these regressions cannot use a database or paid model.

@@ -1,3 +1,4 @@
+import { outlineDocumentSchema } from "./outlineDocument";
 import { AppError } from "../../../../middleware/errorHandler";
 
 export type OutlineEditOperation = {
@@ -15,12 +16,15 @@ export type OutlineEditOperation = {
 };
 
 export type OutlineEditDocumentView = {
+  story?: { nodeId: string };
   volumes: Array<{ nodeId: string }>;
   chapters: Array<{ nodeId: string; volumeNodeId: string }>;
   characters?: Array<{ nodeId: string }>;
   payoffs?: Array<{ nodeId: string }>;
   facts?: Array<{ nodeId: string }>;
 };
+
+const storyChanges = outlineDocumentSchema.shape.story.omit({ nodeId: true }).partial().strict();
 
 function recoverable(message: string, details?: unknown): AppError {
   return new AppError(message, 400, details);
@@ -167,7 +171,11 @@ export function assertValidOutlineEditOperations(
       if (!operation.nodeId?.trim()) {
         throw recoverable(`更新操作「${operation.operationId}」缺少目标节点，请重新生成提案。`);
       }
-      if (options.document && !nodeIds.has(operation.nodeId) && !volumeClientRefs.has(operation.nodeId)) {
+      if (operation.nodeId === options.document?.story?.nodeId) {
+        if (!operation.fields || !Object.keys(operation.fields).length || !storyChanges.safeParse(operation.fields).success) {
+          throw recoverable("总纲提案含有无法编辑的字段，请重新生成建议。");
+        }
+      } else if (options.document && !nodeIds.has(operation.nodeId) && !volumeClientRefs.has(operation.nodeId)) {
         // allow update only on existing nodes at apply-time; generation may still emit updates for existing ids
         throw recoverable(`要更新的节点不存在，请刷新大纲后重新生成提案。`, { operationId: operation.operationId, nodeId: operation.nodeId });
       }

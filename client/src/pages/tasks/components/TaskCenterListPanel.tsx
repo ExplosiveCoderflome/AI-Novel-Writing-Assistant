@@ -19,6 +19,9 @@ import {
 
 interface TaskCenterListPanelProps {
   tasks: UnifiedTaskSummary[];
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   selectedKind: string | null;
   selectedId: string | null;
   loading: boolean;
@@ -29,6 +32,9 @@ interface TaskCenterListPanelProps {
 
 export default function TaskCenterListPanel({
   tasks,
+  hasMore,
+  loadingMore,
+  onLoadMore,
   selectedKind,
   selectedId,
   loading,
@@ -39,8 +45,8 @@ export default function TaskCenterListPanel({
   return (
     <TaskQueueSection
       title="任务记录"
-      description={`${tasks.length} 项结果，优先展示需要处理和等待操作的任务。`}
-      className="overflow-hidden rounded-2xl border-border/40 bg-card/60 shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
+      description={`已显示 ${tasks.length} 条记录${hasMore ? "，可在列表底部加载更多。" : "。"}`}
+      className="overflow-hidden rounded-2xl border-transparent bg-card/60 shadow-none"
     >
       <div className="space-y-3">
         {loading ? (
@@ -109,6 +115,11 @@ export default function TaskCenterListPanel({
           />
         ) : null}
       </div>
+      {hasMore ? (
+        <Button type="button" variant="outline" size="sm" disabled={loadingMore} onClick={onLoadMore}>
+          {loadingMore ? "正在读取更多记录…" : "加载更多记录"}
+        </Button>
+      ) : null}
     </TaskQueueSection>
   );
 }

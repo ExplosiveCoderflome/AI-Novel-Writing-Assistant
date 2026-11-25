@@ -27,6 +27,7 @@ export interface OutlineFeedbackRunView {
 }
 export interface OutlineFeedbackStatus {
   projectId: string; novelId: string; sourceRoute: string;
+  chapters: Array<{ id: string; order: number; title: string }>;
   settings: OutlineFeedbackSettings; runs: OutlineFeedbackRunView[];
 }
 export interface OutlineFeedbackRunReceipt {

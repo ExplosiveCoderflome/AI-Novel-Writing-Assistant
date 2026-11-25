@@ -26,6 +26,10 @@ function normalizeText(input: string | null | undefined): string {
   return (input ?? "").replace(/\r\n?/g, "\n").trim();
 }
 
+export function chapterExportText(content: string | null, confirmedManuscript = false): string {
+  return confirmedManuscript ? content ?? "" : normalizeText(content);
+}
+
 function hasMeaningfulText(input: string | null | undefined): boolean {
   return normalizeText(input).length > 0;
 }
@@ -35,6 +39,7 @@ export interface NovelTxtRecord {
   description: string | null;
   narrativeForm?: "short_story" | "long_novel";
   shortStoryContent?: string | null;
+  confirmedManuscript?: boolean;
   chapters: Array<{
     order: number;
     title: string;
@@ -74,12 +79,16 @@ export function buildExportTimestamp(input: Date = new Date()): string {
     ].join("");
 }
 
+export function buildNovelTxtExport(novel: NovelTxtRecord) {
+  return {fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.txt`, contentType:"text/plain; charset=utf-8",content:buildTxtContent(novel)};
+}
+
 export function buildTxtContent(novel: NovelTxtRecord): string {
   const lines: string[] = [];
   lines.push(`《${novel.title}》`);
   lines.push("");
 
-  const description = normalizeText(novel.description);
+  const description = novel.confirmedManuscript ? novel.description : normalizeText(novel.description);
   if (description) {
     lines.push("【简介】");
     lines.push(description);
@@ -100,7 +109,7 @@ export function buildTxtContent(novel: NovelTxtRecord): string {
     lines.push("=".repeat(48));
     lines.push(`第${chapter.order}章 ${chapter.title}`);
     lines.push("-".repeat(48));
-    lines.push(normalizeText(chapter.content) || "（本章暂无内容）");
+    lines.push(chapterExportText(chapter.content, novel.confirmedManuscript) || "（本章暂无内容）");
     lines.push("");
   }
 

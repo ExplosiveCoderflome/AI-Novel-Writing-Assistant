@@ -15,7 +15,6 @@ import {
   shouldUseAutoDirectorMobileFullWidthContent,
 } from "@/mobile/autoDirector";
 import { CreationSetupProvider } from "@/components/onboarding/CreationSetupContext";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const MobileTerminal = lazy(() => import("@/mobile/terminal").then(module => ({ default: module.MobileTerminal })));
 
@@ -32,8 +31,6 @@ export default function AppLayout() {
     isDirectorNovel
     || matchPath("/novels/:id/ai-usage", location.pathname),
   );
-  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
-  useEffect(() => { setProjectMenuOpen(false); }, [location.pathname]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
@@ -120,7 +117,7 @@ export default function AppLayout() {
         <AutoDirectorPauseNotificationWatcher />
         <LLMSelectionBootstrap />
         <Navbar
-          onOpenProjectNav={isDirectorWorkbench ? () => setProjectMenuOpen(true) : undefined}
+          showGlobalMenu={isDirectorWorkbench}
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
         />
@@ -147,7 +144,6 @@ export default function AppLayout() {
             </Suspense>
           </main>
         </div>
-        {isDirectorWorkbench ? <Dialog open={projectMenuOpen} onOpenChange={setProjectMenuOpen}><DialogContent aria-describedby={undefined} className="max-h-[90dvh] w-auto overflow-y-auto p-4"><DialogTitle>全局菜单</DialogTitle><Sidebar collapsed={false} onToggle={() => setProjectMenuOpen(false)} /></DialogContent></Dialog> : null}
         <TaskRecoveryDialog />
       </div>
     </TaskRecoveryProvider>

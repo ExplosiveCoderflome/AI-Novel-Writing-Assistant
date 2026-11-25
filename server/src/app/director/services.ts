@@ -5,6 +5,7 @@ import {createDirectorNextServices, type DirectorNextServices} from "../../modul
 import {LegacyRunProjection} from "../../modules/director/http";
 import {createDirectorProductionOptions} from "./productionComposition";
 import {readDirectorWorkspace,readDirectorLedgers} from "./workspace";
+import {annotateVolumeSummaries} from "./workspace/volumeEmphasis";
 import {chapterGenerationFeed} from "../../services/novel/production/observation";
 import {assertNovelDirectorVersion, assertV2RunExecution, readRunExecutionEpoch} from "../../modules/novel/director-routing";
 import type {DirectorCommand} from "../../modules/director/application";
@@ -38,6 +39,7 @@ export function getDirectorProductionServices(): DirectorNextServices {
     services.http.readNovelUsage = (novelId, query) => novelUsage.getNovelUsage(novelId, query);
     services.http.readNovelInvocation = (novelId, invocationId) => novelUsage.getInvocation(novelId, invocationId);
     services.http.readWorkspace = readDirectorWorkspace;
+    services.http.annotateVolumeSummaries = annotateVolumeSummaries;
     services.http.readCharacterAppearances = (novelId, characterId) => characterAppearanceService.read(novelId, characterId);
     services.http.readNovelCharacterAppearances = novelId => characterAppearanceService.readNovel(novelId);
     services.http.fillInitialCharacterSchedule = (novelId,input) => initialCharacterScheduleService.fill(novelId,input);

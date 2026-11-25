@@ -10,7 +10,7 @@ import {
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
@@ -27,7 +27,7 @@ import { AppDialogContent, Dialog, DialogClose, DialogTrigger } from "@/componen
 import { toast } from "@/components/ui/toast";
 import { stripLegacyTaskUrlParams } from "@/lib/legacyTaskUrlParams";
 import { buildCandidateTaskHref, readCandidateTaskId } from "@/lib/novelRoutes";
-import { getCandidateTaskNovelHref } from "@/lib/novelRoutes";
+import { getCandidateTaskNovelHref, isProductionExperienceChoicePending } from "@/lib/novelRoutes";
 import { useLLMStore } from "@/store/llmStore";
 import type { CreativeCarryoverContract } from "@ai-novel/shared/types/creativeCarryoverContract";
 import {
@@ -45,6 +45,9 @@ import {
 } from "../novelBasicInfo.shared";
 import StageBasicSetup from "./StageBasicSetup";
 import StageCandidates from "./StageCandidates";
+import { CandidateReviewWorkspace } from "./candidateReview/CandidateReviewWorkspace";
+import { candidateAnchor } from "./candidateReview/candidateScope";
+import { useCandidateSelection } from "./candidateReview/useCandidateSelection";
 import StageIdea from "./StageIdea";
 import StageModelRun from "./StageModelRun";
 import StageSummaryCard from "./StageSummaryCard";
@@ -381,6 +384,8 @@ function AutoDirectorCreatePage() {
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
   });
+  const applyingCandidate = useIsMutating({ mutationKey: ["apply-opening-candidate", controller.workflowTaskId] }) > 0;
+  const candidateSelection = useCandidateSelection(controller.batches);
   useEffect(() => {
     const seed = marketBriefQuery.data?.data?.creativeSeed;
     if (!marketBriefId || !seed || marketBriefIdeaAppliedRef.current === marketBriefId) {
@@ -796,16 +801,20 @@ function AutoDirectorCreatePage() {
     return (
       <StageCandidates
         controller={controller}
+        selection={candidateSelection}
+        isApplying={applyingCandidate}
         onRegenerateSettings={() => setActiveStage("model_run")}
       />
     );
   };
 
   const showSummaryBar = activeStage !== "idea" || completedStages.size > 0 || controller.workflowTaskId;
+  const showCandidateWorkspace = activeStage === "candidates" && controller.dialogMode === "candidate_selection"
+    && controller.batches.length > 0
+    && !(isProductionExperienceChoicePending(controller.directorTask) && controller.directorTask?.resumeTarget?.novelId);
 
-  return (
-    <Dialog open={carryoverDialogOpen} onOpenChange={setCarryoverDialogOpen}>
-    <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
+  const creationContent = (
+    <div className={`mx-auto space-y-4 px-3 py-4 sm:px-4 ${showCandidateWorkspace ? "w-full lg:pl-0" : "max-w-6xl lg:px-0"}`}>
       <ReferenceNovelStartDialog open={referenceStartOpen} onOpenChange={setReferenceStartOpen} />
       {showCarryoverPanel ? (
         <AppDialogContent
@@ -861,7 +870,7 @@ function AutoDirectorCreatePage() {
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-3 sm:justify-end">
-              {createdNovelId ? (
+              {createdNovelId && isProductionExperienceChoicePending(controller.directorTask) ? (
                 <div className="space-y-1.5">
                   <div className="text-xs font-medium text-muted-foreground">选择创作界面</div>
                   <div className="flex items-center gap-1 rounded-lg bg-muted/55 p-1" role="group" aria-label="选择创作模式">
@@ -1020,8 +1029,24 @@ function AutoDirectorCreatePage() {
         </motion.div>
       </AnimatePresence>
     </div>
-    </Dialog>
   );
+  return <Dialog open={carryoverDialogOpen} onOpenChange={setCarryoverDialogOpen}>
+    {showCandidateWorkspace ? <CandidateReviewWorkspace key={controller.workflowTaskId} taskId={controller.workflowTaskId}
+      selection={candidateSelection} onApplied={controller.onReviewedCandidate}
+      nextRound={{
+        selectedPresets: controller.selectedPresets, feedback: controller.feedback,
+        onTogglePreset: controller.togglePreset, onFeedbackChange: controller.setFeedback,
+        onGenerate: () => controller.generateMutation.mutate(undefined, {
+          onSuccess: ({ batch }) => {
+            const first = batch?.candidates[0];
+            if (batch && first) candidateSelection.select(candidateAnchor(batch.id, first.id));
+          },
+        }),
+      }}
+      disabled={applyingCandidate || controller.generateMutation.isPending || controller.refineTitleMutation.isPending || controller.confirmMutation.isPending}>
+      {creationContent}
+    </CandidateReviewWorkspace> : creationContent}
+  </Dialog>;
 }
 
 interface AutoDirectorCreateErrorBoundaryState {

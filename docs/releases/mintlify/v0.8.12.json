@@ -1,0 +1,30 @@
+{
+  "zh": [
+    "故事星图与开书方向。每颗星都是一条灵感，可以从一颗星开书，也可以组合多颗。AI 会指出设定中的冲突，再给出两条不同的故事路线。可以分别讨论、逐项采纳，也可以保留前几轮再换一批。",
+    "导演 V2 分阶段审稿。选用方向后，可逐人确认角色、逐卷讨论卷纲，再逐章调整任务、场景和正文。每次都能对照原稿选择修改，续写沿用确认稿。",
+    "全书完稿检查。逐章检查正文和前后章衔接，带着原句与 AI 讨论，逐段采纳改法后导出全书 TXT。",
+    "大纲节奏与提示词。大纲可按卷编排节奏段和章节，并将确认的章序带入开书。在「提示词管理 → 创作流程」可查阅、复制各步提示词，包括卷纲重点和相似章名调整，也可自定义开书方向和书名的生成规则。",
+    "选方向更直观。书名下先看核心冲突，再并排比较「开篇看什么」和「后面追什么」。重拟书名时，会结合各自的故事看点和目标读者。",
+    "大纲更容易接着写。列表突出最近编辑的稿件；空列表提供想法起草、空白创建和导入入口。在阅读栏就能讨论人物、章纲和分卷，核对旧版建议并逐项采纳。",
+    "导演台更好读。目录按卷、节奏段、章节和资料用途分组，卷纲直接加粗关键冲突与转折。右栏集中显示进度和下一步，宽屏可展开伏笔、背包与故事资料，顶部菜单就近展开。",
+    "人物图谱更好查。关系图按人物定位分排，拖动时连线跟随，刷新后记住摆放位置，可随时恢复自动排列。角色时间线区分计划与实际出场，连续章节连成一段。",
+    "工作区与运行记录。多栏工作台可拖动分隔线并记住栏宽。运行记录可以加载更早的任务，从历史链接打开时会定位到对应记录。",
+    "开书方向说明较长、模型回复较慢或短暂断网时，可继续生成或读取原任务结果。重试开书会沿用保存的设置，同一次开书只创建一本小说。",
+    "逐阶段续写保留已确认的章节任务和场景，遇到待核对人物可直接处理。完稿意见可按原句定位，导出确认稿时保留缩进、空行和换行。",
+    "切换世界手册或短剧分集时保留未保存的编辑。大纲遇到版本冲突时保留手改内容，晚返回的保存结果不会盖过新版。"
+  ],
+  "en": [
+    "Start a novel from one inspiration star or combine several. Review conflicting ideas, compare two story directions, discuss each one, and keep earlier rounds when requesting alternatives.",
+    "In Director V2, review characters, volumes, chapter plans, scenes, and prose in stages. Compare suggestions with the original and carry accepted edits into the next batch.",
+    "Review the finished manuscript chapter by chapter, discuss passages and transitions with the AI, accept individual edits, and export the confirmed book as TXT.",
+    "Organize chapters into beats within each volume and carry their confirmed order into a new book. Browse and copy prompts by stage, including volume highlights and similar chapter titles, and customize how opening directions and book titles are generated.",
+    "Compare opening options by title, central conflict, opening hook, and what sustains a serial. Title suggestions reflect each story and its intended readers.",
+    "Resume your latest outline from the list or start with an idea, a blank outline, or an import. Discuss characters, chapters, and volumes in the reading pane and compare earlier suggestions before accepting edits.",
+    "The director workspace groups the contents by volume, beat, chapter, and reference type, highlights turning points in the outline, and brings progress and next actions together. Wide layouts give notes and inventory more room.",
+    "Character graphs group people by role and keep hand-placed positions after refresh, with a reset to automatic layout. The timeline distinguishes planned and actual appearances and connects consecutive chapters.",
+    "Resize workbench panes and keep their widths between visits. Load older runs and jump to the matching record from a history link.",
+    "Long direction descriptions, slow model responses, and brief disconnects are handled during opening generation. Retrying uses the saved settings and avoids duplicate books.",
+    "Staged drafting preserves approved chapter tasks and scenes. Resolve character references during review, locate findings by their quoted text, and retain paragraph formatting on export.",
+    "Unsaved edits survive switches between world handbook tabs or drama episodes. Outline conflicts preserve local edits, and delayed save responses no longer replace newer revisions."
+  ]
+}

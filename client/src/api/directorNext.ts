@@ -11,14 +11,18 @@ export type DirectorDriver = "auto" | "assisted";
 export interface DirectorReviewContext {
   type:string;novelId:string;runId:string;controlVersion:number;
   from?:number;to?:number;chapterId?:string;volumeId?:string;
+  chapterPlans?: {id:string;volumeId:string;chapterOrder:number}[];
 }
 export type DirectorWorkspace = Pick<SimpleCreationShelfProjection,"novel"|"chapters"|"bookCompletion"> & {
+  continuationStoryInput?:string|null;
   outlineBinding?:import("@ai-novel/shared/types/outlineOpenBook").OutlineBookBindingView;
   outlinePreparation?:{storyMacro:import("@ai-novel/shared/types/storyMacro").StoryMacroPlan|null;hasBookContract:boolean;worldMode?:"generate"|"reuse"|"skip"};
   materials:DirectorWorkspaceMaterials;
   planning?:VolumePlanDocument;
   reviewContexts?:DirectorReviewContext[];
   reviewContextError?:string|null;
+  chapterReviewFingerprint?:string;
+  proseReviewHashes?:Record<string,string>;
   characterForwardPlanNotices?: CharacterForwardPlanNotice[];
   executionPlans?: {id:string;order:number;title:string;taskSheet:string|null;sceneCards:string|null;targetWordCount:number|null;mustAvoid:string|null}[];
 };
@@ -34,6 +38,14 @@ export async function getDirectorWorkspace(novelId:string): Promise<ApiResponse<
 
 export async function getDirectorLedgers(novelId:string):Promise<ApiResponse<DirectorWorkspaceLedgers>> {
   return (await apiClient.get<ApiResponse<DirectorWorkspaceLedgers>>(`/director-next/novels/${encodeURIComponent(novelId)}/ledgers`)).data;
+}
+
+export async function annotateVolumeSummaries(novelId: string, volumeIds: string[]) {
+  const { data } = await apiClient.post<ApiResponse<import("@ai-novel/shared/types/director/volumeEmphasis").AnchoredVolumeEmphasis[]>>(
+    `/director-next/novels/${encodeURIComponent(novelId)}/volume-summary-emphasis`, {volumeIds}, {errorPresentation:"inline"},
+  );
+  if (!data.data) throw new Error(data.error || "卷纲重点标注不可用。");
+  return data.data;
 }
 
 export async function listLegacyDirectorRuns() {
@@ -109,7 +121,7 @@ export type DirectorCommand =
     targetVolumeId?: string | null; provider: string; model: string; temperature?: number; chapterTokenLimit?: number;
     executionRange?: {from: number; to: number}; issuePolicyMode?: "completion_first" | "quality_first";
   } }
-  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; guidance?: string; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanEdit; expectedVersion: number; idempotencyKey: string }
+  | { type: "resolve_gate"; runId: string; decision: "confirm" | "confirm_after_edit" | "regenerate"; expectedVolumePlanVersionId?: string; guidance?: string; assetEdit?: import("@ai-novel/shared/types/director/revision").ReviewAssetEdit; proseReview?: import("@ai-novel/shared/types/director/proseReview/discussion").BatchProseReview; chapterPlanEdit?: import("@ai-novel/shared/types/director/revision").ChapterPlanRevision; expectedVersion: number; idempotencyKey: string }
   | { type: "resume"; runId: string; expectedVersion: number; idempotencyKey: string; chapterBudget?: import("@ai-novel/shared/types/director/chapterBudget").DirectorChapterBudgetGrant; resolveUnknownClaims?: import("@ai-novel/shared/types/director/unknownClaims").DirectorUnknownClaimResolution }
   | { type: "handoff"; runId: string; toDriver: DirectorDriver; expectedVersion: number; idempotencyKey: string }
   | { type: "cancel"; runId: string; expectedVersion: number; idempotencyKey: string };

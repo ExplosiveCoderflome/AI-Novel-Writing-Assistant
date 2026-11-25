@@ -26,6 +26,7 @@ export function render(path, mode='running', legacyProjection=null) {
  client.setQueryData(['mobileNovel','book'],{data:book});
  client.setQueryData(queryKeys.directorNext.summary('book'),{data:{...previewView(mode),novelId:'book'}});
  if(legacyProjection)client.setQueryData(['mobileBookAutomation','book'],{data:{projection:legacyProjection}});
+ client.setQueryData(queryKeys.tasks.detail('novel_pipeline','past'),{data:{id:'past',kind:'novel_pipeline',title:'第 86 条记录',status:'succeeded',progress:1,sourceRoute:'/novels/book/edit'}});
  client.setQueryData(['mobileRecords',undefined],{data:{items:[{id:'run',kind:'novel_workflow',title:'章节任务',status:'failed',pendingManualRecovery:true,progress:0.5,sourceRoute:'/lab/director/book',lastError:'需要重试'}]}});
  client.setQueryData(['mobileNotifications'],{data:{items:[{itemType:'task',directorTaskId:'run',novelId:'book',novelTitle:'测试小说',reasonLabel:'暂停提醒',followUpSummary:'请查看本书任务'}]}});
  try{return renderToStaticMarkup(<QueryClientProvider client={client}><MemoryRouter initialEntries={[path]}><MobileTerminal/></MemoryRouter></QueryClientProvider>);}
@@ -85,4 +86,11 @@ test("mobile records and legacy task controls reuse task-center and dashboard pr
   };
   assert.doesNotMatch(render("/novels/book/edit", "running", projection), />暂停任务</);
   assert.match(render("/novels/book/edit", "running", { ...projection, dashboardView: { mode: "running" } }), />暂停任务</);
+});
+
+test("mobile task links open the named historic record independently of the first page", () => {
+  const html = render("/tasks?kind=novel_pipeline&id=past");
+  assert.match(html, /第 86 条记录/);
+  assert.match(html, /查看全部运行记录/);
+  assert.doesNotMatch(html, /章节任务/);
 });

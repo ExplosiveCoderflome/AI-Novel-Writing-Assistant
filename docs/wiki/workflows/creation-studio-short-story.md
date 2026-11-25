@@ -56,6 +56,42 @@ flowchart LR
 - 普通质量问题作为质量债完成交付。只有明确要求重规划、没有可用正文、运行时安全或数据完整性问题才停止任务。
 - 全篇审校必须检查钩子、主角行动、场景推进、反转与回报、段落可读性和结局兑现；空泛抒情、梗概化、超长密集段落或碎句滥用属于可修复问题，不应被误判为高级文风。
 
+## 生成结果的表达审校
+
+### 背景
+
+短篇生产已经有全篇审校和一次必要修复。用户仍会把生成完成的正文感知为“AI 味重”，原因通常来自模板化转折、总结腔、解释过量和机械重复。这类问题属于表达层质量，需要和故事事实、结构重规划、任务恢复分开处理。
+
+### 当前规则
+
+- 短篇写作和全篇审校都读取同一份 Style Contract、书级写法和生效的反 AI 规则。
+- AI 负责判断具体表达问题及其修复权限。确定性信号只能作为证据，不能单独决定问题来源或任务停止。
+- 表达层问题可以进入一次局部修订候选。审校仅标记表达层问题时，重规划结论按局部修整处理。叙事事实、人物设定、因果关系和结局承诺由审校结果保护，不能通过“去 AI 味”静默改写。
+- 自动修整范围取审校点名的片段与可编辑的 AI 片段的交集。候选可以只处理其中一部分，校验与输出恢复都拒绝范围外或重复的补丁。作者确认的修订仍须完整覆盖确认范围。
+- 候选修订先在内存中复验，再按片段版本和人工编辑标记提交。用户编辑过的片段不会被后台修复覆盖。
+- 初审仅发现表达问题时，自动修整调用失败、候选复验失败或复验超出模型预算，都保留原稿并记录初审提醒，短篇仍可交付。初审同时涵盖结构和事实，结构重规划、初审预算不足与版本冲突继续走原有检查点或失败处理。
+- 通过校验的全篇审校带有表达检查完成标记。短篇工作台凭该标记确认检查完成，对缺少标记且没有表达提醒的旧成稿显示暂无结果。运行记录只读，所有确认和修改动作回到短篇工作台。
+
+### 失败模式
+
+- 生成结果没有表达报告。检查短篇 writer、full audit 是否都收到同一份写法上下文。
+- 风格问题导致整篇任务失败。检查是否把局部表达问题错误映射成 `replan_required` 或任务失败。
+- 自动修订覆盖用户内容。检查片段的 `userEditedAt`、`version` 和提交前复验是否同时生效。
+- 修订后故事事实发生变化。检查审校返回的修复权限、事实复验和局部候选范围。
+
+### 相关模块
+
+- `server/src/modules/novel/short-story/application/ShortStoryProductionService.ts`
+- `server/src/modules/novel/short-story/application/shortStoryPromptContext.ts`
+- `server/src/prompting/prompts/shortStory/shortStory.prompts.ts`
+- `shared/types/styleEngine/generatedTextReview.ts`
+- `client/src/pages/shortStory/ShortStoryStudioPage.tsx`
+
+### 来源文档
+
+- [Style Engine 边界 PRD](../../design/style-engine-boundary-prd-v2.md)
+- [Style 风险审校计划](../../plans/style-risk-review-v2-plan.md)
+
 ## 编辑与修改保护
 
 - 直接编辑按内部片段保存，使用 `expectedVersion` 做乐观并发校验。

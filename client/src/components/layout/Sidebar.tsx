@@ -94,9 +94,13 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function ProjectNavigation({ collapsed = false, className, onNavigate, onOpenVisualAssets }: {
+  collapsed?: boolean;
+  className: string;
+  onNavigate?: () => void;
+  onOpenVisualAssets: () => void;
+}) {
   const [badgeQueriesEnabled, setBadgeQueriesEnabled] = useState(false);
-  const [visualAssetLibraryOpen, setVisualAssetLibraryOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBadgeQueriesEnabled(true), 500);
@@ -200,27 +204,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   };
 
   return (
-    <aside
-      className={cn(
-        "flex h-full min-h-0 flex-col border-r bg-muted/20 p-3 transition-[width] duration-200",
-        collapsed ? "w-[72px]" : "w-64",
-      )}
-    >
-      <div className={cn("mb-4 flex items-center", collapsed ? "justify-center" : "justify-end")}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground"
-          onClick={onToggle}
-          aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
-          title={collapsed ? "展开导航栏" : "收起导航栏"}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-      </div>
-
-      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
+      <nav aria-label="全局导航" className={className}>
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed ? (
@@ -245,7 +229,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       "relative flex w-full items-center rounded-md text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
                       collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
                     )}
-                    onClick={() => setVisualAssetLibraryOpen(true)}
+                    onClick={onOpenVisualAssets}
                   >
                     <Icon className={cn("h-[18px] w-[18px] shrink-0", collapsed ? "mx-auto" : "mr-3")} />
                     {!collapsed ? <span className="truncate">{item.label}</span> : null}
@@ -275,7 +259,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               }
 
               return (
-                <NavLink key={item.to} to={item.to} title={collapsed ? item.label : undefined}>
+                <NavLink key={item.to} to={item.to} title={collapsed ? item.label : undefined} onClick={onNavigate} className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                   {({ isActive }) => (
                     <div
                       className={cn(
@@ -318,6 +302,24 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         ))}
       </nav>
+  );
+}
+
+export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const [visualAssetLibraryOpen, setVisualAssetLibraryOpen] = useState(false);
+  return (
+    <aside className={cn(
+      "flex h-full min-h-0 flex-col border-r bg-muted/20 p-3 transition-[width] duration-200",
+      collapsed ? "w-[72px]" : "w-64",
+    )}>
+      <div className={cn("mb-4 flex items-center", collapsed ? "justify-center" : "justify-end")}>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"
+          onClick={onToggle} aria-label={collapsed ? "展开导航栏" : "收起导航栏"} title={collapsed ? "展开导航栏" : "收起导航栏"}>
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
+      <ProjectNavigation collapsed={collapsed} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1"
+        onOpenVisualAssets={() => setVisualAssetLibraryOpen(true)} />
       <VisualAssetLibraryDialog open={visualAssetLibraryOpen} onOpenChange={setVisualAssetLibraryOpen} />
     </aside>
   );

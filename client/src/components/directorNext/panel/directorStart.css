@@ -1,0 +1,43 @@
+.director-start-settings {
+  padding-inline: clamp(.75rem, 4%, 1.25rem);
+}
+
+.director-start-pair,
+.director-start-model > div:first-child {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  align-items: start;
+  gap: .75rem;
+}
+
+/* The compact model picker normally has fixed toolbar widths. */
+.director-start-model > div:first-child > :is(button, div) {
+  min-width: 0;
+  width: 100%;
+}
+
+#director-start .director-start-control,
+.director-start-model button[aria-haspopup="listbox"] {
+  @apply min-h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm font-normal text-foreground shadow-none;
+}
+
+.director-start-model button[aria-haspopup="listbox"] > span:first-child {
+  @apply truncate;
+}
+
+#director-start textarea.director-start-control {
+  @apply min-h-32 leading-6;
+}
+
+#director-start .director-start-control:focus-visible,
+.director-start-model button[aria-haspopup="listbox"]:focus-visible {
+  @apply border-ring outline-none ring-2 ring-ring/40 ring-offset-1;
+}
+
+#director-start .director-start-control[aria-invalid="true"] {
+  @apply border-destructive;
+}
+
+.director-start-hint {
+  @apply text-xs leading-5 text-muted-foreground;
+}

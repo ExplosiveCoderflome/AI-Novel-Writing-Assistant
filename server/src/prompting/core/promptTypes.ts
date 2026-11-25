@@ -217,6 +217,8 @@ export interface PromptManagementCapabilities {
   productPrompt: boolean;
   proseGeneration?: boolean;
   editModes: PromptManagementEditMode[];
+  /** Pre-creation prompts have no novel to attach an override to. */
+  slotScope?: "global";
   advancedTemplate?: {
     scope: "novel";
     requiredContextGroups: string[];

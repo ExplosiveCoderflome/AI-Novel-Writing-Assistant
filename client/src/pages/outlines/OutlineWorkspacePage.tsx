@@ -1,251 +1,348 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import {
-  applyOutlineProposal,
-  exportOutline,
-  generateOutlineProposal,
-  getOutline,
-  getOutlineRevision,
-  listOutlineRevisions,
-  getOutlineBookBinding,
-  saveOutline,
-  type OutlineProposal,
-  type OutlineProposalKind,
-} from "@/api/outlines";
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Check, Feather, FilePenLine, History, ListTree, MessageSquareText, Sparkles } from "lucide-react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import type { OutlineDocument } from "@ai-novel/shared/types/outline";
+import {
+  exportOutline, getOutline, getOutlineBookBinding,
+  listOutlineRevisions, listPendingOutlineProposals, saveOutline, type OutlineProject,
+} from "@/api/outlines";
 import { Button } from "@/components/ui/button";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
-import { OutlineProposalPanel } from "./OutlineProposalPanel";
-import { OutlineFeedbackPanel } from "./OutlineFeedbackPanel";
+import { featureFlags } from "@/config/featureFlags";
+import { VolumeRhythm } from "./workspace/volumeRhythm/VolumeRhythm";
+import { OutlineLocalReview, type LocalReviewDraft } from "./workspace/OutlineLocalReview";
+import type { LocalTarget } from "./workspace/outlineReviewThread";
+import { OutlineFeedbackPanel, shouldShowOutlineFeedbackPanel } from "./OutlineFeedbackPanel";
+import { OutlineConversation } from "./workspace/OutlineConversation";
 import { OutlineRevisionPanel } from "./OutlineRevisionPanel";
+import { findOutlineNode, getOutlineNodeTitle, type OutlineNode } from "./outlineNodes";
+import { OutlineDirectory } from "./workspace/OutlineDirectory";
+import { OutlineNodeEditor } from "./workspace/OutlineNodeEditor";
+import { IdeaStarter, isEmptyOutline, OutlineReading, PendingSuggestions } from "./workspace/OutlineReading";
+import { OutlineReviewReading } from "./workspace/OutlineReviewReading";
+import { useOutlineReviewTurn } from "./workspace/useOutlineReviewTurn";
 import "./outlineWorkspace.css";
-import { getOutlineNodeTitle, outlineFieldLabels, type OutlineNode } from "./outlineNodes";
+
+type Pane = "directory" | "editor" | "assistant";
+type Inspector = "suggestions" | "history" | "feedback";
 
 export default function OutlineWorkspacePage() {
   const { id = "" } = useParams();
-  const [searchParams] = useSearchParams();
-  const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id), enabled: !!id });
-  const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id), enabled: !!id });
-  const bindingQuery = useQuery({ queryKey: ["outline-book-binding", id], queryFn: () => getOutlineBookBinding(id), enabled: !!id });
-  const currentRevisionId = revisionQuery.data?.find(revision => revision.version === query.data?.currentVersion)?.id ?? "";
-  const currentRevisionQuery = useQuery({ queryKey: ["outline-revision", id, currentRevisionId], queryFn: () => getOutlineRevision(id, currentRevisionId), enabled: !!id && !!currentRevisionId });
-  const [document, setDocument] = useState<OutlineDocument | null>(null);
-  const [node, setNode] = useState("story");
-  useEffect(()=>{const requested=searchParams.get("nodeId");if(requested)setNode(requested);},[id,searchParams]);
+  return <OutlineWorkspace key={id} id={id} />;
+}
+
+function OutlineWorkspace({ id }: { id: string }) {
+  const [params, setParams] = useSearchParams();
+  const { hash } = useLocation();
+  const fromIdea = params.get("start") === "idea";
+  const feedbackLink = hash === "#outline-feedback-panel";
+  const requestedNode = params.get("nodeId");
+  const bookmarkKey = `outline-character-discussion:${id}`;
+  const [lastDiscussion] = useState(() => {
+    try { return !requestedNode && !fromIdea && !feedbackLink ? window.localStorage.getItem(bookmarkKey) : null; }
+    catch { return null; }
+  });
+  const [nodeId, setNodeId] = useState(requestedNode ?? (lastDiscussion === "story" ? null : lastDiscussion));
+  function rememberDiscussion(node: string) {
+    try { window.localStorage.setItem(bookmarkKey, node); } catch { /* Direct links and server history still work. */ }
+  }
+  const [pane, setPane] = useState<Pane>(feedbackLink ? "assistant" : "editor");
+  const inspectorKey = `outline-inspector-open:${id}`;
+  const [inspectorOpen, setInspectorOpen] = useState(() => {
+    try { return feedbackLink || window.localStorage.getItem(inspectorKey) !== "false"; }
+    catch { return true; }
+  });
+  const [inspector, setInspector] = useState<Inspector>(feedbackLink ? "feedback" : "suggestions");
+  const [localEditorId, setLocalEditorId] = useState<string | null>(null);
+  const [ready, setReady] = useState<{target: LocalTarget; proposalId?: string} | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [receipt, setReceipt] = useState<number | null>(null);
+  const reviewId = params.get("proposalId");
   const [request, setRequest] = useState("");
-  const [proposal, setProposal] = useState<OutlineProposal | null>(null);
-  const [proposalKind, setProposalKind] = useState<OutlineProposalKind>("edit");
-  const [showHistory, setShowHistory] = useState(false);
+  const [localDrafts, setLocalDrafts] = useState<Record<string, LocalReviewDraft>>({});
+  const [draft, setDraft] = useState<{ baseVersion: number; document: OutlineDocument } | null>(null);
+  const inspectorRef = useRef<HTMLElement>(null);
+  const client = useQueryClient();
+  const query = useQuery({ queryKey: ["outline", id], queryFn: () => getOutline(id) });
+  const pending = useQuery({ queryKey: ["outline-pending", id], queryFn: () => listPendingOutlineProposals(id) });
+  const revisionQuery = useQuery({ queryKey: ["outline-revisions", id], queryFn: () => listOutlineRevisions(id) });
+  const bindingQuery = useQuery({ queryKey: ["outline-book-binding", id], queryFn: () => getOutlineBookBinding(id) });
   const isMobileViewport = useIsMobileViewport();
-  const hasUnsavedChanges = !!currentRevisionQuery.data?.document && JSON.stringify(document) !== JSON.stringify(currentRevisionQuery.data.document);
-
-  useEffect(() => {
-    if (query.data?.document) setDocument(query.data.document);
-  }, [query.data]);
-
-  const refreshOutline = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["outline", id] });
+  const showFeedback = shouldShowOutlineFeedbackPanel({ flagEnabled: featureFlags.outlineFeedbackEnabled, bound: !!bindingQuery.data, isMobile: isMobileViewport });
+  const activeInspector = inspector === "feedback" && !showFeedback ? "suggestions" : inspector;
+  const version = query.data?.currentVersion ?? 0;
+  const currentRevisionId = revisionQuery.data?.find(item => item.version === version)?.id;
+  const document = draft?.document ?? query.data?.document;
+  const hasUnsavedChanges = draft !== null;
+  const hasConflict = !!draft && draft.baseVersion !== version;
+  const nestedDecisions = useIsMutating({ mutationKey: ["outline-character-impact-decision", id] })
+    + useIsMutating({ mutationKey: ["outline-revision-decision", id] })
+    + useIsMutating({ mutationKey: ["outline-discussion-decision", id] });
+  const refresh = async () => {
+    await Promise.all(["outline", "outline-revisions", "outline-book-binding", "outline-pending", "outlines"].map(key =>
+      client.invalidateQueries({ queryKey: key === "outlines" ? [key] : [key, id] })));
   };
   const save = useMutation({
-    mutationFn: () => saveOutline(id, query.data!.currentVersion, document!),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["outline-revisions", id] });
-      await refreshOutline();
+    mutationFn: () => saveOutline(id, draft!.baseVersion, draft!.document),
+    onSuccess: async result => {
+      client.setQueryData<OutlineProject>(["outline", id], old => {
+        if (!old || result.revision.version < old.currentVersion) return old;
+        return { ...old, currentVersion: result.revision.version, document: result.document, title: result.document.story.title };
+      });
+      setDraft(null);
+      await refresh();
+    },
+    onError: () => query.refetch().then(() => undefined),
+  });
+  const download = useMutation({
+    mutationFn: async (format: "json" | "markdown") => {
+      const value = await exportOutline(id, format);
+      const url = URL.createObjectURL(new Blob([typeof value === "string" ? value : JSON.stringify(value, null, 2)], { type: "text/plain;charset=utf-8" }));
+      const anchor = window.document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${query.data?.title}.${format === "json" ? "json" : "md"}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
     },
   });
-  const propose = useMutation({
-    mutationFn: () => generateOutlineProposal(id, request, proposalKind),
-    onSuccess: value => setProposal(value),
+  const writing = save.isPending || nestedDecisions > 0;
+  const blockRevision = !!draft || writing;
+  function setInspectorVisibility(open: boolean) {
+    setInspectorOpen(open);
+    try { window.localStorage.setItem(inspectorKey, String(open)); } catch { /* Keep the in-memory preference. */ }
+  }
+  function showInspector(tool: Inspector) {
+    setInspector(tool);
+    if (starter && tool === "suggestions") {
+      setPane("editor");
+      return;
+    }
+    setInspectorVisibility(true);
+    setPane("assistant");
+  }
+  function closeInspector() {
+    setInspectorVisibility(false);
+    setPane("editor");
+  }
+  function toggleInspector(tool: Inspector) {
+    // In the single-pane layout the author can be reading while the side-by-side preference stays open.
+    const panel = inspectorRef.current;
+    if (inspectorOpen && activeInspector === tool && panel && window.getComputedStyle(panel).display !== "none") closeInspector();
+    else showInspector(tool);
+  }
+  function navigateContent(node: string | null, proposal?: string, returnToReview?: string) {
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (node) next.set("nodeId", node); else next.delete("nodeId");
+      if (proposal) next.set("proposalId", proposal); else next.delete("proposalId");
+      if (returnToReview) next.set("returnProposalId", returnToReview); else next.delete("returnProposalId");
+      if (node) next.delete("start");
+      return next;
+    }, { replace: true });
+    setNodeId(node);
+    setPane("editor");
+  }
+  function selectNode(node: string) { setEditing(!!draft); navigateContent(node); }
+  function openReview(proposalId: string, targetNodeId?: string) {
+    setReady(null); setReceipt(null); setEditing(false); navigateContent(targetNodeId ?? nodeId, proposalId);
+  }
+  function showLocalResult(target: LocalTarget, proposalId?: string) {
+    setReady(null);
+    if (proposalId) openReview(proposalId, target.id);
+    else { setEditing(false); navigateContent(target.id); setLocalEditorId(target.id); }
+  }
+  const turn = useOutlineReviewTurn(id, (proposalId, target) => {
+    if (target && (target.id !== nodeId || draft)) setReady({target, proposalId});
+    else if (target) showLocalResult(target, proposalId);
+    else if (proposalId) openReview(proposalId);
+    else showInspector("suggestions");
   });
-  const apply = useMutation({
-    mutationFn: (operationIds: string[]) => applyOutlineProposal(id, proposal!.id, operationIds),
-    onSuccess: async () => {
-      setProposal(null);
-      await queryClient.invalidateQueries({ queryKey: ["outline-revisions", id] });
-      await refreshOutline();
-    },
+  useEffect(() => { if (requestedNode) setNodeId(requestedNode); }, [requestedNode]);
+  useEffect(() => { if (feedbackLink) showInspector("feedback"); }, [feedbackLink]);
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [hasUnsavedChanges]);
+
+  const selected = document && (nodeId && nodeId !== "story" ? findOutlineNode(document, nodeId) ?? (nodeId === lastDiscussion ? document.story : undefined) : document.story);
+  const localTarget: LocalTarget | undefined = selected && "appearanceNodeIds" in selected ? {kind:"character", id:selected.nodeId}
+    : selected && "chapterNodeIds" in selected ? {kind:"volume", id:selected.nodeId}
+    : selected && "volumeNodeId" in selected ? {kind:"chapter", id:selected.nodeId} : undefined;
+  const visiblePending = (pending.data ?? []).filter(p => {
+    if (selected === document?.story) return !p.characterId && !p.chapterId && !p.volumeId;
+    if (!selected) return false;
+    const localOwner = p.characterId ?? p.chapterId ?? p.volumeId;
+    return localOwner ? localOwner === selected.nodeId && (p.kind === "volume_beats" || p.baseVersion === version) : p.targetNodeIds?.includes(selected.nodeId);
   });
+  const blank = !!document && isEmptyOutline(document);
+  const starter = blank && !editing && !draft && !reviewId && selected === document?.story;
+  const sideOpen = inspectorOpen && !(starter && activeInspector === "suggestions");
 
-  const selected = useMemo<OutlineNode | undefined>(() => {
-    if (!document) return undefined;
-    if (node === "story" || document.story.nodeId === node) return document.story;
-    return [
-      ...document.volumes,
-      ...document.chapters,
-      ...document.characters,
-      ...document.payoffs,
-      ...document.facts,
-    ].find(item => item.nodeId === node);
-  }, [document, node]);
+  function sendOpening(requestText: string, action?: "generate_initial") {
+    const submitted = request;
+    turn.send({ requestText, action, baseVersion: version }, {
+      onSuccess: () => setRequest(current => current === submitted ? "" : current),
+    });
+  }
 
-  if (query.isLoading || (!document && !query.isError)) return <p className="text-sm text-muted-foreground">正在打开大纲…</p>;
-  if (query.isError || !document) return <p role="alert" className="text-sm text-destructive">大纲读取失败，请返回列表后重试。</p>;
-
-  const updateSelectedField = (field: string, value: string) => {
-    setDocument(current => {
-      if (!current) return current;
-      if (node === "story" || current.story.nodeId === node) {
-        return { ...current, story: { ...current.story, [field]: value } };
-      }
-      for (const collection of ["volumes", "chapters", "characters", "payoffs", "facts"] as const) {
-        if (current[collection].some(item => item.nodeId === node)) {
-          return {
-            ...current,
-            [collection]: current[collection].map(item => item.nodeId === node ? { ...item, [field]: value } : item),
-          } as OutlineDocument;
+  function updateField(field: string, value: string | boolean) {
+    const saved = query.data;
+    if (!selected || !saved?.document || writing) return;
+    const savedDocument = saved.document;
+    const original = findOutlineNode(savedDocument, selected.nodeId);
+    function edit<T extends OutlineNode>(node: T) {
+      const next = { ...node, [field]: value };
+      if (value === "" && (field === "beatKey" || original && !(field in original))) delete (next as Record<string, unknown>)[field];
+      return next;
+    }
+    setDraft(previous => {
+      const current = previous?.document ?? savedDocument;
+      const baseVersion = previous?.baseVersion ?? saved.currentVersion;
+      let next = current;
+      if (selected.nodeId === current.story.nodeId) next = { ...current, story: edit(current.story) };
+      else for (const key of ["volumes", "chapters", "characters", "payoffs", "facts"] as const) {
+        if (current[key].some(item => item.nodeId === selected.nodeId)) {
+          next = { ...current, [key]: current[key].map(item => item.nodeId === selected.nodeId ? edit(item) : item) };
+          break;
         }
       }
-      return current;
+      return baseVersion === saved.currentVersion && JSON.stringify(next) === JSON.stringify(savedDocument) ? null : { baseVersion, document: next };
     });
-  };
+  }
+  function guardLeave(event: MouseEvent<HTMLAnchorElement>) {
+    if (draft && !event.ctrlKey && !event.metaKey && !window.confirm("离开会丢失未保存的修改。继续离开吗？")) event.preventDefault();
+  }
+  if (!document) return query.isLoading ? <p role="status">正在打开大纲…</p> : <div role="alert" className="space-x-3">
+    <span>大纲读取失败。</span><Button variant="secondary" onClick={() => void query.refetch()}>重试</Button><Link to="/outlines">返回列表</Link>
+  </div>;
 
-  const download = async (format: "json" | "markdown") => {
-    const value = await exportOutline(id, format);
-    const url = URL.createObjectURL(new Blob([typeof value === "string" ? value : JSON.stringify(value, null, 2)], { type: "text/plain;charset=utf-8" }));
-    const anchor = window.document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${query.data?.title}.${format === "json" ? "json" : "md"}`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const directory = [
-    { label: "总纲", items: [{ id: "story", label: document.story.title }] },
-    {
-      label: "卷与章节",
-      items: [
-        ...document.volumes.map(item => ({ id: item.nodeId, label: item.title })),
-        ...document.chapters.map(item => ({ id: item.nodeId, label: `　${item.title}` })),
-      ],
-    },
-    { label: "人物", items: document.characters.map(item => ({ id: item.nodeId, label: item.name })) },
-    { label: "伏笔与钩子", items: document.payoffs.map(item => ({ id: item.nodeId, label: item.title })) },
-    { label: "固定设定", items: document.facts.map(item => ({ id: item.nodeId, label: item.title })) },
-  ];
-  const selectedFields = selected
-    ? Object.entries(selected as unknown as Record<string, unknown>).filter(([key, value]) => key !== "nodeId" && key !== "volumeNodeId" && typeof value === "string") as Array<[string, string]>
-    : [];
-
-  return (
-    <div className="outline-workspace mx-auto max-w-[1800px]">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{query.data?.title} <span className="text-sm font-normal text-muted-foreground">· 修订 v{query.data?.currentVersion}</span></h1>
-          <p className="mt-1 text-xs text-muted-foreground">大纲内容独立保存；AI 建议需要你确认后才会成为新修订。</p>
-        </div>
-        <div className="flex gap-2">
-          {!isMobileViewport ? (!bindingQuery.isSuccess || (!bindingQuery.data && (!currentRevisionId || hasUnsavedChanges)) ? <Button disabled>按这份大纲开书</Button> : <Button asChild><Link to={bindingQuery.data ? bindingQuery.data.sourceRoute : `/outlines/${id}/open-book?revisionId=${encodeURIComponent(currentRevisionId)}`}>{bindingQuery.data ? "继续这本书" : "按这份大纲开书"}</Link></Button>) : null}
-          <Button variant="ghost" onClick={() => setShowHistory(current => !current)}>{showHistory ? "收起历史" : "历史"}</Button>
-          <Button variant="ghost" onClick={() => download("json")}>导出 JSON</Button>
-          <Button variant="ghost" onClick={() => download("markdown")}>导出 Markdown</Button>
-        </div>
-      </header>
-
-      {bindingQuery.data ? <p className="shrink-0 text-xs leading-6 text-muted-foreground">已绑定《{bindingQuery.data.title}》 · 固定采用修订 v{bindingQuery.data.revisionVersion}{bindingQuery.data.currentVersion!==bindingQuery.data.revisionVersion ? ` · 源大纲当前为 v${bindingQuery.data.currentVersion}，本书不会自动同步` : ""}</p> : bindingQuery.isError ? <p role="alert" className="shrink-0 text-xs text-destructive">绑定信息读取失败，请刷新后再开书，避免重复创建。</p> : hasUnsavedChanges ? <p className="shrink-0 text-xs text-muted-foreground">先保存本地修改，再按这份修订开书。</p> : null}
-      <OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} />
-      <div className="outline-workspace-grid">
-        <nav aria-label="大纲目录" className="outline-directory space-y-5 border-b border-border/50 pb-4 xl:border-b-0 xl:border-r xl:pr-3">
-          {directory.map(group => (
-            <section key={group.label}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.label}</h2>
-              {group.items.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setNode(item.id)}
-                  className={`block w-full truncate rounded px-2 py-1.5 text-left text-sm ${node === item.id ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </section>
-          ))}
-        </nav>
-
-        <section aria-label="大纲内容编辑" className="outline-editor min-w-0">
-          {selected ? (
-            <>
-              <div className="outline-editor-fields space-y-4">
-                <h2 className="text-lg font-semibold">{getOutlineNodeTitle(selected)}</h2>
-                {selectedFields.map(([key, value]) => (
-                  <label key={key} className="block space-y-1.5">
-                    <span className="text-sm text-muted-foreground">{outlineFieldLabels[key] ?? key}</span>
-                    <textarea
-                      rows={4}
-                      className="outline-textarea min-h-24 w-full resize-y rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
-                      value={value}
-                      onChange={event => updateSelectedField(key, event.target.value)}
-                    />
-                  </label>
-                ))}
-              </div>
-              <div className="outline-save-bar sticky bottom-0 z-10 border-t border-border/50 bg-background py-3">
-                <div className="flex flex-wrap items-center justify-end gap-3">
-                  {save.isSuccess ? <span className="text-xs text-muted-foreground">已保存为新修订</span> : null}
-                  <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
-                </div>
-                {save.isError ? <p role="alert" className="mt-2 text-sm text-destructive">{save.error instanceof Error ? save.error.message : "保存失败，请重试。"}</p> : null}
-              </div>
-            </>
-          ) : <p className="text-sm text-muted-foreground">选择目录中的内容进行编辑。</p>}
-        </section>
-
-        <aside aria-label="大纲建议与历史" className="outline-inspector space-y-4 border-t border-border/50 pt-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
-          <div>
-            <h2 className="font-semibold">AI 协作</h2>
-            <p className="mt-1 text-sm text-muted-foreground">告诉 AI 你希望调整什么，建议会先展示给你检查。</p>
-          </div>
-          <select
-            aria-label="AI 建议类型"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            value={proposalKind}
-            onChange={event => setProposalKind(event.target.value as OutlineProposalKind)}
-          >
-            <option value="edit">调整当前大纲</option>
-            <option value="initial_generation">从想法生成初版</option>
-          </select>
-          <textarea
-            aria-label="给 AI 的修改要求"
-            rows={4}
-            className="outline-textarea min-h-28 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-6"
-            placeholder={proposalKind === "initial_generation" ? "用一句话描述你想写的故事" : "例如：让第二卷的节奏更紧凑，并加入一条感情线"}
-            value={request}
-            onChange={event => setRequest(event.target.value)}
-          />
-          <Button className="w-full" onClick={() => propose.mutate()} disabled={!request.trim() || propose.isPending}>
-            {propose.isPending ? "正在生成建议…" : proposalKind === "initial_generation" ? "生成大纲建议" : "提出修改建议"}
-          </Button>
-          {propose.isError ? <p role="alert" className="text-sm text-destructive">{propose.error instanceof Error ? propose.error.message : "建议生成失败，请重试。"}</p> : null}
-          {proposal ? (
-            <OutlineProposalPanel
-              key={proposal.id}
-              proposal={proposal}
-              document={document}
-              isApplying={apply.isPending}
-              onApply={operationIds => apply.mutate(operationIds)}
-              onDiscard={() => setProposal(null)}
-            />
-          ) : null}
-          {apply.isError ? (
-            <div role="alert" className="space-y-2 text-sm text-destructive">
-              <p>{apply.error instanceof Error ? apply.error.message : "采纳失败，请刷新大纲后重试。"}</p>
-              <p className="text-xs text-muted-foreground">请根据当前大纲重新生成建议，再检查并采纳。</p>
-              <Button type="button" size="sm" variant="secondary" onClick={() => { setProposal(null); apply.reset(); }}>
-                重新生成建议
-              </Button>
-            </div>
-          ) : null}
-          {showHistory ? (
-            <OutlineRevisionPanel
-              outlineId={id}
-              currentVersion={query.data?.currentVersion ?? 0}
-              document={document}
-              onRestored={() => { void refreshOutline(); }}
-            />
-          ) : null}
-        </aside>
+  const localExpanded = !!localTarget && localEditorId === localTarget.id;
+  const conversation = <OutlineConversation projectId={id} version={version} document={query.data!.document!} starting={fromIdea}
+    dirty={blockRevision || turn.busy} value={request} onChange={setRequest} onSent={turnId => { rememberDiscussion("story"); turn.track(turnId); }}
+    onOpenResult={prop => openReview(prop)} />;
+  const reviewLabel = localExpanded ? "收起修改" : localTarget?.kind === "character" ? "修改" + getOutlineNodeTitle(selected)
+    : localTarget?.kind === "volume" ? "调整本卷" : "调整本章";
+  const readingNotices = <>
+    {params.get("returnProposalId") && <button className="outline-reading-link px-4" onClick={() => openReview(params.get("returnProposalId")!)}><ArrowLeft size={14} />回到刚才的建议</button>}
+    {pending.isError && <button className="outline-reading-link" onClick={() => void pending.refetch()}>重新读取待处理建议</button>}
+    <PendingSuggestions document={document} proposals={visiblePending} version={version} onOpen={proposal => openReview(proposal, visiblePending.find(p => p.id === proposal)?.characterId ?? undefined)} />
+  </>;
+  return <div className="outline-workspace mx-auto max-w-[1800px]">
+    <header className="outline-workspace-heading">
+      <div className="min-w-0">
+        <Link className="mb-1.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary" to="/outlines" onClick={guardLeave}><ArrowLeft size={13} />我的大纲</Link>
+        <h1 className="truncate text-2xl font-semibold tracking-tight" title={query.data?.title}>{query.data?.title}</h1>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {!starter && <Button variant={inspectorOpen && activeInspector === "suggestions" ? "secondary" : "ghost"} size="sm" aria-expanded={inspectorOpen && activeInspector === "suggestions" && (pane === "assistant" || !isMobileViewport)} onClick={() => toggleInspector("suggestions")}><Sparkles />大纲助手</Button>}
+        <Button variant={inspectorOpen && activeInspector === "history" ? "secondary" : "ghost"} size="sm" onClick={() => toggleInspector("history")}><History />版本历史</Button>
+        <select aria-label="导出已保存的大纲" className="outline-export" value="" disabled={download.isPending || blockRevision}
+          onChange={event => download.mutate(event.target.value as "markdown" | "json")}>
+          <option value="" disabled>导出大纲</option><option value="markdown">Markdown 文稿</option><option value="json">JSON 数据</option>
+        </select>
+        {!isMobileViewport && (!bindingQuery.isSuccess || (!bindingQuery.data && (!currentRevisionId || blockRevision))
+          ? <Button size="sm" disabled>按这份大纲开书</Button>
+          : <Button asChild size="sm"><Link onClick={guardLeave} to={bindingQuery.data ? bindingQuery.data.sourceRoute : `/outlines/${id}/open-book?revisionId=${encodeURIComponent(currentRevisionId!)}`}>
+            {bindingQuery.data ? "继续这本书" : "按这份大纲开书"}</Link></Button>)}
+      </div>
+    </header>
+    {download.isError && <p role="alert" className="text-sm text-destructive">导出失败，请重新选择格式。</p>}
+    {bindingQuery.data && <p className="text-xs text-muted-foreground">《{bindingQuery.data.title}》采用修订 v{bindingQuery.data.revisionVersion}{bindingQuery.data.currentVersion !== bindingQuery.data.revisionVersion && ` · 大纲修订 v${bindingQuery.data.currentVersion} 的改动仅保存在大纲中`}</p>}
+    {bindingQuery.isError && <p role="alert" className="text-sm text-destructive">未能读取开书信息。<button className="underline" onClick={() => void bindingQuery.refetch()}>重新读取</button></p>}
+
+    <div className="outline-pane-switch" role="group" aria-label="工作区视图">
+      <button type="button" data-target="directory" aria-pressed={pane === "directory"} onClick={() => setPane("directory")}><ListTree />目录</button>
+      <button type="button" aria-pressed={pane === "editor"} onClick={() => setPane("editor")}><FilePenLine />{starter ? "故事构思" : "大纲内容"}</button>
+      <button type="button" aria-pressed={pane === "assistant"} onClick={() => showInspector(starter && activeInspector === "suggestions" ? "history" : activeInspector)}>{starter ? <><History />大纲记录</> : <><Sparkles />协作与历史</>}</button>
     </div>
-  );
+    <WorkspaceColumns layoutId="outline" className="outline-workspace-grid" data-pane={pane} data-inspector-open={sideOpen} gap={0} minCenter={300}
+      left={{ label: "调整大纲目录宽度", initial: "var(--outline-directory-width)", min: 144 }}
+      right={sideOpen ? { label: "调整协作与历史宽度", initial: "var(--outline-inspector-width)", min: 260 } : undefined}>
+      <OutlineDirectory document={document} selectedId={selected?.nodeId ?? ""} onSelect={selectNode} disabled={writing || hasConflict}
+        onAdd={(next, newId) => {
+          setDraft({ baseVersion: draft?.baseVersion ?? version, document: next });
+          navigateContent(newId); setEditing(true);
+        }} />
+      <section aria-label="大纲内容编辑" className="outline-editor">
+        {turn.busy && <div className="outline-activity" role="status"><Sparkles size={16} /> 正在整理建议…
+          <button onClick={() => turn.target ? showLocalResult(turn.target) : showInspector("suggestions")}>{turn.target ? "查看本次修改" : "查看整书讨论"}</button></div>}
+        {ready && <div className="outline-activity" role="status">「{getOutlineNodeTitle(findOutlineNode(document, ready.target.id))}」的修改有了回复。
+          <button onClick={() => showLocalResult(ready.target, ready.proposalId)}>{ready.proposalId ? "查看建议" : "查看回复"}</button></div>}
+        {turn.error && <p className="outline-activity" role="alert">{turn.error}<button onClick={turn.clearError}>关闭提示</button></p>}
+        {receipt && <div className="outline-activity" role="status"><Check size={16} /> 已采纳为 v{receipt} <button onClick={() => showInspector("history")}>查看版本历史</button></div>}
+        {reviewId ? <div key={reviewId} className="outline-reading-scroll"><OutlineReviewReading projectId={id} proposalId={reviewId} document={query.data!.document!} version={version}
+          locked={blockRevision} busy={turn.busy} onReturn={ownerId => navigateContent(ownerId ?? nodeId)} onSelect={node => navigateContent(node, undefined, reviewId)}
+          onRequest={(requestText, priorId, target) => {
+            if (target && nodeId !== target.id) navigateContent(target.id, priorId);
+            turn.send({requestText, priorId, target, baseVersion:version});
+          }}
+          onApplied={(appliedVersion, node) => { setReceipt(appliedVersion); setEditing(false); navigateContent(node ?? null); }} /></div>
+        : !editing && selected ? <div className={starter ? "outline-reading-scroll outline-idea-page" : "outline-reading-scroll"} key={selected.nodeId}>
+          {!localTarget && readingNotices}
+          {starter ? <IdeaStarter projectId={id} value={request} onChange={setRequest} busy={turn.busy || blockRevision}
+            onGenerate={() => sendOpening(request.trim() || "根据我们讨论的故事方向，生成第一版大纲。", "generate_initial")}
+            onDiscuss={() => sendOpening(request.trim() ? `我想写这样的故事，请先问我一个问题，帮我想清楚方向。\n${request.trim()}`.slice(0,6000) : "我还没有具体的故事想法，请先问我一个问题，帮我找到方向。")}
+            onEdit={() => setEditing(true)}>{conversation}</IdeaStarter>
+            : <OutlineReading document={document} node={selected} version={version} onSelect={selectNode} onEdit={() => setEditing(true)}
+              notices={localTarget && readingNotices}
+              volumeRhythm={"chapterNodeIds" in selected && <VolumeRhythm projectId={id} version={version} onSelect={selectNode} volume={selected}
+                chapters={document.chapters.filter(ch=>ch.volumeNodeId===selected.nodeId).sort((a,b)=>a.order-b.order)}
+                disabled={blockRevision || turn.busy} onOpen={proposal=>openReview(proposal,selected.nodeId)}/>}
+              reviewAction={localTarget && <Button type="button" size="sm" variant="secondary" className="outline-local-toggle"
+                aria-expanded={localExpanded} aria-controls={localExpanded ? "outline-local-form" : undefined} title={reviewLabel}
+                onClick={() => setLocalEditorId(localExpanded ? null : localTarget.id)}><Feather size={15} /><span>{reviewLabel}</span></Button>}
+              renderLocalReview={localTarget && (passages => <OutlineLocalReview projectId={id} target={localTarget} title={getOutlineNodeTitle(selected)} version={version}
+                expanded={localExpanded} disabled={blockRevision || turn.busy} draft={localDrafts[localTarget.id] ?? {text:""}}
+                onExpand={() => setLocalEditorId(localTarget.id)} onChange={value => setLocalDrafts(prev => ({...prev,[localTarget.id]:value}))}
+                onOpen={proposal => openReview(proposal, localTarget.id)} onSend={(requestText, priorId) => {
+                  const submitted = localDrafts[localTarget.id];
+                  turn.send({requestText, priorId, target:localTarget, baseVersion:version}, {onSuccess: () => {
+                    rememberDiscussion(localTarget.id);
+                    setLocalDrafts(prev => prev[localTarget.id] === submitted ? {...prev,[localTarget.id]:{text:""}} : prev);
+                  }});
+                }}>{passages}</OutlineLocalReview>)} />}
+          </div>
+        : selected ? <OutlineNodeEditor key={selected.nodeId} document={document} node={selected} disabled={writing} onChange={updateField}
+          onSelect={selectNode} /> : <div className="outline-editor-fields"><p>这条内容在此修订中不存在。</p><Button variant="ghost" onClick={() => selectNode(document.story.nodeId)}>查看总纲</Button></div>}
+        {(editing || draft) && <footer className="outline-save-bar">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              {!draft && <Check size={14} aria-hidden />}{draft ? `有未保存的修改 · 基于 v${draft.baseVersion}` : `已保存 · v${version}`}</span>
+            <div className="flex items-center gap-1">
+            {!draft && <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>回到阅读</Button>}
+            {draft && !hasConflict && <Button size="sm" variant="ghost" disabled={writing} onClick={() => {
+              if (window.confirm("放弃这份大纲中所有未保存的修改？")) {
+                setDraft(null);
+                if (nodeId && query.data?.document && !findOutlineNode(query.data.document, nodeId)) setNodeId(null);
+              }
+            }}>放弃修改</Button>}
+            <Button size="sm" variant={draft ? "default" : "secondary"} disabled={!draft || hasConflict || writing} onClick={() => save.mutate()}>{save.isPending ? "保存中…" : "保存为新修订"}</Button>
+            </div>
+          </div>
+          {hasConflict && <p role="alert" className="mt-2 text-sm text-warning">有更新的修订。请复制要保留的修改，再
+            <button className="underline" onClick={() => { if (window.confirm("载入最新修订会替换未保存的修改。继续吗？")) setDraft(null); }}>载入最新修订</button>。</p>}
+          {save.isError && <p role="alert" className="mt-2 text-sm text-destructive">{save.error.message}</p>}
+        </footer>}
+      </section>
+
+      {(!starter || sideOpen) && <aside ref={inspectorRef} aria-label="大纲建议与历史" className="outline-inspector">
+        <div className="outline-inspector-nav" role="group" aria-label="审阅工具">
+          <button aria-pressed={activeInspector === "suggestions"} onClick={() => showInspector("suggestions")}><Sparkles />整书讨论</button>
+          <button aria-pressed={activeInspector === "history"} onClick={() => setInspector("history")}><History />修订历史</button>
+          {showFeedback && <button aria-pressed={activeInspector === "feedback"} onClick={() => setInspector("feedback")}><MessageSquareText />章节反馈</button>}
+          <button className="outline-close-inspector" aria-label="收起侧栏" onClick={closeInspector}>收起</button>
+        </div>
+        <div className="outline-inspector-body" data-conversation={activeInspector === "suggestions"}>
+          {draft && <p role="status" className="mb-4 text-sm text-muted-foreground">先保存手动修改，再生成建议或采用其他版本。</p>}
+          {!starter && <div hidden={activeInspector !== "suggestions"} className="outline-conversations">{conversation}</div>}
+          {activeInspector === "history" && <OutlineRevisionPanel outlineId={id} currentVersion={version} document={document} restoreDisabled={blockRevision} onRestored={refresh} />}
+          {showFeedback && <div hidden={activeInspector !== "feedback"}><OutlineFeedbackPanel outlineId={id} bound={!!bindingQuery.data} applyDisabled={blockRevision} document={document} /></div>}
+        </div>
+      </aside>}
+    </WorkspaceColumns>
+  </div>;
 }

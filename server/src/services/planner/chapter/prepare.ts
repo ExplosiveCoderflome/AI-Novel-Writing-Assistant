@@ -222,6 +222,7 @@ export async function prepareChapterPlan(novelId: string, chapterId: string, opt
   });
 
   return {request:buildPlannerPromptRequest({options,scopeLabel:`章节规划：第${chapter.order}章《${chapter.title}》`,novelId,chapterId,planLevel:"chapter",contextBlocks}),
-    projection:{novelId,chapter:{...chapter,updatedAt:chapter.updatedAt.toISOString()},defaultMetadata,characters,characterDynamicsOverview,resolvedStateDrivenContext,anchoredVolumeChapter:anchoredVolumeChapter ?? null,replanContext:options.replanContext}};
+    projection:{novelId,chapter:{...chapter,updatedAt:chapter.updatedAt.toISOString()},defaultMetadata,characters,characterDynamicsOverview,resolvedStateDrivenContext,anchoredVolumeChapter:anchoredVolumeChapter ?? null,replanContext:options.replanContext,
+      ...(options.preserveExecutionContract ? {preserveExecutionContract: true} : {})}};
 }
 export type PreparedChapterPlan=Awaited<ReturnType<typeof prepareChapterPlan>>;

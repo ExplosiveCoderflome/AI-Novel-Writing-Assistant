@@ -17,7 +17,6 @@ import { NovelContextService } from "../NovelContextService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import {
   supplementalCharacterCandidateSchema,
-  type SupplementalCharacterGenerationResponseParsed,
 } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { parseCharacterProhibitionsJson } from "../characters/characterHardFacts";
@@ -225,7 +224,7 @@ export class CharacterPreparationSupplementalService {
       : novel.characterRelations.slice(0, 12);
     const targetCountText = typeof options.count === "number"
       ? `本次必须生成 ${options.count} 个候选角色。`
-      : "如果用户没有指定数量，请根据当前角色网络的缺口，自行判断更适合生成 1 个、2 个还是 3 个候选，并把建议数量写入 recommendedCount。";
+      : "请按作者的故事需求和现有阵容的缺口决定候选人数，把建议采用的人数写入 recommendedCount。";
     const contextBlocks = buildSupplementalCharacterContextBlocks({
       projectTitle: novel.title,
       modeLabel: `${mode}（${SUPPLEMENTAL_MODE_PROMPT_LABELS[mode]}）`,
@@ -305,7 +304,7 @@ export class CharacterPreparationSupplementalService {
 
     const result = await runStructuredPrompt({
       asset: supplementalCharacterPrompt,
-      promptInput: {},
+      promptInput: {count: options.count},
       contextBlocks,
       options: {
         provider: options.provider,
@@ -315,16 +314,11 @@ export class CharacterPreparationSupplementalService {
     });
     const parsed = result.output;
 
-    const requestedCount = typeof options.count === "number" ? options.count : null;
-    const normalizedCandidates = (requestedCount ? parsed.candidates.slice(0, requestedCount) : parsed.candidates)
-      .map((candidate) => supplementalCharacterCandidateSchema.parse(candidate))
-      .slice(0, 3);
-
     return {
       mode: parsed.mode,
-      recommendedCount: requestedCount ?? Math.min(Math.max(parsed.recommendedCount, 1), normalizedCandidates.length || 1),
+      recommendedCount: options.count ?? parsed.recommendedCount,
       planningSummary: toOptionalText(parsed.planningSummary),
-      candidates: normalizedCandidates.map((candidate) => ({
+      candidates: parsed.candidates.map((candidate) => ({
         name: candidate.name,
         role: candidate.role,
         gender: candidate.gender,

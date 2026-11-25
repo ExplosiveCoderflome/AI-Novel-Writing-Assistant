@@ -40,7 +40,7 @@ export function CharacterGraphView({book, preview=false, onOpenCharacter}: {book
       <button type="button" className="text-primary hover:underline" onClick={()=>{void relations.refetch(); void dynamics.refetch();}}>重新读取关系</button>
     </div> : null}
     {selected ? <button type="button" className="text-sm text-primary hover:underline focus-visible:underline" onClick={()=>onOpenCharacter(selected)}>查看角色档案</button> : null}
-    <CharacterRelationshipGraphPanel model={model} mode={mode} onModeChange={setMode}
+    <CharacterRelationshipGraphPanel novelId={preview ? null : novelId} model={model} mode={mode} onModeChange={setMode}
       selectedCharacterId={selected} onSelectedCharacterChange={setSelectedId}
       isLoading={!preview && (relations.isLoading || dynamics.isLoading)}/>
   </div>;

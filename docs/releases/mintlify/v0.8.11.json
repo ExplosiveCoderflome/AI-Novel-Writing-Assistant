@@ -1,0 +1,14 @@
+{
+  "zh": [
+    "大纲工作台可围绕人物连续讨论，并保留对话与历版提案；勾选采纳后一起保存。",
+    "大纲目录支持手动添加卷、章、人物、伏笔和设定，也可搜索并在关联节点间跳转。",
+    "可与「大纲搭档」聊天起草或调整整份大纲；回复逐段显示，可展开思考过程并在采纳前核对提案。",
+    "人物联动提案中超出可改范围的建议只跳过无效项，其余修改仍可进入提案；提案格式偏差也会按内容识别。"
+  ],
+  "en": [
+    "Discuss a character continuously in the outline workbench, keep the conversation and prior proposals, and save only the edits you accept.",
+    "Manually add volumes, chapters, characters, foreshadowing, and settings in the outline directory, search by title, and jump between linked nodes.",
+    "Chat with the Outline Partner to draft or revise a full outline. Replies stream in, thinking can be expanded, and proposals are reviewed before save.",
+    "Out-of-scope character-impact suggestions are skipped without discarding the rest of the proposal; slightly off proposal formats are still recognized by content."
+  ]
+}

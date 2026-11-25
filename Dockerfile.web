@@ -1,4 +1,4 @@
-ARG NODE_IMAGE=node:20-bookworm-slim
+ARG NODE_IMAGE=node:24-bookworm-slim
 ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.27-alpine
 FROM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm

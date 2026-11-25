@@ -19,7 +19,7 @@ export interface NovelWorkspaceEntry {
 }
 
 export function getNovelWorkflowAttention(
-  task?: NovelAutoDirectorTaskSummary | null,
+  task?: Pick<NovelAutoDirectorTaskSummary, "status" | "pendingManualRecovery"> | null,
 ): "recovery" | "confirmation" | null {
   if (task?.pendingManualRecovery) {
     return "recovery";

@@ -10,7 +10,9 @@ export function useDirectorCharacterCandidates(runId: string, enabled: boolean) 
     queryFn: () => getDirectorCharacterCandidates(runId), refetchInterval: enabled ? 4000 : false});
 }
 
-function Review({review, page, runId, novelId}: {review: DirectorCharacterCandidateReview; page: DirectorCharacterCandidatePage; runId: string; novelId: string}) {
+interface CandidateProps {runId: string; novelId: string; proseReview?: boolean; onResolved?: () => void}
+
+function Review({review, page, runId, novelId, proseReview, onResolved}: CandidateProps & {review: DirectorCharacterCandidateReview; page: DirectorCharacterCandidatePage}) {
   const queryClient = useQueryClient();
   const pending = review.items.filter(i => i.status === "pending");
   const [choices, setChoices] = useState<Record<string, {action: CharacterCandidateAction | ""; targetId?: string}>>(() => Object.fromEntries(pending.map(i => [i.id,
@@ -26,12 +28,15 @@ function Review({review, page, runId, novelId}: {review: DirectorCharacterCandid
       queryClient.invalidateQueries({queryKey: ["directorBookWorkspace", novelId]}),
       queryClient.invalidateQueries({queryKey: ["director-character-appearances", novelId]}),
     ]);
+    onResolved?.();
   }});
   const complete = pending.every(i => choices[i.id]?.action && (choices[i.id].action !== "merge" || choices[i.id].targetId));
   const handled = review.items.length - pending.length;
   return <div className="space-y-3 py-3">
     <p className="text-sm font-medium">第 {review.chapterOrder} 章{pending.length ? ` · ${pending.length} 位待处理` : ` · 已处理 ${handled} 位人物`}</p>
-    {review.blocking ? <p className="text-xs leading-5 text-muted-foreground">核对本章人物后，点击“从保存进度继续”。正文会保留，确认的人物将用于后续创作。</p> : null}
+    {review.blocking ? <p className="text-xs leading-5 text-muted-foreground">{proseReview
+      ? "修订稿里有待核对的人物。选择处理方式后，即可继续确认本批正文。"
+      : "核对本章人物后，点击“从保存进度继续”。正文会保留，确认的人物将用于后续创作。"}</p> : null}
     {pending.map(item => <div key={item.id} className="space-y-2 rounded-md bg-muted/30 p-3">
       <p className="text-sm font-medium">{item.name}{item.role ? ` · ${item.role}` : ""}</p>
       {item.summary ? <p className="text-xs leading-5">{item.summary}</p> : null}
@@ -58,13 +63,13 @@ function Review({review, page, runId, novelId}: {review: DirectorCharacterCandid
   </div>;
 }
 
-export default function DirectorCharacterCandidates({page, runId, novelId}: {page?: DirectorCharacterCandidatePage; runId: string; novelId: string}) {
+export default function DirectorCharacterCandidates({page, ...props}: CandidateProps & {page?: DirectorCharacterCandidatePage}) {
   if (!page?.reviews.length) return null;
   const pending = page.reviews.filter(r => r.items.some(i => i.status === "pending"));
   const handled = page.reviews.flatMap(r => r.items).filter(i => i.status !== "pending").length;
   return <section className="border-t border-border/60 py-4" aria-label="本章人物">
     <h3 className="text-sm font-semibold">正文发现的人物</h3>
     {handled ? <p className="mt-2 text-xs text-muted-foreground">本次创作已处理 {handled} 位人物候选，角色资料可从左侧目录查看。</p> : null}
-    {pending.map(review => <Review key={`${review.id}:${review.revision}`} review={review} page={page} runId={runId} novelId={novelId}/>)}
+    {pending.map(review => <Review key={`${review.id}:${review.revision}`} review={review} page={page} {...props}/>)}
   </section>;
 }

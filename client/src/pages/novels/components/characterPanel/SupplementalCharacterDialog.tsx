@@ -8,6 +8,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import AiButton from "@/components/common/AiButton";
 import SelectControl from "@/components/common/SelectControl";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,7 +49,9 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
   const [supplementalMode, setSupplementalMode] = useState<SupplementalCharacterGenerationMode>("auto");
   const [supplementalAnchorIds, setSupplementalAnchorIds] = useState<string[]>([]);
   const [supplementalTargetRole, setSupplementalTargetRole] = useState<CharacterCastRole | "auto">("auto");
-  const [supplementalCount, setSupplementalCount] = useState<"auto" | "1" | "2" | "3">("auto");
+  const [supplementalCount, setSupplementalCount] = useState("");
+  const count = supplementalCount.trim() ? Number(supplementalCount) : undefined;
+  const invalidCount = count !== undefined && (!Number.isSafeInteger(count) || count < 1);
   const [supplementalPrompt, setSupplementalPrompt] = useState("");
   const [supplementalUseWorldContext, setSupplementalUseWorldContext] = useState(true);
   const [supplementalStatusMessage, setSupplementalStatusMessage] = useState("");
@@ -70,6 +73,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
   };
 
   const handleGenerateSupplementalCharacters = async () => {
+    if (invalidCount) return;
     if (supplementalMode === "linked" && characters.length === 0) {
       setSupplementalStatusMessage("当前还没有已建角色，不能基于关系补充角色。可以先建一个核心角色，或改用独立补位。");
       return;
@@ -80,7 +84,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
         mode: supplementalMode,
         anchorCharacterIds: supplementalMode === "independent" ? [] : supplementalAnchorIds,
         targetCastRole: supplementalTargetRole,
-        count: supplementalCount === "auto" ? undefined : Number(supplementalCount),
+        count,
         userPrompt: supplementalPrompt.trim() || undefined,
         useWorldContext: supplementalUseWorldContext,
         worldFocusHints: supplementalUseWorldContext
@@ -185,17 +189,11 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
                 </SelectControl>
               </div>
               <div className="space-y-2">
-                <div className="font-medium">生成数量</div>
-                <SelectControl
-                  className="w-full rounded-md border bg-background p-2 text-sm"
-                  value={supplementalCount}
-                  onChange={(event) => setSupplementalCount(event.target.value as "auto" | "1" | "2" | "3")}
-                >
-                  <option value="auto">AI 判断</option>
-                  <option value="1">1 个</option>
-                  <option value="2">2 个</option>
-                  <option value="3">3 个</option>
-                </SelectControl>
+                <label className="font-medium" htmlFor="supplemental-character-count">候选人数</label>
+                <Input id="supplemental-character-count" type="number" min={1} step={1} placeholder="留空由 AI 根据故事推荐" value={supplementalCount}
+                  aria-invalid={invalidCount} aria-describedby={invalidCount ? "supplemental-count-error" : undefined}
+                  onChange={event => setSupplementalCount(event.target.value)}/>
+                {invalidCount ? <p id="supplemental-count-error" className="text-xs text-destructive">请输入正整数，或留空由 AI 推荐。</p> : null}
               </div>
             </div>
 
@@ -221,11 +219,10 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
             <div className="flex flex-wrap gap-2">
               <AiButton
                 onClick={handleGenerateSupplementalCharacters}
-                disabled={isGeneratingSupplementalCharacters || (supplementalMode === "linked" && characters.length === 0)}
+                disabled={isGeneratingSupplementalCharacters || invalidCount || (supplementalMode === "linked" && characters.length === 0)}
               >
                 {isGeneratingSupplementalCharacters ? "生成中..." : "生成补充角色候选"}
               </AiButton>
-              <Badge variant="outline">数量不选时由 AI 判断</Badge>
               <Badge variant="outline">关系角色会优先围绕现有角色补位</Badge>
             </div>
 

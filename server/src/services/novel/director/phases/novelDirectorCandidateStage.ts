@@ -11,26 +11,27 @@ import {
   type DirectorCandidatesRequest,
   type DirectorCandidatesResponse,
   type DirectorCorrectionPreset,
-  type DirectorProjectContextInput,
   type DirectorRefineResponse,
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
-import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import type { NovelCreateResourceRecommendation } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { runCandidateStructuredCall } from "./candidateStructuredCall";
+import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
   directorCandidatePrompt,
+  directorDirectionPairPrompt,
 } from "../../../../prompting/prompts/novel/directorPlanning.prompts";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
-import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import {
+  buildCandidateTitleBrief,
   buildRefinementSummary,
   buildWorkflowSeedPayload,
   enhanceCandidateTitles,
+  mergeTitleOptions,
   normalizeCandidate,
   selectDistinctCandidateTitle,
   type CandidateGenerationContext,
@@ -42,85 +43,6 @@ type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTask
 
 function clampTemperature(value: number | undefined, ceiling: number): number {
   return Math.min(value ?? ceiling, ceiling);
-}
-
-function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
-  return {
-    title: candidate.workingTitle,
-    clickRate: 60,
-    style: "high_concept",
-    angle: "当前方案书名",
-    reason: "沿用当前方案书名。",
-  };
-}
-
-function mergeTitleOptions(
-  generatedTitles: TitleFactorySuggestion[],
-  candidate: DirectorCandidate,
-): TitleFactorySuggestion[] {
-  const merged: TitleFactorySuggestion[] = [];
-  for (const option of generatedTitles) {
-    if (!merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
-      merged.push(option);
-    }
-  }
-
-  const fallback = buildFallbackTitleOption(candidate);
-  if (!merged.some((existing) => isNearDuplicateTitle(existing.title, fallback.title))) {
-    merged.push(fallback);
-  }
-
-  return merged.slice(0, 4);
-}
-
-function buildTargetedTitleBrief(input: {
-  candidate: DirectorCandidate;
-  idea: string;
-  context: DirectorProjectContextInput;
-  feedback: string;
-}): string {
-  const currentTitleGroup = [
-    input.candidate.workingTitle,
-    ...(input.candidate.titleOptions ?? []).map((item) => item.title),
-  ]
-    .filter(Boolean)
-    .join("、");
-  const readerChannel = readerChannelPreferenceLabel(input.context.readerChannelPreference);
-
-  return [
-    `故事灵感：${input.idea.trim()}`,
-    `当前方案：${input.candidate.workingTitle}`,
-    `作品定位：${input.candidate.positioning}`,
-    `核心卖点：${input.candidate.sellingPoint}`,
-    `主线冲突：${input.candidate.coreConflict}`,
-    `主角路径：${input.candidate.protagonistPath}`,
-    `主钩子：${input.candidate.hookStrategy}`,
-    `推进循环：${input.candidate.progressionLoop}`,
-    input.candidate.toneKeywords.length > 0 ? `气质关键词：${input.candidate.toneKeywords.join("、")}` : "",
-    input.context.targetAudience?.trim() ? `目标读者：${input.context.targetAudience.trim()}` : "",
-    readerChannel ? `读者频道倾向：${readerChannel}` : "",
-    input.context.competingFeel?.trim() ? `对标气质：${input.context.competingFeel.trim()}` : "",
-    currentTitleGroup ? `当前标题组：${currentTitleGroup}` : "",
-    `标题修正意见：${input.feedback.trim()}`,
-    "请围绕同一套故事方向重做一组更合适的中文网文书名。",
-    "优先响应用户要求的气质修正，比如更都市、更悬疑、更轻巧、更高级感或没那么土。",
-    "不要重复当前这组标题，也不要回退成概念短语、口号名或老套模板名。",
-  ].filter(Boolean).join("\n");
-}
-
-function readerChannelPreferenceLabel(value: DirectorProjectContextInput["readerChannelPreference"]): string {
-  switch (value) {
-    case "ai_judge":
-      return "AI 判断";
-    case "male_oriented":
-      return "男频向";
-    case "female_oriented":
-      return "女频向";
-    case "general":
-      return "泛读者 / 不限定";
-    default:
-      return "";
-  }
 }
 
 function findTargetBatch(previousBatches: DirectorCandidateBatch[], batchId: string): DirectorCandidateBatch {
@@ -187,43 +109,39 @@ export class NovelDirectorCandidateStageService {
     await this.markCandidateProgress(
       context.workflowTaskId,
       "candidate_direction_batch",
-      context.batches.length === 0 ? "正在生成第一批书级方案" : "正在按修正意见生成新方案",
+      "正在为你的想法寻找两条不同的故事方向",
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runCandidateStructuredCall({
-      asset: directorCandidatePrompt,
-      promptInput: {
-        idea: context.idea,
-        context: context.request,
-        count: context.count,
-        batches: context.batches,
-        presets: context.presets,
-        feedback: context.feedback,
-      },
-      contextBlocks: buildDirectorCandidateContextBlocks({
-        idea: context.idea,
-        context: context.request,
-        latestBatch: context.batches.at(-1),
-        presets: context.presets,
-        feedback: context.feedback,
-      }),
-      options: {
-        provider: context.options.provider,
-        model: context.options.model,
-        temperature: clampTemperature(context.options.temperature, 0.45),
-        taskId: context.workflowTaskId,
-        stage: "auto_director",
-        itemKey: "candidate_direction_batch",
-        entrypoint: "auto_director_create",
-      },
-      candidateCount: context.count,
-    });
-
+    const latestBatch = context.batches.at(-1);
     const productionFoundation = context.productionFoundation
-      ?? context.batches.at(-1)?.candidates[0]?.productionFoundation;
-    const normalizedCandidates = parsed.output.candidates.map((candidate, index) => ({
-      ...normalizeCandidate(candidate, index),
+      ?? latestBatch?.candidates[0]?.productionFoundation;
+    const request = {
+      ...context.request,
+      productionFoundationPrompt: context.request.productionFoundationPrompt || JSON.stringify(productionFoundation),
+    };
+    const promptInput = {
+      idea: context.idea, context: request, count: context.count, batches: context.batches,
+      presets: context.presets, feedback: context.feedback,
+    };
+    const contextBlocks = buildDirectorCandidateContextBlocks({ ...promptInput, latestBatch });
+    const options = {
+      provider: context.options.provider, model: context.options.model,
+      temperature: clampTemperature(context.options.temperature, 0.45),
+      taskId: context.workflowTaskId, stage: "auto_director", itemKey: "candidate_direction_batch", entrypoint: "auto_director_create",
+    };
+    const { output: directions } = await runStructuredPrompt({
+      asset: directorDirectionPairPrompt, promptInput, contextBlocks,
+      options: { ...options, reasoningEnabled: false, automaticMaxTokens: 1500 },
+    });
+    await this.markCandidateProgress(context.workflowTaskId, "candidate_direction_batch",
+      "正在分别展开两条方向的冲突、人物和故事走向", DIRECTOR_PROGRESS.candidateDirectionBatch);
+    const { output: cards } = await runCandidateStructuredCall({
+      asset: directorCandidatePrompt, promptInput: { ...promptInput, directions }, contextBlocks, options, candidateCount: context.count,
+    });
+    const normalizedCandidates = (["A", "B"] as const).map((key, index) => ({
+      ...normalizeCandidate(cards[key], index),
+      plannedDirection: directions[key].choice,
       productionFoundation,
     }));
 
@@ -234,7 +152,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
     const independentlyEnrichedCandidates = await Promise.all(
-      normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context)),
+      normalizedCandidates.map((candidate) => enhanceCandidateTitles(candidate, context, { roundCandidates: normalizedCandidates })),
     );
     const enrichedCandidates: DirectorCandidate[] = [];
     const selectedTitles: string[] = [];
@@ -243,6 +161,7 @@ export class NovelDirectorCandidateStageService {
       let distinctCandidate = selectDistinctCandidateTitle(enrichedCandidate, selectedTitles);
       if (!distinctCandidate) {
         const regeneratedCandidate = await enhanceCandidateTitles(normalizedCandidates[index], context, {
+          roundCandidates: normalizedCandidates,
           excludedTitles: selectedTitles,
         });
         distinctCandidate = selectDistinctCandidateTitle(regeneratedCandidate, selectedTitles);
@@ -520,6 +439,8 @@ export class NovelDirectorCandidateStageService {
     const enrichedCandidate = await enhanceCandidateTitles({
       ...normalizeCandidate(parsed.output, 0),
       id: targetCandidate.id,
+      plannedDirection: targetCandidate.plannedDirection,
+      reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,
       productionFoundation: targetCandidate.productionFoundation,
     }, {
       idea: input.idea,
@@ -529,7 +450,7 @@ export class NovelDirectorCandidateStageService {
       feedback: input.feedback,
       request: input,
       options: input,
-    });
+    }, { roundCandidates: targetBatch.candidates });
 
     const nextBatch = replaceCandidateInBatch(
       targetBatch,
@@ -598,14 +519,18 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateTitlePack,
     );
 
+    const otherTitles = targetBatch.candidates.filter((item) => item.id !== targetCandidate.id).map((item) => item.workingTitle);
+    const currentTitles = new Set([targetCandidate.workingTitle, ...(targetCandidate.titleOptions ?? []).map((item) => item.title)]);
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
-      brief: buildTargetedTitleBrief({
-        candidate: targetCandidate,
-        idea: input.idea,
-        context: input,
-        feedback: input.feedback,
-      }),
+      selectionMode: "primary",
+      brief: [
+        buildCandidateTitleBrief(targetCandidate, { idea: input.idea, request: input }, {
+          roundCandidates: targetBatch.candidates, excludedTitles: otherTitles,
+        }),
+        `当前标题组：${[...currentTitles].join("、")}`,
+        `标题修正意见：${input.feedback.trim()}`,
+      ].join("\n"),
       genreId: input.genreId ?? null,
       count: 4,
       provider: input.provider,
@@ -613,9 +538,13 @@ export class NovelDirectorCandidateStageService {
       temperature: clampTemperature(input.temperature, 0.85),
     });
 
-    const titleOptions = mergeTitleOptions(response.titles, targetCandidate);
+    const titleOptions = mergeTitleOptions(response.titles, targetCandidate, otherTitles);
+    if (!titleOptions.length) {
+      throw new Error("生成的书名与同轮其他方案重复，请再试一次。");
+    }
     const nextCandidate: DirectorCandidate = {
       ...targetCandidate,
+      reviewRevision: (targetCandidate.reviewRevision ?? 0) + 1,
       workingTitle: titleOptions[0]?.title?.trim() || targetCandidate.workingTitle,
       titleOptions,
     };

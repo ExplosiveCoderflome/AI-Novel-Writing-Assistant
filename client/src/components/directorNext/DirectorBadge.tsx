@@ -18,6 +18,7 @@ interface DirectorBadgeProps {
   modeOnly?: boolean;
   currentNavigationTarget?: string;
   openRunLabel?: string;
+  panel?: boolean;
 }
 
 function statusLabel(mode: DashboardView["mode"]): string {
@@ -69,7 +70,7 @@ function commandFor(action: DirectorAction, view: DashboardView, novelId: string
   return null;
 }
 
-export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, modeOnly = false, currentNavigationTarget, openRunLabel }: DirectorBadgeProps) {
+export default function DirectorBadge({ view, novelId, onActionComplete, compact = false, preview = false, modeOnly = false, currentNavigationTarget, openRunLabel, panel = false }: DirectorBadgeProps) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (action: DirectorAction) => {
@@ -110,7 +111,12 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
 
   const renderAction = (action: DirectorAction, primary: boolean) => {
     const actionClassName = "h-auto max-w-full whitespace-normal py-2";
-    if (action.command === "open_run") return preview ? <Button key={action.id} className={actionClassName} disabled>{action.label}</Button> : <Button key={action.id} className={actionClassName} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{openRunLabel ?? action.label}</a></Button>;
+    if (action.command === "open_run") {
+      const label = openRunLabel ?? action.label;
+      return preview || panel
+        ? <Button key={action.id} className={actionClassName} disabled>{label}</Button>
+        : <Button key={action.id} className={actionClassName} asChild variant={primary ? "default" : "ghost"}><a href="#director-start">{label}</a></Button>;
+    }
     if (action.kind === "navigate" && action.target) {
       return (
         <Button key={action.id} className={actionClassName} asChild size={primary ? "default" : "sm"} variant={primary ? "default" : "ghost"}>
@@ -137,19 +143,22 @@ export default function DirectorBadge({ view, novelId, onActionComplete, compact
   };
 
   return (
-    <section className={cn("flex min-w-0 flex-col gap-3", compact ? "py-1" : "py-3")} aria-label="导演状态">
+    <section className={cn("flex min-w-0 flex-col gap-3", !panel && (compact ? "py-1" : "py-3"))} aria-label="导演状态">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-        <Badge variant="outline" className={cn("flex shrink-0 items-center gap-1.5", statusTone(view.mode))}>
+        <Badge variant="outline" className={cn("flex shrink-0 items-center gap-1.5", statusTone(view.mode),
+          panel && view.mode === "completed" && "border-transparent bg-success/10 text-success",
+          panel && (view.mode === "paused" || view.mode === "waiting_gate") && "border-transparent bg-warning/10 text-warning")}>
           <StatusIcon mode={view.mode} />
           {statusLabel(view.mode)}
         </Badge>
         <span className="text-xs font-medium leading-6 text-muted-foreground" aria-label="创作方式">模式：{driverLabel(view.driver)}</span>
       </div>
-      <p className="min-w-0 break-words text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      {panel ? <h2 className="break-words text-xl font-semibold leading-snug tracking-tight">{view.headline}</h2>
+        : <p className="min-w-0 break-words text-sm leading-6 text-foreground" title={view.headline}>{view.headline}</p>}
+      {(primaryAction || secondaryActions.length > 0) && <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {primaryAction ? renderAction(primaryAction, true) : null}
         {secondaryActions.map((action) => renderAction(action, false))}
-      </div>
+      </div>}
       {mutation.isError ? <p role="alert" className="w-full text-sm text-destructive">{mutation.error instanceof Error ? mutation.error.message : "动作提交失败。"}</p> : null}
     </section>
   );

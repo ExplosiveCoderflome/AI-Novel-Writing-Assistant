@@ -1,3 +1,4 @@
+import {nextProseBatchRange} from "../revisions/proseReview";
 import {prisma} from "../../../db/prisma";
 import {FactIntegrityError, PrismaEventLog, type RunContract, type RunControl, type ProductionProjection} from "../../../modules/director";
 import {parsePipelinePayload, isPipelineActiveStage} from "../../../services/novel/pipelineJobState";
@@ -13,13 +14,7 @@ export async function readProductionProjection({contract, control}: {contract: R
   const target = contract.launchInput?.estimatedChapterCount ?? 0;
   const saved = await prisma.chapter.findMany({where:{novelId:contract.novelId},
     select:{order:true,content:true},orderBy:{order:"asc"}});
-  const written = new Set(saved.filter(chapter=>chapter.content?.trim()).map(chapter=>chapter.order));
-  // Recommend the first unwritten gap, stopping before any saved prose or the frozen book target.
-  let from = 1;
-  while (from <= target && written.has(from)) from++;
-  let to = from;
-  while (to < Math.min(target, from+2) && !written.has(to+1)) to++;
-  const nextLaunchRange = from <= target ? {from, to} : null;
+  const nextLaunchRange = nextProseBatchRange(saved,target,Boolean(contract.launchInput?.outlineBinding));
   if (!range) return {chapterProgress:null, nextLaunchRange};
   if (!Number.isSafeInteger(range.from) || !Number.isSafeInteger(range.to) || range.from < 1 || range.to < range.from) {
     throw new FactIntegrityError("正文进度缺少有效的授权范围。");

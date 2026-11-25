@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+import ts from 'typescript-legacy';
 import {fileURLToPath} from 'node:url';
 
 const presenters=new Set(['components/directorNext/DirectorBadge.tsx','components/directorNext/DirectorPanel.tsx']);

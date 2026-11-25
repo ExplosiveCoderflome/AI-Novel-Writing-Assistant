@@ -17,7 +17,7 @@ export function LedgerView({book,selection,onSelect,preview=false}:{book:Workspa
   const characterId=selection.kind==="character_resources" ? selection.id : undefined;
   const name=characterId ? book.materials.characters.find(character=>character.id===characterId)?.name : null;
   const foreshadowing=selection.kind==="foreshadowing";
-  return <article className="mx-auto max-w-[42rem] px-2 pb-10 sm:px-6" aria-label={foreshadowing ? "本书伏笔" : "背包与资源"}>
+  return <article className="min-w-0 break-words px-2 pb-10 [container-type:inline-size] sm:px-6" aria-label={foreshadowing ? "本书伏笔" : "背包与资源"}>
     <p className="mb-3 text-xs text-muted-foreground">本书资料 · 全书最新保存状态</p>
     <h2 className="mb-3 text-2xl font-semibold">{foreshadowing ? "伏笔" : name ? `${name} · 背包与资源` : "背包与资源"}</h2>
     <p className="mb-6 text-xs leading-6 text-muted-foreground">包含全书保存的记录，可能透露后续剧情；不代表阅读章节当时的状态。</p>

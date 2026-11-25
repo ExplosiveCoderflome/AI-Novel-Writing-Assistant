@@ -13,7 +13,9 @@
       "@ai-novel/shared/*": ["../shared/*"]
     },
     "types": ["vite/client"],
-    "noEmit": true
+    "noEmit": true,
+    "incremental": true,
+    "tsBuildInfoFile": "tsconfig.tsbuildinfo"
   },
   "include": ["src", "vite.config.ts", "tailwind.config.ts"]
 }

@@ -1,4 +1,6 @@
 import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
+import {exportVersion} from "./finalReview/approvedManuscript";
+import {projectBookCompletion} from "../../services/novel/production/completion";
 import { buildChapterArchive } from "./infrastructure/chapterArchive";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
@@ -7,6 +9,7 @@ import { getSharedNovelServices } from "../../services/novel/application/sharedN
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import {
   buildExportTimestamp,
+  buildNovelTxtExport,
   buildMarkdownExportContent,
   buildScopedNovelExportPayload,
   buildTxtContent,
@@ -35,19 +38,25 @@ export class NovelExportService {
     return `${safeFileNamePart(title)}${suffix}-${buildExportTimestamp()}.${extension}`;
   }
 
-  private async getTxtNovelRecord(novelId: string): Promise<NovelTxtRecord> {
+  private async getTxtNovelRecord(novelId: string, checkFinalApproval = false): Promise<NovelTxtRecord> {
     const novel = await prisma.novel.findUnique({
       where: { id: novelId },
       select: {
         title: true,
         description: true,
         narrativeForm: true,
+        directorVersion: true,
+        directorEpoch: true,
+        estimatedChapterCount: true,
+        manuscriptProject: {select: {id: true}},
+        finalReviewApproval: {select: {confirmedVersion: true}},
         shortStorySegments: {
           select: { order: true, content: true },
           orderBy: { order: "asc" },
         },
         chapters: {
           select: {
+            id: true, generationState: true, chapterStatus: true, riskFlags: true,
             order: true,
             title: true,
             content: true,
@@ -63,10 +72,31 @@ export class NovelExportService {
       throw new AppError("小说不存在。", 404);
     }
 
-    const activeChapters = await readActiveManuscriptChapters(prisma as never, novelId);
+    let confirmedManuscript = false;
+    if (checkFinalApproval && novel.narrativeForm === "long_novel" && !novel.manuscriptProject
+      && novel.directorVersion !== "v1" && novel.estimatedChapterCount) {
+      const isDirectorBook = novel.directorVersion === "v2"
+        || await prisma.directorNextRun.findFirst({where: {novelId}, select: {id: true}});
+      const completion = isDirectorBook && projectBookCompletion({
+        target: novel.estimatedChapterCount, chapters: novel.chapters, activity: null,
+      });
+      if (completion && completion.status === "completed") {
+        const version = exportVersion({
+          novelId, epoch: novel.directorEpoch, title: novel.title, description: novel.description, target: completion.targetChapters,
+        }, novel.chapters);
+        if (novel.finalReviewApproval?.confirmedVersion !== version) {
+          throw new AppError("请在导演台确认完稿检查，再导出全书。", 409, {
+            sourceRoute: `/lab/director/${encodeURIComponent(novelId)}?delivery=review`, sourceActionLabel: "打开完稿检查",
+          });
+        }
+        confirmedManuscript = true;
+      }
+    }
+    const activeChapters = novel.manuscriptProject ? await readActiveManuscriptChapters(prisma as never, novelId) : null;
     return {
       title: novel.title,
       description: novel.description,
+      confirmedManuscript,
       narrativeForm: novel.narrativeForm,
       shortStoryContent: novel.shortStorySegments
         .map((segment) => segment.content.trim())
@@ -223,7 +253,7 @@ export class NovelExportService {
       if (scope !== "full") {
         throw new AppError("ZIP 导出仅支持整本书分章正文导出。", 400);
       }
-      const novel = await this.getTxtNovelRecord(novelId);
+      const novel = await this.getTxtNovelRecord(novelId,true);
       return {
         fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.zip`,
         contentType: "application/zip",
@@ -234,12 +264,8 @@ export class NovelExportService {
       if (scope !== "full") {
         throw new AppError("TXT 导出仅支持整本书正文导出。", 400);
       }
-      const novel = await this.getTxtNovelRecord(novelId);
-      return {
-        fileName: `${safeFileNamePart(novel.title)}-${buildExportTimestamp()}.txt`,
-        contentType: "text/plain; charset=utf-8",
-        content: buildTxtContent(novel),
-      };
+      const novel = await this.getTxtNovelRecord(novelId,true);
+      return buildNovelTxtExport(novel);
     }
 
     const bundle = await this.buildExportBundle(novelId);

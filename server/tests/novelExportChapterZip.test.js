@@ -61,6 +61,14 @@ test("ZIP export contains separate ordered chapter TXT files with safe Chinese f
   }
 });
 
+test("approved chapter archives preserve the exact body inside each chapter file", async () => {
+  const content = "　　表针停了。\r\n\r\n　他合上表盖。 \r\n";
+  const file = await buildChapterArchive({
+    title: "钟楼", description: null, confirmedManuscript: true, chapters: [{order: 1, title: "收件人", content}],
+  });
+  assert.deepEqual(await unpackZip(file), [{name: "0001-收件人.txt", content: "第1章 收件人\n\n" + content + "\n"}]);
+});
+
 test("short-story ZIP exports saved segments without relying on long-novel chapters", async () => {
   const original = prisma.novel.findUnique;
   prisma.novel.findUnique = async () => ({

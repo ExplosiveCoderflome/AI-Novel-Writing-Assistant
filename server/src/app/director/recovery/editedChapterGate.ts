@@ -1,3 +1,4 @@
+import { prepareProseEdits } from "../revisions/proseReview";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import type { CommandServiceDeps } from "../../../modules/director/application";
@@ -5,10 +6,11 @@ import { manualChapterSyncService } from "../../../services/novel/chapterEditor/
 import { ChapterArtifactSyncBoundaryError } from "../../../services/novel/runtime/artifactSync";
 
 /** Slow asset work belongs before the short gate transaction; the transaction still revalidates the result. */
-export const prepareEditedChapterGate: NonNullable<CommandServiceDeps["prepareGate"]> = async (contract, resolution) => {
+export const prepareEditedChapterGate: NonNullable<CommandServiceDeps["prepareGate"]> = async (contract, resolution, expectedVersion) => {
   if (resolution.decision === "regenerate" || !resolution.artifacts.some(row => row.type === "chapter_batch_closed")) return;
   const range = contract.chapterRange;
   if (!range) throw new AppError("缺少正文授权范围。", 400);
+  if (resolution.proseReview) await prepareProseEdits(contract,resolution.proseReview,expectedVersion);
   const chapters = await prisma.chapter.findMany({ where: { novelId: contract.novelId,
     order: { gte: range.from, lte: range.to } }, orderBy: { order: "asc" }, select: { id: true } });
   for (const chapter of chapters) {

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const ts = require('typescript');
+const ts = require('typescript-legacy');
 
 // No production database or paid model can cross this test's import boundary.
 function loadSource(filename, imports) {

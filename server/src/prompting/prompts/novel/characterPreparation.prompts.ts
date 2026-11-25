@@ -186,7 +186,7 @@ export interface CharacterCastAutoNormalizePromptInput {
   payloadJson: string;
 }
 
-export interface SupplementalCharacterPromptInput {}
+export interface SupplementalCharacterPromptInput { count?: number }
 
 export interface SupplementalCharacterNormalizePromptInput {
   payloadJson: string;
@@ -197,7 +197,7 @@ export const characterCastOptionPrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions",
-  version: "v4",
+  version: "v5",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -228,7 +228,7 @@ export const characterCastOptionPrompt: PromptAsset<
       "【结构硬规则】",
       "1. 必须严格遵守给定 JSON 结构。",
       "2. 字段名必须保持英文，字段值内容使用简体中文。",
-      "3. 每套方案必须包含 3-6 个成员、2-12 条关系。",
+      "3. 按作者指定的人数、视角和人物线安排开书阵容；未指定时由你判断每个具名人物承担的剧情。独角戏可只有一人，双主角和群像可有多位 protagonist。relations 只写已建立的关系，没有时返回空数组。",
       "4. 每个角色都必须输出 gender，允许值只有 male、female、other、unknown。",
       "5. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "6. 每个角色必须输出 personality、background、development，不得只给 shortDescription。",
@@ -280,7 +280,7 @@ export const characterCastOptionRepairPrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions.repair",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -330,7 +330,7 @@ export const characterCastOptionNormalizePrompt: PromptAsset<
   z.infer<typeof characterCastOptionResponseSchema>
 > = {
   id: "novel.character.castOptions.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -368,7 +368,7 @@ export const characterCastAutoPrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -398,7 +398,7 @@ export const characterCastAutoPrompt: PromptAsset<
       "【结构硬规则】",
       "1. 必须严格遵守给定 JSON 结构。",
       "2. 字段名必须保持英文，字段值内容使用简体中文。",
-      "3. 阵容必须包含 3-6 个成员、2-12 条关系。",
+      "3. 按作者指定的人数、视角和人物线安排开书阵容；未指定时由你判断每个具名人物承担的剧情。独角戏可只有一人，双主角和群像可有多位 protagonist。relations 只写已建立的关系，没有时返回空数组。",
       "4. 每个角色都必须输出 gender，允许值只有 male、female、other、unknown。",
       "5. castRole 只能使用：protagonist, antagonist, ally, foil, mentor, love_interest, pressure_source, catalyst。",
       "6. 每个角色必须输出 personality、background、development，不得只给 shortDescription。",
@@ -450,7 +450,7 @@ export const characterCastAutoRepairPrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto.repair",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -500,7 +500,7 @@ export const characterCastAutoNormalizePrompt: PromptAsset<
   z.infer<typeof characterCastAutoResponseSchema>
 > = {
   id: "novel.character.castAuto.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -538,7 +538,7 @@ export const supplementalCharacterPrompt: PromptAsset<
   z.infer<typeof supplementalCharacterGenerationResponseSchema>
 > = {
   id: "novel.character.supplemental",
-  version: "v3",
+  version: "v4",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -546,6 +546,15 @@ export const supplementalCharacterPrompt: PromptAsset<
     maxTokensBudget: 0,
   },
   outputSchema: supplementalCharacterGenerationResponseSchema,
+  semanticRetryPolicy: {maxAttempts: 1},
+  postValidate: (output, input) => {
+    if (input.count !== undefined && output.candidates.length !== input.count) {
+      throw new Error(`作者指定补充 ${input.count} 位人物，请为每位人物提供一份候选资料。`);
+    }
+    if (new Set(output.candidates.map(member => member.name)).size !== output.candidates.length) throw new Error("补充候选需要可区分的姓名。");
+    if (output.recommendedCount > output.candidates.length) throw new Error("建议采用的人数超出了提供的候选名单。");
+    return output;
+  },
   render: (_input, context) => [
     new SystemMessage([
       "你是长篇中文小说项目的补充角色策划师。",
@@ -589,7 +598,7 @@ export const supplementalCharacterNormalizePrompt: PromptAsset<
   z.infer<typeof supplementalCharacterGenerationResponseSchema>
 > = {
   id: "novel.character.supplemental.zhNormalize",
-  version: "v1",
+  version: "v2",
   taskType: "planner",
   mode: "structured",
   language: "zh",

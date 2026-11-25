@@ -58,7 +58,8 @@ export class ChapterPipelineRuntimeAdapter {
         markChapterGenerationState: (c, state) => this.markChapterGenerationState(c, state),
       }, novelId, chapterId, saved, options, hooks);
     }
-    const { request, assembled } = await this.deps.streamOrchestrator.prepareRuntimeChapter(novelId, chapterId, options);
+    const { request, assembled } = await this.deps.streamOrchestrator.prepareRuntimeChapter(novelId, chapterId, options,
+      options.artifactSyncPolicy === "director_v2" ? options.directorRunId : undefined);
     await this.deps.streamOrchestrator.markChapterStatus(chapterId, "generating");
     let preview: ReturnType<typeof chapterGenerationFeed.begin> | undefined;
     try {

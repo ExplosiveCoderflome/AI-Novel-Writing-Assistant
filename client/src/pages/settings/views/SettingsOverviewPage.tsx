@@ -7,7 +7,7 @@ import {
   getModelRoutes,
   getRagSettings,
   getStyleEngineRuntimeSettings,
-  testModelRouteConnectivity,
+  getModelRouteConnectivity,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export default function SettingsOverviewPage() {
   const routesQuery = useQuery({ queryKey: queryKeys.settings.modelRoutes, queryFn: getModelRoutes });
   const connectivityQuery = useQuery({
     queryKey: queryKeys.settings.modelRouteConnectivity,
-    queryFn: testModelRouteConnectivity,
+    queryFn: getModelRouteConnectivity,
     enabled: routesQuery.isSuccess,
     refetchOnWindowFocus: false,
   });
@@ -41,9 +41,10 @@ export default function SettingsOverviewPage() {
     modelRouteConnectivity: connectivityQuery.data?.data,
     ragSettings: ragQuery.data?.data,
     styleSettings: styleQuery.data?.data,
-    isModelRoutesChecking: connectivityQuery.isPending || connectivityQuery.isFetching,
+    isModelRoutesChecking: routesQuery.isLoading || connectivityQuery.isLoading,
+    routeReadFailed: routesQuery.isError || connectivityQuery.isError,
     isStyleSettingsLoaded: styleQuery.isSuccess,
-  }), [connectivityQuery.data?.data, connectivityQuery.isFetching, connectivityQuery.isPending, providersQuery.data?.data, ragQuery.data?.data, routesQuery.data?.data, styleQuery.data?.data, styleQuery.isSuccess]);
+  }), [connectivityQuery.data?.data, connectivityQuery.isLoading, connectivityQuery.isError, routesQuery.isError, routesQuery.isLoading, providersQuery.data?.data, ragQuery.data?.data, routesQuery.data?.data, styleQuery.data?.data, styleQuery.isSuccess]);
   const configuredProvider = providersQuery.data?.data?.find((item) => item.isConfigured && item.isActive);
   const routeCount = routesQuery.data?.data?.routes.filter((route) => route.provider && route.model).length ?? 0;
   const rag = ragQuery.data?.data;

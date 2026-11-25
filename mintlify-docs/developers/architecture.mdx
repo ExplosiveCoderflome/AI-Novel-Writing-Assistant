@@ -59,7 +59,7 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 
 | 项目 | 要求 |
 | --- | --- |
-| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0`，与根目录 `package.json` 的 `engines.node` 一致 |
+| Node.js | `^24.0.0`，与根目录 `package.json` 的 `engines.node` 一致 |
 | pnpm | `>=10.6.0`（仓库声明使用 `pnpm@10.6.0`） |
 | 文本模型 | 至少一组可用 API 配置，可在启动后填写 |
 | 数据库 | 默认本地 SQLite；可通过服务端配置使用 PostgreSQL |
@@ -94,7 +94,7 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 | --- | --- | --- |
 | 快速测试 | `pnpm test` | 默认 daily 快速测试，最多 4 文件并发 |
 | 集成测试 | `pnpm test:integration` | 真实数据库、迁移与兼容性测试，最多 2 进程并发 |
-| 客户端测试 | `pnpm test:client` | 使用 Node 22 的 `--experimental-strip-types` 直接运行 TypeScript 源测试 |
+| 客户端测试 | `pnpm test:client` | 使用 Node 24 的 `--experimental-strip-types` 直接运行 TypeScript 源测试 |
 | 完整入口 | `pnpm test:all` | fast + integration + client，构建一次后依次运行 |
 
 新增纯函数或状态时，请在 `server/tests/` 下增加对应 `*.test.js`，保持与既有风格一致：先 `pnpm run build`，再 `require("../dist/...")` 引用编译产物。更详细的测试范围与隔离规则见 [后端测试说明](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/architecture/testing.md)。
