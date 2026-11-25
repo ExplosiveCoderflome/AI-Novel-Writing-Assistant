@@ -87,7 +87,7 @@ interface ChapterTextEditorProps {
 }
 
 const QUICK_OPERATIONS: ChapterEditorOperation[] = ["polish", "expand", "compress", "emotion", "conflict"];
-const QUICK_BAR_WIDTH = 500;
+const QUICK_BAR_WIDTH = 520;
 const QUICK_BAR_HEIGHT = 44;
 
 const EDITOR_BODY_CLASS_NAME = "prose prose-sm max-w-none min-w-0 overflow-hidden break-words text-[length:var(--cte-font-size,15px)] leading-[var(--cte-line-height,2.13)] dark:prose-invert [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words";
@@ -299,14 +299,10 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   const [paragraphMarkerOffsets, setParagraphMarkerOffsets] = useState<Array<{ index: number; top: number }>>([]);
   const [quickBar, setQuickBar] = useState<{ top: number; left: number; maxWidth: number } | null>(null);
   const [quickPromptOpen, setQuickPromptOpen] = useState(false);
-  const [quickInstruction, setQuickInstruction] = useState("");
-  const [quickFeedbackOpen, setQuickFeedbackOpen] = useState(false);
 
   useEffect(() => {
     if (!quickBar) {
       setQuickPromptOpen(false);
-      setQuickInstruction("");
-      setQuickFeedbackOpen(false);
     }
   }, [quickBar]);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -1109,89 +1105,32 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
                     {operation === "polish" ? "AI 优化这段" : CHAPTER_EDITOR_OPERATION_LABELS[operation]}
                   </Button>
                 ))}
-                {onQuickInstruction ? (
+                {(onQuickInstruction || onQuickHumanFeedback) ? (
                   <Button
                     size="sm"
                     variant={quickPromptOpen ? "default" : "ghost"}
                     className="rounded-full"
-                    onClick={() => {
-                      setQuickFeedbackOpen(false);
-                      setQuickPromptOpen((current) => !current);
-                    }}
-                  >
-                    按要求改…
-                  </Button>
-                ) : null}
-                {onQuickHumanFeedback ? (
-                  <Button
-                    size="sm"
-                    variant={quickFeedbackOpen ? "default" : "ghost"}
-                    className="rounded-full"
                     disabled={recordingHumanFeedback}
-                    onClick={() => {
-                      setQuickPromptOpen(false);
-                      setQuickFeedbackOpen((current) => !current);
-                    }}
+                    onClick={() => setQuickPromptOpen((current) => !current)}
                   >
-                    标为反例…
+                    AI 标识/改…
                   </Button>
                 ) : null}
               </div>
-              {quickFeedbackOpen && onQuickHumanFeedback ? (
+              {quickPromptOpen && (onQuickInstruction || onQuickHumanFeedback) ? (
                 <QuickHumanFeedbackBar
                   disabled={recordingHumanFeedback}
-                  onSubmit={(payload) => {
+                  onInstruction={onQuickInstruction ? (instruction) => {
                     setQuickBar(null);
-                    setQuickFeedbackOpen(false);
+                    setQuickPromptOpen(false);
+                    onQuickInstruction(instruction);
+                  } : undefined}
+                  onFeedback={onQuickHumanFeedback ? (payload) => {
+                    setQuickBar(null);
+                    setQuickPromptOpen(false);
                     onQuickHumanFeedback(payload);
-                  }}
+                  } : undefined}
                 />
-              ) : null}
-              {quickPromptOpen && onQuickInstruction ? (
-                <div className="flex items-center gap-1 pt-1">
-                  <input
-                    autoFocus
-                    value={quickInstruction}
-                    onChange={(event) => setQuickInstruction(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        const instruction = quickInstruction.trim();
-                        if (instruction) {
-                          setQuickBar(null);
-                          setQuickPromptOpen(false);
-                          setQuickInstruction("");
-                          onQuickInstruction(instruction);
-                        }
-                      }
-                      if (event.key === "Escape") {
-                        event.stopPropagation();
-                        setQuickPromptOpen(false);
-                      }
-                    }}
-                    placeholder="说一句你想怎么改，回车生成"
-                    aria-label="自定义修改要求"
-                    maxLength={400}
-                    className="h-8 min-w-0 flex-1 rounded-full border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-                  />
-                  <Button
-                    size="sm"
-                    className="rounded-full"
-                    disabled={!quickInstruction.trim()}
-                    onClick={() => {
-                      const instruction = quickInstruction.trim();
-                      if (!instruction) {
-                        return;
-                      }
-                      setQuickBar(null);
-                      setQuickPromptOpen(false);
-                      setQuickInstruction("");
-                      onQuickInstruction(instruction);
-                    }}
-                  >
-                    改
-                  </Button>
-                </div>
               ) : null}
             </div>
           ) : null}

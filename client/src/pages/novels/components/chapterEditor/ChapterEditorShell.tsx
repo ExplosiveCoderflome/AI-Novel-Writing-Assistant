@@ -22,7 +22,8 @@ import {
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
-import { getNovelHumanStyleFeedback, recordNovelHumanStyleFeedback, removeNovelHumanStyleFeedback } from "@/api/novel/chapters";
+import { getNovelHumanStyleFeedback, recordNovelHumanStyleFeedback, removeNovelHumanStyleFeedback, setNovelChapterProvenance } from "@/api/novel/chapters";
+import { provenanceLabel } from "@/pages/directorNext/workspace/chapterProvenance";
 import { buildHumanFeedbackInstruction, buildHumanFeedbackRepairBrief } from "@/pages/directorNext/workspace/selectionRange";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedIssueTags, setSelectedIssueTags] = useState<HumanStyleIssueTag[]>([]);
   const [saveContrastOnAccept, setSaveContrastOnAccept] = useState(false);
+  const [provenanceOverride, setProvenanceOverride] = useState<import("@ai-novel/shared/types/novel").ChapterAuthorProvenance | null>(null);
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
   const [focusRequestKey, setFocusRequestKey] = useState(0);
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
@@ -154,6 +156,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setRevisionInstruction("");
     setSelectedIssueTags([]);
     setSaveContrastOnAccept(false);
+    setProvenanceOverride(null);
     pendingContrastRef.current = null;
     setRevisionScope("selection");
     setIsVersionDrawerOpen(false);
@@ -259,20 +262,6 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       toast.error(error instanceof Error ? error.message : "章节保存失败。");
     },
   });
-
-  useEffect(() => {
-    const handleSaveShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
-        return;
-      }
-      event.preventDefault();
-      if (chapter && isDirty && !saveMutation.isPending) {
-        saveMutation.mutate(contentDraft);
-      }
-    };
-    window.addEventListener("keydown", handleSaveShortcut);
-    return () => window.removeEventListener("keydown", handleSaveShortcut);
-  }, [chapter, contentDraft, isDirty, saveMutation]);
 
   const reviewMutation = useMutation({
     mutationFn: async () => {
@@ -476,6 +465,54 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       toast.error(error instanceof Error ? error.message : "移除反例记录失败，请稍后重试。");
     },
   });
+
+  const effectiveProvenance: import("@ai-novel/shared/types/novel").ChapterAuthorProvenance | null =
+    provenanceOverride
+    ?? chapter?.authorProvenance
+    ?? (contentDraft.trim() ? "ai_generated" : null);
+  const isChapterLocked = effectiveProvenance === "human_locked";
+  const chapterProvenanceText = provenanceLabel(effectiveProvenance);
+
+  const lockMutation = useMutation({
+    mutationFn: async (locked: boolean) => {
+      if (!chapter) {
+        throw new Error("当前未选中章节。");
+      }
+      return setNovelChapterProvenance(novelId, chapter.id, {
+        locked,
+        expectedUpdatedAt: draft.savedUpdatedAt,
+      });
+    },
+    onSuccess: async (response, locked) => {
+      const updated = response.data;
+      const nextProvenance = updated?.authorProvenance ?? (locked ? "human_locked" : chapter?.humanEditedAt ? "human_edited" : "ai_generated");
+      setProvenanceOverride(nextProvenance);
+      if (updated?.updatedAt) {
+        draft.acknowledgeSave(contentDraft, { content: updated.content ?? contentDraft, updatedAt: String(updated.updatedAt) });
+      }
+      await invalidateChapterQueries();
+      await queryClient.invalidateQueries({ queryKey: ["directorBookWorkspace", novelId] });
+      await props.onChapterSaved?.();
+      toast.success(locked ? "已锁定定稿，防止自动创作与误改写。" : "已解除锁定，可继续修改本章正文。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "调整锁定状态失败，请刷新后重试。");
+    },
+  });
+
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return;
+      }
+      event.preventDefault();
+      if (chapter && !isChapterLocked && isDirty && !saveMutation.isPending) {
+        saveMutation.mutate(contentDraft);
+      }
+    };
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [chapter, contentDraft, isChapterLocked, isDirty, saveMutation]);
 
   const review = useCandidateReview(session.sessionId ?? "", session.targetRange?.text ?? "", activeCandidate);
   const acceptMutation = useCandidateAcceptance({
@@ -967,9 +1004,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           {props.headerExtra}
           {onBack ? <Button size="sm" variant="outline" onClick={() => leaveEditor(onBack)}>{props.backLabel ?? "返回章节执行页"}</Button> : null}
           <span className="truncate font-medium">第 {chapter.order} 章 · {chapter.title?.trim() || "未命名章节"}</span>
+          <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{chapterProvenanceText}</span>
           <span className="shrink-0 text-xs text-muted-foreground">{wordCount} 字 · {headerSaveLabel}</span>
-          <Button size="sm" onClick={() => saveMutation.mutate(contentDraft)} disabled={!isDirty || saveMutation.isPending}>
-            {saveMutation.isPending ? "保存中..." : "保存"}
+          <Button size="sm" variant="outline" onClick={() => lockMutation.mutate(!isChapterLocked)} disabled={isDirty || lockMutation.isPending || saveMutation.isPending} title={isDirty ? "请先保存正文后再调整锁定状态" : undefined}>
+            {lockMutation.isPending ? "处理中..." : isChapterLocked ? "解除锁定" : "锁定定稿"}
+          </Button>
+          <Button size="sm" onClick={() => saveMutation.mutate(contentDraft)} disabled={isChapterLocked || !isDirty || saveMutation.isPending}>
+            {isChapterLocked ? "已锁定" : saveMutation.isPending ? "保存中..." : "保存"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setIsVersionDrawerOpen(true)}>查看本章版本</Button>
           {qualityDebtDetails ? (
@@ -1007,11 +1048,15 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             workspaceStatus={workspaceStatus}
             wordCount={wordCount}
             saveStatusLabel={headerSaveLabel}
+            provenanceLabel={chapterProvenanceText}
+            isLocked={isChapterLocked}
+            isTogglingLock={lockMutation.isPending}
             isDirty={isDirty}
             isSaving={saveMutation.isPending}
             selectedDiagnosticId={selectedDiagnosticId}
             onBack={onBack ? () => leaveEditor(onBack) : undefined}
             backLabel={props.backLabel}
+            onToggleLock={() => lockMutation.mutate(!isChapterLocked)}
             onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
             onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
             onRefreshWorkspace={onRefreshWorkspace}
@@ -1048,7 +1093,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             diagnosticRanges={(workspace?.diagnosticCards ?? [])
               .map((card) => card.anchorRange)
               .filter((range): range is { from: number; to: number } => Boolean(range))}
-            readOnly={session.status !== "idle"}
+            readOnly={isChapterLocked || session.status !== "idle"}
             onChange={(next) => {
               draft.setContentDraft(next);
               setSaveStatus("idle");
