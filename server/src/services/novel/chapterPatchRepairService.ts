@@ -97,7 +97,7 @@ export class ChapterPatchRepairService {
           modeHint: input.modeHint,
           styleProtection: styleIssues.length ? JSON.stringify({ allowedIssueIds, styleIssueIds: allowedStyleIds,
             reportOnly: styleIssues.filter(issue => !isStyleIssueRewritable(issue)), protectedTerms,
-            wholeChapterTouchedRatioMax: 0.3, wholeChapterAddedRatioMax: 0.05 }) : undefined,
+            wholeChapterTouchedRatioMax: 0.45, wholeChapterAddedRatioMax: 0.15 }) : undefined,
         },
         contextBlocks,
         options: {

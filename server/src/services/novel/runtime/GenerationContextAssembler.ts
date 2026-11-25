@@ -57,6 +57,7 @@ import {
   extractChapterTail,
   runtimeChapterSelect,
 } from "./context/chapterSourceText";
+import { buildRollingExpressionEchoHint } from "./context/rollingExpressionEchoes";
 import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
 import { evaluateChapterContextProviderContracts } from "./context/chapterContextProviderContracts";
 import { characterLocationService } from "../characters/locations";
@@ -737,9 +738,11 @@ export class GenerationContextAssembler {
       return "Recent openings: none.";
     }
 
+    const expressionEchoHint = buildRollingExpressionEchoHint(recentChapters);
     return [
-      "Recent openings (do not reuse the same opening structure or sentence starter):",
-      ...openingList.map((item) => `- Chapter ${item.order} ${item.title}: ${item.opening}`),
+      "近期章节开头与表达惯性（避免复用相同起手结构、句首或收尾余韵）：",
+      ...openingList.map((item) => `- 第 ${item.order} 章《${item.title}》开头：${item.opening}`),
+      ...(expressionEchoHint ? ["", expressionEchoHint] : []),
     ].join("\n");
   }
 }

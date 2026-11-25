@@ -1012,3 +1012,8 @@ body {
     order: 3;
   }
 }
+
+::highlight(chapter-editor-selection) {
+  background-color: hsl(var(--primary) / 0.16);
+  color: inherit;
+}

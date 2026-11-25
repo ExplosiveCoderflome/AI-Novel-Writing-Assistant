@@ -391,4 +391,8 @@ export class NovelCoreCrudService {
   deleteChapter(novelId: string, chapterId: string) {
     return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.deleteChapter(novelId, chapterId));
   }
+
+  setChapterProvenance(novelId: string, chapterId: string, input: { locked: boolean; expectedUpdatedAt?: string }) {
+    return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.setChapterProvenance(novelId, chapterId, input));
+  }
 }

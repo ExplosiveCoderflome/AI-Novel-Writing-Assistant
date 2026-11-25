@@ -808,6 +808,8 @@ model Chapter {
   riskFlags       String?
   hook            String?
   expectation     String?
+  authorProvenance String                @default("ai_generated")
+  humanEditedAt    DateTime?
   novelId         String
   novel           Novel                  @relation(fields: [novelId], references: [id], onDelete: Cascade)
   chapterSummary  ChapterSummary?

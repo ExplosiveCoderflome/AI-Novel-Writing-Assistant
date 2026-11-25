@@ -21,11 +21,11 @@ export const previewBook: WorkspaceBook = {
     volumes: [{ id: "v1", order: 1, title: "第一卷 · 雾中来客", summary: "陌生旅人的到来打破守门人的日常。林渡在守城与追寻记忆之间作出第一次选择。", mainPromise: "揭开旧城印记与守门人的联系。", chapterCount: 3 }],
   },
   chapters: [
-    { id: "c1", order: 1, title: "移动的城", status: "completed", wordCount: 328, updatedAt: "2026-10-02T08:00:00Z", qualityDebt: null,
+    { id: "c1", order: 1, title: "移动的城", status: "completed", wordCount: 328, updatedAt: "2026-10-02T08:00:00Z", authorProvenance: "ai_generated", qualityDebt: null,
       content: "林渡醒来时，脚下的地板正在轻轻震动。\n\n窗外的钟楼偏向一边，又缓缓回到原处。城在移动。街上的人照常收起晾晒的衣物，卖饼的妇人用木楔固定炉子，仿佛这只是再普通不过的一个清晨。\n\n只有他不记得这是哪里。\n\n桌上压着一张泛黄的纸，最后一行被人用力描过：钟声落下之前，不得开门。\n\n林渡摸到腰间的钥匙。金属冰凉，掌心却浮起一种熟悉的刺痛。城门外响起三下敲击，他抬起头，看见雾里站着一个人。\n\n那个人举起右手。手背上，印着与钥匙相同的纹路。" },
-    { id: "c2", order: 2, title: "门外的旅人", status: "completed", wordCount: 245, updatedAt: "2026-10-02T08:10:00Z", qualityDebt: null,
+    { id: "c2", order: 2, title: "门外的旅人", status: "completed", wordCount: 245, updatedAt: "2026-10-02T08:10:00Z", authorProvenance: "human_edited", qualityDebt: null,
       content: "“我叫沈知。”门外的人说，“我不是来躲雾的。”\n\n林渡隔着门上的窄窗看她。她的衣袖磨破了，鞋边沾着灰白的泥，右手却始终举着，像是知道他一定会认得那个印记。\n\n“那你来做什么？”\n\n“找一个人。一个三年前进了这座城的人。”\n\n钟楼传来第一声响。林渡回头，楼顶的老人正望向这里。他没有摇头，也没有点头，只把手搭在钟绳上。\n\n林渡将钥匙插进锁孔。\n\n“进来以后，”他说，“先告诉我，你从哪里得到这个印记。”" },
-    { id: "c3", order: 3, title: "钟声之后", status: "waiting_writing", wordCount: 0, content: null, updatedAt: "2026-10-02T08:10:00Z", qualityDebt: null },
+    { id: "c3", order: 3, title: "钟声之后", status: "waiting_writing", wordCount: 0, content: null, updatedAt: "2026-10-02T08:10:00Z", authorProvenance: "ai_generated", qualityDebt: null },
   ],
 };
 

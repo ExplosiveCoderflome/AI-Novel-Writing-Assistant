@@ -5,7 +5,7 @@ import { createLongChapterProfile, hashProductionContent, PrismaUnitProgressStor
   type PostGenerationStyleReviewPort, type UnitRun, type PreparedChapter, type UnitPorts, type ProductionProfile } from "../../../../modules/production";
 import { canonicalProductionJson, ProductionVersionConflictError } from "../../../../modules/production/common";
 import { MANUAL_CHAPTER_SYNC_TYPE } from "../../../../services/novel/chapterEditor/synchronization/ManualChapterSyncStore";
-import { buildChapterArtifactContentHash } from "../../../../services/novel/runtime/artifactSync/ChapterArtifactContentVersion";
+import { isProtectedHumanChapter } from "../../../../services/novel/chapterEditor/domain/chapterProvenance";
 import type { KernelBatchRuntime } from "../batch/step";
 import { createKernelOwnership, productionBatchOwnerKey } from "../execution/ownership";
 import { createKernelChapterBudget } from "../execution/chapterBudget";
@@ -77,11 +77,11 @@ export async function createNativeKernelRuntime(db: PrismaClient, context: StepC
     if (manual && unit.chapterId !== manual.chapterId) throw new ProductionVersionConflictError();
     await db.$transaction(tx => ownership(tx, { unit }));
     const chapter = await db.chapter.findFirstOrThrow({ where: { id: unit.chapterId, novelId: unit.novelId, order: unit.order },
-      select: { content: true, updatedAt: true, artifactSyncCheckpoints: { where: { artifactType: MANUAL_CHAPTER_SYNC_TYPE },
-        select: { contentHash: true } } } });
+      select: { content: true, updatedAt: true, authorProvenance: true, humanEditedAt: true, artifactSyncCheckpoints: { where: { artifactType: MANUAL_CHAPTER_SYNC_TYPE },
+        select: { artifactType: true, contentHash: true } } } });
     if (manual && chapter.content !== manual.baseline.content) throw new ProductionVersionConflictError();
     return { content: chapter.content, updatedAt: chapter.updatedAt.toISOString(),
-      protectedUserContent: chapter.artifactSyncCheckpoints.some(row => row.contentHash === buildChapterArtifactContentHash(chapter.content ?? "")) };
+      protectedUserContent: isProtectedHumanChapter(chapter) };
   };
   return {
     request: unit => ({ ownerKey: productionBatchOwnerKey(contract.runId), unit: { ...unit }, profile: structuredClone(existingProfiles.get(unit.chapterId) ?? profile),

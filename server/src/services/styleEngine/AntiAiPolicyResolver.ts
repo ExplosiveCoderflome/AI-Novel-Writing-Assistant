@@ -96,8 +96,11 @@ export class AntiAiPolicyResolver {
     }
 
     const styleSpecificRules = Array.from(styleRulesById.values());
+    // Style-bound rules override same-id global baseline rules while preserving baseline-first ordering.
+    const styleRuleById = new Map(styleSpecificRules.map((item) => [item.rule.id, item]));
+    const overriddenBaseline = globalBaselineRules.map((item) => styleRuleById.get(item.rule.id) ?? item);
     const effectiveRules = dedupeEffectiveRules([
-      ...globalBaselineRules,
+      ...overriddenBaseline,
       ...styleSpecificRules,
     ]);
 

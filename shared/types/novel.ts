@@ -149,6 +149,8 @@ export interface SimpleCreationShelfProjection {
     wordCount: number;
     content: string | null;
     updatedAt: string;
+    authorProvenance?: ChapterAuthorProvenance;
+    humanEditedAt?: string | null;
     qualityDebt: ChapterQualityDebtDetails | null;
   }>;
   materials: {
@@ -284,6 +286,8 @@ export interface Novel {
   updatedAt: string;
 }
 
+export type ChapterAuthorProvenance = "ai_generated" | "human_edited" | "human_locked";
+
 export interface Chapter {
   id: string;
   title: string;
@@ -291,6 +295,8 @@ export interface Chapter {
   order: number;
   generationState?: ChapterGenerationState;
   chapterStatus?: ChapterStatus | null;
+  authorProvenance?: ChapterAuthorProvenance;
+  humanEditedAt?: string | null;
   targetWordCount?: number | null;
   conflictLevel?: number | null;
   revealLevel?: number | null;

@@ -2,11 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
 import type { ChapterEditorDiffChunk, ChapterEditorOperation } from "@ai-novel/shared/types/novel";
+import type { HumanStyleIssueTag } from "@ai-novel/shared/types/styleEngine";
 import { applySelectedChapterEditorDiff, groupChapterEditorDiffChanges } from "@ai-novel/shared/types/chapterEditor/document";
 import type { ChapterEditorDiffChange } from "@ai-novel/shared/types/chapterEditor/document";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ChapterEditorLayoutMode, ChapterEditorSelectionRange } from "./chapterEditorTypes";
+import { QuickHumanFeedbackBar } from "./assistant/QuickHumanFeedbackBar";
+import { buildDomRangeForAbsoluteOffsets } from "./document/selectionHighlight";
 import {
   CHAPTER_EDITOR_OPERATION_LABELS,
   buildSelectionRangeFromValue,
@@ -57,12 +60,19 @@ interface ChapterTextEditorProps {
   onCursorChange: (offset: number | null) => void;
   preview?: ChapterEditorPreview | null;
   focusRange?: Pick<ChapterEditorSelectionRange, "from" | "to"> | null;
+  focusSource?: "selection" | "diagnostic";
   focusRequestKey?: number;
   /** Changes only when the underlying document is wholesale replaced (e.g. another chapter). */
   documentKey?: string;
   /** Runs a preset AI operation on the current selection from the floating quick bar. */
   onQuickOperation?: (operation: ChapterEditorOperation) => void;
   onQuickInstruction?: (instruction: string) => void;
+  onQuickHumanFeedback?: (input: {
+    issueTags: HumanStyleIssueTag[];
+    feedbackNote?: string;
+    mode: "rewrite" | "record";
+  }) => void;
+  recordingHumanFeedback?: boolean;
   /** Fetches a continuation candidate for ghost text; resolves null when none. */
   onGhostSuggest?: (content: string, offset: number) => Promise<string | null>;
   /** When true, ghost suggestions are not requested (busy / candidate open). */
@@ -77,7 +87,7 @@ interface ChapterTextEditorProps {
 }
 
 const QUICK_OPERATIONS: ChapterEditorOperation[] = ["polish", "expand", "compress", "emotion", "conflict"];
-const QUICK_BAR_WIDTH = 452;
+const QUICK_BAR_WIDTH = 520;
 const QUICK_BAR_HEIGHT = 44;
 
 const EDITOR_BODY_CLASS_NAME = "prose prose-sm max-w-none min-w-0 overflow-hidden break-words text-[length:var(--cte-font-size,15px)] leading-[var(--cte-line-height,2.13)] dark:prose-invert [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words";
@@ -235,7 +245,7 @@ function renderBlockPreview(
 }
 
 export default function ChapterTextEditor(props: ChapterTextEditorProps) {
-  const { value, readOnly = false, onChange, onSelectionChange, onCursorChange, preview, focusRange = null, focusRequestKey = 0, documentKey, onQuickOperation, onQuickInstruction, onGhostSuggest, ghostSuspended = false, layoutMode, onLayoutModeChange, headerExtra, diagnosticRanges } = props;
+  const { value, readOnly = false, onChange, onSelectionChange, onCursorChange, preview, focusRange = null, focusSource = "selection", focusRequestKey = 0, documentKey, onQuickOperation, onQuickInstruction, onQuickHumanFeedback, recordingHumanFeedback = false, onGhostSuggest, ghostSuspended = false, layoutMode, onLayoutModeChange, headerExtra, diagnosticRanges } = props;
   const [initialText] = useState(() => normalizeChapterContent(value));
   const [internalText, setInternalText] = useState(initialText);
   const [typography, setTypography] = useState(loadTypography);
@@ -289,12 +299,10 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   const [paragraphMarkerOffsets, setParagraphMarkerOffsets] = useState<Array<{ index: number; top: number }>>([]);
   const [quickBar, setQuickBar] = useState<{ top: number; left: number; maxWidth: number } | null>(null);
   const [quickPromptOpen, setQuickPromptOpen] = useState(false);
-  const [quickInstruction, setQuickInstruction] = useState("");
 
   useEffect(() => {
     if (!quickBar) {
       setQuickPromptOpen(false);
-      setQuickInstruction("");
     }
   }, [quickBar]);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -706,14 +714,31 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
 
   useLayoutEffect(() => {
     const surface = surfaceRef.current;
+    const registry = (globalThis as unknown as { CSS?: { highlights?: { set(name: string, h: unknown): void; delete(name: string): void } } }).CSS?.highlights;
+    const HighlightCtor = (globalThis as unknown as { Highlight?: new (...ranges: Range[]) => unknown }).Highlight;
     if (!surface || preview) {
+      registry?.delete("chapter-editor-selection");
       return;
     }
     const paragraphNodes = getParagraphElements(surface);
     paragraphNodes.forEach((node) => {
       node.classList.remove("bg-sky-100/90", "ring-1", "ring-sky-200", "rounded-xl");
     });
+    registry?.delete("chapter-editor-selection");
     if (!focusRange) {
+      return;
+    }
+    if (focusSource === "selection" && focusRequestKey === 0) {
+      if (registry && HighlightCtor) {
+        try {
+          const exactRange = buildDomRangeForAbsoluteOffsets(paragraphNodes, splitDisplayParagraphs(normalizedContent), focusRange.from, focusRange.to);
+          if (exactRange) {
+            registry.set("chapter-editor-selection", new HighlightCtor(exactRange));
+          }
+        } catch {
+          // Best-effort sub-paragraph visual highlight when focus moves to AI controls.
+        }
+      }
       return;
     }
     const paragraphIndices = getParagraphIndicesForRange(normalizedContent, focusRange);
@@ -728,7 +753,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
       block: "center",
       behavior: focusRequestKey ? "instant" : "smooth",
     });
-  }, [focusRequestKey, highlightedParagraphRange, preview]);
+  }, [focusRange, focusRequestKey, focusSource, normalizedContent, preview]);
 
   // Focus mode: dim every paragraph except the one holding the caret, and
   // keep the caret paragraph centered while typing (typewriter scrolling).
@@ -1080,62 +1105,32 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
                     {operation === "polish" ? "AI 优化这段" : CHAPTER_EDITOR_OPERATION_LABELS[operation]}
                   </Button>
                 ))}
-                {onQuickInstruction ? (
+                {(onQuickInstruction || onQuickHumanFeedback) ? (
                   <Button
                     size="sm"
                     variant={quickPromptOpen ? "default" : "ghost"}
                     className="rounded-full"
+                    disabled={recordingHumanFeedback}
                     onClick={() => setQuickPromptOpen((current) => !current)}
                   >
-                    按要求改…
+                    AI 标识/改…
                   </Button>
                 ) : null}
               </div>
-              {quickPromptOpen && onQuickInstruction ? (
-                <div className="flex items-center gap-1 pt-1">
-                  <input
-                    autoFocus
-                    value={quickInstruction}
-                    onChange={(event) => setQuickInstruction(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        const instruction = quickInstruction.trim();
-                        if (instruction) {
-                          setQuickBar(null);
-                          setQuickPromptOpen(false);
-                          setQuickInstruction("");
-                          onQuickInstruction(instruction);
-                        }
-                      }
-                      if (event.key === "Escape") {
-                        event.stopPropagation();
-                        setQuickPromptOpen(false);
-                      }
-                    }}
-                    placeholder="说一句你想怎么改，回车生成"
-                    aria-label="自定义修改要求"
-                    maxLength={400}
-                    className="h-8 min-w-0 flex-1 rounded-full border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-                  />
-                  <Button
-                    size="sm"
-                    className="rounded-full"
-                    disabled={!quickInstruction.trim()}
-                    onClick={() => {
-                      const instruction = quickInstruction.trim();
-                      if (!instruction) {
-                        return;
-                      }
-                      setQuickBar(null);
-                      setQuickPromptOpen(false);
-                      setQuickInstruction("");
-                      onQuickInstruction(instruction);
-                    }}
-                  >
-                    改
-                  </Button>
-                </div>
+              {quickPromptOpen && (onQuickInstruction || onQuickHumanFeedback) ? (
+                <QuickHumanFeedbackBar
+                  disabled={recordingHumanFeedback}
+                  onInstruction={onQuickInstruction ? (instruction) => {
+                    setQuickBar(null);
+                    setQuickPromptOpen(false);
+                    onQuickInstruction(instruction);
+                  } : undefined}
+                  onFeedback={onQuickHumanFeedback ? (payload) => {
+                    setQuickBar(null);
+                    setQuickPromptOpen(false);
+                    onQuickHumanFeedback(payload);
+                  } : undefined}
+                />
               ) : null}
             </div>
           ) : null}

@@ -12,11 +12,17 @@ interface RegisterNovelChapterEditorRoutesInput {
     | "previewChapterAiRevision"
     | "previewChapterCursorContinuation"
     | "previewChapterRewrite"
+    | "getNovelHumanStyleFeedback"
+    | "recordNovelHumanStyleFeedback"
+    | "removeNovelHumanStyleFeedback"
   >;
+  idParamsSchema: z.ZodType<{ id: string }>;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   rewritePreviewSchema: z.ZodTypeAny;
   aiRevisionPreviewSchema: z.ZodTypeAny;
   cursorContinuationPreviewSchema: z.ZodTypeAny;
+  humanStyleFeedbackSchema: z.ZodTypeAny;
+  removeHumanStyleFeedbackSchema: z.ZodTypeAny;
   forwardBusinessError: (error: unknown, next: (err?: unknown) => void) => boolean;
 }
 
@@ -24,10 +30,13 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
   const {
     router,
     novelService,
+    idParamsSchema,
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
     cursorContinuationPreviewSchema,
+    humanStyleFeedbackSchema,
+    removeHumanStyleFeedbackSchema,
     forwardBusinessError,
   } = input;
 
@@ -160,6 +169,61 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
           next(new AppError(error.message, 400));
           return;
         }
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/:id/human-style-feedback",
+    validate({ params: idParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const data = await novelService.getNovelHumanStyleFeedback(id);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Book human style feedback loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/human-style-feedback",
+    validate({ params: chapterParamsSchema, body: humanStyleFeedbackSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.recordNovelHumanStyleFeedback(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Human style feedback saved to book profile.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete(
+    "/:id/human-style-feedback",
+    validate({ params: idParamsSchema, body: removeHumanStyleFeedbackSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const { aiPattern } = req.body as { aiPattern: string };
+        const data = await novelService.removeNovelHumanStyleFeedback(id, aiPattern);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Human style feedback removed.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
         next(error);
       }
     },
