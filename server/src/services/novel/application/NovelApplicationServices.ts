@@ -22,6 +22,7 @@ import { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator"
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { NovelChapterEditorService } from "../chapterEditor/NovelChapterEditorService";
 import { ChapterEditorWorkspaceService } from "../chapterEditor/ChapterEditorWorkspaceService";
+import { novelHumanStyleFeedbackService } from "../../styleEngine/NovelHumanStyleFeedbackService";
 import type { NovelApplicationServices } from "./NovelApplicationContracts";
 import type { NovelSnapshotListItem } from "@ai-novel/shared/types/novel";
 
@@ -473,6 +474,18 @@ export class DefaultNovelApplicationServices {
 
   getChapterEditorWorkspace(...args: Parameters<ChapterEditorWorkspaceService["getWorkspace"]>) {
     return this.chapterEditorWorkspaceService.getWorkspace(...args);
+  }
+
+  getNovelHumanStyleFeedback(...args: Parameters<typeof novelHumanStyleFeedbackService.getBookFeedback>) {
+    return novelHumanStyleFeedbackService.getBookFeedback(...args);
+  }
+
+  recordNovelHumanStyleFeedback(...args: Parameters<typeof novelHumanStyleFeedbackService.recordFeedback>) {
+    return novelHumanStyleFeedbackService.recordFeedback(...args);
+  }
+
+  removeNovelHumanStyleFeedback(...args: Parameters<typeof novelHumanStyleFeedbackService.removeFeedbackPair>) {
+    return novelHumanStyleFeedbackService.removeFeedbackPair(...args);
   }
 
   getNovelState(...args: Parameters<NovelCoreService["getNovelState"]>) {

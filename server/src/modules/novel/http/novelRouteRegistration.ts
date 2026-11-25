@@ -43,7 +43,9 @@ import {
   characterTimelineSyncSchema,
   draftOptimizeSchema,
   hookGenerateSchema,
+  humanStyleFeedbackSchema,
   idParamsSchema,
+  removeHumanStyleFeedbackSchema,
   llmGenerateSchema,
   outlineGenerateSchema,
   pipelineJobParamsSchema,
@@ -112,10 +114,13 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
   registerNovelChapterEditorRoutes({
     router,
     novelService,
+    idParamsSchema,
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
     cursorContinuationPreviewSchema,
+    humanStyleFeedbackSchema,
+    removeHumanStyleFeedbackSchema,
     forwardBusinessError,
   });
 

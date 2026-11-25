@@ -324,7 +324,7 @@ function normalizeContrastPairs(raw: unknown): StyleContrastPair[] {
       note: typeof item.note === "string" && item.note.trim() ? item.note.trim() : null,
     }))
     .filter((item) => item.aiPattern.length > 0 && item.preferred.length > 0)
-    .slice(0, 3);
+    .slice(0, 6);
 }
 
 function renderLanguageExtras(languageRules: Record<string, unknown>): string[] {

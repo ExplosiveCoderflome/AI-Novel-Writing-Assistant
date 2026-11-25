@@ -48,6 +48,7 @@ const integrationTests = new Set([
   "shortStoryStructuredDiagnostics.test.js",
   "manualChapterSaveSqlite.test.js",
   "chapterAuthorProvenanceSqlite.test.js",
+  "humanStyleFeedbackSqlite.test.js",
   "directorTaskFactInspection.test.js",
   "directorCurrentTask.test.js",
   "directorReadPathsArePure.test.js",

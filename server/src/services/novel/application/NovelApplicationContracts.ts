@@ -73,6 +73,9 @@ export interface NovelApplicationServices {
   previewChapterAiRevision: NovelApplicationMethod;
   previewChapterCursorContinuation: NovelApplicationMethod;
   getChapterEditorWorkspace: NovelApplicationMethod;
+  getNovelHumanStyleFeedback: NovelApplicationMethod;
+  recordNovelHumanStyleFeedback: NovelApplicationMethod;
+  removeNovelHumanStyleFeedback: NovelApplicationMethod;
   getNovelState: NovelApplicationMethod;
   getLatestStateSnapshot: NovelApplicationMethod;
   getChapterStateSnapshot: NovelApplicationMethod;
@@ -193,6 +196,9 @@ export const novelApplicationServiceMethodNames = [
   "previewChapterAiRevision",
   "previewChapterCursorContinuation",
   "getChapterEditorWorkspace",
+  "getNovelHumanStyleFeedback",
+  "recordNovelHumanStyleFeedback",
+  "removeNovelHumanStyleFeedback",
   "getNovelState",
   "getLatestStateSnapshot",
   "getChapterStateSnapshot",

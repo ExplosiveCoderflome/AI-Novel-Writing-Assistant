@@ -27,6 +27,7 @@
 - `Chapter` 持久化 `authorProvenance`（`ai_generated` / `human_edited` / `human_locked`）与 `humanEditedAt`：手动创建/保存正文或通过 `saveManualChapterContent` 修改正文时，若尚未锁定则自动记为 `human_edited` 并更新 `humanEditedAt`；已有历史 `manual_chapter_sync:v1` 检查点的章节在工作区投影中也会识别为 `human_edited`。
 - 作者可通过 `PATCH /api/novels/:id/chapters/:chapterId/provenance` 切换 `human_locked`（锁定定稿 / 解除锁定）；解锁时会根据 `humanEditedAt` 或匹配当前正文 hash 的手动同步记录还原为 `human_edited` 或 `ai_generated`。
 - `human_locked` 在 `ManualChapterStore.updateChapter`、`ProductionChapterLifecycleService.commit`、`runtime.readBaseline` 与 `NovelPipelineExecutor` 均受保护：自动导演或批量重跑遇到人工修改/锁定章节时抛出 `ProtectedProductionContentError` 并转入 `pause_for_manual` 人工恢复，而不是静默覆盖。
+- 选段级人工反馈通过 `NovelHumanStyleFeedbackService`（`POST /api/novels/:id/chapters/:chapterId/human-style-feedback`）将作者标定的 AI 问题片段与改写对照写入本书专属 `StyleProfile`（`sourceType: "from_current_work"`、`sourceRefId: novelId`）的 `languageRules.contrastPairs` 并以更高优先级绑定当前小说，不修改系统或共享写法模板；`ChapterEditorWorkspaceService.loadContext` 与 `StyleBindingService.resolveForGeneration` 共同消费该绑定。
 
 ## 排查路径
 

@@ -1,13 +1,32 @@
-import { useEffect, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Lock, LockOpen, Pencil, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookMarked, Lock, LockOpen, Pencil, Sparkles } from "lucide-react";
+import type { ChapterEditorCandidate } from "@ai-novel/shared/types/novel";
+import type { HumanStyleIssueTag } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
-import { setNovelChapterProvenance, updateNovelChapter } from "@/api/novel/chapters";
+import {
+  getNovelHumanStyleFeedback,
+  previewChapterAiRevision,
+  recordNovelHumanStyleFeedback,
+  removeNovelHumanStyleFeedback,
+  setNovelChapterProvenance,
+  updateNovelChapter,
+} from "@/api/novel/chapters";
 import type { WorkspaceBook, WorkspaceChapter } from "./model";
 import type { DirectorGenerationSnapshot } from "@ai-novel/shared/types/director/generation";
 import { ReadingDisplaySettings, readingTextStyle, type ReadingDisplayPreferences } from "./reading";
 import { InlineChapterBodyEditor } from "./editing/InlineChapterBodyEditor";
+import { SelectionFeedbackPanel } from "./editing/SelectionFeedbackPanel";
+import { BookFeedbackRulesDrawer } from "./editing/BookFeedbackRulesDrawer";
 import { provenanceHint, provenanceLabel, resolveWorkspaceChapterProvenance } from "./chapterProvenance";
+import {
+  buildHumanFeedbackInstruction,
+  buildHumanFeedbackRepairBrief,
+  buildParagraphWindowFromRange,
+  resolveSelectedProseRange,
+  splitParagraphRanges,
+  type SelectedProseRange,
+} from "./selectionRange";
 
 export function ChapterReader({
   novelId,
@@ -41,6 +60,7 @@ export function ChapterReader({
   onInlineEditingChange?: (active: boolean) => void;
 }) {
   // Keep the opened edition while polling. Updating prose is an explicit reader action.
+  const queryClient = useQueryClient();
   const [edition, setEdition] = useState(chapter);
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState(chapter.title);
@@ -49,6 +69,23 @@ export function ChapterReader({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lockError, setLockError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState<SelectedProseRange | null>(null);
+  const [issueTags, setIssueTags] = useState<HumanStyleIssueTag[]>([]);
+  const [feedbackNote, setFeedbackNote] = useState("");
+  const [selectionCandidates, setSelectionCandidates] = useState<ChapterEditorCandidate[]>([]);
+  const [activeCandidateId, setActiveCandidateId] = useState<string | null>(null);
+  const [macroAlignmentNote, setMacroAlignmentNote] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [showRulesDrawer, setShowRulesDrawer] = useState(false);
+  const proseRef = useRef<HTMLDivElement>(null);
+
+  const isPreview = novelId === "preview";
+  const feedbackQuery = useQuery({
+    queryKey: ["directorBookHumanFeedback", novelId],
+    queryFn: () => getNovelHumanStyleFeedback(novelId),
+    enabled: !isPreview && Boolean(novelId),
+    retry: false,
+  });
 
   useEffect(() => {
     if (followGeneration && !isEditing) setEdition(chapter);
@@ -64,11 +101,38 @@ export function ChapterReader({
   const live = followGeneration && generation?.chapterId === chapter.id ? generation : null;
   const isWriting = live?.state === "writing";
   const content = live?.content ?? edition.content;
+  const paragraphs = useMemo(() => (content ? splitParagraphRanges(content) : []), [content]);
   const changed = !followGeneration && (edition.updatedAt !== chapter.updatedAt || edition.content !== chapter.content);
   const provenance = resolveWorkspaceChapterProvenance(edition);
   const provenanceText = provenanceLabel(provenance);
   const isLocked = provenance === "human_locked";
   const dirty = isEditing && (draftTitle.trim() !== edition.title.trim() || draftContent !== (edition.content ?? ""));
+
+  function clearSelectionFeedback() {
+    setSelectedRange(null);
+    setIssueTags([]);
+    setFeedbackNote("");
+    setSelectionCandidates([]);
+    setActiveCandidateId(null);
+    setMacroAlignmentNote(null);
+    setSelectionError(null);
+  }
+
+  function handleProseSelectionCapture() {
+    if (isEditing || isWriting || isPreview || !edition.content) return;
+    if (selectionRewriteMutation.isPending || applyCandidateMutation.isPending) return;
+    if (selectionCandidates.length > 0) return;
+    const nextRange = resolveSelectedProseRange(
+      proseRef.current,
+      edition.content,
+      paragraphs,
+      window.getSelection(),
+    );
+    if (nextRange) {
+      setSelectedRange(nextRange);
+      setSelectionError(null);
+    }
+  }
 
   const tail = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -137,8 +201,131 @@ export function ChapterReader({
     },
   });
 
+  const selectionRewriteMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRange || !edition.content) {
+        throw new Error("请先选中需要改写的正文片段。");
+      }
+      const contextWindow = buildParagraphWindowFromRange(paragraphs, selectedRange.from, selectedRange.to);
+      return previewChapterAiRevision(novelId, edition.id, {
+        source: "freeform",
+        scope: "selection",
+        instruction: buildHumanFeedbackInstruction(issueTags, feedbackNote),
+        repairBrief: buildHumanFeedbackRepairBrief(issueTags, feedbackNote),
+        contentSnapshot: edition.content,
+        selection: selectedRange,
+        context: contextWindow,
+        constraints: {
+          keepFacts: true,
+          keepPov: true,
+          noUnauthorizedSetting: true,
+          preserveCoreInfo: true,
+        },
+      });
+    },
+    onSuccess: (response) => {
+      const data = response.data;
+      if (!data?.candidates?.length) {
+        setSelectionError("AI 暂未返回可用候选版本，请稍后重试。");
+        return;
+      }
+      setSelectionError(null);
+      setSelectionCandidates(data.candidates);
+      setActiveCandidateId(data.activeCandidateId ?? data.candidates[0]?.id ?? null);
+      setMacroAlignmentNote(data.macroAlignmentNote ?? null);
+    },
+    onError: (error) => {
+      setSelectionError(error instanceof Error ? error.message : "局部改写请求失败，请稍后重试。");
+    },
+  });
+
+  const recordFeedbackMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRange) {
+        throw new Error("请先选中正文片段再标记。");
+      }
+      return recordNovelHumanStyleFeedback(novelId, edition.id, {
+        excerpt: selectedRange.text,
+        issueTags,
+        feedbackNote: feedbackNote.trim() || undefined,
+      });
+    },
+    onSuccess: async (response) => {
+      const count = response.data?.contrastPairs.length ?? 0;
+      clearSelectionFeedback();
+      setSavedNotice(`已记入本书写法反例库（当前共 ${count} 条），后续创作与修文会自动避开这类写法。`);
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+    },
+    onError: (error) => {
+      setSelectionError(error instanceof Error ? error.message : "记录反例失败，请稍后重试。");
+    },
+  });
+
+  const applyCandidateMutation = useMutation({
+    mutationFn: async ({ candidate, saveContrastPair }: { candidate: ChapterEditorCandidate; saveContrastPair: boolean }) => {
+      if (!selectedRange || edition.content == null) {
+        throw new Error("选区已失效，请重新选中后再试。");
+      }
+      const nextContent =
+        edition.content.slice(0, selectedRange.from)
+        + candidate.content
+        + edition.content.slice(selectedRange.to);
+      const saved = await updateNovelChapter(novelId, edition.id, {
+        content: nextContent,
+        expectedContent: edition.content,
+        expectedUpdatedAt: edition.updatedAt,
+      });
+      let recordedCount: number | null = null;
+      if (saveContrastPair) {
+        const recorded = await recordNovelHumanStyleFeedback(novelId, edition.id, {
+          excerpt: selectedRange.text,
+          preferredText: candidate.content,
+          issueTags,
+          feedbackNote: feedbackNote.trim() || undefined,
+        }).catch(() => null);
+        recordedCount = recorded?.data?.contrastPairs.length ?? null;
+      }
+      return { saved: saved.data, recordedCount };
+    },
+    onSuccess: async ({ saved, recordedCount }) => {
+      if (saved) {
+        const savedText = saved.content?.trim() ? saved.content : null;
+        setEdition((prev) => ({
+          ...prev,
+          title: saved.title ?? prev.title,
+          content: savedText,
+          wordCount: savedText ? Array.from(savedText.trim()).length : 0,
+          updatedAt: saved.updatedAt ?? prev.updatedAt,
+          authorProvenance: saved.authorProvenance ?? (prev.authorProvenance === "human_locked" ? "human_locked" : "human_edited"),
+          humanEditedAt: saved.humanEditedAt ?? prev.humanEditedAt,
+        }));
+      }
+      clearSelectionFeedback();
+      setSavedNotice(
+        recordedCount != null
+          ? `已替换选中片段为“人工修订”，并同步记入本书写法对照（当前共 ${recordedCount} 条）。`
+          : "已替换选中片段，本章已标记为“人工修订”。",
+      );
+      if (recordedCount != null) {
+        await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+      }
+      await onInlineSaved?.(edition.id);
+    },
+    onError: (error) => {
+      setSelectionError(error instanceof Error ? error.message : "应用改写失败，请刷新后重试。");
+    },
+  });
+
+  const removeFeedbackMutation = useMutation({
+    mutationFn: (aiPattern: string) => removeNovelHumanStyleFeedback(novelId, aiPattern),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+    },
+  });
+
   function startInlineEdit() {
     if (!canInlineEdit || isWriting || isLocked) return;
+    clearSelectionFeedback();
     setDraftTitle(edition.title);
     setDraftContent(edition.content ?? "");
     setSaveError(null);
@@ -231,9 +418,9 @@ export function ChapterReader({
                 </Button>
               ) : null}
               {onEdit ? (
-                <Button size="sm" variant="ghost" disabled={isWriting} onClick={() => onEdit(chapter.id)}>
+                <Button size="sm" variant="ghost" disabled={isWriting} title="打开完整 AI 精修、差异对比与质量检查" onClick={() => onEdit(chapter.id)}>
                   <Sparkles aria-hidden="true" className="mr-1.5 size-3.5" />
-                  AI 精修
+                  编辑正文
                 </Button>
               ) : null}
             </>
@@ -253,9 +440,62 @@ export function ChapterReader({
       {chapter.qualityDebt ? <div className="space-y-1 bg-muted/40 px-3 py-2 text-sm" role="status">
         <p className="font-medium">正文已保存，仍有待复查事项</p>
         <p className="text-muted-foreground">{chapter.qualityDebt.reason}</p>
-        <p className="text-xs text-muted-foreground">可在“AI 精修”中查看问题并修文，或点击“直接编辑”手动调整；后续章节可以继续创作。</p>
+        <p className="text-xs text-muted-foreground">可在“编辑正文”中查看问题并使用 AI 检查或修文，或点击“直接编辑”手动调整；后续章节可以继续创作。</p>
       </div> : null}
-      <div className="flex flex-wrap items-center gap-1.5"><span className="mr-2 text-xs text-muted-foreground">快速查看角色</span>{characters.map(character => <Button key={character.id} size="sm" variant="ghost" onClick={() => onCharacter(character.id)}>{character.name}</Button>)}{characters.length === 0 ? <span className="text-xs text-muted-foreground">暂无角色资料</span> : null}</div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="mr-2 text-xs text-muted-foreground">快速查看角色</span>
+        {characters.map(character => <Button key={character.id} size="sm" variant="ghost" onClick={() => onCharacter(character.id)}>{character.name}</Button>)}
+        {characters.length === 0 ? <span className="text-xs text-muted-foreground">暂无角色资料</span> : null}
+        {!isPreview && (feedbackQuery.data?.data?.contrastPairs.length ?? 0) > 0 ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto text-xs text-muted-foreground"
+            onClick={() => setShowRulesDrawer((open) => !open)}
+          >
+            <BookMarked aria-hidden="true" className="mr-1.5 size-3.5" />
+            本书避坑偏好（{feedbackQuery.data!.data!.contrastPairs.length}）
+          </Button>
+        ) : null}
+      </div>
+      {!isPreview && showRulesDrawer && feedbackQuery.data?.data ? (
+        <BookFeedbackRulesDrawer
+          summary={feedbackQuery.data.data}
+          removingPattern={removeFeedbackMutation.isPending ? (removeFeedbackMutation.variables ?? null) : null}
+          onRemove={(aiPattern) => removeFeedbackMutation.mutate(aiPattern)}
+        />
+      ) : null}
+      {!isEditing && !isWriting && selectedRange ? (
+        <SelectionFeedbackPanel
+          selectedRange={selectedRange}
+          issueTags={issueTags}
+          feedbackNote={feedbackNote}
+          canApplyRewrite={canInlineEdit}
+          isLocked={isLocked}
+          rewriting={selectionRewriteMutation.isPending}
+          recordingFeedback={recordFeedbackMutation.isPending}
+          applyingCandidate={applyCandidateMutation.isPending}
+          candidates={selectionCandidates}
+          activeCandidateId={activeCandidateId}
+          macroAlignmentNote={macroAlignmentNote}
+          error={selectionError}
+          onToggleTag={(tag) => setIssueTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))}
+          onFeedbackNoteChange={setFeedbackNote}
+          onClearSelection={clearSelectionFeedback}
+          onRequestRewrite={() => selectionRewriteMutation.mutate()}
+          onRecordOnly={() => recordFeedbackMutation.mutate()}
+          onSelectCandidate={setActiveCandidateId}
+          onApplyCandidate={(candidate, saveContrastPair) => applyCandidateMutation.mutate({ candidate, saveContrastPair })}
+          onDismissCandidates={() => {
+            setSelectionCandidates([]);
+            setActiveCandidateId(null);
+            setMacroAlignmentNote(null);
+            setSelectionError(null);
+          }}
+        />
+      ) : !isEditing && !isWriting && !isPreview && content?.trim() ? (
+        <p className="text-xs text-muted-foreground">提示：在正文里用鼠标划选任意句子或段落，可让 AI 按意见局部重改，或记为本书避坑反例。</p>
+      ) : null}
     </div>
     {isEditing ? (
       <InlineChapterBodyEditor
@@ -274,8 +514,22 @@ export function ChapterReader({
         onContinueEditing={() => setConfirmCancel(false)}
       />
     ) : content?.trim() ? (
-      <div className="space-y-6 leading-[2.15] tracking-wide text-foreground/90" style={readingStyle}>
-        {content.split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => <p key={index} className="whitespace-pre-wrap break-words">{paragraph}</p>)}
+      <div
+        ref={proseRef}
+        onMouseUp={handleProseSelectionCapture}
+        onKeyUp={handleProseSelectionCapture}
+        className="space-y-6 leading-[2.15] tracking-wide text-foreground/90"
+        style={readingStyle}
+      >
+        {paragraphs.map((paragraph) => (
+          <p
+            key={paragraph.index}
+            data-paragraph-index={paragraph.index}
+            className="whitespace-pre-wrap break-words"
+          >
+            {paragraph.text}
+          </p>
+        ))}
         {isWriting ? <span aria-hidden="true" className="inline-block h-5 w-1 animate-pulse bg-primary"/> : null}
       </div>
     ) : isWriting ? (
