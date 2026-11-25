@@ -33,6 +33,11 @@ keywords:
   <Accordion title="需要自己准备模型吗">
     需要。工作台不内置模型额度，使用你自己的 API 配置，也可以接本地模型。首次打开会弹出快捷配置，见 [模型配置](/model-configuration)。
   </Accordion>
+  <Accordion title="对电脑配置有要求吗">
+    目前没有公布单独的最低配置。桌面版提供 Windows（x64）、macOS（Apple Silicon 和 Intel）和 Linux（x86_64 AppImage）安装包，见 [安装下载](/installation)。
+
+    使用云端模型时，生成在模型厂商的服务器上完成，本机只负责界面、任务调度和数据保存。接本地模型（例如 Ollama）时，速度和能跑多大的模型取决于你的显卡和内存，按本地模型自身的要求准备；规划步骤建议仍用云端模型，见 [选型建议](/model-configuration#选型建议)。
+  </Accordion>
 </AccordionGroup>
 
 ## 创作过程
@@ -52,6 +57,32 @@ keywords:
   <Accordion title="单章用量上限是什么">
     V2 新任务的单章默认上限是 200,000 Tokens，累计该章的生成、检查、修文和资料整理调用，用来防止单章消耗失控。使用系统默认额度时，额度不足会先自动追加一次；仍不足时会暂停并保留进度，可以追加额度继续。详见 [AI 用量](/features/token-usage)。
   </Accordion>
+  <Accordion title="每章写多少字，在哪里设置">
+    有两处：
+
+    - **默认章节字数**：整本书的参考字数，在创建小说页面和小说的「基本信息」里设置，范围 500 到 10000，默认 2800，推荐 2500 到 3500。章节规划和生成都会参考它。
+    - **目标字数**：单章的字数，最少 200。在章节规划里每章的「高级设置」中修改，也可以在导演台编辑本批章节任务与场景时修改。
+
+    两者都是参考值，不是硬限制。生成时允许大约上下 14% 的浮动，例如目标 3000 字时，正文通常在 2580 到 3420 字之间。短篇另有一套篇幅设置（整篇 3,000 到 30,000 字），见 [短篇](/features/short-story)。
+
+    如果在导演台确认本批计划之后又改了目标字数，写正文前会提示「与确认稿不符」，回导演台确认修改即可，见 [故障排查](/troubleshooting)。
+  </Accordion>
+  <Accordion title="章节显示「待完善」是什么意思">
+    「待完善」表示这一章已经有可用正文，但检查时发现了局部问题，记录成了质量提醒（质量债务）。它不是失败，也不会挡住后续章节，可以先继续写，之后集中修改。详见 [章节执行](/guides/chapter-execution)。
+
+    导演台左侧目录里的其他章节状态：
+
+    | 状态 | 含义 |
+    | --- | --- |
+    | 待规划 | 还没有章节规划 |
+    | 待写正文 / 待写作 | 已有规划，还没写正文 |
+    | 写作中 | 正在生成正文 |
+    | 检查中 | 正在检查正文 |
+    | 待核对 | 有相关的规划提醒需要你核对 |
+    | 待调整 | 需要重新规划 |
+    | 待处理 | 生成出错，需要处理 |
+    | 可阅读 | 已完成 |
+  </Accordion>
 </AccordionGroup>
 
 ## 知识库
@@ -62,7 +93,11 @@ keywords:
   </Accordion>
 
   <Accordion title="桌面版怎么连接 Qdrant">
-    桌面版不内置 Qdrant，需要另外准备（Qdrant Cloud、本机 Docker 或自己的服务器），然后在 **知识库 → 检索设置** 里填写「向量库 URL」和「向量库 API Key」，点 **保存检索设置**。不需要改 `.env` 文件。完整步骤见 [配置资料检索与向量库](/features/knowledge-base#配置资料检索与向量库)。
+    桌面版不内置 Qdrant，需要另外准备（Qdrant Cloud、本机 Docker 或自己的服务器），然后在 **知识库 → 检索设置** 里填写「向量库 URL」和「向量库 API Key」，点 **保存检索设置**。不需要改 `.env` 文件。完整步骤见 [配置资料检索与向量库](/features/knowledge-base#配置资料检索与向量库)，Qdrant Cloud 的申请步骤见 [使用 Qdrant Cloud](/features/knowledge-base#qdrant-cloud)。
+  </Accordion>
+
+  <Accordion title="知识库提示 fetch failed">
+    表示没连上向量库或 Embedding 服务，多数是「向量库 URL」的协议、端口写错，或服务没运行、网络被拦截。排查步骤见 [故障排查](/troubleshooting)。
   </Accordion>
 </AccordionGroup>
 

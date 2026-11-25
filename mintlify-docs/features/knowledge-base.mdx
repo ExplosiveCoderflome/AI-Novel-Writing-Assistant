@@ -59,13 +59,42 @@ RAG（检索增强生成）是知识库的核心机制：系统在章节执行�
 
 任选一种：
 
-- **Qdrant Cloud**：在 Qdrant Cloud 创建集群，记下集群地址（以 `https://` 开头）和 API Key。适合不想在本机装 Docker 的用户。
+- **Qdrant Cloud**：在 Qdrant Cloud 创建集群，记下集群地址（以 `https://` 开头）和 API Key。适合不想在本机装 Docker 的用户，步骤见下方 [使用 Qdrant Cloud](#qdrant-cloud)。
 - **本机 Docker**：装好 Docker 后运行下面的命令，地址就是 `http://127.0.0.1:6333`，不需要 API Key。
   ```bash
   docker run -d --name ai-novel-qdrant -p 6333:6333 -p 6334:6334 -v qdrant_storage:/qdrant/storage qdrant/qdrant:v1.15.4
   ```
   源码仓库的 `infra/docker-compose.qdrant.yml` 提供同样的服务定义，也可以用 `docker compose` 启动，见 [部署](/developers/deployment)。
 - **自托管服务器**：在自己的服务器上运行 Qdrant，记下可以从这台电脑访问的地址，有认证时同时准备 API Key。
+
+### 使用 Qdrant Cloud {#qdrant-cloud}
+
+Qdrant Cloud 提供免费集群。以下步骤参考 Qdrant 官方的 [Cloud 快速开始](https://qdrant.tech/documentation/cloud-quickstart/)，网页界面以官方当前版本为准。
+
+<Steps>
+  <Step title="注册账号">
+    打开 [cloud.qdrant.io](https://cloud.qdrant.io/signup)，用邮箱、Google 或 GitHub 账号注册并登录。
+  </Step>
+  <Step title="创建免费集群">
+    在 **Create a Free Cluster** 里填写集群名称，选择云厂商和区域（选离你近的区域，延迟更低），点 **Create Free Cluster**。
+  </Step>
+  <Step title="保存 API Key">
+    创建时会生成 API Key。**它只显示一次**，立即复制并妥善保存。
+  </Step>
+  <Step title="复制集群地址">
+    在集群详情里复制集群地址，形如 `https://xyz-example.eu-central.aws.cloud.qdrant.io`。应用通过 REST 接口连接，端口是 6333，填写时用 `https://<集群地址>:6333`。
+  </Step>
+  <Step title="测试连通（可选）">
+    在同一台电脑的终端运行下面的命令，返回 JSON 就说明地址和 Key 都可用。Windows PowerShell 里把 `curl` 换成 `curl.exe`。
+
+    ```bash
+    curl -X GET 'https://<集群地址>:6333/collections' --header 'api-key: <你的 API Key>'
+    ```
+  </Step>
+  <Step title="填到应用里">
+    按下方 [在应用里填写连接](#在应用里填写连接)，把地址填进「向量库 URL」，把 Key 填进「向量库 API Key」。
+  </Step>
+</Steps>
 
 ### 在应用里填写连接
 
@@ -278,6 +307,14 @@ flowchart LR
 
   <Accordion title="Qdrant 和 RAG 是必须理解的吗？">
     不需要理解原理。你只要知道：配置完整后，知识库可以更好地按当前任务查找资料。桌面版不内置 Qdrant，需要时按 [配置资料检索与向量库](#配置资料检索与向量库) 准备并填写连接。
+  </Accordion>
+
+  <Accordion title="提示 fetch failed 或资料库连接失败怎么办？">
+    `fetch failed` 表示请求没连上向量库或 Embedding 服务。先核对「向量库 URL」的协议和端口（本机 Docker 是 `http://127.0.0.1:6333`，Qdrant Cloud 是 `https://<集群地址>:6333`），再检查服务是否在运行、代理或防火墙是否拦截。完整排查和其他 Qdrant 报错见 [故障排查](/troubleshooting)。
+  </Accordion>
+
+  <Accordion title="换了 Embedding 模型后提示集合维度不匹配？">
+    不同 Embedding 模型生成的向量维度不同，旧集合不能直接沿用。到「检索设置 → 高级配置」把「集合命名方式」设为「自动生成」，或手动换一个新的集合名，保存后重建索引。开启「Embedding 变更后自动重建索引」时，系统会自动排队重建。
   </Accordion>
 
   <Accordion title="知识库没生效怎么查？">
