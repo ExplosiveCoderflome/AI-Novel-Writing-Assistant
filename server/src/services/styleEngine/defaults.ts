@@ -75,6 +75,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: true,
       sentenceVariation: "high",
       allowUselessDetails: true,
+      voiceExemplars: [
+        "房东把收据拍在桌上，指节敲了两下。“水电另算，少一分都不行。”我盯着那张褶皱的黄纸，喉咙发干，嘴上却顺口应了一句“行，明儿转账”。转身下楼，风从楼道豁口灌进来，兜里那张只剩两位数的银行卡硌得大腿生疼。我掏出烟盒抖了抖，空的。算了，省两块。",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "他感到一种深深的无力感涌上心头，意识到生活总是如此艰难。",
+          preferred: "他盯着手里的空烟盒看了两秒，顺手捏扁，塞回裤兜。",
+        },
+        {
+          aiPattern: "在现实的重压下，每个普通人都在咬牙前行，或许这就是人生的底色。",
+          preferred: "楼下早点摊刚支起锅，他摸了摸兜里剩下的硬币，拐进了巷子另一头。",
+        },
+      ],
       summary: "语言粗粝、口语化，允许生活杂音。",
     },
     rhythmRules: {
@@ -123,6 +136,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "medium",
       allowUselessDetails: false,
+      voiceExemplars: [
+        "账本摔在青石案上，茶盏震出一圈水渍。“三成利？你在打发要饭的。”对面管事脸色一僵，刚要开口打圆场，他已抬手按下印泥，直接推过去。“要么今晚签字，要么明天换人坐这把椅子。我赶时间。”",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "面对对方的挑衅，他眼神一冷，嘴角勾起一抹不屑的弧度，心中暗道此人不知天高地厚。",
+          preferred: "他把茶杯搁下，杯底磕在木面上一声脆响。“说完了？把欠条拿出来。”",
+        },
+        {
+          aiPattern: "这一刻，局势彻底发生了逆转，众人都为他的果决感到震撼。",
+          preferred: "堂里一时没人接话，几个原先站着起哄的管事往后退了半步。",
+        },
+      ],
       summary: "句式清晰，减少无效分散信息。",
     },
     rhythmRules: {
@@ -169,6 +195,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "medium_high",
       allowUselessDetails: true,
+      voiceExemplars: [
+        "门锁没有被撬的痕迹。门框内侧却多了一道新鲜的灰印，指宽，斜着向下。他没有立刻推门，先退后半步，听走廊尽头的电梯声。电梯停在七楼，门开了，没人出来。",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "一股寒意瞬间袭上他的脊背，他意识到事情远没有表面上那么简单。",
+          preferred: "他停住手，把钥匙重新插回兜里，盯紧了门缝底下的那道影子。",
+        },
+        {
+          aiPattern: "空气仿佛在这一刻凝固了，一种难以言喻的压迫感笼罩着整个房间。",
+          preferred: "墙上的挂钟走了一格。啪嗒。声音在空屋里响得刺耳。",
+        },
+      ],
       summary: "细节精确，保留少量噪音增强现场感。",
     },
     rhythmRules: {
@@ -216,6 +255,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "high",
       allowUselessDetails: true,
+      voiceExemplars: [
+        "杯里的冰化了一半，碰着玻璃壁轻轻响。她把吸管转了两圈，没看他：“那天雨挺大的，我打车回去，手机还差点落车上。”他“嗯”了一声，把桌角那包没拆封的纸巾往她手边推近两寸，停住。“后来找着了？”“找着了。司机顺路送回来的。”两人都没提那通没接通的电话。",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "她心里五味杂陈，既想质问对方，又害怕听到令人失望的答案。",
+          preferred: "她捏着温掉的纸杯，话到嘴边又咽了回去，只问了句：“几点走？”",
+        },
+        {
+          aiPattern: "两人之间的气氛微妙而复杂，过去的种种回忆在此时悄然浮现。",
+          preferred: "她低头理了理袖口，避开他伸手去拿账单的那一秒。",
+        },
+      ],
       summary: "语言自然，允许留白与停顿。",
     },
     rhythmRules: {
@@ -264,6 +316,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "high",
       allowUselessDetails: false,
+      voiceExemplars: [
+        "“名单我看过了，少两个人。”老周把文件夹合上，指腹压住封面边角，说话慢得像在掂分量。旁边年轻同事刚张嘴想接一句“要不我再去核一遍”，门外就传来皮鞋踩过瓷砖的急响。新来的副手连门都没敲全，探半个身子进来：“账目对不上了，东区那笔刚才撤了。”",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "每个人心中都有自己的算盘，多方势力的博弈正在悄然展开。",
+          preferred: "老周没接话，先把桌上的签字笔扣上帽；对面的副手却把茶盖掀开又合上，水汽都没散。",
+        },
+        {
+          aiPattern: "他们各自带着不同的目的，却又不得不在这件事上达成短暂的共识。",
+          preferred: "“先报数。”老周看表。“报完这轮，各走各的线。”",
+        },
+      ],
       summary: "保持角色差异，避免所有人说话一样。",
     },
     rhythmRules: {
@@ -310,6 +375,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "medium_high",
       allowUselessDetails: true,
+      voiceExemplars: [
+        "电饭煲跳闸那声响的时候，他正蹲在阳台剪枯掉的绿萝叶子。水龙头没拧紧，嘀嗒嘀嗒砸在不锈钢盆底。门口钥匙转了两圈，门开了，带进来一股外头炒菜的油烟味。“今晚买着排骨了，就是贵了两块。”鞋柜门啪地合上，塑料袋窸窣响成一团。",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "在这个充满烟火气的傍晚，他感受到了久违的温暖与宁静。",
+          preferred: "他把剪刀搁回窗台，顺手接过她手里的塑料袋，腾出左肘把门掩上。",
+        },
+        {
+          aiPattern: "平淡的日常里往往藏着最动人的陪伴，这就是生活温柔的模样。",
+          preferred: "锅里水滚了，白气冒出来，把厨房玻璃蒙上一层雾。",
+        },
+      ],
       summary: "保留生活细节和杂音，不追求工整。",
     },
     rhythmRules: {
@@ -356,6 +434,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: false,
       sentenceVariation: "medium",
       allowUselessDetails: false,
+      voiceExemplars: [
+        "复核表第三栏的数字与入库单差了四百三十公斤。她没抬头，用红笔在日期下方划了一道横线，调出上月同批次的称重回执。“过磅记录是十七点零四分，门禁卡刷卡时间是十七点二十二分。”她把两页纸并排推到窗前，“中间这十八分钟，车停在B区盲区。”",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "她敏锐地察觉到了数据背后的猫腻，心中不禁生出一丝警惕。",
+          preferred: "她用红笔圈出时间戳差值，把回执另存了一份本地副本。",
+        },
+        {
+          aiPattern: "在利益与原则的碰撞面前，职业操守终将经受最严峻的考验。",
+          preferred: "“把原始称重日志导出来，别走内网共享。”她合上笔记本。",
+        },
+      ],
       summary: "术语和事实优先，避免廉价金句。",
     },
     rhythmRules: {
@@ -402,6 +493,19 @@ export const DEFAULT_STYLE_TEMPLATES: DefaultTemplateDefinition[] = [
       allowSwearing: true,
       sentenceVariation: "high",
       allowUselessDetails: true,
+      voiceExemplars: [
+        "公司裁员通知书印得倒是挺讲究，哑光铜版纸，边角还压了暗纹。他捧着那张比自己上个月绩效表还精致的纸，在走廊垃圾桶旁边站了五秒，突然想起上面还有自己的工号。“能带走吗？”人事点点头：“纪念品随便。”于是他叠成豆腐块塞进了衬衫口袋，顺便从茶水间多拿了两包速溶咖啡。",
+      ],
+      contrastPairs: [
+        {
+          aiPattern: "这荒诞的一幕让他哭笑不得，命运似乎总爱和人开这样的玩笑。",
+          preferred: "他把通知书折了两次，正好垫在晃荡的桌腿底下，桌板总算不响了。",
+        },
+        {
+          aiPattern: "在冷冰冰的现实面前，小人物的自嘲显得格外心酸而无奈。",
+          preferred: "“行吧，至少没扣我饮水机押金。”他顺手把工牌翻了个面。",
+        },
+      ],
       summary: "允许夹带荒诞杂质和冷幽默节奏。",
     },
     rhythmRules: {
