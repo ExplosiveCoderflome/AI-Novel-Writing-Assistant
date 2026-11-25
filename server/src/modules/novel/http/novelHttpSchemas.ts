@@ -240,6 +240,11 @@ export const updateChapterSchema = z.object({
   riskFlags: z.string().nullable().optional(),
 });
 
+export const chapterProvenanceSchema = z.object({
+  locked: z.boolean(),
+  expectedUpdatedAt: z.iso.datetime().optional(),
+});
+
 export const characterSchema = z.object({
   name: z.string().trim().min(1, "角色名称不能为空。"),
   role: z.string().trim().min(1, "角色定位不能为空。"),

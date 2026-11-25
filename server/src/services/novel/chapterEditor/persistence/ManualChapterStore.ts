@@ -4,12 +4,17 @@ import { AppError } from "../../../../middleware/errorHandler";
 import { queueManualChapterTimeline } from "../../../../modules/timeline";
 import type { ChapterInput } from "../../novelCoreShared";
 import { canRemoveManualChapter } from "../domain/manualChapterPolicy";
-import { queueManualChapterSync } from "../synchronization/ManualChapterSyncStore";
+import { nextProvenanceAfterUnlock } from "../domain/chapterProvenance";
+import { MANUAL_CHAPTER_SYNC_TYPE, queueManualChapterSync } from "../synchronization/ManualChapterSyncStore";
 
 /** Shared body-only CAS used by legacy manual editing and manuscript adoption. */
 export async function saveManualChapterContent(tx:Prisma.TransactionClient,existing:{id:string;novelId:string;content:string|null;updatedAt:Date},content:string){
- const saved=await tx.chapter.update({where:{id:existing.id,novelId:existing.novelId,content:existing.content},data:{content,updatedAt:new Date(Math.max(Date.now(),existing.updatedAt.getTime()+1))}});
- if(content!==existing.content){await queueManualChapterSync(tx,saved);await queueManualChapterTimeline(tx,saved);}return saved;
+ const currentRow=await tx.chapter.findUnique({where:{id:existing.id},select:{authorProvenance:true}});
+ const now=new Date(Math.max(Date.now(),existing.updatedAt.getTime()+1));
+ const changed=content!==existing.content;
+ const saved=await tx.chapter.update({where:{id:existing.id,novelId:existing.novelId,content:existing.content},data:{content,updatedAt:now,
+  ...(changed?{humanEditedAt:now,authorProvenance:currentRow?.authorProvenance==="human_locked"?"human_locked":"human_edited"}:{})}});
+ if(changed){await queueManualChapterSync(tx,saved);await queueManualChapterTimeline(tx,saved);}return saved;
 }
 async function rejectManuscriptLegacyWrite(novelId:string){if(await prisma.manuscriptProject.findUnique({where:{novelId},select:{id:true}}))throw new AppError("请在原稿修订工作区预览并确认修改，旧章节接口不会覆盖修订副本。",409);}
 /** Owns editor CAS and both durable synchronization obligations in one transaction. */
@@ -38,6 +43,7 @@ export class ManualChapterStore {
           pacingScore: input.pacingScore ?? null,
           riskFlags: input.riskFlags ?? null,
           generationState: "planned",
+          ...(input.content?.trim() ? { authorProvenance: "human_edited", humanEditedAt: new Date() } : {}),
         },
       });
       if (saved.content) {
@@ -51,9 +57,12 @@ export class ManualChapterStore {
   }
   async updateChapter(novelId: string, chapterId: string, input: Partial<ChapterInput>) {
     await rejectManuscriptLegacyWrite(novelId);
-    const exists = await prisma.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true, novelId:true, content: true, updatedAt: true } });
+    const exists = await prisma.chapter.findFirst({ where: { id: chapterId, novelId }, select: { id: true, novelId:true, content: true, updatedAt: true, authorProvenance: true } });
     if (!exists) {
       throw new Error("章节不存在");
+    }
+    if (exists.authorProvenance === "human_locked" && typeof input.content === "string" && input.content !== exists.content) {
+      throw new AppError("本章已人工锁定，请先解除锁定后再修改正文。", 409);
     }
     const bodyOnly = typeof input.content === "string" && input.expectedContent !== undefined
       && Object.keys(input).every(key => ["content", "expectedContent", "expectedUpdatedAt"].includes(key));
@@ -86,6 +95,9 @@ export class ManualChapterStore {
           characterScore: input.characterScore,
           pacingScore: input.pacingScore,
           riskFlags: input.riskFlags,
+          ...(typeof input.content === "string" && input.content !== exists.content
+            ? { authorProvenance: "human_edited", humanEditedAt: new Date(Math.max(Date.now(), exists.updatedAt.getTime() + 1)) }
+            : {}),
         },
       });
       if (typeof input.content === "string" && input.content !== exists.content) {
@@ -139,5 +151,45 @@ export class ManualChapterStore {
     if (deleted.count === 0) {
       throw new AppError("本章内容或状态已变化，请刷新后再操作。", 409);
     }
+  }
+
+  async setChapterProvenance(novelId: string, chapterId: string, input: { locked: boolean; expectedUpdatedAt?: string }) {
+    await rejectManuscriptLegacyWrite(novelId);
+    const exists = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: {
+        id: true,
+        novelId: true,
+        content: true,
+        updatedAt: true,
+        authorProvenance: true,
+        humanEditedAt: true,
+        artifactSyncCheckpoints: {
+          where: { artifactType: MANUAL_CHAPTER_SYNC_TYPE },
+          select: { artifactType: true, contentHash: true },
+        },
+      },
+    });
+    if (!exists) {
+      throw new AppError("章节不存在。", 404);
+    }
+    if (input.expectedUpdatedAt && exists.updatedAt.getTime() !== new Date(input.expectedUpdatedAt).getTime()) {
+      throw new AppError("本章保存版本已变化。请先查看新内容，再调整锁定状态。", 409);
+    }
+    const nextProvenance = input.locked ? "human_locked" : nextProvenanceAfterUnlock(exists);
+    if (exists.authorProvenance === nextProvenance) {
+      return prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
+    }
+    const updated = await prisma.chapter.updateMany({
+      where: { id: chapterId, novelId, updatedAt: exists.updatedAt },
+      data: {
+        authorProvenance: nextProvenance,
+        updatedAt: new Date(Math.max(Date.now(), exists.updatedAt.getTime() + 1)),
+      },
+    });
+    if (updated.count === 0) {
+      throw new AppError("本章保存版本已变化。请先查看新内容，再调整锁定状态。", 409);
+    }
+    return prisma.chapter.findUniqueOrThrow({ where: { id: chapterId } });
   }
 }

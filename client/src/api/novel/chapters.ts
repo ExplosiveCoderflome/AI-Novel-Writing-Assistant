@@ -81,6 +81,15 @@ export async function deleteNovelChapter(id: string, chapterId: string) {
   return data;
 }
 
+export async function setNovelChapterProvenance(
+  id: string,
+  chapterId: string,
+  payload: { locked: boolean; expectedUpdatedAt?: string },
+) {
+  const { data } = await apiClient.patch<ApiResponse<Chapter>>(`/novels/${id}/chapters/${chapterId}/provenance`, payload);
+  return data;
+}
+
 export async function getChapterTraces(novelId: string, chapterId: string) {
   const { data } = await apiClient.get<ApiResponse<import("@ai-novel/shared/types/agent").AgentRun[]>>(
     `/novels/${novelId}/chapters/${chapterId}/traces`,

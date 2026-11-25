@@ -411,9 +411,15 @@ export class NovelPipelineExecutor {
           }),
         ]);
         const manuallyEditedChapterIds = new Set<string>();
+        const lockedChapterIds = new Set<string>();
         for (const chapter of chapterCandidates) {
-          const edited = chapter.artifactSyncCheckpoints.some(row => row.artifactType === MANUAL_CHAPTER_SYNC_TYPE
-            && row.contentHash === buildChapterArtifactContentHash(chapter.content ?? ""));
+          if (chapter.authorProvenance === "human_locked" && chapter.content?.trim()) {
+            lockedChapterIds.add(chapter.id);
+          }
+          const edited = chapter.authorProvenance === "human_locked"
+            || chapter.authorProvenance === "human_edited"
+            || chapter.artifactSyncCheckpoints.some(row => row.artifactType === MANUAL_CHAPTER_SYNC_TYPE
+              && row.contentHash === buildChapterArtifactContentHash(chapter.content ?? ""));
           if (edited) manuallyEditedChapterIds.add(chapter.id);
           const terminal = chapter.generationState === "approved" || chapter.generationState === "published" || chapter.chapterStatus === "completed";
           if (!chapter.content?.trim() || isCurrentV2ChapterProductionCompleted(chapter) || (!edited && !terminal)) continue;
@@ -438,8 +444,17 @@ export class NovelPipelineExecutor {
           }});
           Object.assign(chapter, refreshed);
         }
+        if (!options.skipCompleted && lockedChapterIds.size > 0) {
+          const firstLocked = chapterCandidates.find((chapter) => lockedChapterIds.has(chapter.id));
+          throw new PipelineIssueAppliedError(
+            firstLocked
+              ? `第 ${firstLocked.order} 章已人工锁定定稿，请先解除锁定后再重新生成。`
+              : "所选范围包含已人工锁定定稿的章节，请先解除锁定后再重新生成。",
+            "pause_for_manual",
+          );
+        }
         const chapters = options.skipCompleted
-          ? chapterCandidates.filter((chapter) => !(runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)))
+          ? chapterCandidates.filter((chapter) => !lockedChapterIds.has(chapter.id) && !(runtimePayload.directorNext ? isCurrentV2ChapterProductionCompleted(chapter) : isCurrentChapterProductionCompleted(chapter)))
           : chapterCandidates;
         if (!novel) {
           throw new Error("任务执行失败：小说或章节不存在");

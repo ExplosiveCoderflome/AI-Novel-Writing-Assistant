@@ -36,6 +36,7 @@ import {
   beatGenerateSchema,
   chapterExecutionContractSchema,
   chapterParamsSchema,
+  chapterProvenanceSchema,
   chapterSchema,
   characterParamsSchema,
   characterSchema,
@@ -104,6 +105,7 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     chapterParamsSchema,
     chapterSchema,
     updateChapterSchema,
+    chapterProvenanceSchema,
     chapterExecutionContractSchema,
   });
 

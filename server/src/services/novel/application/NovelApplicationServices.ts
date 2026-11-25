@@ -124,6 +124,10 @@ export class DefaultNovelApplicationServices {
     return this.core.deleteChapter(...args);
   }
 
+  setChapterProvenance(...args: Parameters<NovelCoreService["setChapterProvenance"]>) {
+    return this.core.setChapterProvenance(...args);
+  }
+
   listCharacters(...args: Parameters<NovelCoreService["listCharacters"]>) {
     return this.core.listCharacters(...args);
   }

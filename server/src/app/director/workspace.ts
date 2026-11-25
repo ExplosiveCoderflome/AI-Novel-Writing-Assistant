@@ -18,11 +18,13 @@ import { readActiveManuscriptChapters } from "../../modules/novel/manuscript/app
 import { readNovelBookDirector } from "../../services/novel/catalog";
 import { projectBookCompletion, readBookCompletionActivity } from "../../services/novel/production/completion";
 import { readCharacterForwardPlanNotices } from "../../services/novel/characters/forwardAdjustments/plans";
+import { MANUAL_CHAPTER_SYNC_TYPE } from "../../services/novel/chapterEditor/synchronization";
+import { resolveChapterAuthorProvenance } from "../../services/novel/chapterEditor/domain/chapterProvenance";
 export {readDirectorLedgers} from "./workspace/index";
 
 /** Saved book display never reads task seeds or repairs compatibility records. */
 export async function readDirectorWorkspace(novelId: string) {
-  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{storyMacroPlan:{select:{storyInput:true}},world:true,novelWorld:true,bookContract:true,manuscriptProject:{select:{id:true}},characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
+  const novel = await prisma.novel.findUnique({where:{id:novelId},include:{storyMacroPlan:{select:{storyInput:true}},world:true,novelWorld:true,bookContract:true,manuscriptProject:{select:{id:true}},characters:{orderBy:{createdAt:"asc"}},chapters:{orderBy:{order:"asc"},include:{artifactSyncCheckpoints:{where:{artifactType:MANUAL_CHAPTER_SYNC_TYPE},select:{artifactType:true,contentHash:true}}}},volumePlans:{where:directorVolumeChapterPlanFilter(novelId),orderBy:{sortOrder:"asc"},include:{chapters:true}}}});
   if (!novel) throw new AppError("小说不存在。",404);
   const [activeChapters, bookDirector, characterForwardPlanNotices] = await Promise.all([
     novel.manuscriptProject ? readActiveManuscriptChapters(prisma, novelId) : null,
@@ -67,11 +69,11 @@ export async function readDirectorWorkspace(novelId: string) {
   const proseReviewHashes = batch ? Object.fromEntries(effectiveChapters.filter(row => row.order >= batch.from! && row.order <= batch.to! && row.content?.trim())
     .map(row => [row.id,hashProductionContent(row.content!)])) : undefined;
   const chapters: SimpleCreationShelfProjection["chapters"] = effectiveChapters.map(chapter=>{
-    const trimmedContent = chapter.content?.trim() || null;
-    const content = proseReviewHashes?.[chapter.id] ? chapter.content : trimmedContent;
+    const hasContent = Boolean(chapter.content?.trim());
+    const content = hasContent ? chapter.content : null;
     const qualityDebt = content ? readChapterQualityDebtDetails(chapter.riskFlags) : null;
     const status: SimpleCreationShelfProjection["chapters"][number]["status"] = hasChapterQualityLoopReplanRequiredRiskFlags(chapter.riskFlags) ? "replan_required" : qualityDebt ? "quality_debt" : chapter.generationState === "approved" || chapter.generationState === "published" ? "completed" : chapter.chapterStatus === "generating" ? "generating" : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review" ? "reviewing" : content ? "waiting_writing" : "waiting_planning";
-    return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:trimmedContent ? Array.from(trimmedContent).length:0,updatedAt:chapter.updatedAt.toISOString()};
+    return {id:chapter.id,order:chapter.order,title:chapter.title,content,status,qualityDebt,wordCount:hasContent ? Array.from(chapter.content!.trim()).length:0,updatedAt:chapter.updatedAt.toISOString(),authorProvenance:resolveChapterAuthorProvenance(chapter),humanEditedAt:chapter.humanEditedAt ? chapter.humanEditedAt.toISOString() : null};
   });
   const outlinePreparation=outlineBinding ? {storyMacro:await new StoryMacroPlanService().getPlan(novelId),hasBookContract:Boolean(novel.bookContract),worldMode:contract?.launchInput?.worldMode} : undefined;
   return {continuationStoryInput,...(outlineBinding ? {outlineBinding,outlinePreparation} : {}),novel:{id:novel.id,title:novel.title,creationExperience:novel.creationExperience,estimatedChapterCount:novel.estimatedChapterCount},chapters,bookCompletion,planning,reviewContexts,proseReviewHashes,chapterReviewFingerprint,reviewContextError,characterForwardPlanNotices,

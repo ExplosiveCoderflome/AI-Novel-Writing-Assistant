@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { artifactContentHash, type StepContext, type StepHandler } from "../../../../modules/director";
 import { runUnit, type UnitPorts, type UnitRef, type UnitRequest } from "../../../../modules/production";
+import { ProtectedProductionContentError } from "../../../../modules/production/common";
 import { assertKernelOwnership } from "../execution/ownership";
 import { readKernelUnitOutcome } from "../readModel/completion";
 import { chooseProductionBatchImplementation } from "./binding";
@@ -34,7 +35,10 @@ export function createKernelProductionStep(input: {db: PrismaClient; legacy: Ste
             const unit={novelId:chapter.novelId,chapterId:chapter.id,order:chapter.order};
             return runUnit(runtime.request(unit),runtime.ports(unit));
           },hashBatch:artifactContentHash})(context);
-      } catch (error) {
+      } catch (error: unknown) {
+        if (error instanceof ProtectedProductionContentError) {
+          return { stopSignal: { kind: "manual_recovery", action: "pause_for_manual", source: "runtime", reason: error.message } };
+        }
         if (!(error instanceof MissingTaskOutputBudgetError)
           && !(error instanceof KernelReadinessError && error.code === "production_output_budget_capture_missing")) throw error;
         return { stopSignal: { kind: "manual_recovery", action: "pause_for_manual", source: "runtime", reason: error.message } };
