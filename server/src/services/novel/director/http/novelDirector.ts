@@ -119,8 +119,7 @@ const projectContextSchema = z.object({
   aiFreedom: z.enum(["low", "medium", "high"]).optional(),
   postGenerationStyleReviewEnabled: z.boolean().optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
-  // Older restored opening forms send null for "AI 推荐"; keep the choice unset.
-  estimatedChapterCount: z.number().int().min(1).max(2000).nullish().transform((value) => value ?? undefined),
+  estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
   userPreferredVolumeCount: z.number().int().min(1).max(24).optional(),
   projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
   storylineStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
