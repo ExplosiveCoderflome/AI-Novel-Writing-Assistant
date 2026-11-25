@@ -235,7 +235,7 @@ export default function KnowledgeEmbeddingSettingsCard({
           <ConnectionTestControl
             input={embeddingTestInput}
             label="测试向量模型连接"
-            hint="按填写的配置生成一个测试向量，可能产生少量用量；测试不会保存设置。"
+            hint="生成一个测试向量，可能产生少量用量；仅同源地址复用已存 Key，更换来源请填写新 Key。测试不保存设置。"
             disabled={isSaving || !form.embeddingProvider.trim() || !form.embeddingModel.trim()}
             runTest={testEmbeddingConnection}
           />
@@ -304,7 +304,7 @@ export default function KnowledgeEmbeddingSettingsCard({
           <ConnectionTestControl
             input={qdrantTestInput}
             label="测试向量数据库连接"
-            hint="检查服务就绪和集合读取权限，不写入资料、不保存设置；勾选清除 Key 时按无密钥测试。"
+            hint="检查就绪和集合读取权限，不写入资料、不保存设置；仅同源地址复用已存 Key，勾选清除 Key 时按无密钥测试。"
             disabled={isSaving || !form.qdrantUrl.trim()}
             runTest={testQdrantConnection}
           />

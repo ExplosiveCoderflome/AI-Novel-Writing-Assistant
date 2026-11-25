@@ -16,9 +16,20 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), { status
 function service(overrides = {}) {
   return new RagConnectionTestService({
     getProvider: async () => null,
-    getQdrantApiKey: async () => undefined,
+    getQdrantConnection: async () => ({}),
     fetch: async () => json({ data: [{ embedding: [0.1, -0.2, 0] }] }),
     ...overrides,
+  });
+}
+function environment(t, values) {
+  const previous = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined) delete process.env[key]; else process.env[key] = value;
+  }
+  t.after(() => {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
   });
 }
 async function listen(t, handler) {
@@ -95,6 +106,120 @@ test("embedding falls back to provider environment and default address", async (
   assert.equal((await probe.testEmbedding({ ...embeddingInput, embeddingProvider: "openai", embeddingBaseURL: "" })).ok, true);
 });
 
+const originCases = [
+  { name: "normalized default port and changed path stay same-origin", url: "https://EMBED.example:443/other/v2", same: true },
+  { name: "same address reuses credentials", url: "https://embed.example/v1", same: true },
+  { name: "changed host with blank key", url: "https://other.example/v1" },
+  { name: "changed protocol with blank key", url: "http://embed.example/v1" },
+  { name: "changed port with blank key", url: "https://embed.example:8443/v1" },
+  { name: "changed host with explicit new key", url: "https://other.example/v1", key: "new-origin-key" },
+];
+
+test("embedding credentials are reused only for the configured origin, including environment keys", async (t) => {
+  for (const source of ["saved", "environment", "environment-key-with-saved-url"]) {
+    for (const scenario of originCases) {
+      await t.test(`${source}: ${scenario.name}`, async (t) => {
+        environment(t, { OPENAI_API_KEY: "env-key", OPENAI_BASE_URL: "https://embed.example/v1" });
+        const requests = [];
+        const probe = service({
+          getProvider: async () => source === "environment" ? null : {
+            key: source === "saved" ? "saved-key" : null, baseURL: "https://embed.example/v1", isActive: true,
+          },
+          fetch: async (url, init) => {
+            requests.push({url, key: init.headers.Authorization});
+            return json({data: [{embedding: [1]}]});
+          },
+        });
+        const result = await probe.testEmbedding({ ...embeddingInput, embeddingProvider: "openai",
+          embeddingBaseURL: scenario.url, embeddingApiKey: scenario.key ?? " " });
+        if (!scenario.same && !scenario.key) {
+          assert.equal(result.ok, false);
+          assert.match(result.message, /填写.*API Key/);
+          assert.equal(requests.length, 0, "authenticated provider must request a new key before sending");
+        } else {
+          assert.equal(result.ok, true);
+          assert.deepEqual(requests, [{url: new URL(scenario.url).href.replace(/\/+$/, "") + "/embeddings",
+            key: "Bearer " + (scenario.key ?? (source === "saved" ? "saved-key" : "env-key"))}]);
+        }
+      });
+    }
+  }
+});
+
+test("keyless embedding services can probe a new origin without saved or environment credentials", async (t) => {
+  environment(t, { OLLAMA_API_KEY: "env-secret", OLLAMA_BASE_URL: "http://saved.local/v1" });
+  for (const provider of ["ollama", "custom-probe"]) {
+    let calls = 0;
+    const result = await service({
+      getProvider: async () => ({key: "saved-secret", baseURL: "http://saved.local/v1", isActive: true}),
+      fetch: async (_url, init) => {
+        calls++;
+        assert.equal(init.headers.Authorization, undefined);
+        return json({data: [{embedding: [1]}]});
+      },
+    }).testEmbedding({...embeddingInput, embeddingProvider: provider, embeddingBaseURL: "http://new.local/v1"});
+    assert.equal(result.ok, true);
+    assert.equal(calls, 1);
+  }
+});
+
+test("Qdrant origin checks cover saved and environment credentials before either request", async (t) => {
+  for (const source of ["saved", "environment", "environment-key-with-saved-url"]) {
+    for (const scenario of originCases) {
+      await t.test(`${source}: ${scenario.name}`, async (t) => {
+        environment(t, { QDRANT_API_KEY: "env-key", QDRANT_URL: "https://embed.example/v1" });
+        const requests = [];
+        const expectedKey = scenario.key ?? (scenario.same ? source === "saved" ? "saved-key" : "env-key" : undefined);
+        const probe = service({
+          getQdrantConnection: async () => source === "environment" ? {} : {
+            url: "https://embed.example/v1", apiKey: source === "saved" ? "saved-key" : undefined,
+          },
+          fetch: async (url, init) => {
+            requests.push(url);
+            assert.equal(init.headers?.["api-key"], expectedKey);
+            return json({result: {collections: []}});
+          },
+        });
+        const result = await probe.testQdrant({...qdrantInput, qdrantUrl: scenario.url, qdrantApiKey: scenario.key ?? " "});
+        assert.equal(result.ok, true);
+        const base = new URL(scenario.url).href.replace(/\/+$/, "");
+        assert.deepEqual(requests, [base + "/readyz", base + "/collections"]);
+      });
+    }
+  }
+});
+
+test("Qdrant requiring authentication at a new origin prompts for a key without forwarding old credentials", async (t) => {
+  environment(t, {QDRANT_API_KEY: "env-secret", QDRANT_URL: "http://saved.local"});
+  let requests = 0;
+  const result = await service({
+    getQdrantConnection: async () => ({url: "http://saved.local", apiKey: "saved-secret"}),
+    fetch: async (_url, init) => {
+      requests++;
+      assert.equal(init.headers?.["api-key"], undefined);
+      return new Response("upstream secret", {status: 401});
+    },
+  }).testQdrant({...qdrantInput, qdrantUrl: "http://new.local"});
+  assert.equal(result.ok, false);
+  assert.equal(result.httpStatus, 401);
+  assert.match(result.message, /API Key/);
+  assert.equal(requests, 1);
+});
+
+test("clearing Qdrant key overrides all saved, environment and draft keys on both origins", async (t) => {
+  environment(t, {QDRANT_API_KEY: "env-secret", QDRANT_URL: "http://saved.local"});
+  for (const url of ["http://saved.local", "http://new.local"]) {
+    const result = await service({
+      getQdrantConnection: async () => { assert.fail("clear key must not load saved credentials"); },
+      fetch: async (_url, init) => {
+        assert.equal(init.headers?.["api-key"], undefined);
+        return json({result: {collections: []}});
+      },
+    }).testQdrant({...qdrantInput, qdrantUrl: url, qdrantApiKey: "draft-secret", clearQdrantApiKey: true});
+    assert.equal(result.ok, true);
+  }
+});
+
 test("embedding rejects empty, malformed and nonnumeric vectors", async () => {
   for (const body of [null, {}, { data: [] }, { data: [{ embedding: [] }] }, { data: [{ embedding: ["1"] }] }, { data: [{ embedding: [null] }] }, { data: [{ embedding: [1] }, { embedding: [2] }] }]) {
     const result = await service({ fetch: async () => json(body) }).testEmbedding(embeddingInput);
@@ -137,7 +262,7 @@ test("Qdrant verifies readiness and authenticated reads without writing", async 
     assert.equal(req.headers["api-key"], "saved-qdrant-secret");
     res.end(req.url === "/prefix/readyz" ? "all shards ready" : JSON.stringify({ result: { collections: [] } }));
   });
-  const result = await service({ fetch, getQdrantApiKey: async () => "saved-qdrant-secret" }).testQdrant({ ...qdrantInput, qdrantUrl: base + "/prefix/" });
+  const result = await service({ fetch, getQdrantConnection: async () => ({ url: base, apiKey: "saved-qdrant-secret" }) }).testQdrant({ ...qdrantInput, qdrantUrl: base + "/prefix/" });
   assert.equal(result.ok, true);
   assert.match(result.message, /未测试写入权限/);
   assert.deepEqual(requests, ["/prefix/readyz", "/prefix/collections"]);
@@ -147,7 +272,7 @@ test("Qdrant verifies readiness and authenticated reads without writing", async 
 test("Qdrant draft key overrides saved key; clear key sends no credential", async () => {
   for (const clear of [false, true]) {
     const result = await service({
-      getQdrantApiKey: async () => { assert.fail("draft or clear must not read saved key"); },
+      getQdrantConnection: async () => { assert.fail("draft or clear must not read saved key"); },
       fetch: async (_url, init) => {
         assert.equal(init.headers?.["api-key"], clear ? undefined : "draft-secret");
         return json({ result: { collections: [] } });

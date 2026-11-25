@@ -3,7 +3,6 @@ import type {
   QdrantConnectionTestInput,
   RagConnectionTestResult,
 } from "@ai-novel/shared/types/ragConnectivity";
-import { ragConfig } from "../../../config/rag";
 import { getProviderEnvApiKey, providerRequiresApiKey, resolveProviderBaseUrl } from "../../../llm/providers";
 
 interface ProviderConnection {
@@ -14,7 +13,7 @@ interface ProviderConnection {
 
 export interface RagConnectionTestDependencies {
   getProvider: (provider: string) => Promise<ProviderConnection | null>;
-  getQdrantApiKey: () => Promise<string | undefined>;
+  getQdrantConnection: () => Promise<{ url?: string; apiKey?: string }>;
   fetch: typeof fetch;
 }
 
@@ -23,10 +22,14 @@ const defaults: RagConnectionTestDependencies = {
     const { prisma } = await import("../../../db/prisma");
     return prisma.aPIKey.findUnique({ where: { provider }, select: { key: true, baseURL: true, isActive: true } });
   },
-  async getQdrantApiKey() {
+  async getQdrantConnection() {
     const { prisma } = await import("../../../db/prisma");
-    const setting = await prisma.appSetting.findUnique({ where: { key: "rag.qdrantApiKey" }, select: { value: true } });
-    return setting?.value.trim() || ragConfig.qdrantApiKey || undefined;
+    const settings = await prisma.appSetting.findMany({
+      where: { key: { in: ["rag.qdrantUrl", "rag.qdrantApiKey"] } },
+      select: { key: true, value: true },
+    });
+    const values = new Map(settings.map((setting) => [setting.key, setting.value.trim()]));
+    return { url: values.get("rag.qdrantUrl"), apiKey: values.get("rag.qdrantApiKey") };
   },
   fetch: (...args) => fetch(...args),
 };
@@ -37,6 +40,15 @@ function endpoint(value: string): string {
     throw new Error("invalid endpoint");
   }
   return url.href.replace(/\/+$/, "");
+}
+
+function sameOrigin(target: string, configured: string | undefined): boolean {
+  if (!configured) return false;
+  try {
+    return new URL(endpoint(target)).origin === new URL(endpoint(configured)).origin;
+  } catch {
+    return false;
+  }
 }
 
 function httpFailure(status: number): string {
@@ -68,15 +80,17 @@ export class RagConnectionTestService {
   testEmbedding(input: EmbeddingConnectionTestInput): Promise<RagConnectionTestResult> {
     return this.run(input.embeddingTimeoutMs, async (signal) => {
       const saved = await this.deps.getProvider(input.embeddingProvider);
-      const apiKey = input.embeddingApiKey?.trim()
-        || (saved?.isActive ? saved.key?.trim() : undefined)
-        || getProviderEnvApiKey(input.embeddingProvider);
-      if (!apiKey && providerRequiresApiKey(input.embeddingProvider)) {
-        return { ok: false, message: "请填写向量服务 API Key，或先配置该服务商的密钥。" };
-      }
       const savedBase = saved?.isActive ? saved.baseURL?.trim() : undefined;
-      const base = resolveProviderBaseUrl(input.embeddingProvider, input.embeddingBaseURL?.trim() || savedBase || undefined);
+      const configuredBase = resolveProviderBaseUrl(input.embeddingProvider, savedBase || undefined);
+      const base = input.embeddingBaseURL?.trim() || configuredBase;
       if (!base) return { ok: false, message: "请填写向量服务 API 地址。" };
+      // Draft endpoints must never receive credentials belonging to a different origin.
+      const apiKey = input.embeddingApiKey?.trim() || (sameOrigin(base, configuredBase)
+        ? (saved?.isActive ? saved.key?.trim() : undefined) || getProviderEnvApiKey(input.embeddingProvider)
+        : undefined);
+      if (!apiKey && providerRequiresApiKey(input.embeddingProvider)) {
+        return { ok: false, message: "请为当前测试地址填写向量服务 API Key；已保存的密钥仅可在同源地址复用。" };
+      }
       const response = await this.deps.fetch(`${endpoint(base)}/embeddings`, {
         method: "POST", signal, redirect: "error",
         headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
@@ -98,7 +112,14 @@ export class RagConnectionTestService {
   testQdrant(input: QdrantConnectionTestInput): Promise<RagConnectionTestResult> {
     return this.run(input.qdrantTimeoutMs, async (signal) => {
       const base = endpoint(input.qdrantUrl);
-      const apiKey = input.clearQdrantApiKey ? undefined : input.qdrantApiKey?.trim() || await this.deps.getQdrantApiKey();
+      let apiKey = input.clearQdrantApiKey ? undefined : input.qdrantApiKey?.trim();
+      if (!input.clearQdrantApiKey && !apiKey) {
+        const saved = await this.deps.getQdrantConnection();
+        const configuredBase = saved.url?.trim() || process.env.QDRANT_URL?.trim() || "http://127.0.0.1:6333";
+        if (sameOrigin(base, configuredBase)) {
+          apiKey = saved.apiKey?.trim() || process.env.QDRANT_API_KEY?.trim();
+        }
+      }
       const headers = apiKey ? { "api-key": apiKey } : undefined;
       for (const route of ["/readyz", "/collections"]) {
         const response = await this.deps.fetch(base + route, { headers, signal, redirect: "error" });
