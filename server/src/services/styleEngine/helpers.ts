@@ -4,11 +4,51 @@ import {
   hasStyleRulePatchContent,
   resolveStyleFeatureRulePatch,
   type AntiAiRule,
+  type LanguageRules,
   type StyleProfile,
   type StyleProfileFeature,
   type StyleTemplate,
   type StyleRuleSet,
 } from "@ai-novel/shared/types/styleEngine";
+import {
+  DEFAULT_STARTER_STYLE_PROFILES,
+  DEFAULT_STYLE_TEMPLATES,
+} from "./defaults";
+
+const STARTER_STYLE_PROFILE_SOURCE_PREFIX = "starter-style-profile:";
+
+function hydrateTemplateLanguageExtras(
+  templateKey: string | null | undefined,
+  languageRules: LanguageRules,
+): LanguageRules {
+  if (!templateKey) {
+    return languageRules;
+  }
+  if (languageRules.voiceExemplars !== undefined && languageRules.contrastPairs !== undefined) {
+    return languageRules;
+  }
+  const template = DEFAULT_STYLE_TEMPLATES.find((item) => item.key === templateKey);
+  if (!template) {
+    return languageRules;
+  }
+  return {
+    ...languageRules,
+    ...(languageRules.voiceExemplars === undefined && template.languageRules.voiceExemplars
+      ? { voiceExemplars: template.languageRules.voiceExemplars }
+      : {}),
+    ...(languageRules.contrastPairs === undefined && template.languageRules.contrastPairs
+      ? { contrastPairs: template.languageRules.contrastPairs }
+      : {}),
+  };
+}
+
+function resolveStarterTemplateKey(sourceRefId: string | null | undefined): string | null {
+  if (!sourceRefId?.startsWith(STARTER_STYLE_PROFILE_SOURCE_PREFIX)) {
+    return null;
+  }
+  const starterKey = sourceRefId.slice(STARTER_STYLE_PROFILE_SOURCE_PREFIX.length);
+  return DEFAULT_STARTER_STYLE_PROFILES.find((item) => item.key === starterKey)?.templateKey ?? null;
+}
 
 export function parseJsonObject<T extends Record<string, unknown>>(value?: string | null, fallback?: T): T {
   if (!value) {
@@ -285,7 +325,10 @@ export function mapStyleProfileRow(row: {
     status: row.status as StyleProfile["status"],
     narrativeRules: derived.ruleSet.narrativeRules,
     characterRules: derived.ruleSet.characterRules,
-    languageRules: derived.ruleSet.languageRules,
+    languageRules: hydrateTemplateLanguageExtras(
+      resolveStarterTemplateKey(row.sourceRefId),
+      derived.ruleSet.languageRules,
+    ),
     rhythmRules: derived.ruleSet.rhythmRules,
     antiAiRules: (row.antiAiBindings ?? []).map((binding) => mapAntiAiRuleRow(binding.antiAiRule)),
     createdAt: row.createdAt.toISOString(),
@@ -321,7 +364,7 @@ export function mapStyleTemplateRow(row: {
     analysisMarkdown: row.analysisMarkdown,
     narrativeRules: parseJsonObject(row.narrativeRulesJson),
     characterRules: parseJsonObject(row.characterRulesJson),
-    languageRules: parseJsonObject(row.languageRulesJson),
+    languageRules: hydrateTemplateLanguageExtras(row.key, parseJsonObject(row.languageRulesJson)),
     rhythmRules: parseJsonObject(row.rhythmRulesJson),
     defaultAntiAiRuleKeys: parseJsonArray(row.defaultAntiAiRuleKeysJson),
     createdAt: row.createdAt.toISOString(),

@@ -34,6 +34,12 @@ export interface CharacterRules {
   [key: string]: unknown;
 }
 
+export interface StyleContrastPair {
+  aiPattern: string;
+  preferred: string;
+  note?: string | null;
+}
+
 export interface LanguageRules {
   register?: string | null;
   roughness?: number | null;
@@ -41,6 +47,8 @@ export interface LanguageRules {
   allowSwearing?: boolean | null;
   sentenceVariation?: string | null;
   allowUselessDetails?: boolean | null;
+  voiceExemplars?: string[];
+  contrastPairs?: StyleContrastPair[];
   summary?: string | null;
   [key: string]: unknown;
 }

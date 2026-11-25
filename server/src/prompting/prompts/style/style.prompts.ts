@@ -44,6 +44,7 @@ export interface StyleRewritePromptInput {
   styleContractText: string;
   content: string;
   issuesBlock: string;
+  factContextText?: string;
 }
 
 export interface StyleProfileExtractionPromptInput {
@@ -397,11 +398,11 @@ export const styleRewritePrompt: PromptAsset<StyleRewritePromptInput, ChapterPat
       "5. 自然化不是口语化，不得只在局部加入“很、太、有点、喉咙发紧、手心出汗”等浅层身体反应来伪装自然感。",
       "6. 必须保留原题材的叙事质感，但降低过度工整、华丽、均匀和总结式表达。",
       "7. 结尾只能调整表达，不得新增行动、异常反应、阻力、线索或硬钩子。",
-      "8. 对人物情绪，只能重用原文已有的动作、停顿、视线、对白和选择；没有可用依据时删除空泛判断，不补造行为、感受或现场细节。",
+      "8. 对人物情绪，优先重用原文与【可用事实边界】中已确认的动作、停顿、视线、对白、道具与关系；没有可用依据时直接删去空泛判断，不编造新设定或未出现过的小动作。",
       "",
       "质量要求：",
       "1. 修正后正文必须自然、连贯、可读，不能有明显补丁感。",
-      "2. 不要只做机械同义替换，必须真正修掉违规点。",
+      "2. 不要只做机械同义替换，必须真正修掉违规点（如拆散工整长句、删掉总结升华、把空泛心理转为已有动作或对话）。",
       "3. 不要把原本正常的表达过度改写得发僵或失真。",
       "4. 若多个问题集中在同一段，可做局部重写，但仍需保持原意和原有剧情功能。",
       ...STYLE_REWRITE_DISCIPLINE,
@@ -411,10 +412,15 @@ export const styleRewritePrompt: PromptAsset<StyleRewritePromptInput, ChapterPat
       "2. 是否符合写法规则、角色表达规则和反AI规则。",
       "3. 是否消除了 issuesBlock 中指出的主要问题。",
       "4. 是否没有照抄 suggestion 中的示例句。",
-      "5. 每个替换细节是否有原文依据；例如把账册概括换成页脚铅笔字、指印或折回执动作会虚构事实。无依据时删去概括，不能用新细节占位。",
+      "5. 每个替换细节是否有原文或可用事实边界依据；例如把账册概括换成页脚铅笔字、指印或折回执动作会虚构事实。无依据时删去概括，不能用新细节占位。",
       "6. 是否只输出补丁 JSON，数字、时间、专名、否定和信息先后保持不变。",
     ].join("\n\n")),
     new HumanMessage([
+      ...(input.factContextText?.trim() ? [
+        "【可用事实边界（仅可复用下列已确认人物、状态与场景线索，严禁新增未确认设定）】",
+        input.factContextText.trim(),
+        "",
+      ] : []),
       "原文：",
       input.content,
       "",
