@@ -22,7 +22,10 @@ function resolvePortableDesktopAppDataDir(): string | null {
     return null;
   }
 
-  const portableAppName = process.env.PORTABLE_EXECUTABLE_APP_FILENAME?.trim() || APP_NAME;
+  const rawAppName = process.env.PORTABLE_EXECUTABLE_APP_FILENAME?.trim() || APP_NAME;
+  // The portable wrapper exposes the package name ("@ai-novel/desktop"), which is not a
+  // valid folder name. Keep letters, digits, dots, dashes and underscores.
+  const portableAppName = rawAppName.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || APP_NAME;
   return path.join(portableExecutableDir, `${portableAppName}${PORTABLE_DATA_SUFFIX}`);
 }
 
