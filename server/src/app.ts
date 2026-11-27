@@ -472,7 +472,12 @@ async function bootstrap(): Promise<void> {
   await startServer();
 }
 
-if (require.main === module) {
+// The desktop build starts this file inside an Electron utility process, where
+// `require.main` is not set to the forked module. Without the parentPort check the
+// bootstrap never runs, the event loop drains and the process exits with code 0.
+const isUtilityProcessEntry = typeof (process as unknown as { parentPort?: unknown }).parentPort !== "undefined";
+
+if (require.main === module || isUtilityProcessEntry) {
   void bootstrap().catch((error) => {
     console.error("[server] bootstrap failed.", error);
     process.exit(1);
