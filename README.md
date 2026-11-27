@@ -66,6 +66,15 @@
 
 - 导出全书 TXT 或分章 ZIP 前需要确认稿件时，会显示具体原因，并提供“打开完稿检查”入口。
 - Ollama 连接测试或刷新模型列表遇到网络连接失败时，会提示检查服务启动状态和 API 地址，并说明本机默认服务可不填写密钥。
+- 修文预检与实际执行采用一致的修改范围，保留原有整章修文额度。
+
+#### 致谢
+
+- 感谢 [@cyssayyes-source](https://github.com/cyssayyes-source) 通过 [PR #280](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/pull/280) 实现知识库连接测试，也感谢 [@HuiJiOnGit](https://github.com/HuiJiOnGit) 在 [#59](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/59) 中提出独立测试嵌入模型连接的建议。
+- 感谢 [@L-H56](https://github.com/L-H56) 在 [#301](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/301) 中反馈完本作品下载问题。
+- 感谢 [@hkjhskah](https://github.com/hkjhskah) 在 [#257](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/257) 中提供开书阶段的异常反馈和截图。
+
+修文范围一致性改进对应维护者 [@ExplosiveCoderflome](https://github.com/ExplosiveCoderflome) 的内部排查记录 [#302](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/302)。
 
 [查看完整更新历史](docs/releases/release-notes.md) · [角色功能开发计划](docs/plans/character-system-upgrade-plan.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 
