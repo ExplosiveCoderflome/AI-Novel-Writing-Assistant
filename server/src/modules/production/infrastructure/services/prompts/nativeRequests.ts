@@ -6,6 +6,7 @@ import { chapterAcceptanceAssessmentPrompt, resolveChapterAcceptanceOutputTokens
 import { chapterPatchRepairPrompt } from "../../../../../prompting/prompts/novel/chapterPatchRepair.prompts";
 import { buildChapterReviewContextBlocks, buildChapterPatchRepairContextBlocks } from "../../../../../prompting/prompts/novel/chapterLayeredContext";
 import { isStyleIssueRewritable } from "@ai-novel/shared/types/styleEngine";
+import { STYLE_REWRITE_WHOLE_CHAPTER_BUDGET } from "../../../../../services/styleEngine/rewrite";
 import { applyAcceptanceStyleContext, buildAcceptanceStyleSignals, getAcceptanceNarrativePov,
   getAcceptanceStyleRuleIds, isAcceptanceStyleReviewEnabled } from "../../../../../services/novel/runtime/acceptance/styleReview";
 
@@ -47,7 +48,7 @@ export function buildKernelPatchPromptRequest(input: ChapterPatchRepairInput) {
     novelTitle:input.novelTitle,chapterTitle:input.chapterTitle,chapterContent:input.content,issuesJson,modeHint:input.modeHint,
     styleProtection:styleIssues.length ? JSON.stringify({allowedIssueIds,styleIssueIds:allowedStyleIds,
       reportOnly:styleIssues.filter(issue=>!isStyleIssueRewritable(issue)),protectedTerms,
-      wholeChapterTouchedRatioMax:0.3,wholeChapterAddedRatioMax:0.05}) : undefined,
+      ...STYLE_REWRITE_WHOLE_CHAPTER_BUDGET}) : undefined,
   },contextBlocks:repairContext ? buildChapterPatchRepairContextBlocks(repairContext,issuesJson) : undefined,
   options:{provider:input.provider,model:input.model,temperature:Math.min(input.temperature ?? 0.35,0.45),maxTokens:4200,
     novelId:input.novelId,chapterId:input.chapterId,stage:"chapter_patch",triggerReason:input.repairMode ?? "patch_first"},

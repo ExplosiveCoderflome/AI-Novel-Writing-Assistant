@@ -37,6 +37,7 @@ import {
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
+import { describeOllamaConnectionError } from "../platform/llm/diagnostics/ollamaConnection";
 import { ragServices } from "../services/rag";
 import { providerBalanceService } from "../services/settings/ProviderBalanceService";
 import { secretStore } from "../services/settings/secretStore";
@@ -840,7 +841,10 @@ router.post(
         effectiveKey,
         normalizeOptionalText(keyConfig?.baseURL) ?? getProviderEnvBaseUrl(provider),
         normalizeProviderAuthMode(keyConfig?.authMode),
-      );
+      ).catch((error: unknown) => {
+        const connectionError = describeOllamaConnectionError(provider, error);
+        throw connectionError ? new AppError(connectionError, 400) : error;
+      });
       const models = filterHiddenModels(availableModels, hiddenModels, currentModel);
       if (!isBuiltInProvider(provider) && keyConfig) {
         await secretStore.updateProvider(provider, {
