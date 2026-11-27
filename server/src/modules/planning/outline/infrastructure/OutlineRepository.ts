@@ -7,6 +7,13 @@ import { AppError } from "../../../../middleware/errorHandler";
 export class OutlineRepository {
   constructor(private readonly db: PrismaClient, private readonly inTransaction = false) {}
   list() { return this.db.outlineProject.findMany({ where: { status: "active" }, orderBy: { updatedAt: "desc" } }); }
+  async listSummaries() {
+    const projects = await this.list();
+    const revisionIds = projects.map(project => project.currentRevisionId).filter((revisionId): revisionId is string => !!revisionId);
+    const revisions = revisionIds.length ? await this.db.outlineRevision.findMany({ where: { id: { in: revisionIds } } }) : [];
+    const byId = new Map(revisions.map(revision => [revision.id, revision]));
+    return projects.map(project => ({ project, revision: project.currentRevisionId ? byId.get(project.currentRevisionId) ?? null : null }));
+  }
   archive(id: string) { return this.db.outlineProject.update({ where: { id }, data: { status: "archived" } }); }
   get(id: string) { return this.db.outlineProject.findUnique({ where: { id } }); }
   async getCurrent(id: string) {

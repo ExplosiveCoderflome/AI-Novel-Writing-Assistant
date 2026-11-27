@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { AppError } from "../../../../middleware/errorHandler";
 import { outlineImportParsePrompt } from "../../../../prompting/prompts/outline/outline.prompts";
 import { validateOutlineDocument, createEmptyOutlineDocument } from "../domain/outlineDocument";
 import { applyOutlineImportEdits } from "../domain/outlineImportEdits";
@@ -156,7 +157,14 @@ export class OutlineImportPreviewService {
     previews.delete(token);
     if (target.projectId) {
       if (target.expectedVersion === undefined) throw new Error("缺少大纲版本号");
-      return this.repository.saveImport(target.projectId, target.expectedVersion, document, preview.sourceText);
+      try {
+        return await this.repository.saveImport(target.projectId, target.expectedVersion, document, preview.sourceText);
+      } catch (error) {
+        if (error instanceof Error && error.message === "OUTLINE_VERSION_CONFLICT") {
+          throw new AppError("大纲已被其他操作更新，请重新加载后再保存", 409);
+        }
+        throw error;
+      }
     }
     return this.repository.createImport(document.story.title, document, preview.sourceText);
   }

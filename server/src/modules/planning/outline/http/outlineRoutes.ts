@@ -11,7 +11,8 @@ import { z, ZodError } from "zod";
 import { outlineRetrySetupSchema } from "@ai-novel/shared/types/outlineOpenBook";
 import { OutlineOpenBookError } from "../openBook";
 const openBookError = (e: unknown) => e instanceof ZodError ? new OutlineOpenBookError("OUTLINE_OPEN_INVALID", e.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("；"), 422) : e;
-import { outlineImportPreviewService, outlineProjectService, outlineProposalService, outlineOpenBookService, outlinePolicyService } from "..";
+import { outlineImportPreviewService, outlineProjectService, outlineProposalService, outlineOpenBookService, outlinePolicyService, OutlineVersionConflict } from "..";
+import { AppError } from "../../../../middleware/errorHandler";
 import { exportOutlineJson, exportOutlineMarkdown } from "../application/OutlineTransferService";
 
 const router = Router();
@@ -88,7 +89,8 @@ router.post("/:id/revisions/:revisionId/restore", route(async req => outlineProj
 router.patch("/:id", route(async req => {
   const body = z.object({ title: z.string().min(1).max(200), expectedVersion: z.number().int() }).parse(req.body);
   const current = await outlineProjectService.get(id.parse(req.params.id));
-  if (!current || current.currentVersion !== body.expectedVersion) throw new Error("OUTLINE_VERSION_CONFLICT");
+  if (!current) throw new AppError("大纲项目不存在", 404);
+  if (current.currentVersion !== body.expectedVersion) throw new OutlineVersionConflict();
   if (!current.document) throw new Error("大纲内容不存在");
   const document = { ...current.document, story: { ...current.document.story, title: body.title } };
   return outlineProjectService.save(current.id, body.expectedVersion, document);
