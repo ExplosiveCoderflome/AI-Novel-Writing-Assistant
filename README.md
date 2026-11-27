@@ -56,7 +56,7 @@
 
 ## 最新更新
 
-### 2026-11-27（开发版）
+### 2026-11-27 · v0.8.13
 
 #### 新增
 
@@ -78,7 +78,7 @@
 
 [查看完整更新历史](docs/releases/release-notes.md) · [角色功能开发计划](docs/plans/character-system-upgrade-plan.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
 
-正式桌面版以 GitHub Release 的 **v0.8.12** 发布页为准。开发版功能需要在源码环境中验证。
+正式桌面版以 GitHub Release 的 **v0.8.13** 五平台安装包为准。新包发布前，可从 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest) 下载当前正式版。`v0.8.12`、`v0.8.11`、`v0.8.10`、`v0.8.9`、`v0.8.8`、`v0.8.7` 和 `v0.8.6` 均提供完整五平台安装包，`v0.8.5` 亦为完整五平台，`v0.8.4` 缺 Windows 包，`v0.8.3` 标签曾推送但打包失败、无安装包，`v0.8.2` 附注标签也不对应可下载版本。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。开发版功能需要在源码环境中验证。
 
 
 
