@@ -95,6 +95,10 @@ export class NovelCoreService {
     return this.crudService.deleteChapter(novelId, chapterId);
   }
 
+  async setChapterProvenance(novelId: string, chapterId: string, input: { locked: boolean; expectedUpdatedAt?: string }) {
+    return this.crudService.setChapterProvenance(novelId, chapterId, input);
+  }
+
   async listCharacters(novelId: string) {
     return this.characterService.listCharacters(novelId);
   }

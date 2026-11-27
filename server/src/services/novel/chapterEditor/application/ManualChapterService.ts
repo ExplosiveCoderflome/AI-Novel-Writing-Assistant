@@ -28,6 +28,10 @@ export class ManualChapterService {
     queueRagDelete("chapter_summary", chapterId);
   }
 
+  async setChapterProvenance(novelId: string, chapterId: string, input: { locked: boolean; expectedUpdatedAt?: string }) {
+    return this.store.setChapterProvenance(novelId, chapterId, input);
+  }
+
   private async synchronizeSavedChapter(chapter: Chapter) {
     await this.volumes.mirrorChapterIntoWorkspace(chapter.novelId, {
       id: chapter.id,

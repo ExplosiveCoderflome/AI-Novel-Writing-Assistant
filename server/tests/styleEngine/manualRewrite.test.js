@@ -10,6 +10,10 @@ function fixture(violations, patch = {}) {
   let checks = 0;
   const { StyleRewriteService } = loadRuntimeSource('../../styleEngine/StyleRewriteService.ts', {
     '@ai-novel/shared/types/styleEngine': shared,
+    '../../db/prisma': { prisma: {
+      character: { findMany: async () => [] },
+      chapter: { findUnique: async () => null },
+    } },
     '../../prompting/core/promptRunner': { runStructuredPrompt: async request => {
       requests.push(request);
       return { output: { strategy: 'patch_first', summary: '修一处', requiresFullRewrite: false,

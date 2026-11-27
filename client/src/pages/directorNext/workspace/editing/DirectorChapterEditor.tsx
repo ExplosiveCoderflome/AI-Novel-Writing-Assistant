@@ -7,8 +7,10 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import ChapterEditorShell from "@/pages/novels/components/chapterEditor/ChapterEditorShell";
 
-export function DirectorChapterEditor({ novelId, chapterId, onClose, onSaved }: {
+export function DirectorChapterEditor({ novelId, chapterId, onClose, onSaved, initialImpact, onImpactApplied }: {
   novelId: string; chapterId: string; onClose: () => void; onSaved: () => Promise<void>;
+  initialImpact?: {key: string; paragraph: number; before: string; instruction: string} | null;
+  onImpactApplied?: () => void | Promise<void>;
 }) {
   const editingState = useRef({ isDirty: false, isBusy: false, hasCandidate: false });
   const detailQuery = useQuery({
@@ -42,6 +44,7 @@ export function DirectorChapterEditor({ novelId, chapterId, onClose, onSaved }: 
             workspace={workspaceQuery.data?.data ?? null}
             workspaceStatus={workspaceQuery.isLoading ? "loading" : workspaceQuery.isError ? "error" : "ready"}
             backLabel="返回正文阅读" onBack={onClose} onChapterSaved={onSaved}
+            initialImpact={initialImpact} onImpactApplied={onImpactApplied}
             onEditingStateChange={state => { editingState.current = state; }}
             onRefreshWorkspace={() => { void workspaceQuery.refetch(); }} isRefreshingWorkspace={workspaceQuery.isFetching}/>
       }

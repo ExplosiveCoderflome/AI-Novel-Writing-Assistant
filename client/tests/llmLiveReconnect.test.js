@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import ts from 'typescript';
+import ts from 'typescript-legacy';
 
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const snapshot = (preview, seq = 1) => ({ type: 'snapshot', sessions: [{

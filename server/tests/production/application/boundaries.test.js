@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript-legacy');
 
 test('public production facade has no transitive global database connection', () => {
   const Module = require('node:module');

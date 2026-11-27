@@ -81,6 +81,15 @@ export async function deleteNovelChapter(id: string, chapterId: string) {
   return data;
 }
 
+export async function setNovelChapterProvenance(
+  id: string,
+  chapterId: string,
+  payload: { locked: boolean; expectedUpdatedAt?: string },
+) {
+  const { data } = await apiClient.patch<ApiResponse<Chapter>>(`/novels/${id}/chapters/${chapterId}/provenance`, payload);
+  return data;
+}
+
 export async function getChapterTraces(novelId: string, chapterId: string) {
   const { data } = await apiClient.get<ApiResponse<import("@ai-novel/shared/types/agent").AgentRun[]>>(
     `/novels/${novelId}/chapters/${chapterId}/traces`,
@@ -160,5 +169,30 @@ export async function generateChapterExecutionContract(
     `/novels/${novelId}/chapters/${chapterId}/execution-contract`,
     payload,
   );
+  return data;
+}
+
+export async function getNovelHumanStyleFeedback(novelId: string) {
+  const { data } = await apiClient.get<
+    ApiResponse<import("@ai-novel/shared/types/styleEngine").NovelHumanStyleFeedbackSummary>
+  >(`/novels/${novelId}/human-style-feedback`);
+  return data;
+}
+
+export async function recordNovelHumanStyleFeedback(
+  novelId: string,
+  chapterId: string,
+  payload: import("@ai-novel/shared/types/styleEngine").NovelHumanStyleFeedbackRequest,
+) {
+  const { data } = await apiClient.post<
+    ApiResponse<import("@ai-novel/shared/types/styleEngine").NovelHumanStyleFeedbackResponse>
+  >(`/novels/${novelId}/chapters/${chapterId}/human-style-feedback`, payload);
+  return data;
+}
+
+export async function removeNovelHumanStyleFeedback(novelId: string, aiPattern: string) {
+  const { data } = await apiClient.delete<
+    ApiResponse<import("@ai-novel/shared/types/styleEngine").NovelHumanStyleFeedbackSummary>
+  >(`/novels/${novelId}/human-style-feedback`, { data: { aiPattern } });
   return data;
 }

@@ -14,6 +14,7 @@ import {
   toStructuredOutputStrategy,
 } from "./modelRouter";
 import { invokeStructuredLlmDetailed, summarizeStructuredOutputFailure } from "./structuredInvoke";
+import { describeOllamaConnectionError } from "../platform/llm/diagnostics/ollamaConnection";
 import { toText } from "../services/novel/novelP0Utils";
 import {
   resolveStructuredOutputProfile,
@@ -154,7 +155,7 @@ async function testPlainConnection(input: {
     const plain = {
       ok: false,
       latency: null,
-      error: toErrorMessage(error),
+      error: describeOllamaConnectionError(input.provider, error) ?? toErrorMessage(error),
       requestProtocol: input.requestProtocol ?? null,
     };
     return {
@@ -244,7 +245,7 @@ async function testStructuredConnection(input: {
     const structured: StructuredConnectivityProbeStatus = {
       ok: false,
       latency: null,
-      error: toErrorMessage(error),
+      error: describeOllamaConnectionError(input.provider, error) ?? toErrorMessage(error),
       requestProtocol: input.requestProtocol ?? null,
       strategy: null,
       reasoningForcedOff: false,

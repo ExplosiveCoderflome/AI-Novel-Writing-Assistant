@@ -5,6 +5,15 @@ const path = require("node:path");
 
 const serverRoot = path.resolve(__dirname, "..");
 const testsRoot = path.join(serverRoot, "tests");
+const nodeTestHelpResult = spawnSync(process.execPath, ["--test", "--help"], {
+  encoding: "utf8",
+});
+const nodeTestHelp = `${nodeTestHelpResult.stdout ?? ""}\n${nodeTestHelpResult.stderr ?? ""}`;
+const testIsolationFlag = nodeTestHelp.includes("--test-isolation")
+  ? "--test-isolation"
+  : nodeTestHelp.includes("--experimental-test-isolation")
+    ? "--experimental-test-isolation"
+    : null;
 // Live services have an explicit catalog and never enter the portable suites.
 const pgLiveTests = new Set(["pgCloudAcceptance.harness.test.js"]);
 
@@ -38,6 +47,8 @@ const integrationTests = new Set([
   "shortStoryRevisionRecovery.test.js",
   "shortStoryStructuredDiagnostics.test.js",
   "manualChapterSaveSqlite.test.js",
+  "chapterAuthorProvenanceSqlite.test.js",
+  "humanStyleFeedbackSqlite.test.js",
   "directorTaskFactInspection.test.js",
   "directorCurrentTask.test.js",
   "directorReadPathsArePure.test.js",
@@ -154,15 +165,20 @@ function selectFastGroups(files) {
 }
 
 function runTestGroup(group, mode = "fast") {
-  return spawnSync(process.execPath, [
-    "--test",
-    ...(mode === "pg-live" ? ["--test-timeout=120000"] : [
-      "--require", path.join(__dirname, "testing/sqlite-preload.cjs"),
-    ]),
-    `--test-isolation=${group.isolation}`,
-    `--test-concurrency=${group.concurrency}`,
-    ...group.files.map((file) => path.relative(serverRoot, file)),
-  ], {
+  if (!testIsolationFlag && group.isolation === "process") {
+    console.error("This Node.js version does not support the test isolation flag required by the server suite.");
+    return { status: 1 };
+  }
+  const testArgs = ["--test"];
+  if (mode === "pg-live") {
+    testArgs.push("--test-timeout=120000");
+  } else {
+    testArgs.push("--require", path.join(__dirname, "testing/sqlite-preload.cjs"));
+  }
+  if (testIsolationFlag) testArgs.push(`${testIsolationFlag}=${group.isolation}`);
+  testArgs.push(`--test-concurrency=${group.concurrency}`);
+  testArgs.push(...group.files.map((file) => path.relative(serverRoot, file)));
+  return spawnSync(process.execPath, testArgs, {
     cwd: serverRoot,
     stdio: "inherit",
   });

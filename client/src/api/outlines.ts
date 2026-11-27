@@ -12,6 +12,7 @@ export interface OutlineProject {
   currentVersion: number;
   updatedAt: string;
   boundNovelId?: string | null;
+  outlineCounts?: { volumes: number; chapters: number } | null;
   document?: OutlineDocument | null;
 }
 
@@ -166,7 +167,7 @@ export const getOutlineFeedbackStatus = async (id: string) =>
   (await apiClient.get(`/outlines/${id}/feedback`, { errorPresentation: "inline" })).data.data as OutlineFeedbackStatus;
 export const updateOutlineFeedbackSettings = async (id: string, settings: OutlineFeedbackSettings) =>
   (await apiClient.patch(`/outlines/${id}/feedback/settings`, settings, { errorPresentation: "inline" })).data.data as OutlineFeedbackSettings;
-export const analyzeOutlineFeedback = async (id: string, input: { chapterId: string; requestKey: string }) =>
+export const analyzeOutlineFeedback = async (id: string, input: { chapterId: string; requestKey?: string }) =>
   (await apiClient.post(`/outlines/${id}/feedback/analyze`, input, { errorPresentation: "inline" })).data.data as OutlineFeedbackRunReceipt;
 export const listOutlineFeedbackProposals = async (id: string) =>
   (await apiClient.get(`/outlines/${id}/feedback/proposals`, { errorPresentation: "inline" })).data.data;

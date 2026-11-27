@@ -106,18 +106,22 @@ test("StyleCompiler changes anti-ai tone by weight", () => {
   const strong = compiler.compile({ ...baseInput, weight: 0.9 });
   const medium = compiler.compile({ ...baseInput, weight: 0.5 });
 
-  assert.match(strong.antiAi, /Forbidden:/);
-  assert.match(strong.antiAi, /forbid: 直接解释人物心理/);
-  assert.match(medium.antiAi, /avoid: 直接解释人物心理/);
+  assert.match(strong.antiAi, /严禁表达：/);
+  assert.match(strong.antiAi, /严禁：直接解释人物心理/);
+  assert.match(medium.antiAi, /注意规避：直接解释人物心理/);
 });
 
-test("StyleCompiler emits layered binding context and section-level strength", () => {
+test("StyleCompiler emits layered binding context, Chinese rules, voice exemplars, and contrast pairs", () => {
   const compiler = new StyleCompiler();
   const compiled = compiler.compile({
     styleProfile: {
-      narrativeRules: { summary: "动作先行" },
-      characterRules: { emotionExpression: "克制外露" },
-      languageRules: {},
+      narrativeRules: { summary: "动作先行", progressionMode: "goal_driven" },
+      characterRules: { emotionExpression: "subtext" },
+      languageRules: {
+        register: "colloquial",
+        voiceExemplars: ["他把茶杯搁下，杯底磕出一声响。“说完了？”"],
+        contrastPairs: [{ aiPattern: "他感到十分委屈", preferred: "他捏紧纸杯，把话咽了回去" }],
+      },
       rhythmRules: {},
     },
     antiAiRules: [buildRule("rule-2")],
@@ -147,10 +151,16 @@ test("StyleCompiler emits layered binding context and section-level strength", (
     },
   });
 
-  assert.match(compiled.context, /Style source stack:/);
-  assert.match(compiled.context, /Task -> 临时任务覆盖/);
-  assert.match(compiled.style, /narrative\.summary: must keep 动作先行/);
-  assert.match(compiled.character, /character\.emotionExpression: keep when natural 克制外露/);
+  assert.match(compiled.context, /写法生效层级/);
+  assert.match(compiled.context, /本次任务写法：临时任务覆盖/);
+  assert.match(compiled.style, /整体推进：严格保持「动作先行」/);
+  assert.match(compiled.style, /推进方式：\[参考结构\] 自然保持「目标驱动推进」/);
+  assert.match(compiled.style, /语感示范样本/);
+  assert.match(compiled.style, /示例1：他把茶杯搁下/);
+  assert.match(compiled.style, /去 AI 腔表达对比/);
+  assert.match(compiled.style, /避免：他感到十分委屈 -> 改用：他捏紧纸杯/);
+  assert.doesNotMatch(compiled.style, /voiceExemplars|contrastPairs|\[object Object\]/);
+  assert.match(compiled.character, /情绪外显方式：自然保持「通过停顿、回避和言外之意外露」/);
 });
 
 test("StyleBindingService uses explicit global anti-ai baseline flag", async () => {
@@ -669,6 +679,76 @@ test("style rewrite prompt avoids suggestion copying and factual hook injection"
   assert.match(promptText, /自然化不是口语化/);
   assert.match(promptText, /不得新增行动/);
   assert.match(promptText, /还原后不更差则不改/);
+});
+
+test("style rewrite prompt renders factContextText boundary when provided", () => {
+  const rendered = promptRunner.preparePromptExecution({
+    asset: require("../dist/prompting/prompts/style/style.prompts.js").styleRewritePrompt,
+    promptInput: {
+      styleContractText: "none",
+      content: "原文",
+      issuesBlock: "[]",
+      factContextText: "当前章：雨夜试探｜已知人物：林修（冷静、手里捏着铜钥匙）",
+    },
+  });
+  const promptText = rendered.messages.map((message) => String(message.content)).join("\n");
+
+  assert.match(promptText, /可用事实边界/);
+  assert.match(promptText, /林修（冷静、手里捏着铜钥匙）/);
+});
+
+test("AntiAiPolicyResolver lets style-bound rules override same-id global baseline rules", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalFindAntiAiRules = prisma.antiAiRule.findMany;
+
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  prisma.antiAiRule.findMany = async () => [
+    buildAntiAiRuleRow("shared-rule", { globalBaselineEnabled: true }),
+    buildAntiAiRuleRow("global-only", { globalBaselineEnabled: true }),
+  ];
+
+  try {
+    const sharedRule = buildRule("shared-rule");
+    const result = await new AntiAiPolicyResolver().resolveFromBindings({
+      matchedBindings: [{
+        id: "binding-novel",
+        styleProfileId: "profile-1",
+        targetType: "novel",
+        targetId: "novel-1",
+        priority: 1,
+        weight: 0.65,
+        enabled: true,
+        styleProfile: {
+          ...buildStyleProfileRow("profile-1"),
+          narrativeRules: {},
+          characterRules: {},
+          languageRules: {},
+          rhythmRules: {},
+          tags: [],
+          applicableGenres: [],
+          extractedFeatures: [],
+          extractionPresets: [],
+          extractionAntiAiRuleKeys: [],
+          antiAiRules: [sharedRule],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }],
+      effectiveStyleProfileId: "profile-1",
+    });
+
+    const resolvedShared = result.effectiveRules.find((item) => item.rule.id === "shared-rule");
+    const resolvedGlobalOnly = result.effectiveRules.find((item) => item.rule.id === "global-only");
+    assert.equal(resolvedShared.source, "style_profile");
+    assert.equal(resolvedShared.weight, 0.65);
+    assert.equal(resolvedGlobalOnly.source, "global_baseline");
+    assert.equal(resolvedGlobalOnly.weight, 1);
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.antiAiRule.findMany = originalFindAntiAiRules;
+  }
 });
 
 test("knowledge document style extraction uses representative sample by default", () => {

@@ -34,6 +34,12 @@ export interface CharacterRules {
   [key: string]: unknown;
 }
 
+export interface StyleContrastPair {
+  aiPattern: string;
+  preferred: string;
+  note?: string | null;
+}
+
 export interface LanguageRules {
   register?: string | null;
   roughness?: number | null;
@@ -41,6 +47,8 @@ export interface LanguageRules {
   allowSwearing?: boolean | null;
   sentenceVariation?: string | null;
   allowUselessDetails?: boolean | null;
+  voiceExemplars?: string[];
+  contrastPairs?: StyleContrastPair[];
   summary?: string | null;
   [key: string]: unknown;
 }
@@ -549,6 +557,18 @@ export { styleRiskLayerSchema, styleRewriteGuardSchema, isStyleIssueRewritable }
 export type { StyleRiskLayer, StyleRewriteGuard, StyleRewriteBaseline } from "./styleEngine/diagnostics.js";
 export { styleSignalPolicySchema, styleSignalScanSchema, createStyleSignalPolicy } from "./styleEngine/signals.js";
 export type { StyleSignalPolicy, StyleSignalFinding, StyleSignalScan } from "./styleEngine/signals.js";
+export {
+  getGeneratedTextRewritableIssues,
+  hasGeneratedTextReviewIssues,
+} from "./styleEngine/generatedTextReview.js";
+export type {
+  GeneratedTextReview,
+  GeneratedTextReviewAction,
+  GeneratedTextReviewError,
+  GeneratedTextReviewResult,
+  GeneratedTextReviewSource,
+  GeneratedTextReviewStatus,
+} from "./styleEngine/generatedTextReview.js";
 
 export interface StyleDetectionViolation {
   ruleId: string;
@@ -756,4 +776,41 @@ export function buildStyleIntentSummary(input: {
     antiAiFocus,
     stageSummaryLines,
   };
+}
+
+export type HumanStyleIssueTag =
+  | "ai_taste"
+  | "padded_filler"
+  | "off_voice"
+  | "pacing_flat"
+  | "custom";
+
+export const HUMAN_STYLE_ISSUE_TAGS: ReadonlyArray<{
+  key: HumanStyleIssueTag;
+  label: string;
+  hint: string;
+}> = [
+  { key: "ai_taste", label: "AI 味太重", hint: "套话、心理总结、书面翻译腔或刻意升华" },
+  { key: "padded_filler", label: "废话/过场太多", hint: "注水铺垫、重复解释已有情绪或无效动作" },
+  { key: "off_voice", label: "人物口吻不对", hint: "对话或反应不像该角色的身份、性格或当下处境" },
+  { key: "pacing_flat", label: "细节发虚/没画面", hint: "只下抽象结论，缺乏具体动作、物件和感官细节" },
+];
+
+export interface NovelHumanStyleFeedbackRequest {
+  excerpt: string;
+  preferredText?: string;
+  issueTags: HumanStyleIssueTag[];
+  feedbackNote?: string;
+}
+
+export interface NovelHumanStyleFeedbackSummary {
+  profileId: string | null;
+  profileName: string | null;
+  isBookOwned: boolean;
+  contrastPairs: StyleContrastPair[];
+}
+
+export interface NovelHumanStyleFeedbackResponse extends NovelHumanStyleFeedbackSummary {
+  createdBookProfile: boolean;
+  savedPair: StyleContrastPair;
 }

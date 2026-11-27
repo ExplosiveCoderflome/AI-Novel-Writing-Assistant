@@ -113,8 +113,10 @@ export interface ShortStoryPlanContract {
 export interface ShortStoryQualityResult {
   decision: "accepted" | "patchable" | "replan_required";
   summary: string;
+  expressionReviewCompleted?: true;
   issues: Array<{
     code: string;
+    category?: "story_structure" | "style_expression";
     severity?: "critical" | "standard";
     description: string;
     affectedSegmentOrders: number[];
@@ -158,6 +160,7 @@ export interface ShortStoryProjection {
     status: ShortStoryPlanStatus;
     endingPromise: string;
     qualityDebt: string[];
+    auditResult: ShortStoryQualityResult | null;
     schemaVersion: number;
   } | null;
   segments: ShortStorySegmentProjection[];

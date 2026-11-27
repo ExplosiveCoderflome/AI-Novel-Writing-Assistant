@@ -3,6 +3,7 @@ import { latestStructuredDiagnostic, canRetryStructuredTask } from "../../../../
 import type {
   CreationIntentInterpretation,
   ShortStoryProjection,
+  ShortStoryQualityResult,
   ShortStoryRevisionImpact,
   ShortStorySegmentUpdateRequest,
 } from "@ai-novel/shared/types/creationStudio";
@@ -87,6 +88,7 @@ export class ShortStoryStudioService {
           : never,
         endingPromise: plan.endingPromise,
         qualityDebt: parseJson<string[]>(plan.qualityDebtJson, []),
+        auditResult: parseJson<ShortStoryQualityResult | null>(plan.auditResultJson, null),
         schemaVersion: plan.schemaVersion,
       } : null,
       segments: (plan?.segments ?? []).map((segment) => ({

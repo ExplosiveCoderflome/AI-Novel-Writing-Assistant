@@ -9,6 +9,11 @@ import type {
   KnowledgeDocumentSummary,
 } from "@ai-novel/shared/types/knowledge";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
+import type {
+  EmbeddingConnectionTestInput,
+  QdrantConnectionTestInput,
+  RagConnectionTestResult,
+} from "@ai-novel/shared/types/ragConnectivity";
 import { apiClient } from "./client";
 
 export interface RagJobProgress {
@@ -280,4 +285,20 @@ export async function getRagHealth(previousHealth?: RagHealthStatus) {
   }
 
   return response.data;
+}
+
+export async function testEmbeddingConnection(input: EmbeddingConnectionTestInput, signal?: AbortSignal) {
+  const { data } = await apiClient.post<ApiResponse<RagConnectionTestResult>>(
+    "/rag/connection-tests/embedding", input,
+    { signal, timeout: 35_000, errorPresentation: "inline" },
+  );
+  return data;
+}
+
+export async function testQdrantConnection(input: QdrantConnectionTestInput, signal?: AbortSignal) {
+  const { data } = await apiClient.post<ApiResponse<RagConnectionTestResult>>(
+    "/rag/connection-tests/qdrant", input,
+    { signal, timeout: 35_000, errorPresentation: "inline" },
+  );
+  return data;
 }

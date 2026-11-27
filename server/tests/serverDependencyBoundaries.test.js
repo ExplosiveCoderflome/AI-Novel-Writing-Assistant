@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const ts = require("typescript");
+const ts = require("typescript-legacy");
 
 const sourceRoot = path.resolve(__dirname, "../src");
 function compiled(relativePath) {

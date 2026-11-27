@@ -27,6 +27,7 @@ function OutlineEntry({ item, latest, feedback }: { item: OutlineProject; latest
       <div className="outline-catalog-meta">
         {item.boundNovelId && <span className="outline-bound"><BookMarked size={13} aria-hidden="true" />已开书</span>}
         <span>修订 v{item.currentVersion}</span>
+        {item.outlineCounts ? <span>{item.outlineCounts.volumes} 卷 {item.outlineCounts.chapters} 章</span> : null}
         <time dateTime={item.updatedAt} title={`${updatedDay(item)} ${clock} 更新`}>
           {latest ? `${updatedDay(item)} ${clock}` : clock}
         </time>

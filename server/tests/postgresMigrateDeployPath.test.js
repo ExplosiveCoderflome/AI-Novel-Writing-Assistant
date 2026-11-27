@@ -24,7 +24,9 @@ const sqliteSchemaPath = path.join(prismaRoot, "schema.sqlite.prisma");
 const sqliteMigrationsDir = path.join(prismaRoot, "migrations.sqlite");
 const serverDir = path.join(__dirname, "..");
 
-/** Historical files that already existed on origin/main (ae11c01c). Do not edit in place. */
+/** Historical files that already existed on origin/main (ae11c01c). Do not edit in place.
+ * Hashes are sha256 over the file bytes as stored in git (LF line endings, per
+ * .gitattributes). Do not recompute them from a CRLF-converted checkout. */
 const HISTORICAL_CHECKSUMS = {
   "20260328120000_schema_gap_backfill": "5bf4956aa923295d6f409a85c41bf35f14a41b609024c8828fae154a5c1d4c09",
   "20260413120000_postgresql_baseline": "2ec2f98f9231b1b14f8184d49a60b06673641cfb864958e20295df5fea1c25e9",

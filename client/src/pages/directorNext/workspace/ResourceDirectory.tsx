@@ -1,11 +1,12 @@
 import {
   BookMarked, BookOpen, CalendarDays, FileText, Globe2, Layers, ListChecks,
-  Map, Network, Package, Route, Users, type LucideIcon,
+  Lock, Map, Network, Package, Route, Users, type LucideIcon,
 } from "lucide-react";
 import type { Selection, WorkspaceBook } from "./model";
 import { buildStoryDirectory, beatSelection, chapterSelection, sameSelection, beatChapterLabel, type PlannedChapter } from "./planning";
 import { CharacterDirectoryItem } from "./characters/CharacterDirectoryItem";
 import { DirectoryBranch } from "./directory/DirectoryBranch";
+import { resolveWorkspaceChapterProvenance } from "./chapterProvenance";
 import "./directory/directory.css";
 
 const chapterLabels = {
@@ -38,12 +39,21 @@ export function ResourceDirectory({ book, selected, onSelect }: { book: Workspac
     const order = item.chapter?.order ?? item.plan?.chapterOrder;
     const title = item.chapter?.title ?? item.plan?.title;
     const status = item.plan && plansToReview.has(item.plan.id) ? "待核对" : item.chapter ? chapterLabels[item.chapter.status] : "待写正文";
+    const provenance = item.chapter ? resolveWorkspaceChapterProvenance(item.chapter) : null;
+    const stateText = provenance === "human_locked"
+      ? (item.chapter?.status === "completed" ? "已锁定" : `${status} · 已锁定`)
+      : provenance === "human_edited"
+        ? (item.chapter?.status === "completed" ? "人工修订" : `${status} · 人工修订`)
+        : status;
     return <button type="button" key={item.plan?.id ?? item.chapter?.id} aria-current={sameSelection(selected, target) || undefined}
-      aria-label={`第 ${order} 章 · ${title}，${status}`} onClick={() => onSelect(target)}
+      aria-label={`第 ${order} 章 · ${title}，${stateText}`} onClick={() => onSelect(target)}
       className={`${entryStyle} chapter-entry gap-x-2 gap-y-0.5 text-sm`}>
       <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">第 {order} 章</span>
       <span className="min-w-0 break-words">{title}</span>
-      <span className="chapter-state text-xs font-normal text-muted-foreground">{status}</span>
+      <span className={`chapter-state inline-flex items-center gap-1 text-xs font-normal ${provenance === "human_locked" ? "text-primary/90" : "text-muted-foreground"}`}>
+        {provenance === "human_locked" ? <Lock aria-hidden="true" className="size-3 shrink-0" /> : null}
+        {stateText}
+      </span>
     </button>;
   }
   function contains(rows: PlannedChapter[]) {

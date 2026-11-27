@@ -20,10 +20,11 @@ import {LedgerView} from "./ledgers";
 import {CastTimeline} from "./characters/CastTimeline";
 import { CharacterForwardAdjustDialog } from "./characters/CharacterForwardAdjustDialog";
 import type { CharacterForwardPreview } from "@ai-novel/shared/types/characterForwardAdjustment";
+import type { CharacterProfileImpactSuggestion } from "@ai-novel/shared/types/director/characterProfileImpact";
 const WorldMapView = lazy(()=>import("./visualizations").then(module=>({default:module.WorldMapView})));
 const CharacterGraphView = lazy(()=>import("./visualizations").then(module=>({default:module.CharacterGraphView})));
 
-export function NovelWorkspace({ book, preview = false, review, onLeaveReview, onOpenChapterReview, followGeneration = false, generation = null, activity, onEditChapter, editedChapter, onAdjustingCharacter }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; onOpenChapterReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null; activity?:DirectorWorkspaceActivity; onEditChapter?:(chapterId:string)=>void; editedChapter?:{id:string;revision:number}|null; onAdjustingCharacter?:(active:boolean)=>void }) {
+export function NovelWorkspace({ book, preview = false, review, onLeaveReview, onOpenChapterReview, followGeneration = false, generation = null, activity, onEditChapter, editedChapter, onInlineChapterSaved, onInlineEditingChange, onAdjustingCharacter, onOpenProseReview }: { book: WorkspaceBook; preview?: boolean; review?:URLSearchParams; onLeaveReview?:()=>void; onOpenChapterReview?:()=>void; followGeneration?:boolean; generation?:DirectorGenerationSnapshot|null; activity?:DirectorWorkspaceActivity; onEditChapter?:(chapterId:string)=>void; editedChapter?:{id:string;revision:number}|null; onInlineChapterSaved?:(chapterId:string)=>Promise<void>|void; onInlineEditingChange?:(active:boolean)=>void; onAdjustingCharacter?:(active:boolean)=>void; onOpenProseReview?:(suggestions:CharacterProfileImpactSuggestion[])=>void }) {
   const {preferences: readingDisplay, updatePreferences: onReadingDisplayChange} = useReadingDisplayPreferences();
   const [characterAdjustment, setCharacterAdjustment] = useState<CharacterForwardPreview | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -102,7 +103,7 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
         : selected.kind === "character_graph" ? <Suspense fallback={<p className="px-6 text-sm text-muted-foreground">正在读取角色关系图…</p>}><CharacterGraphView book={book} preview={preview} onOpenCharacter={id=>select({kind:"character",id})}/></Suspense>
         : selected.kind === "character_timeline" ? <CastTimeline book={book} onSelect={select} preview={preview}/>
         : selected.kind === "foreshadowing" || selected.kind === "resources" || selected.kind === "character_resources" ? <LedgerView book={book} selection={selected} onSelect={select} preview={preview}/>
-        : chapter ? <ChapterReader key={`${chapter.id}:${editedChapter?.id===chapter.id ? editedChapter.revision : 0}`} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange} onEdit={canEditChapter ? editChapter : undefined}/>
+        : chapter ? <ChapterReader key={`${chapter.id}:${editedChapter?.id===chapter.id ? editedChapter.revision : 0}`} novelId={book.novel.id} chapter={chapter} chapters={displayBook.chapters} characters={book.materials.characters} onCharacter={openCharacter} onChapter={id => select({kind:"chapter",id})} generation={live?.chapterId===chapter.id ? live : null} followGeneration={followGeneration} readingDisplay={readingDisplay} onReadingDisplayChange={onReadingDisplayChange} onEdit={canEditChapter ? editChapter : undefined} canInlineEdit={!preview && Boolean(canEditChapter)} onInlineSaved={onInlineChapterSaved} onInlineEditingChange={onInlineEditingChange}/>
         : selected.kind === "beat" || selected.kind === "plan" || (selected.kind === "volume" && book.planning) ? null : <AssetDetail book={book} selected={selected} onCharacter={openCharacter}
           onEditCharacter={id => openCharacter(id, true)} onSelect={select} preview={preview} />}
     </section>;
@@ -111,6 +112,7 @@ export function NovelWorkspace({ book, preview = false, review, onLeaveReview, o
   return <div className="flex min-h-0 min-w-0 flex-1 flex-col">
     {directoryOpen ? <ResizableWorkspace id="director-resource-layout" className="min-h-0 flex-1" label="调整目录与正文宽度" defaultLeft={20} minLeft={180} minRight={340} breakpoint={560} left={directory} right={readingPane}/> : <>{directory}{readingPane}</>}
     {character ? <CharacterDrawer key={character.id} book={book} character={character} readingOrder={chapter?.order ?? readingOrder} preview={preview} onClose={() => {if (!characterAdjustment) setCharacterId(null);}} onChapter={id => select({kind:"chapter",id})} onPlan={id => select({kind:"plan",id})} onResources={id=>{setCharacterId(null);select({kind:"character_resources",id});}} onAdjust={preview ? undefined : setAdjustment}
+      onOpenProseReview={suggestions => {setCharacterId(null); onOpenProseReview?.(suggestions);}}
       editingProfile={editingProfile} onProfileEditingChange={setProfileEditing}/> : null}
     {character && characterAdjustment ? <CharacterForwardAdjustDialog novelId={book.novel.id} character={character} initialPreview={characterAdjustment} onClose={() => setAdjustment(null)}/> : null}
   </div>;

@@ -3,6 +3,10 @@ import { applyChapterPatchRepairPlan, type ChapterPatchRepairPlan } from "@ai-no
 import type { StyleRewriteBaseline, StyleRewriteGuard } from "@ai-novel/shared/types/styleEngine";
 
 export const STYLE_REWRITE_POLICY_REVISION = "style-patch-v1";
+export const STYLE_REWRITE_WHOLE_CHAPTER_BUDGET = Object.freeze({
+  wholeChapterTouchedRatioMax: 0.45,
+  wholeChapterAddedRatioMax: 0.15,
+});
 const count = (text: string) => Array.from(text.replace(/\s/gu, "")).length;
 export const styleContentHash = (text: string) => createHash("sha256").update(text).digest("hex");
 
@@ -33,8 +37,8 @@ export function guardStylePatches(input: {
     + Math.max(0, count(patch.replacement) - count(patch.targetExcerpt)), 0);
   const lengthChangeRatio = (count(applied.content) - count(input.original)) / total;
   // Short pasted selections have a different denominator from full chapters.
-  const budgetValid = touchedRatio <= (total < 500 ? 1 : 0.3)
-    && addedCharacters / total <= (total < 500 ? 0.2 : 0.05)
+  const budgetValid = touchedRatio <= (total < 500 ? 1 : STYLE_REWRITE_WHOLE_CHAPTER_BUDGET.wholeChapterTouchedRatioMax)
+    && addedCharacters / total <= (total < 500 ? 0.2 : STYLE_REWRITE_WHOLE_CHAPTER_BUDGET.wholeChapterAddedRatioMax)
     && Math.abs(lengthChangeRatio) <= 0.3;
   const protectedValid = input.plan.patches.every(patch => {
     // Explicit non-style repair may correct an erroneous draft fact. AI reacceptance

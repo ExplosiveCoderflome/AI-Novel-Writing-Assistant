@@ -2,7 +2,7 @@ import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ChapterEditorDiagnosticCard,
   ChapterEditorCursorContinuationRequest,
@@ -13,6 +13,7 @@ import type {
   ChapterEditorTargetRange,
   ChapterEditorWorkspaceResponse,
 } from "@ai-novel/shared/types/novel";
+import type { HumanStyleIssueTag } from "@ai-novel/shared/types/styleEngine";
 import { useCandidateAcceptance, useCandidateReview } from "./review";
 import { applySavedRevisionToWorkspace, findRecommendedDiagnostic, removeCompletedDiagnostic } from "./diagnostics";
 import {
@@ -21,6 +22,9 @@ import {
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { AlertTriangle, Loader2, PanelLeftOpen, PanelRightOpen } from "lucide-react";
 import { createNovelSnapshot, previewChapterAiRevision, previewChapterCursorContinuation, resolveChapterAuditIssue, reviewNovelChapter, updateNovelChapter } from "@/api/novel";
+import { getNovelHumanStyleFeedback, recordNovelHumanStyleFeedback, removeNovelHumanStyleFeedback, setNovelChapterProvenance } from "@/api/novel/chapters";
+import { provenanceLabel } from "@/pages/directorNext/workspace/chapterProvenance";
+import { buildHumanFeedbackInstruction, buildHumanFeedbackRepairBrief } from "@/pages/directorNext/workspace/selectionRange";
 import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
@@ -42,6 +46,7 @@ import {
   getSaveStatusLabel,
   getParagraphWindow,
   getParagraphIndicesForRange,
+  getParagraphSelection,
   normalizeChapterContent,
   useChapterDraft,
 } from "./document";
@@ -115,6 +120,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
   const lastPreviewDiagnosticRef = useRef<ChapterEditorDiagnosticCard | undefined>(undefined);
   const lastContinuationRequestRef = useRef<ChapterEditorCursorContinuationRequest | null>(null);
+  const initialImpactKeyRef = useRef<string | null>(null);
+  const pendingContrastRef = useRef<{ issueTags: HumanStyleIssueTag[]; feedbackNote?: string } | null>(null);
   const qualityDebtDetails = useMemo(
     () => readChapterQualityDebtDetails(chapter?.riskFlags),
     [chapter?.riskFlags],
@@ -126,6 +133,9 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [session, setSession] = useState<ChapterEditorSessionState>(EMPTY_SESSION);
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [selectedIssueTags, setSelectedIssueTags] = useState<HumanStyleIssueTag[]>([]);
+  const [saveContrastOnAccept, setSaveContrastOnAccept] = useState(false);
+  const [provenanceOverride, setProvenanceOverride] = useState<import("@ai-novel/shared/types/novel").ChapterAuthorProvenance | null>(null);
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
   const [focusRequestKey, setFocusRequestKey] = useState(0);
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
@@ -144,6 +154,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     setCursorOffset(null);
     setSession(EMPTY_SESSION);
     setRevisionInstruction("");
+    setSelectedIssueTags([]);
+    setSaveContrastOnAccept(false);
+    setProvenanceOverride(null);
+    pendingContrastRef.current = null;
     setRevisionScope("selection");
     setIsVersionDrawerOpen(false);
     setLoadedSnapshotId(null);
@@ -151,6 +165,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = undefined;
     setFocusRequestKey(0);
     lastContinuationRequestRef.current = null;
+    initialImpactKeyRef.current = null;
   }, [chapter?.id]);
 
   useEffect(() => {
@@ -247,20 +262,6 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       toast.error(error instanceof Error ? error.message : "章节保存失败。");
     },
   });
-
-  useEffect(() => {
-    const handleSaveShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
-        return;
-      }
-      event.preventDefault();
-      if (chapter && isDirty && !saveMutation.isPending) {
-        saveMutation.mutate(contentDraft);
-      }
-    };
-    window.addEventListener("keydown", handleSaveShortcut);
-    return () => window.removeEventListener("keydown", handleSaveShortcut);
-  }, [chapter, contentDraft, isDirty, saveMutation]);
 
   const reviewMutation = useMutation({
     mutationFn: async () => {
@@ -429,6 +430,90 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     },
   });
 
+  const humanFeedbackQuery = useQuery({
+    queryKey: ["directorBookHumanFeedback", novelId],
+    queryFn: () => getNovelHumanStyleFeedback(novelId),
+    enabled: Boolean(novelId),
+    retry: false,
+  });
+
+  const recordFeedbackMutation = useMutation({
+    mutationFn: async (input: { excerpt: string; preferredText?: string; issueTags: HumanStyleIssueTag[]; feedbackNote?: string }) => {
+      if (!chapter) {
+        throw new Error("当前未选中章节。");
+      }
+      return recordNovelHumanStyleFeedback(novelId, chapter.id, input);
+    },
+    onSuccess: async (response) => {
+      const count = response.data?.contrastPairs.length ?? 0;
+      setSelectedIssueTags([]);
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+      toast.success(`已记入本书反例库（当前共 ${count} 条），后续写作与修文会自动避开。`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "记录本书反例失败，请稍后重试。");
+    },
+  });
+
+  const removeFeedbackMutation = useMutation({
+    mutationFn: (aiPattern: string) => removeNovelHumanStyleFeedback(novelId, aiPattern),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+      toast.success("已从本书反例库移除该条记录。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "移除反例记录失败，请稍后重试。");
+    },
+  });
+
+  const effectiveProvenance: import("@ai-novel/shared/types/novel").ChapterAuthorProvenance | null =
+    provenanceOverride
+    ?? chapter?.authorProvenance
+    ?? (contentDraft.trim() ? "ai_generated" : null);
+  const isChapterLocked = effectiveProvenance === "human_locked";
+  const chapterProvenanceText = provenanceLabel(effectiveProvenance);
+
+  const lockMutation = useMutation({
+    mutationFn: async (locked: boolean) => {
+      if (!chapter) {
+        throw new Error("当前未选中章节。");
+      }
+      return setNovelChapterProvenance(novelId, chapter.id, {
+        locked,
+        expectedUpdatedAt: draft.savedUpdatedAt,
+      });
+    },
+    onSuccess: async (response, locked) => {
+      const updated = response.data;
+      const nextProvenance = updated?.authorProvenance ?? (locked ? "human_locked" : chapter?.humanEditedAt ? "human_edited" : "ai_generated");
+      setProvenanceOverride(nextProvenance);
+      if (updated?.updatedAt) {
+        draft.acknowledgeSave(contentDraft, { content: updated.content ?? contentDraft, updatedAt: String(updated.updatedAt) });
+      }
+      await invalidateChapterQueries();
+      await queryClient.invalidateQueries({ queryKey: ["directorBookWorkspace", novelId] });
+      await props.onChapterSaved?.();
+      toast.success(locked ? "已锁定定稿，防止自动创作与误改写。" : "已解除锁定，可继续修改本章正文。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "调整锁定状态失败，请刷新后重试。");
+    },
+  });
+
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return;
+      }
+      event.preventDefault();
+      if (chapter && !isChapterLocked && isDirty && !saveMutation.isPending) {
+        saveMutation.mutate(contentDraft);
+      }
+    };
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
+  }, [chapter, contentDraft, isChapterLocked, isDirty, saveMutation]);
+
   const review = useCandidateReview(session.sessionId ?? "", session.targetRange?.text ?? "", activeCandidate);
   const acceptMutation = useCandidateAcceptance({
     novelId, chapter, session, candidate: activeCandidate,
@@ -466,12 +551,31 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           } : cached,
         );
       }
+      if (saveContrastOnAccept && session.mode === "revision" && session.targetRange?.text?.trim() && chapter) {
+        const meta = pendingContrastRef.current;
+        const preferredText = review.resultText?.trim() || activeCandidate?.content?.trim() || "";
+        if (preferredText) {
+          await recordNovelHumanStyleFeedback(novelId, chapter.id, {
+            excerpt: session.targetRange.text,
+            preferredText,
+            issueTags: meta?.issueTags ?? selectedIssueTags,
+            feedbackNote: meta?.feedbackNote ?? (revisionInstruction.trim() || undefined),
+          }).catch(() => null);
+          await queryClient.invalidateQueries({ queryKey: ["directorBookHumanFeedback", novelId] });
+        }
+      }
       setSaveStatus("saved");
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
+      setSelectedIssueTags([]);
+      setSaveContrastOnAccept(false);
+      pendingContrastRef.current = null;
       setSelectedDiagnosticId(null);
       await invalidateChapterQueries();
       await props.onChapterSaved?.();
+      if (fullyAccepted && props.initialImpact) {
+        await props.onImpactApplied?.();
+      }
       setLoadedSnapshotId(null);
     },
   });
@@ -525,9 +629,11 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     options?: {
       presetOperation?: ChapterEditorOperation;
       instruction?: string;
+      repairBrief?: ChapterEditorDiagnosticCard | ReturnType<typeof buildHumanFeedbackRepairBrief>;
       selectionOverride?: ChapterEditorSelectionRange | null;
       task?: ChapterEditorRecommendedTask | null;
       diagnosticCard?: ChapterEditorDiagnosticCard;
+      contrastFeedback?: { issueTags: HumanStyleIssueTag[]; feedbackNote?: string };
     },
   ) => {
     if (isBusy || session.status !== "idle") {
@@ -547,19 +653,22 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       && selectedDiagnosticCard.anchorRange.from === resolvedSelection.from
       && selectedDiagnosticCard.anchorRange.to === resolvedSelection.to;
     const diagnosticCard = options?.diagnosticCard ?? (selectedCardMatches ? selectedDiagnosticCard! : undefined);
+    const repairBrief = diagnosticCard ? {
+      title: diagnosticCard.title,
+      problemSummary: diagnosticCard.problemSummary,
+      whyItMatters: diagnosticCard.whyItMatters,
+      repairGoal: diagnosticCard.repairGoal,
+      repairApproach: diagnosticCard.repairApproach,
+      mustPreserve: diagnosticCard.mustPreserve,
+    } : options?.repairBrief;
+    pendingContrastRef.current = options?.contrastFeedback ?? null;
+    setSaveContrastOnAccept(Boolean(options?.contrastFeedback));
     const request = buildAiRevisionRequest({
       source,
       scope,
       presetOperation: options?.presetOperation,
       instruction: options?.instruction,
-      repairBrief: diagnosticCard ? {
-        title: diagnosticCard.title,
-        problemSummary: diagnosticCard.problemSummary,
-        whyItMatters: diagnosticCard.whyItMatters,
-        repairGoal: diagnosticCard.repairGoal,
-        repairApproach: diagnosticCard.repairApproach,
-        mustPreserve: diagnosticCard.mustPreserve,
-      } : undefined,
+      repairBrief,
       selection: resolvedSelection,
       content: contentDraft,
       provider: llm.provider,
@@ -569,6 +678,32 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     lastPreviewDiagnosticRef.current = diagnosticCard;
     previewMutation.mutate(request);
   };
+
+  useEffect(() => {
+    const impact = props.initialImpact;
+    if (!impact || initialImpactKeyRef.current === impact.key || isBusy || session.status !== "idle") {
+      return;
+    }
+    const target = getParagraphSelection(contentDraft, impact.paragraph);
+    if (!target) {
+      return;
+    }
+    initialImpactKeyRef.current = impact.key;
+    if (target.text !== impact.before) {
+      setSelection(target);
+      toast.error("这段正文已有变化，请重新检查角色资料影响后再修订。", {duration: 6000});
+      return;
+    }
+    setSelection(target);
+    setCursorOffset(null);
+    setSelectedDiagnosticId(null);
+    setRevisionScope("selection");
+    setFocusRequestKey((current) => current + 1);
+    runRevision("freeform", "selection", {
+      instruction: impact.instruction,
+      selectionOverride: target,
+    });
+  }, [contentDraft, isBusy, props.initialImpact, session.status]);
 
   const handleRunOperation = (operation: ChapterEditorOperation, customInstruction?: string) => {
     runRevision(
@@ -649,6 +784,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const handleReject = () => {
     setSession(EMPTY_SESSION);
+    setSaveContrastOnAccept(false);
+    pendingContrastRef.current = null;
   };
 
   const handleLoadSnapshotContent = (content: string, snapshotId: string) => {
@@ -709,8 +846,61 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const handleRunFreeform = () => {
+    const note = revisionInstruction.trim();
+    if (revisionScope === "selection" && selectedIssueTags.length > 0) {
+      runRevision("freeform", "selection", {
+        instruction: buildHumanFeedbackInstruction(selectedIssueTags, note),
+        repairBrief: buildHumanFeedbackRepairBrief(selectedIssueTags, note),
+        contrastFeedback: { issueTags: selectedIssueTags, feedbackNote: note || undefined },
+      });
+      return;
+    }
     runRevision("freeform", revisionScope, {
-      instruction: revisionInstruction.trim(),
+      instruction: note,
+    });
+  };
+
+  const handleQuickHumanFeedback = (input: {
+    issueTags: HumanStyleIssueTag[];
+    feedbackNote?: string;
+    mode: "rewrite" | "record";
+  }) => {
+    const target = getSelectionTarget();
+    if (!target) {
+      toast.error("请先选中正文片段再标记。");
+      return;
+    }
+    if (input.mode === "record") {
+      recordFeedbackMutation.mutate({
+        excerpt: target.text,
+        issueTags: input.issueTags,
+        feedbackNote: input.feedbackNote,
+      });
+      return;
+    }
+    const note = input.feedbackNote?.trim() ?? "";
+    runRevision("freeform", "selection", {
+      instruction: buildHumanFeedbackInstruction(input.issueTags, note),
+      repairBrief: buildHumanFeedbackRepairBrief(input.issueTags, note),
+      selectionOverride: target,
+      contrastFeedback: { issueTags: input.issueTags, feedbackNote: note || undefined },
+    });
+  };
+
+  const handleRecordSelectionFeedback = () => {
+    const target = getSelectionTarget();
+    if (!target) {
+      toast.error("请先选中正文片段再标记。");
+      return;
+    }
+    if (selectedIssueTags.length === 0 && !revisionInstruction.trim()) {
+      toast.error("请先点选问题标签或填写一句意见。");
+      return;
+    }
+    recordFeedbackMutation.mutate({
+      excerpt: target.text,
+      issueTags: selectedIssueTags,
+      feedbackNote: revisionInstruction.trim() || undefined,
     });
   };
 
@@ -797,6 +987,12 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      {props.initialImpact ? (
+        <div role="status" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium">正在核对角色资料影响</span>
+          <span className="text-muted-foreground">第 {props.initialImpact.paragraph} 段 · 确认候选后写入正文</span>
+        </div>
+      ) : null}
       {(restored || hasExternalChange || storageError) ? (
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <span>{storageError ? "浏览器暂时无法保存本地草稿，请尽快保存到作品。" : hasExternalChange ? "本章已有新的保存版本，你的草稿仍保留。" : "已恢复未保存的正文草稿。"}</span>
@@ -808,9 +1004,13 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           {props.headerExtra}
           {onBack ? <Button size="sm" variant="outline" onClick={() => leaveEditor(onBack)}>{props.backLabel ?? "返回章节执行页"}</Button> : null}
           <span className="truncate font-medium">第 {chapter.order} 章 · {chapter.title?.trim() || "未命名章节"}</span>
+          <span className="shrink-0 rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] text-foreground">{chapterProvenanceText}</span>
           <span className="shrink-0 text-xs text-muted-foreground">{wordCount} 字 · {headerSaveLabel}</span>
-          <Button size="sm" onClick={() => saveMutation.mutate(contentDraft)} disabled={!isDirty || saveMutation.isPending}>
-            {saveMutation.isPending ? "保存中..." : "保存"}
+          <Button size="sm" variant="outline" onClick={() => lockMutation.mutate(!isChapterLocked)} disabled={isDirty || lockMutation.isPending || saveMutation.isPending} title={isDirty ? "请先保存正文后再调整锁定状态" : undefined}>
+            {lockMutation.isPending ? "处理中..." : isChapterLocked ? "解除锁定" : "锁定定稿"}
+          </Button>
+          <Button size="sm" onClick={() => saveMutation.mutate(contentDraft)} disabled={isChapterLocked || !isDirty || saveMutation.isPending}>
+            {isChapterLocked ? "已锁定" : saveMutation.isPending ? "保存中..." : "保存"}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setIsVersionDrawerOpen(true)}>查看本章版本</Button>
           {qualityDebtDetails ? (
@@ -848,11 +1048,15 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             workspaceStatus={workspaceStatus}
             wordCount={wordCount}
             saveStatusLabel={headerSaveLabel}
+            provenanceLabel={chapterProvenanceText}
+            isLocked={isChapterLocked}
+            isTogglingLock={lockMutation.isPending}
             isDirty={isDirty}
             isSaving={saveMutation.isPending}
             selectedDiagnosticId={selectedDiagnosticId}
             onBack={onBack ? () => leaveEditor(onBack) : undefined}
             backLabel={props.backLabel}
+            onToggleLock={() => lockMutation.mutate(!isChapterLocked)}
             onOpenChapterVersions={() => setIsVersionDrawerOpen(true)}
             onOpenVersionHistory={onOpenVersionHistory ? () => leaveEditor(onOpenVersionHistory) : undefined}
             onRefreshWorkspace={onRefreshWorkspace}
@@ -879,6 +1083,8 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             documentKey={chapter.id}
             onQuickOperation={(operation) => handleRunOperation(operation)}
             onQuickInstruction={(instruction) => handleRunOperation("custom", instruction)}
+            onQuickHumanFeedback={handleQuickHumanFeedback}
+            recordingHumanFeedback={recordFeedbackMutation.isPending}
             onGhostSuggest={handleGhostSuggest}
             ghostSuspended={isBusy || session.status !== "idle"}
             layoutMode={layoutMode}
@@ -887,7 +1093,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             diagnosticRanges={(workspace?.diagnosticCards ?? [])
               .map((card) => card.anchorRange)
               .filter((range): range is { from: number; to: number } => Boolean(range))}
-            readOnly={session.status !== "idle"}
+            readOnly={isChapterLocked || session.status !== "idle"}
             onChange={(next) => {
               draft.setContentDraft(next);
               setSaveStatus("idle");
@@ -912,6 +1118,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
             }}
             preview={previewPayload}
             focusRequestKey={focusRequestKey}
+            focusSource={selection ? "selection" : "diagnostic"}
             focusRange={session.status === "idle"
               ? selection
                 ? { from: selection.from, to: selection.to }
@@ -936,6 +1143,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
               actionContext={actionContext}
               cursorTargetDescription={cursorTargetLabel}
               selectionTargetDescription={selection ? `已选中 ${countEditorWords(selection.text)} 字` : ""}
+              selectionPreview={selection?.text}
+              selectedIssueTags={selectedIssueTags}
+              recordingHumanFeedback={recordFeedbackMutation.isPending}
+              humanFeedbackSummary={humanFeedbackQuery.data?.data ?? null}
+              removingFeedbackPattern={removeFeedbackMutation.isPending ? (removeFeedbackMutation.variables ?? null) : null}
+              saveContrastOnAccept={saveContrastOnAccept}
+              onSaveContrastOnAcceptChange={setSaveContrastOnAccept}
+              onRemoveFeedbackPair={(aiPattern) => removeFeedbackMutation.mutate(aiPattern)}
+              onToggleIssueTag={(tag) => setSelectedIssueTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))}
+              onRecordHumanFeedback={handleRecordSelectionFeedback}
               session={session}
               activeCandidate={activeCandidate}
               diffChanges={review.changes}

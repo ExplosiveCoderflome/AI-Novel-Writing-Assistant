@@ -14,7 +14,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import type { ShortStoryRevisionImpact } from "@ai-novel/shared/types/creationStudio";
+import type { ShortStoryProjection, ShortStoryRevisionImpact } from "@ai-novel/shared/types/creationStudio";
 import {
   applyShortStoryRevision,
   deriveShortStoryLongForm,
@@ -277,6 +277,8 @@ export default function ShortStoryStudioPage() {
             </div>
           ) : null}
 
+          <ShortStoryStyleReviewPanel story={story} isProducing={isProducing} />
+
           <section className="min-w-0 overflow-hidden rounded-xl border bg-background shadow-sm">
             <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b bg-background/95 px-4 py-3 backdrop-blur sm:px-5">
               <div className="flex items-center gap-3">
@@ -410,6 +412,61 @@ export default function ShortStoryStudioPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+function ShortStoryStyleReviewPanel(props: { story: ShortStoryProjection; isProducing: boolean }) {
+  const styleIssues = props.story.segments.flatMap((segment) => (
+    (segment.qualityResult?.issues ?? [])
+      .filter((issue) => issue.category === "style_expression")
+      .map((issue) => ({ segmentOrder: segment.order, issue }))
+  ));
+  const audit = props.story.plan?.auditResult;
+  const expressionReviewCompleted = audit?.expressionReviewCompleted === true;
+  const auditStyleIssues = (audit?.issues ?? [])
+    .filter((issue) => issue.category === "style_expression")
+    .map((issue) => ({ segmentOrder: issue.affectedSegmentOrders[0] ?? null, issue }));
+  const visibleIssues = expressionReviewCompleted || auditStyleIssues.length > 0 ? auditStyleIssues : styleIssues;
+  const hasCompleteDraft = props.story.plan?.status === "completed"
+    || (props.story.segments.length > 0 && props.story.segments.every(segment => segment.status === "completed"));
+  const status = props.isProducing ? "生成完成后检查"
+    : visibleIssues.length > 0 ? `${visibleIssues.length} 条提醒`
+    : expressionReviewCompleted ? "已完成"
+    : hasCompleteDraft ? "暂无检查结果" : "等待成稿";
+
+  return (
+    <section className="rounded-xl bg-muted/25 p-4" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold text-foreground">表达检查</div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            关注模板感、总结式叙述和机械重复，修订前会保留原稿。
+          </p>
+        </div>
+        <span className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground">
+          {status}
+        </span>
+      </div>
+      {props.isProducing ? (
+        <div className="mt-3 text-sm leading-6 text-muted-foreground">完整正文生成后，系统会结合本书写法做一次表达审校。</div>
+      ) : visibleIssues.length > 0 ? (
+        <div className="mt-3 space-y-2">
+          {visibleIssues.slice(0, 6).map(({ segmentOrder, issue }, index) => (
+            <div key={`${issue.code}-${segmentOrder}-${index}`} className="rounded-lg bg-background/70 p-3 text-xs leading-5">
+              <div className="font-medium text-foreground">{segmentOrder ? `第 ${segmentOrder} 段 · ` : ""}{issue.description}</div>
+              {issue.repairInstruction ? <div className="mt-1 text-muted-foreground">建议：{issue.repairInstruction}</div> : null}
+            </div>
+          ))}
+          {visibleIssues.length > 6 ? <div className="text-xs text-muted-foreground">还有 {visibleIssues.length - 6} 条提醒，可在正文中继续调整。</div> : null}
+        </div>
+      ) : (
+        <div className="mt-3 text-sm leading-6 text-muted-foreground">
+          {expressionReviewCompleted ? "本次检查未发现表达问题，可以继续编辑或导出作品。"
+            : hasCompleteDraft ? "这篇作品可以继续编辑或导出。"
+            : "正文生成后，这里会显示表达检查结果。"}
+        </div>
+      )}
+    </section>
   );
 }
 

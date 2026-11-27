@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { ChapterEditorCandidate, ChapterEditorWorkspaceResponse } from "@ai-novel/shared/types/novel";
 import type { ChapterEditorDiffChange } from "@ai-novel/shared/types/chapterEditor/document";
-import { PanelRightClose } from "lucide-react";
+import type { NovelHumanStyleFeedbackSummary } from "@ai-novel/shared/types/styleEngine";
+import { BookMarked, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BookFeedbackRulesDrawer } from "@/pages/directorNext/workspace/editing/BookFeedbackRulesDrawer";
 import type { ChapterEditorSessionState } from "./chapterEditorTypes";
 import { ChapterEditorActions, type ChapterEditorActionsProps } from "./assistant";
 
@@ -15,6 +18,11 @@ interface ChapterEditorDirectorPanelProps extends ChapterEditorActionsProps {
   reviewError?: string | null;
   hasSelectedChanges: boolean;
   isApplying: boolean;
+  humanFeedbackSummary?: NovelHumanStyleFeedbackSummary | null;
+  removingFeedbackPattern?: string | null;
+  saveContrastOnAccept?: boolean;
+  onSaveContrastOnAcceptChange?: (checked: boolean) => void;
+  onRemoveFeedbackPair?: (aiPattern: string) => void;
   onSelectCandidate: (candidateId: string) => void;
   onToggleDiffChange: (changeId: string) => void;
   onSelectAllChanges: (selected: boolean) => void;
@@ -27,7 +35,9 @@ interface ChapterEditorDirectorPanelProps extends ChapterEditorActionsProps {
 
 export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorPanelProps) {
   const { session, activeCandidate, diffChanges, selectedDiffChangeIds, reviewError, hasSelectedChanges, isApplying,
+    humanFeedbackSummary, removingFeedbackPattern = null, saveContrastOnAccept = false, onSaveContrastOnAcceptChange, onRemoveFeedbackPair,
     onSelectCandidate, onToggleDiffChange, onSelectAllChanges, onChangeViewMode, onAccept, onReject, onRegenerate } = props;
+  const [showBookFeedback, setShowBookFeedback] = useState(false);
   const isIdle = session.status === "idle";
   const selectedDiffCount = diffChanges.filter(change => selectedDiffChangeIds.has(change.id)).length;
   return (
@@ -50,6 +60,26 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
         {isIdle ? <>
           {props.workspaceStatus === "loading" ? <p className="text-xs leading-5 text-muted-foreground">AI 正在分析本章问题，你可以继续选段或填写修改要求。</p> : null}
           <ChapterEditorActions {...props} />
+          {humanFeedbackSummary && humanFeedbackSummary.contrastPairs.length > 0 ? (
+            <div className="space-y-2 border-t border-border/50 pt-3">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => setShowBookFeedback((open) => !open)}
+              >
+                <BookMarked aria-hidden="true" className="mr-1.5 size-3.5" />
+                本书避坑偏好（{humanFeedbackSummary.contrastPairs.length}）
+              </Button>
+              {showBookFeedback && onRemoveFeedbackPair ? (
+                <BookFeedbackRulesDrawer
+                  summary={humanFeedbackSummary}
+                  removingPattern={removingFeedbackPattern}
+                  onRemove={onRemoveFeedbackPair}
+                />
+              ) : null}
+            </div>
+          ) : null}
         </> : null}
         {session.status === "loading" ? (
           <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">
@@ -174,16 +204,30 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
         ) : null}
       </div>
       {!isIdle ? (
-      <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-4 py-4">
-        <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>
-          拒绝全部
-        </Button>
-        <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>
-          再生成
-        </Button>
-        <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying || selectedDiffCount === 0 || !hasSelectedChanges}>
-          {isApplying ? "保存中..." : session.mode === "continuation" ? (selectedDiffCount === diffChanges.length ? "插入正文" : "插入已选") : selectedDiffCount === diffChanges.length ? "接受全部" : "接受已选"}
-        </Button>
+      <div className="shrink-0 space-y-2.5 border-t border-border/70 px-4 py-3.5">
+        {session.status === "ready" && session.mode === "revision" && session.targetRange?.text?.trim() && onSaveContrastOnAcceptChange ? (
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={saveContrastOnAccept}
+              disabled={isApplying}
+              onChange={(event) => onSaveContrastOnAcceptChange(event.target.checked)}
+              className="h-3.5 w-3.5 accent-primary"
+            />
+            <span>接受时同步把这段改写记入本书反例库</span>
+          </label>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>
+            拒绝全部
+          </Button>
+          <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>
+            再生成
+          </Button>
+          <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying || selectedDiffCount === 0 || !hasSelectedChanges}>
+            {isApplying ? "保存中..." : session.mode === "continuation" ? (selectedDiffCount === diffChanges.length ? "插入正文" : "插入已选") : selectedDiffCount === diffChanges.length ? "接受全部" : "接受已选"}
+          </Button>
+        </div>
       </div>
       ) : null}
     </div>

@@ -1,4 +1,4 @@
-import { canonicalProductionJson, cloneProductionData, ProductionBudgetNotDispatchedError } from "../common";
+import { canonicalProductionJson, cloneProductionData, ProductionBudgetNotDispatchedError, ProtectedProductionContentError } from "../common";
 import { PostGenerationStyleReviewRejectedError } from "./postGenerationStyleReview";
 import { applyUnitAction, decideNext, type StageId } from "../domain";
 import type { StageReply, UnitOutcome, UnitPorts, UnitRequest, UnitRun, UnitRunUpdate } from "./ports";
@@ -93,6 +93,11 @@ export async function runUnit(input: UnitRequest, ports: UnitPorts): Promise<Uni
         const artifacts = {...run.artifacts}; delete artifacts.activeDescriptor;
         const next = await save(ports, run, {progress, artifacts, activeStage: null, activeRequestKey: null});
         return outcome(next ? "paused" : "busy", next ?? run, next ? "style_review_rejected" : "progress_version_changed");
+      }
+      if (error instanceof ProtectedProductionContentError) {
+        const artifacts = { ...run.artifacts }; delete artifacts.activeDescriptor;
+        await save(ports, run, { progress: run.progress, artifacts, activeStage: null, activeRequestKey: null });
+        throw error;
       }
       if (error instanceof ProductionBudgetNotDispatchedError) {
         const artifacts = {...run.artifacts,deferredDescriptor:{stage,descriptor}}; delete artifacts.activeDescriptor;

@@ -3,6 +3,7 @@ const PROMPT_CATALOG_SHORT_DESCRIPTIONS: Record<string, string> = {
   "novel.volume.chapter_title_repair": "调整同卷中过于相似的章名",
   "novel.director.cast_dialogue": "导演角色阵容讨论",
   "novel.director.character_profile_dialogue": "角色资料编辑",
+  "novel.director.character_profile_impact": "角色资料改动影响分析",
   "novel.director.final_inspection": "导演全书完稿检查",
   "novel.director.prose_dialogue": "导演本批正文讨论",
   "novel.director.chapter_dialogue": "导演章节任务与场景讨论",
