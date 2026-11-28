@@ -5,6 +5,7 @@ import { resolveLLMClientOptions } from "../../llm/factory";
 import { selectStructuredOutputStrategy } from "../../llm/structuredOutput";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { titleGenerationPrompt } from "../../prompting/prompts/helper/titleGeneration.prompt";
+import { openingCandidateTitlesPrompt } from "../../prompting/prompts/novel/opening/candidateTitles.prompt";
 import {
   collectUniqueSuggestions,
   DEFAULT_TITLE_COUNT,
@@ -197,9 +198,9 @@ export class TitleGenerationService {
     blockedTitles: string[] = [],
   ): Promise<{ titles: TitleFactorySuggestion[] }> {
     const provider = llmOptions.provider ?? "deepseek";
-    const forceJson = await shouldForceTitleJsonOutput(llmOptions);
     const count = normalizeRequestedCount(promptContext.count, DEFAULT_TITLE_COUNT);
     const primarySelection = promptContext.selectionMode === "primary";
+    const forceJson = !primarySelection && await shouldForceTitleJsonOutput(llmOptions);
 
     let lastError: unknown;
     let bestEffortTitles: TitleFactorySuggestion[] = [];
@@ -207,8 +208,7 @@ export class TitleGenerationService {
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        const payload = await runStructuredPrompt({
-          asset: titleGenerationPrompt,
+        const request = {
           promptInput: {
             context: {
               ...promptContext,
@@ -223,12 +223,16 @@ export class TitleGenerationService {
             temperature: llmOptions.temperature ?? 0.85,
             maxTokens: llmOptions.maxTokens,
           },
-        });
+        };
+        const payload = primarySelection
+          ? await runStructuredPrompt({ ...request, asset: openingCandidateTitlesPrompt })
+          : await runStructuredPrompt({ ...request, asset: titleGenerationPrompt });
 
         const rawTitles = extractRawTitlesFromPayload(payload.output);
         const titles = collectUniqueSuggestions(rawTitles, count, blockedTitles, {
           preserveOrder: primarySelection,
           enforceFrameDiversity: !primarySelection,
+          minTitleLength: primarySelection ? 2 : 4,
         });
 
         if (isBetterBatch(bestEffortTitles, titles)) {

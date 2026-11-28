@@ -65,8 +65,8 @@ class BookAnalysisServiceFacade {
     return this.commandService.copyAnalysis(analysisId);
   }
 
-  rebuildAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
-    return this.commandService.rebuildAnalysis(analysisId);
+  rebuildAnalysis(analysisId: string, regenerateCompleted?: boolean): Promise<BookAnalysisDetail> {
+    return this.commandService.rebuildAnalysis(analysisId, regenerateCompleted);
   }
 
   updateBudget(analysisId: string, budgetTokens: number | null): Promise<BookAnalysisDetail> {

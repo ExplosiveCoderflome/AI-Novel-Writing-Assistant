@@ -38,5 +38,5 @@ export function getBookAnalysisDefaultBudgetTokens(): number {
 }
 
 export function getBookAnalysisCacheSegmentVersion(): number {
-  return readInt(process.env.BOOK_ANALYSIS_CACHE_SEGMENT_VERSION, 1, 1, 1000);
+  return readInt(process.env.BOOK_ANALYSIS_CACHE_SEGMENT_VERSION, 2, 2, 1000);
 }

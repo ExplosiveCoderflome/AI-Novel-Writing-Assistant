@@ -41,6 +41,7 @@ for(const styled of [false,true])test(`readonly patch request retains the native
  const built=kernel.buildKernelPatchPromptRequest(value),native=await capturePatch(value);
  assert.deepEqual(built,native);assert.equal(built.promptInput.chapterContent,'阿青交出钥匙。');assert.equal(built.options.maxTokens,4200);assert.equal(built.options.temperature,0.45);
  if(styled){const protection=JSON.parse(built.promptInput.styleProtection);
+  assert.equal(protection.wholeChapterTouchedRatioMax,0.45);assert.equal(protection.wholeChapterAddedRatioMax,0.15);
   assert.deepEqual(protection.allowedIssueIds,['voice-gap','audit-1','plot-gap','must_preserve:钥匙归属']);assert.deepEqual(protection.protectedTerms,['阿青']);
   assert.deepEqual(protection.reportOnly.map(x=>x.issueCode),['report-only']);assert.ok(built.contextBlocks.some(block=>block.content.includes('钥匙只能交出一次')));
  }else assert.equal(built.promptInput.styleProtection,undefined);

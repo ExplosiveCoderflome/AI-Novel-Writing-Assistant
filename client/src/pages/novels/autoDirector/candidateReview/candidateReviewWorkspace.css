@@ -1,0 +1,128 @@
+.candidate-workspace {
+  container: opening-workspace / inline-size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.candidate-workspace-columns { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); }
+.candidate-reading, .candidate-inspector { min-height: 0; }
+.candidate-reading { overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.candidate-inspector { container-type: inline-size; display: flex; flex-direction: column; }
+.candidate-inspector .agent-conversation { flex: 1; }
+.candidate-inspector .agent-heading > div { flex: 1; min-width: 0; }
+.candidate-inspector .agent-mark, .candidate-inspector .agent-refresh { flex-shrink: 0; }
+.candidate-inspector .agent-feed { overflow-y: auto; overscroll-behavior-y: contain; scrollbar-gutter: stable; }
+.candidate-context-select { display: block; width: 100%; margin-top: .35rem; padding: .35rem .5rem; border: 1px solid hsl(var(--input)); border-radius: .4rem; font-size: .875rem; color: hsl(var(--foreground)); background: hsl(var(--background)); text-overflow: ellipsis; }
+.candidate-context-select:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+.candidate-inspector .agent-welcome { padding-block: .5rem 1rem; }
+.candidate-inspector .agent-welcome h4 { max-width: none; font-family: inherit; font-size: .9375rem; line-height: 1.5; font-weight: 600; letter-spacing: normal; }
+.candidate-inspector .agent-welcome > p { margin-block: .5rem 1rem; color: hsl(var(--foreground)); }
+.candidate-inspector .agent-starters button { font-size: .875rem; }
+.candidate-pane-switch { display: flex; justify-content: flex-end; gap: .25rem; margin-block-end: .5rem; }
+@container opening-workspace (width < 46rem) {
+  .candidate-workspace-columns[data-pane="candidates"] > .candidate-inspector,
+  .candidate-workspace-columns[data-pane="assistant"] > .candidate-reading { display: none; }
+}
+@container opening-workspace (min-width: 46rem) {
+  .candidate-pane-switch { display: none; }
+  .candidate-workspace-columns { --show-dividers: block; grid-template-columns: var(--workspace-tracks); column-gap: var(--workspace-gap); }
+}
+.candidate-batches { container: candidate-list / inline-size; overflow-wrap: anywhere; }
+.candidate-round, .candidate-manuscript { max-width: 54rem; }
+.candidate-round { padding-block-end: 1rem; }
+.candidate-round h3 { font-size: .9375rem; font-weight: 600; }
+.candidate-round p, .candidate-byline { font-size: .8125rem; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.candidate-round nav { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; margin-top: .375rem; }
+.candidate-round nav button { padding-block: .375rem; color: hsl(var(--primary)); font-size: .875rem; text-align: start; text-decoration: underline; text-decoration-color: hsl(var(--border)); text-underline-offset: .25em; }
+.candidate-round nav button:hover { text-decoration-color: currentColor; }
+.candidate-manuscript {
+  --pigment: #437c74;
+  --ink: color-mix(in srgb, var(--pigment) 57%, hsl(var(--foreground)));
+  --inset: clamp(.875rem, 2cqi, 1.75rem);
+  min-width: 0;
+  padding-block-end: 2rem;
+}
+.candidate-comparison > article:nth-child(even) { --pigment: #896c92; }
+.candidate-manuscript > header {
+  padding: clamp(1rem, 2.4cqi, 2rem) var(--inset);
+  background: color-mix(in srgb, var(--pigment) 8%, hsl(var(--background)));
+}
+.candidate-byline { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .75rem; }
+.candidate-number { color: var(--ink); font-weight: 650; }
+.candidate-length { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.candidate-book-title {
+  width: fit-content;
+  max-width: 100%;
+  margin-block: .75rem 1rem;
+  font: 600 clamp(2rem, 4.2cqi, 3rem)/1.28 "Songti SC", "Noto Serif CJK SC", SimSun, ui-serif, serif;
+  text-wrap: balance;
+}
+.candidate-lead dt { margin-block-end: .35rem; font-size: .8125rem; font-weight: 600; color: var(--ink); }
+.candidate-lead dd { max-width: 36em; font-size: clamp(1rem, 1.6cqi, 1.1875rem); line-height: 1.7; font-weight: 550; white-space: pre-line; }
+.candidate-discussing { display: inline-flex; align-items: center; gap: .3rem; color: var(--ink); font-size: .75rem; }
+.candidate-workspace[data-next-round] .candidate-discussing { display: none; }
+.candidate-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+  margin-top: .875rem;
+  color: var(--ink);
+  font-size: .8125rem;
+  line-height: 1.5;
+}
+.candidate-keywords > li { max-width: 100%; }
+.candidate-keywords > li:not(:last-child)::after { content: ""; display: inline-block; margin-inline-start: .75rem; height: .65em; border-inline-end: 1px solid currentColor; opacity: .4; }
+.candidate-fields { display: grid; gap: .875rem; font-size: .9375rem; line-height: 1.8; }
+.candidate-fields[hidden] { display: none; }
+.candidate-fields > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .125rem 1rem; }
+.candidate-fields dt { flex: 0 0 6rem; font-size: .875rem; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.candidate-fields dd { flex: 1 1 29rem; min-width: 0; max-width: 44em; white-space: pre-line; }
+.candidate-manuscript > .candidate-fields { padding-inline: var(--inset); gap: 0; }
+.candidate-manuscript > .candidate-fields > div { display: block; padding-block-start: 1rem; }
+.candidate-manuscript > .candidate-fields dt { margin-block-end: .25rem; font-size: .875rem; font-weight: 650; color: var(--ink); }
+.candidate-story-notes, .candidate-title-options, .candidate-decision { margin-inline: var(--inset); }
+.candidate-story-notes { margin-top: 1.25rem; padding-top: 1rem; border-block-start: 1px solid hsl(var(--border) / .65); }
+.candidate-story-notes > button { display: flex; align-items: center; gap: .5rem; width: fit-content; font-size: .9375rem; font-weight: 600; }
+.candidate-story-notes > button[aria-expanded="true"] svg { transform: rotate(180deg); }
+.candidate-story-notes .candidate-fields { margin-top: .875rem; }
+.candidate-story-notes dd { color: color-mix(in srgb, hsl(var(--foreground)) 78%, hsl(var(--muted-foreground))); }
+.candidate-decision { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 1.25rem; margin-top: 1.25rem; }
+.candidate-round :focus-visible, .candidate-manuscript :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+@container candidate-list (min-width: 52rem) {
+  .candidate-round { max-width: none; }
+  .candidate-comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: clamp(1rem, 2.5cqi, 2.5rem); }
+  .candidate-comparison > article { max-width: none; }
+  .candidate-comparison > article:only-child { grid-column: 1 / -1; max-width: 54rem; }
+
+  @supports (grid-template-rows: subgrid) {
+    /* A missing field leaves its named row available to the other story in this pair. */
+    .candidate-comparison {
+      grid-template-rows:
+        [byline] auto [title] auto [lead] auto [keywords] auto
+        [hookStrategy] auto [progressionLoop] auto
+        [notes] auto [plannedDirection] auto [logline] auto [coreConflict] auto
+        [sellingPoint] auto [protagonistPath] auto [positioning] auto
+        [endingDirection] auto [whyItFits] auto [platform] auto [foundation] auto
+        [titleOptions] auto [decision] auto [end];
+    }
+    .candidate-comparison > article,
+    .candidate-comparison > article > header,
+    .candidate-comparison .candidate-story-notes,
+    .candidate-comparison .candidate-fields:not([hidden]) { display: grid; grid-template-rows: subgrid; row-gap: 0; }
+    .candidate-comparison > article { grid-row: 1 / -1; }
+    .candidate-comparison > article > header { grid-row: byline / hookStrategy; align-items: start; }
+    .candidate-comparison .candidate-byline { grid-row: byline; }
+    .candidate-comparison .candidate-book-title { grid-row: title; }
+    .candidate-comparison .candidate-lead { grid-row: lead; }
+    .candidate-comparison .candidate-keywords { grid-row: keywords; }
+    .candidate-comparison > article > .candidate-fields { grid-row: hookStrategy / notes; }
+    .candidate-comparison .candidate-story-notes { grid-row: notes / titleOptions; }
+    .candidate-comparison .candidate-story-notes > button { grid-row: notes; align-self: start; }
+    .candidate-comparison .candidate-story-notes > .candidate-fields { grid-row: plannedDirection / titleOptions; }
+    .candidate-comparison .candidate-fields > div { grid-row: var(--candidate-field-row); align-self: start; }
+    .candidate-comparison .candidate-story-notes .candidate-fields > div { padding-bottom: .875rem; }
+    .candidate-comparison .candidate-title-options { grid-row: titleOptions; align-self: start; }
+    .candidate-comparison .candidate-decision { grid-row: decision; align-self: start; }
+  }
+}

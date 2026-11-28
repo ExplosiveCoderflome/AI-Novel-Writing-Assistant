@@ -18,6 +18,8 @@ function readRuntimeConfig(): unknown {
 
 contextBridge.exposeInMainWorld("__AI_NOVEL_RUNTIME__", readRuntimeConfig());
 contextBridge.exposeInMainWorld("__AI_NOVEL_DESKTOP__", {
+  getDismissedOnboardingTips: (): Promise<string[]> => ipcRenderer.invoke("desktop:get-dismissed-onboarding-tips"),
+  dismissOnboardingTip: (storageKey: string): Promise<string[]> => ipcRenderer.invoke("desktop:dismiss-onboarding-tip", storageKey),
   getBootstrapSnapshot: () => ipcRenderer.invoke("desktop:get-bootstrap-snapshot"),
   getDataImportSnapshot: () => ipcRenderer.invoke("desktop:get-data-import-snapshot"),
   subscribeBootstrapState: (listener: (snapshot: unknown) => void) => {

@@ -6,8 +6,8 @@ const repository = "AI-Novel-Writing-Assistant";
 const releaseBase = `https://github.com/${owner}/${repository}/releases/download`;
 const platforms = ["setup-x64.exe", "portable-x64.exe", "mac-arm64.dmg", "mac-x64.dmg", "linux-x86_64.AppImage"];
 const languages = [
-  { prefix: "mintlify-docs", summaryKey: "zh", downloadCopy: /(?<=下载 \*\*)v\d+\.\d+\.\d+(?=\*\*)/g },
-  { prefix: "mintlify-docs/en", summaryKey: "en", downloadCopy: /(?<=download \*\*)v\d+\.\d+\.\d+(?=\*\*)/g },
+  { prefix: "mintlify-docs", summaryKey: "zh", homepageLabels: 1, downloadCopy: /(?<=下载 \*\*)v\d+\.\d+\.\d+(?=\*\*)/g },
+  { prefix: "mintlify-docs/en", summaryKey: "en", homepageLabels: 2, downloadCopy: /(?<=download \*\*)v\d+\.\d+\.\d+(?=\*\*)/g },
 ];
 const homepageBadge = /v\d+\.\d+\.\d+(?=\s*·\s*(?:开源|AGPL-3\.0))/g;
 
@@ -171,8 +171,8 @@ async function main(argv) {
   const published = Date.parse(release.published_at);
   if (!Number.isFinite(published)) throw new Error(`Release ${tag} has no valid publication date.`);
   const currentTags = new Set();
-  const changes = languages.flatMap(({ prefix, downloadCopy }) => [
-    planChange(root, `${prefix}/index.mdx`, (source) => replaceVersionCopy(source, homepageBadge, tag, 2, currentTags)),
+  const changes = languages.flatMap(({ prefix, downloadCopy, homepageLabels }) => [
+    planChange(root, `${prefix}/index.mdx`, (source) => replaceVersionCopy(source, homepageBadge, tag, homepageLabels, currentTags)),
     planChange(root, `${prefix}/installation.mdx`, (source) => updateInstallation(source, tag, downloads, downloadCopy, currentTags)),
   ]);
   const newerTag = [...currentTags].find((currentTag) => isNewer(currentTag, tag));

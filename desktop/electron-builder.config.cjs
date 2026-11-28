@@ -114,6 +114,8 @@ module.exports = {
   linux: {
     icon: "builder/app-icon.png",
     target: [{ target: "AppImage", arch: ["x64"] }],
+    // The ELF loader follows Sharp's RPATH on disk, not inside app.asar.
+    asarUnpack: ["**/node_modules/@img/sharp-libvips-linux-*/lib/**"],
     artifactName: `${artifactBasename}-\${version}-linux-\${arch}.\${ext}`,
     category: "Office",
   },

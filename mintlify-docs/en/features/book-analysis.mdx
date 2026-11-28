@@ -75,6 +75,8 @@ Breakdown requires a source text that can be analyzed. Common sources fall into 
 
 The longer the text, the higher the analysis time and token consumption usually are. For first-time use, it is recommended to first select a small chapter range or use "Quick Breakdown" to confirm the results meet expectations before doing a full breakdown.
 
+One breakdown can process up to 12 source segments of up to 16,000 characters each. If your selection is too long to cover in one run, choose a smaller chapter range or import and analyze the source in batches.
+
 If you want to use capabilities such as publishing to the Knowledge Base, evidence jumping, and character image evolution, ensure the Knowledge Base and model configuration are available first.
 
 ## Creating a Breakdown Analysis
@@ -155,6 +157,10 @@ In "Section Analysis," prioritize reading the key conclusions of each section. K
 If you want to check the source of a conclusion, you can view "Section Evidence." Evidence is bound to corresponding conclusions as much as possible; clicking it shows excerpts. Evidence with chapter positioning can be used with "Dual Pane" to view the original chapter and highlighted position.
 
 "Dual Pane" is suitable for use on wide screens: the original text on the left, breakdown conclusions on the right. This mode is clearer when reading reference works, checking key evidence, or diagnosing your own manuscript.
+
+Save edits in the section editor to use them for reference-based book creation, sequels, and future publications. Publish again to update a copy in the Knowledge Base.
+
+After regenerating an edited section, open **Compare AI Version** to read both versions. **Use AI Version** fills the draft with the generated text. Select **Save** to make it active.
 
 <Tip>
   Breakdown conclusions are read directly by subsequent workflows. When you find a conclusion inaccurate, fixing or redoing that section before using it for book creation or sequel writing is much less effort than correcting course after starting the book.
@@ -287,14 +293,16 @@ Diagnosis results do not automatically modify the original novel, nor do they di
 
 Breakdown is a long task, especially full-text long novels, full breakdowns, deep character profiles, and image evolution, all of which increase model calls.
 
-If the budget is exhausted, the task stops at the current boundary and preserves already completed sections. You can:
+Usage includes newly generated source notes, breakdown sections, AI optimization previews, character profiles, and image evolution model calls. Reusing saved notes adds no usage.
+
+When the budget runs out, the task keeps saved notes and sections. Calls already in flight may still add usage. You can:
 
 - View budget usage and stop reason.
 - Adjust the breakdown budget.
-- Use "Expand Budget and Continue" to proceed with unfinished sections.
+- Use "Expand Budget and Continue" to complete missing notes and unfinished sections.
 - Go to the Run History to view failed, canceled, or running tasks.
 
-When regenerating or continuing, successfully completed sections are usually not arbitrarily overwritten. When encountering problems, it is not recommended to immediately rebuild the entire analysis; first check whether you can continue or only redo a local section.
+Continuing unfinished sections or expanding the budget preserves successful sections and their recorded usage. To redo all unfrozen sections and start a new usage count, choose **Regenerate all sections** in the maintenance menu.
 
 ## Recommended Usage Paths
 

@@ -97,12 +97,35 @@ export class PostGenerationStyleReviewRunner {
       };
     }
 
+    const writeContext = input.contextPackage.chapterWriteContext;
+    const factLines: string[] = [];
+    if (writeContext?.chapterMission?.objective) {
+      factLines.push(`本章核心目标：${writeContext.chapterMission.objective}`);
+    }
+    if (writeContext?.characterHardFacts?.length) {
+      factLines.push(
+        "登场人物硬事实：",
+        ...writeContext.characterHardFacts.slice(0, 6).map((item) => (
+          `- ${item.name}：${[item.currentState, item.currentGoal, item.currentLocation].filter(Boolean).join(" | ") || item.role}`
+        )),
+      );
+    }
+    if (writeContext?.previousChapterTail) {
+      factLines.push(`上章尾段承接：${writeContext.previousChapterTail.slice(-180)}`);
+    }
+    const factContextText = factLines.filter(Boolean).join("\n");
+    const protectedTerms = (writeContext?.characterHardFacts ?? [])
+      .map((item) => item.name.trim())
+      .filter(Boolean);
+
     try {
       const rewritten = await this.deps.styleRewriteService.rewrite({
         content: input.content,
         novelId: input.novelId,
         chapterId: input.chapterId,
         taskStyleProfileId: input.request.taskStyleProfileId,
+        ...(factContextText ? { factContextText } : {}),
+        ...(protectedTerms.length > 0 ? { protectedTerms } : {}),
         issues: rewritableIssues.map((item) => ({
           ruleName: item.ruleName,
           excerpt: item.excerpt,

@@ -1,3 +1,4 @@
+import { WorkspaceColumns } from "@/components/layout/resizableWorkspace";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -177,7 +178,9 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-4 xl:grid xl:h-[calc(100dvh-8rem)] xl:grid-cols-[300px_minmax(0,1fr)_332px] xl:items-stretch">
+        <WorkspaceColumns layoutId="chapter-execution" className="flex flex-col gap-4 xl:h-[calc(100dvh-8rem)] xl:items-stretch xl:workspace-split"
+          left={{ label: "调整章节队列宽度", initial: "300px", min: 176 }}
+          right={{ label: "调整章节资料与执行台宽度", initial: "332px", min: 248 }}>
           <div className="h-full min-h-0">
             <ChapterExecutionQueueCard
               chapters={filteredChapters}
@@ -335,7 +338,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               </TabsContent>
             </Tabs>
           </div>
-        </div>
+        </WorkspaceColumns>
       </CardContent>
       </Card>
     </div>

@@ -72,24 +72,65 @@ import { NovelWorkspace } from './src/pages/directorNext/workspace';
 import { previewBook } from './src/pages/directorNext/workspace/previewBook';
 import { ResourceDirectory } from './src/pages/directorNext/workspace/ResourceDirectory';
 import { PlanningDetail } from './src/pages/directorNext/workspace/PlanningDetail';
+import { PlanningOverview } from './src/pages/directorNext/workspace/assets/PlanningOverview';
+import { VolumeEmphasisProvider, VolumeSummaryText } from './src/pages/directorNext/workspace/reading/VolumeSummaryEmphasis';
 export const markup = renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}><NovelWorkspace book={previewBook} preview /></QueryClientProvider>);
 const imported = {...previewBook.chapters[0], id:'imported',order:3,title:'大纲导入章',content:'已存正文'};
 const book = {...previewBook, chapters:[...previewBook.chapters, imported],planning:{
-  volumes:[{id:'v',sortOrder:1,title:'卷标题',chapters:[
+  strategyPlan:{notes:'整书布局原文'},
+  volumes:[{id:'v',sortOrder:1,title:'卷标题',summary:'本卷主线原文',mainPromise:'本卷期待原文',chapters:[
     {id:'imported-plan',volumeId:'v',chapterOrder:3,chapterId:'imported',beatKey:null,title:'大纲导入章'},
     {id:'p',volumeId:'v',chapterOrder:4,beatKey:'b',title:'未写章',summary:'计划摘要'}
   ]}],
   beatSheets:[{volumeId:'v',beats:[{key:'b',label:'开篇',title:'节奏标题',chapterSpanHint:'1-4章',summary:'节奏目标',mustDeliver:['兑现目标']}]}]
 }};
+export const overview = renderToStaticMarkup(<PlanningOverview book={book} onSelect={()=>{}}/>);
+const cache = new QueryClient();
+const source = '队长刚签新人，首秀便遭挖角，只好重谈合同。';
+const markedBook = {...book, planning:{...book.planning, volumes:[{...book.planning.volumes[0],summary:source}]}};
+cache.setQueryData(['director-volume-emphasis', book.novel.id, [['v',source]]],
+  [{id:'v',summary:source,conflict:'遭挖角',turn:'重谈合同'}]);
+export const marked = renderToStaticMarkup(<QueryClientProvider client={cache}><VolumeEmphasisProvider book={markedBook}>
+  <PlanningOverview book={markedBook}/><span aria-label="修改后的梗概"><VolumeSummaryText id="v" text={source+'后来。'}/></span>
+</VolumeEmphasisProvider></QueryClientProvider>);
+export const legacy = renderToStaticMarkup(<PlanningOverview book={{...previewBook,planning:undefined,materials:{...previewBook.materials,volumes:[{...previewBook.materials.volumes[0],summary:null,mainPromise:'仅有的本卷说明'}]}}}/>);
+export const directoryFor = selected => renderToStaticMarkup(<ResourceDirectory book={book} selected={selected} onSelect={()=>{}}/>);
 export const planned = renderToStaticMarkup(<><ResourceDirectory book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/><PlanningDetail book={book} selected={{kind:'beat',id:'b',volumeId:'v'}} onSelect={()=>{}}/></>);`, resolveDir: clientDir, loader: 'tsx' },
       bundle: true, platform: 'node', format: 'esm', packages: 'external',
       plugins: [nodeStyles],
       alias: { '@': path.join(clientDir, 'src') }, define: { 'import.meta.env': '{}' }, outfile: output,
     });
-    const { markup, planned } = await import(pathToFileURL(output).href);
+    const { markup, planned, overview, legacy, marked, directoryFor } = await import(pathToFileURL(output).href);
+    const { JSDOM } = createRequire(new URL('../../site/package.json', import.meta.url))('jsdom');
+    assert.match(marked, /队长刚签新人，首秀便<strong[^>]*>遭挖角<\/strong>，只好<strong[^>]*>重谈合同<\/strong>。/);
+    assert.match(marked, /修改后的梗概">队长刚签新人，首秀便遭挖角，只好重谈合同。后来。<\/span>/);
+    assert.match(overview, /<details(?![^>]*\bopen\b)[^>]*><summary[^>]*>全书推进思路<\/summary>.*?整书布局原文/s);
+    assert.match(overview, /第 3—4 章.*?查看卷纲：卷标题.*?<p[^>]*>本卷主线原文<\/p>.*?<details(?![^>]*\bopen\b)[^>]*>.*?本卷期待原文/s);
+    assert.match(legacy, /3 章.*?<details[^>]*\bopen\b[^>]*>.*?仅有的本卷说明/s);
     for (const label of ['卷标题','节奏标题','节奏目标','兑现目标','未写章','待写正文']) assert.ok(planned.includes(label),label);
-    assert.match(planned, /查看卷纲<\/span><\/button><button[^>]*><span[^>]*>3\. 大纲导入章<\/span>/);
-    assert.match(planned, /节奏标题<\/span>.*?4\. 未写章/);
+    const directory = JSDOM.fragment(directoryFor({kind:'plan',id:'p'}));
+    const saved = directory.querySelector('button[aria-label^="第 3 章 · 大纲导入章"]');
+    const unwritten = directory.querySelector('button[aria-label="第 4 章 · 未写章，待写正文"]');
+    const volume = saved.closest('details');
+    const beat = unwritten.closest('details');
+    assert.equal(beat.parentElement.closest('details'), volume);
+    assert.match(volume.querySelector('summary').textContent, /卷 1.*卷标题/);
+    assert.match(beat.querySelector('summary').textContent, /节奏标题.*第 4 章/);
+    assert.ok(volume.open && beat.open);
+    assert.equal(unwritten.getAttribute('aria-current'), 'true');
+    for (const [target, group, entry] of [
+      [{kind:'world_map'},'故事与世界','世界地图'],
+      [{kind:'character_graph'},'角色资料','角色关系图'],
+      [{kind:'character',id:'lin'},'角色资料','林渡'],
+      [{kind:'foreshadowing'},'伏笔与背包','伏笔'],
+      [{kind:'character_resources',id:'lin'},'伏笔与背包','背包与资源'],
+    ]) {
+      const assets = JSDOM.fragment(directoryFor(target)).querySelector('section[aria-label="本书资料"]');
+      const expanded = assets.querySelectorAll('details[open]');
+      assert.equal(expanded.length, 1);
+      assert.ok(expanded[0].querySelector('summary').textContent.includes(group));
+      assert.ok(expanded[0].querySelector('button[aria-current="true"]').textContent.includes(entry));
+    }
     assert.match(planned, /未归卷章节/);
     assert.doesNotMatch(planned, /待归类章节/);
     for (const label of ['故事规划', '世界设定', '世界地图', '角色关系图', '角色时间线', '角色', '卷纲', '章节', '林渡醒来时', '快速查看角色', '钟声之后']) assert.ok(markup.includes(label), label);

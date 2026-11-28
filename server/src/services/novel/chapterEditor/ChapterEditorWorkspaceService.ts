@@ -20,6 +20,8 @@ import { NovelCoreService } from "../NovelCoreService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { readActiveManuscriptChapters } from "../../../modules/novel/manuscript/application/ManuscriptIsolation";
 import { prisma } from "../../../db/prisma";
+import { StyleBindingService } from "../../styleEngine/StyleBindingService";
+import { buildWriterStyleContractText } from "../../styleEngine/styleContractText";
 import {
   buildAnchorRangeFromParagraphBounds,
   buildCharacterStateSummary,
@@ -232,12 +234,13 @@ export class ChapterEditorWorkspaceService {
   ) {}
 
   async loadContext(novelId: string, chapterId: string): Promise<ChapterEditorWorkspaceContext> {
-    const [novel, volumeWorkspace, chapterPlan, auditReports, latestStateSnapshotRaw] = await Promise.all([
+    const [novel, volumeWorkspace, chapterPlan, auditReports, latestStateSnapshotRaw, resolvedStyle] = await Promise.all([
       this.core.getNovelById(novelId),
       this.volumeService.getVolumes(novelId).catch(() => null),
       this.core.getChapterPlan(novelId, chapterId).catch(() => null),
       this.core.listChapterAuditReports(novelId, chapterId).catch(() => []),
       this.core.getLatestStateSnapshot(novelId).catch(() => null),
+      new StyleBindingService().resolveForGeneration({ novelId, chapterId }).catch(() => null),
     ]);
 
     if (!novel) {
@@ -269,7 +272,14 @@ export class ChapterEditorWorkspaceService {
     const nextChapter = activeChapters
       ? effectiveChapters[effectiveOrder] ?? null
       : effectiveChapters.find((item) => item.order === chapter.order + 1) ?? null;
-    const styleSummary = buildStyleSummary(novel);
+    const baseStyleSummary = buildStyleSummary(novel);
+    const compiledStyleContract = buildWriterStyleContractText(
+      resolvedStyle?.compiledBlocks?.contract ?? null,
+      novel.narrativePov,
+    );
+    const styleSummary = [baseStyleSummary, compiledStyleContract]
+      .filter((item) => Boolean(item && item.trim()))
+      .join("\n\n");
     const chapterSummary = buildChapterSummary(chapter, normalizedContent);
     const openAuditIssues = auditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open"));
     const activePlotThreads = buildActivePlotThreads(chapterPlan, latestStateSnapshot, location.volume);

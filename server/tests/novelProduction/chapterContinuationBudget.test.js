@@ -18,6 +18,13 @@ test('adequate drafts and unspecified or invalid ranges need no paid extension',
   assert.equal(buildContinuationBudget(2315, { targetWordCount: null, minWordCount: null, maxWordCount: null }), null);
 });
 
+test('long continuation allowance grows with the remaining chapter range', () => {
+  const { buildContinuationBudget } = loadRuntimeSource('writing/ContinuationBudget.ts', {});
+  const budget = buildContinuationBudget(0, { targetWordCount: 10000, minWordCount: 8500, maxWordCount: 11500 });
+  assert.equal(budget.maxAdditionalCharacters, 11500);
+  assert.equal(budget.maxOutputTokens, 14439);
+});
+
 function graphFixture(output, streaming = false) {
   const calls = [], warnings = [], progress = [];
   const { ChapterWritingGraph } = loadRuntimeSource('../chapterWritingGraph.ts', {
@@ -35,6 +42,7 @@ function graphFixture(output, streaming = false) {
       buildChapterWriterContextBlocks: () => [], sanitizeWriterContextBlocks: blocks => ({ allowedBlocks: blocks, removedBlockIds: [] }),
     },
     '../../prompting/prompts/novel/chapterWriter.prompts': { chapterWriterPrompt: {} },
+    '../../llm/modelRouter': { resolveModel: async () => ({ routeMaxTokens: undefined, maxTokens: 16384 }) },
     './NovelContinuationService': { NovelContinuationService: class {} },
     './runtime/chapterEmptyContentError': {},
     '../../db/prisma': { prisma: { novel: { findUnique: async () => null } } },
@@ -82,4 +90,5 @@ test('initial Writer request uses the resolved mission target even when chapter 
   assert.equal(h.calls[0].promptInput.targetWordCount, 1800);
   assert.equal(h.calls[0].promptInput.minWordCount, 1530);
   assert.equal(h.calls[0].promptInput.maxWordCount, 2070);
+  assert.equal(h.calls[0].options.maxTokens, undefined);
 });

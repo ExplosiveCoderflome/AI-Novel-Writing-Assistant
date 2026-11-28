@@ -1,14 +1,23 @@
+import { prisma } from "../../../../db/prisma";
+import { generateVolumeBeatProposal } from "../application/volumeBeatProposal";
+import { OutlineRepository } from "../infrastructure/OutlineRepository";
+import { readLocalReviews, localReviewScope } from "../conversation/localReview";
+import { streamOutlineReply } from "./outlineReplyStream";
+import { OutlineWorkbenchConversation, outlineConversationScope } from "../conversation/OutlineWorkbenchConversation";
 import { Router } from "express";
 import feedbackRoutes from "../feedback/http/feedbackRoutes";
+import characterImpactRoutes from "../characterImpact/http";
 import { z, ZodError } from "zod";
 import { outlineRetrySetupSchema } from "@ai-novel/shared/types/outlineOpenBook";
 import { OutlineOpenBookError } from "../openBook";
 const openBookError = (e: unknown) => e instanceof ZodError ? new OutlineOpenBookError("OUTLINE_OPEN_INVALID", e.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("；"), 422) : e;
-import { outlineImportPreviewService, outlineProjectService, outlineProposalService, outlineOpenBookService, outlinePolicyService } from "..";
+import { outlineImportPreviewService, outlineProjectService, outlineProposalService, outlineOpenBookService, outlinePolicyService, OutlineVersionConflict } from "..";
+import { AppError } from "../../../../middleware/errorHandler";
 import { exportOutlineJson, exportOutlineMarkdown } from "../application/OutlineTransferService";
 
 const router = Router();
 router.use("/:id/feedback", feedbackRoutes);
+router.use("/:id/character-impact", characterImpactRoutes);
 router.post("/:id/open-book/preview", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.preview(String(req.params.id), req.body)}); } catch (e) { next(openBookError(e)); } });
 router.post("/:id/open-book", async (req, res, next) => { try { const data = await outlineOpenBookService.confirm(String(req.params.id), req.body); res.status(data.replayed ? 200 : 201).json({success: true, data}); } catch (e) { next(openBookError(e)); } });
 router.patch("/:id/book-binding/policy", async (req, res, next) => { try { res.json({success: true, data: await outlinePolicyService.update(String(req.params.id), req.body)}); } catch (e) { next(openBookError(e)); } });
@@ -16,6 +25,43 @@ router.get("/:id/book-binding", async (req, res, next) => { try { res.json({succ
 router.post("/:id/book-binding/retry-setup", async (req, res, next) => { try { res.json({success: true, data: await outlineOpenBookService.retrySetup(String(req.params.id), outlineRetrySetupSchema.parse(req.body).expectedPolicyVersion)}); } catch (e) { next(openBookError(e)); } });
 const id = z.string().min(1);
 const route = (handler: (req: any, res: any) => Promise<unknown>, status = 200) => async (req: any, res: any, next: any) => { try { res.status(status).json({ success: true, data: await handler(req, res) }); } catch (error) { next(error); } };
+const conversation = new OutlineWorkbenchConversation(prisma);
+const turnInput = z.object({ requestId: z.string().min(1).max(100), requestText: z.string().trim().min(1).max(6000),
+  action: z.literal("generate_initial").optional(), baseVersion: z.number().int().positive(), parentResultId: z.string().min(1).optional() });
+router.post("/:id/volumes/:volumeId/beat-proposals", route(async req => {
+  const input = z.object({baseVersion:z.number().int().positive(), targetChapterCount:z.number().int().min(1).max(2000)}).parse(req.body);
+  return generateVolumeBeatProposal(new OutlineRepository(prisma), id.parse(req.params.id), id.parse(req.params.volumeId), input.baseVersion, input.targetChapterCount);
+}));
+for (const kind of ["volume", "chapter"] as const) {
+  const path = `/:id/${kind}s/:nodeId/conversation`;
+  const target = (nodeId: unknown) => ({ kind, id: id.parse(nodeId) });
+  router.get(path, route(req => readLocalReviews(prisma, id.parse(req.params.id), target(req.params.nodeId))));
+  router.post(path + "/turns", route(req => conversation.send(id.parse(req.params.id), {
+    ...turnInput.omit({ action: true }).parse(req.body), target: target(req.params.nodeId),
+  })));
+  router.post(path + "/interrupt", route(async req => {
+    const { turnId } = z.object({ turnId: id }).parse(req.body);
+    await conversation.interrupt(id.parse(req.params.id), turnId, target(req.params.nodeId));
+    return { turnId };
+  }));
+  router.get(path + "/turns/:turnId/stream", async (req, res, next) => {
+    try {
+      const projectId = id.parse(req.params.id);
+      await streamOutlineReply(res, projectId, localReviewScope(projectId, target(req.params.nodeId)), id.parse(req.params.turnId));
+    } catch (error) { next(error); }
+  });
+}
+router.get("/:id/conversation/turns/:turnId/stream", async (req, res, next) => {
+  try { await streamOutlineReply(res, req.params.id, outlineConversationScope(req.params.id), req.params.turnId); }
+  catch (error) { next(error); }
+});
+router.get("/:id/conversation", route(req => conversation.read(id.parse(req.params.id))));
+router.post("/:id/conversation/turns", route(req => conversation.send(id.parse(req.params.id), turnInput.parse(req.body))));
+router.post("/:id/conversation/interrupt", route(async req => {
+  const { turnId } = z.object({ turnId: id }).parse(req.body);
+  await conversation.interrupt(id.parse(req.params.id), turnId);
+  return { turnId };
+}));
 router.get("/", route(async req => outlineProjectService.list()));
 router.post("/", route(async req => outlineProjectService.create(z.object({ title: z.string().min(1).max(200).optional() }).parse(req.body).title), 201));
 router.post("/import/preview", route(async req => {
@@ -43,7 +89,8 @@ router.post("/:id/revisions/:revisionId/restore", route(async req => outlineProj
 router.patch("/:id", route(async req => {
   const body = z.object({ title: z.string().min(1).max(200), expectedVersion: z.number().int() }).parse(req.body);
   const current = await outlineProjectService.get(id.parse(req.params.id));
-  if (!current || current.currentVersion !== body.expectedVersion) throw new Error("OUTLINE_VERSION_CONFLICT");
+  if (!current) throw new AppError("大纲项目不存在", 404);
+  if (current.currentVersion !== body.expectedVersion) throw new OutlineVersionConflict();
   if (!current.document) throw new Error("大纲内容不存在");
   const document = { ...current.document, story: { ...current.document.story, title: body.title } };
   return outlineProjectService.save(current.id, body.expectedVersion, document);
@@ -55,6 +102,7 @@ router.post("/:id/proposals/generate", route(async req => {
   const body = z.object({ kind: z.enum(["edit", "initial_generation"]), requestText: z.string().min(1), scope: z.string().optional() }).parse(req.body);
   return outlineProposalService.generate(id.parse(req.params.id), body);
 }));
+router.get("/:id/proposals", route(req => outlineProposalService.listPending(id.parse(req.params.id))));
 router.get("/:id/proposals/:proposalId", route(async req => outlineProposalService.get(id.parse(req.params.id), id.parse(req.params.proposalId))));
 router.post("/:id/proposals/:proposalId/apply", route(async req => {
   const body = z.object({ operationIds: z.array(z.string()).optional() }).parse(req.body);

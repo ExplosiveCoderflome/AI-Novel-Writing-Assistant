@@ -240,6 +240,11 @@ export const updateChapterSchema = z.object({
   riskFlags: z.string().nullable().optional(),
 });
 
+export const chapterProvenanceSchema = z.object({
+  locked: z.boolean(),
+  expectedUpdatedAt: z.iso.datetime().optional(),
+});
+
 export const characterSchema = z.object({
   name: z.string().trim().min(1, "角色名称不能为空。"),
   role: z.string().trim().min(1, "角色定位不能为空。"),
@@ -574,3 +579,14 @@ export const cursorContinuationPreviewSchema = z.object({
 });
 
 export const chapterExecutionContractSchema = chapterRuntimeRequestSchema;
+
+export const humanStyleFeedbackSchema = z.object({
+  excerpt: z.string().trim().min(2, "请先选中至少两个字的正文片段。").max(1200),
+  preferredText: z.string().trim().max(1200).optional(),
+  issueTags: z.array(z.enum(["ai_taste", "padded_filler", "off_voice", "pacing_flat", "custom"])).max(5).default([]),
+  feedbackNote: z.string().trim().max(400).optional(),
+});
+
+export const removeHumanStyleFeedbackSchema = z.object({
+  aiPattern: z.string().trim().min(1, "缺少要移除的反例条目。").max(500),
+});

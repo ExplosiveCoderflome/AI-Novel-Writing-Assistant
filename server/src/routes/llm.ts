@@ -109,6 +109,15 @@ router.get("/model-routes", async (_req, res, next) => {
   }
 });
 
+router.get("/model-routes/connectivity", async (_req, res, next) => {
+  try {
+    const data = await llmConnectivityService.getModelRouteReport();
+    res.json({ success: true, data, message: "读取上次模型检测结果。" } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/model-routes/connectivity", async (_req, res, next) => {
   try {
     const data = await llmConnectivityService.testModelRoutes();

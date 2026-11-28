@@ -84,6 +84,7 @@ export class NovelCoreCrudService {
         title: input.title,
         penName: normalizeOptionalTextForCreate(input.penName),
         directorVersion: input.directorVersion,
+        directorIssuePolicyOverridesJson: input.openingIssuePolicy ? JSON.stringify(input.openingIssuePolicy) : undefined,
         description: input.description,
         targetAudience: normalizeOptionalTextForCreate(input.targetAudience),
         bookSellingPoint: normalizeOptionalTextForCreate(input.bookSellingPoint),
@@ -389,5 +390,9 @@ export class NovelCoreCrudService {
 
   deleteChapter(novelId: string, chapterId: string) {
     return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.deleteChapter(novelId, chapterId));
+  }
+
+  setChapterProvenance(novelId: string, chapterId: string, input: { locked: boolean; expectedUpdatedAt?: string }) {
+    return rejectLegacyManuscriptWrite(prisma as never, novelId).then(() => this.manualChapters.setChapterProvenance(novelId, chapterId, input));
   }
 }

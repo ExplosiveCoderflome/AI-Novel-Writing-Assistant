@@ -3,6 +3,7 @@ import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { shouldResumeBookAnalysisSection } from "../bookAnalysisWorkspaceViewModel";
 
 type BudgetDialogMode = "adjust" | "resume";
 
@@ -30,10 +31,8 @@ function normalizeBudgetInput(value: string, allowUnlimited: boolean): number | 
 
 function buildRecommendedResumeBudget(analysis: BookAnalysisDetail): number {
   const usedTokens = analysis.usedTokens ?? 0;
-  const succeededCount = analysis.sections.filter((section) => section.status === "succeeded").length;
-  const remainingCount = analysis.sections.filter(
-    (section) => !section.frozen && section.status !== "succeeded",
-  ).length;
+  const remainingCount = analysis.sections.filter(shouldResumeBookAnalysisSection).length;
+  const succeededCount = analysis.sections.filter((section) => !section.frozen).length - remainingCount;
   const averageFinishedSectionCost = succeededCount > 0
     ? Math.ceil(usedTokens / succeededCount)
     : 25_000;
@@ -68,11 +67,9 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
   const allowUnlimited = mode === "adjust";
   const parsedBudget = normalizeBudgetInput(budgetInput, allowUnlimited);
   const recommendedResumeBudget = useMemo(() => buildRecommendedResumeBudget(analysis), [analysis]);
-  const retrySectionCount = analysis.sections.filter(
-    (section) => !section.frozen && section.status !== "succeeded",
-  ).length;
-  const succeededSectionCount = analysis.sections.filter((section) => section.status === "succeeded").length;
+  const retrySectionCount = analysis.sections.filter(shouldResumeBookAnalysisSection).length;
   const frozenSectionCount = analysis.sections.filter((section) => section.frozen).length;
+  const succeededSectionCount = analysis.sections.length - frozenSectionCount - retrySectionCount;
   const remainingTokens = typeof parsedBudget === "number" && Number.isFinite(parsedBudget)
     ? parsedBudget - usedTokens
     : null;
@@ -108,8 +105,8 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
       <AppDialogContent
         title={mode === "resume" ? "扩容预算并续跑" : "调整拆书预算"}
         description={mode === "resume"
-          ? "为这次拆书设置新的预算上限，并继续处理未完成的小节。"
-          : "修改预算上限后，累计用量保留，后续小节按新的上限检查。"}
+          ? "设置新的预算上限，复用已保存的原文笔记并继续处理未完成的小节。"
+          : "修改预算上限后，累计用量保留，后续调用按新的上限检查。"}
         className="max-w-xl"
         footer={
           <div className="flex w-full justify-end gap-2">
@@ -189,7 +186,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
             ) : null}
             {mode === "adjust" && analysis.status === "running" ? (
               <div className="text-xs leading-5 text-muted-foreground">
-                调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。
+                降低预算后，已发出的调用仍可完成。下一次生成会检查剩余额度。
               </div>
             ) : null}
             {budgetIsFinite && remainingTokens !== null && remainingTokens < 0 ? (

@@ -6,6 +6,7 @@ import {
   resolveBookAnalysisNextAction,
   summarizeBookAnalysisSections,
 } from "../src/pages/bookAnalysis/bookAnalysisWorkspaceViewModel.ts";
+import { buildSectionDraft, buildSectionUpdate } from "../src/pages/bookAnalysis/bookAnalysis.utils.ts";
 
 function section(overrides = {}) {
   return {
@@ -27,6 +28,16 @@ function analysis(overrides = {}) {
     ...overrides,
   };
 }
+
+test("section saves send body changes only and retain the exact reviewed AI text when adopting it", () => {
+  const savedDraft = buildSectionDraft(section({ editedContent: "手改正文", aiContent: "AI 生成版" }));
+  assert.equal(buildSectionUpdate({ ...savedDraft, notes: "备注" }, savedDraft).editedContent, undefined);
+  assert.equal(buildSectionUpdate({ ...savedDraft, editedContent: "AI 生成版" }, savedDraft).editedContent, "AI 生成版");
+  assert.equal(buildSectionUpdate({ ...savedDraft, editedContent: " " }, savedDraft).editedContent, null);
+
+  const originalAiDraft = buildSectionDraft(section({ aiContent: "旧 AI 生成版" }));
+  assert.equal(buildSectionUpdate({ ...originalAiDraft, frozen: true }, originalAiDraft).editedContent, undefined);
+});
 
 test("successful analyses point directly to readable results", () => {
   const result = resolveBookAnalysisNextAction({

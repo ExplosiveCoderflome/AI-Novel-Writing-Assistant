@@ -50,7 +50,8 @@ export async function resolvePromptContextBlocksForAsset<I, O, R = O>(input: {
     requirements: input.requirements
       ?? derivePromptContextRequirements(input.asset as unknown as PromptAsset<unknown, unknown, unknown>),
     mode: input.mode,
-    maxTokensBudget: input.maxTokensBudget ?? input.asset.contextPolicy.maxTokensBudget,
+    // The runner applies the asset policy after these blocks, fallback blocks and overlays are merged.
+    maxTokensBudget: input.maxTokensBudget,
   });
 
   return {

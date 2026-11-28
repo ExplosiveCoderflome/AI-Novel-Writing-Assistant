@@ -37,6 +37,12 @@ export function assertOutlineWorkspaceCandidate(state: OutlinePlanningState, can
   for (const mapped of m.volumes) {
     const volume = candidate.volumes.find(v => v.id === mapped.volumeId);
     if (!volume) conflict(mapped.nodeId);
+    const beats = state.document.volumes.find(v => v.nodeId === mapped.nodeId)?.beats;
+    if (beats) {
+      const actual = candidate.beatSheets.find(sheet => sheet.volumeId === mapped.volumeId)?.beats;
+      const comparable = (items: typeof actual) => items?.map(b => ({...b, title: b.title && b.title !== b.label ? b.title : null}));
+      if (canonicalJson(comparable(beats)) !== canonicalJson(comparable(actual))) conflict(`${mapped.nodeId}.beats`);
+    }
     if (volume.sortOrder !== m.volumes.indexOf(mapped) + 1) conflict(`${mapped.nodeId}.order`);
     for (const r of policy.rules.filter(r => r.nodeId === mapped.nodeId && volumeFields[r.field] && r.mode !== "fill_missing"))
       if (canonicalJson(text(volume[volumeFields[r.field] as keyof typeof volume])) !== canonicalJson(text(r.value))) conflict(`${r.nodeId}.${r.field}`);
@@ -53,6 +59,7 @@ export function assertOutlineWorkspaceCandidate(state: OutlinePlanningState, can
     const chapter = volume?.chapters.find(c => c.id === mapped.planId);
     if (!chapter || chapter.chapterOrder !== mapped.chapterOrder || chapter.chapterId !== mapped.chapterId) conflict(`${mapped.nodeId}.identity`);
     const source = state.document.chapters.find(c => c.nodeId === mapped.nodeId)!;
+    if (source.beatKey && chapter.beatKey !== source.beatKey) conflict(`${mapped.nodeId}.beatKey`);
     const retainedCast = state.document.characters.filter(c => source.characterNodeIds.includes(c.nodeId) || c.appearanceNodeIds.includes(source.nodeId)).map(c => m.characters.find(p => p.nodeId === c.nodeId)!.characterId);
     if (retainedCast.length && retainedCast.some(id => !chapter.plannedCharacterIds?.includes(id))) conflict(`${mapped.nodeId}.characterNodeIds`);
     for (const nodeId of source.payoffNodeIds) {

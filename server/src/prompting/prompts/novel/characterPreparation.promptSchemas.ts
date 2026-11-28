@@ -159,13 +159,26 @@ export const characterCastOptionRelationSchema = z.object({
   nextTurnPoint: z.string().trim().optional().default(""),
 });
 
-export const characterCastOptionSchema = z.object({
+const castFields = z.object({
   title: nonEmptyString,
   summary: nonEmptyString,
   whyItWorks: z.string().trim().optional().default(""),
   recommendedReason: z.string().trim().optional().default(""),
-  members: z.array(characterCastOptionMemberSchema).min(3).max(6),
-  relations: z.array(characterCastOptionRelationSchema).min(2).max(12),
+  members: z.array(characterCastOptionMemberSchema).min(1),
+  relations: z.array(characterCastOptionRelationSchema),
+});
+
+export const characterCastOptionSchema = castFields.superRefine((option, ctx) => {
+  const names = new Set(option.members.map(member => member.name));
+  if (names.size !== option.members.length) ctx.addIssue({code: "custom", path: ["members"], message: "同一阵容的角色名必须可区分。"});
+  const pairs = new Set<string>();
+  option.relations.forEach((relation, i) => {
+    const pair = JSON.stringify([relation.sourceName, relation.targetName]);
+    if (!names.has(relation.sourceName) || !names.has(relation.targetName) || relation.sourceName === relation.targetName || pairs.has(pair)) {
+      ctx.addIssue({code: "custom", path: ["relations", i], message: "关系应连接本阵容内两个不同角色，同向关系只写一次。"});
+    }
+    pairs.add(pair);
+  });
 });
 
 export const characterCastOptionResponseSchema = z.object({
@@ -176,7 +189,7 @@ export const characterCastAutoResponseSchema = z.object({
   option: characterCastOptionSchema,
 });
 
-export const characterCastAutoMembersResponseSchema = characterCastOptionSchema.pick({
+export const characterCastAutoMembersResponseSchema = castFields.pick({
   title: true,
   summary: true,
   whyItWorks: true,
@@ -185,7 +198,7 @@ export const characterCastAutoMembersResponseSchema = characterCastOptionSchema.
 });
 
 export const characterCastAutoRelationsResponseSchema = z.object({
-  relations: z.array(characterCastOptionRelationSchema).min(2).max(12),
+  relations: z.array(characterCastOptionRelationSchema),
 });
 
 export const supplementalCharacterRelationSchema = z.object({
@@ -238,7 +251,7 @@ export const supplementalCharacterGenerationInputSchema = z.object({
   mode: supplementalCharacterGenerationModeEnum.optional().default("auto"),
   anchorCharacterIds: z.array(z.string().trim().min(1)).max(5).optional().default([]),
   targetCastRole: z.union([characterCastRoleEnum, z.literal("auto")]).optional().default("auto"),
-  count: z.number().int().min(1).max(3).optional(),
+  count: z.number().int().positive().optional(),
   userPrompt: z.string().trim().max(2000).optional(),
   useWorldContext: z.boolean().optional().default(true),
   worldFocusHints: z.object({
@@ -249,9 +262,9 @@ export const supplementalCharacterGenerationInputSchema = z.object({
 
 export const supplementalCharacterGenerationResponseSchema = z.object({
   mode: supplementalCharacterGenerationModeEnum,
-  recommendedCount: z.number().int().min(1).max(3),
+  recommendedCount: z.number().int().positive(),
   planningSummary: z.string().trim().optional().default(""),
-  candidates: z.array(supplementalCharacterCandidateSchema).min(1).max(3),
+  candidates: z.array(supplementalCharacterCandidateSchema).min(1),
 });
 
 export type CharacterCastOptionParsed = z.infer<typeof characterCastOptionSchema>;

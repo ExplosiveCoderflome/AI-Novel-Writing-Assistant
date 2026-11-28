@@ -1,142 +1,80 @@
-export interface ConstellationLayoutItem {
-  id: string;
-  label: string;
-  kind: "plot" | "foundation";
-  emphasis?: "high" | "medium" | "low";
+import type { DirectorIdeaConstellationOption } from "@ai-novel/shared/types/novelDirector";
+
+interface Point { x: number; y: number }
+interface LabelPlacement extends Point { width: number }
+export interface InspirationStar extends Point {
+  option: DirectorIdeaConstellationOption;
+  label?: LabelPlacement;
 }
 
-export interface ConstellationLayoutPoint {
-  left: number;
-  top: number;
-  rotate: number;
-}
-
-interface PlacedRect extends ConstellationLayoutPoint {
-  width: number;
-  height: number;
-}
-
-function hashText(value: string): number {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function createRandom(seed: number): () => number {
-  let state = seed;
+function randomForSky(ids: string) {
+  let seed = 2166136261;
+  for (const char of ids) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619);
   return () => {
-    state += 0x6d2b79f5;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
+    return seed / 4294967296;
   };
 }
 
-export function estimateConstellationItemSize(item: ConstellationLayoutItem): { width: number; height: number } {
-  const characterCount = Array.from(item.label).length;
-  if (item.kind === "foundation") {
-    return { width: Math.min(210, Math.max(92, characterCount * 18 + 20)), height: 52 };
-  }
-  const fontSize = item.emphasis === "high" ? 18 : item.emphasis === "low" ? 12 : 14;
-  const naturalWidth = Math.max(72, characterCount * fontSize + 50);
-  const lineCount = Math.ceil(naturalWidth / 300);
-  return {
-    width: Math.min(300, naturalWidth),
-    height: Math.max(42, 16 + (lineCount * Math.ceil(fontSize * 1.35))),
-  };
-}
-
-function overlaps(left: PlacedRect, right: PlacedRect, gap: number): boolean {
-  return Math.abs(left.left - right.left) < ((left.width + right.width) / 2) + gap
-    && Math.abs(left.top - right.top) < ((left.height + right.height) / 2) + gap;
-}
-
-function intersectsCore(rect: PlacedRect, width: number, height: number): boolean {
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radiusX = Math.min(width * 0.13, 210) + (rect.width / 2);
-  const radiusY = Math.min(height * 0.2, 150) + (rect.height / 2);
-  const x = (rect.left - centerX) / radiusX;
-  const y = (rect.top - centerY) / radiusY;
-  return (x * x) + (y * y) < 1;
-}
-
-export function buildConstellationLayout(
-  items: ConstellationLayoutItem[],
-  width: number,
-  height: number,
-): Record<string, ConstellationLayoutPoint> {
-  if (width <= 0 || height <= 0 || items.length === 0) return {};
-
-  const sizeBucket = `${Math.round(width / 80)}:${Math.round(height / 60)}`;
-  const random = createRandom(hashText(`${sizeBucket}|${items.map((item) => item.id).join("|")}`));
-  const placed: PlacedRect[] = [];
-  const result: Record<string, ConstellationLayoutPoint> = {};
-  const orderedItems = [...items].sort((left, right) => {
-    const leftSize = estimateConstellationItemSize(left);
-    const rightSize = estimateConstellationItemSize(right);
-    const areaDifference = (rightSize.width * rightSize.height) - (leftSize.width * leftSize.height);
-    if (areaDifference !== 0) return areaDifference;
-    return hashText(left.id) - hashText(right.id);
-  });
-
-  for (const item of orderedItems) {
-    const itemSize = estimateConstellationItemSize(item);
-    const halfWidth = itemSize.width / 2;
-    const halfHeight = itemSize.height / 2;
-    const paddingX = 22 + halfWidth;
-    const paddingY = 16 + halfHeight;
-    let candidate: PlacedRect | null = null;
-
-    for (let attempt = 0; attempt < 320; attempt += 1) {
-      let left: number;
-      let top: number;
-      left = paddingX + (random() * Math.max(1, width - (paddingX * 2)));
-      top = paddingY + (random() * Math.max(1, height - (paddingY * 2)));
-
-      const next: PlacedRect = {
-        left: Math.min(width - paddingX, Math.max(paddingX, left)),
-        top: Math.min(height - paddingY, Math.max(paddingY, top)),
-        rotate: Math.round((random() - 0.5) * 8),
-        ...itemSize,
-      };
-      if (intersectsCore(next, width, height)) continue;
-      if (placed.some((current) => overlaps(current, next, item.kind === "foundation" ? 16 : 10))) continue;
-      candidate = next;
+export function layOutInspirationStars(options: DirectorIdeaConstellationOption[], width: number, height: number): InspirationStar[] {
+  if (!options.length || width < 60 || height < 60) return [];
+  const ordered = [...options].sort((a, b) => a.id.localeCompare(b.id));
+  const random = randomForSky(ordered.map((item) => item.id).join("|"));
+  // A roomy sky allows irregular gaps and clusters. Reserve 44px per target;
+  // on a crowded sky use jittered cells when sampling cannot place them all.
+  const scattered: Point[] = [];
+  const separation = Math.max(48, .58 * Math.sqrt(width * height / options.length));
+  for (const _option of ordered) {
+    let placed = false;
+    for (let attempt = 0; attempt < 80; attempt++) {
+      const point = { x: 24 + random() * (width - 48), y: 24 + random() * (height - 48) };
+      const fits = scattered.every(({ x, y }) => {
+        const dx = Math.abs(x - point.x), dy = Math.abs(y - point.y);
+        return Math.max(dx, dy) >= 44 && Math.hypot(dx, dy) >= separation;
+      });
+      if (!fits) continue;
+      scattered.push(point);
+      placed = true;
       break;
     }
-
-    for (let top = paddingY; !candidate && top <= height - paddingY; top += 8) {
-      for (let left = paddingX; left <= width - paddingX; left += 8) {
-        const next: PlacedRect = { left, top, rotate: 0, ...itemSize };
-        if (intersectsCore(next, width, height)) continue;
-        if (placed.some((current) => overlaps(current, next, item.kind === "foundation" ? 16 : 10))) continue;
-        candidate = next;
-        break;
-      }
-    }
-
-    if (!candidate) {
-      const angle = random() * Math.PI * 2;
-      candidate = {
-        left: (width / 2) + (Math.cos(angle) * Math.max(halfWidth, (width / 2) - paddingX)),
-        top: (height / 2) + (Math.sin(angle) * Math.max(halfHeight, (height / 2) - paddingY)),
-        rotate: Math.round((random() - 0.5) * 6),
-        ...itemSize,
-      };
-    }
-
-    placed.push(candidate);
-    result[item.id] = {
-      left: Number(((candidate.left / width) * 100).toFixed(2)),
-      top: Number(((candidate.top / height) * 100).toFixed(2)),
-      rotate: candidate.rotate,
-    };
+    if (!placed) break;
   }
+  const columns = Math.max(1, Math.min(options.length, Math.floor(width / 44),
+    Math.round(Math.sqrt(options.length * width / height))));
+  const rows = Math.ceil(options.length / columns);
+  const cellW = width / columns;
+  const cellH = height / rows;
+  const slots = Array.from({ length: rows * columns }, (_, index) => index);
+  for (let end = slots.length - 1; end > 0; end--) {
+    const other = Math.floor(random() * (end + 1));
+    [slots[end], slots[other]] = [slots[other], slots[end]];
+  }
+  const stars: InspirationStar[] = ordered.map((option, index) => {
+    if (scattered.length === ordered.length) return { option, ...scattered[index] };
+    const slot = slots[index];
+    return {
+      option,
+      x: (slot % columns + .5) * cellW + (random() - .5) * Math.max(0, cellW - 48) * .94,
+      y: (Math.floor(slot / columns) + .5) * cellH + (random() - .5) * Math.max(0, cellH - 48) * .94,
+    };
+  });
 
-  return result;
+  // Captions occupy spare sky only. The complete text is always reachable on the star.
+  const captions: LabelPlacement[] = [];
+  const priority = { high: 0, medium: 1, low: 2 };
+  for (const star of [...stars].sort((a, b) => priority[a.option.relevance] - priority[b.option.relevance])) {
+    if (captions.length >= Math.min(14, Math.max(3, Math.floor(width * height / 32000)))) break;
+    const labelWidth = Math.min(168, star.option.label.length * 14 + 4);
+    const x = Math.max(labelWidth / 2 + 4, Math.min(width - labelWidth / 2 - 4, star.x));
+    for (const y of [star.y + 26, star.y - 26]) {
+      if (y < 13 || y > height - 13) continue;
+      const nearStar = stars.some((other) => other !== star && Math.abs(x - other.x) < labelWidth / 2 + 22 && Math.abs(y - other.y) < 33);
+      const nearCaption = captions.some((other) => Math.abs(x - other.x) < (labelWidth + other.width) / 2 + 8 && Math.abs(y - other.y) < 26);
+      if (nearStar || nearCaption) continue;
+      star.label = { x, y, width: labelWidth };
+      captions.push(star.label);
+      break;
+    }
+  }
+  return stars;
 }

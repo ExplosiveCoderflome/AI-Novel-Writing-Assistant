@@ -6,8 +6,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const source = fs.readFileSync(path.resolve(__dirname, '../../scripts/run-tests.cjs'), 'utf8');
+const supportedIsolationFlags = ['--experimental-test-isolation', '--test-isolation'];
 
-function runFixture(spawnResult = {status: 0}, {batch = false} = {}) {
+function runFixture(spawnResult = {status: 0}, {batch = false, isolationFlag = '--experimental-test-isolation'} = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'director-test-runner-'));
   fs.mkdirSync(path.join(root, 'tests', 'nested'), {recursive: true});
   fs.writeFileSync(path.join(root, 'tests', 'nested', 'fixture.test.js'), '');
@@ -25,7 +26,21 @@ function runFixture(spawnResult = {status: 0}, {batch = false} = {}) {
   const errors = [];
   const fixtureModule = {exports: {}};
   function fixtureRequire(name) {
-    if (name === 'node:child_process') return {spawnSync(...args) {invocation = args; invocations.push(args); return spawnResult;}};
+    if (name === 'node:child_process') {
+      return {
+        spawnSync(...args) {
+          const isHelpProbe = args[0] === process.execPath
+            && Array.isArray(args[1])
+            && args[1].includes('--help');
+          if (isHelpProbe) {
+            return {status: 0, stdout: `${isolationFlag}=process\n`, stderr: ''};
+          }
+          invocation = args;
+          invocations.push(args);
+          return spawnResult;
+        },
+      };
+    }
     return require(name);
   }
   fixtureRequire.main = fixtureModule;
@@ -40,7 +55,7 @@ function runFixture(spawnResult = {status: 0}, {batch = false} = {}) {
 }
 
 test('test runner resolves file arguments from its cwd to avoid Windows command length failures', () => {
-  const {root, invocation} = runFixture();
+  const {root, invocation} = runFixture({status: 0}, {isolationFlag: supportedIsolationFlags[0]});
   assert.equal(invocation[2].cwd, root);
   const files = invocation[1].filter(arg => arg.endsWith('.test.js'));
   assert.equal(files.length, 1);
@@ -48,18 +63,22 @@ test('test runner resolves file arguments from its cwd to avoid Windows command 
   assert.equal(fs.existsSync(path.resolve(root, files[0])), true);
   assert.equal(invocation[1].includes(`--test-concurrency=${Math.max(1, Math.min(4, os.availableParallelism()))}`), true);
 
-  const batchRun = runFixture({status: 0}, {batch: true});
-  assert.equal(batchRun.invocations.length, 3);
-  assert.equal(batchRun.invocations[0][1].includes('--test-isolation=none'), true);
-  assert.equal(batchRun.invocations[0][1].includes('--test-concurrency=1'), true);
-  assert.equal(batchRun.invocations[1][1].includes('--test-isolation=process'), true);
-  assert.equal(batchRun.invocations[1][1].includes('--test-concurrency=1'), true);
-  assert.equal(batchRun.invocations[2][1].includes('--test-isolation=process'), true);
-  assert.equal(batchRun.invocations[2][1].includes(`--test-concurrency=${Math.max(1, Math.min(4, os.availableParallelism()))}`), true);
+  for (const isolationFlag of supportedIsolationFlags) {
+    const batchRun = runFixture({status: 0}, {batch: true, isolationFlag});
+    assert.equal(batchRun.invocations.length, 3);
+    assert.equal(batchRun.invocations[0][1].includes(`${isolationFlag}=none`), true);
+    assert.equal(batchRun.invocations[0][1].includes('--test-concurrency=1'), true);
+    assert.equal(batchRun.invocations[1][1].includes(`${isolationFlag}=process`), true);
+    assert.equal(batchRun.invocations[1][1].includes('--test-concurrency=1'), true);
+    assert.equal(batchRun.invocations[2][1].includes(`${isolationFlag}=process`), true);
+    assert.equal(batchRun.invocations[2][1].includes(`--test-concurrency=${Math.max(1, Math.min(4, os.availableParallelism()))}`), true);
+  }
 });
 
 test('test runner reports process startup failure rather than producing an empty failed run', () => {
-  const {exitCode, errors} = runFixture({status: null, error: new Error('spawn E2BIG')});
+  const {exitCode, errors} = runFixture({status: null, error: new Error('spawn E2BIG')}, {
+    isolationFlag: supportedIsolationFlags[0],
+  });
   assert.equal(exitCode, 1);
   assert.equal(errors.some(message => message.includes('spawn E2BIG')), true);
 });

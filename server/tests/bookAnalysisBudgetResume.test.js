@@ -35,7 +35,7 @@ test("BookAnalysisCommandService rebuildAnalysis keeps succeeded sections intact
   prisma.bookAnalysis.findUnique = async () => createAnalysisRow();
   prisma.$transaction = async (callback) => callback({
     bookAnalysis: {
-      update: async () => ({}),
+      updateMany: async () => ({ count: 1 }),
     },
     bookAnalysisSection: {
       updateMany: async ({ where }) => {
@@ -61,18 +61,22 @@ test("BookAnalysisCommandService rebuildAnalysis keeps succeeded sections intact
   }
 });
 
-test("BookAnalysisCommandService rebuildAnalysis keeps frozen sections intact", async () => {
+test("BookAnalysisCommandService explicitly rebuilding all sections resets unfrozen sections and usage", async () => {
   const original = {
     findUnique: prisma.bookAnalysis.findUnique,
     transaction: prisma.$transaction,
     enqueue: BookAnalysisTaskQueue.prototype.enqueue,
   };
   let sectionWhere = null;
+  let analysisData = null;
 
   prisma.bookAnalysis.findUnique = async () => createAnalysisRow();
   prisma.$transaction = async (callback) => callback({
     bookAnalysis: {
-      update: async () => ({}),
+      updateMany: async ({ data }) => {
+        analysisData = data;
+        return { count: 1 };
+      },
     },
     bookAnalysisSection: {
       updateMany: async ({ where }) => {
@@ -85,8 +89,9 @@ test("BookAnalysisCommandService rebuildAnalysis keeps frozen sections intact", 
 
   try {
     const service = new BookAnalysisCommandService(createQueryService());
-    await service.rebuildAnalysis("analysis-1");
-    assert.equal(sectionWhere.frozen, false);
+    await service.rebuildAnalysis("analysis-1", true);
+    assert.deepEqual(sectionWhere, { analysisId: "analysis-1", frozen: false });
+    assert.equal(analysisData.usedTokens, 0);
   } finally {
     prisma.bookAnalysis.findUnique = original.findUnique;
     prisma.$transaction = original.transaction;
@@ -206,9 +211,9 @@ test("BookAnalysisCommandService resumeWithBudget updates budget and preserves u
   };
   prisma.$transaction = async (callback) => callback({
     bookAnalysis: {
-      update: async ({ data }) => {
+      updateMany: async ({ data }) => {
         updateCalls.push(data);
-        return {};
+        return { count: 1 };
       },
     },
     bookAnalysisSection: {

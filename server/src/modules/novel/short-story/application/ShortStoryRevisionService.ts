@@ -223,7 +223,7 @@ export class ShortStoryRevisionService {
               originalIdea: preview.originalIdea, understanding: interpretation.understanding, direction,
               plan, segment: segmentPlan, previousContinuity, previousContentTail,
               revisionInstruction: preview.revision.understoodGoal,
-              writingPlatform: shortStoryPlatformText(platform, "drafting"), bookStyle,
+              writingPlatform: shortStoryPlatformText(platform, "drafting"), bookStyle, styleContract: context.styleContract,
               productionFoundation: context.productionFoundation, reference: context.reference,
             };
             const generated = await runStructuredPrompt({
@@ -262,7 +262,7 @@ export class ShortStoryRevisionService {
               segments: context.segments.map((segment) => ({
                 order: segment.order, content: segment.content, humanEdited: !baseline.affectedIds.includes(segment.id),
               })),
-              writingPlatform: shortStoryPlatformText(parseWritingPlatformSnapshot(context.novel.writingPlatformSnapshotJson), "repairing"),
+              writingPlatform: shortStoryPlatformText(parseWritingPlatformSnapshot(context.novel.writingPlatformSnapshotJson), "repairing"), styleContract: context.styleContract,
               productionFoundation: context.productionFoundation, reference: context.reference,
             },
             options: { novelId: job.novelId, taskId: task.id, stage: "short_story_review", itemKey: "revision_apply",

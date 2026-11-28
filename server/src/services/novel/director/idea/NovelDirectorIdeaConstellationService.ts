@@ -5,6 +5,7 @@ import type {
   DirectorIdeaConstellationOptionsResponse,
 } from "@ai-novel/shared/types/novelDirector";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { AppError } from "../../../../middleware/errorHandler";
 import {
   directorIdeaConstellationComposePrompt,
   directorIdeaConstellationOptionsPrompt,
@@ -91,6 +92,9 @@ export class NovelDirectorIdeaConstellationService {
     } catch (error) {
       if (!shouldRetryDirectorIdeaWithOriginalContext(error)) throw error;
       result = await runComposePrompt(input, CONSTELLATION_RETRY_TEMPERATURE);
+    }
+    if (result.output.outcome === "conflict") {
+      throw new AppError(result.output.conflictReason, 422);
     }
     return { idea: result.output.idea.trim() };
   }

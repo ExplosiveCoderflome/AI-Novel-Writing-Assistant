@@ -77,8 +77,11 @@ test('an unchanged padded manuscript does not create a candidate or another revi
 });
 test('automatic preparation preserves a human-edited chapter', async () => {
   const { p, calls } = fixture({ protected: true });
-  const result = await api('runUnit')(request(), p);
-  assert.notEqual(result.status, 'completed');
+  // Contract: runUnit rethrows ProtectedProductionContentError after clearing the
+  // active stage; the kernel batch step converts it into a pause_for_manual stop
+  // signal, so automatic production never overwrites human-edited prose.
+  await assert.rejects(api('runUnit')(request(), p),
+    error => error?.name === 'ProtectedProductionContentError');
   assert.equal(calls.includes('write'), false);
   assert.equal(p.calls.includes('chapter-write'), false);
 });

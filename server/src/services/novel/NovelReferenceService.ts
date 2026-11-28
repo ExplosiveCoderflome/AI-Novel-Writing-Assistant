@@ -4,6 +4,7 @@ import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { groupBookAnalysisTimelineNodesByPhase } from "@ai-novel/shared/utils/bookAnalysisTimeline";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import { prisma } from "../../db/prisma";
 import {
   listActiveKnowledgeDocumentContents,
@@ -154,6 +155,10 @@ function extractSectionText(
     editedContent: string | null;
   },
 ): string {
+  const manualContent = getManualBookAnalysisContent(section);
+  if (manualContent) {
+    return `## ${section.title}\n${clipText(manualContent, MAX_FALLBACK_SECTION_CHARS)}`;
+  }
   const data = parseStructuredData(section.structuredDataJson);
   if (data && Object.keys(data).length > 0) {
     const structuredText = section.sectionKey === "timeline"
@@ -163,7 +168,7 @@ function extractSectionText(
       return `## ${section.title}\n${structuredText}`;
     }
   }
-  const fallback = section.editedContent?.trim() || section.aiContent?.trim() || "";
+  const fallback = section.aiContent?.trim() || "";
   if (!fallback) {
     return "";
   }

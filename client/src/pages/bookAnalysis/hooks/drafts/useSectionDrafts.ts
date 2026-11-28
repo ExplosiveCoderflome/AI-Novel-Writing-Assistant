@@ -10,7 +10,7 @@ import {
   updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
 import type { SectionDraft } from "../../bookAnalysis.types";
-import { buildSectionDraft, syncDrafts } from "../../bookAnalysis.utils";
+import { buildSectionDraft, buildSectionUpdate, syncDrafts } from "../../bookAnalysis.utils";
 
 function selectSyncedValue<T>(localValue: T, previousServerValue: T, nextServerValue: T): T {
   return Object.is(localValue, previousServerValue) ? nextServerValue : localValue;
@@ -62,10 +62,23 @@ export function useSectionDrafts(input: {
   const serverDraftsRef = useRef<Record<string, SectionDraft>>({});
   const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
 
-  const setDraftsFromAnalysis = useCallback((analysis: BookAnalysisDetail) => {
+  const setDraftsFromAnalysis = useCallback((
+    analysis: BookAnalysisDetail,
+    saved?: { sectionId: string; draft: SectionDraft; changes: ReturnType<typeof buildSectionUpdate> },
+  ) => {
     const nextServerDrafts = syncDrafts(analysis);
     const isSameAnalysis = draftAnalysisIdRef.current === analysis.id;
-    const previousServerDrafts = serverDraftsRef.current;
+    const previousServerDrafts = saved
+      ? {
+        ...serverDraftsRef.current,
+        [saved.sectionId]: {
+          ...saved.draft,
+          editedContent: saved.changes.editedContent === undefined
+            ? serverDraftsRef.current[saved.sectionId]?.editedContent ?? saved.draft.editedContent
+            : saved.draft.editedContent,
+        },
+      }
+      : serverDraftsRef.current;
 
     setSectionDrafts((localDrafts) => (
       isSameAnalysis
@@ -94,16 +107,17 @@ export function useSectionDrafts(input: {
     mutationFn: (payload: {
       id: string;
       sectionKey: BookAnalysisSectionKey;
-      editedContent?: string | null;
-      notes?: string | null;
-      focusInstruction?: string | null;
-      frozen?: boolean;
-    }) => updateBookAnalysisSection(payload.id, payload.sectionKey, payload),
-    onSuccess: async (response) => {
+      sectionId: string;
+      draft: SectionDraft;
+      changes: ReturnType<typeof buildSectionUpdate>;
+    }) => updateBookAnalysisSection(payload.id, payload.sectionKey, payload.changes),
+    onSuccess: async (response, payload) => {
       if (!response.data) {
         return;
       }
-      setDraftsFromAnalysis(response.data);
+      if (draftAnalysisIdRef.current === response.data.id) {
+        setDraftsFromAnalysis(response.data, payload);
+      }
       await refreshAnalysisData(response.data.id);
     },
   });
@@ -132,8 +146,9 @@ export function useSectionDrafts(input: {
         },
       }));
     },
-    onSettled: () => {
+    onSettled: async (_response, _error, payload) => {
       setOptimizingSectionKey(null);
+      await refreshAnalysisData(payload.id);
     },
   });
 
@@ -184,17 +199,13 @@ export function useSectionDrafts(input: {
       return;
     }
     const draft = getSectionDraft(section);
-    const normalize = (value: string | null | undefined) => value?.replace(/\r\n?/g, "\n").trim() ?? "";
-    const normalizedDraft = normalize(draft.editedContent);
-    const normalizedAi = normalize(section.aiContent ?? "");
-    const editedContent = normalizedDraft && normalizedDraft !== normalizedAi ? draft.editedContent : null;
+    const savedDraft = serverDraftsRef.current[section.id] ?? buildSectionDraft(section);
     updateSectionMutation.mutate({
       id: selectedAnalysis.id,
       sectionKey: section.sectionKey,
-      editedContent,
-      notes: draft.notes.trim() ? draft.notes : null,
-      focusInstruction: draft.focusInstruction.trim() ? draft.focusInstruction : null,
-      frozen: draft.frozen,
+      sectionId: section.id,
+      draft,
+      changes: buildSectionUpdate(draft, savedDraft),
     });
   };
 

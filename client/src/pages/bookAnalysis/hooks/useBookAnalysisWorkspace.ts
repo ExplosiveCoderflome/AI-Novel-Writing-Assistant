@@ -6,6 +6,7 @@ import type {
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_PRESETS } from "@ai-novel/shared/types/bookAnalysis";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import { useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
@@ -175,7 +176,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       return [];
     }
     return selectedAnalysis.sections.flatMap((section) =>
-      section.evidence.map((item) => ({
+      getManualBookAnalysisContent(section) ? [] : section.evidence.map((item) => ({
         ...item,
         sectionKey: section.sectionKey,
         sectionTitle: section.title,
@@ -318,7 +319,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   });
 
   const rebuildMutation = useMutation({
-    mutationFn: rebuildBookAnalysis,
+    mutationFn: (input: { analysisId: string; regenerateCompleted?: boolean }) =>
+      rebuildBookAnalysis(input.analysisId, input.regenerateCompleted),
     onSuccess: async (response) => {
       if (!response.data) {
         return;
@@ -487,8 +489,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     await copyMutation.mutateAsync(selectedAnalysisId);
   };
 
-  const rebuildAnalysis = (analysisId: string) => {
-    rebuildMutation.mutate(analysisId);
+  const rebuildAnalysis = (analysisId: string, regenerateCompleted?: boolean) => {
+    rebuildMutation.mutate({ analysisId, regenerateCompleted });
   };
 
   const archiveAnalysis = (analysisId: string) => {

@@ -135,13 +135,28 @@ export const directorCandidateSchema = z.object({
 
 export const directorPersistedCandidateSchema = directorCandidateSchema.extend({
   id: nonEmptyString,
+  reviewRevision: z.number().int().nonnegative().optional(),
+  plannedDirection: nonEmptyString.optional(),
+});
+
+const generatedCandidateSchema = directorCandidateSchema.extend({
+  recommendedWritingPlatform: z.enum(["fanqie_free", "qidian_male", "jinjiang_female"]),
+  writingPlatformReason: nonEmptyString,
 });
 
 export const directorCandidateResponseSchema = z.object({
-  candidates: z.array(directorCandidateSchema.extend({
-    recommendedWritingPlatform: z.enum(["fanqie_free", "qidian_male", "jinjiang_female"]),
-    writingPlatformReason: nonEmptyString,
-  })).length(2),
+  candidates: z.array(generatedCandidateSchema).length(2),
+});
+
+const directionBrief = z.object({
+  choice: nonEmptyString,
+  engine: nonEmptyString,
+});
+
+export const directorDirectionPairSchema = z.strictObject({ A: directionBrief, B: directionBrief });
+export const directorPlannedCandidatesSchema = z.strictObject({
+  A: generatedCandidateSchema,
+  B: generatedCandidateSchema,
 });
 
 export const directorBookContractSchema = z.object({

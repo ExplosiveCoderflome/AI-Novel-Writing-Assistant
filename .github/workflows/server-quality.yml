@@ -26,3 +26,6 @@ jobs:
       - run: pnpm --filter @ai-novel/server prisma:generate
       - run: pnpm --filter @ai-novel/server build
       - run: pnpm --filter @ai-novel/server test:quality
+      - run: pnpm --filter @ai-novel/client typecheck
+      - name: Verify book handoff and recovery navigation
+        run: pnpm --filter @ai-novel/client exec node --experimental-strip-types --test tests/homeDirectorProgress.test.js tests/directorBookEntry.test.js tests/taskQueueWorkspaceContracts.test.js

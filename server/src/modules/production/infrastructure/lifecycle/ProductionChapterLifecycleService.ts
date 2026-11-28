@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { ProductionVersionConflictError } from "../../common";
+import { ProtectedProductionContentError, ProductionVersionConflictError } from "../../common";
 import { hashProductionContent, InvalidProductionRequestError, type ChapterWrite, type UnitRun, type UnitRunUpdate } from "../../application";
 import { publishSelectedAssessment } from "./selectedAssessment";
 import {projectSelectedQualityLoop} from "./selectedQualityDebt";
@@ -48,9 +48,17 @@ export class ProductionChapterLifecycleService {
     if (!Number.isFinite(timestamp.getTime())) throw new InvalidProductionRequestError("Invalid chapter version timestamp");
     const saved = await tx.chapter.updateMany({
       where: { id: run.progress.unit.chapterId, novelId: run.progress.unit.novelId,
-        content: write.expected.content, updatedAt: timestamp },
-      data: { content: write.content, generationState: write.generationState, chapterStatus: write.chapterStatus },
+        content: write.expected.content, updatedAt: timestamp, authorProvenance: { not: "human_locked" } },
+      data: { content: write.content, generationState: write.generationState, chapterStatus: write.chapterStatus,
+        authorProvenance: "ai_generated", humanEditedAt: null },
     });
-    if (saved.count !== 1) throw new ProductionVersionConflictError();
+    if (saved.count !== 1) {
+      const locked = await tx.chapter.findFirst({
+        where: { id: run.progress.unit.chapterId, novelId: run.progress.unit.novelId, authorProvenance: "human_locked" },
+        select: { id: true },
+      });
+      if (locked) throw new ProtectedProductionContentError();
+      throw new ProductionVersionConflictError();
+    }
   }
 }

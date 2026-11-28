@@ -33,6 +33,7 @@ export function projectChapterPlan(prepared: PreparedChapterPlan, output:Planner
     chapterId: chapter.id,
     sourceStateSnapshotId: resolvedStateDrivenContext.snapshot.sourceSnapshotId ?? null,
     level: "chapter",
+    ...(prepared.projection.preserveExecutionContract ? {preserveExecutionContract: true} : {}),
     title: output.title || chapter.title,
     objective: output.objective
       || compactText(chapterStateGoal?.summary)

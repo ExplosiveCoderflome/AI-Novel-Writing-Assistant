@@ -5,6 +5,7 @@ import { registerNovelChapterEditorRoutes } from "../production/http/novelChapte
 import { registerNovelChapterRoutes } from "../production/http/novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "../production/http/novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "../characters/http/novelCharacterDynamicsRoutes";
+import { registerNovelCharacterForwardAdjustmentRoutes } from "../characters/http/novelCharacterForwardAdjustmentRoutes";
 import { registerNovelCharacterInfluenceRoutes } from "../characters/http/novelCharacterInfluenceRoutes";
 import { registerNovelCharacterDialogueRoutes } from "../characters/http/novelCharacterDialogueRoutes";
 import { registerNovelCharacterMindRoutes } from "../characters/http/novelCharacterMindRoutes";
@@ -35,13 +36,16 @@ import {
   beatGenerateSchema,
   chapterExecutionContractSchema,
   chapterParamsSchema,
+  chapterProvenanceSchema,
   chapterSchema,
   characterParamsSchema,
   characterSchema,
   characterTimelineSyncSchema,
   draftOptimizeSchema,
   hookGenerateSchema,
+  humanStyleFeedbackSchema,
   idParamsSchema,
+  removeHumanStyleFeedbackSchema,
   llmGenerateSchema,
   outlineGenerateSchema,
   pipelineJobParamsSchema,
@@ -90,6 +94,7 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
   registerShortStoryRoutes(router);
   registerWritingPlatformRoutes(router);
   registerDirectorIssuePolicyRoutes(router);
+  registerNovelCharacterForwardAdjustmentRoutes(router, characterParamsSchema);
 
   registerNovelFramingRoutes({
     router,
@@ -102,16 +107,20 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     chapterParamsSchema,
     chapterSchema,
     updateChapterSchema,
+    chapterProvenanceSchema,
     chapterExecutionContractSchema,
   });
 
   registerNovelChapterEditorRoutes({
     router,
     novelService,
+    idParamsSchema,
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
     cursorContinuationPreviewSchema,
+    humanStyleFeedbackSchema,
+    removeHumanStyleFeedbackSchema,
     forwardBusinessError,
   });
 

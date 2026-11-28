@@ -101,6 +101,22 @@ function buildCandidate(overrides = {}) {
   };
 }
 
+test('reviewable scenes preserve their identity and chosen word budgets, including imported budgets', () => {
+  const {chapterReviewForm, chapterEditFromDraft, sceneFieldKey} = require('@ai-novel/shared/types/director/chapterReview/discussion');
+  const plan = {taskSheet:'推动调查', targetWordCount:3000, mustAvoid:'保留谜底', sceneCards:buildSceneCards()};
+  const review = chapterReviewForm(plan), [first] = review.scenePlan.scenes;
+  const field = sceneFieldKey(first.key, 'targetWordCount');
+  const draft = {...review.fields, [field]:String(first.targetWordCount + 100)};
+  assert.equal(chapterEditFromDraft(review, draft).success, false);
+  const accepted = chapterEditFromDraft(review, {...draft, targetWordCount:'3100'});
+  assert.equal(accepted.success, true);
+  assert.equal(JSON.parse(accepted.data.sceneCards).scenes[0].targetWordCount, first.targetWordCount + 100);
+  const raw = JSON.parse(plan.sceneCards);
+  raw.scenes[1].key = first.key;
+  assert.equal(chapterReviewForm({...plan,sceneCards:JSON.stringify(raw)}).scenePlan, null);
+  assert.equal(chapterReviewForm({...plan,targetWordCount:2}).scenePlan, null);
+});
+
 test('quality observer retains the structured AI assessment without changing the legacy gate result',async()=>{
   const assessment={verdict:'repairable',safeToSync:false,loadRisk:'normal',recommendedHandling:'repair_contract',summary:'局部补充',issues:[],repairGuidance:['补足目标'],confidence:0.9};
   const gate=new ChapterTaskSheetQualityGateService(async()=>assessment);

@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { outlineInitialGeneratePrompt, outlineEditProposalPrompt } from "../../../../prompting/prompts/outline/outline.prompts";
-import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { initialReferenceError, outlineInitialGeneratePrompt, outlineEditProposalPrompt, type SavedInitialOutlineDraft } from "../../../../prompting/prompts/outline/outline.prompts";
+import { runOutlineProposalStructuredCall } from "./outlineProposalStructuredCall";
+import {
+  extractStructuredOutputErrorCategory,
+  StructuredOutputError,
+} from "../../../../llm/structuredOutput";
 import { validateOutlineDocument } from "../domain/outlineDocument";
 import { createEmptyOutlineDocument } from "../domain/outlineDocument";
 import {
@@ -11,6 +15,52 @@ import {
 import { OutlineRepository } from "../infrastructure/OutlineRepository";
 import { AppError } from "../../../../middleware/errorHandler";
 
+export function mapOutlineGenerateFailure(error: unknown, kind: "edit" | "initial_generation"): unknown {
+  if (error instanceof AppError) return error;
+  const category = error instanceof StructuredOutputError
+    ? error.category
+    : extractStructuredOutputErrorCategory(error instanceof Error ? error.message : String(error ?? ""));
+  if (!category) return error;
+  const noun = kind === "edit" ? "修改建议" : "大纲建议";
+  switch (category) {
+    case "schema_mismatch": {
+      const stripped = (error instanceof Error ? error.message : String(error ?? ""))
+        .replace(/\[STRUCTURED_OUTPUT:[^\]]+\]\s*/g, "")
+        .replace(/\[[^\]]+@v\d+\]\s*/g, "")
+        .trim();
+      const marker = stripped.lastIndexOf("错误：");
+      const rawDetail = (marker >= 0 ? stripped.slice(marker + "错误：".length) : stripped).replace(/^[-\s]+/, "").trim();
+      const detail = rawDetail.replace(/[。]+$/, "");
+      return detail
+        ? new AppError(`模型返回的${noun}格式有误，自动修复后仍未通过校验：${detail}。请重新生成提案。`, 400)
+        : new AppError(`模型返回的${noun}格式有误，自动修复后仍未通过校验。请重新生成提案。`, 400);
+    }
+    case "incomplete_json":
+    case "malformed_json":
+      return new AppError(`模型返回的${noun}不完整，未能通过校验。请重新生成提案。`, 400);
+    case "output_budget_exhausted":
+    case "reasoning_budget_exhausted":
+      return new AppError(
+        kind === "edit"
+          ? "这次要生成的内容较多，超出了单次输出上限。请分批提出修改（例如先改前几卷），或调高模型路线的输出上限后重试。"
+          : "这次要生成的内容较多，超出了单次输出上限。请先生成部分内容（例如先定卷和前几章），或调高模型路线的输出上限后重试。",
+        400,
+      );
+    case "empty_response":
+      return new AppError("模型没有返回内容，请重新生成提案。", 400);
+    case "thinking_pollution":
+      return new AppError(`模型返回的${noun}中混入了思考过程，未能通过校验。请重新生成提案，或在厂商设置里关闭深度思考后重试。`, 400);
+    case "unsupported_native_json":
+      return new AppError("当前模型不支持本次需要的结构化输出格式，请换一个模型后重试。", 400);
+    case "transport_error":
+      return new AppError("连接模型服务时发生网络错误，请检查模型服务后重试。", 502);
+    case "model_unavailable":
+      return new AppError("模型服务暂时不可用，请稍后重试。", 502);
+    default:
+      return error;
+  }
+}
+
 export class OutlineProposalService {
   constructor(private readonly repository: OutlineRepository) {}
   async generate(projectId: string, request: { kind: "edit" | "initial_generation"; requestText: string; scope?: string }) {
@@ -18,9 +68,14 @@ export class OutlineProposalService {
     if (!current || !current.revision) throw new AppError("大纲项目不存在", 404);
     const document = validateOutlineDocument(JSON.parse(current.revision.documentJson));
     const baseVersion = current.project.currentVersion;
-    const result = request.kind === "initial_generation"
-      ? await runStructuredPrompt({ asset: outlineInitialGeneratePrompt, promptInput: { idea: request.requestText, rough: true } })
-      : await runStructuredPrompt({ asset: outlineEditProposalPrompt, promptInput: { request: request.requestText, baseVersion, document, scope: request.scope ?? "story" } });
+    let result: Awaited<ReturnType<typeof runOutlineProposalStructuredCall>>;
+    try {
+      result = request.kind === "initial_generation"
+        ? await runOutlineProposalStructuredCall({ asset: outlineInitialGeneratePrompt, promptInput: { idea: request.requestText, rough: true } })
+        : await runOutlineProposalStructuredCall({ asset: outlineEditProposalPrompt, promptInput: { request: request.requestText, baseVersion, document, scope: request.scope ?? "story" } });
+    } catch (error) {
+      throw mapOutlineGenerateFailure(error, request.kind);
+    }
     if (request.kind === "edit") {
       const operations = (result.output as { operations: OutlineEditOperation[] }).operations;
       assertValidOutlineEditOperations(operations, { document });
@@ -35,22 +90,36 @@ export class OutlineProposalService {
     if (!proposal || !["pending"].includes(proposal.status)) throw new AppError("此提案不可采纳", 409, "请重新生成提案后再采纳。");
     const current = await this.repository.getCurrent(projectId);
     if (!current || current.project.currentVersion !== proposal.baseVersion) throw new AppError("大纲已更新，请重新生成提案。", 409);
-    const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
+    if (proposal.kind === "chapter_edit" && !operationIds.length) throw new AppError("请选择要采纳的章纲修改。", 400);
+    if (proposal.kind === "volume_edit" && !operationIds.length) throw new AppError("请选择要采纳的卷纲修改。", 400);
+    if (proposal.kind === "character_impact" && !operationIds.length) throw new AppError("请选择要采纳的人物联动修改。", 400);
+    if (proposal.kind === "edit" && proposal.promptId === "outline.workbench_dialogue" && !operationIds.length) throw new AppError("请选择要采纳的修改。", 400);
     if (proposal.kind === "initial_generation") {
-      const initial = JSON.parse(proposal.proposalJson) as { storyFields: Record<string, unknown>; volumes: Array<Record<string, any>>; chapters: Array<Record<string, any>>; characters: Array<Record<string, any>>; payoffs: Array<Record<string, any>>; facts: Array<Record<string, any>> };
+      const initial = JSON.parse(proposal.proposalJson) as SavedInitialOutlineDraft;
+      const referenceError = initialReferenceError(initial);
+      if (referenceError) throw new AppError(referenceError, 422);
       const refs = new Map<string, string>();
       for (const item of [...initial.volumes, ...initial.chapters, ...initial.characters, ...initial.payoffs, ...initial.facts]) refs.set(item.clientRef, randomUUID());
       const document = createEmptyOutlineDocument(String(initial.storyFields.title ?? "新大纲"));
       Object.assign(document.story, initial.storyFields);
-      document.volumes = initial.volumes.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, chapterNodeIds: [] }));
-      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef) ?? document.volumes[0]?.nodeId ?? "", title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] })).filter(x=>!!x.volumeNodeId);
+      document.volumes = initial.volumes.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, ...(x.beats && {beats:x.beats}), chapterNodeIds: [] }));
+      document.chapters = initial.chapters.map((x,index)=>({ nodeId: refs.get(x.clientRef)!, volumeNodeId: refs.get(x.volumeRef)!, ...(x.beatKey && {beatKey:x.beatKey}), title: x.title, summary: x.summary, order: index, planningDepth: x.planningDepth, characterNodeIds: [], payoffNodeIds: [] }));
       document.volumes.forEach(volume=>volume.chapterNodeIds=document.chapters.filter(chapter=>chapter.volumeNodeId===volume.nodeId).map(chapter=>chapter.nodeId));
-      document.characters = initial.characters.map(x=>({ nodeId: refs.get(x.clientRef)!, name: x.title, role: x.role, appearanceNodeIds: [] }));
+      const chaptersById = new Map(document.chapters.map(chapter => [chapter.nodeId, chapter]));
+      document.characters = initial.characters.map(person => {
+        const nodeId = refs.get(person.clientRef)!;
+        const appearanceNodeIds = [...new Set(person.appearanceRefs ?? [])].map(ref => refs.get(ref)!);
+        for (const location of appearanceNodeIds) chaptersById.get(location)?.characterNodeIds.push(nodeId);
+        return { nodeId, name: person.title, role: person.role, summary: person.summary, appearanceNodeIds };
+      });
       document.payoffs = initial.payoffs.map(x=>({ nodeId: refs.get(x.clientRef)!, title: x.title, kind: "other", setupDescription: x.setupDescription ?? x.summary, payoffDescription: x.payoffDescription ?? "", setupChapterNodeIds: [], payoffChapterNodeIds: [], relatedNodeIds: [] }));
       document.facts = initial.facts.map(x=>({ nodeId: refs.get(x.clientRef)!, title: x.title, content: x.content ?? x.summary, scope: { type: "story" }, relatedNodeIds: [], immutable: false }));
       return this.repository.applyInitialProposal(projectId, proposalId, proposal.baseVersion, document);
     }
+    const payload = JSON.parse(proposal.proposalJson) as { operations: OutlineEditOperation[] };
     const document = validateOutlineDocument(JSON.parse(current.revision!.documentJson));
+    if (proposal.kind === "volume_beats" && operationIds.length > 0 && (new Set(operationIds).size !== payload.operations.length || payload.operations.some(op => !operationIds.includes(op.operationId))))
+      throw new AppError("节奏板和本卷章节归属需一起采纳。",400);
     const selectedIds = operationIds.length ? operationIds : payload.operations.map((operation) => operation.operationId);
     try {
       assertValidOutlineEditOperations(payload.operations, { document, selectedOperationIds: selectedIds });
@@ -66,6 +135,7 @@ export class OutlineProposalService {
       mapOutlineApplyFailure(error);
     }
   }
+  listPending(projectId: string) { return this.repository.listPendingProposals(projectId); }
   get(projectId: string, proposalId: string) { return this.repository.findProposal(projectId, proposalId); }
   async reject(projectId: string, proposalId: string) {
     const proposal = await this.repository.findProposal(projectId, proposalId);

@@ -3,7 +3,10 @@ const {setup}=require('./persistence/sqliteFixture.cjs');
 const requests=require('../../dist/platform/llm/retries');
 const assets=require('../../dist/prompting/prompts/shortStory/shortStory.prompts');
 const issue={code:'local_pacing',severity:'standard',description:'原稿局部推进略慢',affectedSegmentOrders:[1]};
-const audit=decision=>({decision,summary:'完整审校结果',issues:decision==='accepted'?[]:[issue]});
+const expressionIssue={
+ code:'template_summary',category:'style_expression',severity:'standard',description:'第一段有模板化总结',affectedSegmentOrders:[1],
+};
+const audit=(decision, finding=issue)=>({decision,summary:'完整审校结果',issues:decision==='accepted'?[]:[finding]});
 async function fixture(t,options={}){
  const f=await setup(t),task=await f.db.novelWorkflowTask.create({data:{novelId:'novel-1',lane:'creation_studio',title:'短篇测试',status:'running'}});
  const intent=await f.db.novelIntentVersion.create({data:{novelId:'novel-1',workflowTaskId:task.id,version:1,originalExpression:'测试',structuredIntentJson:'{}'}});
@@ -14,10 +17,14 @@ async function fixture(t,options={}){
   await requests.claimModelRequest({configuration:{provider:'openai',model:'fixture-model',maxTokens:request.options.maxTokens??8192,modelKwargs:options.modelKwargs},
    input:request.asset.render(request.promptInput,{}),options:{response_format:{type:'json_object'}}});
   state.calls.push(request.asset.id);
-  if(request.asset===assets.shortStoryPatchRepairPrompt)return{output:{patches:[{segmentOrder:1,content:options.patch??'通过复验的候选稿'}],residualQualityDebt:[]}};
+  if(request.asset===assets.shortStoryPatchRepairPrompt){
+   state.allowedSegmentOrders=request.promptInput.allowedSegmentOrders;
+   if(options.patchError)throw options.patchError;
+   return{output:{patches:[{segmentOrder:options.patchOrder??1,content:options.patch??'通过复验的候选稿'}],residualQualityDebt:[]}};
+  }
   state.audits++;
   if(state.audits===2&&state.onReview)await state.onReview(f.db,row.segments);
-  return{output:audit(state.audits===1?'patchable':options.review??'accepted')};
+  return{output:audit(state.audits===1?'patchable':options.review??'accepted',options.issue)};
  };
  const target=require.resolve('../../dist/modules/novel/short-story/application/ShortStoryProductionService'),original=Module._load;
  delete require.cache[target];
@@ -67,4 +74,28 @@ test('the default short-story path reviews a repair before publishing it',async 
 });
 test('the default path preserves original prose when a length repair still fails review',async t=>{
  const f=await fixture(t,{enabled:false,review:'patchable'});await f.run();assert.equal(f.state.audits,2);assert.equal((await f.rows())[0].content,'原稿1');
+});
+
+test('automatic repair keeps unreported segments even if a candidate returns an out-of-scope order', async t=>{
+ const f=await fixture(t,{issue:expressionIssue,patchOrder:2});
+ await f.run();
+ assert.deepEqual(f.state.allowedSegmentOrders,[1]);
+ assert.deepEqual((await f.rows()).map(row=>row.content),['原稿1','原稿2']);
+ assert.equal(f.state.audits,1);
+ assert.equal(f.state.checkpoints.at(-1).checkpointType,'workflow_completed');
+});
+
+test('an optional expression repair or its budgeted review can fail without blocking delivery', async t=>{
+ for(const options of [
+  {patchError:new Error('表达修整超时')},
+  {window:40000,patch:'修整正文'.repeat(10000)},
+ ]){
+  const f=await fixture(t,{issue:expressionIssue,...options});
+  await f.run();
+  const plan=await f.db.shortStoryPlan.findUniqueOrThrow({where:{id:f.row.id}});
+  assert.equal(plan.status,'completed');
+  assert.deepEqual(JSON.parse(plan.qualityDebtJson),[expressionIssue.description]);
+  assert.deepEqual((await f.rows()).map(row=>row.content),['原稿1','原稿2']);
+  assert.deepEqual(f.state.checkpoints.map(checkpoint=>checkpoint.checkpointType),['workflow_completed']);
+ }
 });

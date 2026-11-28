@@ -12,7 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { featureFlags } from "@/config/featureFlags";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
-import { outlineFieldLabels } from "./outlineNodes";
+import { createOutlineId, findOutlineNodeTitle, outlineFieldLabels } from "./outlineNodes";
+import type { OutlineDocument } from "@ai-novel/shared/types/outline";
 
 const RUN_STATUS_LABEL: Record<OutlineFeedbackRunView["status"], string> = {
   pending: "等待中",
@@ -40,19 +41,25 @@ export function shouldShowOutlineFeedbackPanel(options: { flagEnabled: boolean; 
   return options.flagEnabled && options.bound && !options.isMobile;
 }
 
-export function OutlineFeedbackPanel({ outlineId, bound }: { outlineId: string; bound: boolean }) {
+interface FeedbackProps {
+  outlineId: string;
+  document: OutlineDocument;
+  applyDisabled: boolean;
+}
+
+export function OutlineFeedbackPanel({ bound, ...props }: FeedbackProps & { bound: boolean }) {
   const isMobile = useIsMobileViewport();
   if (!shouldShowOutlineFeedbackPanel({ flagEnabled: featureFlags.outlineFeedbackEnabled, bound, isMobile })) {
     return null;
   }
-  return <OutlineFeedbackPanelBody outlineId={outlineId} />;
+  return <OutlineFeedbackPanelBody {...props} />;
 }
 
-function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
+function OutlineFeedbackPanelBody({ outlineId, document, applyDisabled }: FeedbackProps) {
   const queryClient = useQueryClient();
   const [settingsDraft, setSettingsDraft] = useState<OutlineFeedbackSettings>(defaultSettings());
   const [chapterId, setChapterId] = useState("");
-  const [requestKey, setRequestKey] = useState("");
+  const [requestKey, setRequestKey] = useState(() => createOutlineId());
   const statusQuery = useQuery({
     queryKey: ["outline-feedback", outlineId],
     queryFn: () => getOutlineFeedbackStatus(outlineId),
@@ -82,9 +89,9 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
     },
   });
   const analyze = useMutation({
-    mutationFn: () => analyzeOutlineFeedback(outlineId, { chapterId: chapterId.trim(), requestKey: requestKey.trim() }),
+    mutationFn: () => analyzeOutlineFeedback(outlineId, { chapterId: chapterId.trim(), requestKey }),
     onSuccess: async () => {
-      setRequestKey("");
+      setRequestKey(createOutlineId());
       await queryClient.invalidateQueries({ queryKey: ["outline-feedback", outlineId] });
     },
   });
@@ -95,6 +102,7 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
     },
   });
   const decide = useMutation({
+    mutationKey: ["outline-revision-decision", outlineId],
     mutationFn: ({ runId, action, operationIds }: { runId: string; action: "adopt" | "reject"; operationIds: string[] }) =>
       action === "adopt"
         ? adoptOutlineFeedback(outlineId, runId, operationIds)
@@ -108,15 +116,12 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
   const hasActive = useMemo(() => runs.some((run) => run.status === "pending" || run.status === "running"), [runs]);
 
   return (
-    <section id="outline-feedback-panel" aria-label="章节摘要反馈" className="space-y-4 rounded-md border border-border/60 p-4">
+    <section id="outline-feedback-panel" aria-label="章节摘要反馈" className="space-y-4">
       <header className="space-y-1">
         <h2 className="text-base font-semibold">章节摘要反馈</h2>
         <p className="text-xs text-muted-foreground">
-          根据已落库的章节摘要提出大纲字段调整，需逐项采纳或拒绝后才会生成新修订。不会自动改写大纲，也不会读取章节正文。
+          根据已保存的章节摘要检查大纲。你可以逐项查看理由，采纳适合的修改。
         </p>
-        {statusQuery.data?.sourceRoute ? (
-          <p className="text-xs text-muted-foreground">已绑定来源：{statusQuery.data.sourceRoute}</p>
-        ) : null}
       </header>
 
       {statusQuery.isLoading ? <p className="text-sm text-muted-foreground">正在读取反馈…</p> : null}
@@ -184,25 +189,17 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
             <h3 className="text-sm font-medium">手动分析</h3>
             <div className="flex flex-wrap items-end gap-3">
               <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">章节 ID</span>
-                <input
-                  className="block w-56 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-                  value={chapterId}
-                  onChange={(event) => setChapterId(event.target.value)}
-                  aria-label="要分析的章节 ID"
-                />
+                <span className="text-muted-foreground">要分析的章节</span>
+                <select className="outline-field" value={chapterId} disabled={analyze.isPending}
+                  onChange={event => { setChapterId(event.target.value); setRequestKey(createOutlineId()); analyze.reset(); }}>
+                  <option value="">{statusQuery.data.chapters?.length ? "选择已有摘要的章节" : "保存章节摘要后可分析"}</option>
+                  {statusQuery.data.chapters?.map(chapter => <option value={chapter.id} key={chapter.id}>
+                    第 {chapter.order} 章 · {chapter.title}
+                  </option>)}
+                </select>
               </label>
-              <label className="space-y-1 text-xs">
-                <span className="text-muted-foreground">请求键</span>
-                <input
-                  className="block w-56 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
-                  value={requestKey}
-                  onChange={(event) => setRequestKey(event.target.value)}
-                  aria-label="手动分析请求键"
-                />
-              </label>
-              <Button type="submit" size="sm" disabled={!chapterId.trim() || !requestKey.trim() || analyze.isPending}>
-                {analyze.isPending ? "已提交…" : "开始分析"}
+              <Button type="submit" size="sm" disabled={!statusQuery.data.chapters?.some(chapter => chapter.id === chapterId) || analyze.isPending}>
+                {analyze.isPending ? "正在提交…" : "开始分析"}
               </Button>
             </div>
             {analyze.isError ? (
@@ -222,7 +219,7 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
             ) : (
               <ul className="space-y-4">
                 {runs.map((run) => (
-                  <li key={run.id} className="space-y-2 rounded-md border border-border/50 p-3">
+                  <li key={run.id} className="space-y-2 border-t border-border/50 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm">
                         第 {run.chapterOrder} 章 · {RUN_STATUS_LABEL[run.status]}
@@ -247,7 +244,7 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
                           <li key={item.operationId} className="space-y-2 text-sm">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div>
-                                <p className="font-medium">节点 {item.nodeId}</p>
+                                <p className="font-medium">{findOutlineNodeTitle(document, item.nodeId)}</p>
                                 <p className="text-xs text-muted-foreground">{ITEM_STATUS_LABEL[item.status]}</p>
                               </div>
                               {item.status === "pending" ? (
@@ -255,7 +252,7 @@ function OutlineFeedbackPanelBody({ outlineId }: { outlineId: string }) {
                                   <Button
                                     type="button"
                                     size="sm"
-                                    disabled={decide.isPending}
+                                    disabled={applyDisabled || decide.isPending}
                                     onClick={() => decide.mutate({ runId: run.id, action: "adopt", operationIds: [item.operationId] })}
                                   >
                                     采纳

@@ -7,3 +7,11 @@ export interface NovelBookProgress {
     status: "queued" | "running" | "waiting_gate" | "paused" | "completed" | "failed" | "cancelled";
   } | null;
 }
+
+export interface NovelBookCompletion {
+  status: "writing" | "needs_attention" | "completed";
+  completedChapters: number;
+  targetChapters: number;
+  firstChapterId: string | null;
+  finalReviewRoute?:string;
+}

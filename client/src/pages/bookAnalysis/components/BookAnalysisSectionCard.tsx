@@ -2,8 +2,10 @@ import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
   type BookAnalysisSection,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { LocateFixed } from "lucide-react";
+import { useEffect, useState } from "react";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +83,17 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
     && !isOptimizing
     && draft.optimizeInstruction.trim().length > 0;
   const hasContent = draft.editedContent.trim().length > 0;
+  const manualContent = getManualBookAnalysisContent(section);
+  const aiContent = section.aiContent ?? "";
+  const hasDraftChanges = draft.editedContent !== (section.editedContent?.trim() ? section.editedContent : aiContent);
+  const compareWithAi = Boolean(aiContent.trim() && (manualContent || hasDraftChanges));
+  const aiAppliedToDraft = draft.editedContent === aiContent;
+  const [seenAiContent, setSeenAiContent] = useState(aiContent);
+  useEffect(() => {
+    if (!compareWithAi) {
+      setSeenAiContent(aiContent);
+    }
+  }, [aiContent, compareWithAi]);
   const unselectedSection = isUnselectedBookAnalysisSection(section) && !hasContent;
   const frozenChangePending = draft.frozen !== section.frozen;
   const contentBlock = hasContent ? (
@@ -121,12 +134,14 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         </div>
       </CardHeader>
       <CardContent className="space-y-6 px-1 pb-2 sm:px-2">
-        <BookAnalysisStructuredSummary
-          section={section}
-          analysisMode={analysisMode}
-          evidenceItems={evidenceItems}
-          currentChapterIndex={currentChapterIndex}
-        />
+        {!manualContent ? (
+          <BookAnalysisStructuredSummary
+            section={section}
+            analysisMode={analysisMode}
+            evidenceItems={evidenceItems}
+            currentChapterIndex={currentChapterIndex}
+          />
+        ) : null}
 
         {evidenceItems.length > 0 ? (
           <div className="space-y-3 rounded-2xl bg-muted/20 p-4">
@@ -205,9 +220,9 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
           </div>
         ) : null}
 
-        {readingMode === "full" ? (
+        {readingMode === "full" || manualContent || hasDraftChanges ? (
           <div className="space-y-2">
-            <div className="text-sm font-medium">分析正文</div>
+            <div className="text-sm font-medium">{hasDraftChanges ? "正文草稿" : manualContent ? "手改正文" : "分析正文"}</div>
             <div className="min-h-[220px] rounded-2xl bg-muted/20 px-5 py-5 leading-7">
               {contentBlock}
             </div>
@@ -220,6 +235,47 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
             </div>
           </details>
         )}
+
+        {compareWithAi ? (
+          <details
+            className="rounded-2xl bg-muted/15 p-4"
+            onToggle={(event) => { if (event.currentTarget.open) setSeenAiContent(aiContent); }}
+          >
+            <summary className="cursor-pointer text-sm font-medium">
+              对比 AI 生成版
+              {section.status === "succeeded" && aiContent !== seenAiContent ? (
+                <span className="ml-2 text-xs text-primary">有新的生成结果</span>
+              ) : null}
+            </summary>
+            <div className="mt-3 grid gap-4 lg:grid-cols-2">
+              <div className="min-w-0 space-y-2">
+                <h4 className="text-sm font-medium">{aiAppliedToDraft ? "已保存的正文" : "当前正文"}</h4>
+                <div className="max-h-96 overflow-auto">
+                  <MarkdownViewer content={aiAppliedToDraft ? manualContent ?? "" : draft.editedContent} />
+                </div>
+              </div>
+              <div className="min-w-0 space-y-2">
+                <h4 className="text-sm font-medium">AI 生成版</h4>
+                <div className="max-h-96 overflow-auto">
+                  <MarkdownViewer content={aiContent} />
+                </div>
+              </div>
+            </div>
+            {canOperate ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={isSaving || aiAppliedToDraft}
+                  onClick={() => onDraftChange(section, { editedContent: aiContent })}
+                >
+                  采用 AI 版
+                </Button>
+                <span className="text-xs text-muted-foreground">{aiAppliedToDraft ? "点击「保存」采用 AI 版。" : "填入正文草稿，保存后生效。"}</span>
+              </div>
+            ) : null}
+          </details>
+        ) : null}
 
         <details className="rounded-2xl border border-border/40 bg-muted/10 p-4">
           <summary className="cursor-pointer text-sm font-medium">{canOperate ? "编辑与优化" : "归档内容与备注"}</summary>

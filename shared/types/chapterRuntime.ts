@@ -114,6 +114,7 @@ export const runtimeCharacterSchema = z.object({
   personality: z.string().nullable().optional(),
   background: z.string().nullable().optional(),
   development: z.string().nullable().optional(),
+  authorAdjustedDevelopment: z.string().nullable().optional(),
   identityLabel: z.string().nullable().optional(),
   factionLabel: z.string().nullable().optional(),
   stanceLabel: z.string().nullable().optional(),

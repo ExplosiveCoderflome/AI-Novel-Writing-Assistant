@@ -30,7 +30,7 @@ import {
 import { generateVolumePlanDocument } from "./volumeGenerationOrchestrator";
 import { recoverMissingVolumeStrategy } from "./recovery/missingStrategy";
 import {appendMissingRoutePlans, mergeSavedRouteRows} from "./routeWindow";
-import { VolumeChapterSyncService } from "./VolumeChapterSyncService";
+import { VolumeChapterSyncService, type VolumeChapterSyncOptions } from "./VolumeChapterSyncService";
 import { getLegacyVolumeSource } from "./legacyVolumeSource";
 import {
   type VolumeDraftInput,
@@ -686,12 +686,7 @@ export class NovelVolumeService {
   async syncVolumeChaptersWithOptions(
     novelId: string,
     input: VolumeSyncInput,
-    options: {
-      emitEvent?: boolean;
-      syncPayoffLedger?: boolean;
-      volumeUpdateReason?: VolumeUpdateReason;
-      hydrateCanonical?: boolean;
-    } = {},
+    options: VolumeChapterSyncOptions & {hydrateCanonical?: boolean} = {},
   ): Promise<VolumeSyncPreview> {
     return new VolumeChapterSyncService({
       ensureVolumeWorkspace: (targetNovelId) => options.hydrateCanonical === false

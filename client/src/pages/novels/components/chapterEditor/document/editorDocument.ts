@@ -349,6 +349,18 @@ export function getParagraphIndicesForRange(content: string, selection: Pick<Cha
   };
 }
 
+export function getParagraphSelection(content: string, paragraphIndex: number): ChapterEditorSelectionRange | null {
+  const paragraph = chapterParagraphs(content).find((item) => item.index === paragraphIndex);
+  if (!paragraph || !paragraph.text.trim()) {
+    return null;
+  }
+  return {
+    from: paragraph.from,
+    to: paragraph.to,
+    text: paragraph.text,
+  };
+}
+
 export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) {
   const contentSnapshot = normalizeChapterContent(input.content);
   const selection = input.scope === "selection" ? input.selection ?? null : null;

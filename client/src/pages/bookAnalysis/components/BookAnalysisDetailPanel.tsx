@@ -469,7 +469,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                   const sectionEvidence = evidenceBySection.get(section.sectionKey as BookAnalysisSectionKey) ?? [];
                   const isSelectedEvidenceInSection = selectedEvidence?.sectionKey === section.sectionKey;
                   return (
-                    <TabsContent key={section.sectionKey} value={section.sectionKey} className="mt-0">
+                    <TabsContent key={section.id} value={section.sectionKey} className="mt-0">
                       <BookAnalysisSectionCard
                         analysisMode={analysisMode}
                         section={section}

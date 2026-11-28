@@ -1,16 +1,17 @@
 import type { TaskOverviewSummary } from "@ai-novel/shared/types/task";
-import type { NovelListResponse } from "@/api/novel/shared";
+import { getNovelWorkflowAttention, type NovelListResponse } from "@/api/novel/shared";
 import {
   canContinueChapterBatchAutoExecution,
   canContinueDirector,
   canEnterChapterExecution,
+  getCandidateSelectionLink,
   getWorkflowDescription,
   isWorkflowActionRequired,
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
 import { featureFlags } from "@/config/featureFlags";
-import {getDirectorWorkspaceHref} from "@/lib/novelRoutes";
+import { getDirectorWorkspaceHref, getNovelWorkspaceHref } from "@/lib/novelRoutes";
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
@@ -73,13 +74,22 @@ export function getHomeWrittenChapters(novel: HomeNovelItem): number {
 }
 
 function isHomeRunning(novel: HomeNovelItem): boolean {
-  return isHomeV2Novel(novel) ? ["queued", "running"].includes(novel.bookProgress?.director?.status ?? "")
-    : isWorkflowRunningInBackground(getHomeNovelTask(novel));
+  if (isHomeV2Novel(novel)) return ["queued", "running"].includes(novel.bookProgress?.director?.status ?? "");
+  const task = getHomeNovelTask(novel);
+  return getNovelWorkflowAttention(task) !== "recovery" && isWorkflowRunningInBackground(task);
 }
 
 function isHomeActionRequired(novel: HomeNovelItem): boolean {
-  return isHomeV2Novel(novel) ? ["paused", "waiting_gate", "failed"].includes(novel.bookProgress?.director?.status ?? "")
-    : isWorkflowActionRequired(getHomeNovelTask(novel));
+  if (isHomeV2Novel(novel)) return ["paused", "waiting_gate", "failed"].includes(novel.bookProgress?.director?.status ?? "");
+  const task = getHomeNovelTask(novel);
+  return getNovelWorkflowAttention(task) === "recovery" || isWorkflowActionRequired(task);
+}
+
+export function getHomeNovelActionHref(novel: HomeNovelItem): string | null {
+  if (isHomeV2Novel(novel)) return getDirectorWorkspaceHref(novel);
+  const task = getHomeNovelTask(novel);
+  if (task && requiresCandidateSelection(task)) return getCandidateSelectionLink(task.id);
+  return getNovelWorkspaceHref(novel);
 }
 
 function canHomeWrite(novel: HomeNovelItem): boolean {
@@ -103,7 +113,7 @@ export function formatHomeDate(value: string | undefined): string {
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
   if (isHomeV2Novel(novel)) return isHomeActionRequired(novel) ? 0 : isHomeRunning(novel) ? 3 : canHomeWrite(novel) ? 4 : 6;
   const task = getHomeNovelTask(novel);
-  if (canContinueChapterBatchAutoExecution(task)) {
+  if (getNovelWorkflowAttention(task) === "recovery" || canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
   if (requiresCandidateSelection(task)) {
@@ -188,7 +198,7 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
       tone: task?.status === "succeeded" ? "success" : "info",
     };
   }
-  if (canContinueChapterBatchAutoExecution(task)) {
+  if (getNovelWorkflowAttention(task) === "recovery" || canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
       eyebrow: "推荐下一步",
@@ -305,62 +315,27 @@ export function buildHomeMetrics(input: {
   ];
 }
 
-export function buildHomeAttentionItems(input: {
-  novels: HomeNovelItem[];
-  taskOverview?: TaskOverviewSummary | null;
-}): HomeAttentionItem[] {
-  const actionRequiredCount = input.novels.filter((novel) => (
-    isHomeActionRequired(novel)
-  )).length;
-  const readyForExecutionCount = input.novels.filter((novel) => (
-    canHomeWrite(novel)
-  )).length;
-  const runningCount = input.taskOverview?.runningCount ?? 0;
-  const waitingApprovalCount = input.taskOverview?.waitingApprovalCount ?? 0;
-  const recoveryCandidateCount = input.taskOverview?.recoveryCandidateCount ?? 0;
-  const failedTaskCount = input.taskOverview?.failedCount ?? 0;
-  const items: HomeAttentionItem[] = [];
-
-  if (failedTaskCount > 0 || recoveryCandidateCount > 0) {
-    items.push({
-      id: "task-recovery",
-      title: failedTaskCount > 0 ? `${failedTaskCount} 个后台任务失败` : `${recoveryCandidateCount} 个任务可恢复`,
-      description: "先处理失败或可恢复任务，可以避免后续生成继续卡在同一位置。",
-      tone: failedTaskCount > 0 ? "danger" : "warning",
-      to: "/tasks",
-      actionLabel: "查看任务中心",
-    });
-  }
-  if (actionRequiredCount > 0 || waitingApprovalCount > 0) {
-    items.push({
-      id: "workflow-action-required",
-      title: `${Math.max(actionRequiredCount, waitingApprovalCount)} 个创作流程等待处理`,
-      description: "这些项目可能在等待方向确认、阶段继续或失败后的恢复决策。",
-      tone: "warning",
-      to: "/auto-director/follow-ups",
-      actionLabel: "查看跟进事项",
-    });
-  }
-  if (readyForExecutionCount > 0) {
-    items.push({
-      id: "chapter-ready",
-      title: `${readyForExecutionCount} 个项目可进入章节执行`,
-      description: "这些项目的规划资产已经能支撑正文生产，可以继续推进章节。",
-      tone: "success",
-    });
-  }
-  if (runningCount > 0) {
-    items.push({
-      id: "running-tasks",
-      title: `${runningCount} 个任务处理中`,
-      description: "后台任务仍在推进，可以稍后回到首页查看结果。",
-      tone: "info",
-      to: "/tasks",
-      actionLabel: "查看进度",
-    });
-  }
-
-  return items.slice(0, 4);
+export function buildHomeAttentionItems(
+  novels: HomeNovelItem[],
+  primaryNovelId?: string,
+): HomeAttentionItem[] {
+  return novels.filter((novel) => novel.id !== primaryNovelId && isHomeActionRequired(novel)).map((novel) => {
+    const task = getHomeNovelTask(novel);
+    const status = isHomeV2Novel(novel) ? novel.bookProgress?.director?.status : task?.status;
+    const to = getHomeNovelActionHref(novel);
+    const description = status === "waiting_gate" || getNovelWorkflowAttention(task) === "confirmation"
+      ? "等待确认本阶段结果"
+      : status === "failed" ? "创作中断，打开作品查看恢复方式"
+        : status === "cancelled" ? "本次创作已取消" : "创作已暂停，打开作品查看暂停原因";
+    return {
+      id: novel.id,
+      title: novel.title,
+      description: to ? description : `${description}。创作入口暂不可用，请重新读取。`,
+      tone: status === "failed" ? "danger" : "warning",
+      to: to ?? undefined,
+      actionLabel: isHomeV2Novel(novel) ? "打开导演台" : "打开作品",
+    };
+  });
 }
 
 export function buildHomeAssetHealthItems(novels: HomeNovelItem[]): HomeAssetHealthItem[] {

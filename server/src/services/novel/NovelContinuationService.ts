@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS } from "@ai-novel/shared/types/bookAnalysis";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import { prisma } from "../../db/prisma";
 import { novelContinuationRewritePrompt } from "../../prompting/prompts/novel/continuation.prompts";
 
@@ -88,7 +89,7 @@ function toWritingMode(value?: string | null): "original" | "continuation" {
   return value === "continuation" ? "continuation" : "original";
 }
 
-function pickKnowledgeSegments(content: string, maxSegments = 18): string[] {
+function pickKnowledgeSegments(content: string, maxSegments = 18, minLength = 20): string[] {
   const normalized = content.replace(/\r\n/g, "\n").trim();
   if (!normalized) {
     return [];
@@ -96,7 +97,7 @@ function pickKnowledgeSegments(content: string, maxSegments = 18): string[] {
   const byLines = normalized
     .split("\n")
     .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter((line) => line.length >= 20);
+    .filter((line) => line.length >= minLength);
   const fromLines = byLines.slice(0, maxSegments).map((line) => line.slice(0, 220));
   if (fromLines.length >= maxSegments) {
     return fromLines;
@@ -104,7 +105,7 @@ function pickKnowledgeSegments(content: string, maxSegments = 18): string[] {
   const bySentences = normalized
     .split(/[。！？]/)
     .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter((line) => line.length >= 20)
+    .filter((line) => line.length >= minLength)
     .map((line) => line.slice(0, 220));
   return dedupeNonEmpty([...fromLines, ...bySentences]).slice(0, maxSegments);
 }
@@ -167,6 +168,10 @@ function compactStructuredValue(value: unknown): string[] {
 }
 
 function extractAnalysisSectionLines(section: ContinuationAnalysisSection, limit = 6): string[] {
+  const manualContent = getManualBookAnalysisContent(section);
+  if (manualContent) {
+    return pickKnowledgeSegments(manualContent, limit, 1).map((item) => `${section.title}: ${item}`);
+  }
   const structured = parseStructuredRecord(section.structuredDataJson);
   const lines: string[] = [];
   if (structured) {
@@ -186,8 +191,7 @@ function extractAnalysisSectionLines(section: ContinuationAnalysisSection, limit
     return lines;
   }
 
-  const fallback = section.editedContent?.trim() || section.aiContent?.trim() || "";
-  return pickKnowledgeSegments(fallback, limit).map((item) => `${section.title}: ${item}`);
+  return pickKnowledgeSegments(section.aiContent ?? "", limit).map((item) => `${section.title}: ${item}`);
 }
 
 function selectAnalysisLines(

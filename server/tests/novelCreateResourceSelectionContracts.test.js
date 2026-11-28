@@ -313,10 +313,23 @@ test("idea constellation generates seven concrete web-novel material categories 
   assert.match(service, /buildDirectorIdeaContextSummary/);
   assert.match(service, /CONSTELLATION_OPTIONS_MAX_TOKENS = 5_000/);
   assert.match(service, /CONSTELLATION_RETRY_TEMPERATURE/);
-  assert.match(loaders, /novel\.director\.idea_constellation_options@v3/);
-  assert.match(loaders, /novel\.director\.idea_constellation_compose@v2/);
+  assert.match(loaders, /novel\.director\.idea_constellation_options@v4/);
+  assert.match(loaders, /novel\.director\.idea_constellation_compose@v3/);
   assert.match(controller, /generateDirectorIdeaConstellationOptions\(buildIdeaContextPayload\(\)\)/);
   assert.doesNotMatch(controller, /buildStaticIdeaConstellationOptions/);
-  assert.match(dialog, /const plotOptions = orderedOptions/);
-  assert.match(dialog, /selected\.length}\/7 类开书素材/);
+  assert.match(dialog, /<StoryStarChart options=\{options\}/);
+  assert.match(dialog, /toIdeaConstellationSelection\(visible\)/);
+});
+
+test("the registered constellation prompt returns either a usable idea or an actionable conflict", () => {
+  const requireSource = require("tsx/cjs/api").require;
+  const { getRegisteredPromptAsset } = requireSource("../src/prompting/registry.ts", __filename);
+  const asset = getRegisteredPromptAsset("novel.director.idea_constellation_compose", "v3");
+  const ready = { outcome: "ready", idea: "码头封锁前，刚被逐出药铺的学徒凭记忆还原了一张假药方。他必须赶在下一艘船离岸前找到第一个卖药人，才能为病倒的师父洗清罪名。", conflictReason: "" };
+  const conflict = { outcome: "conflict", idea: "", conflictReason: "保留无魔法的现实背景时，读心术无法成立。可以换成观察微表情的职业能力。" };
+  assert.deepEqual(asset.outputSchema.parse(ready), ready);
+  assert.deepEqual(asset.outputSchema.parse(conflict), conflict);
+  assert.equal(asset.outputSchema.safeParse({ ...conflict, idea: ready.idea }).success, false);
+  assert.equal(asset.outputSchema.safeParse({ ...conflict, conflictReason: "" }).success, false);
+  assert.equal(asset.outputSchema.safeParse({ ...ready, idea: "" }).success, false);
 });

@@ -10,7 +10,7 @@ import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { buildChapterPatchRepairContextBlocks } from "../../prompting/prompts/novel/chapterLayeredContext";
 import { chapterPatchRepairPrompt } from "../../prompting/prompts/novel/chapterPatchRepair.prompts";
 import { isStyleIssueRewritable, type StyleRewriteGuard, type StyleRewriteBaseline } from "@ai-novel/shared/types/styleEngine";
-import { guardStylePatches, isStyleRewriteBlocked } from "../styleEngine/rewrite";
+import { guardStylePatches, isStyleRewriteBlocked, STYLE_REWRITE_WHOLE_CHAPTER_BUDGET } from "../styleEngine/rewrite";
 
 export type PatchRepairMode =
   | "detect_only"
@@ -97,7 +97,7 @@ export class ChapterPatchRepairService {
           modeHint: input.modeHint,
           styleProtection: styleIssues.length ? JSON.stringify({ allowedIssueIds, styleIssueIds: allowedStyleIds,
             reportOnly: styleIssues.filter(issue => !isStyleIssueRewritable(issue)), protectedTerms,
-            wholeChapterTouchedRatioMax: 0.3, wholeChapterAddedRatioMax: 0.05 }) : undefined,
+            ...STYLE_REWRITE_WHOLE_CHAPTER_BUDGET }) : undefined,
         },
         contextBlocks,
         options: {

@@ -331,7 +331,8 @@ export async function resolveLLMClientOptions(
     automaticMaxTokens: options.maxTokens == null && routeMaxTokens == null ? resolvedMaxTokens ?? null : null,
   };
   const frozenMaxTokens = resolveScopedTaskOutputTokens(resolvedProvider, model, resolvedModelRoute ?? options.taskType, undefined);
-  const automaticTextBudget = origin.automaticMaxTokens;
+  const automaticTextBudget = origin.automaticMaxTokens
+    ?? (origin.requestedMaxTokens == null && resolvedModelRoute === "writer" ? origin.routeMaxTokens : null);
   const reasoningReserveTokens = capability.reasoningRequired && automaticTextBudget != null && frozenMaxTokens == null
     ? DEFAULT_MODEL_OUTPUT_TOKENS / 2 : 0;
   let effectiveMaxTokens = frozenMaxTokens ?? Math.max(resolvedMaxTokens, (automaticTextBudget ?? 0) + reasoningReserveTokens);

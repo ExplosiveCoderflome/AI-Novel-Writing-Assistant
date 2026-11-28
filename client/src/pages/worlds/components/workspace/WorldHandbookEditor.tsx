@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { AlertTriangle, BookOpen, Castle, GitBranch, MapPinned, Pencil, Save, ScrollText, WandSparkles } from "lucide-react";
 import type {
   WorldBindingSupport,
@@ -41,6 +41,8 @@ function joinPreview(items: Array<string | null | undefined>, fallback: string):
 
 export default function WorldHandbookEditor(props: {
   initialPayload?: WorldStructurePayload;
+  draft: Pick<WorldStructurePayload, "structure" | "bindingSupport"> | null;
+  setDraft: Dispatch<SetStateAction<Pick<WorldStructurePayload, "structure" | "bindingSupport"> | null>>;
   savePending: boolean;
   backfillPending: boolean;
   generatePending: boolean;
@@ -57,7 +59,7 @@ export default function WorldHandbookEditor(props: {
   onOpenAdvanced: () => void;
 }) {
   const {
-    initialPayload,
+    initialPayload, draft, setDraft,
     savePending,
     backfillPending,
     generatePending,
@@ -69,24 +71,24 @@ export default function WorldHandbookEditor(props: {
     onOpenOverview,
     onOpenAdvanced,
   } = props;
-  const [draftStructure, setDraftStructure] = useState<WorldStructuredData | null>(initialPayload?.structure ?? null);
-  const [draftBindingSupport, setDraftBindingSupport] = useState<WorldBindingSupport | null>(
-    initialPayload?.bindingSupport ?? null,
-  );
+  const draftStructure = draft?.structure ?? initialPayload?.structure;
+  const draftBindingSupport = draft?.bindingSupport ?? initialPayload?.bindingSupport;
+  const setDraftStructure: Dispatch<SetStateAction<WorldStructuredData | null>> = update => {
+    setDraft(current => {
+      const base = current ?? initialPayload;
+      if (!base) return current;
+      const structure = typeof update === "function" ? update(base.structure) : update;
+      return structure ? { structure, bindingSupport: base.bindingSupport } : current;
+    });
+  };
+  const [actionError, setActionError] = useState("");
   const [activeAiSection, setActiveAiSection] = useState<WorldStructureSectionKey>("profile");
   const [editingSection, setEditingSection] = useState<EditableHandbookSection | null>(null);
-
-  useEffect(() => {
-    if (!initialPayload) {
-      return;
-    }
-    setDraftStructure(initialPayload.structure);
-    setDraftBindingSupport(initialPayload.bindingSupport);
-  }, [initialPayload]);
 
   if (!draftStructure || !draftBindingSupport) {
     return (
       <section className="flex min-h-56 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
+          {actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}
           <BookOpen className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
           <div className="mt-3 font-medium">正在读取世界手册</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">需要时可以让 AI 把已有设定整理成完整手册。</div>
@@ -94,10 +96,12 @@ export default function WorldHandbookEditor(props: {
             className="mt-4 rounded-full"
             variant="outline"
             onClick={async () => {
-              const result = await onBackfill();
-              if (result) {
-                setDraftStructure(result.structure);
-                setDraftBindingSupport(result.bindingSupport);
+              setActionError("");
+              try {
+                const result = await onBackfill();
+                if (result) setDraft(result);
+              } catch {
+                setActionError("整理失败，请重试。");
               }
             }}
             disabled={backfillPending}
@@ -109,19 +113,28 @@ export default function WorldHandbookEditor(props: {
   }
 
   const saveDraft = async () => {
-    await onSave(draftStructure, draftBindingSupport);
+    setActionError("");
+    try {
+      await onSave(draftStructure, draftBindingSupport);
+    } catch {
+      setActionError("手册保存失败，修改已保留，可以重新保存。");
+    }
   };
 
   const generateSection = async () => {
-    const result = await onGenerate(activeAiSection, draftStructure, draftBindingSupport);
-    if (result) {
-      setDraftStructure(result.structure);
-      setDraftBindingSupport(result.bindingSupport);
+    setActionError("");
+    try {
+      const result = await onGenerate(activeAiSection, draftStructure, draftBindingSupport);
+      if (result) setDraft(result);
+    } catch {
+      setActionError("生成失败，手册内容已保留，请重试。");
     }
   };
 
   return (
-    <section className="space-y-6">
+    <fieldset disabled={savePending || generatePending} className="min-w-0 space-y-6">
+        {actionError ? <p role="alert" className="text-sm text-destructive">{actionError}</p> : null}
+        {draft ? <p role="status" className="text-sm text-muted-foreground">手册有未保存的修改。切换标签后可以回来继续编辑。</p> : null}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold tracking-tight">整理世界手册</h2>
@@ -440,6 +453,6 @@ export default function WorldHandbookEditor(props: {
             onOpenAdvanced={onOpenAdvanced}
           />
         ) : null}
-    </section>
+    </fieldset>
   );
 }

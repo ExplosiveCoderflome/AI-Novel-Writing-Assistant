@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const ts = require("typescript");
+const ts = require("typescript-legacy");
 
 const source = fs.readFileSync(path.resolve(__dirname, "../../desktop/src/runtime/server.ts"), "utf8");
 const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS}}).outputText;

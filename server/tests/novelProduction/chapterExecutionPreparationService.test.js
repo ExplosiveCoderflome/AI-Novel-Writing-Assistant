@@ -3,7 +3,8 @@ const assert = require("node:assert/strict");
 
 const {
   ChapterExecutionPreparationService,
-} = require("../../dist/services/novel/production/preparation/ChapterExecutionPreparationService.js");
+  hasConfirmedExecutionContract,
+} = require("../../dist/services/novel/production/preparation");
 
 test("chapter preparation finishes planning writes before it reports ready", async () => {
   const calls = [];
@@ -42,6 +43,46 @@ test("chapter preparation finishes planning writes before it reports ready", asy
     planId: "plan-1",
     preparedArtifacts: ["chapter_execution_contract", "chapter_plan"],
   });
+});
+
+test("a verified director batch keeps its approved task and scenes through writer preparation", async () => {
+  const { artifactContentHash, savedExecutionContract } = require("../../dist/modules/director");
+  const second = {id: "c2", order: 2, taskSheet: "核对复写纸", sceneCards: "发现双重轮廓"};
+  const chapters = [{id: "c1", order: 1, taskSheet: "翻开原件", sceneCards: "取出纸片"}, second];
+  const contentHash = artifactContentHash(chapters.map(savedExecutionContract));
+  const db = {
+    directorNextRun: {findFirst: async () => ({contractJson: JSON.stringify({novelId: "n", scope: "chapters:1-2", chapterRange: {from: 1, to: 2}})})},
+    directorNextArtifact: {findFirst: async () => ({status: "confirmed", contentHash})},
+    chapter: {findMany: async () => chapters},
+  };
+  const source = chapters.map(ch => ({chapterId: ch.id, taskSheet: ch.taskSheet, sceneCards: ch.sceneCards}));
+  const rawPlan = JSON.stringify({objective: "追问来历", participants: [], mustAdvance: [], mustPreserve: [], riskNotes: [], scenes: []});
+  db.storyPlan = {findFirst: async () => ({rawPlanJson: rawPlan})};
+  db.chapter.updateMany = async ({where, data}) => {
+    const row = chapters.find(ch => ch.id === where.id && ch.taskSheet === where.taskSheet && ch.sceneCards === where.sceneCards);
+    if (row) Object.assign(row, data);
+    return {count: row ? 1 : 0};
+  };
+  db.$transaction = callback => callback({...db, volumeChapterPlan: {findMany: async () => source}});
+  const calls = [];
+  const service = new ChapterExecutionPreparationService({
+    hasConfirmedExecutionContract: (...args) => hasConfirmedExecutionContract(db, ...args),
+    ensureTimelineReady: async () => calls.push("timeline"),
+    chapterPlanJITService: {ensureExecutionReady: async () => assert.fail("confirmed tasks cannot be regenerated")},
+    planner: {ensureChapterPlan: async (_n, _c, options) => {
+      assert.equal(options.preserveExecutionContract, true); calls.push("planner"); return {id: "p"};
+    }},
+  });
+  const request = {controlPolicy: {kickoffMode: "director_start", advanceMode: "full_book_autopilot"}};
+  await service.prepare("n", "c2", request, "run");
+  assert.deepEqual(calls, ["timeline", "planner"]);
+  second.taskSheet = "章节目标：追问来历";
+  assert.equal(await hasConfirmedExecutionContract(db, "n", "run", "c2"), true);
+  assert.equal(second.taskSheet, "核对复写纸");
+  second.sceneCards = "不同转折";
+  await assert.rejects(() => service.prepare("n", "c2", request, "run"), /与确认稿不符/);
+  assert.deepEqual(calls, ["timeline", "planner", "timeline"]);
+  assert.equal(second.sceneCards, "不同转折");
 });
 
 test("manual chapter preparation does not create an autopilot route window", async () => {

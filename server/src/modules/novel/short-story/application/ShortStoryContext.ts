@@ -3,7 +3,20 @@ import type { CreationIntentInterpretation, ShortStoryPlanContract } from "@ai-n
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
 import { parseJson, type RevisionBaseline } from "../domain/revisionState";
-import { shortStoryProductionFoundationText } from "./shortStoryPromptContext";
+import { formatShortStoryStyleContract, shortStoryProductionFoundationText } from "./shortStoryPromptContext";
+import { StyleRuntimeResolver } from "../../../../services/styleEngine/StyleRuntimeResolver";
+
+const styleRuntimeResolver = new StyleRuntimeResolver();
+
+async function resolveStyleContract(novelId: string): Promise<string | null> {
+  try {
+    const runtime = await styleRuntimeResolver.resolve({ novelId });
+    return formatShortStoryStyleContract(runtime.context.compiledBlocks?.contract);
+  } catch (error) {
+    console.warn("[short-story.revision] style context unavailable, continue with base writing rules", error);
+    return null;
+  }
+}
 
 export async function loadRevisionContext(novelId: string) {
   const imported = await prisma.manuscriptProject.findUnique({where:{novelId},include:{novel:true}});
@@ -12,7 +25,7 @@ export async function loadRevisionContext(novelId: string) {
     if(!planRow)throw new AppError("导入短篇缺少分节方案。",409);
     const plan=parseJson<ShortStoryPlanContract>(planRow.structureJson,{title:imported.novel?.title??"",targetWordCount:planRow.targetWordCount,endingPromise:planRow.endingPromise,segments:[]});
     const importedInterpretation={understanding:"从已导入原稿分节形成的工作上下文；没有确认的原始创作意图。",recommendedNarrativeForm:"short_story" as const,recommendedTargetWordCount:planRow.targetWordCount,confidence:1,recommendationReason:"来自用户导入的原稿。",recommendedWritingPlatform:"none" as const,writingPlatformConfidence:1,writingPlatformReason:"导入内容沿用原稿。",directions:[{id:"imported",title:"导入原稿修订",premise:"",coreExperience:"",protagonist:"",centralConflict:"",endingPromise:"",styleKeywords:[]},{id:"imported-unused",title:"未选择新方向",premise:"",coreExperience:"",protagonist:"",centralConflict:"",endingPromise:"",styleKeywords:[]}] as const};
-    return {novel:imported.novel!,planRow,plan,segments:planRow.segments,activeIntent:null,interpretation:importedInterpretation,direction:importedInterpretation.directions[0],task:null,productionFoundation:"导入短篇修订上下文；不启动生成工作流。",reference:referenceContract(parseShortStoryReference(imported.novel?.shortStoryReferenceJson??null,Boolean(imported.novel?.referenceBookAnalysisId))),imported:true as const};
+    return {novel:imported.novel!,planRow,plan,segments:planRow.segments,activeIntent:null,interpretation:importedInterpretation,direction:importedInterpretation.directions[0],task:null,productionFoundation:"导入短篇修订上下文；不启动生成工作流。",reference:referenceContract(parseShortStoryReference(imported.novel?.shortStoryReferenceJson??null,Boolean(imported.novel?.referenceBookAnalysisId))),styleContract: await resolveStyleContract(imported.novel!.id),imported:true as const};
   }
   const novel = await prisma.novel.findUnique({
     where: { id: novelId },
@@ -65,6 +78,7 @@ export async function loadRevisionContext(novelId: string) {
     task,
     productionFoundation: shortStoryProductionFoundationText(novel),
     reference: referenceContract(parseShortStoryReference(novel.shortStoryReferenceJson, Boolean(novel.referenceBookAnalysisId))),
+    styleContract: await resolveStyleContract(novel.id),
   };
 }
 

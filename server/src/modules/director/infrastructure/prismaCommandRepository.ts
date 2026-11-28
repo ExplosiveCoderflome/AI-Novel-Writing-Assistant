@@ -16,7 +16,7 @@ import type {
 } from "../application/ports";
 import {commitGateResolution, type ArtifactEditReader} from "./commands/gateResolution";
 import {assertFailedGenerationRecovery, commitExplicitResume, type BusinessResume} from "./commands/resumeRun";
-import {ActiveRunConflictError, InvalidDirectorCommandError, assertChapterBudgetReplay} from "../application/commandService";
+import {ActiveRunConflictError, InvalidDirectorCommandError, assertCommandReplay} from "../application/commandService";
 
 function parseJson<T>(value: string | null): T | null {
   return value ? JSON.parse(value) as T : null;
@@ -86,8 +86,30 @@ function fromRow(row: {
   };
 }
 
+async function createQueuedRun(tx:Prisma.TransactionClient, input:Pick<CommandOpenRunInput,"contract"|"initialArtifacts">) {
+  await tx.directorNextRun.create({
+    data: {
+      id: input.contract.runId,
+      novelId: input.contract.novelId,
+      driver: input.contract.driver,
+      planVersion: input.contract.planVersion,
+      contractJson: JSON.stringify(input.contract),
+    },
+  });
+  const control = initialControl();
+  await tx.directorNextRunControl.create({ data: controlCreate(input.contract.runId, input.contract.novelId, control) });
+  for (const artifact of input.initialArtifacts ?? []) {
+    const latest = await tx.directorNextArtifact.findFirst({where: {novelId: input.contract.novelId, type: artifact.type, scope: artifact.scope}, orderBy: {version: "desc"}, select: {version: true}});
+    const version = (latest?.version ?? 0) + 1;
+    await tx.directorNextArtifact.create({data: {...artifact, id: `${input.contract.novelId}:${artifact.type}:${artifact.scope}:${version}`,
+      novelId: input.contract.novelId, version, producedByRunId: input.contract.runId}});
+  }
+  return control;
+}
+
 export class PrismaCommandRepository implements CommandRepository {
   constructor(private readonly db: PrismaClient = prisma, private readonly options: {readEditedArtifact?: ArtifactEditReader; resumeBusiness?: BusinessResume; cancelBusiness?: BusinessResume;
+    beforeOpen?: (novelId:string,tx:Prisma.TransactionClient)=>Promise<number>;
     beforeRetry?: (contract: RunContract, tx: Prisma.TransactionClient) => Promise<void>} = {}) {}
 
   async find(idempotencyKey: string): Promise<DirectorCommandRecord | null> {
@@ -103,23 +125,7 @@ export class PrismaCommandRepository implements CommandRepository {
         if (!controlRow) throw new Error(`director command run not found: ${existing.runId}`);
         return { runId: existing.runId, control: controlFromRow(controlRow), commandId: existing.id, replayed: true };
       }
-      await tx.directorNextRun.create({
-        data: {
-          id: input.contract.runId,
-          novelId: input.contract.novelId,
-          driver: input.contract.driver,
-          planVersion: input.contract.planVersion,
-          contractJson: JSON.stringify(input.contract),
-        },
-      });
-      const control = initialControl();
-      await tx.directorNextRunControl.create({ data: controlCreate(input.runId, input.contract.novelId, control) });
-      for (const artifact of input.initialArtifacts ?? []) {
-        const latest = await tx.directorNextArtifact.findFirst({where: {novelId: input.contract.novelId, type: artifact.type, scope: artifact.scope}, orderBy: {version: "desc"}, select: {version: true}});
-        const version = (latest?.version ?? 0) + 1;
-        await tx.directorNextArtifact.create({data: {...artifact, id: `${input.contract.novelId}:${artifact.type}:${artifact.scope}:${version}`,
-          novelId: input.contract.novelId, version, producedByRunId: input.runId}});
-      }
+      const control = await createQueuedRun(tx,input);
       const result = commandResult(input.runId, control, input.id);
       await tx.directorNextCommand.create({
         data: {
@@ -139,7 +145,7 @@ export class PrismaCommandRepository implements CommandRepository {
     return this.db.$transaction(async (tx) => {
       const existing = await tx.directorNextCommand.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
       if (existing) {
-        assertChapterBudgetReplay(JSON.parse(existing.payloadJson), input.payload);
+        assertCommandReplay(JSON.parse(existing.payloadJson), input.payload);
         return this.replay(tx, existing);
       }
       const row = await tx.directorNextRunControl.findUnique({ where: { runId: input.runId } });
@@ -152,7 +158,18 @@ export class PrismaCommandRepository implements CommandRepository {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
         await this.options.beforeRetry?.(JSON.parse(run.contractJson) as RunContract, tx);
       }
-      const next = applyEvent(current, input.event, input.expectedVersion);
+      let next = applyEvent(current, input.event, input.expectedVersion);
+      if (input.successor) {
+        const successor = input.successor.contract;
+        if (input.event.type !== "resolve_gate" || !input.gateResolution?.proseReview?.nextRange || successor.novelId !== row.novelId ||
+          !this.options.beforeOpen || await this.options.beforeOpen(row.novelId,tx) !== successor.executionEpoch) {
+          throw new InvalidDirectorCommandError("续写授权有变化，请重新核对下一批。");
+        }
+        const other = await tx.directorNextRunControl.findFirst({where:{novelId:row.novelId,runId:{not:input.runId},
+          status:{in:["queued","running","waiting_gate","paused"]}}});
+        if (other) throw new ActiveRunConflictError(other.runId);
+        next = applyEvent(next,{type:"complete"});
+      }
       if (input.event.type === "cancel" && this.options.cancelBusiness) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
         await this.options.cancelBusiness(JSON.parse(run.contractJson) as RunContract, tx);
@@ -170,9 +187,10 @@ export class PrismaCommandRepository implements CommandRepository {
           if (active) throw new ActiveRunConflictError(active.runId);
         }
       }
+      let approvedChapterFingerprint: string | undefined;
       if (input.gateResolution) {
         const run = await tx.directorNextRun.findUniqueOrThrow({where: {id: input.runId}, select: {contractJson: true}});
-        await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
+        approvedChapterFingerprint = await commitGateResolution(tx, {runId: input.runId, contract: JSON.parse(run.contractJson) as RunContract, control: current, resolution: input.gateResolution}, this.options.readEditedArtifact);
       }
       const updated = await tx.directorNextRunControl.updateMany({
         where: { runId: input.runId, version: input.expectedVersion,
@@ -180,13 +198,14 @@ export class PrismaCommandRepository implements CommandRepository {
         data: {...controlUpdate(next), ...(input.event.type === "retry_start" ? {leaseOwner: null, leaseExpiresAt: null} : {})},
       });
       if (updated.count !== 1) throw new VersionConflictError(input.expectedVersion, current.version);
+      if (input.successor) await createQueuedRun(tx,input.successor);
       if (input.gateResolution?.decision === "regenerate") {
         const latest = await tx.directorNextEvent.findFirst({where: {runId: input.runId}, orderBy: {seq: "desc"}, select: {seq: true}});
         const seq = (latest?.seq ?? 0) + 1;
         await tx.directorNextEvent.create({data: {id: `${input.runId}:${seq}`, runId: input.runId, seq, type: "gate_regeneration_requested",
           payloadJson: JSON.stringify({commandId: input.id, scope: input.gateResolution.scope, artifactTypes: input.gateResolution.artifacts.map(artifact => artifact.type), guidance: input.gateResolution.guidance})}});
       }
-      const result = commandResult(input.runId, next, input.id);
+      const result = {...commandResult(input.runId, next, input.id), ...(input.successor ? {nextRunId:input.successor.contract.runId} : {}), ...(approvedChapterFingerprint ? {approvedChapterFingerprint} : {})};
       await tx.directorNextCommand.create({
         data: {
           id: input.id,
@@ -198,7 +217,7 @@ export class PrismaCommandRepository implements CommandRepository {
         },
       });
       return { runId: input.runId, control: next, commandId: input.id, replayed: false };
-    });
+    }, input.successor ? {isolationLevel:"Serializable"} : undefined);
   }
 
   async handoff(input: CommandHandoffInput): Promise<{ runId: string; control: RunControl; commandId: string; replayed: boolean }> {

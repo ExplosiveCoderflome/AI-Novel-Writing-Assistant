@@ -118,7 +118,7 @@ export interface BookAnalysisWorkspace {
   createAnalysis: () => Promise<void>;
   createDiagnosisAnalysis: () => Promise<void>;
   copySelectedAnalysis: () => Promise<void>;
-  rebuildAnalysis: (analysisId: string) => void;
+  rebuildAnalysis: (analysisId: string, regenerateCompleted?: boolean) => void;
   archiveAnalysis: (analysisId: string) => void;
   regenerateSection: (sectionKey: BookAnalysisSectionKey) => void;
   optimizeSectionPreview: (section: BookAnalysisSection) => Promise<void>;

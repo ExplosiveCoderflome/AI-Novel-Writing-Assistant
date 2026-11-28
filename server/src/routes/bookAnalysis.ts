@@ -70,6 +70,8 @@ const budgetResumeSchema = z.object({
   budgetTokens: z.number().int().min(1_000).max(10_000_000),
 });
 
+const rebuildSchema = z.object({ regenerateCompleted: z.boolean().optional() }).optional();
+
 const sectionUpdateSchema = z.object({
   editedContent: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -155,10 +157,11 @@ router.get("/:id", validate({ params: analysisParamsSchema }), async (req, res, 
   }
 });
 
-router.post("/:id/rebuild", validate({ params: analysisParamsSchema }), async (req, res, next) => {
+router.post("/:id/rebuild", validate({ params: analysisParamsSchema, body: rebuildSchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof analysisParamsSchema>;
-    const data = await bookAnalysisService.rebuildAnalysis(id);
+    const body = req.body as z.infer<typeof rebuildSchema>;
+    const data = await bookAnalysisService.rebuildAnalysis(id, body?.regenerateCompleted);
     res.status(202).json({
       success: true,
       data,

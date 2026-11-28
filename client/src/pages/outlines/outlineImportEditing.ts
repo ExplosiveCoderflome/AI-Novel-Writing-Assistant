@@ -25,7 +25,7 @@ export function updateImportNodeTitle(
 }
 
 export function setImportChapterVolume(document: OutlineDocument, chapterId: string, volumeNodeId: string): OutlineDocument {
-  const chapters = document.chapters.map(chapter => chapter.nodeId === chapterId ? { ...chapter, volumeNodeId } : chapter);
+  const chapters = document.chapters.map(chapter => chapter.nodeId === chapterId && chapter.volumeNodeId !== volumeNodeId ? { ...chapter, volumeNodeId, beatKey: undefined } : chapter);
   return {
     ...document,
     chapters,

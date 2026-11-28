@@ -117,6 +117,7 @@ export type SimpleCreationShelfChapterStatus =
   | "error";
 
 export interface SimpleCreationShelfProjection {
+  bookCompletion?: import("./director/bookProgress").NovelBookCompletion | null;
   novel: {
     id: string;
     title: string;
@@ -133,6 +134,10 @@ export interface SimpleCreationShelfProjection {
     canRetry: boolean;
     recoveryAction?: "replan_and_continue" | "continue";
     safetyMessage?: string | null;
+    interruption?: {
+      kind: "replan" | "failed" | "waiting_confirmation" | "paused";
+      detail: string | null;
+    } | null;
     latestRiskAssessment?: DirectorRiskHistoryItem | null;
     riskHistory?: DirectorRiskHistoryItem[];
   };
@@ -144,6 +149,8 @@ export interface SimpleCreationShelfProjection {
     wordCount: number;
     content: string | null;
     updatedAt: string;
+    authorProvenance?: ChapterAuthorProvenance;
+    humanEditedAt?: string | null;
     qualityDebt: ChapterQualityDebtDetails | null;
   }>;
   materials: {
@@ -279,6 +286,8 @@ export interface Novel {
   updatedAt: string;
 }
 
+export type ChapterAuthorProvenance = "ai_generated" | "human_edited" | "human_locked";
+
 export interface Chapter {
   id: string;
   title: string;
@@ -286,6 +295,8 @@ export interface Chapter {
   order: number;
   generationState?: ChapterGenerationState;
   chapterStatus?: ChapterStatus | null;
+  authorProvenance?: ChapterAuthorProvenance;
+  humanEditedAt?: string | null;
   targetWordCount?: number | null;
   conflictLevel?: number | null;
   revealLevel?: number | null;

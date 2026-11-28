@@ -322,6 +322,7 @@ enum CharacterGender {
 }
 
 model Novel {
+  finalReviewApproval DirectorFinalApproval?
   manuscriptProject ManuscriptProject?
   outlineBookBinding OutlineBookBinding?
   shortStoryReferenceJson String?
@@ -405,6 +406,7 @@ model Novel {
   characterInfluenceProposals CharacterInfluenceProposal[]
   characterDialogueSessions CharacterDialogueSession[]
   characterDialogueInfluences CharacterDialogueInfluence[]
+  characterForwardAdjustments CharacterForwardAdjustment[]
   characterResourceItems CharacterResourceLedgerItem[]
   characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
@@ -784,6 +786,7 @@ model ManuscriptRevisionProposal {
 }
 
 model Chapter {
+  finalReviewChecks DirectorFinalChapterCheck[]
   id              String                 @id @default(cuid())
   productionUnitRuns ProductionUnitRun[]
   title           String
@@ -805,6 +808,8 @@ model Chapter {
   riskFlags       String?
   hook            String?
   expectation     String?
+  authorProvenance String                @default("ai_generated")
+  humanEditedAt    DateTime?
   novelId         String
   novel           Novel                  @relation(fields: [novelId], references: [id], onDelete: Cascade)
   chapterSummary  ChapterSummary?
@@ -914,6 +919,7 @@ model Character {
   influenceProposals CharacterInfluenceProposal[]
   dialogueSessions CharacterDialogueSession[]
   dialogueInfluences CharacterDialogueInfluence[]
+  forwardAdjustments CharacterForwardAdjustment[]
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -1199,6 +1205,23 @@ model CharacterCastOptionRelation {
   updatedAt       DateTime @updatedAt
 
   @@index([optionId, sortOrder])
+}
+
+model CharacterForwardAdjustment {
+  id                        String    @id @default(cuid())
+  novelId                   String
+  characterId               String
+  revision                  Int
+  effectiveFromChapterOrder Int
+  beforeJson                String
+  afterJson                 String
+  runId                     String?
+  createdAt                 DateTime  @default(now())
+  novel                     Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character                 Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([characterId, revision], map: "CharacterForwardAdjustment_character_revision_key")
+  @@index([novelId, effectiveFromChapterOrder], map: "CharacterForwardAdjustment_novel_chapter_idx")
 }
 
 model CharacterTimeline {
@@ -2249,11 +2272,38 @@ model OutlineRevision {
   @@index([projectId, createdAt])
 }
 
+model AgentConversationTurn {
+  resultPayloadJson String?
+  openingCandidateProposal OpeningCandidateProposal?
+  id             String   @id
+  scopeKey       String
+  activeSlot     String?
+  contextVersion String
+  parentResultId String?
+  requestText    String
+  status         String
+  replyText      String?
+  resultId       String?
+  createdAt      DateTime @default(now())
+  @@unique([scopeKey, resultId])
+  @@unique([scopeKey, activeSlot])
+  @@index([scopeKey, createdAt])
+}
+
+model OpeningCandidateProposal {
+  id                String @id
+  turn              AgentConversationTurn @relation(fields: [id], references: [id], onDelete: Cascade)
+  status            String
+  changesJson       String
+  appliedFieldsJson String?
+}
+
 model OutlineProposal {
   id            String   @id @default(cuid())
   projectId     String
   baseVersion   Int
   kind          String
+  characterNodeId String?
   status        String
   requestText   String?
   proposalJson  String
@@ -2264,6 +2314,7 @@ model OutlineProposal {
   updatedAt     DateTime @updatedAt
   project       OutlineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   @@index([projectId, status, createdAt])
+  @@index([projectId, kind, characterNodeId])
   @@index([projectId, baseVersion])
 }
 
@@ -4308,6 +4359,22 @@ model DirectorNextRunControl {
   run            DirectorNextRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([novelId, status])
+}
+
+model DirectorFinalChapterCheck {
+  chapterId    String
+  sourceHash   String
+  findingsJson String
+  chapter      Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@id([chapterId, sourceHash])
+}
+
+model DirectorFinalApproval {
+  novelId          String @id
+  confirmedVersion String
+  requestHash      String
+  novel            Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
 }
 
 model DirectorNextArtifact {

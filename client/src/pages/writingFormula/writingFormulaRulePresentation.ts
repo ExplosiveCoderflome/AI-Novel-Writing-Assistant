@@ -40,6 +40,8 @@ const FIELD_ORDER: Record<RuleSection, string[]> = {
     "allowIncompleteSentences",
     "allowSwearing",
     "allowUselessDetails",
+    "voiceExemplars",
+    "contrastPairs",
   ],
   rhythmRules: [
     "summary",
@@ -76,6 +78,8 @@ const FIELD_LABELS: Record<RuleSection, Record<string, string>> = {
     allowIncompleteSentences: "不完整句",
     allowSwearing: "粗口口语",
     allowUselessDetails: "生活杂音",
+    voiceExemplars: "语感示范样本",
+    contrastPairs: "去 AI 腔对比",
   },
   rhythmRules: {
     summary: "节奏控制总述",
@@ -206,6 +210,12 @@ function formatArrayValue(value: unknown[]): string {
     .map((item) => {
       if (typeof item === "string") {
         return humanizeUnknownToken(item);
+      }
+      if (item && typeof item === "object" && "aiPattern" in item && "preferred" in item) {
+        const pair = item as { aiPattern?: unknown; preferred?: unknown };
+        const ai = typeof pair.aiPattern === "string" ? pair.aiPattern.trim() : "";
+        const preferred = typeof pair.preferred === "string" ? pair.preferred.trim() : "";
+        return ai && preferred ? `避免「${ai}」→ 改用「${preferred}」` : "";
       }
       return String(item);
     })

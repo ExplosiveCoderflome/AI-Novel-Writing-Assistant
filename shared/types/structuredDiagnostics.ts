@@ -1,3 +1,5 @@
+import type { LlmOutputBudgetTrace } from "./llmUsage";
+
 export type StructuredFailureReason =
   | "empty_response" | "reasoning_budget_exhausted" | "output_budget_exhausted"
   | "blocked" | "rate_limited" | "network" | "timeout" | "cancelled"
@@ -14,6 +16,7 @@ export interface StructuredResponseEvidence {
   retryAfterMs: number | null;
   durationMs: number;
   maxTokens: number | null;
+  budgetTrace?: LlmOutputBudgetTrace;
   tokenUsage: { promptTokens: number; completionTokens: number; totalTokens: number; reasoningTokens?: number } | null;
   errorChain: Array<{ name: string; code: string | null; status: number | null }>;
 }

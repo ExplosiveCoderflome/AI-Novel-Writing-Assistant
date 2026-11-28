@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Lightbulb, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { dismissOnboardingTip, loadOnboardingTipDismissal } from "./onboardingTipState";
 
 interface OnboardingTipProps {
   storageKey: string;
@@ -9,11 +10,11 @@ interface OnboardingTipProps {
   next?: string;
 }
 
-function readVisible(storageKey: string): boolean {
+function getTipStorage(): Storage | null {
   try {
-    return window.localStorage.getItem(`ai-novel.guide-tip.${storageKey}`) !== "dismissed";
+    return window.localStorage;
   } catch {
-    return true;
+    return null;
   }
 }
 
@@ -23,17 +24,23 @@ export default function OnboardingTip({
   description,
   next,
 }: OnboardingTipProps) {
-  const [visible, setVisible] = useState(() => readVisible(storageKey));
-  if (!visible) {
+  const [visibleKey, setVisibleKey] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setVisibleKey(null);
+    void loadOnboardingTipDismissal(storageKey, getTipStorage(), window.__AI_NOVEL_DESKTOP__)
+      .then((dismissed) => {
+        if (active) setVisibleKey(dismissed ? null : storageKey);
+      });
+    return () => { active = false; };
+  }, [storageKey]);
+
+  if (visibleKey !== storageKey) {
     return null;
   }
   const dismiss = () => {
-    try {
-      window.localStorage.setItem(`ai-novel.guide-tip.${storageKey}`, "dismissed");
-    } catch {
-      // Storage can be unavailable in privacy mode; hiding for this session is enough.
-    }
-    setVisible(false);
+    setVisibleKey(null);
+    void dismissOnboardingTip(storageKey, getTipStorage(), window.__AI_NOVEL_DESKTOP__);
   };
   return (
     <aside className="flex items-start gap-3 rounded-xl border border-sky-200/80 bg-sky-50/70 px-4 py-3 text-sky-950">

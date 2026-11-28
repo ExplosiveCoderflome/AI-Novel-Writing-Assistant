@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { saveOpeningCast } from "./characterPrep/opening/saveOpeningCast";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { novelProductionCharactersPrompt } from "../../prompting/prompts/novel/production.prompts";
@@ -136,11 +137,11 @@ export class NovelProductionService {
       };
     }
 
-    const desiredCount = Math.min(Math.max(input.count ?? 5, 3), 6);
     const result = await runStructuredPrompt({
       asset: novelProductionCharactersPrompt,
       promptInput: {
-        desiredCount,
+        desiredCount: input.count,
+        estimatedChapterCount: novel.estimatedChapterCount,
         title: novel.title,
         description: input.description?.trim() || novel.description?.trim() || "暂无",
         genre: input.genre?.trim() || "未指定",
@@ -157,40 +158,11 @@ export class NovelProductionService {
       },
     });
 
-    const parsed = result.output as Array<Record<string, unknown>>;
-    const uniqueNames = new Set<string>();
-    const created: Array<{ id: string; name: string; role: string }> = [];
-    for (const item of parsed) {
-      const name = typeof item.name === "string" ? item.name.trim() : "";
-      const role = typeof item.role === "string" ? item.role.trim() : "";
-      if (!name || !role || uniqueNames.has(name)) {
-        continue;
-      }
-      uniqueNames.add(name);
-      const character = await this.novelService.createCharacter(novel.id, {
-        name,
-        role,
-        personality: typeof item.personality === "string" ? item.personality.trim() : undefined,
-        background: typeof item.background === "string" ? item.background.trim() : undefined,
-        development: typeof item.development === "string" ? item.development.trim() : undefined,
-        currentState: typeof item.currentState === "string" ? item.currentState.trim() : undefined,
-        currentGoal: typeof item.currentGoal === "string" ? item.currentGoal.trim() : undefined,
-      });
-      created.push({
-        id: character.id,
-        name: character.name,
-        role: character.role,
-      });
-    }
-    if (created.length === 0) {
-      throw new Error("角色生成未返回可保存的结果。");
-    }
+    const {characters, reused} = await saveOpeningCast(novel.id, result.output);
+    if (!reused) await this.novelService.rebuildCharacterDynamics(novel.id, {sourceType: "rebuild_projection"}).catch(() => null);
     return {
-      novelId: novel.id,
-      reused: false,
-      characterCount: created.length,
-      items: created,
-      summary: `已为《${novel.title}》生成 ${created.length} 个核心角色。`,
+      novelId: novel.id, reused, characterCount: characters.length, items: characters,
+      summary: reused ? `已复用《${novel.title}》现有的 ${characters.length} 个角色。` : `已为《${novel.title}》生成 ${characters.length} 个核心角色。`,
     };
   }
 

@@ -57,6 +57,17 @@ test("extractDirectorTaskSeedPayloadFromMeta returns candidate-stage batches fro
   assert.deepEqual(result?.batches, [firstBatch]);
 });
 
+test("a later candidate revision refreshes story fields while preserving an available title choice", () => {
+  const local = buildBatch("first", 1, "作者选择的书名");
+  const latest = buildBatch("first", 1, "首推书名");
+  latest.candidates[0].reviewRevision = 1;
+  latest.candidates[0].titleOptions = [{ title: local.candidates[0].workingTitle }];
+  const [merged] = mergeDirectorCandidateBatches([local], [latest]);
+  assert.equal(merged.candidates[0].workingTitle, local.candidates[0].workingTitle);
+  assert.equal(merged.candidates[0].hookStrategy, latest.candidates[0].hookStrategy);
+  assert.equal(mergeDirectorCandidateBatches([merged], [local])[0], merged);
+});
+
 test("mergeDirectorCandidateBatches preserves local edits and only appends missing batches", () => {
   const localBatch = buildBatch("batch-1", 1, "本地已切换的书名");
   const remoteVersionOfSameBatch = buildBatch("batch-1", 1, "任务里原始书名");

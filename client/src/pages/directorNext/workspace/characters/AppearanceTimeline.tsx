@@ -18,8 +18,9 @@ function ChapterNode({row, label, symbol, onSelect, active = false}: {
   </Button>;
 }
 
-export function AppearanceTimeline({rows, boundary, onSelect}: {
+export function AppearanceTimeline({rows, boundary, onSelect, reviewOrders}: {
   rows: AppearanceRow[]; boundary: AppearanceBoundary; onSelect: (target:AppearanceDestination)=>void;
+  reviewOrders?: ReadonlySet<number>;
 }) {
   const [requestedPage, setRequestedPage] = useState<number | null>(null);
   const window = appearanceTimelinePage(rows, boundary, requestedPage);
@@ -51,7 +52,7 @@ export function AppearanceTimeline({rows, boundary, onSelect}: {
             <div className="relative flex flex-col items-center gap-1">
               {lane==="planned" ? row.chapterId === null && !row.planSource
                 ? <ChapterNode row={row} label="出场安排待生成，查看章节规划" symbol="◌" onSelect={onSelect}/>
-                : row.planned ? <ChapterNode row={row} label="计划出场" symbol="○" onSelect={onSelect}/>
+                : row.planned ? <ChapterNode row={row} label={reviewOrders?.has(row.chapterOrder) ? "计划出场，待核对" : "计划出场"} symbol={reviewOrders?.has(row.chapterOrder) ? "!" : "○"} onSelect={onSelect}/>
                   : <span className="relative inline-flex h-8 items-center bg-background px-2 text-muted-foreground" aria-label="暂无明确出场安排">—</span>
                 : <>
                   {eventKinds.filter(kind=>row.events.some(event=>event.kind===kind)).map(kind=><ChapterNode key={kind} row={row}
@@ -67,6 +68,7 @@ export function AppearanceTimeline({rows, boundary, onSelect}: {
     </div>
     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="示意图图例">
       <span>○ 计划出场</span>
+      {window.rows.some(row => reviewOrders?.has(row.chapterOrder)) ? <span>! 待核对</span> : null}
       {eventKinds.map(kind=><span key={kind}>{symbols[kind]} {appearanceLabels[kind]}</span>)}
       <span>◌ 出场安排待生成</span><span>? 未核对</span><span>… 待写正文</span><span>— 无对应记录</span>
     </div>

@@ -3,14 +3,18 @@ import type { OutlineBookMapping } from "@ai-novel/shared/types/outlineOpenBook"
 import { buildVolumeWorkspaceDocument } from "../../../../../services/novel/volume/volumeWorkspaceDocument";
 export function buildOutlineWorkspace(novelId: string, doc: OutlineDocument, mapping: OutlineBookMapping, chapterLength: number, versionId: string) {
   const time = new Date(0).toISOString();
-  return buildVolumeWorkspaceDocument({novelId, activeVersionId: versionId, volumes: mapping.volumes.map((mapped, i) => {
+  return buildVolumeWorkspaceDocument({novelId, activeVersionId: versionId,
+    beatSheets: mapping.volumes.flatMap((mapped, index) => {
+      const beats = doc.volumes.find(v => v.nodeId === mapped.nodeId)?.beats;
+      return beats ? [{volumeId: mapped.volumeId, volumeSortOrder: index + 1, status: "generated" as const, beats}] : [];
+    }), volumes: mapping.volumes.map((mapped, i) => {
     const source = doc.volumes.find(v => v.nodeId === mapped.nodeId)!;
     const chapters = mapping.chapters.filter(c => c.volumeId === mapped.volumeId).map(m => {
       const c = doc.chapters.find(c => c.nodeId === m.nodeId)!;
       const appearances = doc.characters.filter(p => c.characterNodeIds.includes(p.nodeId) || p.appearanceNodeIds.includes(c.nodeId));
       const characterIds = appearances.map(p => mapping.characters.find(x => x.nodeId === p.nodeId)!.characterId);
       return {id: m.planId, volumeId: m.volumeId, chapterId: m.chapterId, chapterOrder: m.chapterOrder,
-        title: c.title || `第${m.chapterOrder}章`, summary: c.summary, purpose: c.purpose,
+        title: c.title || `第${m.chapterOrder}章`, summary: c.summary, purpose: c.purpose, ...(c.beatKey && {beatKey: c.beatKey}),
         ...(characterIds.length ? {plannedCharacterIds: characterIds} : {}), targetWordCount: chapterLength,
         payoffRefs: c.payoffNodeIds.map(id => { const p = doc.payoffs.find(p => p.nodeId === id)!; return `计划：${p.title} [${mapping.payoffs.find(p => p.nodeId === id)!.ledgerKey}]`; }),
         createdAt: time, updatedAt: time};

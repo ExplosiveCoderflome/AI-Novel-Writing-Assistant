@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const ts = require('typescript');
+const ts = require('typescript-legacy');
 
 test('common is self-contained, IO-free and bounded; integration test stays outside fast group', () => {
   const root = path.resolve(__dirname, '../../../src/modules/production/common');

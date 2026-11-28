@@ -89,6 +89,12 @@ function hasCustomGlobalOverride(slots: PromptSlotOverrideMap, key: string): boo
   return Boolean(entry && getSlotOverrideMode(entry) === "custom");
 }
 
+function assertWritableScope(scope: PromptSlotScope, slotScope?: "global"): void {
+  if (slotScope === "global" && scope !== "global") {
+    throw new Error("请在“所有小说”范围保存这条提示词。");
+  }
+}
+
 function isMissingTableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   return (
@@ -166,6 +172,7 @@ export class PromptSlotOverrideService {
     if (!assets) {
       throw new Error(`提示词未注册：${promptId}`);
     }
+    assertWritableScope(scope, assets.management?.slotScope);
     const slotDefs: PromptSlotDef[] = assets.slots ?? [];
     if (slotDefs.length === 0) {
       throw new Error(`提示词 ${promptId} 没有可编辑的槽位。`);
@@ -297,6 +304,7 @@ export class PromptSlotOverrideService {
     if (!asset) {
       throw new Error(`提示词未注册：${promptId}`);
     }
+    assertWritableScope(scope, asset.management?.slotScope);
     const slotDefs: PromptSlotDef[] = asset.slots ?? [];
     const slotDefMap = new Map(slotDefs.map((def) => [def.key, def]));
 

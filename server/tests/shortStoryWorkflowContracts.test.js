@@ -56,8 +56,8 @@ test("all creation and short story prompts are registered structured assets", ()
     "creation.short_story.reference.extract@v1",
     "novel.short_story.plan@v4",
     "novel.short_story.segment.write@v7",
-    "novel.short_story.full.audit@v5",
-    "novel.short_story.patch.repair@v7",
+    "novel.short_story.full.audit@v6",
+    "novel.short_story.patch.repair@v8",
     "novel.short_story.revision.impact@v3",
   ];
 
@@ -136,6 +136,56 @@ test("short story audit cannot accept a draft with critical causal contradiction
     plan: { targetWordCount: 3000 },
     content: "正文".repeat(2500),
   }), /关键因果或事实问题/);
+});
+
+test("an expression-only audit cannot require replanning and records that it checked expression", () => {
+  const audit = listRegisteredPromptAssets().find((asset) => asset.id === "novel.short_story.full.audit");
+  const expressionIssue = {
+    code: "template_summary",
+    category: "style_expression",
+    severity: "standard",
+    description: "结尾的总结句过于模板化。",
+    affectedSegmentOrders: [1],
+  };
+  const result = {
+    decision: "replan_required",
+    summary: "表达需要修整。",
+    issues: [expressionIssue],
+  };
+  const input = {
+    content: "正文".repeat(1500),
+    plan: { targetWordCount: 3000, segments: [{ order: 1 }] },
+  };
+
+  assert.deepEqual(audit.postValidate(result, input), {
+    ...result,
+    decision: "patchable",
+    expressionReviewCompleted: true,
+  });
+  const mixed = audit.postValidate({
+    ...result,
+    issues: [expressionIssue, { ...expressionIssue, category: "story_structure" }],
+  }, input);
+  assert.equal(mixed.decision, "replan_required");
+  const tooLong = audit.postValidate(result, { ...input, content: "正文".repeat(2500) });
+  assert.ok(tooLong.issues.some((issue) => issue.code === "measured_length"));
+});
+
+test("short story repair validation and fallback reject patches outside the automatic scope", () => {
+  const asset = listRegisteredPromptAssets().find((item) => item.id === "novel.short_story.patch.repair");
+  const patch = { segmentOrder: 1, content: "正文".repeat(150) };
+  const valid = { patches: [patch], residualQualityDebt: [] };
+  const input = {
+    plan: { segments: [{ order: 1, targetWordCount: 300 }] },
+    segments: [{ order: 1, humanEdited: false }],
+    allowedSegmentOrders: [1, 3],
+  };
+  assert.equal(asset.postValidate(valid, input), valid);
+  for (const patches of [[{ ...patch, segmentOrder: 2 }], [patch, patch]]) {
+    const rawOutput = { ...valid, patches };
+    assert.throws(() => asset.postValidate(rawOutput, input), /自动修整只可修改片段/);
+    assert.throws(() => asset.postValidateFailureRecovery({ rawOutput, promptInput: input }), /自动修整只可修改片段/);
+  }
 });
 
 test("PostgreSQL and SQLite keep the short story persistence contract aligned", () => {

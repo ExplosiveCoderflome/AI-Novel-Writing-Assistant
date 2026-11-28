@@ -3,6 +3,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
 import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
+import type { StructuredDiagnosticContext } from "../../platform/llm/diagnostics/StructuredDiagnosticStore";
 import type { PromptSlotDef, ResolvedSlots } from "../slots/slotTypes";
 
 export type PromptMode = "structured" | "text";
@@ -25,6 +26,7 @@ export interface ContextPolicy {
   maxTokensBudget: number;
   requiredGroups?: string[];
   preferredGroups?: string[];
+  /** For equal optional priority, listed groups are discarded in this order. */
   dropOrder?: string[];
 }
 
@@ -128,6 +130,8 @@ export interface PromptExecutionOptions {
   reasoningEnabled?: boolean;
   maxTokens?: number;
   automaticMaxTokens?: number;
+  structuredDiagnosticContext?: StructuredDiagnosticContext;
+  structuredTransportRetryCount?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
   novelId?: string;
@@ -213,6 +217,8 @@ export interface PromptManagementCapabilities {
   productPrompt: boolean;
   proseGeneration?: boolean;
   editModes: PromptManagementEditMode[];
+  /** Pre-creation prompts have no novel to attach an override to. */
+  slotScope?: "global";
   advancedTemplate?: {
     scope: "novel";
     requiredContextGroups: string[];

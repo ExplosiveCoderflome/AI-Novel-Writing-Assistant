@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
+import { readCreationFlowTemplate } from "../prompting/workbench/creationFlow";
 import { validate } from "../middleware/validate";
 import { streamToSSE } from "../llm/streaming";
 import {
@@ -23,6 +24,15 @@ import { writingPlatformProfileService } from "../modules/novel/writing-platform
 const router = Router();
 
 router.use(authMiddleware);
+
+router.get("/creation-flow/templates/:key", (req, res) => {
+  const data = readCreationFlowTemplate(req.params.key);
+  if (!data) {
+    res.status(404).json({ success: false, message: "未找到此步骤的提示词。" });
+    return;
+  }
+  res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+});
 
 const writingPlatformSchema = z.enum(["fanqie_free", "qidian_male", "jinjiang_female", "zhihu_story"]);
 const platformGuidanceSchema = z.object({

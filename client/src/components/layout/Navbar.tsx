@@ -4,10 +4,11 @@ import { SlidersHorizontal } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
 import { useCreationSetup } from "@/components/onboarding/CreationSetupContext";
 import AppVersionBadge from "@/components/layout/AppVersionBadge";
+import GlobalNavigationMenu from "./navigation/GlobalNavigationMenu";
 import BlgCelebration from "@/components/layout/BlgCelebration";
 import DesktopBrandMark from "@/components/layout/DesktopBrandMark";
 import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
-import ProjectGithubLink from "@/components/layout/ProjectGithubLink";
+import ProjectHomepageLink from "@/components/layout/ProjectHomepageLink";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import DesktopReleaseNotesDialog from "@/components/layout/DesktopReleaseNotesDialog";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import {
 } from "@/mobile/autoDirector";
 
 interface NavbarProps {
-  onOpenProjectNav?: () => void;
+  showGlobalMenu?: boolean;
   workspaceNavMode?: "workspace" | "project";
   onWorkspaceNavModeChange?: (mode: "workspace" | "project") => void;
 }
@@ -52,13 +53,13 @@ export default function Navbar(props: NavbarProps) {
             <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
             <AppVersionBadge />
             <DesktopReleaseNotesDialog />
-            <ProjectGithubLink />
+            <ProjectHomepageLink />
           </div>
           <span className="hidden truncate text-[11px] text-muted-foreground sm:block">Biz Novel Studio</span>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        {props.onOpenProjectNav ? <Button type="button" size="sm" variant="ghost" onClick={props.onOpenProjectNav}>全局菜单</Button> : null}
+        {props.showGlobalMenu && <GlobalNavigationMenu key={location.pathname} />}
         {!isHome && showWorkspaceToggle ? (
           <Button
             type="button"

@@ -7,7 +7,9 @@
     "rootDir": "src",
     "typeRoots": ["../server/node_modules/@types", "./src/@types"],
     "types": ["node"],
-    "noEmit": false
+    "noEmit": false,
+    "incremental": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["dist", "node_modules"]

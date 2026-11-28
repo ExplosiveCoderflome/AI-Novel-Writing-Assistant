@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown, Database, Search } from "lucide-react";
 import type { EmbeddingProvider, RagEmbeddingModelStatus, RagProviderStatus } from "@/api/settings";
+import { testEmbeddingConnection, testQdrantConnection } from "@/api/knowledge";
+import ConnectionTestControl from "./ConnectionTestControl";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import SelectField from "@/components/common/SelectField";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +94,19 @@ export default function KnowledgeEmbeddingSettingsCard({
   onSave,
 }: KnowledgeEmbeddingSettingsCardProps) {
   const suggestedCollectionName = useMemo(() => buildSuggestedCollectionName(form), [form]);
+  const embeddingTestInput = useMemo(() => ({
+    embeddingProvider: form.embeddingProvider,
+    embeddingModel: form.embeddingModel,
+    embeddingApiKey: form.embeddingApiKey,
+    embeddingBaseURL: form.embeddingBaseURL,
+    embeddingTimeoutMs: form.embeddingTimeoutMs,
+  }), [form.embeddingProvider, form.embeddingModel, form.embeddingApiKey, form.embeddingBaseURL, form.embeddingTimeoutMs]);
+  const qdrantTestInput = useMemo(() => ({
+    qdrantUrl: form.qdrantUrl,
+    qdrantApiKey: form.qdrantApiKey,
+    clearQdrantApiKey: form.clearQdrantApiKey,
+    qdrantTimeoutMs: form.qdrantTimeoutMs,
+  }), [form.qdrantUrl, form.qdrantApiKey, form.clearQdrantApiKey, form.qdrantTimeoutMs]);
   const currentProvider = providers.find((item) => item.provider === form.embeddingProvider);
   const collectionNameToDisplay = form.collectionMode === "auto"
     ? suggestedCollectionName
@@ -217,7 +232,13 @@ export default function KnowledgeEmbeddingSettingsCard({
           <div className="text-xs leading-5 text-muted-foreground">
             这里的连接只用于资料理解，不会改动创作模型、默认模型或任务路由。
           </div>
-
+          <ConnectionTestControl
+            input={embeddingTestInput}
+            label="测试向量模型连接"
+            hint="生成一个测试向量，可能产生少量用量；仅同源地址复用已存 Key，更换来源请填写新 Key。测试不保存设置。"
+            disabled={isSaving || !form.embeddingProvider.trim() || !form.embeddingModel.trim()}
+            runTest={testEmbeddingConnection}
+          />
         </section>
 
         <section className="space-y-5 rounded-3xl border border-border/35 bg-card/70 p-5 sm:p-6">
@@ -250,7 +271,7 @@ export default function KnowledgeEmbeddingSettingsCard({
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">向量库 API Key</div>
                 <Badge variant="secondary" className={`border-0 font-normal ${form.qdrantApiKeyConfigured ? "bg-success/10 text-success" : "bg-muted/60"}`}>
-                  {form.qdrantApiKeyConfigured ? "Key 可用" : "未设置"}
+                  {form.qdrantApiKeyConfigured ? "Key 已配置" : "未设置"}
                 </Badge>
               </div>
               <Input
@@ -280,6 +301,13 @@ export default function KnowledgeEmbeddingSettingsCard({
               保存时清除已保存的向量库 API Key
             </label>
           </div>
+          <ConnectionTestControl
+            input={qdrantTestInput}
+            label="测试向量数据库连接"
+            hint="检查就绪和集合读取权限，不写入资料、不保存设置；仅同源地址复用已存 Key，勾选清除 Key 时按无密钥测试。"
+            disabled={isSaving || !form.qdrantUrl.trim()}
+            runTest={testQdrantConnection}
+          />
         </section>
 
         <details className="group rounded-3xl bg-muted/20 p-5 sm:p-6">

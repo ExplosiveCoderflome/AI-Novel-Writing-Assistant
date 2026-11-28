@@ -41,6 +41,7 @@ export interface VolumeChapterSyncOptions {
   emitEvent?: boolean;
   syncPayoffLedger?: boolean;
   volumeUpdateReason?: VolumeUpdateReason;
+  reviewedPlanVersionId?: string;
 }
 
 export class VolumeChapterSyncService {
@@ -105,7 +106,33 @@ export class VolumeChapterSyncService {
     );
 
     await runVolumeWorkspaceTransaction(async (tx) => {
+      if (options.reviewedPlanVersionId) {
+        const range = input.executionContractChapterRange;
+        if (!range) throw new Error("缺少已确认的章节范围。");
+        // Claim the exact source rows before an explicitly approved sync can write the execution copy.
+        const selected = mergedDocument.volumes.flatMap(volume => volume.chapters)
+          .filter(chapter => chapter.chapterOrder >= range.startOrder && chapter.chapterOrder <= range.endOrder);
+        for (const chapter of selected) {
+          const locked = await tx.volumeChapterPlan.updateMany({
+            where: {
+              id: chapter.id,
+              volumeId: chapter.volumeId,
+              volume: { novelId },
+              chapterOrder: chapter.chapterOrder,
+              taskSheet: chapter.taskSheet ?? null,
+              sceneCards: chapter.sceneCards ?? null,
+              targetWordCount: chapter.targetWordCount ?? null,
+              mustAvoid: chapter.mustAvoid ?? null,
+              conflictLevel: chapter.conflictLevel ?? null,
+              revealLevel: chapter.revealLevel ?? null,
+            },
+            data: { taskSheet: chapter.taskSheet ?? null },
+          });
+          if (locked.count !== 1) throw new Error("章节要求在同步时有变化，请按最新规划继续。");
+        }
+      }
       const { versionId } = await this.deps.ensureActiveVersionRecord(tx, novelId, mergedDocument);
+      if (options.reviewedPlanVersionId && versionId !== options.reviewedPlanVersionId) throw new Error("卷规划在同步时有变化，请按最新规划继续。");
       const linkUpdates: Array<{ volumeChapterId: string; chapterId: string }> = [...plan.links];
       for (const item of plan.creates) {
         const created = await tx.chapter.create({

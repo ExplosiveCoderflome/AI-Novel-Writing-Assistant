@@ -8,7 +8,7 @@ export const outlineFeedbackSettingsSchema = z.object({
   model: z.string().min(1).max(200).optional(),
 });
 export type OutlineFeedbackSettings = z.infer<typeof outlineFeedbackSettingsSchema>;
-export const outlineFeedbackAnalyzeSchema = z.object({ chapterId: z.string().min(1), requestKey: z.string().min(1).max(200) });
+export const outlineFeedbackAnalyzeSchema = z.object({ chapterId: z.string().min(1), requestKey: z.string().min(1).max(200).optional() });
 export const outlineFeedbackDecisionSchema = z.object({ operationIds: z.array(z.string().min(1)).min(1).max(12) });
 export const outlineFeedbackOutputSchema = z.object({ operations: z.array(z.object({
   operationId: z.string().min(1).max(100),
@@ -27,6 +27,7 @@ export interface OutlineFeedbackRunView {
 }
 export interface OutlineFeedbackStatus {
   projectId: string; novelId: string; sourceRoute: string;
+  chapters: Array<{ id: string; order: number; title: string }>;
   settings: OutlineFeedbackSettings; runs: OutlineFeedbackRunView[];
 }
 export interface OutlineFeedbackRunReceipt {

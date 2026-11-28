@@ -401,6 +401,9 @@ export interface BookSpec {
 
 export interface DirectorCandidate {
   id: string;
+  reviewRevision?: number;
+  /** The short direction chosen for this candidate when its round was planned. */
+  plannedDirection?: string;
   workingTitle: string;
   titleOptions?: TitleFactorySuggestion[];
   logline: string;
@@ -917,7 +920,20 @@ export function mergeDirectorCandidateBatches(
   }
   const existingIds = new Set(currentBatches.map((batch) => batch.id));
   const missingBatches = incomingBatches.filter((batch) => !existingIds.has(batch.id));
-  return missingBatches.length > 0
-    ? [...currentBatches, ...missingBatches]
-    : currentBatches;
+  let changed = missingBatches.length > 0;
+  const merged = currentBatches.map(batch => {
+    const incoming = incomingBatches.find(item => item.id === batch.id);
+    if (!incoming) return batch;
+    const candidates = batch.candidates.map(candidate => {
+      const saved = incoming.candidates.find(item => item.id === candidate.id);
+      if (!saved || (saved.reviewRevision ?? 0) <= (candidate.reviewRevision ?? 0)) return candidate;
+      // The author can select an alternative title locally before confirming the book.
+      return saved.titleOptions?.some(option => option.title === candidate.workingTitle)
+        ? { ...saved, workingTitle: candidate.workingTitle } : saved;
+    });
+    if (candidates.every((item, index) => item === batch.candidates[index])) return batch;
+    changed = true;
+    return { ...incoming, candidates };
+  });
+  return changed ? [...merged, ...missingBatches] : currentBatches;
 }

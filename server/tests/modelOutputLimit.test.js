@@ -59,6 +59,56 @@ test("structure defaults to thinking off and leaves room for mandatory reasoning
   assert.equal((await resolveLLMClientOptions(provider, { ...structured, maxTokens: 16384 })).maxTokens, 16384);
 });
 
+test("writer output inherits route and automatic budgets while explicit limits remain exact", async t => {
+  const provider = "custom_writer_budget_fixture";
+  const model = "fixture-reasoning-writer";
+  const baseURL = "https://writer-budget.invalid/v1";
+  const identity = { provider, model, baseURL };
+  const resolveModel = router.resolveModel;
+  let routeLimit = 8192;
+  router.resolveModel = async (_task, override = {}) => ({
+    provider: override.provider ?? provider,
+    model: override.model ?? model,
+    temperature: 0.8,
+    maxTokens: routeLimit ?? 16384,
+    routeMaxTokens: routeLimit,
+    requestProtocol: "openai_compatible",
+    structuredResponseFormat: "auto",
+    routeKey: "writer",
+    routeDegraded: false,
+  });
+  setProviderSecretCache(provider, { model, baseURL, key: "fixture" });
+  t.after(() => {
+    router.resolveModel = resolveModel;
+    setProviderSecretCache(provider, null);
+  });
+  await saveCapability(identity, {
+    ...builtinCapability(identity),
+    source: "user_override",
+    reasoningRequired: true,
+  });
+
+  const routed = await resolveLLMClientOptions(undefined, { taskType: "writer", reasoningEnabled: false });
+  assert.equal(routed.budgetTrace.requestedMaxTokens, null);
+  assert.equal(routed.budgetTrace.routeMaxTokens, 8192);
+  assert.equal(routed.budgetTrace.reasoningReserveTokens, 8192);
+  assert.equal(routed.maxTokens, 16384);
+
+  routeLimit = undefined;
+  const automatic = await resolveLLMClientOptions(undefined, { taskType: "writer", reasoningEnabled: false });
+  assert.equal(automatic.budgetTrace.routeMaxTokens, null);
+  assert.equal(automatic.budgetTrace.automaticMaxTokens, 16384);
+  assert.equal(automatic.maxTokens, 24576);
+
+  routeLimit = 8192;
+  const explicit = await resolveLLMClientOptions(provider, {
+    model, baseURL, taskType: "writer", reasoningEnabled: false, maxTokens: 4096,
+  });
+  assert.equal(explicit.budgetTrace.requestedMaxTokens, 4096);
+  assert.equal(explicit.budgetTrace.reasoningReserveTokens, undefined);
+  assert.equal(explicit.maxTokens, 4096);
+});
+
 test("Gemini uses its documented structured thinking control for optional and mandatory families", async t => {
   setProviderSecretCache("gemini", { key: "fixture", reasoningEnabled: true });
   t.after(() => setProviderSecretCache("gemini", null));

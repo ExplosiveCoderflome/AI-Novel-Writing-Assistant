@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL,fileURLToPath } from 'node:url';
 import { queryKeys } from '../src/api/queryKeys.ts';
+import { nodeStyles } from './support/nodeStyles.js';
 import {presentationViolations,inspectDirectorProjectionSources} from './directorNext/projectionGuard.mjs';
 
 const read = (path) => fs.readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
@@ -119,7 +120,7 @@ export function renderedBudgetSettings(tokenLimit) {
 }`,
         resolveDir: clientDir, loader: 'tsx',
       },
-      bundle: true, platform: 'node', format: 'esm', packages: 'external',
+      bundle: true, platform: 'node', format: 'esm', packages: 'external', plugins: [nodeStyles],
       alias: { '@': path.join(clientDir, 'src') },
       define: { 'import.meta.env': '{}' },
       outfile: output,
@@ -128,7 +129,7 @@ export function renderedBudgetSettings(tokenLimit) {
     const rows = renderedStates();
     assert.equal(rows.length, 7);
     for (const { view, markup } of rows) {
-      assert.ok(markup.includes(view.headline));
+      assert.equal(markup.split(view.headline).length - 1, 1, 'the projected headline appears once');
       assert.match(markup,/aria-label="创作方式"[^>]*>模式：全自动推进<\/span>/);
       assert.ok(markup.includes('role="progressbar"'));
       assert.doesNotMatch(markup, /<details[^>]*\bopen/);
@@ -164,6 +165,14 @@ export function renderedBudgetSettings(tokenLimit) {
     assert.doesNotMatch(production.failed,/id="director-start"/);
     assert.match(production.completed,/提交并生成第 4—6 章/);
     assert.match(production.completed,/更多创作设置/);
+    assert.match(production.completed,/type="radio"[^>]+checked/);
+    assert.match(production.completed,/只做规划/);
+    assert.doesNotMatch(production.completed,/href="#director-start"/, 'the inline range form is the launch action');
+    const timelineDisclosure = [...production.completed.matchAll(/<details\b([^>]*)><summary[^>]*>([\s\S]*?)<\/summary>/g)]
+      .find(([, , heading]) => heading.includes('创作时间线'));
+    assert.ok(timelineDisclosure, 'the timeline can be expanded');
+    assert.doesNotMatch(timelineDisclosure[1], /\bopen\b/);
+    assert.match(production.completed,/2 项质量提醒/);
     assert.ok(production.completed.indexOf('正在做什么')<production.completed.indexOf('id="director-start"'),'status and next-step context come before launch settings');
     const budget=renderedBudget();
     assert.match(budget,/id="director-chapter-budget"/);

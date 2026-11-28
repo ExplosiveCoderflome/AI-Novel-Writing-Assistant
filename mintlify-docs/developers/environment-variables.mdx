@@ -113,6 +113,10 @@ API Key 和模型也可以在系统设置里保存。详见 [模型配置](/mode
 | `RAG_EMBEDDING_RETRY_BASE_MS` | `500` | Embedding 重试基础间隔 |
 | `RAG_HTTP_TIMEOUT_MS` | `30000` | RAG HTTP 超时 |
 
+<Note>
+  这些变量只提供初始默认值。在应用「知识库 → 检索设置」里保存过的 Embedding、向量库地址、API Key 和 RAG 开关会写入数据库，并优先于环境变量。桌面版没有需要手动编辑的 `.env`，也不内置 Qdrant，直接在应用里配置，见 [配置资料检索与向量库](/features/knowledge-base#配置资料检索与向量库)。
+</Note>
+
 ### 拆书
 
 | 变量 | 默认值 | 说明 |

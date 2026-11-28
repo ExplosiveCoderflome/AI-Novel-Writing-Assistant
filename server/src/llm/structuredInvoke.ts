@@ -70,6 +70,7 @@ export interface StructuredInvokeInput<T> {
   maxTokens?: number;
   automaticMaxTokens?: number;
   timeoutMs?: number;
+  transportRetryCount?: number;
   signal?: AbortSignal;
   taskType?: TaskType;
   requestProtocol?: ModelRouteRequestProtocol;
@@ -287,8 +288,9 @@ async function invokeStructuredAttempt<T>(input: {
     provider: resolved.provider,
     model: resolved.model,
     promptText: formatLivePrompt(messages),
+    reasoningEnabled: resolved.reasoningEnabled,
   });
-  const evidence = emptyResponseEvidence(resolved.maxTokens);
+  const evidence = emptyResponseEvidence(resolved.maxTokens, resolved.budgetTrace);
   let diagnosticId: string | null = null;
   try {
     liveSession.phase("streaming", "模型正在返回结构化结果");
@@ -464,6 +466,7 @@ async function invokeStructuredAttempt<T>(input: {
     }
     evidence.durationMs = Date.now() - startedAt;
     wrapped.diagnostics.response = evidence;
+    wrapped.diagnostics.target = { provider: resolved.provider, model: resolved.model };
     wrapped.diagnostics.attemptId = diagnosticId;
     await finishStructuredDiagnostic(diagnosticId, "failed", evidence);
     throw wrapped;
@@ -611,7 +614,7 @@ async function invokeStructuredLlmInChain<T>(input: StructuredInvokeInput<T>): P
     structuredStrategy: input.structuredStrategy,
   });
   const fallbackSettings = input.disableFallbackModel ? null : await getStructuredFallbackSettings();
-  const transportRetryCount = normalizeTransportRetryCount(fallbackSettings?.retryCount);
+  const transportRetryCount = normalizeTransportRetryCount(input.transportRetryCount ?? fallbackSettings?.retryCount);
   const fallbackEnabled = Boolean(
     fallbackSettings?.enabled
     && fallbackSettings.model.trim().length > 0

@@ -59,7 +59,7 @@ To temporarily disable V2, set `DIRECTOR_NEXT_ENABLED=false` in `server/.env`. T
 
 | Item | Requirement |
 | --- | --- |
-| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0`, matching `engines.node` in the root `package.json` |
+| Node.js | `^24.0.0`, matching `engines.node` in the root `package.json` |
 | pnpm | `>=10.6.0` (the repository declares `pnpm@10.6.0`) |
 | Text Model | At least one usable API configuration; can be filled in after startup |
 | Database | Default local SQLite; PostgreSQL available via server configuration |
@@ -94,7 +94,7 @@ Tests use Node's built-in `node:test` and `node:assert/strict`. Backend fast tes
 | --- | --- | --- |
 | Fast tests | `pnpm test` | Default daily fast tests, up to 4 files concurrent |
 | Integration tests | `pnpm test:integration` | Real database, migration, and compatibility tests, up to 2 processes concurrent |
-| Client tests | `pnpm test:client` | Run TypeScript source tests directly using Node 22's `--experimental-strip-types` |
+| Client tests | `pnpm test:client` | Run TypeScript source tests directly using Node 24's `--experimental-strip-types` |
 | Full entry | `pnpm test:all` | fast + integration + client, built once then run in sequence |
 
 When adding pure functions or states, add a corresponding `*.test.js` under `server/tests/`, keeping the existing style: run `pnpm run build` first, then `require("../dist/...")` to reference compiled output. For more detailed test scope and isolation rules, see the [Backend Testing Guide](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/blob/main/docs/architecture/testing.md).

@@ -4,6 +4,7 @@ import {
   computeParagraphSpan,
   getCursorOffsetFromValue,
   getPointFromAbsoluteOffset,
+  getParagraphSelection,
   toPlateValue,
 } from "./editorDocument.ts";
 
@@ -25,6 +26,11 @@ test("paragraph span covers a deletion at the end", () => {
 
 test("paragraph span replaces everything when no paragraph matches", () => {
   assert.deepEqual(computeParagraphSpan(["甲", "乙"], ["丙", "丁", "戊"]), { start: 0, oldEnd: 2, newEnd: 3 });
+});
+
+test("impact review locates the exact authored paragraph", () => {
+  assert.deepEqual(getParagraphSelection("第一段\n\n第二段", 2), { from: 5, to: 8, text: "第二段" });
+  assert.equal(getParagraphSelection("第一段\n\n第二段", 3), null);
 });
 
 test("applying the span to old paragraphs yields the new paragraphs", () => {

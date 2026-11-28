@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Chapter, ChapterEditorDiagnosticCard, ChapterEditorWorkspaceResponse } from "@ai-novel/shared/types/novel";
-import { PanelLeftClose } from "lucide-react";
+import { Lock, LockOpen, PanelLeftClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChapterEditorDiagnosticList } from "./diagnostics";
 
@@ -10,11 +10,15 @@ interface ChapterEditorSidebarProps {
   workspaceStatus: "loading" | "ready" | "error";
   wordCount: number;
   saveStatusLabel: string;
+  provenanceLabel?: string | null;
+  isLocked?: boolean;
+  isTogglingLock?: boolean;
   isDirty: boolean;
   isSaving: boolean;
   selectedDiagnosticId: string | null;
   onBack?: () => void;
   backLabel?: string;
+  onToggleLock?: () => void;
   onOpenChapterVersions?: () => void;
   onOpenVersionHistory?: () => void;
   onRefreshWorkspace?: () => void;
@@ -29,8 +33,12 @@ interface ChapterEditorSidebarProps {
   qualityNotice?: ReactNode;
 }
 
-function MetaChip({ label }: { label: string }) {
-  return <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{label}</span>;
+function MetaChip({ label, highlight = false }: { label: string; highlight?: boolean }) {
+  return (
+    <span className={highlight ? "rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary" : "rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground"}>
+      {label}
+    </span>
+  );
 }
 
 export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
@@ -52,12 +60,30 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
         <div className="flex flex-wrap gap-2">
           <MetaChip label={props.wordCount + " 字"} />
           <MetaChip label={props.saveStatusLabel} />
+          {props.provenanceLabel ? <MetaChip label={props.provenanceLabel} highlight={props.isLocked} /> : null}
           <MetaChip label={loading ? "AI 分析中" : "待处理 " + (workspace?.diagnosticCards.length ?? 0) + " 项"} />
         </div>
+        {props.isLocked ? (
+          <p role="status" className="text-xs leading-5 text-muted-foreground">
+            本章已锁定定稿，防止自动创作或误保存改写；解除锁定后可修改正文。
+          </p>
+        ) : null}
         <div className="grid gap-2">
-          <Button size="sm" onClick={props.onSave} disabled={!props.isDirty || props.isSaving} title="保存正文（Ctrl/Cmd+S）" aria-keyshortcuts="Control+S Meta+S">
+          <Button size="sm" onClick={props.onSave} disabled={props.isLocked || !props.isDirty || props.isSaving} title={props.isLocked ? "本章已锁定定稿，请先解除锁定" : "保存正文（Ctrl/Cmd+S）"} aria-keyshortcuts="Control+S Meta+S">
             {props.isSaving ? "保存中..." : "保存 · Ctrl/Cmd+S"}
           </Button>
+          {props.onToggleLock ? (
+            <Button
+              size="sm"
+              variant={props.isLocked ? "outline" : "ghost"}
+              disabled={props.isTogglingLock || props.isDirty || props.diagnosticsDisabled}
+              title={props.isDirty ? "请先保存或放弃当前草稿后再切换锁定状态" : undefined}
+              onClick={props.onToggleLock}
+            >
+              {props.isLocked ? <LockOpen aria-hidden="true" className="mr-1.5 size-3.5" /> : <Lock aria-hidden="true" className="mr-1.5 size-3.5" />}
+              {props.isTogglingLock ? "处理中..." : props.isLocked ? "解除锁定" : "锁定定稿"}
+            </Button>
+          ) : null}
           {props.onOpenChapterVersions ? <Button size="sm" variant="outline" onClick={props.onOpenChapterVersions}>查看本章版本</Button>
             : props.onOpenVersionHistory ? <Button size="sm" variant="outline" onClick={props.onOpenVersionHistory}>版本入口</Button> : null}
           {props.onRefreshWorkspace ? <Button size="sm" variant="ghost" onClick={props.onRefreshWorkspace} disabled={props.isRefreshingWorkspace || props.diagnosticsDisabled}>

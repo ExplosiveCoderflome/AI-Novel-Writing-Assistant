@@ -48,3 +48,33 @@ test("plain connectivity consumes streamed content and rejects an empty stream",
   assert.equal(streamCalls, 3, "the existing protocol fallback may try Anthropic once");
   assert.equal(invokeCalls, 0);
 });
+
+test("Ollama connection probes explain when the service cannot be reached", async (t) => {
+  t.mock.method(factory, "resolveLLMClientOptions", async (provider, options) => ({
+    provider,
+    model: options.model,
+    requestProtocol: options.requestProtocol,
+  }));
+  const refused = Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+  let failure = new TypeError("fetch failed", { cause: refused });
+  t.mock.method(factory, "getLLM", async () => ({
+    stream: async () => { throw failure; },
+  }));
+
+  const input = {
+    provider: "ollama",
+    model: "llama3.2",
+    requestProtocol: "openai_compatible",
+    probeMode: "plain",
+  };
+  const unreachable = await llmConnectivityService.testConnection(input);
+  assert.equal(unreachable.ok, false);
+  assert.match(unreachable.error, /Ollama.*服务是否已启动.*API 地址.*密钥可留空/);
+
+  const otherProvider = await llmConnectivityService.testConnection({ ...input, provider: "openai" });
+  assert.equal(otherProvider.error, "fetch failed");
+
+  failure = Object.assign(new Error("401 Unauthorized"), { status: 401 });
+  const unauthorized = await llmConnectivityService.testConnection(input);
+  assert.equal(unauthorized.error, "401 Unauthorized");
+});

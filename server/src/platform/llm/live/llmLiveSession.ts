@@ -9,6 +9,7 @@ export function beginLlmLiveSession(input: {
   provider?: string | null;
   model?: string | null;
   promptText?: string | null;
+  reasoningEnabled?: boolean;
 }): LlmLiveSession {
   const meta = input.promptMeta;
   return llmLiveBroker.begin({
@@ -25,5 +26,6 @@ export function beginLlmLiveSession(input: {
     provider: input.provider ?? null,
     model: input.model ?? null,
     promptText: input.promptText ?? null,
+    reasoningEnabled: input.reasoningEnabled,
   });
 }

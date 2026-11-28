@@ -12,6 +12,7 @@ interface RegisterNovelChapterRoutesInput {
     | "createChapter"
     | "updateChapter"
     | "deleteChapter"
+    | "setChapterProvenance"
     | "ensureChapterExecutionContract"
     | "listChapterSnapshots"
     | "getChapterSnapshot"
@@ -20,6 +21,7 @@ interface RegisterNovelChapterRoutesInput {
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   chapterSchema: z.ZodTypeAny;
   updateChapterSchema: z.ZodTypeAny;
+  chapterProvenanceSchema: z.ZodTypeAny;
   chapterExecutionContractSchema: z.ZodTypeAny;
 }
 
@@ -31,6 +33,7 @@ export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInpu
     chapterParamsSchema,
     chapterSchema,
     updateChapterSchema,
+    chapterProvenanceSchema,
     chapterExecutionContractSchema,
   } = input;
 
@@ -100,6 +103,24 @@ export function registerNovelChapterRoutes(input: RegisterNovelChapterRoutesInpu
       next(error);
     }
   });
+
+  router.patch(
+    "/:id/chapters/:chapterId/provenance",
+    validate({ params: chapterParamsSchema, body: chapterProvenanceSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.setChapterProvenance(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter provenance updated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.get(
     "/:id/chapters/:chapterId/snapshots",

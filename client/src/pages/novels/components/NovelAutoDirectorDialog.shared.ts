@@ -1,7 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type { DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
-import type { NovelBasicFormState } from "../novelBasicInfo.shared";
+import { authorEstimatedChapterCount, type NovelBasicFormState } from "../novelBasicInfo.shared.ts";
 
 export interface DirectorRunModeOption {
   value: DirectorRunMode;
@@ -12,6 +12,11 @@ export interface DirectorRunModeOption {
 }
 
 export const RUN_MODE_OPTIONS: DirectorRunModeOption[] = [
+  {
+    value: "stage_review",
+    label: "逐阶段确认",
+    description: "与 AI 讨论每一阶段的结果，确认后再继续。",
+  },
   {
     value: "auto_to_ready",
     label: "先完成导演准备",
@@ -81,7 +86,7 @@ export function buildAutoDirectorRequestPayload(
     postGenerationStyleReviewEnabled: basicForm.postGenerationStyleReviewEnabled,
     defaultChapterLength: basicForm.defaultChapterLength,
     userPreferredVolumeCount: basicForm.userPreferredVolumeCount,
-    estimatedChapterCount: basicForm.estimatedChapterCountSource === "default" ? undefined : basicForm.estimatedChapterCount,
+    estimatedChapterCount: authorEstimatedChapterCount(basicForm),
     projectStatus: basicForm.projectStatus,
     storylineStatus: basicForm.storylineStatus,
     outlineStatus: basicForm.outlineStatus,

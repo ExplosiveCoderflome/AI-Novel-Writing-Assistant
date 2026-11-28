@@ -13,6 +13,38 @@ const {
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 
+test("the current chapter facts inherit protection from an older conflicting source in either input order", () => {
+  const { createContextBlock } = require("../dist/prompting/core/contextBudget");
+  const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
+  const older = createContextBlock({
+    id: "archived_facts", group: "character_hard_facts", priority: 100,
+    conflictGroup: "current_facts", freshness: 1, allowSummary: false, content: "旧位置",
+  });
+  const current = createContextBlock({
+    id: "saved_facts", group: "local_state", priority: 100,
+    conflictGroup: "current_facts", freshness: 2, content: "当前信息\n" + "人物仍在城外。".repeat(80),
+  });
+  for (const blocks of [[older, current], [current, older]]) {
+    const selected = selectContextBlocks(blocks, { maxTokensBudget: 12, requiredGroups: ["character_hard_facts"] });
+    assert.deepEqual(selected.selectedBlocks.map(block => [block.id, block.content]), [["saved_facts", current.content]]);
+    assert.deepEqual(selected.droppedBlockIds, ["archived_facts"]);
+    assert.deepEqual(selected.summarizedBlockIds, []);
+  }
+});
+
+test("chapter context drops disposable groups first when optional blocks have equal priority", () => {
+  const { createContextBlock } = require("../dist/prompting/core/contextBudget");
+  const { selectContextBlocks } = require("../dist/prompting/core/contextSelection");
+  const blocks = ["rag_context", "opening_constraints", "saved_reference"].map(group =>
+    createContextBlock({ id: group, group, priority: 80, content: "参考线索", allowSummary: false }));
+  const result = selectContextBlocks(blocks, {
+    maxTokensBudget: 2,
+    dropOrder: ["rag_context", "opening_constraints"],
+  });
+  assert.deepEqual(result.selectedBlocks.map(block => block.id), ["saved_reference", "opening_constraints"]);
+  assert.deepEqual(result.droppedBlockIds, ["rag_context"]);
+});
+
 test('review and repair retain the last saved chapter facts even when the optional budget is exhausted', () => {
   const pkg = createContextPackage();
   const write = buildChapterWriteContext({bookContract:pkg.bookContract,contextPackage:pkg});

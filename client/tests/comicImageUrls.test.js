@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import ts from "typescript";
+import ts from "typescript-legacy";
 import { assetUrl } from "../src/lib/constants.ts";
 
 function loadComicUrls(apiBaseUrl) {

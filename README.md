@@ -44,6 +44,8 @@
   <a href="https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues">问题反馈</a>
 </p>
 
+<p align="center"><sub>This project is tested with BrowserStack.</sub></p>
+
 ---
 
 你只需要先有一个想法。这个工作台会帮你把方向、人物、世界和章节接起来，在创作过程中保留正文、设定与进度。长篇由自动导演持续推进，短篇走独立的完整成稿流程。它面向第一次写小说的人，也为需要维护长期资料、研究 AI 创作流程的作者与开发者提供更细的工具。
@@ -54,17 +56,30 @@
 
 ## 最新更新
 
-### 2026-11-18
+### 2026-11-27（开发版）
+
+#### 新增
+
+- 知识库检索设置可分别测试向量模型和向量数据库连接，查看结果与耗时；更换服务来源时须填写对应密钥，免密服务可直接测试。
 
 #### 修复
 
-- V2 导演台展开分卷即可查看本卷章节，尚未关联节奏段的章节直接列在卷下。
-- 大纲开书后生成的章节计划可正常打开确认门并提交确认；归档卷仍不会被误当成当前计划。
-- 章节任务单生成使用规划模型路由配置的输出额度，减少结构化内容达到固定上限后被截断的情况。
+- 导出全书 TXT 或分章 ZIP 前需要确认稿件时，会显示具体原因，并提供“打开完稿检查”入口。
+- Ollama 连接测试或刷新模型列表遇到网络连接失败时，会提示检查服务启动状态和 API 地址，并说明本机默认服务可不填写密钥。
+- 修文预检与实际执行采用一致的修改范围，保留原有整章修文额度。
 
-[查看完整更新历史](docs/releases/release-notes.md)
+#### 致谢
 
-正式桌面版以 GitHub Release 的 **v0.8.8** 五平台安装包为准；`v0.8.7` 为上一完整五平台版本，`v0.8.6` 亦为完整五平台，`v0.8.5` 亦为完整五平台，`v0.8.4` 缺 Windows 包，`v0.8.3` 标签曾推送但打包失败、无安装包，`v0.8.2` 附注标签也不对应可下载版本。功能与致谢见[完整更新历史](docs/releases/release-notes.md)。
+- 感谢 [@cyssayyes-source](https://github.com/cyssayyes-source) 通过 [PR #280](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/pull/280) 实现知识库连接测试，也感谢 [@HuiJiOnGit](https://github.com/HuiJiOnGit) 在 [#59](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/59) 中提出独立测试嵌入模型连接的建议。
+- 感谢 [@L-H56](https://github.com/L-H56) 在 [#301](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/301) 中反馈完本作品下载问题。
+- 感谢 [@hkjhskah](https://github.com/hkjhskah) 在 [#257](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/257) 中提供开书阶段的异常反馈和截图。
+
+修文范围一致性改进对应维护者 [@ExplosiveCoderflome](https://github.com/ExplosiveCoderflome) 的内部排查记录 [#302](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/issues/302)。
+
+[查看完整更新历史](docs/releases/release-notes.md) · [角色功能开发计划](docs/plans/character-system-upgrade-plan.md) · [查看已发布的桌面安装包](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
+
+正式桌面版以 GitHub Release 的 **v0.8.12** 发布页为准。开发版功能需要在源码环境中验证。
+
 
 
 ## 现在已经能做什么
@@ -318,7 +333,7 @@ V1 与 V2 分别编排这条链，已保存的小说资料可以复用。章节�
 
 | 项目 | 要求 |
 | --- | --- |
-| Node.js | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0`，与根目录 `package.json` 一致 |
+| Node.js | `^24.0.0`，与根目录 `package.json` 一致 |
 | pnpm | `>=10.6.0`，仓库声明使用 `pnpm@10.6.0` |
 | 文本模型 | 至少一组可用 API 配置，可在启动后填写 |
 | 数据库 | 默认本地 SQLite；可通过服务端配置使用 PostgreSQL |
@@ -470,16 +485,11 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 
 ### 交流与支持
 
-<details>
-<summary><strong>展开：QQ 交流群与支持项目</strong></summary>
-
-想交流创作体验、自动导演或项目开发，可以扫码加入 QQ 群。如果工作台对你有帮助，也欢迎支持持续开发与维护。
+想交流创作体验、自动导演或项目开发，可以扫码加入 QQ 群 **Ai创作交流群（QQ 群号：238609090）**。如果工作台对你有帮助，也欢迎支持持续开发与维护。
 
 | QQ 交流群 | 支持项目（支付宝） |
 | --- | --- |
 | <img src="./images/群2.png" alt="QQ 群二维码" width="240" /> | <img src="./images/c838dd8eb412d6fde536b2a43f53e95.jpg" alt="支付宝支持二维码" width="240" /> |
-
-</details>
 
 ### 在 Codex 中创作：Ani Book Skill
 
@@ -487,10 +497,10 @@ V2 内核位于 `server/src/modules/director/`，业务能力由应用层接入�
 
 ## License
 
-本项目采用双许可证授权模式：
+本项目默认基于 [GNU AGPL-3.0-only](./LICENSE) 授权，附加条款（署名、修改版标识、商标）见 [NOTICE](./NOTICE)。
 
-- 默认基于 GNU Affero General Public License v3.0（AGPLv3）授权，详见 [LICENSE](./LICENSE)；归属与附加说明见 [NOTICE](./NOTICE)。
-- 服务型商用：将本项目或其修改版本作为后端，以 SaaS、托管等形式向第三方提供服务，须通过作者获取商业授权许可。
+- 遵守 AGPL-3.0 即可免费使用，包括商用。以网络服务形式提供修改版时，须向用户公开修改后的源码，并保留 NOTICE 要求的署名。
+- 无法或不希望遵守上述义务的，可申请商业授权，详见 [COMMERCIAL.md](./COMMERCIAL.md)。
 - 新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，也可纳入维护者另行提供的商业授权。
 
 [贡献与授权说明](./CONTRIBUTING.md)

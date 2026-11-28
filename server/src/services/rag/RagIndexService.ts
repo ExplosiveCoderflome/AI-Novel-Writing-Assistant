@@ -457,7 +457,7 @@ export class RagIndexService {
       }
       case "character_timeline": {
         const timeline = await prisma.characterTimeline.findUnique({ where: { id: ownerId } });
-        if (!timeline) {
+        if (!timeline || timeline.source === "author_adjust") {
           return [];
         }
         const content = buildJoinedText(timeline.title, timeline.content);

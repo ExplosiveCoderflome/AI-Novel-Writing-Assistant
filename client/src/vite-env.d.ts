@@ -24,6 +24,8 @@ interface Window {
     updateChannel?: string;
   };
   __AI_NOVEL_DESKTOP__?: {
+    getDismissedOnboardingTips?: () => Promise<string[]>;
+    dismissOnboardingTip?: (storageKey: string) => Promise<string[]>;
     getBootstrapSnapshot?: () => Promise<{
       state: "launching" | "starting-server" | "loading-ui" | "ready" | "error";
       stage: string;

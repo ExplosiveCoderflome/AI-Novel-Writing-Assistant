@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const {assert,fs,path}=require('./fixtures.cjs');
-const ts=require('typescript');
+const ts=require('typescript-legacy');
 const root=path.resolve(__dirname,'../../../src/modules/production/domain');
 function files(dir){return fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)]).filter(f=>f.endsWith('.ts')):[];}
 test('domain dependencies remain local and contain no effectful runtime APIs',()=>{

@@ -493,6 +493,12 @@ test("local trigger/check keep PG gate and Windows probe remains outside removed
   const release = req("js-yaml").load(fs.readFileSync(path.join(root, ".github/workflows/desktop-release.yml"), "utf8"));
   const verifyOnly = release.jobs["verify-only"];
   assert.equal(verifyOnly.needs, "pg-live-gate");
+  assert.equal(verifyOnly["runs-on"], "ubuntu-latest");
+  const packageCheck = release.jobs["verify-windows-package"];
+  assert.equal(packageCheck["runs-on"], "windows-latest");
+  assert.match(packageCheck.if, /workflow_dispatch/);
+  assert.ok(packageCheck.steps.some(step => step.run?.includes("--dir --win --x64 --publish never")));
+  assert.ok(packageCheck.steps.some(step => step.run === "node desktop/scripts/verify-desktop-package.cjs"));
   assert.ok(verifyOnly.steps.some(step => step.run === "node scripts/desktop-release/check.cjs"));
   assert.ok(!verifyOnly.steps.some(step => step.run?.includes("--publish always")));
   const win = release.jobs["build-windows"];

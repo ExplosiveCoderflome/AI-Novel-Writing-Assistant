@@ -6,8 +6,8 @@ const server = path.resolve(__dirname, '../../..');
 const fromServer = createRequire(path.join(server, 'package.json'));
 function native(file, imports) {
   const filename = path.join(server, 'src', file);
-  const compiled = fromServer('typescript').transpileModule(fs.readFileSync(filename, 'utf8'), {
-    compilerOptions: { module: fromServer('typescript').ModuleKind.CommonJS, target: fromServer('typescript').ScriptTarget.ES2022 }, fileName: filename,
+  const compiled = fromServer('typescript-legacy').transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: { module: fromServer('typescript-legacy').ModuleKind.CommonJS, target: fromServer('typescript-legacy').ScriptTarget.ES2022 }, fileName: filename,
   }).outputText;
   const exports = {};
   vm.runInThisContext(`(function(require,exports){${compiled}\n})`, { filename })(id => {
@@ -26,7 +26,10 @@ function resources() {
   const ledger = native('services/novel/characterResource/CharacterResourceLedgerService.ts', {
     '../../../db/prisma': { prisma: {} }, '../runtime/artifactSync/contracts': {}, './characterResourceShared': shared,
   });
-  const canonical = native('services/novel/state/CanonicalStateService.ts', { '../../../db/prisma': { prisma: {} }, '../characterResource/CharacterResourceLedgerService': ledger });
+  const canonical = native('services/novel/state/CanonicalStateService.ts', {
+    '../../../db/prisma': { prisma: {} }, '../characterResource/CharacterResourceLedgerService': ledger,
+    '../characters/forwardAdjustments/chapterFields': fromServer('./dist/services/novel/characters/forwardAdjustments/chapterFields'),
+  });
   const versions = native('services/novel/state/StateVersionLog.ts', { '../../../db/prisma': { prisma: {} } });
   return { canonical: new canonical.CanonicalStateService(), versions: new versions.StateVersionLog() };
 }

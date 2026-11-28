@@ -17,6 +17,7 @@ export interface NovelApplicationServices {
   createChapter: NovelApplicationMethod;
   updateChapter: NovelApplicationMethod;
   deleteChapter: NovelApplicationMethod;
+  setChapterProvenance: NovelApplicationMethod;
   listCharacters: NovelApplicationMethod;
   createCharacter: NovelApplicationMethod;
   updateCharacter: NovelApplicationMethod;
@@ -72,6 +73,9 @@ export interface NovelApplicationServices {
   previewChapterAiRevision: NovelApplicationMethod;
   previewChapterCursorContinuation: NovelApplicationMethod;
   getChapterEditorWorkspace: NovelApplicationMethod;
+  getNovelHumanStyleFeedback: NovelApplicationMethod;
+  recordNovelHumanStyleFeedback: NovelApplicationMethod;
+  removeNovelHumanStyleFeedback: NovelApplicationMethod;
   getNovelState: NovelApplicationMethod;
   getLatestStateSnapshot: NovelApplicationMethod;
   getChapterStateSnapshot: NovelApplicationMethod;
@@ -138,6 +142,7 @@ export const novelApplicationServiceMethodNames = [
   "createChapter",
   "updateChapter",
   "deleteChapter",
+  "setChapterProvenance",
   "listCharacters",
   "createCharacter",
   "updateCharacter",
@@ -191,6 +196,9 @@ export const novelApplicationServiceMethodNames = [
   "previewChapterAiRevision",
   "previewChapterCursorContinuation",
   "getChapterEditorWorkspace",
+  "getNovelHumanStyleFeedback",
+  "recordNovelHumanStyleFeedback",
+  "removeNovelHumanStyleFeedback",
   "getNovelState",
   "getLatestStateSnapshot",
   "getChapterStateSnapshot",

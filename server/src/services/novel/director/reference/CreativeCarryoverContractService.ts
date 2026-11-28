@@ -11,6 +11,7 @@ import {
   type CreativeCarryoverMode,
 } from "@ai-novel/shared/types/creativeCarryoverContract";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { getManualBookAnalysisContent } from "@ai-novel/shared/utils/bookAnalysisContent";
 import { prisma } from "../../../../db/prisma";
 import { AppError } from "../../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
@@ -71,8 +72,9 @@ function clipText(value: string, maxChars: number): string {
 }
 
 function formatSectionForPrompt(section: SectionRow): string {
+  const manualContent = getManualBookAnalysisContent(section);
   let structuredBlock = "";
-  if (section.structuredDataJson?.trim()) {
+  if (!manualContent && section.structuredDataJson?.trim()) {
     try {
       const parsed = JSON.parse(section.structuredDataJson) as unknown;
       if (parsed && typeof parsed === "object") {
@@ -88,7 +90,7 @@ function formatSectionForPrompt(section: SectionRow): string {
       structuredBlock = "";
     }
   }
-  const prose = section.editedContent?.trim() || section.aiContent?.trim() || "";
+  const prose = manualContent ?? section.aiContent?.trim() ?? "";
   const parts = [
     `## ${section.title} (${section.sectionKey})`,
     structuredBlock ? `结构化结论：\n${structuredBlock}` : "",

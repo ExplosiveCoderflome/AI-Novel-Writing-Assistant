@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { hasConfirmedExecutionContract } from "../../../../services/novel/production/preparation";
 import { NovelVolumeService } from "../../../../services/novel/volume/NovelVolumeService";
 import { readExecutionContractWorkspace } from "../../../../services/novel/volume/ChapterExecutionContractService";
 import { PlannerService } from "../../../../services/planner/PlannerService";
@@ -44,6 +45,7 @@ export function nativePreparation(deps: NativeStageDependencies) {
   const assembler = new GenerationContextAssembler();
   const usage = new PrismaInvocationUsageRepository(db.llmInvocationUsageRecord);
   const planning = createKernelNativePlanningPreparation({ db,
+    hasConfirmedExecutionContract: chapterId => hasConfirmedExecutionContract(db, context.contract.novelId, context.runId, chapterId),
     contract: new NovelVolumeService().createChapterExecutionContractService(), storyMacroPlanService: new StoryMacroPlanService(), planner,
     contractSources: { db, readWorkspace: id => readExecutionContractWorkspace(db, id),
       resolveStyleContract: async (novelId, chapterId, taskStyleProfileId) => buildWriterStyleContractText(

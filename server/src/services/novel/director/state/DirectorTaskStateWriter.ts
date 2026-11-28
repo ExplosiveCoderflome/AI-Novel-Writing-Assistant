@@ -1,4 +1,6 @@
 import type { Prisma } from "@prisma/client";
+import { AppError } from "../../../../middleware/errorHandler";
+import { candidateStoryFields } from "@ai-novel/shared/types/director/candidateReview";
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import type {
@@ -38,6 +40,7 @@ export type DirectorTaskInitializationInput = Omit<WorkflowBootstrapInput, "seed
 };
 
 export interface DirectorTaskInitializationOptions {
+  prepareOpeningCommand?: boolean;
   replaceLaunchContract?: "takeover" | "candidate_confirmation";
 }
 
@@ -82,6 +85,24 @@ function assertPreservesManualRecoveryLock(data: { pendingManualRecovery?: unkno
   }
 }
 
+/** Opening commands also carry older clients' copies of the batches. Keep an adopted direction authoritative. */
+function assertCurrentOpeningCandidates(current: DirectorTaskState, incoming: DirectorTaskState) {
+  const confirm = incoming.launch.directorInput;
+  const submittedBatches = incoming.run.batches;
+  for (const batch of current.run.batches ?? []) {
+    const submittedBatch = submittedBatches?.find(item => item.id === batch.id);
+    for (const candidate of batch.candidates) {
+      if (!candidate.reviewRevision) continue;
+      const isSelected = confirm?.candidate.id === candidate.id && (!confirm.batchId || confirm.batchId === batch.id);
+      if (!isSelected && !submittedBatches?.length) continue;
+      const submitted = isSelected ? confirm.candidate : submittedBatch?.candidates.find(item => item.id === candidate.id);
+      if (submitted?.reviewRevision !== candidate.reviewRevision || candidateStoryFields.some(field => submitted[field] !== candidate[field])) {
+        throw new AppError("候选方向有新修改，请刷新后再继续。", 409);
+      }
+    }
+  }
+}
+
 function mergeLaunchState(
   current: DirectorTaskState["launch"],
   incoming: DirectorTaskState["launch"],
@@ -106,6 +127,11 @@ export interface ClearPendingManualRecoveryInput {
 export class DirectorTaskStateWriter {
   constructor(private readonly workflowService: DirectorTaskStateWorkflowPort = new NovelWorkflowService()) {}
 
+  async prepareOpeningCommand(input: DirectorTaskInitializationInput) {
+    const task = await this.initializeTask(input, { prepareOpeningCommand: true });
+    return { id: task.id, openingStateFilter: { seedPayloadJson: task.seedPayloadJson } };
+  }
+
   async initializeTask(
     input: DirectorTaskInitializationInput,
     options: DirectorTaskInitializationOptions = {},
@@ -119,6 +145,7 @@ export class DirectorTaskStateWriter {
       : undefined;
     const workflowTaskId = input.workflowTaskId?.trim();
     let replacePersistedState = false;
+    let expectedSeedPayload: string | null | undefined;
     if (workflowTaskId && directorState && this.workflowService.getTaskById) {
       const currentTask = await this.workflowService.getTaskById(workflowTaskId);
       if (options.replaceLaunchContract === "candidate_confirmation"
@@ -127,6 +154,10 @@ export class DirectorTaskStateWriter {
       }
       if (currentTask?.lane === "auto_director") {
         const currentState = readDirectorTaskState(currentTask);
+        if (!currentTask.novelId && (options.prepareOpeningCommand || options.replaceLaunchContract === "candidate_confirmation")) {
+          expectedSeedPayload = currentTask.seedPayloadJson;
+          assertCurrentOpeningCandidates(currentState, directorState);
+        }
         const mayReplaceLaunchContract = options.replaceLaunchContract === "takeover"
           || (options.replaceLaunchContract === "candidate_confirmation" && currentTask.novelId === null);
         const launchConflict = mayReplaceLaunchContract
@@ -151,8 +182,8 @@ export class DirectorTaskStateWriter {
         seedPayload: {...JSON.parse(serializeDirectorTaskState(directorState)) as Record<string, unknown>, ...(directorVersion ? {directorVersion} : {})},
       }
       : bootstrapInput;
-    return replacePersistedState
-      ? this.workflowService.bootstrapTask(request, { replaceSeedPayload: true })
+    return replacePersistedState || expectedSeedPayload !== undefined
+      ? this.workflowService.bootstrapTask(request, { replaceSeedPayload: replacePersistedState, expectedSeedPayload })
       : this.workflowService.bootstrapTask(request);
   }
 

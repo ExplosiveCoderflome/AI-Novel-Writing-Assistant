@@ -10,7 +10,7 @@ test("A3 产品反馈面板使用既有合同，默认关闭，并在未绑定�
     read("../src/api/outlines.ts"),
     read("../src/pages/outlines/OutlineFeedbackPanel.tsx"),
     read("../src/pages/outlines/OutlineWorkspacePage.tsx"),
-    read("../src/pages/outlines/OutlineListPage.tsx"),
+    read("../src/pages/outlines/library/OutlineLibrary.tsx"),
     read("../../docs/wiki/workflows/outline-text-feedback.md"),
   ]);
 

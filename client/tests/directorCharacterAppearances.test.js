@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createRequire} from 'node:module';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {nodeStyles} from './support/nodeStyles.js';
 
 test('initial character schedules display before chapters exist and detailed empty schedules override them', async () => {
   const model=await import('../src/pages/directorNext/workspace/characters/appearanceModel.ts');
@@ -157,9 +158,13 @@ const scheduledBook={...book,planning:{volumes:[{chapters:[
   {id:'p2',chapterOrder:2,title:'空安排章',plannedCharacterIds:[]},
 ]}]}};
 export const initialSchedule=renderToStaticMarkup(<CastTimelineChart book={scheduledBook} chapters={[]} onSelect={()=>{}}/>);
+const separated=[1,2,3,4,6].map(order=>({chapterId:'c'+order,chapterOrder:order,chapterTitle:'章'+order,
+  plannedCharacterIds:order<=3 ? ['a'] : [],coverage:order===3 ? 'unwritten' : 'recorded',
+  events:order===3 ? [] : [{characterId:'a',kind:'present',summary:'登场'}]}));
+export const gapped=renderToStaticMarkup(<CastTimelineChart book={book} chapters={separated} onSelect={()=>{}}/>);
 export const empty=renderToStaticMarkup(<CastTimelineChart book={{...book,materials:{characters:[]}}} chapters={[]} onSelect={()=>{}}/>);`,
-      resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
-    const {chart,planningOnly,initialSchedule,empty}=await import(pathToFileURL(output).href);
+      resolveDir:clientDir,loader:'tsx'},bundle:true,platform:'node',format:'esm',packages:'external',plugins:[nodeStyles],alias:{'@':path.join(clientDir,'src')},define:{'import.meta.env':'{}'},outfile:output});
+    const {chart,planningOnly,initialSchedule,gapped,empty}=await import(pathToFileURL(output).href);
     assert.match(chart,/aria-label="全员角色出场甘特图"/);
     assert.match(chart,/2 位角色 · 3 章/);
     assert.match(chart,/aria-label="青禾 · 第 1 章 · 药铺：计划出场；实际出场：开门"/);
@@ -174,6 +179,12 @@ export const empty=renderToStaticMarkup(<CastTimelineChart book={{...book,materi
     assert.match(initialSchedule,/aria-label="阿宁 · 第 1 章 · 初排章：未安排现场出场；待写正文"/);
     assert.match(initialSchedule,/aria-label="青禾 · 第 2 章 · 空安排章：未安排现场出场；待写正文"/);
     assert.doesNotMatch(initialSchedule,/data-appearance-kind="present"|章尚待生成角色出场安排/);
+    const ends = (markup, kind) => [...markup.matchAll(new RegExp('class="cast-bar cast-'+kind+'" data-start="(true|false)" data-end="(true|false)"','g'))].map(m=>m.slice(1));
+    assert.deepEqual(ends(gapped,'plan'), [['true','false'],['false','false'],['false','true']]);
+    assert.deepEqual(ends(gapped,'actual'), [['true','false'],['false','true'],['true','true'],['true','true']]);
+    assert.match(gapped,/aria-label="第 1—2 章 · 正文已核对"/);
+    assert.match(gapped,/aria-label="第 3 章 · 待写正文"/);
+    assert.doesNotMatch(gapped,/第 4—6 章 · 正文已核对/);
     assert.match(empty,/本书暂无角色/);
   } finally {fs.rmSync(output,{force:true});}
 });

@@ -6,6 +6,7 @@ import type { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncServi
 import type { characterDynamicsQueryService } from "../../novel/dynamics/CharacterDynamicsQueryService";
 
 export interface PlannerOptions extends PlannerLlmOptions {
+  preserveExecutionContract?: boolean;
   taskStyleProfileId?: string;
 }
 

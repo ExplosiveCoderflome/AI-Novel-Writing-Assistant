@@ -29,6 +29,7 @@ export interface LlmLiveContext {
   provider?: string | null;
   model?: string | null;
   promptText?: string | null;
+  reasoningEnabled?: boolean;
 }
 
 export interface LlmLiveTokenUsage {

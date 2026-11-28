@@ -18,6 +18,7 @@ export interface VisualAssetLibraryProps {
 export interface VisualAssetLibraryDialogProps extends Omit<VisualAssetLibraryProps, "className"> {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export interface VisualAssetPickerDialogProps extends Omit<VisualAssetLibraryDialogProps, "selectionMode" | "onSelect"> {

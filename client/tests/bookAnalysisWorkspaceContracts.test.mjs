@@ -137,3 +137,12 @@ test("book analysis stays on semantic tokens without decorative gradients", () =
   assert.doesNotMatch(sources, /(?:slate|amber|yellow|emerald|sky|rose|red|green|blue)-\d/);
   assert.doesNotMatch(sources, /bg-gradient/);
 });
+
+test("book analysis compares generated and edited text before adoption through the save action", () => {
+  const card = read("src/pages/bookAnalysis/components/BookAnalysisSectionCard.tsx");
+  assert.match(card, /对比 AI 生成版/);
+  assert.match(card, /有新的生成结果/);
+  assert.match(card, /onClick=\{\(\) => onDraftChange\(section, \{ editedContent: aiContent \}\)\}/);
+  assert.match(card, /填入正文草稿，保存后生效/);
+  assert.match(card, /onClick=\{\(\) => onSave\(section\)\}/);
+});

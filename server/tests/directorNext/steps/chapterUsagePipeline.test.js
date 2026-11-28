@@ -64,6 +64,8 @@ async function exercise({ initialTokens = 0, checkpoints, chapterTokens = 100_00
     Object.assign(job, data); return job;
   });
   replace(prisma.novel, 'findUnique', async () => ({ id: 'book', title: '测试小说', estimatedChapterCount: bookTargetChapterCount ?? (rolling === 'range' ? 10 : 2) }));
+  // This budget fixture allows future planning and has no assisted contract to preserve.
+  replace(prisma.directorNextRun, 'findFirst', async () => null);
   let routePrepared = !rolling || secondClosed;
   replace(prisma.chapter, 'findMany', async () => routePrepared ? chapters : chapters.slice(0, 1));
   replace(prisma.chapter, 'findFirst', async ({ where }) => chapters.find(chapter => where.id ? chapter.id === where.id : chapter.order === where.order));
