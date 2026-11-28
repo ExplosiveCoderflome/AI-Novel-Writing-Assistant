@@ -6,6 +6,7 @@ import type { DirectorBookContractPromptInput } from "../../prompting/prompts/no
 import type { VolumeChapterPlan, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import {directorChapterTokenLimitSchema} from "@ai-novel/shared/types/director/chapterBudget";
 import { AppError } from "../../middleware/errorHandler";
+import {directorVolumeChapterPlanFilter} from "./planning";
 
 export function requireLaunch(contract: RunContract) {
   const input = contract.launchInput;
@@ -90,7 +91,7 @@ export async function readExecutionWindow(context: StepContext, workspace: Volum
   const {targets, executionRange} = executionWindow(context, workspace);
   const {novelId, launchInput} = context.contract;
   const orders = new Map(workspace.volumes.flatMap(volume => volume.chapters.map(chapter => [chapter.id, chapter.chapterOrder] as const)));
-  const rows = await prisma.volumeChapterPlan.findMany({where: {volume: {novelId, status:"active"}, chapterOrder: {gte: executionRange.startOrder, lte: executionRange.endOrder}}});
+  const rows = await prisma.volumeChapterPlan.findMany({where: {volume: directorVolumeChapterPlanFilter(novelId), chapterOrder: {gte: executionRange.startOrder, lte: executionRange.endOrder}}});
   const matched = new Set<string>();
   let hydrated = workspace;
   for (const target of targets) {
